@@ -1,0 +1,20 @@
+# Workbench
+
+Workbench is fully open-source software for gemstone and jewelry businesses. It is intended to
+connect three areas that are often managed separately: inventory and collections, bookkeeping and
+accounting, and commerce.
+
+The project is at the design stage. Its first goal is to establish durable product and design
+principles before selecting an application architecture or technology stack.
+
+## Start here
+
+- [Product vision](docs/VISION.md)
+- [Design principles](docs/DESIGN-PRINCIPLES.md)
+- [Documentation guide](docs/README.md)
+- [Contributing](CONTRIBUTING.md)
+
+## Open source
+
+Workbench is licensed under the [GNU Affero General Public License v3.0](LICENSE). It may be used
+locally, self-hosted, or provided as a hosted service under the terms of that license.
