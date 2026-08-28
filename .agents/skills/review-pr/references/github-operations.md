@@ -5,7 +5,7 @@ Replace `<n>`, `<owner>`, `<repo>`, `<base>`, `<head>`, `<anchor>`, and placehol
 ## Read the PR and checks
 
 ```powershell
-gh pr view <n> --json number,title,url,state,baseRefName,headRefName,headRefOid
+gh pr view <n> --json number,title,url,state,labels,baseRefName,headRefName,headRefOid
 gh pr checks <n>
 ```
 
