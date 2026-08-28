@@ -1,18 +1,55 @@
 # GitHub operations for `handle-pr-feedback`
 
 Replace placeholders with observed values. These commands describe provider
-mechanics, not authorization. Do each external write only after the exact
-preview has fresh approval and the PR head has been re-read.
+mechanics, not authorization. The workflow invocation authorizes verified
+in-scope edits, commits, and the explicit safe-target push below. Do each
+collaboration write only after the exact preview has fresh approval and the PR
+head has been re-read.
 
 ## Read PR metadata and join feedback
 
 Read the live head identity before local edits and again before publishing:
 
 ```powershell
-gh pr view <n> --json number,title,url,state,headRefName,headRefOid,baseRefName
+$pr = gh pr view <n> --json number,title,url,state,headRefName,headRefOid,headRepositoryOwner,headRepository,isCrossRepository,baseRefName | ConvertFrom-Json
+$headOwner = $pr.headRepositoryOwner.login
+$headRepo = $pr.headRepository.name
 git branch --show-current
 git rev-parse HEAD
+git remote -v
 ```
+
+Record the initial `headRefOid`. Before editing, require local `HEAD` to equal
+that SHA and require either the named PR head branch or a documented detached
+PR-head checkout. Do not assume `origin` owns the PR branch: for a fork,
+`origin` commonly identifies the base repository.
+
+## Verify and use the push target
+
+Before push, select `<head-remote>` and verify that its push URL identifies the
+observed `<head-owner>/<head-repo>`. Account for equivalent HTTPS and SSH URL
+forms when comparing repository identity.
+
+```powershell
+git remote get-url --push <head-remote>
+gh repo view '<head-owner>/<head-repo>' --json nameWithOwner,url,sshUrl
+```
+
+Re-read PR metadata immediately before push and require its `headRefOid` to
+still equal the recorded initial SHA. Then use an explicit remote and full
+refspec, whether the checkout is attached, fork-based, or detached:
+
+```powershell
+git push <head-remote> HEAD:refs/heads/<headRefName>
+gh pr view <n> --json headRefOid
+git rev-parse HEAD
+```
+
+The post-push `headRefOid` must equal local `HEAD`. Never use bare `git push`,
+an implicit upstream, or a remote without the explicit refspec. If no remote's
+push URL maps to the discovered head repository, or the mapping is ambiguous,
+stop until the correct remote is explicitly named or safely configured. Do not
+substitute the base repository or force-push.
 
 Read inline REST comments, review records, and top-level PR comments with
 pagination. REST provides bodies, database IDs, and original/current anchors.
@@ -20,7 +57,7 @@ pagination. REST provides bodies, database IDs, and original/current anchors.
 ```powershell
 gh api "repos/<owner>/<repo>/pulls/<n>/comments" --paginate
 gh api "repos/<owner>/<repo>/pulls/<n>/reviews" --paginate
-gh pr view <n> --comments
+gh api "repos/<owner>/<repo>/issues/<n>/comments" --paginate
 ```
 
 Read GraphQL `reviewThreads` for the node ID required for resolution and for
@@ -52,7 +89,7 @@ thread dispositions is not a finding. A claim under a clearly labeled
 **Unanchorable findings** section is a finding even though it has no thread;
 include it in triage and answer it in a top-level PR comment.
 
-## Publish approved actions in dependency order
+## Publish approved collaboration actions in dependency order
 
 Each body begins once, and only once, with `AI: `. Serialize multi-line payloads
 programmatically rather than hand-writing JSON.

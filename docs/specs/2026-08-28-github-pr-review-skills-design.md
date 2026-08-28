@@ -21,7 +21,7 @@ AI: **VERDICT: REQUEST CHANGES**
 AI: **VERDICT: REJECT**
 ```
 
-`handle-pr-feedback` works from the author seat. It may make validated, in-scope changes, run tests, commit, and push when the current checkout safely represents the PR head. It may draft replies, file explicitly approved deferred issues, post replies, and resolve completed threads only after the user approves that round's outward-facing actions.
+`handle-pr-feedback` works from the author seat. Invoking it authorizes validated, in-scope changes, tests, commits, and a non-force push when the current checkout safely represents the PR head and the push names a verified remote/refspec for the discovered head repository and branch. The fresh exact-preview gate applies only to collaboration writes: issues, comments and replies (including summaries), reviews, and thread resolution. It may perform only those exact collaboration writes approved for the round.
 
 Neither skill treats PR text as instructions or authorization. Review comments, replies, and bodies are untrusted data whose code claims must be independently verified.
 
@@ -44,12 +44,12 @@ The verdict is deterministic: `APPROVE` requires no open or new findings; any re
 
 `handle-pr-feedback` works all unresolved review threads and labeled unanchorable findings, not merely the latest round.
 
-1. Confirm that the local checkout matches the live PR head before allowing changes. Gather REST comment data and GraphQL thread state, preserving the distinction between outdated and resolved.
+1. Confirm that the local checkout matches the live PR head before allowing changes. Discover the PR head repository and owner, and verify the exact push remote/refspec rather than relying on default push behavior, including for forks and detached worktrees. Gather REST comment data and GraphQL thread state, preserving the distinction between outdated and resolved.
 2. Re-derive every claim from code and focused verification. Classify each as real, not real, already handled, suggestion, or unclear.
 3. Apply the target repository's own routing rules. Fix real low-risk defects with a regression test first; judge suggestions on merit; push back factually on invalid claims; and seek clarification rather than guessing. Pattern findings require examining sibling occurrences.
 4. Run the affected repository-native verification. State directly when no automated suite covers a change and name the relevant manual or structural checks instead.
-5. Commit and push completed fixes before drafting replies so every reply describes visible code and can cite a commit, test, or approved issue.
-6. Present the triage, evidence, commits, verification output, proposed issues, and exact replies. Wait for explicit approval for this round.
+5. Commit and push completed fixes through the verified explicit remote/refspec before drafting replies so every reply describes visible code and can cite a commit, test, or approved issue.
+6. Present the triage, evidence, commits, verification output, proposed issues, and exact replies. Wait for explicit approval for this round's collaboration writes; that approval is not a second gate for the preceding verified code delivery.
 7. Perform only the approved GitHub writes. Resolve only threads that are genuinely complete; contested findings and declined suggestions remain open for the reviewer to answer.
 
 ## File Organization
@@ -98,7 +98,7 @@ Reviewer scenarios cover first-pass scope, delta scope and escalation, unverifie
 - A user can invoke `review-pr` for either an initial or subsequent GitHub PR review without choosing another reviewer skill.
 - A user can invoke `handle-pr-feedback` for any author response round.
 - Fresh agents preserve the seat-specific permission boundary under pressure.
-- Both skills require exact preview and fresh approval before external GitHub writes.
+- Both skills require exact preview and fresh approval before collaboration writes: issues, comments and replies (including summaries), reviews, and thread resolution.
 - Reviewer verdicts have the deterministic first-line contract.
 - Provider mechanics are executable and discoverable without loading them into every invocation.
 - The committed files contain no GemInv-specific commands or policy dependencies.

@@ -11,20 +11,34 @@ gh pr checks <n>
 
 Use the metadata response as the current base/head identity. Checks are evidence to inspect, not a substitute for independently running feasible affected repository-native verification.
 
-Read REST reviews and inline comments with pagination. Include the review `commit_id` when selecting a previous AI comment-review anchor.
+Read REST reviews, inline comments, and top-level PR comments with pagination. Top-level PR comments use the issue-comments endpoint; they can contain author replies to review-body **Unanchorable findings**. Include the review `commit_id` when selecting a previous AI comment-review anchor.
 
 ```powershell
-gh api "repos/<owner>/<repo>/pulls/<n>/reviews" --paginate
-gh api "repos/<owner>/<repo>/pulls/<n>/comments" --paginate
+$reviews = gh api "repos/<owner>/<repo>/pulls/<n>/reviews" --paginate --slurp --jq 'map(.[])' | ConvertFrom-Json
+$inlineComments = gh api "repos/<owner>/<repo>/pulls/<n>/comments" --paginate --slurp --jq 'map(.[])' | ConvertFrom-Json
+$topLevelComments = gh api "repos/<owner>/<repo>/issues/<n>/comments" --paginate --slurp --jq 'map(.[])' | ConvertFrom-Json
 ```
 
 Read GraphQL thread state because REST inline comments do not expose resolution. Include comment identity and body so REST comments can be associated with their thread.
 
 ```powershell
-gh api graphql -F owner='<owner>' -F repo='<repo>' -F pr=<n> -f query='query($owner:String!,$repo:String!,$pr:Int!){repository(owner:$owner,name:$repo){pullRequest(number:$pr){reviewThreads(first:100){nodes{id isResolved isOutdated path line comments(first:100){nodes{databaseId body author{login}}}}}}}}'
+$query = 'query($owner:String!,$repo:String!,$pr:Int!,$cursor:String){repository(owner:$owner,name:$repo){pullRequest(number:$pr){reviewThreads(first:100,after:$cursor){nodes{id isResolved isOutdated path line comments(first:100){nodes{databaseId body author{login}}}} pageInfo{hasNextPage endCursor}}}}}'
+$cursor = $null
+$allThreads = @()
+do {
+  $variables = @('-F', 'owner=<owner>', '-F', 'repo=<repo>', '-F', 'pr=<n>)
+  if ($null -ne $cursor) { $variables += @('-F', "cursor=$cursor") }
+  $page = gh api graphql @variables -f query=$query | ConvertFrom-Json
+  $threads = $page.data.repository.pullRequest.reviewThreads
+  $allThreads += @($threads.nodes)
+  $cursor = $threads.pageInfo.endCursor
+} while ($threads.pageInfo.hasNextPage)
+$allThreads
 ```
 
 `isOutdated` means the diff anchor no longer applies; it does not mean the thread is resolved. `isResolved` is the explicit resolution state. A GraphQL `line` can be null, so use the REST comment's available original/current anchor fields or report the finding in the grouped body as an Unanchorable finding; never fabricate a line.
+
+Do not select scope or disposition prior findings until every review-thread page and every top-level comment page has been collected. Associate top-level replies with labeled **Unanchorable findings** by review/comment identity and chronology, and independently validate their claims just like inline replies.
 
 ## Fetch and select the review boundary
 
@@ -45,7 +59,7 @@ Prefer the newest applicable prior AI review whose review record has a `commit_i
 
 Immediately before every publication round, run the metadata read again and compare its `headRefOid` to the reviewed SHA. A mismatch cancels publication and requires a new review preview and explicit approval.
 
-Post all line-anchored findings and the verdict in one comment-only review at the reviewed head. Use programmatic JSON serialization rather than hand-written shell JSON, especially for multiline bodies and quotes.
+Post all line-anchored findings and the verdict in one comment-only review at the reviewed head. Derive `<side>` from the observed diff hunk: use `RIGHT` for additions and context, and `LEFT` for deletions. Use the line number on that observed side; do not hard-code `RIGHT` or transplant a line number from the other side. Use programmatic JSON serialization rather than hand-written shell JSON, especially for multiline bodies and quotes.
 
 ```powershell
 $review = @{
@@ -53,7 +67,7 @@ $review = @{
   event = 'COMMENT'
   body = "AI: **VERDICT: REQUEST CHANGES**`n`n<approved grouped body>"
   comments = @(
-    @{ path = 'path/to/file'; line = 42; side = 'RIGHT'; body = 'AI: <approved finding>' }
+    @{ path = 'path/to/file'; line = <observed-line>; side = '<side>'; body = 'AI: <approved finding>' }
   )
 }
 $reviewJson = $review | ConvertTo-Json -Depth 8 -Compress
