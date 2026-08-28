@@ -102,4 +102,3 @@ Reviewer scenarios cover first-pass scope, delta scope and escalation, unverifie
 - Reviewer verdicts have the deterministic first-line contract.
 - Provider mechanics are executable and discoverable without loading them into every invocation.
 - The committed files contain no GemInv-specific commands or policy dependencies.
-
