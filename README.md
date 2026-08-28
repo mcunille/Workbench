@@ -19,4 +19,10 @@ principles before selecting an application architecture or technology stack.
 Workbench is licensed under the [GNU Affero General Public License v3.0](LICENSE). It may be used
 locally, self-hosted, or provided as a hosted service under the terms of that license.
 
+Workbench is provided without warranty; see sections 15 through 17 of the license.
+
+The project is designed and developed with substantial AI assistance. See the
+[AI disclosure](AI-DISCLOSURE.md) for details about how AI tools are used and how human
+responsibility is preserved.
+
 The Workbench name and branding are governed separately by the [trademark policy](TRADEMARKS.md).
