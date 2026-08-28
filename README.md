@@ -1,8 +1,8 @@
-# Workbench
+# Workbench™
 
-Workbench is fully open-source software for gemstone and jewelry businesses. It is intended to
-connect three areas that are often managed separately: inventory and collections, bookkeeping and
-accounting, and commerce.
+Workbench is fully open-source software by The White Stag Collection for gemstone and jewelry
+hobbyists, collectors, and businesses. It is intended to connect three areas that are often managed
+separately: inventory and collections, bookkeeping and accounting, and commerce.
 
 The project is at the design stage. Its first goal is to establish durable product and design
 principles before selecting an application architecture or technology stack.
@@ -18,3 +18,5 @@ principles before selecting an application architecture or technology stack.
 
 Workbench is licensed under the [GNU Affero General Public License v3.0](LICENSE). It may be used
 locally, self-hosted, or provided as a hosted service under the terms of that license.
+
+The Workbench name and branding are governed separately by the [trademark policy](TRADEMARKS.md).

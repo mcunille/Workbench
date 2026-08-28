@@ -26,3 +26,6 @@ the project's current direction and must remain understandable without reconstru
 
 By contributing, you agree that your contributions will be licensed under the repository's
 [GNU Affero General Public License v3.0](LICENSE).
+
+The source-code license does not grant rights to the Workbench name or branding. See the
+[trademark policy](TRADEMARKS.md).
