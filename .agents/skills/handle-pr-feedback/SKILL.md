@@ -98,8 +98,10 @@ body exactly once with `AI: `.
 
 The author may resolve a thread only after a visible fix or already-handled
 evidence and the approved response have been posted. Resolve only fixed,
-already-handled, or reviewer-conceded threads. Leave outdated-but-unresolved,
-disagreed-with, and declined-suggestion threads open until reviewer concession.
+already-handled, or reviewer-conceded threads. An outdated thread stays open
+only when it is not genuinely complete; a verified fixed thread remains
+eligible for resolution after its approved reply is posted. Leave
+disagreed-with and declined-suggestion threads open until reviewer concession.
 
 ## Red flags
 

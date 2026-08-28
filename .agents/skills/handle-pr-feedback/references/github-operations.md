@@ -24,10 +24,21 @@ gh pr view <n> --comments
 ```
 
 Read GraphQL `reviewThreads` for the node ID required for resolution and for
-the authoritative `isResolved` and `isOutdated` state:
+the authoritative `isResolved` and `isOutdated` state. Follow the connection's
+cursor until `pageInfo.hasNextPage` is false; `first:100` alone is not an
+inventory of all unresolved threads:
 
 ```powershell
-gh api graphql -F owner='<owner>' -F repo='<repo>' -F pr=<n> -f query='query($owner:String!,$repo:String!,$pr:Int!){repository(owner:$owner,name:$repo){pullRequest(number:$pr){reviewThreads(first:100){nodes{id isResolved isOutdated path line comments(first:100){nodes{databaseId body author{login}}}}}}}}'
+$query = 'query($owner:String!,$repo:String!,$pr:Int!,$cursor:String){repository(owner:$owner,name:$repo){pullRequest(number:$pr){reviewThreads(first:100,after:$cursor){nodes{id isResolved isOutdated path line comments(first:100){nodes{databaseId body author{login}}}} pageInfo{hasNextPage endCursor}}}}}'
+$cursor = $null
+do {
+  $variables = @('-F', 'owner=<owner>', '-F', 'repo=<repo>', '-F', 'pr=<n>')
+  if ($null -ne $cursor) { $variables += @('-F', "cursor=$cursor") }
+  $page = gh api graphql @variables -f query=$query | ConvertFrom-Json
+  $threads = $page.data.repository.pullRequest.reviewThreads
+  $threads.nodes
+  $cursor = $threads.pageInfo.endCursor
+} while ($threads.pageInfo.hasNextPage)
 ```
 
 Join GraphQL comment `databaseId` to the REST comment ID. REST does not expose
@@ -72,8 +83,10 @@ gh pr comment <n> --body 'AI: <approved round summary>'
 
 4. Resolve only an approved thread that is genuinely complete: fixed,
    already handled with visible evidence, or reviewer-conceded. The author can
-   resolve at this point. Do not resolve merely outdated, contested, or
-   declined-suggestion threads; those remain open for reviewer response.
+   resolve at this point. A verified fixed thread remains eligible even when
+   its anchor is outdated. Do not resolve a thread merely because it is
+   outdated, or when it is contested or a declined suggestion; those remain
+   open for reviewer response.
 
 ```powershell
 gh api graphql -f threadId='PRRT_...' -f query='mutation($threadId:ID!){resolveReviewThread(input:{threadId:$threadId}){thread{isResolved}}}'
