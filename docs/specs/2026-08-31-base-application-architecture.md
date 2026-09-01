@@ -232,7 +232,8 @@ HTTP contracts.
 Tenant isolation uses multiple layers:
 
 1. Authentication resolves the current user from durable server-side state.
-2. The user establishes one immutable request `TenantId`.
+2. The server derives and fixes one immutable request `TenantId` from durable authenticated
+   membership.
 3. Application data access applies tenant scoping by default.
 4. Tenant-local uniqueness includes `TenantId`.
 5. Relationships between tenant-owned records enforce tenant consistency with database constraints.
