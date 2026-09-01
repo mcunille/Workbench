@@ -150,10 +150,11 @@ dotnet add tests/Workbench.Web.IntegrationTests/Workbench.Web.IntegrationTests.c
 dotnet restore Workbench.slnx
 ```
 
-Commit both generated `packages.lock.json` files. Every later restore uses `--locked-mode`; dependency
-changes must deliberately regenerate and review the locks. Delete template test files that are
-replaced by the named test below. Do not create application class-library projects until a real
-module needs one.
+Commit both generated `packages.lock.json` files. After each intentional project or dependency
+change, regenerate and review locks once, then immediately prove `dotnet restore --locked-mode`;
+verification, build, test, format, publish, and CodeQL commands must not restore implicitly. Delete
+template test files replaced by the named test below. Do not create application class-library
+projects until a real module needs one.
 
 - [ ] **Step 2: Write the failing endpoint test**
 
@@ -197,7 +198,7 @@ can create the host. Do not map the endpoint yet.
 Run:
 
 ```powershell
-dotnet test tests/Workbench.Web.IntegrationTests/Workbench.Web.IntegrationTests.csproj --filter Status_returns_the_public_service_contract
+dotnet test tests/Workbench.Web.IntegrationTests/Workbench.Web.IntegrationTests.csproj --filter Status_returns_the_public_service_contract --no-restore
 ```
 
 Expected: FAIL because `/api/system/status` returns `404 Not Found`.
@@ -253,9 +254,9 @@ Run:
 ```powershell
 dotnet restore Workbench.slnx --locked-mode
 dotnet test tests/Workbench.Web.IntegrationTests/Workbench.Web.IntegrationTests.csproj --filter Status_returns_the_public_service_contract --no-restore
-dotnet build Workbench.slnx --configuration Release
+dotnet build Workbench.slnx --configuration Release --no-restore
 dotnet test Workbench.slnx --configuration Release --no-build
-dotnet format Workbench.slnx --verify-no-changes
+dotnet format Workbench.slnx --verify-no-changes --no-restore
 ```
 
 Expected: all commands exit `0`; the focused test reports one passing test.
@@ -567,7 +568,7 @@ its default `_client`, and add `using Microsoft.AspNetCore.Hosting;` for `UseEnv
 Run:
 
 ```powershell
-dotnet test tests/Workbench.Web.IntegrationTests/Workbench.Web.IntegrationTests.csproj --filter HostingBehaviorTests
+dotnet test tests/Workbench.Web.IntegrationTests/Workbench.Web.IntegrationTests.csproj --filter HostingBehaviorTests --no-restore
 ```
 
 Expected: FAIL because the health endpoints are not mapped.
@@ -754,8 +755,8 @@ Add this target to `Workbench.Web.csproj`:
 Run:
 
 ```powershell
-dotnet test Workbench.slnx --configuration Release
-dotnet publish src/Workbench.Web/Workbench.Web.csproj --configuration Release --output artifacts/publish
+dotnet test Workbench.slnx --configuration Release --no-restore
+dotnet publish src/Workbench.Web/Workbench.Web.csproj --configuration Release --no-restore --output artifacts/publish
 Test-Path artifacts/publish/wwwroot/index.html
 ```
 
@@ -805,6 +806,7 @@ Create a dependency-free health probe that can run inside the minimal ASP.NET ru
 dotnet new console -n Workbench.HealthProbe -o src/Workbench.HealthProbe --framework net10.0
 dotnet sln Workbench.slnx add src/Workbench.HealthProbe/Workbench.HealthProbe.csproj
 dotnet restore Workbench.slnx
+dotnet restore Workbench.slnx --locked-mode
 ```
 
 Replace `src/Workbench.HealthProbe/Program.cs` with:
@@ -1096,6 +1098,7 @@ git commit -m "Document and automate local verification"
 
 **Files:**
 - Create: `.github/workflows/ci.yml`
+- Create: `.github/dependabot.yml`
 - Modify: `.github/workflows/codeql.yml`
 
 **Interfaces:**
@@ -1186,9 +1189,14 @@ matrix:
       build-mode: none
 ```
 
-Replace the existing manual-build step with a C#-only step that installs .NET 10 and runs
-`dotnet build Workbench.slnx --configuration Release`. Keep the existing minimal permissions and
-scheduled scan.
+Replace the existing manual-build step with a C#-only step that installs .NET 10 and runs:
+
+```powershell
+dotnet restore Workbench.slnx --locked-mode
+dotnet build Workbench.slnx --configuration Release --no-restore
+```
+
+Keep the existing minimal permissions and scheduled scan.
 
 Pin every `uses:` reference in both `.github/workflows/ci.yml` and the modified CodeQL workflow,
 including `actions/checkout`, `actions/setup-dotnet`, `actions/setup-node`,
@@ -1200,7 +1208,39 @@ gh api repos/aquasecurity/trivy-action/commits/v0.36.0 --jq .sha
 gh api repos/github/codeql-action/commits/v4 --jq .sha
 ```
 
-- [ ] **Step 4: Validate workflow syntax and run all local equivalents**
+- [ ] **Step 4: Assign recurring dependency and digest updates**
+
+Create `.github/dependabot.yml` so pinned Docker digests, GitHub Action SHAs, npm packages, and NuGet
+packages receive reviewable weekly pull requests:
+
+```yaml
+version: 2
+updates:
+  - package-ecosystem: docker
+    directory: /
+    schedule:
+      interval: weekly
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+  - package-ecosystem: npm
+    directory: /src/Workbench.Client
+    schedule:
+      interval: weekly
+  - package-ecosystem: nuget
+    directories:
+      - /src/Workbench.Web
+      - /src/Workbench.HealthProbe
+      - /tests/Workbench.Web.IntegrationTests
+    schedule:
+      interval: weekly
+```
+
+Do not auto-merge dependency updates. Review the upstream release and changed digest/SHA, regenerate
+locks where applicable, and require the full verification, image scan, and CodeQL gates.
+
+- [ ] **Step 5: Validate workflow syntax and run all local equivalents**
 
 Run:
 
@@ -1216,10 +1256,10 @@ git diff --check
 Expected: all commands exit `0`. Inspect the Actions run after push and require all three CodeQL
 matrix entries plus both CI jobs to complete successfully before merging.
 
-- [ ] **Step 5: Commit CI enforcement**
+- [ ] **Step 6: Commit CI enforcement**
 
 ```powershell
-git add .github/workflows/ci.yml .github/workflows/codeql.yml
+git add .github/workflows/ci.yml .github/workflows/codeql.yml .github/dependabot.yml
 git commit -m "Enforce application foundation checks"
 ```
 
