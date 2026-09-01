@@ -45,8 +45,10 @@ require focused specifications.
 10. Database migrations are an explicit deployment operation and do not run automatically when a
     web replica starts.
 11. Secrets and provider credentials enter through deployment configuration and are never stored in
-    source control or served to the browser.
+    source control, logs, the container image, or the browser.
 12. New infrastructure is introduced only when measured requirements justify its operational cost.
+13. Ordinary dual writes across independent stores are prohibited. Cross-store synchronization has
+    one explicit source of truth, durable delivery, idempotency, observable retries, and reconciliation.
 
 ## Application structure
 
@@ -108,13 +110,15 @@ Tenant isolation is enforced in layers:
 2. Request middleware establishes one immutable `TenantId` for the request.
 3. Application commands and queries require tenant context.
 4. Repository and ORM conventions apply tenant filters to tenant-owned data.
-5. Keys, foreign keys, and uniqueness constraints preserve tenant ownership where practical.
+5. Relationships between tenant-owned records enforce tenant consistency with database constraints,
+   and tenant-local uniqueness includes `TenantId`.
 6. Blob object names and metadata are tenant-scoped.
 7. Integration and adversarial tests attempt cross-tenant reads, writes, identifier substitution,
    attachment access, and background processing.
 
 The system must not accept a caller-supplied tenant identifier as authority. Administrative and
-background operations use explicit privileged contexts and remain auditable.
+background operations use separate, explicit privileged interfaces and remain auditable. Platform
+administration is a separate authority and receives no implicit access to tenant data.
 
 Before tenant domain data is implemented, a focused design must evaluate SQL Server row-level
 security with connection pooling, migrations, background jobs, and administrative access. The
@@ -136,6 +140,11 @@ Uploads are streamed, bounded by configured limits, checked against an allowlist
 content inspection rather than trusting the supplied extension or media type. Writes use a staged
 lifecycle so a blob and its SQL metadata cannot silently diverge. Provider contract tests cover both
 Azure Blob Storage and filesystem implementations.
+
+Failed uploads, abandoned temporary objects, and missing bytes are expected failure states. A
+reconciliation operation reports and safely handles metadata/blob divergence without deleting
+unrelated tenant content. If another store is introduced later, application code must not pretend it
+shares an ACID transaction with SQL.
 
 The filesystem provider resolves every generated object identifier beneath one dedicated absolute
 storage root and verifies canonical containment before access. It rejects path separators, absolute
@@ -166,7 +175,10 @@ flows use non-enumerating failure responses, shared multi-replica-safe rate limi
 Rate limits include a normalized account dimension and a client-network dimension derived only
 through trusted proxy configuration, so adding replicas cannot reset an attacker's attempt budget.
 Password reset and email verification use verified, time-limited operations through a provider-neutral
-email contract; local development uses a safe local sink.
+email contract. Messages contain short-lived, single-purpose links and never disclose account
+existence to an unauthenticated requester. Local development uses a non-delivering sink. Production
+readiness requires a configured provider; the initial portable provider uses authenticated SMTP with
+encrypted transport and certificate validation.
 
 HTTPS is required outside explicit local-development profiles. Authentication cookies are same-origin
 and set `Secure`, `HttpOnly`, and at least `SameSite=Lax`. Framework-maintained password hashing is
@@ -213,6 +225,9 @@ flowchart TB
 | Hosted baseline | Azure Container Apps Consumption, minimum zero replicas | Azure SQL | Azure Blob Storage | Managed HTTPS ingress |
 | Self-hosted baseline | One application service in Docker Compose | SQL Server | Filesystem provider | TLS reverse proxy |
 
+Hosted deployments use managed identity instead of stored Azure credentials wherever the selected
+service supports it. Version-controlled Bicep describes Azure resources and configuration.
+
 The self-hosted baseline targets one server but is configuration, not an application assumption.
 Database, blob, email, session, and other durable providers are selected through configuration so the
 same image can use external services or multiple replicas. Azure Container Apps may scale to zero;
@@ -231,14 +246,16 @@ Startup validation rejects inconsistent proxy, origin, provider, and replica set
 Replicas do not depend on sticky sessions, local durable files, or in-memory job state. Liveness
 reports whether the process can run. Readiness verifies the dependencies needed to serve traffic and
 must not report ready while required schema changes are absent. Graceful shutdown stops accepting new
-work and allows bounded in-flight work to finish.
+work and allows bounded in-flight work to finish. Container-local files are read-only application
+artifacts or disposable temporary data, never authoritative state.
 
 ### Configuration and secrets
 
 The application uses validated, typed configuration. Environment variables and mounted secret files
 are supported consistently across deployment profiles. Startup fails clearly when required settings
-are absent or incompatible. Logs and diagnostics redact credentials, tokens, connection strings, and
-sensitive personal or financial data.
+are absent or incompatible. Production profiles fail closed when required security, database,
+storage, proxy, or key settings are missing, and development defaults cannot silently activate in
+production. Secrets never enter the React build, source control, logs, or container image.
 
 ### Background work
 
@@ -251,7 +268,12 @@ be introduced later without changing application job semantics.
 
 Structured logs, metrics, and distributed traces use standard instrumentation and include correlation
 identifiers, deployment version, and safe tenant context. Operational telemetry must not expose
-secrets or unnecessarily identify end users.
+credentials, session values, connection strings, reset tokens, attachment contents, or unnecessary
+personal or commercial data. Retention, sampling, and ingestion caps are explicit deployment settings.
+
+Application boundaries emit only allowlisted structured fields. Central redaction removes known
+sensitive fields from framework, dependency, exception, and application output before export;
+production does not rely on each call site remembering to redact independently.
 
 Security-sensitive and financial actions produce append-oriented audit records that capture actor,
 tenant, action, target, timestamp, correlation identifier, and safe outcome metadata. Ordinary users
