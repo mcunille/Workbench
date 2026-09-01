@@ -1,6 +1,6 @@
 # Base application architecture
 
-**Status:** Proposed
+**Status:** Accepted
 
 ## Summary
 
