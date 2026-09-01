@@ -1,0 +1,53 @@
+{
+  "openapi": "3.1.1",
+  "info": {
+    "title": "Workbench.Server | v1",
+    "version": "1.0.0"
+  },
+  "paths": {
+    "/api/system": {
+      "get": {
+        "tags": [
+          "Workbench.Server"
+        ],
+        "operationId": "GetSystem",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SystemResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "SystemResponse": {
+        "required": [
+          "name",
+          "version"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "version": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  },
+  "tags": [
+    {
+      "name": "Workbench.Server"
+    }
+  ]
+}
