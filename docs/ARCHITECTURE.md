@@ -137,11 +137,29 @@ content inspection rather than trusting the supplied extension or media type. Wr
 lifecycle so a blob and its SQL metadata cannot silently diverge. Provider contract tests cover both
 Azure Blob Storage and filesystem implementations.
 
+The filesystem provider resolves every generated object identifier beneath one dedicated absolute
+storage root and verifies canonical containment before access. It rejects path separators, absolute
+paths, traversal segments, symbolic links, and Windows reparse points. Its operating-system identity
+has access only to that root, and neither the web host nor the reverse proxy serves the root directly.
+
+Before accepting untrusted files, the relevant upload specification must define malware handling,
+safe content disposition, and the scope of any direct-upload credentials in addition to media and
+size validation.
+
 ## Identity and authorization
 
 Initial authentication uses built-in ASP.NET Core Identity with durable server-side session state.
 Cookies contain an opaque session reference rather than a complete authorization state. Session
-records can be revoked and carry expiry, tenant, security-stamp, and audit information.
+records are authoritative for the user, security version, expiration, and revocation state. Every
+protected request validates the session record and current account status. Credential changes,
+tenant-authority changes, account disabling, and security-sensitive recovery advance durable security
+state and revoke affected sessions in the same transaction. The design supports revoking one session
+or all sessions for a user across restarts and replicas.
+
+Cookie-protection keys use a shared durable key ring with deployment-supplied at-rest protection.
+Azure uses managed secret or key facilities; self-hosting supplies equivalent key material through
+mounted secrets or another documented secret store. Scaling and routine deployment preserve valid
+sessions.
 
 State-changing browser requests require antiforgery protection. Login, recovery, and other sensitive
 flows are rate-limited and audited. Password reset and email verification use a provider-neutral email
@@ -193,6 +211,12 @@ Database, blob, email, session, and other durable providers are selected through
 same image can use external services or multiple replicas. Azure Container Apps may scale to zero;
 the first request after idle may therefore have cold-start latency.
 
+For self-hosting, the application origin listener is private to the deployment network by default.
+Only explicitly configured proxy addresses may supply forwarded scheme, host, or client-address data.
+Production configuration requires an allowlisted public host and one canonical public origin. Security
+links and redirects use that configured origin and never request-supplied host or forwarded metadata.
+Startup validation rejects inconsistent proxy, origin, provider, and replica settings.
+
 ## Runtime and operations
 
 ### Statelessness and health
@@ -231,7 +255,12 @@ and application flows cannot rewrite audit history.
 Every supported production profile documents backup and restore together. Hosted guidance covers
 Azure SQL point-in-time recovery and configured blob recovery or versioning. Self-hosted tooling pairs
 a SQL backup with a corresponding blob manifest or storage snapshot. Restore drills validate tenant
-ownership, blob checksums, schema version, application startup, and representative data access.
+ownership, blob checksums, schema version, key availability, application startup, and representative
+data access.
+
+A restore invalidates every pre-restore browser session before the application becomes ready. The
+procedure removes restored session records and rotates or advances authentication protection state so
+a cookie issued against rolled-back account, role, or revocation data cannot become valid again.
 
 Exact recovery objectives remain a service-level decision, but a feature is not operationally complete
 until both its SQL and blob state can be recovered coherently.
