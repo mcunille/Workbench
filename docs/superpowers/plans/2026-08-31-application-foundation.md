@@ -16,6 +16,9 @@ xUnit; ASP.NET Core integration testing; Docker Compose; GitHub Actions.
 
 **Spec:** `docs/specs/2026-08-31-base-application-architecture.md`
 
+**Tracking:** [Architecture rollout #8](https://github.com/mcunille/Workbench/issues/8) and
+[application foundation #9](https://github.com/mcunille/Workbench/issues/9).
+
 ## Global Constraints
 
 - The client and server are separate projects but ship as one same-origin web deployable.
@@ -64,6 +67,7 @@ this plan to make an interface look more complete.
 | `src/Workbench.Client/src/api/system.ts` | Typed client for `/api/system/status`. |
 | `src/Workbench.Client/src/App.tsx` | Minimal application shell and status presentation. |
 | `tests/Workbench.Web.IntegrationTests/` | In-process HTTP behavior tests. |
+| `src/Workbench.HealthProbe/` | Dependency-free in-container readiness probe. |
 | `Dockerfile` | Reproducible multi-stage application image. |
 | `compose.yaml` | Loopback-only local container verification; not a production deployment. |
 | `scripts/verify.ps1` | One local verification entrypoint. |
@@ -453,7 +457,7 @@ export default defineConfig({
 Run:
 
 ```powershell
-npm --prefix src/Workbench.Client test -- --run src/api/system.test.ts
+npm --prefix src/Workbench.Client test -- src/api/system.test.ts
 npm --prefix src/Workbench.Client run check
 ```
 
@@ -515,11 +519,48 @@ public async Task Responses_include_the_browser_security_baseline()
     Assert.Equal("nosniff", response.Headers.GetValues("X-Content-Type-Options").Single());
     Assert.Equal("DENY", response.Headers.GetValues("X-Frame-Options").Single());
     Assert.Equal("no-referrer", response.Headers.GetValues("Referrer-Policy").Single());
-    Assert.Contains("default-src 'self'", response.Headers.GetValues("Content-Security-Policy").Single());
+    Assert.Equal(
+        "default-src 'self'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'; object-src 'none'",
+        response.Headers.GetValues("Content-Security-Policy").Single());
+    Assert.Equal(
+        "camera=(), microphone=(), geolocation=()",
+        response.Headers.GetValues("Permissions-Policy").Single());
+    Assert.Equal(
+        "same-origin",
+        response.Headers.GetValues("Cross-Origin-Opener-Policy").Single());
+}
+
+[Fact]
+public async Task Hsts_is_enabled_for_non_development_https_requests()
+{
+    using var client = _factory
+        .WithWebHostBuilder(builder => builder.UseEnvironment(Environments.Production))
+        .CreateClient(new WebApplicationFactoryClientOptions
+        {
+            BaseAddress = new Uri("https://localhost"),
+        });
+
+    var response = await client.GetAsync("/api/system/status");
+    Assert.Contains("max-age=", response.Headers.GetValues("Strict-Transport-Security").Single());
+}
+
+[Fact]
+public async Task Hsts_is_disabled_for_development_requests()
+{
+    using var client = _factory
+        .WithWebHostBuilder(builder => builder.UseEnvironment(Environments.Development))
+        .CreateClient(new WebApplicationFactoryClientOptions
+        {
+            BaseAddress = new Uri("https://localhost"),
+        });
+
+    var response = await client.GetAsync("/api/system/status");
+    Assert.False(response.Headers.Contains("Strict-Transport-Security"));
 }
 ```
 
-Use the same `WebApplicationFactory<Program>` fixture pattern as Task 1.
+Use the same `WebApplicationFactory<Program>` fixture pattern as Task 1, retain both `_factory` and
+its default `_client`, and add `using Microsoft.AspNetCore.Hosting;` for `UseEnvironment`.
 
 - [ ] **Step 2: Run the hosting RED gate**
 
@@ -735,6 +776,8 @@ git commit -m "Publish the React and API host together"
 - Create: `.dockerignore`
 - Create: `Dockerfile`
 - Create: `compose.yaml`
+- Create: `src/Workbench.HealthProbe/Workbench.HealthProbe.csproj`
+- Create: `src/Workbench.HealthProbe/Program.cs`
 
 **Interfaces:**
 - Consumes: `dotnet publish` contract and health endpoints from Task 3.
@@ -755,6 +798,43 @@ Docker-compatible engine through an operator-approved action; do not mark the ta
 only a Dockerfile review.
 
 - [ ] **Step 2: Write the multi-stage Dockerfile**
+
+Create a dependency-free health probe that can run inside the minimal ASP.NET runtime image:
+
+```powershell
+dotnet new console -n Workbench.HealthProbe -o src/Workbench.HealthProbe --framework net10.0
+dotnet sln Workbench.slnx add src/Workbench.HealthProbe/Workbench.HealthProbe.csproj
+dotnet restore Workbench.slnx
+```
+
+Replace `src/Workbench.HealthProbe/Program.cs` with:
+
+```csharp
+if (args.Length != 1 || !Uri.TryCreate(args[0], UriKind.Absolute, out var endpoint))
+{
+    return 2;
+}
+
+try
+{
+    using var client = new HttpClient
+    {
+        Timeout = TimeSpan.FromSeconds(3),
+    };
+    using var response = await client.GetAsync(endpoint);
+    return response.IsSuccessStatusCode ? 0 : 1;
+}
+catch (HttpRequestException)
+{
+    return 1;
+}
+catch (TaskCanceledException)
+{
+    return 1;
+}
+```
+
+Commit the generated `src/Workbench.HealthProbe/packages.lock.json` with the other NuGet locks.
 
 Resolve and review the registry digest for each base before writing the file:
 
@@ -779,21 +859,29 @@ RUN npm run check
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS server-build
 WORKDIR /src
 COPY global.json Directory.Build.props Workbench.slnx ./
-COPY src/Workbench.Web/Workbench.Web.csproj src/Workbench.Web/
-RUN dotnet restore src/Workbench.Web/Workbench.Web.csproj
+COPY src/Workbench.Web/Workbench.Web.csproj src/Workbench.Web/packages.lock.json src/Workbench.Web/
+COPY src/Workbench.HealthProbe/Workbench.HealthProbe.csproj src/Workbench.HealthProbe/packages.lock.json src/Workbench.HealthProbe/
+RUN dotnet restore src/Workbench.Web/Workbench.Web.csproj --locked-mode \
+    && dotnet restore src/Workbench.HealthProbe/Workbench.HealthProbe.csproj --locked-mode
 COPY src/Workbench.Web/ src/Workbench.Web/
+COPY src/Workbench.HealthProbe/ src/Workbench.HealthProbe/
 COPY --from=client-build /src/src/Workbench.Client/dist/ src/Workbench.Web/wwwroot/
 RUN dotnet publish src/Workbench.Web/Workbench.Web.csproj \
     --configuration Release \
     --no-restore \
     --output /app/publish \
     -p:SkipClientBuild=true
+RUN dotnet publish src/Workbench.HealthProbe/Workbench.HealthProbe.csproj \
+    --configuration Release \
+    --no-restore \
+    --output /app/probe
 
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
 WORKDIR /app
 ENV ASPNETCORE_HTTP_PORTS=8080
 EXPOSE 8080
 COPY --from=server-build /app/publish/ ./
+COPY --from=server-build /app/probe/ /app/probe/
 USER $APP_UID
 ENTRYPOINT ["dotnet", "Workbench.Web.dll"]
 ```
@@ -821,7 +909,7 @@ services:
       dockerfile: Dockerfile
     image: workbench:local
     environment:
-      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_ENVIRONMENT: ContainerVerification
     ports:
       - "127.0.0.1:8080:8080"
     read_only: true
@@ -831,15 +919,22 @@ services:
       - no-new-privileges:true
     cap_drop:
       - ALL
+    healthcheck:
+      test: ["CMD", "dotnet", "/app/probe/Workbench.HealthProbe.dll", "http://127.0.0.1:8080/health/ready"]
+      interval: 5s
+      timeout: 4s
+      retries: 12
+      start_period: 5s
     restart: unless-stopped
 ```
 
-This Compose file is only a loopback-bound local verification topology. It intentionally runs the
-application in `Production` to exercise production middleware, but it is not the self-hosted
-production baseline. Do not expose it on a LAN/WAN or describe it as production-ready. The later
-self-hosted deployment plan must add the accepted TLS reverse proxy, private origin network,
-trusted-proxy list, allowed host, and canonical public origin. Do not mount source, Docker socket,
-secrets, or writable application directories.
+This Compose file is only a loopback-bound local verification topology. Its distinct
+`ContainerVerification` environment exercises non-development middleware without claiming that the
+phase satisfies production configuration validation. Do not expose it on a LAN/WAN or describe it
+as production-ready. The later self-hosted deployment plan must add the accepted TLS reverse proxy,
+private origin network, trusted-proxy list, allowed host, canonical public origin, and fail-closed
+configuration validation. Do not mount source, Docker socket, secrets, or writable application
+directories.
 
 - [ ] **Step 4: Build and exercise the real container**
 
@@ -847,32 +942,42 @@ Run:
 
 ```powershell
 docker compose build --pull
-docker compose up --detach
-Invoke-RestMethod http://localhost:8080/health/live
-Invoke-RestMethod http://localhost:8080/health/ready
-Invoke-RestMethod http://localhost:8080/api/system/status
-$html = Invoke-WebRequest http://localhost:8080/
-if ($html.Content -notmatch '<div id="root"></div>') { throw 'React shell was not served' }
-$containerId = docker compose ps --quiet workbench
-if ([string]::IsNullOrWhiteSpace($containerId)) { throw 'Workbench container was not found' }
-$runtime = docker inspect $containerId --format '{{.Config.User}} {{.HostConfig.ReadonlyRootfs}} {{json .HostConfig.CapDrop}}'
-if ($runtime -notmatch '^\d+ true \["ALL"\]$') { throw "Unexpected runtime security settings: $runtime" }
+if ($LASTEXITCODE -ne 0) { throw 'Container build failed' }
+
+try {
+    docker compose up --detach --wait --wait-timeout 60
+    if ($LASTEXITCODE -ne 0) { throw 'Container did not become healthy' }
+
+    Invoke-RestMethod http://localhost:8080/health/live
+    Invoke-RestMethod http://localhost:8080/health/ready
+    Invoke-RestMethod http://localhost:8080/api/system/status
+    $html = Invoke-WebRequest http://localhost:8080/
+    if ($html.Content -notmatch '<div id="root"></div>') { throw 'React shell was not served' }
+
+    $containerId = docker compose ps --quiet workbench
+    if ([string]::IsNullOrWhiteSpace($containerId)) { throw 'Workbench container was not found' }
+    $health = docker inspect $containerId --format '{{.State.Health.Status}}'
+    if ($health -ne 'healthy') { throw "Unexpected container health: $health" }
+    $runtime = docker inspect $containerId --format '{{.Config.User}} {{.HostConfig.ReadonlyRootfs}} {{json .HostConfig.CapDrop}}'
+    if ($runtime -notmatch '^\d+ true \["ALL"\]$') { throw "Unexpected runtime security settings: $runtime" }
+}
+finally {
+    docker compose down
+}
 ```
 
-Expected: each request succeeds; the HTML assertion passes; inspect reports a non-root numeric user
-and `true` for the read-only root filesystem.
+Expected: Compose reports the service healthy; each request and the HTML assertion succeeds; inspect
+reports a non-root numeric user, a read-only root filesystem, and all Linux capabilities dropped.
 
 - [ ] **Step 5: Stop the test topology and commit**
 
-Run:
-
 ```powershell
-docker compose down
-git add .dockerignore Dockerfile compose.yaml
+git add .dockerignore Dockerfile compose.yaml src/Workbench.HealthProbe Workbench.slnx
 git commit -m "Package Workbench as a hardened container"
 ```
 
-`docker compose down` removes containers and the network but preserves the built image for reuse.
+The Step 4 `finally` block removes containers and the network on success or failure while preserving
+the built image for reuse.
 
 ---
 
@@ -903,6 +1008,10 @@ $ErrorActionPreference = 'Stop'
 $repoRoot = Split-Path -Parent $PSScriptRoot
 Push-Location $repoRoot
 try {
+    $fromLines = @(Select-String -LiteralPath Dockerfile -Pattern '^FROM ' | ForEach-Object Line)
+    $unpinned = @($fromLines | Where-Object { $_ -notmatch '@sha256:[0-9a-f]{64}(\s+AS\s+\S+)?$' })
+    if ($unpinned.Count -ne 0) { throw "Unpinned Docker base: $($unpinned -join ', ')" }
+
     dotnet restore Workbench.slnx --locked-mode
     if ($LASTEXITCODE -ne 0) { throw 'dotnet restore failed' }
 
@@ -977,7 +1086,7 @@ Run `-IncludeContainer` only where the Step 1 Docker precondition from Task 4 pa
 - [ ] **Step 5: Commit scripts and developer documentation**
 
 ```powershell
-git add scripts README.md CONTRIBUTING.md src/Workbench.Web/packages.lock.json tests/Workbench.Web.IntegrationTests/packages.lock.json
+git add scripts README.md CONTRIBUTING.md src/Workbench.Web/packages.lock.json src/Workbench.HealthProbe/packages.lock.json tests/Workbench.Web.IntegrationTests/packages.lock.json
 git commit -m "Document and automate local verification"
 ```
 
@@ -1023,9 +1132,9 @@ action's upstream repository, then replace the tags above with the returned 40-c
 retaining the readable version in an adjacent comment:
 
 ```powershell
-gh api repos/actions/checkout/git/ref/tags/v7 --jq .object.sha
-gh api repos/actions/setup-dotnet/git/ref/tags/v5 --jq .object.sha
-gh api repos/actions/setup-node/git/ref/tags/v5 --jq .object.sha
+gh api repos/actions/checkout/commits/v7 --jq .sha
+gh api repos/actions/setup-dotnet/commits/v5 --jq .sha
+gh api repos/actions/setup-node/commits/v5 --jq .sha
 ```
 
 Do not merge a workflow that still references a mutable tag.
@@ -1043,6 +1152,24 @@ on failure and always remove the container.
 
 The smoke loop must fail after its deadline; it must not hide a failed request with an unconditional
 success command.
+
+After the smoke test, scan the exact locally built image and fail for fixed or unfixed `HIGH` or
+`CRITICAL` operating-system or application-library vulnerabilities:
+
+```yaml
+- name: Scan container image
+  uses: aquasecurity/trivy-action@v0.36.0
+  with:
+    image-ref: workbench:ci
+    format: table
+    exit-code: '1'
+    ignore-unfixed: false
+    vuln-type: os,library
+    severity: HIGH,CRITICAL
+```
+
+Replace the Trivy tag with the reviewed immutable SHA using the same process as every other action.
+Do not add an ignore file or suppress an advisory without a documented review and explicit approval.
 
 - [ ] **Step 3: Expand CodeQL without weakening the existing Actions scan**
 
@@ -1063,6 +1190,16 @@ Replace the existing manual-build step with a C#-only step that installs .NET 10
 `dotnet build Workbench.slnx --configuration Release`. Keep the existing minimal permissions and
 scheduled scan.
 
+Pin every `uses:` reference in both `.github/workflows/ci.yml` and the modified CodeQL workflow,
+including `actions/checkout`, `actions/setup-dotnet`, `actions/setup-node`,
+`aquasecurity/trivy-action`, and both `github/codeql-action/init` and
+`github/codeql-action/analyze`. Resolve the additional upstream tags with:
+
+```powershell
+gh api repos/aquasecurity/trivy-action/commits/v0.36.0 --jq .sha
+gh api repos/github/codeql-action/commits/v4 --jq .sha
+```
+
 - [ ] **Step 4: Validate workflow syntax and run all local equivalents**
 
 Run:
@@ -1070,6 +1207,9 @@ Run:
 ```powershell
 pwsh -NoProfile -File scripts/verify.ps1
 pwsh -NoProfile -File scripts/verify.ps1 -IncludeContainer
+$workflowFiles = @('.github/workflows/ci.yml', '.github/workflows/codeql.yml')
+$mutableActions = Select-String -Path $workflowFiles -Pattern 'uses:\s+\S+@(?![0-9a-f]{40}\s*(?:#.*)?$)'
+if ($mutableActions) { throw "Mutable action references remain: $($mutableActions -join ', ')" }
 git diff --check
 ```
 
@@ -1094,8 +1234,14 @@ git commit -m "Enforce application foundation checks"
   `404`, not `index.html`.
 - [ ] Confirm the container runs non-root, has a read-only root filesystem, and has no added Linux
   capabilities.
+- [ ] Confirm Compose reports the container healthy through the packaged readiness probe.
+- [ ] Confirm the container vulnerability scan has no unresolved `HIGH` or `CRITICAL` result.
+- [ ] Confirm every GitHub Actions `uses:` reference is pinned to a reviewed 40-character commit SHA.
 - [ ] Confirm CI and all three CodeQL language entries pass on the implementation branch.
 - [ ] Compare the delivered phase against the accepted spec sections for system architecture,
   deployment release unit, stateless web tier, health behavior, verification, and cost controls.
+- [ ] Run a Codex Security diff scan over the exact implementation branch versus its base, record the
+  scan ID and report, and resolve every reportable finding before merge. A source-level scan is
+  required here because the implementation phase introduces executable code and workflows.
 - [ ] Write the next plan, `2026-08-31-platform-data-and-identity.md`, from the now-real project
   structure before introducing SQL or authentication code.
