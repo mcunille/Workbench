@@ -24,6 +24,11 @@ they do not replace the living documentation above.
 The accepted [base-architecture specification](specs/2026-08-31-base-application-architecture.md) is
 the decision record behind `ARCHITECTURE.md`.
 
+The accepted [application-foundation specification](specs/2026-08-31-application-foundation.md)
+defines the first implementation phase: the independently developed React client and ASP.NET Core
+API, their typed same-origin release unit, health contracts, hardened container, and verification
+gates.
+
 ## Still to be decided
 
 The accepted base architecture deliberately does not yet define:
