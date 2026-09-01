@@ -4,13 +4,16 @@ Workbench is fully open-source software by The White Stag Collection for gemston
 hobbyists, collectors, and businesses. It is intended to connect three areas that are often managed
 separately: inventory and collections, bookkeeping and accounting, and commerce.
 
-The project is at the design stage. Its first goal is to establish durable product and design
-principles before selecting an application architecture or technology stack.
+The project is at the design stage. Its product principles and base application architecture are
+now defined; implementation has not started. The accepted direction is a portable modular monolith
+with a React and TypeScript client, an ASP.NET Core API, SQL Server-compatible structured storage,
+provider-backed blob storage, and one container release unit for hosted and self-hosted operation.
 
 ## Start here
 
 - [Product vision](docs/VISION.md)
 - [Design principles](docs/DESIGN-PRINCIPLES.md)
+- [Architecture](docs/ARCHITECTURE.md)
 - [Documentation guide](docs/README.md)
 - [Contributing](CONTRIBUTING.md)
 
