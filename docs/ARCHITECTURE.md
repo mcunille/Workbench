@@ -49,6 +49,8 @@ require focused specifications.
 12. New infrastructure is introduced only when measured requirements justify its operational cost.
 13. Ordinary dual writes across independent stores are prohibited. Cross-store synchronization has
     one explicit source of truth, durable delivery, idempotency, observable retries, and reconciliation.
+14. Public API contracts do not expose database entities, ORM types, provider object identifiers,
+    storage keys, or cloud-provider types.
 
 ## Application structure
 
@@ -138,8 +140,9 @@ metadata before bytes are returned or a short-lived provider URL is issued.
 
 Uploads are streamed, bounded by configured limits, checked against an allowlist, and validated using
 content inspection rather than trusting the supplied extension or media type. Writes use a staged
-lifecycle so a blob and its SQL metadata cannot silently diverge. Provider contract tests cover both
-Azure Blob Storage and filesystem implementations.
+lifecycle with unique temporary names and provider-appropriate atomic publication so interrupted
+uploads do not appear complete and a blob and its SQL metadata cannot silently diverge. Provider
+contract tests cover both Azure Blob Storage and filesystem implementations.
 
 Failed uploads, abandoned temporary objects, and missing bytes are expected failure states. A
 reconciliation operation reports and safely handles metadata/blob divergence without deleting
@@ -180,6 +183,9 @@ existence to an unauthenticated requester. Local development uses a non-deliveri
 readiness requires a configured provider; the initial portable provider uses authenticated SMTP with
 encrypted transport and certificate validation.
 
+In every production profile, verification and recovery links use the configured canonical public
+origin and never a `Host`, `Forwarded`, or `X-Forwarded-*` value from an untrusted request path.
+
 HTTPS is required outside explicit local-development profiles. Authentication cookies are same-origin
 and set `Secure`, `HttpOnly`, and at least `SameSite=Lax`. Framework-maintained password hashing is
 used, and browser storage never holds access or refresh tokens.
@@ -188,8 +194,9 @@ External OIDC may later link a verified external identity to an existing Workben
 remains authoritative for `TenantId`, account status, roles, permissions, session revocation, and audit
 history. Account linking must defend against issuer/subject confusion and unintended account merging.
 
-Authorization policies are explicit and deny by default. Tenant resolution happens before tenant data
-access, and possession of a record or blob identifier never grants access by itself.
+Roles and permissions are tenant-local and enforced through named server-side authorization policies
+that deny by default. Tenant resolution happens before tenant data access, and possession of a record
+or blob identifier never grants access by itself.
 
 ## Deployment profiles
 
@@ -261,8 +268,10 @@ production. Secrets never enter the React build, source control, logs, or contai
 
 Initial background processing uses a durable SQL-backed queue with leases, retry policy, idempotency,
 and dead-letter handling. Any replica may process work. Enqueueing and related business state changes
-share a transaction or an outbox pattern so work is not silently lost. A dedicated worker process can
-be introduced later without changing application job semantics.
+share a transaction or an outbox pattern so work is not silently lost. The scale-to-zero web process
+is not a scheduler: scheduled work or work with bounded completion latency uses an explicit worker or
+hosted job trigger reading the same durable state. Adding that deployable does not change application
+job semantics or move domain authority out of SQL.
 
 ### Observability and audit
 
@@ -277,7 +286,8 @@ production does not rely on each call site remembering to redact independently.
 
 Security-sensitive and financial actions produce append-oriented audit records that capture actor,
 tenant, action, target, timestamp, correlation identifier, and safe outcome metadata. Ordinary users
-and application flows cannot rewrite audit history.
+and application flows cannot rewrite audit history. Audit records have explicit schemas,
+authorization, and retention behavior and do not disappear because telemetry sampling changes.
 
 ### Backup and recovery
 
@@ -294,6 +304,11 @@ A restore invalidates every pre-restore browser session before the application b
 procedure removes restored session records and rotates or advances authentication protection state so
 a cookie issued against rolled-back account, role, or revocation data cannot become valid again.
 
+Restore exercises succeed before a deployment profile is described as production-ready. Dependency
+failures prevent readiness or return stable service errors; concurrency conflicts never silently
+overwrite consequential state; partial blob failures remain recoverable; and tenant-isolation failures
+fail closed while producing security-relevant telemetry that does not expose another tenant's data.
+
 Exact recovery objectives remain a service-level decision, but a feature is not operationally complete
 until both its SQL and blob state can be recovered coherently.
 
@@ -307,8 +322,10 @@ Migrations run separately using a principal with schema-change rights. Web repli
 without DDL or migration-history modification rights. Migration credentials are available only to the
 controlled deployment operation and are never mounted into, stored by, or recoverable from the running
 web workload. Migrations are forward-tested against Azure SQL and a supported self-hosted SQL Server
-version. Destructive changes use an expand, migrate, and contract sequence with a verified backup and
-an explicit compatibility window.
+version using an empty database, the previous supported release schema, and representative tenant data
+and constraints. Destructive changes use an expand, migrate, and contract sequence with a verified
+backup and an explicit compatibility window. Application rollback is allowed only while the deployed
+schema remains compatible; otherwise recovery follows the documented restore procedure.
 
 ## Security and verification gates
 
@@ -327,6 +344,9 @@ Security review is required before implementing tenant domain data, external ide
 handling, privileged administration, backup tooling, or a new persistence provider. Threat modeling
 must cover tenant-boundary bypass, insecure direct object references, credential leakage, unsafe
 attachments, migration privilege, supply-chain integrity, and administrative bypass.
+
+Domain specifications classify sensitive fields and define retention rules before storing real user
+data. Attachment workflows require their own threat model and lifecycle design before implementation.
 
 ## Evolution rules
 
