@@ -1,9 +1,16 @@
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Workbench.Server.Application;
 using Workbench.Server.Contracts;
+using Workbench.Server.Health;
 using Workbench.Server.Http;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
+builder.Services.AddHealthChecks().AddCheck(
+    "self",
+    () => HealthCheckResult.Healthy(),
+    tags: ["live"]);
 builder.Services.AddSingleton<IReleaseInformation, AssemblyReleaseInformation>();
 builder.Services.AddOpenApi();
 builder.Services.AddProblemDetails(options =>
@@ -24,6 +31,19 @@ app.MapGet(
             new SystemResponse("Workbench", releaseInformation.Version))
     .WithName("GetSystem")
     .Produces<SystemResponse>();
+
+app.MapHealthChecks("/health/live", new HealthCheckOptions
+{
+    Predicate = registration => registration.Tags.Contains("live"),
+    ResponseWriter = HealthResponseWriter.WriteAsync,
+});
+
+app.MapHealthChecks("/health/ready", new HealthCheckOptions
+{
+    Predicate = registration =>
+        registration.Tags.Contains("live") || registration.Tags.Contains("ready"),
+    ResponseWriter = HealthResponseWriter.WriteAsync,
+});
 
 app.Map("/api/{**path}", () => Results.Problem(
     statusCode: StatusCodes.Status404NotFound,
