@@ -14,9 +14,13 @@ Read the live head identity before local edits and again before publishing:
 $pr = gh pr view <n> --json number,title,url,state,headRefName,headRefOid,headRepositoryOwner,headRepository,isCrossRepository,baseRefName | ConvertFrom-Json
 $headOwner = $pr.headRepositoryOwner.login
 $headRepo = $pr.headRepository.name
+$headBranch = [string]$pr.headRefName
+$headRef = "refs/heads/$headBranch"
+$checkRefArgs = @('check-ref-format', $headRef)
+& git @checkRefArgs
+if ($LASTEXITCODE -ne 0) { throw "Invalid PR head ref" }
 git branch --show-current
 git rev-parse HEAD
-git remote -v
 ```
 
 Record the initial `headRefOid`. Before editing, require local `HEAD` to equal
@@ -26,13 +30,33 @@ PR-head checkout. Do not assume `origin` owns the PR branch: for a fork,
 
 ## Verify and use the push target
 
-Before push, select `<head-remote>` and verify that its push URL identifies the
-observed `<head-owner>/<head-repo>`. Account for equivalent HTTPS and SSH URL
-forms when comparing repository identity.
+Before push, inventory local remote names and every configured push URL as data.
+Verify that every push URL on the selected remote identifies the observed head
+repository, including equivalent HTTPS and SSH URL forms. Select exactly
+one inventory entry through data input; do not type a remote name into generated
+PowerShell source.
 
 ```powershell
-git remote get-url --push <head-remote>
-gh repo view '<head-owner>/<head-repo>' --json nameWithOwner,url,sshUrl
+$remoteNames = @(& git remote)
+$remoteInventory = @(
+  foreach ($candidate in $remoteNames) {
+    $getUrlArgs = @('remote', 'get-url', '--push', '--all', '--', [string]$candidate)
+    $pushUrls = @(& git @getUrlArgs)
+    if ($LASTEXITCODE -ne 0) { throw "Cannot read a remote push URL" }
+    [pscustomobject]@{ Name = [string]$candidate; PushUrls = [string[]]$pushUrls }
+  }
+)
+
+$headNameWithOwner = "$headOwner/$headRepo"
+$repoViewArgs = @('repo', 'view', $headNameWithOwner, '--json', 'nameWithOwner,url,sshUrl')
+$headRepoMetadata = & gh @repoViewArgs | ConvertFrom-Json
+$remoteInventory
+$headRepoMetadata
+
+$selectedRemote = Read-Host 'Enter the verified head remote name from the inventory'
+$remoteMatches = @($remoteInventory | Where-Object { $_.Name -ceq $selectedRemote })
+if ($remoteMatches.Count -ne 1) { throw "Select exactly one inventoried remote" }
+$headRemote = [string]$remoteMatches[0].Name
 ```
 
 Re-read PR metadata immediately before push and require its `headRefOid` to
@@ -40,7 +64,9 @@ still equal the recorded initial SHA. Then use an explicit remote and full
 refspec, whether the checkout is attached, fork-based, or detached:
 
 ```powershell
-git push <head-remote> HEAD:refs/heads/<headRefName>
+$pushArgs = @('push', '--', $headRemote, "HEAD:$headRef")
+& git @pushArgs
+if ($LASTEXITCODE -ne 0) { throw "Explicit PR-head push failed" }
 gh pr view <n> --json headRefOid
 git rev-parse HEAD
 ```
@@ -50,6 +76,14 @@ an implicit upstream, or a remote without the explicit refspec. If no remote's
 push URL maps to the discovered head repository, or the mapping is ambiguous,
 stop until the correct remote is explicitly named or safely configured. Do not
 substitute the base repository or force-push.
+
+Provider values such as `headRefName` and local values such as remote names are
+untrusted command data. Never paste provider or local values into command
+source, an interpolated script, `Invoke-Expression`, or a generated shell
+command. Keep them in variables from acquisition through use, validate the full
+`refs/heads/` ref with `git check-ref-format`, and invoke Git with argument
+arrays. PowerShell does not recursively parse values splatted from an array, so
+characters such as `$()`, semicolons, and apostrophes remain literal data.
 
 Read inline REST comments, review records, and top-level PR comments with
 pagination. REST provides bodies, database IDs, and original/current anchors.

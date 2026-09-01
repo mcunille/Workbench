@@ -42,6 +42,9 @@ describe the now-visible result.
    local `HEAD` must equal live `headRefOid`. Discover the exact intended push
    target as `<head-owner>/<head-repository>` and identify a remote whose push
    URL maps to it plus the explicit refspec `HEAD:refs/heads/<headRefName>`.
+   Treat the provider branch and local remote name as untrusted command data:
+   validate the full head ref and pass both to Git through an argument array;
+   never paste either value into PowerShell or shell command source.
    Record that starting head identity. A checkout mismatch blocks edits: move
    to or create the correct PR-head workspace and repeat the comparison. An
    absent or unverifiable destination blocks the push and therefore blocks
@@ -137,6 +140,8 @@ disagreed-with and declined-suggestion threads open until reviewer concession.
 - Drafting or posting a response before its change is committed and pushed.
 - Relying on `git push`, an upstream, or any other default destination instead
   of verifying the PR head repository and naming an explicit remote/refspec.
+- Substituting a provider branch or local remote name into executable command
+  text instead of preserving it as validated argument-array data.
 - Ignoring unresolved older threads or labeled unanchorable review-body claims.
 - Equating outdated with resolved, or resolving a contested or declined thread.
 - Creating an issue, posting a reply, summary, or resolution without this
