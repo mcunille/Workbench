@@ -59,12 +59,13 @@ this plan to make an interface look more complete.
 | `src/Workbench.Web/System/SystemEndpoints.cs` | Anonymous system-status endpoint. |
 | `src/Workbench.Web/Health/HealthEndpointExtensions.cs` | Liveness/readiness endpoint mapping. |
 | `src/Workbench.Web/Errors/GlobalExceptionHandler.cs` | Stable production problem response. |
+| `src/Workbench.Web/Security/SecurityHeaderExtensions.cs` | Browser response-header baseline. |
 | `src/Workbench.Client/` | React, TypeScript, Vite, and client tests. |
 | `src/Workbench.Client/src/api/system.ts` | Typed client for `/api/system/status`. |
 | `src/Workbench.Client/src/App.tsx` | Minimal application shell and status presentation. |
 | `tests/Workbench.Web.IntegrationTests/` | In-process HTTP behavior tests. |
 | `Dockerfile` | Reproducible multi-stage application image. |
-| `compose.yaml` | Initial single-service local/self-hosted topology. |
+| `compose.yaml` | Loopback-only local container verification; not a production deployment. |
 | `scripts/verify.ps1` | One local verification entrypoint. |
 | `scripts/dev.ps1` | Coordinated API and Vite development startup. |
 | `.github/workflows/ci.yml` | Build, test, publish, container, and dependency checks. |
@@ -123,6 +124,10 @@ Create `Directory.Build.props`:
     <ImplicitUsings>enable</ImplicitUsings>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
+    <NuGetAudit>true</NuGetAudit>
+    <NuGetAuditMode>all</NuGetAuditMode>
+    <NuGetAuditLevel>moderate</NuGetAuditLevel>
+    <WarningsAsErrors>$(WarningsAsErrors);NU1901;NU1902;NU1903;NU1904</WarningsAsErrors>
     <ContinuousIntegrationBuild Condition="'$(CI)' == 'true'">true</ContinuousIntegrationBuild>
   </PropertyGroup>
 </Project>
@@ -471,12 +476,15 @@ git commit -m "Build React application shell"
 - Create: `src/Workbench.Web/Health/HealthEndpointExtensions.cs`
 - Create: `src/Workbench.Web/Errors/GlobalExceptionHandler.cs`
 - Create: `src/Workbench.Web/Errors/ErrorEndpoints.cs`
+- Create: `src/Workbench.Web/Security/SecurityHeaderExtensions.cs`
 - Create: `tests/Workbench.Web.IntegrationTests/HostingBehaviorTests.cs`
 
 **Interfaces:**
 - Consumes: React `dist/**` from Task 2 and server host from Task 1.
 - Produces: `GET /health/live`, `GET /health/ready`, same-origin SPA fallback, and stable
   `application/problem+json` responses for unhandled API exceptions.
+- Produces: an application-owned browser header baseline plus HSTS for non-development HTTPS
+  requests; the later ingress/proxy plan may add compatible edge enforcement but must not weaken it.
 
 - [ ] **Step 1: Write failing hosting behavior tests**
 
@@ -497,6 +505,17 @@ public async Task Unknown_api_route_does_not_fall_back_to_the_spa()
 {
     var response = await _client.GetAsync("/api/not-a-route");
     Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+}
+
+[Fact]
+public async Task Responses_include_the_browser_security_baseline()
+{
+    var response = await _client.GetAsync("/api/system/status");
+
+    Assert.Equal("nosniff", response.Headers.GetValues("X-Content-Type-Options").Single());
+    Assert.Equal("DENY", response.Headers.GetValues("X-Frame-Options").Single());
+    Assert.Equal("no-referrer", response.Headers.GetValues("Referrer-Policy").Single());
+    Assert.Contains("default-src 'self'", response.Headers.GetValues("Content-Security-Policy").Single());
 }
 ```
 
@@ -544,6 +563,35 @@ public static class HealthEndpointExtensions
 }
 ```
 
+Create `src/Workbench.Web/Security/SecurityHeaderExtensions.cs`:
+
+```csharp
+namespace Workbench.Web.Security;
+
+public static class SecurityHeaderExtensions
+{
+    public static IApplicationBuilder UseWorkbenchSecurityHeaders(this IApplicationBuilder app) =>
+        app.Use(async (context, next) =>
+        {
+            context.Response.OnStarting(() =>
+            {
+                var headers = context.Response.Headers;
+                headers["Content-Security-Policy"] =
+                    "default-src 'self'; base-uri 'none'; frame-ancestors 'none'; " +
+                    "form-action 'self'; object-src 'none'";
+                headers["X-Content-Type-Options"] = "nosniff";
+                headers["X-Frame-Options"] = "DENY";
+                headers["Referrer-Policy"] = "no-referrer";
+                headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()";
+                headers["Cross-Origin-Opener-Policy"] = "same-origin";
+                return Task.CompletedTask;
+            });
+
+            await next();
+        });
+}
+```
+
 Create `src/Workbench.Web/Errors/GlobalExceptionHandler.cs`:
 
 ```csharp
@@ -558,10 +606,12 @@ public sealed class GlobalExceptionHandler(
 {
     public async ValueTask<bool> TryHandleAsync(
         HttpContext httpContext,
-        Exception exception,
+        Exception _,
         CancellationToken cancellationToken)
     {
-        logger.LogError(exception, "Unhandled request failure");
+        logger.LogError(
+            "Unhandled request failure. TraceIdentifier: {TraceIdentifier}",
+            httpContext.TraceIdentifier);
         httpContext.Response.StatusCode = StatusCodes.Status500InternalServerError;
 
         return await problemDetailsService.TryWriteAsync(new ProblemDetailsContext
@@ -612,6 +662,13 @@ builder.Services.AddProblemDetails();
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 builder.Services.AddWorkbenchHealthChecks();
 
+var app = builder.Build();
+
+if (!app.Environment.IsDevelopment())
+{
+    app.UseHsts();
+}
+app.UseWorkbenchSecurityHeaders();
 app.UseExceptionHandler();
 app.UseDefaultFiles();
 app.UseStaticFiles();
@@ -624,7 +681,10 @@ app.MapFallbackToFile("index.html");
 ```
 
 Keep this order exact so `/api/{**path}` never falls through to the SPA document. Include
-`using Workbench.Web.Errors;`, `using Workbench.Web.Health;`, and `using Workbench.Web.System;`.
+`using Workbench.Web.Errors;`, `using Workbench.Web.Health;`, `using Workbench.Web.Security;`, and
+`using Workbench.Web.System;`. The generic log event deliberately omits the exception object;
+central redaction and controlled diagnostic capture must exist before later phases may export richer
+exception details.
 
 - [ ] **Step 4: Wire the React build into `dotnet publish`**
 
@@ -696,7 +756,17 @@ only a Dockerfile review.
 
 - [ ] **Step 2: Write the multi-stage Dockerfile**
 
-Use this stage structure:
+Resolve and review the registry digest for each base before writing the file:
+
+```powershell
+docker buildx imagetools inspect node:24.20.0-bookworm-slim
+docker buildx imagetools inspect mcr.microsoft.com/dotnet/sdk:10.0
+docker buildx imagetools inspect mcr.microsoft.com/dotnet/aspnet:10.0
+```
+
+Use this stage structure, but replace every `FROM` image with its reviewed
+`tag@sha256:<64-lowercase-hex-digest>` reference. Retain the readable tag so dependency-update tools
+can discover new releases; the digest, not the tag, is build authority.
 
 ```dockerfile
 FROM node:24.20.0-bookworm-slim AS client-build
@@ -728,6 +798,14 @@ USER $APP_UID
 ENTRYPOINT ["dotnet", "Workbench.Web.dll"]
 ```
 
+Before committing, enforce the digest requirement mechanically:
+
+```powershell
+$fromLines = @(Select-String -LiteralPath Dockerfile -Pattern '^FROM ' | ForEach-Object Line)
+$unpinned = @($fromLines | Where-Object { $_ -notmatch '@sha256:[0-9a-f]{64}(\s+AS\s+\S+)?$' })
+if ($unpinned.Count -ne 0) { throw "Unpinned Docker base: $($unpinned -join ', ')" }
+```
+
 `.dockerignore` must exclude `.git`, `.codex`, `**/bin`, `**/obj`, `**/node_modules`,
 `**/dist`, `artifacts`, and local secret/config override files.
 
@@ -745,7 +823,7 @@ services:
     environment:
       ASPNETCORE_ENVIRONMENT: Production
     ports:
-      - "8080:8080"
+      - "127.0.0.1:8080:8080"
     read_only: true
     tmpfs:
       - /tmp:size=64m,noexec,nosuid
@@ -756,7 +834,12 @@ services:
     restart: unless-stopped
 ```
 
-Do not mount source, Docker socket, secrets, or writable application directories.
+This Compose file is only a loopback-bound local verification topology. It intentionally runs the
+application in `Production` to exercise production middleware, but it is not the self-hosted
+production baseline. Do not expose it on a LAN/WAN or describe it as production-ready. The later
+self-hosted deployment plan must add the accepted TLS reverse proxy, private origin network,
+trusted-proxy list, allowed host, and canonical public origin. Do not mount source, Docker socket,
+secrets, or writable application directories.
 
 - [ ] **Step 4: Build and exercise the real container**
 
@@ -929,8 +1012,8 @@ workflow/ref, and this application sequence on `ubuntu-latest`:
 - name: Verify application
   shell: pwsh
   run: ./scripts/verify.ps1
-- name: Check vulnerable .NET packages
-  run: dotnet list Workbench.slnx package --vulnerable --include-transitive
+- name: Enforce .NET vulnerability policy
+  run: dotnet restore Workbench.slnx --locked-mode
 - name: Check production npm packages
   run: npm --prefix src/Workbench.Client audit --omit=dev --audit-level=high
 ```
@@ -946,6 +1029,11 @@ gh api repos/actions/setup-node/git/ref/tags/v5 --jq .object.sha
 ```
 
 Do not merge a workflow that still references a mutable tag.
+
+`Directory.Build.props` sets `NuGetAuditMode=all`, `NuGetAuditLevel=moderate`, and promotes
+`NU1901`–`NU1904` to errors. Therefore the locked restore deterministically fails for any direct or
+transitive package at or above the accepted moderate threshold; a listing-only command is not the
+security gate.
 
 - [ ] **Step 2: Add the container CI job**
 
