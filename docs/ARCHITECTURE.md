@@ -17,9 +17,9 @@ initial structured-data engine, and a provider-neutral blob contract isolates bi
 
 This remains a target architecture rather than a claim that every capability is deployed. The
 React client, typed ASP.NET Core API, health contracts, same-origin publish path, and container
-definition now exist under the application-foundation phase. Its local source and publish checks
-pass; container execution still requires verification on a Docker host. The linked later phases add
-identity, tenancy, storage, operations, and Azure deployment in independently verifiable increments.
+definition now exist under the application-foundation phase. Its local source, publish, and hardened
+container smoke checks pass. The linked later phases add identity, tenancy, storage, operations, and
+Azure deployment in independently verifiable increments.
 
 Detailed inventory, purchasing, accounting, and commerce workflows are outside this document and
 require focused specifications.
