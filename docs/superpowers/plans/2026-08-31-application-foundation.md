@@ -16,6 +16,8 @@ xUnit; ASP.NET Core integration testing; Docker Compose; GitHub Actions.
 
 **Spec:** `docs/specs/2026-08-31-base-application-architecture.md`
 
+**Living architecture:** `docs/ARCHITECTURE.md`
+
 **Tracking:** [Architecture rollout #8](https://github.com/mcunille/Workbench/issues/8) and
 [application foundation #9](https://github.com/mcunille/Workbench/issues/9).
 

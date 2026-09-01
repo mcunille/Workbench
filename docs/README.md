@@ -9,9 +9,9 @@ changes.
   areas.
 - [DESIGN-PRINCIPLES.md](DESIGN-PRINCIPLES.md) defines the durable rules used to evaluate future
   product and technical decisions.
-- [Base application architecture](specs/2026-08-31-base-application-architecture.md) defines the
-  accepted React, ASP.NET Core, SQL Server, blob-provider, tenancy, identity, and hosted/self-hosted
-  infrastructure direction. Implementation remains phased and tracked separately.
+- [ARCHITECTURE.md](ARCHITECTURE.md) is the authoritative living description of the accepted React,
+  ASP.NET Core, SQL Server, blob-provider, tenancy, identity, and hosted/self-hosted infrastructure
+  direction. Implementation remains phased and tracked separately.
 
 These documents are living documentation. They should describe the project's current direction.
 
@@ -20,6 +20,9 @@ These documents are living documentation. They should describe the project's cur
 The [specs](specs/README.md) directory contains one dated document for each meaningful change that
 needs durable requirements or design reasoning. Specs preserve context and rejected alternatives;
 they do not replace the living documentation above.
+
+The accepted [base-architecture specification](specs/2026-08-31-base-application-architecture.md) is
+the decision record behind `ARCHITECTURE.md`.
 
 ## Still to be decided
 

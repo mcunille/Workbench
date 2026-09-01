@@ -13,7 +13,7 @@ provider-backed blob storage, and one container release unit for hosted and self
 
 - [Product vision](docs/VISION.md)
 - [Design principles](docs/DESIGN-PRINCIPLES.md)
-- [Accepted base architecture](docs/specs/2026-08-31-base-application-architecture.md)
+- [Architecture](docs/ARCHITECTURE.md)
 - [Documentation guide](docs/README.md)
 - [Contributing](CONTRIBUTING.md)
 

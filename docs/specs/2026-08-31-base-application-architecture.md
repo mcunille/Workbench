@@ -2,6 +2,8 @@
 
 **Status:** Accepted
 
+**Living architecture:** [`docs/ARCHITECTURE.md`](../ARCHITECTURE.md)
+
 ## Summary
 
 Workbench will begin as a portable, containerized modular monolith with a React and TypeScript
