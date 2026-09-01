@@ -6,6 +6,26 @@ in-scope edits, commits, and the explicit safe-target push below. Do each
 collaboration write only after the exact preview has fresh approval and the PR
 head has been re-read.
 
+## Require argv-preserving PowerShell
+
+Run this precondition before any native Git command in the workflow. Windows
+PowerShell 5.1 can strip embedded double quotes while splatting native argument
+arrays, changing a valid ref into a different ref. Fail closed unless the host
+supports and uses the argv-preserving mode:
+
+```powershell
+if ($PSVersionTable.PSVersion -lt [version]'7.3') {
+  throw 'PowerShell 7.3 or newer is required for exact native Git arguments'
+}
+$PSNativeCommandArgumentPassing = 'Standard'
+if ($PSNativeCommandArgumentPassing -cne 'Standard') {
+  throw 'Native argument passing must remain in Standard mode'
+}
+```
+
+Do not continue under Windows PowerShell 5.1, and do not validate under one
+argument-passing mode and push under another.
+
 ## Read PR metadata and join feedback
 
 Read the live head identity before local edits and again before publishing:

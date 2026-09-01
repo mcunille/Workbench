@@ -42,6 +42,8 @@ describe the now-visible result.
    local `HEAD` must equal live `headRefOid`. Discover the exact intended push
    target as `<head-owner>/<head-repository>` and identify a remote whose push
    URL maps to it plus the explicit refspec `HEAD:refs/heads/<headRefName>`.
+   Before any native Git call, require PowerShell 7.3 or newer and set native
+   argument passing to `Standard`; Windows PowerShell 5.1 must fail closed.
    Treat the provider branch and local remote name as untrusted command data:
    validate the full head ref and pass both to Git through an argument array;
    never paste either value into PowerShell or shell command source.
@@ -142,6 +144,8 @@ disagreed-with and declined-suggestion threads open until reviewer concession.
   of verifying the PR head repository and naming an explicit remote/refspec.
 - Substituting a provider branch or local remote name into executable command
   text instead of preserving it as validated argument-array data.
+- Running native Git under Windows PowerShell 5.1 or any mode that does not
+  preserve each argument exactly through validation and push.
 - Ignoring unresolved older threads or labeled unanchorable review-body claims.
 - Equating outdated with resolved, or resolving a contested or declined thread.
 - Creating an issue, posting a reply, summary, or resolution without this
