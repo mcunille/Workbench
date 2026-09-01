@@ -148,6 +148,7 @@ dotnet sln Workbench.slnx add tests/Workbench.Web.IntegrationTests/Workbench.Web
 dotnet add tests/Workbench.Web.IntegrationTests/Workbench.Web.IntegrationTests.csproj reference src/Workbench.Web/Workbench.Web.csproj
 dotnet add tests/Workbench.Web.IntegrationTests/Workbench.Web.IntegrationTests.csproj package Microsoft.AspNetCore.Mvc.Testing --version 10.0.11
 dotnet restore Workbench.slnx
+dotnet restore Workbench.slnx --locked-mode
 ```
 
 Commit both generated `packages.lock.json` files. After each intentional project or dependency
