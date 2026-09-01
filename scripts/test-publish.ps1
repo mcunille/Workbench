@@ -87,6 +87,18 @@ try {
         throw "Published server did not become ready at $baseUrl."
     }
 
+    $probeProcess = Start-Process `
+        -FilePath 'dotnet' `
+        -ArgumentList @($serverAssembly, '--health-check') `
+        -WorkingDirectory $publishRoot `
+        -Environment @{ WORKBENCH_HEALTH_URL = "$baseUrl/health/ready" } `
+        -WindowStyle Hidden `
+        -Wait `
+        -PassThru
+    if ($probeProcess.ExitCode -ne 0) {
+        throw "Published shell-free health probe failed with exit code $($probeProcess.ExitCode)."
+    }
+
     $shell = Invoke-WebRequest -Uri "$baseUrl/client/route" -SkipHttpErrorCheck
     if ($shell.StatusCode -ne 200 -or $shell.Headers.'Content-Type' -notmatch '^text/html') {
         throw "Published SPA shell contract failed at $baseUrl/client/route."

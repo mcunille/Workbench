@@ -5,6 +5,22 @@ using Workbench.Server.Contracts;
 using Workbench.Server.Health;
 using Workbench.Server.Http;
 
+if (args is ["--health-check"])
+{
+    var configuredUrl = Environment.GetEnvironmentVariable("WORKBENCH_HEALTH_URL")
+        ?? "http://127.0.0.1:8080/health/ready";
+
+    if (!Uri.TryCreate(configuredUrl, UriKind.Absolute, out var readinessUri))
+    {
+        Environment.ExitCode = 1;
+        return;
+    }
+
+    using var healthClient = new HttpClient { Timeout = TimeSpan.FromSeconds(5) };
+    Environment.ExitCode = await HealthProbe.RunAsync(healthClient, readinessUri);
+    return;
+}
+
 var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 builder.Services.AddHealthChecks().AddCheck(

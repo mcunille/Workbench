@@ -1,0 +1,13 @@
+.git
+.github
+.idea
+.vs
+**/bin
+**/dist
+**/node_modules
+**/obj
+**/TestResults
+artifacts
+docs
+tests
+*.md
