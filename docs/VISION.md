@@ -3,9 +3,9 @@
 ## Purpose
 
 Workbench will help gemstone and jewelry hobbyists, collectors, and businesses understand what they
-have, account for what happened, and manage how their products reach customers. It should be useful
-as a focused collection tool and capable of growing into a professional operating system without
-becoming two unrelated products.
+have, manage how items are transformed or serviced, account for what happened, and manage how their
+products reach customers. It should be useful as a focused collection tool and capable of growing
+into a professional operating system without becoming two unrelated products.
 
 ## Product areas
 
@@ -16,6 +16,19 @@ Answer **what do I have?**
 This area covers the identity, classification, provenance, acquisition, condition, location, and
 supporting information for gemstones, jewelry, and related materials. It also includes enough order
 tracking to explain how items entered a collection or business.
+
+### Work orders
+
+Answer **what am I making or servicing?**
+
+This area tracks work that transforms inventory into new inventory, such as combining gemstones and
+other materials into parcels or jewelry. It preserves the relationship between inputs, outputs,
+materials, labor, and results so transformed items retain meaningful history and traceability.
+
+Work orders also track services that may not create a new inventory item, such as jewelry cleaning,
+inspection, repair, restoration, or alteration. Work may be performed internally or by an outside
+provider, while related purchases, costs, and financial activity remain connected to the appropriate
+bookkeeping records.
 
 ### Bookkeeping and accounting
 
@@ -44,7 +57,7 @@ commerce features to receive value from Workbench.
 
 ### Professional businesses
 
-Professionals need deeper workflows across all three product areas, including multiple users,
+Professionals need deeper workflows across all four product areas, including multiple users,
 defined roles, financial controls, reconciliation, and commerce operations. Professional capability
 should extend the same product model used by hobbyists rather than introduce a separate edition.
 
