@@ -1,3 +1,5 @@
+// Copyright (c) 2026 The White Stag Collection.
+
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Workbench.Server.Application;

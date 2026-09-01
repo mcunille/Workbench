@@ -1,3 +1,5 @@
+// Copyright (c) 2026 The White Stag Collection.
+
 namespace Workbench.Server.Health;
 
 public static class HealthProbe

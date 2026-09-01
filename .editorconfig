@@ -1,0 +1,5 @@
+root = true
+
+[*.cs]
+file_header_template = Copyright (c) 2026 The White Stag Collection.
+dotnet_diagnostic.IDE0073.severity = error

@@ -1,3 +1,5 @@
+// Copyright (c) 2026 The White Stag Collection.
+
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
 

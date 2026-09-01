@@ -1,3 +1,5 @@
+// Copyright (c) 2026 The White Stag Collection.
+
 using System.Net;
 using Workbench.Server.Health;
 using Xunit;
