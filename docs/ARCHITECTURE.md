@@ -162,8 +162,15 @@ mounted secrets or another documented secret store. Scaling and routine deployme
 sessions.
 
 State-changing browser requests require antiforgery protection. Login, recovery, and other sensitive
-flows are rate-limited and audited. Password reset and email verification use a provider-neutral email
-contract; local development uses a safe local sink.
+flows use non-enumerating failure responses, shared multi-replica-safe rate limits, and audit records.
+Rate limits include a normalized account dimension and a client-network dimension derived only
+through trusted proxy configuration, so adding replicas cannot reset an attacker's attempt budget.
+Password reset and email verification use verified, time-limited operations through a provider-neutral
+email contract; local development uses a safe local sink.
+
+HTTPS is required outside explicit local-development profiles. Authentication cookies are same-origin
+and set `Secure`, `HttpOnly`, and at least `SameSite=Lax`. Framework-maintained password hashing is
+used, and browser storage never holds access or refresh tokens.
 
 External OIDC may later link a verified external identity to an existing Workbench account. Workbench
 remains authoritative for `TenantId`, account status, roles, permissions, session revocation, and audit
@@ -258,6 +265,9 @@ a SQL backup with a corresponding blob manifest or storage snapshot. Restore dri
 ownership, blob checksums, schema version, key availability, application startup, and representative
 data access.
 
+Backups are encrypted, stored outside the running application host, and identified by application and
+schema version.
+
 A restore invalidates every pre-restore browser session before the application becomes ready. The
 procedure removes restored session records and rotates or advances authentication protection state so
 a cookie issued against rolled-back account, role, or revocation data cannot become valid again.
@@ -272,9 +282,11 @@ image, and records source revision, dependency inventory, and immutable image di
 automation verifies that provenance before running the matching migration and releasing the image.
 
 Migrations run separately using a principal with schema-change rights. Web replicas use a principal
-without DDL or migration-history modification rights. Migrations are forward-tested against Azure SQL
-and a supported self-hosted SQL Server version. Destructive changes use an expand, migrate, and contract
-sequence with a verified backup and an explicit compatibility window.
+without DDL or migration-history modification rights. Migration credentials are available only to the
+controlled deployment operation and are never mounted into, stored by, or recoverable from the running
+web workload. Migrations are forward-tested against Azure SQL and a supported self-hosted SQL Server
+version. Destructive changes use an expand, migrate, and contract sequence with a verified backup and
+an explicit compatibility window.
 
 ## Security and verification gates
 
