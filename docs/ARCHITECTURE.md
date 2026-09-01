@@ -6,9 +6,8 @@ This document is the authoritative living description of Workbench's current tec
 architecture. Update it when the accepted architecture changes. The dated
 [base-architecture specification](specs/2026-08-31-base-application-architecture.md) preserves the
 decision context, alternatives, and acceptance criteria behind this direction. The
-[application-foundation plan](superpowers/plans/2026-08-31-application-foundation.md) describes the
-first implementation increment. Delivery is tracked by [GitHub issue #8](https://github.com/mcunille/Workbench/issues/8)
-and its linked work items.
+implementation is tracked by [GitHub issue #8](https://github.com/mcunille/Workbench/issues/8) and
+its linked work items.
 
 ## Scope and implementation status
 
@@ -359,7 +358,6 @@ security, and hosted/self-hosted parity.
 ## Decision and delivery records
 
 - [Accepted base-architecture specification](specs/2026-08-31-base-application-architecture.md)
-- [Application-foundation implementation plan](superpowers/plans/2026-08-31-application-foundation.md)
 - [Architecture implementation umbrella issue](https://github.com/mcunille/Workbench/issues/8)
 - [Application foundation issue](https://github.com/mcunille/Workbench/issues/9)
 - [Data and identity issue](https://github.com/mcunille/Workbench/issues/10)
