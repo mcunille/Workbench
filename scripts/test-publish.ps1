@@ -52,16 +52,20 @@ try {
     $listener.Stop()
     $baseUrl = "http://127.0.0.1:$port"
 
-    $publishedProcess = Start-Process `
-        -FilePath 'dotnet' `
-        -ArgumentList @($serverAssembly) `
-        -WorkingDirectory $publishRoot `
-        -Environment @{
+    $publishedProcessParameters = @{
+        FilePath = 'dotnet'
+        ArgumentList = @($serverAssembly)
+        WorkingDirectory = $publishRoot
+        Environment = @{
             ASPNETCORE_ENVIRONMENT = 'Production'
             ASPNETCORE_URLS = $baseUrl
-        } `
-        -WindowStyle Hidden `
-        -PassThru
+        }
+        PassThru = $true
+    }
+    if ($IsWindows) {
+        $publishedProcessParameters.WindowStyle = 'Hidden'
+    }
+    $publishedProcess = Start-Process @publishedProcessParameters
 
     $ready = $false
     for ($attempt = 0; $attempt -lt 60; $attempt++) {
@@ -87,14 +91,18 @@ try {
         throw "Published server did not become ready at $baseUrl."
     }
 
-    $probeProcess = Start-Process `
-        -FilePath 'dotnet' `
-        -ArgumentList @($serverAssembly, '--health-check') `
-        -WorkingDirectory $publishRoot `
-        -Environment @{ WORKBENCH_HEALTH_URL = "$baseUrl/health/ready" } `
-        -WindowStyle Hidden `
-        -Wait `
-        -PassThru
+    $probeProcessParameters = @{
+        FilePath = 'dotnet'
+        ArgumentList = @($serverAssembly, '--health-check')
+        WorkingDirectory = $publishRoot
+        Environment = @{ WORKBENCH_HEALTH_URL = "$baseUrl/health/ready" }
+        Wait = $true
+        PassThru = $true
+    }
+    if ($IsWindows) {
+        $probeProcessParameters.WindowStyle = 'Hidden'
+    }
+    $probeProcess = Start-Process @probeProcessParameters
     if ($probeProcess.ExitCode -ne 0) {
         throw "Published shell-free health probe failed with exit code $($probeProcess.ExitCode)."
     }
