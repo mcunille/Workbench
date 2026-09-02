@@ -50,4 +50,33 @@ public sealed class BootstrapTests(SqlServerFixture sqlServer)
         Assert.Equal(2, reader.GetInt32(2));
         Assert.Equal(1, reader.GetInt32(3));
     }
+
+    [Fact]
+    public async Task DevelopmentRecoveryReturnsRawTokenOnlyToOperatorCaller()
+    {
+        await using var database = await sqlServer.CreateDatabaseAsync();
+        await DatabaseMigrator.MigrateAsync(database.AdminConnectionString, CancellationToken.None);
+        var commands = new OperatorCommands(
+            database.AdminConnectionString,
+            new PasswordHasher<WorkbenchUser>(),
+            TimeProvider.System);
+        await commands.BootstrapAsync(
+            "Recovery Tenant",
+            "recovery-admin@example.com",
+            "Correct Horse Battery Staple 3#",
+            CancellationToken.None);
+
+        var token = await commands.CreateDevelopmentRecoveryAsync(
+            "recovery-admin@example.com",
+            CancellationToken.None);
+
+        Assert.NotNull(token);
+        await using var connection = new SqlConnection(database.AdminConnectionString);
+        await connection.OpenAsync();
+        await using var command = new SqlCommand(
+            "SELECT [TokenHash] FROM [Identity].[IdentityOperations]",
+            connection);
+        var stored = Assert.IsType<byte[]>(await command.ExecuteScalarAsync());
+        Assert.Equal(SessionToken.Hash(token), stored);
+    }
 }

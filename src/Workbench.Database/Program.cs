@@ -12,7 +12,8 @@ static async Task<int> RunAsync(string[] arguments)
 {
     try
     {
-        var hasSubcommand = arguments.Length > 1 && arguments[0] is "tenant" or "principals";
+        var hasSubcommand = arguments.Length > 1 &&
+            arguments[0] is "tenant" or "principals" or "restore" or "development";
         var options = ParseOptions(arguments.Skip(hasSubcommand ? 2 : 1));
         if (arguments.Length == 0 ||
             !options.TryGetValue("--connection-file", out var connectionFile) ||
@@ -33,6 +34,43 @@ static async Task<int> RunAsync(string[] arguments)
         {
             await ProvisionPrincipalsAsync(connectionString, options);
             Console.WriteLine("Workbench database principals provisioned successfully.");
+            return 0;
+        }
+
+        if (arguments is ["restore", "sanitize", ..])
+        {
+            var correlationId = RequireOption(options, "--correlation-id");
+            var restoreCommands = new OperatorCommands(
+                connectionString,
+                new PasswordHasher<WorkbenchUser>(),
+                TimeProvider.System);
+            await restoreCommands.SanitizeRestoreAsync(correlationId, CancellationToken.None);
+            Console.WriteLine("Restored authentication artifacts sanitized successfully.");
+            return 0;
+        }
+
+        if (arguments is ["development", "recovery-link", ..])
+        {
+            if (!string.Equals(RequireOption(options, "--environment"), "Development", StringComparison.Ordinal) ||
+                !Uri.TryCreate(RequireOption(options, "--base-url"), UriKind.Absolute, out var baseUri))
+            {
+                throw new ArgumentException("Development recovery input is invalid.");
+            }
+            var email = RequireOption(options, "--email");
+            var outputFile = Path.GetFullPath(RequireOption(options, "--output-file"));
+            if (File.Exists(outputFile))
+            {
+                throw new ArgumentException("The recovery output file already exists.");
+            }
+            var developmentCommands = new OperatorCommands(
+                connectionString,
+                new PasswordHasher<WorkbenchUser>(),
+                TimeProvider.System);
+            var token = await developmentCommands.CreateDevelopmentRecoveryAsync(email, CancellationToken.None)
+                ?? throw new ArgumentException("The development recovery target was not found.");
+            var link = new UriBuilder(new Uri(baseUri, "/recover")) { Query = $"token={Uri.EscapeDataString(token)}" };
+            await File.WriteAllTextAsync(outputFile, link.Uri.AbsoluteUri);
+            Console.WriteLine("Development recovery link written to the requested file.");
             return 0;
         }
 
@@ -123,6 +161,8 @@ static int Usage()
           Workbench.Database bootstrap --connection-file <path> --expected-database <name> --tenant-name <name> --admin-email <email> --password-file <path>
           Workbench.Database tenant create --connection-file <path> --expected-database <name> --tenant-name <name> --admin-email <email> --password-file <path>
           Workbench.Database principals provision --connection-file <path> --expected-database <name> --web-user <name> --web-password-file <path> --operator-user <name> --operator-password-file <path> --migrator-user <name> --migrator-password-file <path>
+          Workbench.Database restore sanitize --connection-file <path> --expected-database <name> --correlation-id <id>
+          Workbench.Database development recovery-link --connection-file <path> --expected-database <name> --environment Development --base-url <url> --email <email> --output-file <path>
         """);
     return 2;
 }

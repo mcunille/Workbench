@@ -27,7 +27,15 @@ jobs:
         with:
           node-version: 26.7.0
           cache: npm
-          cache-dependency-path: src/Workbench.Client/package-lock.json
+          cache-dependency-path: |
+            src/Workbench.Client/package-lock.json
+            tests/Workbench.BrowserTests/package-lock.json
+
+      - name: Install Chromium
+        shell: pwsh
+        run: |
+          npm ci --prefix tests/Workbench.BrowserTests
+          npm exec --prefix tests/Workbench.BrowserTests -- playwright install --with-deps chromium
 
       - name: Verify source and published output
         shell: pwsh

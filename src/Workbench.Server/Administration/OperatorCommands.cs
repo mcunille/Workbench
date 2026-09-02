@@ -20,6 +20,30 @@ public sealed class OperatorCommands(
     IPasswordHasher<WorkbenchUser> passwordHasher,
     TimeProvider timeProvider)
 {
+    public async Task<string?> CreateDevelopmentRecoveryAsync(
+        string email,
+        CancellationToken cancellationToken)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(email);
+        var token = SessionToken.Create();
+        var now = timeProvider.GetUtcNow();
+        await using var connection = new SqlConnection(connectionString);
+        await connection.OpenAsync(cancellationToken);
+        await using var command = new SqlCommand("[Administration].[CreateDevelopmentRecovery]", connection)
+        {
+            CommandType = CommandType.StoredProcedure,
+        };
+        command.Parameters.AddWithValue("@OperationId", Guid.CreateVersion7());
+        command.Parameters.AddWithValue("@NormalizedEmail", email.Trim().ToUpperInvariant());
+        command.Parameters.Add(new SqlParameter("@TokenHash", SqlDbType.Binary, 32)
+        {
+            Value = SessionToken.Hash(token),
+        });
+        command.Parameters.AddWithValue("@Now", now);
+        command.Parameters.AddWithValue("@ExpiresAtUtc", now.AddMinutes(30));
+        return Convert.ToBoolean(await command.ExecuteScalarAsync(cancellationToken)) ? token : null;
+    }
+
     public Task<Guid> BootstrapAsync(
         string tenantName,
         string administratorEmail,
@@ -43,6 +67,27 @@ public sealed class OperatorCommands(
             administratorPassword,
             requireEmptyDatabase: false,
             cancellationToken);
+
+    public async Task SanitizeRestoreAsync(
+        string correlationId,
+        CancellationToken cancellationToken)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(correlationId);
+        if (correlationId.Length > 100)
+        {
+            throw new ArgumentException("The correlation identifier is too long.", nameof(correlationId));
+        }
+
+        await using var connection = new SqlConnection(connectionString);
+        await connection.OpenAsync(cancellationToken);
+        await using var command = new SqlCommand("[Administration].[SanitizeRestore]", connection)
+        {
+            CommandType = CommandType.StoredProcedure,
+        };
+        command.Parameters.AddWithValue("@Now", timeProvider.GetUtcNow());
+        command.Parameters.AddWithValue("@CorrelationId", correlationId);
+        await command.ExecuteNonQueryAsync(cancellationToken);
+    }
 
     private async Task<Guid> CreateTenantAsync(
         string tenantName,

@@ -4,6 +4,8 @@ docs/superpowers/**
 **/node_modules/
 **/dist/
 **/TestResults/
+**/test-results/
+**/playwright-report/
 src/Workbench.Server/openapi/
 .vs/
 .idea/

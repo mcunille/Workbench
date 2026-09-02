@@ -4,6 +4,7 @@ param()
 $ErrorActionPreference = 'Stop'
 $repositoryRoot = Split-Path -Parent $PSScriptRoot
 $clientRoot = Join-Path $repositoryRoot 'src/Workbench.Client'
+$browserRoot = Join-Path $repositoryRoot 'tests/Workbench.BrowserTests'
 $serverProject = Join-Path $repositoryRoot 'src/Workbench.Server/Workbench.Server.csproj'
 $openApiRoot = Join-Path $clientRoot 'openapi'
 
@@ -42,6 +43,9 @@ try {
     npm ci --prefix $clientRoot
     Assert-NativeCommandSucceeded 'npm ci'
 
+    npm ci --prefix $browserRoot
+    Assert-NativeCommandSucceeded 'browser npm ci'
+
     dotnet format Workbench.slnx --verify-no-changes --no-restore
     Assert-NativeCommandSucceeded 'dotnet format'
 
@@ -75,6 +79,14 @@ try {
 
     npm run build --prefix $clientRoot
     Assert-NativeCommandSucceeded 'client build'
+
+    foreach ($scenario in @('Clean', 'Upgrade', 'ReversibleRollback', 'RestoreRollback')) {
+        & (Join-Path $PSScriptRoot 'verify-migrations.ps1') -Scenario $scenario
+        if (-not $?) { throw "Migration scenario '$scenario' failed." }
+    }
+
+    npm test --prefix $browserRoot
+    Assert-NativeCommandSucceeded 'browser tests'
 
     & (Join-Path $PSScriptRoot 'test-publish.ps1')
     if (-not $?) {

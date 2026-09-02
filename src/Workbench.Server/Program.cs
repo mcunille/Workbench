@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using System.Security.Claims;
@@ -39,11 +40,29 @@ if (args is ["--health-check"])
 var builder = WebApplication.CreateBuilder(args);
 var configuredWebConnection =
     ProductionSecurityConfigurationValidator.GetWebConnectionString(builder.Configuration);
+var configuredProxy = builder.Configuration["ReverseProxy:KnownProxy"]
+    ?? Environment.GetEnvironmentVariable("WORKBENCH_KNOWN_PROXY");
+if (System.Net.IPAddress.TryParse(configuredProxy, out var knownProxy))
+{
+    builder.Services.Configure<ForwardedHeadersOptions>(options =>
+    {
+        options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+        options.ForwardLimit = 1;
+        options.KnownProxies.Add(knownProxy);
+    });
+}
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 builder.Services.AddHealthChecks().AddCheck(
     "self",
     () => HealthCheckResult.Healthy(),
     tags: ["live"]);
+if (!string.IsNullOrWhiteSpace(configuredWebConnection))
+{
+    builder.Services.AddHealthChecks().AddCheck(
+        "database",
+        new DatabaseReadinessCheck(configuredWebConnection),
+        tags: ["ready"]);
+}
 builder.Services.AddSingleton<IReleaseInformation, AssemblyReleaseInformation>();
 builder.Services.AddHostedService<ProductionSecurityConfigurationValidator>();
 builder.Services.AddSingleton(TimeProvider.System);
@@ -182,6 +201,7 @@ builder.Services.AddProblemDetails(options =>
 
 var app = builder.Build();
 
+app.UseForwardedHeaders();
 app.UseExceptionHandler();
 app.UseDefaultFiles();
 app.UseStaticFiles();

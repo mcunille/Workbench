@@ -36,6 +36,10 @@ function requireSuccess(response: Response): void {
   }
 }
 
+function identityChanged(): void {
+  antiforgeryToken = undefined;
+}
+
 export async function getCurrentIdentity(): Promise<CurrentIdentity | null> {
   const { data, response } = await api.GET('/api/auth/me');
   if (response.status === 401) {
@@ -54,6 +58,7 @@ export async function signIn(email: string, password: string): Promise<void> {
     headers: await mutationHeaders(),
   });
   requireSuccess(response);
+  identityChanged();
 }
 
 export async function signOut(): Promise<void> {
@@ -61,6 +66,7 @@ export async function signOut(): Promise<void> {
     headers: await mutationHeaders(),
   });
   requireSuccess(response);
+  identityChanged();
 }
 
 export async function changePassword(
@@ -72,6 +78,7 @@ export async function changePassword(
     headers: await mutationHeaders(),
   });
   requireSuccess(response);
+  identityChanged();
 }
 
 export async function getSessions(): Promise<Session[]> {
@@ -86,6 +93,7 @@ export async function revokeSession(sessionId: string): Promise<void> {
     headers: await mutationHeaders(),
   });
   requireSuccess(response);
+  identityChanged();
 }
 
 export async function revokeAllSessions(): Promise<void> {
@@ -93,6 +101,7 @@ export async function revokeAllSessions(): Promise<void> {
     headers: await mutationHeaders(),
   });
   requireSuccess(response);
+  identityChanged();
 }
 
 export async function requestRecovery(email: string): Promise<void> {

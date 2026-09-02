@@ -22,15 +22,21 @@ public sealed class AuthTestApplication : IAsyncDisposable
     public const string DisabledEmail = "disabled@example.com";
     private readonly SqlTestDatabase _database;
 
-    private AuthTestApplication(SqlTestDatabase database, WebApplicationFactory<Program> factory)
+    private AuthTestApplication(
+        SqlTestDatabase database,
+        string webConnectionString,
+        WebApplicationFactory<Program> factory)
     {
         _database = database;
+        WebConnectionString = webConnectionString;
         Factory = factory;
     }
 
     public WebApplicationFactory<Program> Factory { get; }
 
     public string AdminConnectionString => _database.AdminConnectionString;
+
+    public string WebConnectionString { get; }
 
     public static async Task<AuthTestApplication> CreateAsync(SqlServerFixture sqlServer)
     {
@@ -41,7 +47,7 @@ public sealed class AuthTestApplication : IAsyncDisposable
         var factory = new WebApplicationFactory<Program>()
             .WithWebHostBuilder(builder =>
                 builder.UseSetting("ConnectionStrings:Workbench", webConnection));
-        return new AuthTestApplication(database, factory);
+        return new AuthTestApplication(database, webConnection, factory);
     }
 
     public HttpClient CreateClient() => Factory.CreateClient(new WebApplicationFactoryClientOptions
