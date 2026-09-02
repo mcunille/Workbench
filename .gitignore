@@ -1,1 +1,10 @@
 docs/superpowers/**
+**/bin/
+**/obj/
+**/node_modules/
+**/dist/
+**/TestResults/
+src/Workbench.Server/openapi/
+.vs/
+.idea/
+artifacts/

@@ -1,7 +1,37 @@
 # Contributing to Workbench
 
-Workbench is in its design stage. Contributions that clarify the product, test its assumptions, or
-improve its design principles are welcome.
+Workbench is implementing its accepted architecture in reviewable phases. Contributions that
+clarify the product, test its assumptions, improve its design, or deliver an accepted phase are
+welcome.
+
+## Development prerequisites
+
+The repository pins .NET SDK `10.0.400`, Node.js `26.7.0`, and npm `11.19.0`. Use PowerShell 7 for
+the checked-in scripts and a Linux-container Docker engine for container verification. Do not update
+one toolchain pin without updating its locks, CI setup, documentation, and smoke evidence.
+
+The server and client develop independently:
+
+```powershell
+dotnet run --project src/Workbench.Server
+npm ci --prefix src/Workbench.Client
+npm run dev --prefix src/Workbench.Client
+```
+
+The server listens at `http://localhost:5000`; Vite listens at `http://localhost:5173` and proxies
+relative API and health requests. Production does not use CORS or a separate client origin.
+
+Before submitting application changes, run:
+
+```powershell
+./scripts/verify.ps1
+./scripts/smoke-container.ps1
+```
+
+The first command performs locked restores, formatting, OpenAPI client drift detection, builds,
+tests, and published-output probes. The second requires Docker and verifies the runtime image as
+non-root and read-only with no Node.js or source files. If Docker is unavailable, state that limit
+explicitly; do not report the container gate as passed.
 
 ## Before proposing a change
 
@@ -18,6 +48,7 @@ Small corrections and documentation improvements do not require a spec.
 - Keep each pull request focused on one coherent change.
 - Explain the user need, the chosen approach, and how the result was verified.
 - Update current documentation when a change makes an accepted spec true.
+- Commit regenerated API declarations whenever the server OpenAPI contract changes.
 
 Specs describe the reasoning behind a change. The vision and design-principles documents describe
 the project's current direction and must remain understandable without reconstructing spec history.

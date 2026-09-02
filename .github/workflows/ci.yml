@@ -1,0 +1,46 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: Source and release unit
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v7
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: 10.0.400
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 26.7.0
+          cache: npm
+          cache-dependency-path: src/Workbench.Client/package-lock.json
+
+      - name: Verify source and published output
+        shell: pwsh
+        run: ./scripts/verify.ps1
+
+  container-smoke:
+    name: Hardened container smoke
+    needs: verify
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v7
+
+      - name: Build and smoke test the runtime image
+        shell: pwsh
+        run: ./scripts/smoke-container.ps1

@@ -1,0 +1,37 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <BuildClient Condition="'$(BuildClient)' == ''">true</BuildClient>
+    <ClientRoot>$(MSBuildProjectDirectory)\..\Workbench.Client\</ClientRoot>
+    <OpenApiGenerateDocuments>true</OpenApiGenerateDocuments>
+    <OpenApiDocumentsDirectory>$(MSBuildProjectDirectory)\openapi</OpenApiDocumentsDirectory>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" />
+    <PackageReference Include="Microsoft.Extensions.ApiDescription.Server" PrivateAssets="all" />
+  </ItemGroup>
+  <ItemGroup>
+    <Content Update="wwwroot\index.html" CopyToPublishDirectory="Never" />
+  </ItemGroup>
+  <Target Name="BuildAndIncludeClientForPublish" BeforeTargets="ComputeFilesToPublish">
+    <Exec
+      Command="npm ci"
+      Condition="'$(BuildClient)' == 'true'"
+      WorkingDirectory="$(ClientRoot)" />
+    <Exec
+      Command="npm run build"
+      Condition="'$(BuildClient)' == 'true'"
+      WorkingDirectory="$(ClientRoot)" />
+    <Error
+      Condition="!Exists('$(ClientRoot)dist\index.html')"
+      Text="The Workbench client has not been built. Expected $(ClientRoot)dist\index.html." />
+    <ItemGroup>
+      <ClientDistFiles Include="$(ClientRoot)dist\**\*" />
+      <ResolvedFileToPublish Include="@(ClientDistFiles)">
+        <RelativePath>wwwroot\%(RecursiveDir)%(Filename)%(Extension)</RelativePath>
+        <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+        <ExcludeFromSingleFile>true</ExcludeFromSingleFile>
+      </ResolvedFileToPublish>
+    </ItemGroup>
+  </Target>
+</Project>

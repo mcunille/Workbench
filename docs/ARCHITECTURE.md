@@ -1,6 +1,6 @@
 # Workbench architecture
 
-**Status:** Accepted target architecture; application implementation has not begun.
+**Status:** Accepted target architecture; application-foundation implementation is in verification.
 
 This document is the authoritative living description of Workbench's current technical
 architecture. Update it when the accepted architecture changes. The dated
@@ -15,9 +15,11 @@ Workbench will begin as a portable, containerized modular monolith. A React and 
 and an ASP.NET Core API will be published together as one container image. SQL Server is the only
 initial structured-data engine, and a provider-neutral blob contract isolates binary storage.
 
-This is a target architecture, not a claim about deployed capability. The repository is currently
-at the design stage. The linked implementation issues introduce the application shell, identity,
-tenancy, storage, operations, and Azure deployment in independently verifiable increments.
+This remains a target architecture rather than a claim that every capability is deployed. The
+React client, typed ASP.NET Core API, health contracts, same-origin publish path, and container
+definition now exist under the application-foundation phase. Its local source, publish, and hardened
+container smoke checks pass. The linked later phases add identity, tenancy, storage, operations, and
+Azure deployment in independently verifiable increments.
 
 Detailed inventory, purchasing, accounting, and commerce workflows are outside this document and
 require focused specifications.

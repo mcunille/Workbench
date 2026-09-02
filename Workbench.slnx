@@ -1,0 +1,8 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Workbench.Server/Workbench.Server.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Workbench.Server.IntegrationTests/Workbench.Server.IntegrationTests.csproj" />
+  </Folder>
+</Solution>

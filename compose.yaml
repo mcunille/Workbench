@@ -1,0 +1,25 @@
+name: workbench
+
+services:
+  app:
+    image: workbench:local
+    build:
+      context: .
+      dockerfile: Dockerfile
+    init: true
+    user: "1654:1654"
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=64m,uid=1654,gid=1654
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    ports:
+      - "127.0.0.1:${WORKBENCH_PORT:-8080}:8080"
+    healthcheck:
+      test: ["CMD", "dotnet", "Workbench.Server.dll", "--health-check"]
+      interval: 10s
+      timeout: 6s
+      start_period: 10s
+      retries: 3
