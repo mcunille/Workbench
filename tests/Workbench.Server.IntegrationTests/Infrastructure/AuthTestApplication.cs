@@ -15,6 +15,8 @@ public sealed class AuthTestApplication : IAsyncDisposable
     public static readonly Guid TenantId = Guid.Parse("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
     public static readonly Guid AdminUserId = Guid.Parse("11111111-1111-1111-1111-111111111111");
     public static readonly Guid DisabledUserId = Guid.Parse("33333333-3333-3333-3333-333333333333");
+    public static readonly Guid MemberUserId = Guid.Parse("44444444-4444-4444-4444-444444444444");
+    public static readonly Guid OtherTenantUserId = Guid.Parse("55555555-5555-5555-5555-555555555555");
     public const string AdminEmail = "admin@example.com";
     public const string AdminPassword = "Correct Horse Battery Staple 1!";
     public const string DisabledEmail = "disabled@example.com";
@@ -67,6 +69,12 @@ public sealed class AuthTestApplication : IAsyncDisposable
         var disabled = CreateUser(DisabledUserId, DisabledEmail, now);
         disabled.State = AccountState.Disabled;
         disabled.PasswordHash = passwordHasher.HashPassword(disabled, AdminPassword);
+        var member = CreateUser(MemberUserId, "member@example.com", now);
+        member.PasswordHash = passwordHasher.HashPassword(member, AdminPassword);
+        var otherTenantId = Guid.Parse("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb");
+        var other = CreateUser(OtherTenantUserId, "other@example.com", now);
+        other.TenantId = otherTenantId;
+        other.PasswordHash = passwordHasher.HashPassword(other, AdminPassword);
         var roleId = Guid.Parse("22222222-2222-2222-2222-222222222222");
 
         database.Tenants.Add(new Tenant
@@ -76,7 +84,14 @@ public sealed class AuthTestApplication : IAsyncDisposable
             NormalizedName = "TENANT A",
             CreatedAtUtc = now,
         });
-        database.Users.AddRange(admin, disabled);
+        database.Tenants.Add(new Tenant
+        {
+            Id = otherTenantId,
+            Name = "Tenant B",
+            NormalizedName = "TENANT B",
+            CreatedAtUtc = now,
+        });
+        database.Users.AddRange(admin, disabled, member, other);
         database.LoginDirectory.AddRange(
             new LoginDirectoryEntry
             {
@@ -89,6 +104,18 @@ public sealed class AuthTestApplication : IAsyncDisposable
                 NormalizedEmail = DisabledEmail.ToUpperInvariant(),
                 UserId = disabled.Id,
                 TenantId = TenantId,
+            },
+            new LoginDirectoryEntry
+            {
+                NormalizedEmail = member.NormalizedEmail!,
+                UserId = member.Id,
+                TenantId = TenantId,
+            },
+            new LoginDirectoryEntry
+            {
+                NormalizedEmail = other.NormalizedEmail!,
+                UserId = other.Id,
+                TenantId = otherTenantId,
             });
         database.Roles.Add(new WorkbenchRole
         {

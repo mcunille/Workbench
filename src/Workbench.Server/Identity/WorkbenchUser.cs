@@ -9,6 +9,7 @@ public enum AccountState
 {
     Enabled = 1,
     Disabled = 2,
+    Invited = 3,
 }
 
 public sealed class WorkbenchUser : IdentityUser<Guid>, ITenantOwned

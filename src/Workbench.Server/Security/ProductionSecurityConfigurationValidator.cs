@@ -1,10 +1,14 @@
 // Copyright (c) 2026 The White Stag Collection.
 
+using Workbench.Server.Identity;
+
 namespace Workbench.Server.Security;
 
 public sealed class ProductionSecurityConfigurationValidator(
     IHostEnvironment environment,
-    IConfiguration configuration) : IHostedService
+    IConfiguration configuration,
+    IEnumerable<IIdentityMessageDelivery> deliveries,
+    IEnumerable<ISensitiveRequestRateLimiter> rateLimiters) : IHostedService
 {
     public Task StartAsync(CancellationToken cancellationToken)
     {
@@ -23,6 +27,18 @@ public sealed class ProductionSecurityConfigurationValidator(
         {
             throw new InvalidOperationException(
                 "Production requires the Workbench web database connection.");
+        }
+
+        var publicIdentityEnabled = configuration.GetValue<bool>("Identity:PublicRecoveryEnabled") ||
+            configuration.GetValue<bool>("Identity:PublicInvitationEnabled");
+        if (publicIdentityEnabled &&
+            (!deliveries.Any(provider => provider.IsAvailable &&
+                provider is not DevelopmentIdentityMessageDelivery) ||
+             !rateLimiters.Any(provider => provider.IsAvailable &&
+                provider is not DevelopmentSensitiveRequestRateLimiter)))
+        {
+            throw new InvalidOperationException(
+                "Public recovery and invitations require production message delivery and shared rate limiting.");
         }
 
         return Task.CompletedTask;

@@ -44,6 +44,10 @@ public class WorkbenchDbContext : IdentityDbContext<
 
     public DbSet<WorkbenchSession> Sessions => Set<WorkbenchSession>();
 
+    public DbSet<IdentityOperation> IdentityOperations => Set<IdentityOperation>();
+
+    public DbSet<SystemSecurityAuditEvent> SystemSecurityAuditEvents => Set<SystemSecurityAuditEvent>();
+
     public DbSet<DataProtectionKey> DataProtectionKeys => Set<DataProtectionKey>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -67,6 +71,10 @@ public class WorkbenchDbContext : IdentityDbContext<
         auditEvent.IsTenantOwned(
             row => (Guid?)row.TenantId == TenantContext.TenantId);
         auditEvent.Property(row => row.Action).HasMaxLength(200).IsRequired();
+        auditEvent.Property(row => row.TargetType).HasMaxLength(100);
+        auditEvent.Property(row => row.Outcome).HasMaxLength(50).HasDefaultValue("Succeeded").IsRequired();
+        auditEvent.Property(row => row.CorrelationId).HasMaxLength(100);
+        auditEvent.Property(row => row.MetadataJson).HasMaxLength(2000);
         auditEvent.Property(row => row.RowVersion).IsRowVersion();
         auditEvent.HasOne<Tenant>()
             .WithMany()
@@ -75,6 +83,8 @@ public class WorkbenchDbContext : IdentityDbContext<
 
         ConfigureIdentity(modelBuilder);
         ConfigureSessions(modelBuilder);
+        ConfigureIdentityOperations(modelBuilder);
+        ConfigureSystemAudit(modelBuilder);
     }
 
     private void ConfigureIdentity(ModelBuilder modelBuilder)
@@ -138,6 +148,35 @@ public class WorkbenchDbContext : IdentityDbContext<
             .OnDelete(DeleteBehavior.Restrict);
 
         modelBuilder.Entity<DataProtectionKey>().ToTable("DataProtectionKeys", "Identity");
+    }
+
+    private void ConfigureIdentityOperations(ModelBuilder modelBuilder)
+    {
+        var operation = modelBuilder.Entity<IdentityOperation>();
+        operation.ToTable("IdentityOperations", "Identity");
+        operation.HasKey(row => row.Id);
+        operation.IsTenantOwned(row => (Guid?)row.TenantId == TenantContext.TenantId);
+        operation.Property(row => row.Purpose).HasConversion<int>();
+        operation.Property(row => row.TokenHash).HasColumnType("binary(32)").IsRequired();
+        operation.HasIndex(row => row.TokenHash).IsUnique();
+        operation.Property(row => row.RowVersion).IsRowVersion();
+        operation.HasOne<WorkbenchUser>()
+            .WithMany()
+            .HasForeignKey(row => new { row.TenantId, row.UserId })
+            .HasPrincipalKey(row => new { row.TenantId, row.Id })
+            .OnDelete(DeleteBehavior.Restrict);
+    }
+
+    private static void ConfigureSystemAudit(ModelBuilder modelBuilder)
+    {
+        var audit = modelBuilder.Entity<SystemSecurityAuditEvent>();
+        audit.ToTable("SystemSecurityAuditEvents", "Security");
+        audit.HasKey(row => row.Id);
+        audit.Property(row => row.Action).HasMaxLength(200).IsRequired();
+        audit.Property(row => row.Outcome).HasMaxLength(50).IsRequired();
+        audit.Property(row => row.CorrelationId).HasMaxLength(100);
+        audit.Property(row => row.MetadataJson).HasMaxLength(2000);
+        audit.Property(row => row.RowVersion).IsRowVersion();
     }
 
     private void ConfigureUserClaims(ModelBuilder modelBuilder)

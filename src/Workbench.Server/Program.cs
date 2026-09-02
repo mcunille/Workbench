@@ -9,6 +9,7 @@ using Microsoft.Extensions.Diagnostics.HealthChecks;
 using System.Security.Claims;
 using System.Security.Cryptography.X509Certificates;
 using Workbench.Server.Application;
+using Workbench.Server.Administration;
 using Workbench.Server.Authorization;
 using Workbench.Server.Contracts;
 using Workbench.Server.Health;
@@ -53,6 +54,25 @@ builder.Services.AddSingleton<SessionService>(services => new SessionService(
 builder.Services.AddScoped<IIdentityVerifier>(services => new BuiltInPasswordVerifier(
     RequireWebConnectionString(services.GetRequiredService<IConfiguration>()),
     services.GetRequiredService<IPasswordHasher<WorkbenchUser>>()));
+if (builder.Environment.IsDevelopment())
+{
+    builder.Services.AddSingleton<DevelopmentIdentityMessageDelivery>();
+    builder.Services.AddSingleton<IIdentityMessageDelivery>(services =>
+        services.GetRequiredService<DevelopmentIdentityMessageDelivery>());
+    builder.Services.AddSingleton<ISensitiveRequestRateLimiter, DevelopmentSensitiveRequestRateLimiter>();
+}
+else
+{
+    builder.Services.AddSingleton<IIdentityMessageDelivery, DisabledIdentityMessageDelivery>();
+    builder.Services.AddSingleton<ISensitiveRequestRateLimiter, DisabledSensitiveRequestRateLimiter>();
+}
+builder.Services.AddScoped<IdentityOperationService>(services => new IdentityOperationService(
+    RequireWebConnectionString(services.GetRequiredService<IConfiguration>()),
+    services.GetRequiredService<IIdentityMessageDelivery>(),
+    services.GetRequiredService<ISensitiveRequestRateLimiter>(),
+    services.GetRequiredService<UserManager<WorkbenchUser>>(),
+    services.GetRequiredService<TimeProvider>()));
+builder.Services.AddScoped<SecurityAuditWriter>();
 builder.Services
     .AddIdentityCore<WorkbenchUser>(options =>
     {
@@ -132,7 +152,14 @@ builder.Services
         options.LoginPath = PathString.Empty;
         options.AccessDeniedPath = PathString.Empty;
     });
-builder.Services.AddAuthorization();
+builder.Services.AddAuthorization(options =>
+{
+    options.AddPolicy(
+        WorkbenchPermissions.TenantUsersManage,
+        policy => policy.RequireClaim(
+            SessionCookieHandler.PermissionClaimType,
+            WorkbenchPermissions.TenantUsersManage));
+});
 builder.Services.AddAntiforgery(options =>
 {
     options.HeaderName = "X-CSRF-TOKEN";
@@ -171,6 +198,8 @@ app.MapGet(
     .Produces<SystemResponse>();
 
 app.MapWorkbenchAuthentication();
+app.MapWorkbenchRecovery();
+app.MapTenantUserAdministration();
 
 app.MapHealthChecks("/health/live", new HealthCheckOptions
 {

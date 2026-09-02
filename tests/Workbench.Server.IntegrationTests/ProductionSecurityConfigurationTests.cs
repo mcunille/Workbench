@@ -15,12 +15,37 @@ public sealed class ProductionSecurityConfigurationTests
     {
         var validator = new ProductionSecurityConfigurationValidator(
             new TestHostEnvironment { EnvironmentName = Environments.Production },
-            new ConfigurationBuilder().Build());
+            new ConfigurationBuilder().Build(),
+            [],
+            []);
 
         var error = await Assert.ThrowsAsync<InvalidOperationException>(
             () => validator.StartAsync(CancellationToken.None));
 
         Assert.Contains("data-protection certificate", error.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task ProductionRejectsPublicRecoveryWithoutProductionProviders()
+    {
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["DataProtection:CertificatePath"] = "deployment-certificate.pfx",
+                ["ConnectionStrings:Workbench"] = "Server=database;Database=workbench",
+                ["Identity:PublicRecoveryEnabled"] = "true",
+            })
+            .Build();
+        var validator = new ProductionSecurityConfigurationValidator(
+            new TestHostEnvironment { EnvironmentName = Environments.Production },
+            configuration,
+            [],
+            []);
+
+        var error = await Assert.ThrowsAsync<InvalidOperationException>(
+            () => validator.StartAsync(CancellationToken.None));
+
+        Assert.Contains("message delivery", error.Message, StringComparison.Ordinal);
     }
 
     private sealed class TestHostEnvironment : IHostEnvironment
