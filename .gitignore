@@ -8,3 +8,4 @@ src/Workbench.Server/openapi/
 .vs/
 .idea/
 artifacts/
+.env.dev

@@ -91,6 +91,27 @@ public sealed class SqlTestDatabase(
         }.ConnectionString;
     }
 
+    public async Task<string> CreateRoleUserAsync(string roleName)
+    {
+        var suffix = Guid.NewGuid().ToString("N");
+        var userName = $"workbench_test_{suffix}";
+        var password = $"W0rkbench-{suffix}!";
+
+        await using var connection = new SqlConnection(AdminConnectionString);
+        await connection.OpenAsync();
+        await using var command = new SqlCommand($"""
+            CREATE USER [{userName}] WITH PASSWORD = '{password}';
+            ALTER ROLE [{roleName}] ADD MEMBER [{userName}];
+            """, connection);
+        await command.ExecuteNonQueryAsync();
+        return new SqlConnectionStringBuilder(AdminConnectionString)
+        {
+            UserID = userName,
+            Password = password,
+            IntegratedSecurity = false,
+        }.ConnectionString;
+    }
+
     public async Task SeedTenantAuditRowsAsync(Guid tenantA, Guid tenantB)
     {
         await using var connection = new SqlConnection(AdminConnectionString);
