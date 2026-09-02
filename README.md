@@ -4,19 +4,34 @@ Workbench is fully open-source software by The White Stag Collection for gemston
 hobbyists, collectors, and businesses. It is intended to connect three areas that are often managed
 separately: inventory and collections, bookkeeping and accounting, and commerce.
 
-The project is implementing its accepted base architecture in phases. Its application foundation
-contains an independently developed React and TypeScript client and ASP.NET Core API that publish as
-one same-origin release unit. SQL Server persistence, identity, tenancy, provider infrastructure,
-and Azure deployment remain later phases.
+The project is implementing its accepted base architecture in phases. Its React and TypeScript
+client and ASP.NET Core API publish as one same-origin release unit. SQL Server persistence,
+database-enforced tenant isolation, built-in identity, durable sessions, and explicit database
+operations are implemented. Provider infrastructure and Azure deployment remain later phases.
 
 ## Develop locally
 
 Install the pinned .NET SDK `10.0.400`, Node.js `26.7.0`, npm `11.19.0`, and PowerShell 7. Docker is
 also required for the container smoke test.
 
-Start the API at `http://localhost:5000`:
+Copy `.env.dev.example` to the ignored `.env.dev`, replace every placeholder with a distinct local
+secret, start the disposable SQL Server, and perform the one-time bootstrap:
 
 ```powershell
+Copy-Item .env.dev.example .env.dev
+./scripts/test-sql.ps1 -Action Start
+./scripts/bootstrap.ps1
+```
+
+Keep `.env.dev` only in the worktree that uses it. Never commit it, paste it into agent prompts, or
+reuse its setup, web, operator, migrator, or administrator passwords outside local development.
+Agents may use the stable local administrator account after the human-controlled bootstrap; they do
+not need the setup, operator, or migrator principal for ordinary application development.
+
+Start the API at `http://localhost:5000` after loading the local environment:
+
+```powershell
+. ./scripts/dev-env.ps1
 dotnet run --project src/Workbench.Server
 ```
 
@@ -28,8 +43,8 @@ npm ci --prefix src/Workbench.Client
 npm run dev --prefix src/Workbench.Client
 ```
 
-Run locked restores, formatting, contract generation, builds, server and client tests, and the
-published same-origin smoke test with:
+Run locked restores, formatting, contract generation, builds, server and client tests, SQL
+migration/browser checks, and the published same-origin smoke test with:
 
 ```powershell
 ./scripts/verify.ps1
@@ -47,6 +62,9 @@ hardened Compose topology with:
 - [Product vision](docs/VISION.md)
 - [Design principles](docs/DESIGN-PRINCIPLES.md)
 - [Architecture](docs/ARCHITECTURE.md)
+- [Database migrations](docs/operations/database-migrations.md)
+- [Database backup and restore](docs/operations/database-backup-restore.md)
+- [Data and identity threat model](docs/security/data-identity-threat-model.md)
 - [Documentation guide](docs/README.md)
 - [Contributing](CONTRIBUTING.md)
 

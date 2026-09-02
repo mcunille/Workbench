@@ -145,7 +145,7 @@ namespace Workbench.Server.Persistence.Migrations
                 GRANT SELECT ON [Tenancy].[Tenants] TO [workbench_web];
                 GRANT EXECUTE ON [Security].[ReadDatabaseReadiness] TO [workbench_web];
                 GRANT EXECUTE ON [Administration].[SanitizeRestore] TO [workbench_operator];
-                GRANT EXECUTE ON [Administration].[CreateDevelopmentRecovery] TO [workbench_operator];
+                DENY EXECUTE ON [Administration].[CreateDevelopmentRecovery] TO [workbench_operator];
                 DENY SELECT, INSERT, UPDATE, DELETE ON [Security].[DatabaseSecurityState] TO [workbench_web];
                 DENY SELECT, INSERT, UPDATE, DELETE ON [Security].[DatabaseSecurityState] TO [workbench_operator];
                 """);

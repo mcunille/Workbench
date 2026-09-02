@@ -1,6 +1,6 @@
 # SQL Persistence, Tenant Isolation, and Built-in Identity
 
-**Status:** Accepted
+**Status:** Implemented
 
 ## Summary
 
@@ -23,11 +23,11 @@ This specification implements GitHub issue #10 and the data-and-identity phase o
 architecture. Inventory, purchasing, ledger behavior, document schemas, blob providers, SMTP,
 shared distributed rate limiting, and external OIDC configuration remain separate work.
 
-## Context and current behavior
+## Context and implementation evidence
 
-The implemented application foundation is a .NET 10 ASP.NET Core API and React/TypeScript client
-that publish as one same-origin release unit. It has no database, authentication, tenant context,
-durable data-protection key ring, or migration operation. Readiness currently has an extension seam
+The application is a .NET 10 ASP.NET Core API and React/TypeScript client that publish as one
+same-origin release unit. The implementation now includes SQL persistence, authentication, immutable
+tenant context, a durable protected data-protection key ring, and explicit migration operations. Readiness has an extension seam
 but no authoritative data dependency.
 
 The accepted architecture already requires SQL Server/Azure SQL, server-derived tenancy, exactly

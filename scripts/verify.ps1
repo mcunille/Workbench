@@ -31,11 +31,39 @@ function Assert-ToolVersion {
     }
 }
 
+function Assert-DocumentationCurrent {
+    $requiredContent = @(
+        @{ Path = 'docs/ARCHITECTURE.md'; Text = '**Status:** Implemented' },
+        @{ Path = 'docs/specs/2026-09-01-data-identity-tenancy.md'; Text = '**Status:** Implemented' },
+        @{ Path = 'docs/operations/database-migrations.md'; Text = './scripts/verify-migrations.ps1 -Scenario Clean' },
+        @{ Path = 'docs/operations/database-backup-restore.md'; Text = './scripts/restore-database.ps1' },
+        @{ Path = 'README.md'; Text = '.env.dev' },
+        @{
+            Path = 'docs/ARCHITECTURE.md'
+            Text = 'Public recovery remains disabled until provider-backed delivery and a shared multi-replica rate limiter are implemented.'
+        }
+    )
+
+    foreach ($requirement in $requiredContent) {
+        $path = Join-Path $repositoryRoot $requirement.Path
+        if (-not (Test-Path -LiteralPath $path)) {
+            throw "Required documentation file '$($requirement.Path)' is missing."
+        }
+
+        $content = Get-Content -LiteralPath $path -Raw
+        if (-not $content.Contains($requirement.Text, [StringComparison]::Ordinal)) {
+            throw "Documentation '$($requirement.Path)' is missing required text: $($requirement.Text)"
+        }
+    }
+}
+
 Push-Location $repositoryRoot
 try {
     Assert-ToolVersion 'dotnet' '10.0.400' { dotnet --version }
     Assert-ToolVersion 'Node.js' 'v26.7.0' { node --version }
     Assert-ToolVersion 'npm' '11.19.0' { npm --version }
+
+    Assert-DocumentationCurrent
 
     dotnet restore Workbench.slnx --locked-mode
     Assert-NativeCommandSucceeded 'dotnet restore --locked-mode'

@@ -52,7 +52,7 @@ public sealed class BootstrapTests(SqlServerFixture sqlServer)
     }
 
     [Fact]
-    public async Task DevelopmentRecoveryReturnsRawTokenOnlyToOperatorCaller()
+    public async Task DevelopmentRecoveryReturnsRawTokenOnlyToDatabaseOwnerCaller()
     {
         await using var database = await sqlServer.CreateDatabaseAsync();
         await DatabaseMigrator.MigrateAsync(database.AdminConnectionString, CancellationToken.None);

@@ -29,6 +29,16 @@ public sealed class DatabasePermissionTests(SqlServerFixture sqlServer)
         await AssertDeniedAsync(web, "DELETE FROM [dbo].[__EFMigrationsHistory]");
         await AssertDeniedAsync(operatorConnection, "SELECT TOP (1) * FROM [Identity].[Users]");
         await AssertDeniedAsync(operatorConnection, "CREATE TABLE [dbo].[OperatorMustNotCreate] ([Id] int)");
+        await AssertDeniedAsync(
+            operatorConnection,
+            """
+            EXEC [Administration].[CreateDevelopmentRecovery]
+                @OperationId = '01991a86-2e00-7000-8000-000000000001',
+                @NormalizedEmail = N'operator-admin@example.com',
+                @TokenHash = 0x0000000000000000000000000000000000000000000000000000000000000000,
+                @Now = '2026-09-02T00:00:00+00:00',
+                @ExpiresAtUtc = '2026-09-02T00:30:00+00:00';
+            """);
 
         var commands = new OperatorCommands(
             operatorConnection,
