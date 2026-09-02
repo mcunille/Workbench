@@ -1,5 +1,6 @@
 // Copyright (c) 2026 The White Stag Collection.
 
+using System.Data;
 using Microsoft.Data.SqlClient;
 using Testcontainers.MsSql;
 using Xunit;
@@ -12,7 +13,20 @@ public sealed class SqlServerFixture : IAsyncLifetime
         "mcr.microsoft.com/mssql/server:2022-CU20-ubuntu-22.04")
         .Build();
 
-    public Task InitializeAsync() => _container.StartAsync();
+    public async Task InitializeAsync()
+    {
+        await _container.StartAsync();
+
+        await using var connection = new SqlConnection(_container.GetConnectionString());
+        await connection.OpenAsync();
+        await using var command = new SqlCommand("""
+            EXEC sp_configure 'show advanced options', 1;
+            RECONFIGURE;
+            EXEC sp_configure 'contained database authentication', 1;
+            RECONFIGURE;
+            """, connection);
+        await command.ExecuteNonQueryAsync();
+    }
 
     public Task DisposeAsync() => _container.DisposeAsync().AsTask();
 
@@ -27,7 +41,10 @@ public sealed class SqlServerFixture : IAsyncLifetime
         await using (var connection = new SqlConnection(adminBuilder.ConnectionString))
         {
             await connection.OpenAsync();
-            await using var command = new SqlCommand($"CREATE DATABASE [{databaseName}]", connection);
+            await using var command = new SqlCommand($"""
+                CREATE DATABASE [{databaseName}];
+                ALTER DATABASE [{databaseName}] SET CONTAINMENT = PARTIAL;
+                """, connection);
             await command.ExecuteNonQueryAsync();
         }
 
@@ -46,6 +63,51 @@ public sealed class SqlTestDatabase(
     string adminConnectionString) : IAsyncDisposable
 {
     public string AdminConnectionString { get; } = adminConnectionString;
+
+    public async Task<string> CreateWebUserAsync()
+    {
+        var suffix = Guid.NewGuid().ToString("N");
+        var userName = $"workbench_web_{suffix}";
+        var password = $"W0rkbench-{suffix}!";
+
+        await using var connection = new SqlConnection(AdminConnectionString);
+        await connection.OpenAsync();
+        await using var command = new SqlCommand($"""
+            CREATE USER [{userName}] WITH PASSWORD = '{password}';
+            GRANT SELECT ON SCHEMA::[Tenancy] TO [{userName}];
+            GRANT SELECT, INSERT, UPDATE, DELETE ON SCHEMA::[Security] TO [{userName}];
+            """, connection);
+        await command.ExecuteNonQueryAsync();
+
+        return new SqlConnectionStringBuilder(AdminConnectionString)
+        {
+            UserID = userName,
+            Password = password,
+            IntegratedSecurity = false,
+        }.ConnectionString;
+    }
+
+    public async Task SeedTenantAuditRowsAsync(Guid tenantA, Guid tenantB)
+    {
+        await using var connection = new SqlConnection(AdminConnectionString);
+        await connection.OpenAsync();
+        await using var command = new SqlCommand("""
+            INSERT INTO [Tenancy].[Tenants]
+                ([Id], [Name], [NormalizedName], [IsEnabled], [CreatedAtUtc])
+            VALUES
+                (@tenantA, N'Tenant A', N'TENANT A', 1, SYSUTCDATETIME()),
+                (@tenantB, N'Tenant B', N'TENANT B', 1, SYSUTCDATETIME());
+
+            INSERT INTO [Security].[TenantSecurityAuditEvents]
+                ([Id], [TenantId], [Action], [OccurredAtUtc])
+            VALUES
+                (NEWID(), @tenantA, N'test.seeded', SYSUTCDATETIME()),
+                (NEWID(), @tenantB, N'test.seeded', SYSUTCDATETIME());
+            """, connection);
+        command.Parameters.Add(new SqlParameter("@tenantA", SqlDbType.UniqueIdentifier) { Value = tenantA });
+        command.Parameters.Add(new SqlParameter("@tenantB", SqlDbType.UniqueIdentifier) { Value = tenantB });
+        await command.ExecuteNonQueryAsync();
+    }
 
     public async ValueTask DisposeAsync()
     {
