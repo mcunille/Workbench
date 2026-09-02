@@ -76,6 +76,10 @@ public sealed class SqlTestDatabase(
             CREATE USER [{userName}] WITH PASSWORD = '{password}';
             GRANT SELECT ON SCHEMA::[Tenancy] TO [{userName}];
             GRANT SELECT, INSERT, UPDATE, DELETE ON SCHEMA::[Security] TO [{userName}];
+            IF DATABASE_PRINCIPAL_ID(N'workbench_web') IS NOT NULL
+                ALTER ROLE [workbench_web] ADD MEMBER [{userName}];
+            IF OBJECT_ID(N'[Identity].[ResolveCredential]', N'P') IS NOT NULL
+                GRANT EXECUTE ON [Identity].[ResolveCredential] TO [{userName}];
             """, connection);
         await command.ExecuteNonQueryAsync();
 
