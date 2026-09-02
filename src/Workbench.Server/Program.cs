@@ -3,6 +3,7 @@
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.DataProtection;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using System.Security.Claims;
@@ -46,12 +47,24 @@ builder.Services.AddSingleton<IReleaseInformation, AssemblyReleaseInformation>()
 builder.Services.AddHostedService<ProductionSecurityConfigurationValidator>();
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddSingleton(new DurableSessionOptions());
-if (!string.IsNullOrWhiteSpace(configuredWebConnection))
-{
-    builder.Services.AddSingleton<SessionService>(services => new SessionService(
-        configuredWebConnection,
-        services.GetRequiredService<DurableSessionOptions>()));
-}
+builder.Services.AddSingleton<SessionService>(services => new SessionService(
+    RequireWebConnectionString(services.GetRequiredService<IConfiguration>()),
+    services.GetRequiredService<DurableSessionOptions>()));
+builder.Services.AddScoped<IIdentityVerifier>(services => new BuiltInPasswordVerifier(
+    RequireWebConnectionString(services.GetRequiredService<IConfiguration>()),
+    services.GetRequiredService<IPasswordHasher<WorkbenchUser>>()));
+builder.Services
+    .AddIdentityCore<WorkbenchUser>(options =>
+    {
+        options.Password.RequiredLength = 14;
+        options.Password.RequiredUniqueChars = 4;
+        options.Password.RequireDigit = true;
+        options.Password.RequireLowercase = true;
+        options.Password.RequireUppercase = true;
+        options.Password.RequireNonAlphanumeric = true;
+    })
+    .AddRoles<WorkbenchRole>()
+    .AddEntityFrameworkStores<WorkbenchDbContext>();
 builder.Services.AddScoped<SessionAuthenticationEvents>();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped(services =>
@@ -120,6 +133,19 @@ builder.Services
         options.AccessDeniedPath = PathString.Empty;
     });
 builder.Services.AddAuthorization();
+builder.Services.AddAntiforgery(options =>
+{
+    options.HeaderName = "X-CSRF-TOKEN";
+    options.Cookie.Name = builder.Environment.IsDevelopment()
+        ? ".Workbench.Antiforgery"
+        : "__Host-Workbench.Antiforgery";
+    options.Cookie.HttpOnly = true;
+    options.Cookie.SameSite = SameSiteMode.Strict;
+    options.Cookie.SecurePolicy = builder.Environment.IsDevelopment()
+        ? CookieSecurePolicy.SameAsRequest
+        : CookieSecurePolicy.Always;
+    options.Cookie.Path = "/";
+});
 builder.Services.AddOpenApi();
 builder.Services.AddProblemDetails(options =>
 {
@@ -132,8 +158,10 @@ var app = builder.Build();
 app.UseExceptionHandler();
 app.UseDefaultFiles();
 app.UseStaticFiles();
+app.UseRouting();
 app.UseAuthentication();
 app.UseAuthorization();
+app.UseMiddleware<WorkbenchAntiforgeryMiddleware>();
 
 app.MapGet(
         "/api/system",
@@ -141,6 +169,8 @@ app.MapGet(
             new SystemResponse("Workbench", releaseInformation.Version))
     .WithName("GetSystem")
     .Produces<SystemResponse>();
+
+app.MapWorkbenchAuthentication();
 
 app.MapHealthChecks("/health/live", new HealthCheckOptions
 {

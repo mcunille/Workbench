@@ -145,6 +145,22 @@ public sealed class SessionService
         CancellationToken cancellationToken) =>
         RevokeWhereAsync(tenantId, "[Id] = @targetId", sessionId, reason, now, cancellationToken);
 
+    public Task RevokeUserSessionAsync(
+        Guid tenantId,
+        Guid userId,
+        Guid sessionId,
+        string reason,
+        DateTimeOffset now,
+        CancellationToken cancellationToken) =>
+        RevokeWhereAsync(
+            tenantId,
+            "[Id] = @targetId",
+            sessionId,
+            reason,
+            now,
+            cancellationToken,
+            userId);
+
     public Task RevokeAllAsync(
         Guid tenantId,
         Guid userId,
@@ -184,7 +200,8 @@ public sealed class SessionService
         Guid targetId,
         string reason,
         DateTimeOffset now,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        Guid? requiredUserId = null)
     {
         if (reason.Length is 0 or > 100)
         {
@@ -195,9 +212,15 @@ public sealed class SessionService
         await using var command = new SqlCommand($"""
             UPDATE [Identity].[Sessions]
             SET [RevokedAtUtc] = @now, [RevocationReason] = @reason
-            WHERE {predicate} AND [RevokedAtUtc] IS NULL;
+            WHERE {predicate}
+                AND (@requiredUserId IS NULL OR [UserId] = @requiredUserId)
+                AND [RevokedAtUtc] IS NULL;
             """, connection);
         command.Parameters.Add(new SqlParameter("@targetId", SqlDbType.UniqueIdentifier) { Value = targetId });
+        command.Parameters.Add(new SqlParameter("@requiredUserId", SqlDbType.UniqueIdentifier)
+        {
+            Value = requiredUserId.HasValue ? requiredUserId.Value : DBNull.Value,
+        });
         command.Parameters.Add(new SqlParameter("@reason", SqlDbType.NVarChar, 100) { Value = reason });
         command.Parameters.Add(new SqlParameter("@now", SqlDbType.DateTimeOffset) { Value = now });
         await command.ExecuteNonQueryAsync(cancellationToken);
