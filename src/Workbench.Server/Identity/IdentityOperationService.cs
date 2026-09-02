@@ -5,6 +5,7 @@ using System.Security.Cryptography;
 using System.Text;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Data.SqlClient;
+using Workbench.Server.Tenancy;
 
 namespace Workbench.Server.Identity;
 
@@ -13,7 +14,8 @@ public sealed class IdentityOperationService(
     IIdentityMessageDelivery delivery,
     ISensitiveRequestRateLimiter rateLimiter,
     UserManager<WorkbenchUser> userManager,
-    TimeProvider timeProvider)
+    TimeProvider timeProvider,
+    TenantContextProof tenantContextProof)
 {
     public bool PublicOperationsAvailable => delivery.IsAvailable && rateLimiter.IsAvailable;
 
@@ -285,11 +287,7 @@ public sealed class IdentityOperationService(
     {
         var connection = new SqlConnection(connectionString);
         await connection.OpenAsync(cancellationToken);
-        await using var command = new SqlCommand("""
-            EXEC sys.sp_set_session_context @key=N'TenantId', @value=@tenantId, @read_only=1;
-            """, connection);
-        command.Parameters.AddWithValue("@tenantId", tenantId);
-        await command.ExecuteNonQueryAsync(cancellationToken);
+        await tenantContextProof.ApplyAsync(connection, tenantId, cancellationToken);
         return connection;
     }
 }

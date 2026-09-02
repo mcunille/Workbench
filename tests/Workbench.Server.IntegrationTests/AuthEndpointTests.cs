@@ -174,6 +174,22 @@ public sealed class AuthEndpointTests(SqlServerFixture sqlServer) : IAsyncLifeti
             .StatusCode);
     }
 
+    [Fact]
+    public async Task LoginIsRateLimitedBeforeAnUnlimitedPasswordGuessCanSucceed()
+    {
+        for (var attempt = 0; attempt < 5; attempt++)
+        {
+            var failure = await PostWithAntiforgeryAsync(
+                "/api/auth/login",
+                new { email = AuthTestApplication.AdminEmail, password = $"wrong-{attempt}" });
+            Assert.Equal(HttpStatusCode.Unauthorized, failure.StatusCode);
+        }
+
+        var blockedValidPassword = await LoginAsync();
+
+        Assert.Equal(HttpStatusCode.Unauthorized, blockedValidPassword.StatusCode);
+    }
+
     private Task<HttpResponseMessage> LoginAsync() => PostWithAntiforgeryAsync(
         "/api/auth/login",
         new

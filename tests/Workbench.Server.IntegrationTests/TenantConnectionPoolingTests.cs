@@ -16,11 +16,13 @@ public sealed class TenantConnectionPoolingTests(SqlServerFixture sqlServer) : I
     private readonly Guid _tenantB = Guid.Parse("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb");
     private SqlTestDatabase _database = null!;
     private string _pooledWebConnectionString = null!;
+    private TenantContextProof _tenantContextProof = null!;
 
     public async Task InitializeAsync()
     {
         _database = await sqlServer.CreateDatabaseAsync();
         await DatabaseMigrator.MigrateAsync(_database.AdminConnectionString, CancellationToken.None);
+        _tenantContextProof = new TenantContextProof(await _database.GetTenantContextProofKeyAsync());
         var webConnectionString = await _database.CreateWebUserAsync();
         _pooledWebConnectionString = new SqlConnectionStringBuilder(webConnectionString)
         {
@@ -66,7 +68,7 @@ public sealed class TenantConnectionPoolingTests(SqlServerFixture sqlServer) : I
         var options = new DbContextOptionsBuilder<WorkbenchDbContext>()
             .UseSqlServer(_pooledWebConnectionString)
             .AddInterceptors(
-                new TenantConnectionInterceptor(tenantContext),
+                new TenantConnectionInterceptor(tenantContext, _tenantContextProof),
                 new TenantSaveChangesInterceptor(tenantContext))
             .Options;
 

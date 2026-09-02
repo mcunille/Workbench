@@ -40,9 +40,12 @@ safe. The restore credential must target `master`.
   -Confirmation 'RESTORE <name>'
 ```
 
-The script forces the target into single-user mode, restores with replacement and recovery, then
-returns it to multi-user mode. If SQL Server reports a failure, keep traffic stopped and inspect the
-database state manually; do not assume the final mode transition occurred.
+The script forces the target into single-user mode, restores with replacement and recovery, creates
+or updates an owner-controlled restore-pending marker inside the restored database, then returns it
+to multi-user mode. This marker is independent of the restored readiness generation, so an older
+backup cannot report ready merely because its historical generation values match. If SQL Server
+reports a failure, keep traffic stopped and inspect the database state manually; do not assume the
+final mode transition occurred.
 
 ## Mandatory post-restore sanitation
 
@@ -61,8 +64,10 @@ operation, and persisted data-protection key; increments each user's security ve
 security stamp; advances the database restore generation; and appends a system audit event. It is
 idempotent in effect but creates a new security boundary on every intentional invocation.
 
-The database readiness procedure fails closed when the current restore generation has not been
-sanitized. Never bypass that check or reuse a pre-restore key-ring copy.
+The database readiness procedure fails closed while the restore marker is pending or when the
+current restore generation has not been sanitized. Sanitation clears the marker in the same
+transaction that invalidates authentication artifacts. Never bypass either check or reuse a
+pre-restore key-ring copy.
 
 ## Validation before cutover
 

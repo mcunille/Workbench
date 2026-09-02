@@ -46,6 +46,8 @@ $setupConnection = Write-SecretFile 'setup.connection' "Server=$sqlContainer,143
 $webPasswordFile = Write-SecretFile 'web.password' $webPassword
 $operatorPasswordFile = Write-SecretFile 'operator.password' $operatorPassword
 $migratorPasswordFile = Write-SecretFile 'migrator.password' $migratorPassword
+$tenantContextProofKey = [Convert]::ToBase64String([Security.Cryptography.RandomNumberGenerator]::GetBytes(32))
+$tenantContextProofKeyFile = Write-SecretFile 'tenant-context-proof-key.txt' $tenantContextProofKey
 $adminPasswordFile = Write-SecretFile 'admin.password' 'Smoke Correct Horse 8!'
 $operatorConnection = Write-SecretFile 'operator.connection' "Server=$sqlContainer,1433;Database=$database;User Id=$operatorUser;Password=$operatorPassword;Encrypt=True;TrustServerCertificate=True"
 $certificatePath = Join-Path $temporaryRoot 'data-protection.pfx'
@@ -95,7 +97,8 @@ try {
         $databaseTool principals provision --connection-file /run/workbench/setup.connection --expected-database $database `
         --web-user $webUser --web-password-file /run/workbench/web.password `
         --operator-user $operatorUser --operator-password-file /run/workbench/operator.password `
-        --migrator-user $migratorUser --migrator-password-file /run/workbench/migrator.password
+        --migrator-user $migratorUser --migrator-password-file /run/workbench/migrator.password `
+        --tenant-context-proof-key-file /run/workbench/tenant-context-proof-key.txt
     Assert-NativeCommandSucceeded 'containerized principal provisioning'
     & $docker.Source run --rm --network $network --volume $mount --entrypoint dotnet $image `
         $databaseTool bootstrap --connection-file /run/workbench/operator.connection --expected-database $database `
@@ -108,6 +111,7 @@ try {
     $appEnvironment = Write-SecretFile 'app.env' @"
 ASPNETCORE_ENVIRONMENT=Production
 WORKBENCH_WEB_CONNECTION=Server=$sqlContainer,1433;Database=$database;User Id=$webUser;Password=$webPassword;Encrypt=True;TrustServerCertificate=True
+WORKBENCH_TENANT_CONTEXT_PROOF_KEY_FILE=/run/secrets/tenant-context-proof-key
 WORKBENCH_DATA_PROTECTION_CERTIFICATE_PATH=/run/secrets/data-protection.pfx
 WORKBENCH_DATA_PROTECTION_CERTIFICATE_PASSWORD=$certificatePassword
 WORKBENCH_KNOWN_PROXY=$networkGateway
@@ -118,6 +122,7 @@ WORKBENCH_KNOWN_PROXY=$networkGateway
         --read-only --tmpfs '/tmp:rw,noexec,nosuid,size=64m,uid=1654,gid=1654' `
         --cap-drop ALL --security-opt 'no-new-privileges:true' `
         --volume "${certificatePath}:/run/secrets/data-protection.pfx:ro" `
+        --volume "${tenantContextProofKeyFile}:/run/secrets/tenant-context-proof-key:ro" `
         --publish "127.0.0.1:${hostPort}:8080" $image | Out-Null
     Assert-NativeCommandSucceeded 'hardened runtime start'
 
@@ -159,8 +164,9 @@ WORKBENCH_KNOWN_PROXY=$networkGateway
     $runtimeEnvironment = & $docker.Source inspect --format '{{json .Config.Env}}' $appContainer
     if ($runtimeEnvironment -match [regex]::Escape($sqlPassword) -or
         $runtimeEnvironment -match [regex]::Escape($operatorPassword) -or
-        $runtimeEnvironment -match [regex]::Escape($migratorPassword)) {
-        throw 'Runtime container received setup, operator, or migration credentials.'
+        $runtimeEnvironment -match [regex]::Escape($migratorPassword) -or
+        $runtimeEnvironment -match [regex]::Escape($tenantContextProofKey)) {
+        throw 'Runtime container environment received setup, operator, migration, or tenant-proof secrets.'
     }
     & $docker.Source export --output $exportArchive $appContainer
     Assert-NativeCommandSucceeded 'docker export'

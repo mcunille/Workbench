@@ -64,6 +64,17 @@ public sealed class SqlTestDatabase(
 {
     public string AdminConnectionString { get; } = adminConnectionString;
 
+    public async Task<byte[]> GetTenantContextProofKeyAsync()
+    {
+        await using var connection = new SqlConnection(AdminConnectionString);
+        await connection.OpenAsync();
+        await using var command = new SqlCommand(
+            "SELECT [ProofKey] FROM [Security].[TenantContextKeys] WHERE [Id] = 1",
+            connection);
+        return (byte[])(await command.ExecuteScalarAsync()
+            ?? throw new InvalidOperationException("The tenant context proof key is missing."));
+    }
+
     public async Task<string> CreateWebUserAsync()
     {
         var suffix = Guid.NewGuid().ToString("N");

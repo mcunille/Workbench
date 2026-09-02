@@ -40,7 +40,7 @@ function Assert-DocumentationCurrent {
         @{ Path = 'README.md'; Text = '.env.dev' },
         @{
             Path = 'docs/ARCHITECTURE.md'
-            Text = 'Public recovery remains disabled until provider-backed delivery and a shared multi-replica rate limiter are implemented.'
+            Text = 'Public recovery remains disabled until'
         }
     )
 

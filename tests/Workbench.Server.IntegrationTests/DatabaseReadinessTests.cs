@@ -1,6 +1,7 @@
 // Copyright (c) 2026 The White Stag Collection.
 
 using System.Net;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.Data.SqlClient;
 using Workbench.Server.IntegrationTests.Infrastructure;
 using Xunit;
@@ -41,6 +42,9 @@ public sealed class DatabaseReadinessTests(SqlServerFixture sqlServer) : IAsyncL
         Assert.True(reader.GetBoolean(2), "Altering the tenant policy must be denied.");
         Assert.True(reader.GetBoolean(3), "The key table must be available.");
         Assert.Equal(reader.GetInt64(4), reader.GetInt64(5));
+        Assert.False(reader.GetBoolean(6), "No restore may be pending.");
+        Assert.True(reader.GetBoolean(7), "The tenant proof key must be protected.");
+        Assert.True(reader.GetBoolean(8), "The shared sensitive-request limiter must be available.");
 
         var response = await _client.GetAsync("/health/ready");
 
@@ -61,5 +65,46 @@ public sealed class DatabaseReadinessTests(SqlServerFixture sqlServer) : IAsyncL
 
         Assert.Equal(HttpStatusCode.ServiceUnavailable, (await _client.GetAsync("/health/ready")).StatusCode);
         Assert.Equal(HttpStatusCode.OK, (await _client.GetAsync("/health/live")).StatusCode);
+    }
+
+    [Fact]
+    public async Task MismatchedWorkloadTenantProofMakesReadinessUnhealthy()
+    {
+        await using var mismatchedFactory = _application.Factory.WithWebHostBuilder(builder =>
+            builder.UseSetting(
+                "TenantContext:ProofKey",
+                Convert.ToBase64String(System.Security.Cryptography.RandomNumberGenerator.GetBytes(32))));
+        using var mismatchedClient = mismatchedFactory.CreateClient();
+
+        Assert.Equal(
+            HttpStatusCode.ServiceUnavailable,
+            (await mismatchedClient.GetAsync("/health/ready")).StatusCode);
+    }
+
+    [Fact]
+    public async Task PendingRestoreMakesReadinessUnhealthyUntilSanitized()
+    {
+        await using (var connection = new SqlConnection(_application.AdminConnectionString))
+        {
+            await connection.OpenAsync();
+            await using var command = new SqlCommand(
+                "EXEC [Administration].[MarkRestorePending]",
+                connection);
+            await command.ExecuteNonQueryAsync();
+        }
+
+        Assert.Equal(HttpStatusCode.ServiceUnavailable, (await _client.GetAsync("/health/ready")).StatusCode);
+
+        await using (var connection = new SqlConnection(_application.AdminConnectionString))
+        {
+            await connection.OpenAsync();
+            await using var command = new SqlCommand(
+                "EXEC [Administration].[SanitizeRestore] @Now=@now, @CorrelationId=N'readiness-test'",
+                connection);
+            command.Parameters.AddWithValue("@now", DateTimeOffset.UtcNow);
+            await command.ExecuteNonQueryAsync();
+        }
+
+        Assert.Equal(HttpStatusCode.OK, (await _client.GetAsync("/health/ready")).StatusCode);
     }
 }

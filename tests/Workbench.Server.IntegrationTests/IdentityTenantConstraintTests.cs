@@ -75,10 +75,11 @@ public sealed class IdentityTenantConstraintTests(SqlServerFixture sqlServer) : 
         var tenantB = Guid.Parse("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb");
         await SeedUsersForBothTenantsAsync(tenantA, tenantB);
         var webConnection = await _database.CreateWebUserAsync();
+        var tenantContextProof = new TenantContextProof(await _database.GetTenantContextProofKeyAsync());
         var tenantContext = new TenantContext(tenantA);
         var options = new DbContextOptionsBuilder<WorkbenchDbContext>()
             .UseSqlServer(webConnection)
-            .AddInterceptors(new TenantConnectionInterceptor(tenantContext))
+            .AddInterceptors(new TenantConnectionInterceptor(tenantContext, tenantContextProof))
             .Options;
         await using var database = new WorkbenchDbContext(options, tenantContext);
 

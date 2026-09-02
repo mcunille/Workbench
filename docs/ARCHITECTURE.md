@@ -121,8 +121,10 @@ Tenant isolation is enforced in layers:
    attachment access, and background processing.
 
 The authenticated session resolves one tenant before application data access. A connection
-interceptor writes that tenant to read-only SQL Server `SESSION_CONTEXT`; pooled connections are
-reasserted on every open and missing context exposes no tenant rows. Entity Framework query filters,
+interceptor writes that tenant, a fresh nonce, and a proof from a separately delivered workload key
+to read-only SQL Server `SESSION_CONTEXT`; pooled connections are reasserted on every open and
+missing or invalid proof exposes no tenant rows. The database copy of the proof key is owner-only,
+so possession of the web database credential alone cannot select a tenant. Entity Framework query filters,
 save guards, tenant-consistent composite relationships, and SQL Server filter/block predicates then
 enforce the same boundary. The web principal cannot change security policy, schema, migration
 history, security tables, or session context outside the application path.
@@ -191,8 +193,9 @@ existence to an unauthenticated requester. Local development uses a non-deliveri
 readiness requires a configured provider; the initial portable provider uses authenticated SMTP with
 encrypted transport and certificate validation.
 
-Public recovery remains disabled until provider-backed delivery and a shared multi-replica rate limiter are implemented.
-Production startup rejects public recovery or invitations when either control is unavailable. The
+Login uses a shared SQL-backed limiter across replicas. Public recovery remains disabled until
+provider-backed delivery and its complete abuse-control integration are implemented. Production
+startup rejects public recovery or invitations when either control is unavailable. The
 implemented operations store only token hashes, consume a token exactly once, and revoke affected
 sessions when credentials change. A local setup/database-owner caller can write a one-time development recovery link
 only to an explicitly named new file; that capability is not a public recovery provider.
@@ -343,10 +346,11 @@ schema remains compatible; otherwise recovery follows the documented restore pro
 
 The [migration runbook](operations/database-migrations.md) defines principal custody, compatibility
 checks, and rollback boundaries. The [backup/restore runbook](operations/database-backup-restore.md)
-keeps cutover human-operated and requires post-restore sanitation before readiness. Sanitation
+keeps cutover human-operated, writes an independent restore-pending marker before multi-user access,
+and requires post-restore sanitation before readiness. Sanitation
 deletes restored sessions, pending identity operations, and data-protection keys; advances every
-user security version and stamp; records an audit event; and advances the restore generation that
-readiness verifies.
+user security version and stamp; records an audit event; advances the restore generation; and clears
+the pending marker in the same transaction. Readiness verifies both signals.
 
 ## Security and verification gates
 

@@ -160,7 +160,7 @@ static int Usage()
           Workbench.Database migrate --connection-file <path> --expected-database <name>
           Workbench.Database bootstrap --connection-file <path> --expected-database <name> --tenant-name <name> --admin-email <email> --password-file <path>
           Workbench.Database tenant create --connection-file <path> --expected-database <name> --tenant-name <name> --admin-email <email> --password-file <path>
-          Workbench.Database principals provision --connection-file <path> --expected-database <name> --web-user <name> --web-password-file <path> --operator-user <name> --operator-password-file <path> --migrator-user <name> --migrator-password-file <path>
+          Workbench.Database principals provision --connection-file <path> --expected-database <name> --web-user <name> --web-password-file <path> --operator-user <name> --operator-password-file <path> --migrator-user <name> --migrator-password-file <path> --tenant-context-proof-key-file <path>
           Workbench.Database restore sanitize --connection-file <path> --expected-database <name> --correlation-id <id>
           Workbench.Database development recovery-link --connection-file <path> --expected-database <name> --environment Development --base-url <url> --email <email> --output-file <path>
         """);
@@ -206,6 +206,38 @@ static async Task ProvisionPrincipalsAsync(
                 ALTER ROLE [{definition.Role}] ADD MEMBER [{definition.User}];
             """, connection);
         await command.ExecuteNonQueryAsync();
+    }
+
+    var proofKeyFile = RequireOption(options, "--tenant-context-proof-key-file");
+    if (!File.Exists(proofKeyFile))
+    {
+        throw new ArgumentException("The tenant context proof key file does not exist.");
+    }
+
+    byte[] proofKey;
+    try
+    {
+        proofKey = Convert.FromBase64String((await File.ReadAllTextAsync(proofKeyFile)).Trim());
+    }
+    catch (FormatException error)
+    {
+        throw new ArgumentException("The tenant context proof key must be valid Base64.", error);
+    }
+    if (proofKey.Length != 32)
+    {
+        throw new ArgumentException("The tenant context proof key must contain exactly 32 bytes.");
+    }
+
+    await using var proofCommand = new SqlCommand(
+        "UPDATE [Security].[TenantContextKeys] SET [ProofKey] = @proofKey WHERE [Id] = 1",
+        connection);
+    proofCommand.Parameters.Add(new SqlParameter("@proofKey", System.Data.SqlDbType.Binary, 32)
+    {
+        Value = proofKey,
+    });
+    if (await proofCommand.ExecuteNonQueryAsync() != 1)
+    {
+        throw new InvalidOperationException("The tenant context proof key store is missing.");
     }
 }
 

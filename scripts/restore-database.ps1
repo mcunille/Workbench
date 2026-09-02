@@ -23,8 +23,29 @@ $escapedSource = $Source.Replace("'", "''", [StringComparison]::Ordinal)
 $previousPassword = $env:SQLCMDPASSWORD
 try {
     $env:SQLCMDPASSWORD = $builder.Password
+    $restoreSql = """
+        ALTER DATABASE [$Database] SET SINGLE_USER WITH ROLLBACK IMMEDIATE;
+        RESTORE DATABASE [$Database] FROM DISK = N'$escapedSource' WITH REPLACE, RECOVERY;
+        USE [$Database];
+        IF SCHEMA_ID(N'Security') IS NULL EXEC(N'CREATE SCHEMA [Security]');
+        IF OBJECT_ID(N'[Security].[WorkbenchRestorePending]', N'U') IS NULL
+        BEGIN
+            CREATE TABLE [Security].[WorkbenchRestorePending]
+            (
+                [Id] tinyint NOT NULL CONSTRAINT [PK_WorkbenchRestorePending] PRIMARY KEY,
+                [IsPending] bit NOT NULL,
+                CONSTRAINT [CK_WorkbenchRestorePending_Singleton] CHECK ([Id] = 1)
+            );
+        END;
+        IF EXISTS (SELECT 1 FROM [Security].[WorkbenchRestorePending] WHERE [Id] = 1)
+            UPDATE [Security].[WorkbenchRestorePending] SET [IsPending] = 1 WHERE [Id] = 1;
+        ELSE
+            INSERT INTO [Security].[WorkbenchRestorePending] ([Id], [IsPending]) VALUES (1, 1);
+        USE [master];
+        ALTER DATABASE [$Database] SET MULTI_USER;
+        """
     & $sqlcmd.Source -S $builder.DataSource -U $builder.UserID -d master -C -b -Q `
-        "ALTER DATABASE [$Database] SET SINGLE_USER WITH ROLLBACK IMMEDIATE; RESTORE DATABASE [$Database] FROM DISK = N'$escapedSource' WITH REPLACE, RECOVERY; ALTER DATABASE [$Database] SET MULTI_USER"
+        $restoreSql
     if ($LASTEXITCODE -ne 0) { throw 'Database restore failed.' }
     Write-Host "Database '$Database' restored. Run migrations, restore sanitize, and all security probes before cutover."
 }

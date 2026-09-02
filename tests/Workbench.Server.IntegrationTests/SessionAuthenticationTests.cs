@@ -27,8 +27,9 @@ public sealed class SessionAuthenticationTests(SqlServerFixture sqlServer) : IAs
         _database = await sqlServer.CreateDatabaseAsync();
         await DatabaseMigrator.MigrateAsync(_database.AdminConnectionString, CancellationToken.None);
         var webConnection = await _database.CreateWebUserAsync();
+        var tenantContextProof = new TenantContextProof(await _database.GetTenantContextProofKeyAsync());
         await SeedUserAsync();
-        _sessions = new SessionService(webConnection, new SessionOptions());
+        _sessions = new SessionService(webConnection, new SessionOptions(), tenantContextProof);
     }
 
     public Task DisposeAsync() => _database.DisposeAsync().AsTask();

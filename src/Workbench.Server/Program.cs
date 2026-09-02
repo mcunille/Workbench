@@ -40,6 +40,10 @@ if (args is ["--health-check"])
 var builder = WebApplication.CreateBuilder(args);
 var configuredWebConnection =
     ProductionSecurityConfigurationValidator.GetWebConnectionString(builder.Configuration);
+var configuredTenantContextProof = string.IsNullOrWhiteSpace(configuredWebConnection)
+    ? null
+    : TenantContextProof.Parse(
+        ProductionSecurityConfigurationValidator.RequireTenantContextProofKey(builder.Configuration));
 var configuredProxy = builder.Configuration["ReverseProxy:KnownProxy"]
     ?? Environment.GetEnvironmentVariable("WORKBENCH_KNOWN_PROXY");
 if (System.Net.IPAddress.TryParse(configuredProxy, out var knownProxy))
@@ -60,16 +64,20 @@ if (!string.IsNullOrWhiteSpace(configuredWebConnection))
 {
     builder.Services.AddHealthChecks().AddCheck(
         "database",
-        new DatabaseReadinessCheck(configuredWebConnection),
+        new DatabaseReadinessCheck(configuredWebConnection, configuredTenantContextProof!),
         tags: ["ready"]);
 }
 builder.Services.AddSingleton<IReleaseInformation, AssemblyReleaseInformation>();
 builder.Services.AddHostedService<ProductionSecurityConfigurationValidator>();
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddSingleton(new DurableSessionOptions());
+builder.Services.AddSingleton(services => configuredTenantContextProof ?? TenantContextProof.Parse(
+    ProductionSecurityConfigurationValidator.RequireTenantContextProofKey(
+        services.GetRequiredService<IConfiguration>())));
 builder.Services.AddSingleton<SessionService>(services => new SessionService(
     RequireWebConnectionString(services.GetRequiredService<IConfiguration>()),
-    services.GetRequiredService<DurableSessionOptions>()));
+    services.GetRequiredService<DurableSessionOptions>(),
+    services.GetRequiredService<TenantContextProof>()));
 builder.Services.AddScoped<IIdentityVerifier>(services => new BuiltInPasswordVerifier(
     RequireWebConnectionString(services.GetRequiredService<IConfiguration>()),
     services.GetRequiredService<IPasswordHasher<WorkbenchUser>>()));
@@ -83,14 +91,25 @@ if (builder.Environment.IsDevelopment())
 else
 {
     builder.Services.AddSingleton<IIdentityMessageDelivery, DisabledIdentityMessageDelivery>();
-    builder.Services.AddSingleton<ISensitiveRequestRateLimiter, DisabledSensitiveRequestRateLimiter>();
+    if (string.IsNullOrWhiteSpace(configuredWebConnection))
+    {
+        builder.Services.AddSingleton<ISensitiveRequestRateLimiter, DisabledSensitiveRequestRateLimiter>();
+    }
+    else
+    {
+        builder.Services.AddSingleton<ISensitiveRequestRateLimiter>(services =>
+            new SqlSensitiveRequestRateLimiter(
+                configuredWebConnection,
+                services.GetRequiredService<TimeProvider>()));
+    }
 }
 builder.Services.AddScoped<IdentityOperationService>(services => new IdentityOperationService(
     RequireWebConnectionString(services.GetRequiredService<IConfiguration>()),
     services.GetRequiredService<IIdentityMessageDelivery>(),
     services.GetRequiredService<ISensitiveRequestRateLimiter>(),
     services.GetRequiredService<UserManager<WorkbenchUser>>(),
-    services.GetRequiredService<TimeProvider>()));
+    services.GetRequiredService<TimeProvider>(),
+    services.GetRequiredService<TenantContextProof>()));
 builder.Services.AddScoped<SecurityAuditWriter>();
 builder.Services
     .AddIdentityCore<WorkbenchUser>(options =>
@@ -126,7 +145,9 @@ builder.Services.AddDbContext<WorkbenchDbContext>((services, options) =>
 {
     options.UseSqlServer(RequireWebConnectionString(services.GetRequiredService<IConfiguration>()));
     options.AddInterceptors(
-        new TenantConnectionInterceptor(services.GetRequiredService<TenantContext>()),
+        new TenantConnectionInterceptor(
+            services.GetRequiredService<TenantContext>(),
+            services.GetRequiredService<TenantContextProof>()),
         new TenantSaveChangesInterceptor(services.GetRequiredService<TenantContext>()));
 });
 

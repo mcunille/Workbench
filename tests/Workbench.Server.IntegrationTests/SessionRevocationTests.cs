@@ -25,9 +25,10 @@ public sealed class SessionRevocationTests(SqlServerFixture sqlServer) : IAsyncL
         _database = await sqlServer.CreateDatabaseAsync();
         await DatabaseMigrator.MigrateAsync(_database.AdminConnectionString, CancellationToken.None);
         var webConnection = await _database.CreateWebUserAsync();
+        var tenantContextProof = new TenantContextProof(await _database.GetTenantContextProofKeyAsync());
         await SeedUserAsync();
-        _firstReplica = new SessionService(webConnection, new SessionOptions());
-        _secondReplica = new SessionService(webConnection, new SessionOptions());
+        _firstReplica = new SessionService(webConnection, new SessionOptions(), tenantContextProof);
+        _secondReplica = new SessionService(webConnection, new SessionOptions(), tenantContextProof);
     }
 
     public Task DisposeAsync() => _database.DisposeAsync().AsTask();

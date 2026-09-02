@@ -61,6 +61,7 @@ public static class AuthEndpoints
         LoginRequest request,
         IIdentityVerifier verifier,
         SessionService sessions,
+        ISensitiveRequestRateLimiter rateLimiter,
         SessionOptions sessionOptions,
         TimeProvider timeProvider,
         HttpContext context,
@@ -70,6 +71,23 @@ public static class AuthEndpoints
             request.Email.Length > 256 ||
             string.IsNullOrEmpty(request.Password) ||
             request.Password.Length > 1024)
+        {
+            return ApiProblemResults.AuthenticationFailed();
+        }
+
+        var networkAllowed = await rateLimiter.TryAcquireAsync(
+            SensitiveRequestPartitions.LoginNetwork(
+                context.Connection.RemoteIpAddress?.ToString() ?? "unknown"),
+            cancellationToken);
+        if (!networkAllowed)
+        {
+            return ApiProblemResults.AuthenticationFailed();
+        }
+
+        var accountAllowed = await rateLimiter.TryAcquireAsync(
+            SensitiveRequestPartitions.LoginAccount(request.Email),
+            cancellationToken);
+        if (!accountAllowed)
         {
             return ApiProblemResults.AuthenticationFailed();
         }

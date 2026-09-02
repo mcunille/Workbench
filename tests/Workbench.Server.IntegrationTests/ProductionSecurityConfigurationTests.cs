@@ -33,6 +33,7 @@ public sealed class ProductionSecurityConfigurationTests
             {
                 ["DataProtection:CertificatePath"] = "deployment-certificate.pfx",
                 ["ConnectionStrings:Workbench"] = "Server=database;Database=workbench",
+                ["TenantContext:ProofKey"] = Convert.ToBase64String(new byte[32]),
                 ["Identity:PublicRecoveryEnabled"] = "true",
             })
             .Build();
@@ -46,6 +47,28 @@ public sealed class ProductionSecurityConfigurationTests
             () => validator.StartAsync(CancellationToken.None));
 
         Assert.Contains("message delivery", error.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task ProductionRejectsMissingTenantContextProofKey()
+    {
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["DataProtection:CertificatePath"] = "deployment-certificate.pfx",
+                ["ConnectionStrings:Workbench"] = "Server=database;Database=workbench",
+            })
+            .Build();
+        var validator = new ProductionSecurityConfigurationValidator(
+            new TestHostEnvironment { EnvironmentName = Environments.Production },
+            configuration,
+            [],
+            []);
+
+        var error = await Assert.ThrowsAsync<InvalidOperationException>(
+            () => validator.StartAsync(CancellationToken.None));
+
+        Assert.Contains("tenant context proof key", error.Message, StringComparison.OrdinalIgnoreCase);
     }
 
     private sealed class TestHostEnvironment : IHostEnvironment

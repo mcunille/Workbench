@@ -8,12 +8,20 @@ public sealed record DatabaseSecurityState(
     bool TenantPolicyAlterDenied,
     bool KeyTableAvailable,
     long RestoreGeneration,
-    long RestoreSanitizedGeneration)
+    long RestoreSanitizedGeneration,
+    bool RestorePending,
+    bool TenantContextKeyProtected,
+    bool SensitiveLimiterAvailable,
+    bool ApplicationTenantProofAccepted)
 {
     public bool IsReady =>
         CompatibleMigration &&
         TenantPolicyEnabled &&
         TenantPolicyAlterDenied &&
         KeyTableAvailable &&
-        RestoreGeneration == RestoreSanitizedGeneration;
+        RestoreGeneration == RestoreSanitizedGeneration &&
+        !RestorePending &&
+        TenantContextKeyProtected &&
+        SensitiveLimiterAvailable &&
+        ApplicationTenantProofAccepted;
 }

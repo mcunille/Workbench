@@ -21,14 +21,14 @@ and audit history so a later external OpenID Connect verifier does not change do
 
 This specification implements GitHub issue #10 and the data-and-identity phase of the accepted base
 architecture. Inventory, purchasing, ledger behavior, document schemas, blob providers, SMTP,
-shared distributed rate limiting, and external OIDC configuration remain separate work.
+public recovery/invitation provider abuse controls, and external OIDC configuration remain separate work.
 
 ## Context and implementation evidence
 
 The application is a .NET 10 ASP.NET Core API and React/TypeScript client that publish as one
 same-origin release unit. The implementation now includes SQL persistence, authentication, immutable
-tenant context, a durable protected data-protection key ring, and explicit migration operations. Readiness has an extension seam
-but no authoritative data dependency.
+tenant context, a durable protected data-protection key ring, explicit migration operations, and
+authoritative SQL readiness.
 
 The accepted architecture already requires SQL Server/Azure SQL, server-derived tenancy, exactly
 one tenant per user, built-in ASP.NET Core Identity, durable session validation, explicit migrations,
@@ -53,7 +53,8 @@ This phase selects the exact implementation and verification strategy for those 
 - Inventory, purchasing, accounting, commerce, attachments, or other product-domain schemas.
 - A detailed product role matrix beyond tenant administrator and tenant member.
 - A web-facing platform-administration console or cross-tenant browsing.
-- SMTP delivery, shared distributed rate limiting, or production background delivery workers.
+- SMTP delivery, public recovery/invitation abuse-control integration, or production background
+  delivery workers. Shared SQL login limiting is in scope.
 - External OIDC provider configuration or account-linking user interfaces.
 - Production service-level, recovery-point, or recovery-time commitments.
 - Automatic production database restore, cutover, or destructive rollback.
@@ -255,8 +256,9 @@ operation; and appends the audit event. Exactly one concurrent consumption can s
 Tenant administrators may invite and manage only users whose `TenantId` equals their request tenant.
 Invitations use the same single-use machinery and provider-neutral delivery boundary. The production
 delivery and request endpoints remain startup-disabled until issue #11 supplies a real message
-provider and shared multi-replica-safe rate limiter. Integration tests use an in-memory capture
-adapter. Local development may explicitly enable a capture adapter and retrieve a link through a
+provider and their complete shared abuse controls. Login already uses normalized-account and
+trusted-network partitions in a multi-replica-safe SQL limiter. Integration tests use an in-memory
+capture adapter. Local development may explicitly enable a capture adapter and retrieve a link through a
 development CLI command; the browser never receives the link from the request endpoint.
 
 ## Administration and bootstrap
@@ -362,9 +364,10 @@ Readiness, but not liveness, requires:
 - reachable SQL through the web principal;
 - a compatible migration version;
 - enabled expected RLS policies and security objects;
+- a protected tenant-context proof key that makes the web database credential alone insufficient;
 - successful least-privilege permission probes;
 - accessible durable data-protection key storage and safe at-rest protection;
-- completed restore sanitization state; and
+- no independent restore-pending marker and completed restore sanitization state; and
 - valid environment-specific identity, cookie, HTTPS, canonical-origin, and proxy configuration.
 
 Expensive checks may be cached briefly, but any discovered mismatch removes readiness. A replica
@@ -380,7 +383,8 @@ control, retention, and tested restoration.
 Hosted guidance uses Azure SQL point-in-time recovery and platform backup controls. Self-hosting
 receives operator-run SQL backup and restore scripts. Backup and restore remain human-operated.
 
-After any restore, traffic stays stopped while a mandatory post-restore command:
+The restore script writes an independent pending marker into the restored database before returning
+it to multi-user mode. After any restore, traffic stays stopped while a mandatory post-restore command:
 
 1. verifies database identity and migration compatibility;
 2. deletes all restored sessions, invitations, and recovery operations;
@@ -575,8 +579,9 @@ then admit traffic.
 
 ## Residual risks and deferred decisions
 
-- SMTP delivery and shared multi-replica rate limiting are required before enabling public invitation
-  or recovery in production; issue #11 owns those providers.
+- SMTP delivery and complete shared recovery/invitation abuse controls are required before enabling
+  public invitation or recovery in production; issue #11 owns those providers. Shared login limiting
+  is implemented in this phase.
 - External OIDC linking requires a separate security-reviewed design despite the verifier seam.
 - Platform self-service tenant creation and cross-tenant support tooling require explicit authority,
   privacy, audit, and impersonation design.

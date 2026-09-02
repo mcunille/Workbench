@@ -49,10 +49,14 @@ public sealed class SessionCookieSecurityTests(SqlServerFixture sqlServer)
     {
         await using var database = await sqlServer.CreateDatabaseAsync();
         await DatabaseMigrator.MigrateAsync(database.AdminConnectionString, CancellationToken.None);
+        var proofKey = await database.GetTenantContextProofKeyAsync();
         var webConnection = await database.CreateWebUserAsync();
         await using var factory = new WebApplicationFactory<Program>()
             .WithWebHostBuilder(builder =>
-                builder.UseSetting("ConnectionStrings:Workbench", webConnection));
+            {
+                builder.UseSetting("ConnectionStrings:Workbench", webConnection);
+                builder.UseSetting("TenantContext:ProofKey", Convert.ToBase64String(proofKey));
+            });
 
         using var client = factory.CreateClient();
         Assert.Equal(System.Net.HttpStatusCode.OK, (await client.GetAsync("/api/system")).StatusCode);

@@ -42,11 +42,15 @@ public sealed class AuthTestApplication : IAsyncDisposable
     {
         var database = await sqlServer.CreateDatabaseAsync();
         await DatabaseMigrator.MigrateAsync(database.AdminConnectionString, CancellationToken.None);
+        var proofKey = await database.GetTenantContextProofKeyAsync();
         var webConnection = await database.CreateWebUserAsync();
         await SeedAsync(database.AdminConnectionString);
         var factory = new WebApplicationFactory<Program>()
             .WithWebHostBuilder(builder =>
-                builder.UseSetting("ConnectionStrings:Workbench", webConnection));
+            {
+                builder.UseSetting("ConnectionStrings:Workbench", webConnection);
+                builder.UseSetting("TenantContext:ProofKey", Convert.ToBase64String(proofKey));
+            });
         return new AuthTestApplication(database, webConnection, factory);
     }
 

@@ -19,12 +19,14 @@ secret, start the disposable SQL Server, and perform the one-time bootstrap:
 
 ```powershell
 Copy-Item .env.dev.example .env.dev
+# Generate WORKBENCH_TENANT_CONTEXT_PROOF_KEY with:
+# [Convert]::ToBase64String([Security.Cryptography.RandomNumberGenerator]::GetBytes(32))
 ./scripts/test-sql.ps1 -Action Start
 ./scripts/bootstrap.ps1
 ```
 
 Keep `.env.dev` only in the worktree that uses it. Never commit it, paste it into agent prompts, or
-reuse its setup, web, operator, migrator, or administrator passwords outside local development.
+reuse its setup, web, operator, migrator, tenant-proof key, or administrator passwords outside local development.
 Agents may use the stable local administrator account after the human-controlled bootstrap; they do
 not need the setup, operator, or migrator principal for ordinary application development.
 

@@ -45,13 +45,8 @@ public sealed class SecurityAuditTests(SqlServerFixture sqlServer)
         await database.SeedTenantAuditRowsAsync(tenantId, Guid.NewGuid());
         await using var connection = new SqlConnection(webConnection);
         await connection.OpenAsync();
-        await using (var context = new SqlCommand(
-            "EXEC sys.sp_set_session_context @key=N'TenantId', @value=@tenantId, @read_only=1",
-            connection))
-        {
-            context.Parameters.AddWithValue("@tenantId", tenantId);
-            await context.ExecuteNonQueryAsync();
-        }
+        var proof = new TenantContextProof(await database.GetTenantContextProofKeyAsync());
+        await proof.ApplyAsync(connection, tenantId, CancellationToken.None);
 
         await ExecuteAsync(
             connection,

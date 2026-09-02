@@ -22,6 +22,7 @@ $adminPasswordFile = Join-Path $temporaryRoot 'admin.password'
 $webPasswordFile = Join-Path $temporaryRoot 'web.password'
 $operatorPasswordFile = Join-Path $temporaryRoot 'operator.password'
 $migratorPasswordFile = Join-Path $temporaryRoot 'migrator.password'
+$tenantContextProofKeyFile = Join-Path $temporaryRoot 'tenant-context-proof-key.txt'
 $suffix = [Guid]::NewGuid().ToString('N')
 $sqlPassword = "BrowserSql-$suffix-Aa9!"
 $webPassword = "BrowserWeb-$suffix-Aa9!"
@@ -42,6 +43,8 @@ Set-Content -LiteralPath $adminPasswordFile -Value 'Browser Correct Horse 9!'
 Set-Content -LiteralPath $webPasswordFile -Value $webPassword
 Set-Content -LiteralPath $operatorPasswordFile -Value $operatorPassword
 Set-Content -LiteralPath $migratorPasswordFile -Value $migratorPassword
+$tenantContextProofKey = [Convert]::ToBase64String([Security.Cryptography.RandomNumberGenerator]::GetBytes(32))
+Set-Content -LiteralPath $tenantContextProofKeyFile -Value $tenantContextProofKey
 $setupConnection = "Server=127.0.0.1,$sqlPort;Database=$database;User Id=sa;Password=$sqlPassword;Encrypt=True;TrustServerCertificate=True"
 Set-Content -LiteralPath $setupConnectionFile -Value $setupConnection
 
@@ -75,7 +78,8 @@ try {
         principals provision --connection-file $setupConnectionFile --expected-database $database `
         --web-user $webUser --web-password-file $webPasswordFile `
         --operator-user $operatorUser --operator-password-file $operatorPasswordFile `
-        --migrator-user $migratorUser --migrator-password-file $migratorPasswordFile
+        --migrator-user $migratorUser --migrator-password-file $migratorPasswordFile `
+        --tenant-context-proof-key-file $tenantContextProofKeyFile
     Assert-CommandSucceeded 'Browser database principal provisioning'
 
     $operatorConnection = "Server=127.0.0.1,$sqlPort;Database=$database;User Id=$operatorUser;Password=$operatorPassword;Encrypt=True;TrustServerCertificate=True"
@@ -94,6 +98,7 @@ try {
     $env:ASPNETCORE_URLS = 'http://127.0.0.1:4179'
     $env:ASPNETCORE_CONTENTROOT = $publishRoot
     $env:WORKBENCH_WEB_CONNECTION = "Server=127.0.0.1,$sqlPort;Database=$database;User Id=$webUser;Password=$webPassword;Encrypt=True;TrustServerCertificate=True"
+    $env:WORKBENCH_TENANT_CONTEXT_PROOF_KEY = $tenantContextProofKey
     & dotnet (Join-Path $publishRoot 'Workbench.Server.dll')
 }
 finally {

@@ -2,6 +2,7 @@
 
 using System.Data;
 using Microsoft.Data.SqlClient;
+using Workbench.Server.Tenancy;
 
 namespace Workbench.Server.Identity;
 
@@ -22,13 +23,18 @@ public sealed class SessionService
 {
     private readonly string _connectionString;
     private readonly SessionOptions _options;
+    private readonly TenantContextProof _tenantContextProof;
 
-    public SessionService(string connectionString, SessionOptions options)
+    public SessionService(
+        string connectionString,
+        SessionOptions options,
+        TenantContextProof tenantContextProof)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(connectionString);
         options.Validate();
         _connectionString = connectionString;
         _options = options;
+        _tenantContextProof = tenantContextProof;
     }
 
     public async Task<CreatedSession> CreateAsync(
@@ -234,12 +240,7 @@ public sealed class SessionService
         await connection.OpenAsync(cancellationToken);
         try
         {
-            await using var command = new SqlCommand("""
-                EXEC sys.sp_set_session_context
-                    @key = N'TenantId', @value = @tenantId, @read_only = 1;
-                """, connection);
-            command.Parameters.Add(new SqlParameter("@tenantId", SqlDbType.UniqueIdentifier) { Value = tenantId });
-            await command.ExecuteNonQueryAsync(cancellationToken);
+            await _tenantContextProof.ApplyAsync(connection, tenantId, cancellationToken);
             return connection;
         }
         catch

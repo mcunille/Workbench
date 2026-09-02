@@ -27,6 +27,9 @@ public sealed class DatabasePermissionTests(SqlServerFixture sqlServer)
             web,
             "ALTER SECURITY POLICY [Security].[TenantIsolationPolicy] WITH (STATE = OFF)");
         await AssertDeniedAsync(web, "DELETE FROM [dbo].[__EFMigrationsHistory]");
+        await AssertDeniedAsync(web, "SELECT * FROM [Security].[TenantContextKeys]");
+        await AssertDeniedAsync(web, "SELECT * FROM [Security].[SensitiveRequestLimits]");
+        await AssertDeniedAsync(web, "UPDATE [Security].[WorkbenchRestorePending] SET [IsPending] = 0");
         await AssertDeniedAsync(operatorConnection, "SELECT TOP (1) * FROM [Identity].[Users]");
         await AssertDeniedAsync(operatorConnection, "CREATE TABLE [dbo].[OperatorMustNotCreate] ([Id] int)");
         await AssertDeniedAsync(

@@ -1,6 +1,7 @@
 // Copyright (c) 2026 The White Stag Collection.
 
 using Workbench.Server.Identity;
+using Workbench.Server.Tenancy;
 
 namespace Workbench.Server.Security;
 
@@ -29,6 +30,8 @@ public sealed class ProductionSecurityConfigurationValidator(
                 "Production requires the Workbench web database connection.");
         }
 
+        _ = TenantContextProof.Parse(RequireTenantContextProofKey(configuration));
+
         var publicIdentityEnabled = configuration.GetValue<bool>("Identity:PublicRecoveryEnabled") ||
             configuration.GetValue<bool>("Identity:PublicInvitationEnabled");
         if (publicIdentityEnabled &&
@@ -53,6 +56,25 @@ public sealed class ProductionSecurityConfigurationValidator(
     public static string? GetWebConnectionString(IConfiguration configuration) =>
         configuration.GetConnectionString("Workbench")
         ?? Environment.GetEnvironmentVariable("WORKBENCH_WEB_CONNECTION");
+
+    public static string RequireTenantContextProofKey(IConfiguration configuration)
+    {
+        var directValue = configuration["TenantContext:ProofKey"]
+            ?? Environment.GetEnvironmentVariable("WORKBENCH_TENANT_CONTEXT_PROOF_KEY");
+        if (!string.IsNullOrWhiteSpace(directValue))
+        {
+            return directValue;
+        }
+
+        var path = configuration["TenantContext:ProofKeyFile"]
+            ?? Environment.GetEnvironmentVariable("WORKBENCH_TENANT_CONTEXT_PROOF_KEY_FILE");
+        if (string.IsNullOrWhiteSpace(path) || !File.Exists(path))
+        {
+            throw new InvalidOperationException("The tenant context proof key is not configured.");
+        }
+
+        return File.ReadAllText(path).Trim();
+    }
 
     private static bool IsOpenApiDocumentGeneration() =>
         string.Equals(

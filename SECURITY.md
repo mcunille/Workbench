@@ -42,6 +42,8 @@ Security review should treat these as required controls:
   tenant-consistent constraints, and SQL Server row-level security;
 - identifiers, cookies, network location, application queries, and database connections do not
   independently grant tenant authority;
+- SQL tenant context requires a nonce-bound proof from a separate workload secret, and the web
+  database role cannot read or replace the database-side proof key;
 - state-changing browser requests require antiforgery validation;
 - raw passwords, session tokens, recovery tokens, connection strings, migration credentials,
   backups, and data-protection secrets must not enter source control, logs, browser storage,
@@ -49,8 +51,10 @@ Security review should treat these as required controls:
 - web, operator, migrator, and setup/database-owner principals remain separate;
 - public recovery and invitations remain disabled without provider-backed delivery and a shared
   multi-replica rate limiter; and
-- a restored database cannot become ready until sessions, identity operations, and key material
-  are invalidated and security versions are advanced.
+- anonymous login attempts are limited by normalized-account and trusted-network partitions in a
+  shared SQL-backed window; and
+- a restored database cannot become ready while its independent restore marker is pending or until
+  sessions, identity operations, and key material are invalidated and security versions are advanced.
 
 Report cross-tenant access, authorization bypass, session or recovery replay, CSRF, SQL injection,
 RLS bypass, secret disclosure, unsafe restore, or privilege escalation when reachable through a

@@ -3,10 +3,13 @@
 using System.Data;
 using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
+using Workbench.Server.Tenancy;
 
 namespace Workbench.Server.Persistence;
 
-public sealed class DatabaseReadinessCheck(string connectionString) : IHealthCheck
+public sealed class DatabaseReadinessCheck(
+    string connectionString,
+    TenantContextProof tenantContextProof) : IHealthCheck
 {
     public async Task<HealthCheckResult> CheckHealthAsync(
         HealthCheckContext context,
@@ -20,19 +23,38 @@ public sealed class DatabaseReadinessCheck(string connectionString) : IHealthChe
             {
                 CommandType = CommandType.StoredProcedure,
             };
-            await using var reader = await command.ExecuteReaderAsync(cancellationToken);
-            if (!await reader.ReadAsync(cancellationToken))
+            DatabaseSecurityState? state;
+            await using (var reader = await command.ExecuteReaderAsync(cancellationToken))
             {
-                return HealthCheckResult.Unhealthy("Database security state is missing.");
+                if (!await reader.ReadAsync(cancellationToken))
+                {
+                    return HealthCheckResult.Unhealthy("Database security state is missing.");
+                }
+
+                state = new DatabaseSecurityState(
+                    reader.GetBoolean(0),
+                    reader.GetBoolean(1),
+                    reader.GetBoolean(2),
+                    reader.GetBoolean(3),
+                    reader.GetInt64(4),
+                    reader.GetInt64(5),
+                    reader.GetBoolean(6),
+                    reader.GetBoolean(7),
+                    reader.GetBoolean(8),
+                    ApplicationTenantProofAccepted: false);
             }
 
-            var state = new DatabaseSecurityState(
-                reader.GetBoolean(0),
-                reader.GetBoolean(1),
-                reader.GetBoolean(2),
-                reader.GetBoolean(3),
-                reader.GetInt64(4),
-                reader.GetInt64(5));
+            var sentinelTenant = Guid.Parse("ffffffff-ffff-ffff-ffff-ffffffffffff");
+            await tenantContextProof.ApplyAsync(connection, sentinelTenant, cancellationToken);
+            await using var proofCommand = new SqlCommand(
+                "SELECT COUNT(*) FROM [Security].[fn_tenant_access](@tenantId)",
+                connection);
+            proofCommand.Parameters.AddWithValue("@tenantId", sentinelTenant);
+            state = state with
+            {
+                ApplicationTenantProofAccepted = Convert.ToInt32(
+                    await proofCommand.ExecuteScalarAsync(cancellationToken)) == 1,
+            };
             return state.IsReady
                 ? HealthCheckResult.Healthy()
                 : HealthCheckResult.Unhealthy("Database security state is not ready.");

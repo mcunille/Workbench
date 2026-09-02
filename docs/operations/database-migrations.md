@@ -23,6 +23,13 @@ SQL. Treat it as a deployment control-plane identity: no interactive application
 mount in a web replica, short-lived delivery, separately authorized invocation, and credential
 rotation independent of the web principal.
 
+Tenant RLS also requires a distinct 32-byte proof key. Principal provisioning writes that key into
+an owner-only SQL table; the web and operator roles are explicitly denied direct access. The same
+value is delivered separately to the application workload, preferably as a read-only mounted secret
+file. A web connection string by itself therefore cannot select an arbitrary tenant through
+`SESSION_CONTEXT`. Keep the proof key separate from every database password, rotate both sides
+together under drained traffic, and never expose the raw value in container environment inspection.
+
 Development recovery-link generation is deliberately not granted to the operator role because it
 returns a raw credential-reset capability for an existing user. It requires the local one-time
 setup/database-owner connection, is never part of a production web or operator environment, and
@@ -49,6 +56,10 @@ fails if an installation was already initialized. Subsequent local schema change
 An agent that needs to run the application loads the ignored file with `./scripts/dev-env.ps1` and
 uses the seeded administrator account. It does not need migration authority unless its assigned task
 specifically changes or verifies the schema.
+
+For a non-development provisioning job, pass the Base64-encoded 32-byte value only through
+`--tenant-context-proof-key-file`. After provisioning, remove that temporary file. Configure web
+replicas with `WORKBENCH_TENANT_CONTEXT_PROOF_KEY_FILE` pointing to their read-only secret mount.
 
 ## Authoring and validating a migration
 

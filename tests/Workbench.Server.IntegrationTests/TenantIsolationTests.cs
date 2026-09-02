@@ -17,12 +17,14 @@ public sealed class TenantIsolationTests(SqlServerFixture sqlServer) : IAsyncLif
     private readonly Guid _tenantB = Guid.Parse("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb");
     private SqlTestDatabase _database = null!;
     private string _webConnectionString = null!;
+    private TenantContextProof _tenantContextProof = null!;
 
     public async Task InitializeAsync()
     {
         _database = await sqlServer.CreateDatabaseAsync();
         await DatabaseMigrator.MigrateAsync(_database.AdminConnectionString, CancellationToken.None);
         _webConnectionString = await _database.CreateWebUserAsync();
+        _tenantContextProof = new TenantContextProof(await _database.GetTenantContextProofKeyAsync());
         await _database.SeedTenantAuditRowsAsync(_tenantA, _tenantB);
     }
 
@@ -85,9 +87,29 @@ public sealed class TenantIsolationTests(SqlServerFixture sqlServer) : IAsyncLif
         await Assert.ThrowsAsync<InvalidOperationException>(() => database.SaveChangesAsync());
     }
 
+    [Fact]
+    public async Task WebCredentialCannotSelectATenantWithoutApplicationProof()
+    {
+        await using var connection = new SqlConnection(_webConnectionString);
+        await connection.OpenAsync();
+        await using (var context = new SqlCommand(
+            "EXEC sys.sp_set_session_context @key=N'TenantId', @value=@tenantId, @read_only=1",
+            connection))
+        {
+            context.Parameters.AddWithValue("@tenantId", _tenantA);
+            await context.ExecuteNonQueryAsync();
+        }
+
+        await using var command = new SqlCommand(
+            "SELECT COUNT(*) FROM [Security].[TenantSecurityAuditEvents]",
+            connection);
+
+        Assert.Equal(0, Convert.ToInt32(await command.ExecuteScalarAsync()));
+    }
+
     private WorkbenchDbContext CreateContext(TenantContext tenantContext)
     {
-        var interceptor = new TenantConnectionInterceptor(tenantContext);
+        var interceptor = new TenantConnectionInterceptor(tenantContext, _tenantContextProof);
         var saveInterceptor = new TenantSaveChangesInterceptor(tenantContext);
         var options = new DbContextOptionsBuilder<WorkbenchDbContext>()
             .UseSqlServer(_webConnectionString)
