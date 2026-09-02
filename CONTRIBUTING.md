@@ -6,7 +6,7 @@ welcome.
 
 ## Development prerequisites
 
-The repository pins .NET SDK `10.0.400`, Node.js `24.20.0`, and npm `11.19.0`. Use PowerShell 7 for
+The repository pins .NET SDK `10.0.400`, Node.js `26.7.0`, and npm `11.19.0`. Use PowerShell 7 for
 the checked-in scripts and a Linux-container Docker engine for container verification. Do not update
 one toolchain pin without updating its locks, CI setup, documentation, and smoke evidence.
 

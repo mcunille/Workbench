@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1.7
 
-FROM node:24.20.0-bookworm-slim AS client-build
+FROM node:26.7.0-bookworm-slim AS client-build
 WORKDIR /src/Workbench.Client
 COPY src/Workbench.Client/package.json src/Workbench.Client/package-lock.json ./
 RUN npm ci

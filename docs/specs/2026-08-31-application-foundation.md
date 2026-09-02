@@ -20,7 +20,7 @@ owned by later phases and must not be represented by placeholder implementations
 
 ## Goals
 
-- Pin supported .NET and Node LTS toolchains and commit deterministic dependency locks.
+- Pin supported .NET and Node.js toolchains and commit deterministic dependency locks.
 - Establish explicit server, client, and integration-test project boundaries.
 - Generate the TypeScript API contract from the server's OpenAPI description.
 - Serve API and client traffic from one origin in published output.
@@ -41,8 +41,8 @@ owned by later phases and must not be represented by placeholder implementations
 ## Toolchains and dependency policy
 
 The repository pins the .NET 10 LTS SDK in `global.json` with feature-band roll-forward disabled and
-pins Node.js 24 LTS in both `.nvmrc` and `.node-version`. The client package declares the same Node
-major in `engines` and declares the npm version used to create `package-lock.json` through
+pins Node.js 26.7.0 in both `.nvmrc` and `.node-version`. The client package supports Node.js 26 from
+version 26.7.0 in `engines` and declares the npm version used to create `package-lock.json` through
 `packageManager`.
 
 .NET projects use central package version management and committed `packages.lock.json` files.
