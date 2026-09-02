@@ -2,6 +2,7 @@
 
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
+using Microsoft.AspNetCore.DataProtection.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using Workbench.Server.Identity;
 using Workbench.Server.Security;
@@ -17,7 +18,7 @@ public class WorkbenchDbContext : IdentityDbContext<
     WorkbenchUserRole,
     WorkbenchUserLogin,
     WorkbenchRoleClaim,
-    WorkbenchUserToken>
+    WorkbenchUserToken>, IDataProtectionKeyContext
 {
     public WorkbenchDbContext(DbContextOptions<WorkbenchDbContext> options)
         : this(options, TenantContext.None)
@@ -40,6 +41,10 @@ public class WorkbenchDbContext : IdentityDbContext<
         Set<TenantSecurityAuditEvent>();
 
     public DbSet<LoginDirectoryEntry> LoginDirectory => Set<LoginDirectoryEntry>();
+
+    public DbSet<WorkbenchSession> Sessions => Set<WorkbenchSession>();
+
+    public DbSet<DataProtectionKey> DataProtectionKeys => Set<DataProtectionKey>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -69,6 +74,7 @@ public class WorkbenchDbContext : IdentityDbContext<
             .OnDelete(DeleteBehavior.Restrict);
 
         ConfigureIdentity(modelBuilder);
+        ConfigureSessions(modelBuilder);
     }
 
     private void ConfigureIdentity(ModelBuilder modelBuilder)
@@ -113,6 +119,25 @@ public class WorkbenchDbContext : IdentityDbContext<
             .HasForeignKey<LoginDirectoryEntry>(row => new { row.TenantId, row.UserId })
             .HasPrincipalKey<WorkbenchUser>(row => new { row.TenantId, row.Id })
             .OnDelete(DeleteBehavior.Cascade);
+    }
+
+    private void ConfigureSessions(ModelBuilder modelBuilder)
+    {
+        var session = modelBuilder.Entity<WorkbenchSession>();
+        session.ToTable("Sessions", "Identity");
+        session.HasKey(row => row.Id);
+        session.IsTenantOwned(row => (Guid?)row.TenantId == TenantContext.TenantId);
+        session.Property(row => row.TokenHash).HasColumnType("binary(32)").IsRequired();
+        session.HasIndex(row => row.TokenHash).IsUnique();
+        session.Property(row => row.RevocationReason).HasMaxLength(100);
+        session.Property(row => row.RowVersion).IsRowVersion();
+        session.HasOne<WorkbenchUser>()
+            .WithMany()
+            .HasForeignKey(row => new { row.TenantId, row.UserId })
+            .HasPrincipalKey(row => new { row.TenantId, row.Id })
+            .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<DataProtectionKey>().ToTable("DataProtectionKeys", "Identity");
     }
 
     private void ConfigureUserClaims(ModelBuilder modelBuilder)

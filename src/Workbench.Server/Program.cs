@@ -1,11 +1,22 @@
 // Copyright (c) 2026 The White Stag Collection.
 
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.DataProtection;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
+using System.Security.Claims;
+using System.Security.Cryptography.X509Certificates;
 using Workbench.Server.Application;
+using Workbench.Server.Authorization;
 using Workbench.Server.Contracts;
 using Workbench.Server.Health;
 using Workbench.Server.Http;
+using Workbench.Server.Identity;
+using Workbench.Server.Persistence;
+using Workbench.Server.Security;
+using Workbench.Server.Tenancy;
+using DurableSessionOptions = Workbench.Server.Identity.SessionOptions;
 
 if (args is ["--health-check"])
 {
@@ -24,12 +35,91 @@ if (args is ["--health-check"])
 }
 
 var builder = WebApplication.CreateBuilder(args);
+var configuredWebConnection =
+    ProductionSecurityConfigurationValidator.GetWebConnectionString(builder.Configuration);
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 builder.Services.AddHealthChecks().AddCheck(
     "self",
     () => HealthCheckResult.Healthy(),
     tags: ["live"]);
 builder.Services.AddSingleton<IReleaseInformation, AssemblyReleaseInformation>();
+builder.Services.AddHostedService<ProductionSecurityConfigurationValidator>();
+builder.Services.AddSingleton(TimeProvider.System);
+builder.Services.AddSingleton(new DurableSessionOptions());
+if (!string.IsNullOrWhiteSpace(configuredWebConnection))
+{
+    builder.Services.AddSingleton<SessionService>(services => new SessionService(
+        configuredWebConnection,
+        services.GetRequiredService<DurableSessionOptions>()));
+}
+builder.Services.AddScoped<SessionAuthenticationEvents>();
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddScoped(services =>
+{
+    var principal = services.GetRequiredService<IHttpContextAccessor>().HttpContext?.User;
+    return new TenantContext(ParseGuidClaim(principal, SessionCookieHandler.TenantIdClaimType));
+});
+builder.Services.AddScoped(services =>
+{
+    var principal = services.GetRequiredService<IHttpContextAccessor>().HttpContext?.User;
+    return new RequestActor(
+        ParseRequiredGuidClaim(principal, ClaimTypes.NameIdentifier),
+        ParseRequiredGuidClaim(principal, SessionCookieHandler.TenantIdClaimType),
+        ParseRequiredGuidClaim(principal, SessionCookieHandler.SessionIdClaimType),
+        principal?.FindAll(SessionCookieHandler.PermissionClaimType)
+            .Select(claim => claim.Value)
+            .ToHashSet(StringComparer.Ordinal) ?? []);
+});
+builder.Services.AddDbContext<WorkbenchDbContext>((services, options) =>
+{
+    options.UseSqlServer(RequireWebConnectionString(services.GetRequiredService<IConfiguration>()));
+    options.AddInterceptors(
+        new TenantConnectionInterceptor(services.GetRequiredService<TenantContext>()),
+        new TenantSaveChangesInterceptor(services.GetRequiredService<TenantContext>()));
+});
+
+var dataProtection = builder.Services
+    .AddDataProtection()
+    .SetApplicationName("Workbench");
+if (!string.IsNullOrWhiteSpace(configuredWebConnection))
+{
+    dataProtection.PersistKeysToDbContext<WorkbenchDbContext>();
+}
+if (builder.Environment.IsProduction())
+{
+    var certificatePath = ProductionSecurityConfigurationValidator.GetCertificatePath(builder.Configuration);
+    if (!string.IsNullOrWhiteSpace(certificatePath))
+    {
+        var certificatePassword = builder.Configuration["DataProtection:CertificatePassword"]
+            ?? Environment.GetEnvironmentVariable("WORKBENCH_DATA_PROTECTION_CERTIFICATE_PASSWORD");
+        var certificate = X509CertificateLoader.LoadPkcs12FromFile(
+            certificatePath,
+            certificatePassword,
+            X509KeyStorageFlags.EphemeralKeySet);
+        dataProtection.ProtectKeysWithCertificate(certificate);
+    }
+}
+
+builder.Services
+    .AddAuthentication(SessionCookieHandler.Scheme)
+    .AddCookie(SessionCookieHandler.Scheme, options =>
+    {
+        options.Cookie.Name = builder.Environment.IsDevelopment()
+            ? ".Workbench.Session"
+            : "__Host-Workbench.Session";
+        options.Cookie.HttpOnly = true;
+        options.Cookie.SameSite = SameSiteMode.Lax;
+        options.Cookie.SecurePolicy = builder.Environment.IsDevelopment()
+            ? CookieSecurePolicy.SameAsRequest
+            : CookieSecurePolicy.Always;
+        options.Cookie.Path = "/";
+        options.ExpireTimeSpan = TimeSpan.FromHours(12);
+        options.SlidingExpiration = false;
+        options.EventsType = typeof(SessionAuthenticationEvents);
+        options.LoginPath = PathString.Empty;
+        options.AccessDeniedPath = PathString.Empty;
+    });
+builder.Services.AddAuthorization();
 builder.Services.AddOpenApi();
 builder.Services.AddProblemDetails(options =>
 {
@@ -42,6 +132,8 @@ var app = builder.Build();
 app.UseExceptionHandler();
 app.UseDefaultFiles();
 app.UseStaticFiles();
+app.UseAuthentication();
+app.UseAuthorization();
 
 app.MapGet(
         "/api/system",
@@ -71,5 +163,16 @@ app.Map("/api/{**path}", () => Results.Problem(
 app.MapFallbackToFile("index.html");
 
 app.Run();
+
+static string RequireWebConnectionString(IConfiguration configuration) =>
+    ProductionSecurityConfigurationValidator.GetWebConnectionString(configuration)
+    ?? throw new InvalidOperationException("The Workbench web database connection is not configured.");
+
+static Guid? ParseGuidClaim(ClaimsPrincipal? principal, string claimType) =>
+    Guid.TryParse(principal?.FindFirst(claimType)?.Value, out var value) ? value : null;
+
+static Guid ParseRequiredGuidClaim(ClaimsPrincipal? principal, string claimType) =>
+    ParseGuidClaim(principal, claimType)
+    ?? throw new InvalidOperationException("An authoritative request actor is required.");
 
 public partial class Program;
