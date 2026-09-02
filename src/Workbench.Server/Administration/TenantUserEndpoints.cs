@@ -33,6 +33,10 @@ public static class TenantUserEndpoints
             .WithMetadata(WorkbenchAntiforgeryMetadata.Instance)
             .Produces(StatusCodes.Status202Accepted)
             .Produces(StatusCodes.Status404NotFound);
+        group.MapDelete("/{userId:guid}/sessions", RevokeSessionsAsync)
+            .WithMetadata(WorkbenchAntiforgeryMetadata.Instance)
+            .Produces(StatusCodes.Status204NoContent)
+            .Produces(StatusCodes.Status404NotFound);
         group.MapPost("/invitations", InviteAsync)
             .WithMetadata(WorkbenchAntiforgeryMetadata.Instance)
             .Produces(StatusCodes.Status202Accepted)
@@ -146,6 +150,41 @@ public static class TenantUserEndpoints
 
         await operations.RequestRecoveryAsync(email, cancellationToken);
         return Results.StatusCode(StatusCodes.Status202Accepted);
+    }
+
+    private static async Task<IResult> RevokeSessionsAsync(
+        Guid userId,
+        RequestActor actor,
+        WorkbenchDbContext database,
+        SecurityAuditWriter audit,
+        HttpContext context,
+        TimeProvider timeProvider,
+        CancellationToken cancellationToken)
+    {
+        if (!await database.Users.AnyAsync(user => user.Id == userId, cancellationToken))
+        {
+            return TypedResults.NotFound();
+        }
+
+        await using var transaction = await database.Database.BeginTransactionAsync(cancellationToken);
+        var now = timeProvider.GetUtcNow();
+        await database.Sessions
+            .Where(session => session.UserId == userId && session.RevokedAtUtc == null)
+            .ExecuteUpdateAsync(setters => setters
+                .SetProperty(session => session.RevokedAtUtc, now)
+                .SetProperty(session => session.RevocationReason, "TenantAdministratorRevoked"),
+                cancellationToken);
+        audit.AppendTenant(
+            actor.TenantId,
+            actor.UserId,
+            "tenant.user.sessions-revoked",
+            "User",
+            userId,
+            "Succeeded",
+            context.TraceIdentifier);
+        await database.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+        return TypedResults.NoContent();
     }
 
     private static async Task<IResult> InviteAsync(

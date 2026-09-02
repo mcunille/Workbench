@@ -1,52 +1,88 @@
 import { useEffect, useState } from 'react';
 import { getSystem, type SystemInformation } from './api/system';
+import { TenantUsers } from './features/admin/TenantUsers';
+import { AuthProvider } from './features/auth/AuthContext';
+import { Recovery } from './features/auth/Recovery';
+import { Sessions } from './features/auth/Sessions';
+import { SignIn } from './features/auth/SignIn';
+import { useAuth } from './features/auth/useAuth';
 
-export function App() {
+const tenantUsersManage = 'TenantUsersManage';
+
+function WorkbenchApplication() {
+  const { identity, status, signOut } = useAuth();
   const [system, setSystem] = useState<SystemInformation>();
-  const [failed, setFailed] = useState(false);
+  const [systemFailed, setSystemFailed] = useState(false);
 
   useEffect(() => {
-    let isCurrent = true;
-
+    let current = true;
     void getSystem().then(
       (result) => {
-        if (isCurrent) {
-          setSystem(result);
-        }
+        if (current) setSystem(result);
       },
       () => {
-        if (isCurrent) {
-          setFailed(true);
-        }
+        if (current) setSystemFailed(true);
       },
     );
-
     return () => {
-      isCurrent = false;
+      current = false;
     };
   }, []);
 
-  if (failed) {
+  if (systemFailed || status === 'unavailable') {
+    return <main className="public-shell"><p role="alert">Workbench is temporarily unavailable.</p></main>;
+  }
+
+  if (status === 'forbidden') {
     return (
-      <main className="shell">
-        <p role="alert">Workbench is temporarily unavailable.</p>
+      <main className="public-shell">
+        <section className="auth-card">
+          <h1>Access denied</h1>
+          <p>Your account does not have access to this Workbench.</p>
+        </section>
       </main>
     );
   }
 
-  if (!system) {
-    return (
-      <main className="shell">
-        <p role="status">Loading Workbench…</p>
-      </main>
-    );
+  if (status === 'signed-out') {
+    return <main className="public-shell"><SignIn /></main>;
   }
 
+  if (status === 'loading' || !system || !identity) {
+    return <main className="public-shell"><p role="status">Loading Workbench…</p></main>;
+  }
+
+  const canManageUsers = identity.permissions.includes(tenantUsersManage);
   return (
-    <main className="shell">
-      <p className="eyebrow">Portable operations workspace</p>
-      <h1>{system.name}</h1>
-      <p className="version">Version {system.version}</p>
-    </main>
+    <div className="app-shell">
+      <header className="topbar">
+        <div>
+          <p className="eyebrow">Portable operations workspace</p>
+          <span className="wordmark">{system.name}</span>
+        </div>
+        <div className="identity-summary">
+          <span><strong>{identity.tenantName}</strong><small>{identity.email}</small></span>
+          <button className="secondary" type="button" onClick={() => void signOut()}>Sign out</button>
+        </div>
+      </header>
+      <main className="workspace">
+        <section className="welcome">
+          <p className="eyebrow">Trusted session</p>
+          <h1>Welcome to {identity.tenantName}</h1>
+          <p className="lede">Your tenant is derived from your durable server session.</p>
+        </section>
+        <div className="panel-grid">
+          <Sessions />
+          {canManageUsers ? <TenantUsers /> : null}
+        </div>
+      </main>
+      <footer>Workbench {system.version}</footer>
+    </div>
   );
+}
+
+export function App() {
+  if (window.location.pathname === '/recover') return <Recovery />;
+  if (window.location.pathname === '/invite') return <Recovery invitation />;
+  return <AuthProvider><WorkbenchApplication /></AuthProvider>;
 }

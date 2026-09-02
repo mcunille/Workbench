@@ -48,6 +48,23 @@ public sealed class TenantUserAdministrationTests(SqlServerFixture sqlServer) : 
     }
 
     [Fact]
+    public async Task TenantAdministratorCanRevokeOwnTenantUserSessions()
+    {
+        using var member = _application.CreateClient();
+        Assert.Equal(HttpStatusCode.NoContent, (await RecoveryTests.PostWithAntiforgeryAsync(
+            member,
+            "/api/auth/login",
+            new { email = "member@example.com", password = AuthTestApplication.AdminPassword }))
+            .StatusCode);
+
+        var response = await SendDeleteWithAntiforgeryAsync(
+            $"/api/tenant/users/{AuthTestApplication.MemberUserId}/sessions");
+
+        Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, (await member.GetAsync("/api/auth/me")).StatusCode);
+    }
+
+    [Fact]
     public async Task InvitationIsSingleUseAndCreatesAnEnabledAccount()
     {
         const string email = "invited@example.com";
@@ -75,9 +92,12 @@ public sealed class TenantUserAdministrationTests(SqlServerFixture sqlServer) : 
     }
 
     private async Task<HttpResponseMessage> SendDeleteWithAntiforgeryAsync(Guid userId)
+        => await SendDeleteWithAntiforgeryAsync($"/api/tenant/users/{userId}");
+
+    private async Task<HttpResponseMessage> SendDeleteWithAntiforgeryAsync(string path)
     {
         var tokens = await _admin.GetFromJsonAsync<System.Text.Json.JsonElement>("/api/auth/antiforgery");
-        using var request = new HttpRequestMessage(HttpMethod.Delete, $"/api/tenant/users/{userId}");
+        using var request = new HttpRequestMessage(HttpMethod.Delete, path);
         request.Headers.Add("X-CSRF-TOKEN", tokens.GetProperty("requestToken").GetString());
         return await _admin.SendAsync(request);
     }

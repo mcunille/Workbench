@@ -423,6 +423,32 @@
         }
       }
     },
+    "/api/tenant/users/{userId}/sessions": {
+      "delete": {
+        "tags": [
+          "Tenant users"
+        ],
+        "parameters": [
+          {
+            "name": "userId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "404": {
+            "description": "Not Found"
+          }
+        }
+      }
+    },
     "/api/tenant/users/invitations": {
       "post": {
         "tags": [
