@@ -1,6 +1,6 @@
 # SQL Persistence, Tenant Isolation, and Built-in Identity
 
-**Status:** Proposed
+**Status:** Accepted
 
 ## Summary
 
