@@ -12,8 +12,8 @@ using Workbench.Server.Persistence;
 namespace Workbench.Server.Persistence.Migrations
 {
     [DbContext(typeof(WorkbenchDbContext))]
-    [Migration("20260902053620_AddDatabasePrincipals")]
-    partial class AddDatabasePrincipals
+    [Migration("20260904061246_EstablishSecurityBoundaries")]
+    partial class EstablishSecurityBoundaries
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)

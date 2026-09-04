@@ -75,10 +75,11 @@ and readiness procedures. Run all four drills against disposable real SQL Server
 ./scripts/verify-database-permissions.ps1
 ```
 
-The clean drill applies every migration to an empty database. Upgrade starts from the previous
-supported schema. Reversible rollback moves to the previous migration and forward again. Restore
-rollback validates the restored-schema path and mandatory security sanitation. Permission probes
-exercise the actual web, operator, and migrator roles.
+The clean drill applies every migration to an empty database. For the initial database release,
+Upgrade starts from `InitialSchema`; after the baseline ships, it starts from the previous supported
+release. Reversible rollback removes and reapplies `EstablishSecurityBoundaries`. Restore rollback
+validates the restored-schema path and mandatory security sanitation. Permission probes exercise the
+actual web, operator, and migrator roles.
 
 ## Deployment procedure
 

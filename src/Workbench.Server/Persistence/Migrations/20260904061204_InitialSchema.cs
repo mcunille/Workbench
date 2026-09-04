@@ -8,13 +8,69 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace Workbench.Server.Persistence.Migrations
 {
     /// <inheritdoc />
-    public partial class AddIdentitySchema : Migration
+    public partial class InitialSchema : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.EnsureSchema(
                 name: "Identity");
+
+            migrationBuilder.EnsureSchema(
+                name: "Security");
+
+            migrationBuilder.EnsureSchema(
+                name: "Tenancy");
+
+            migrationBuilder.CreateTable(
+                name: "DataProtectionKeys",
+                schema: "Identity",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    FriendlyName = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    Xml = table.Column<string>(type: "nvarchar(max)", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_DataProtectionKeys", x => x.Id);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "SystemSecurityAuditEvents",
+                schema: "Security",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    Action = table.Column<string>(type: "nvarchar(200)", maxLength: 200, nullable: false),
+                    Outcome = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: false),
+                    CorrelationId = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: true),
+                    MetadataJson = table.Column<string>(type: "nvarchar(2000)", maxLength: 2000, nullable: true),
+                    OccurredAtUtc = table.Column<DateTimeOffset>(type: "datetimeoffset", nullable: false),
+                    RowVersion = table.Column<byte[]>(type: "rowversion", rowVersion: true, nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_SystemSecurityAuditEvents", x => x.Id);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "Tenants",
+                schema: "Tenancy",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    Name = table.Column<string>(type: "nvarchar(200)", maxLength: 200, nullable: false),
+                    NormalizedName = table.Column<string>(type: "nvarchar(200)", maxLength: 200, nullable: false),
+                    IsEnabled = table.Column<bool>(type: "bit", nullable: false),
+                    CreatedAtUtc = table.Column<DateTimeOffset>(type: "datetimeoffset", nullable: false),
+                    RowVersion = table.Column<byte[]>(type: "rowversion", rowVersion: true, nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_Tenants", x => x.Id);
+                });
 
             migrationBuilder.CreateTable(
                 name: "Roles",
@@ -34,6 +90,36 @@ namespace Workbench.Server.Persistence.Migrations
                     table.UniqueConstraint("AK_Roles_TenantId_Id", x => new { x.TenantId, x.Id });
                     table.ForeignKey(
                         name: "FK_Roles_Tenants_TenantId",
+                        column: x => x.TenantId,
+                        principalSchema: "Tenancy",
+                        principalTable: "Tenants",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "TenantSecurityAuditEvents",
+                schema: "Security",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    TenantId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    Action = table.Column<string>(type: "nvarchar(200)", maxLength: 200, nullable: false),
+                    ActorUserId = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
+                    TargetType = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: true),
+                    TargetId = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
+                    Outcome = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: false, defaultValue: "Succeeded"),
+                    CorrelationId = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: true),
+                    MetadataJson = table.Column<string>(type: "nvarchar(2000)", maxLength: 2000, nullable: true),
+                    OccurredAtUtc = table.Column<DateTimeOffset>(type: "datetimeoffset", nullable: false),
+                    RowVersion = table.Column<byte[]>(type: "rowversion", rowVersion: true, nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_TenantSecurityAuditEvents", x => x.Id);
+                    table.UniqueConstraint("AK_TenantSecurityAuditEvents_TenantId_Id", x => new { x.TenantId, x.Id });
+                    table.ForeignKey(
+                        name: "FK_TenantSecurityAuditEvents_Tenants_TenantId",
                         column: x => x.TenantId,
                         principalSchema: "Tenancy",
                         principalTable: "Tenants",
@@ -113,6 +199,35 @@ namespace Workbench.Server.Persistence.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "IdentityOperations",
+                schema: "Identity",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    TenantId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    UserId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    Purpose = table.Column<int>(type: "int", nullable: false),
+                    TokenHash = table.Column<byte[]>(type: "binary(32)", nullable: false),
+                    SecurityVersion = table.Column<long>(type: "bigint", nullable: false),
+                    CreatedAtUtc = table.Column<DateTimeOffset>(type: "datetimeoffset", nullable: false),
+                    ExpiresAtUtc = table.Column<DateTimeOffset>(type: "datetimeoffset", nullable: false),
+                    ConsumedAtUtc = table.Column<DateTimeOffset>(type: "datetimeoffset", nullable: true),
+                    RowVersion = table.Column<byte[]>(type: "rowversion", rowVersion: true, nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_IdentityOperations", x => x.Id);
+                    table.UniqueConstraint("AK_IdentityOperations_TenantId_Id", x => new { x.TenantId, x.Id });
+                    table.ForeignKey(
+                        name: "FK_IdentityOperations_Users_TenantId_UserId",
+                        columns: x => new { x.TenantId, x.UserId },
+                        principalSchema: "Identity",
+                        principalTable: "Users",
+                        principalColumns: new[] { "TenantId", "Id" },
+                        onDelete: ReferentialAction.Restrict);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "LoginDirectory",
                 schema: "Identity",
                 columns: table => new
@@ -131,6 +246,37 @@ namespace Workbench.Server.Persistence.Migrations
                         principalTable: "Users",
                         principalColumns: new[] { "TenantId", "Id" },
                         onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "Sessions",
+                schema: "Identity",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    TenantId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    UserId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    TokenHash = table.Column<byte[]>(type: "binary(32)", nullable: false),
+                    SecurityVersion = table.Column<long>(type: "bigint", nullable: false),
+                    CreatedAtUtc = table.Column<DateTimeOffset>(type: "datetimeoffset", nullable: false),
+                    LastSeenAtUtc = table.Column<DateTimeOffset>(type: "datetimeoffset", nullable: false),
+                    IdleExpiresAtUtc = table.Column<DateTimeOffset>(type: "datetimeoffset", nullable: false),
+                    AbsoluteExpiresAtUtc = table.Column<DateTimeOffset>(type: "datetimeoffset", nullable: false),
+                    RevokedAtUtc = table.Column<DateTimeOffset>(type: "datetimeoffset", nullable: true),
+                    RevocationReason = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: true),
+                    RowVersion = table.Column<byte[]>(type: "rowversion", rowVersion: true, nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_Sessions", x => x.Id);
+                    table.UniqueConstraint("AK_Sessions_TenantId_Id", x => new { x.TenantId, x.Id });
+                    table.ForeignKey(
+                        name: "FK_Sessions_Users_TenantId_UserId",
+                        columns: x => new { x.TenantId, x.UserId },
+                        principalSchema: "Identity",
+                        principalTable: "Users",
+                        principalColumns: new[] { "TenantId", "Id" },
+                        onDelete: ReferentialAction.Restrict);
                 });
 
             migrationBuilder.CreateTable(
@@ -268,6 +414,19 @@ namespace Workbench.Server.Persistence.Migrations
                 });
 
             migrationBuilder.CreateIndex(
+                name: "IX_IdentityOperations_TenantId_UserId",
+                schema: "Identity",
+                table: "IdentityOperations",
+                columns: new[] { "TenantId", "UserId" });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_IdentityOperations_TokenHash",
+                schema: "Identity",
+                table: "IdentityOperations",
+                column: "TokenHash",
+                unique: true);
+
+            migrationBuilder.CreateIndex(
                 name: "IX_LoginDirectory_TenantId_UserId",
                 schema: "Identity",
                 table: "LoginDirectory",
@@ -299,6 +458,26 @@ namespace Workbench.Server.Persistence.Migrations
                 columns: new[] { "TenantId", "NormalizedName" },
                 unique: true,
                 filter: "[NormalizedName] IS NOT NULL");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Sessions_TenantId_UserId",
+                schema: "Identity",
+                table: "Sessions",
+                columns: new[] { "TenantId", "UserId" });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Sessions_TokenHash",
+                schema: "Identity",
+                table: "Sessions",
+                column: "TokenHash",
+                unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Tenants_NormalizedName",
+                schema: "Tenancy",
+                table: "Tenants",
+                column: "NormalizedName",
+                unique: true);
 
             migrationBuilder.CreateIndex(
                 name: "IX_UserClaims_TenantId_UserId",
@@ -361,100 +540,18 @@ namespace Workbench.Server.Persistence.Migrations
                 schema: "Identity",
                 table: "UserTokens",
                 column: "UserId");
-
-            migrationBuilder.Sql("""
-                ALTER SECURITY POLICY [Security].[TenantIsolationPolicy]
-                    ADD FILTER PREDICATE [Security].[fn_tenant_access]([TenantId]) ON [Identity].[Users],
-                    ADD BLOCK PREDICATE [Security].[fn_tenant_access]([TenantId]) ON [Identity].[Users] AFTER INSERT,
-                    ADD BLOCK PREDICATE [Security].[fn_tenant_access]([TenantId]) ON [Identity].[Users] AFTER UPDATE,
-                    ADD FILTER PREDICATE [Security].[fn_tenant_access]([TenantId]) ON [Identity].[Roles],
-                    ADD BLOCK PREDICATE [Security].[fn_tenant_access]([TenantId]) ON [Identity].[Roles] AFTER INSERT,
-                    ADD BLOCK PREDICATE [Security].[fn_tenant_access]([TenantId]) ON [Identity].[Roles] AFTER UPDATE,
-                    ADD FILTER PREDICATE [Security].[fn_tenant_access]([TenantId]) ON [Identity].[UserClaims],
-                    ADD BLOCK PREDICATE [Security].[fn_tenant_access]([TenantId]) ON [Identity].[UserClaims] AFTER INSERT,
-                    ADD BLOCK PREDICATE [Security].[fn_tenant_access]([TenantId]) ON [Identity].[UserClaims] AFTER UPDATE,
-                    ADD FILTER PREDICATE [Security].[fn_tenant_access]([TenantId]) ON [Identity].[UserLogins],
-                    ADD BLOCK PREDICATE [Security].[fn_tenant_access]([TenantId]) ON [Identity].[UserLogins] AFTER INSERT,
-                    ADD BLOCK PREDICATE [Security].[fn_tenant_access]([TenantId]) ON [Identity].[UserLogins] AFTER UPDATE,
-                    ADD FILTER PREDICATE [Security].[fn_tenant_access]([TenantId]) ON [Identity].[UserRoles],
-                    ADD BLOCK PREDICATE [Security].[fn_tenant_access]([TenantId]) ON [Identity].[UserRoles] AFTER INSERT,
-                    ADD BLOCK PREDICATE [Security].[fn_tenant_access]([TenantId]) ON [Identity].[UserRoles] AFTER UPDATE,
-                    ADD FILTER PREDICATE [Security].[fn_tenant_access]([TenantId]) ON [Identity].[RoleClaims],
-                    ADD BLOCK PREDICATE [Security].[fn_tenant_access]([TenantId]) ON [Identity].[RoleClaims] AFTER INSERT,
-                    ADD BLOCK PREDICATE [Security].[fn_tenant_access]([TenantId]) ON [Identity].[RoleClaims] AFTER UPDATE,
-                    ADD FILTER PREDICATE [Security].[fn_tenant_access]([TenantId]) ON [Identity].[UserTokens],
-                    ADD BLOCK PREDICATE [Security].[fn_tenant_access]([TenantId]) ON [Identity].[UserTokens] AFTER INSERT,
-                    ADD BLOCK PREDICATE [Security].[fn_tenant_access]([TenantId]) ON [Identity].[UserTokens] AFTER UPDATE;
-                """);
-
-            migrationBuilder.Sql("""
-                CREATE PROCEDURE [Identity].[ResolveCredential]
-                    @NormalizedEmail nvarchar(256)
-                WITH EXECUTE AS OWNER
-                AS
-                BEGIN
-                    SET NOCOUNT ON;
-
-                    SELECT TOP (1)
-                        [user].[Id],
-                        [user].[TenantId],
-                        [user].[PasswordHash],
-                        [user].[SecurityStamp],
-                        [user].[State],
-                        [user].[SecurityVersion],
-                        [user].[CreatedAtUtc]
-                    FROM [Identity].[LoginDirectory] AS [directory]
-                    INNER JOIN [Identity].[Users] AS [user]
-                        ON [user].[Id] = [directory].[UserId]
-                        AND [user].[TenantId] = [directory].[TenantId]
-                    WHERE [directory].[NormalizedEmail] = @NormalizedEmail;
-                END;
-                """);
-
-            migrationBuilder.Sql("""
-                IF DATABASE_PRINCIPAL_ID(N'workbench_web') IS NULL
-                    EXEC(N'CREATE ROLE [workbench_web]');
-
-                GRANT EXECUTE ON [Identity].[ResolveCredential] TO [workbench_web];
-                GRANT SELECT, INSERT, UPDATE, DELETE ON [Identity].[Users] TO [workbench_web];
-                GRANT SELECT, INSERT, UPDATE, DELETE ON [Identity].[Roles] TO [workbench_web];
-                GRANT SELECT, INSERT, UPDATE, DELETE ON [Identity].[UserClaims] TO [workbench_web];
-                GRANT SELECT, INSERT, UPDATE, DELETE ON [Identity].[UserLogins] TO [workbench_web];
-                GRANT SELECT, INSERT, UPDATE, DELETE ON [Identity].[UserRoles] TO [workbench_web];
-                GRANT SELECT, INSERT, UPDATE, DELETE ON [Identity].[RoleClaims] TO [workbench_web];
-                GRANT SELECT, INSERT, UPDATE, DELETE ON [Identity].[UserTokens] TO [workbench_web];
-                """);
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.Sql("DROP PROCEDURE [Identity].[ResolveCredential];");
+            migrationBuilder.DropTable(
+                name: "DataProtectionKeys",
+                schema: "Identity");
 
-            migrationBuilder.Sql("""
-                ALTER SECURITY POLICY [Security].[TenantIsolationPolicy]
-                    DROP FILTER PREDICATE ON [Identity].[Users],
-                    DROP BLOCK PREDICATE ON [Identity].[Users] AFTER INSERT,
-                    DROP BLOCK PREDICATE ON [Identity].[Users] AFTER UPDATE,
-                    DROP FILTER PREDICATE ON [Identity].[Roles],
-                    DROP BLOCK PREDICATE ON [Identity].[Roles] AFTER INSERT,
-                    DROP BLOCK PREDICATE ON [Identity].[Roles] AFTER UPDATE,
-                    DROP FILTER PREDICATE ON [Identity].[UserClaims],
-                    DROP BLOCK PREDICATE ON [Identity].[UserClaims] AFTER INSERT,
-                    DROP BLOCK PREDICATE ON [Identity].[UserClaims] AFTER UPDATE,
-                    DROP FILTER PREDICATE ON [Identity].[UserLogins],
-                    DROP BLOCK PREDICATE ON [Identity].[UserLogins] AFTER INSERT,
-                    DROP BLOCK PREDICATE ON [Identity].[UserLogins] AFTER UPDATE,
-                    DROP FILTER PREDICATE ON [Identity].[UserRoles],
-                    DROP BLOCK PREDICATE ON [Identity].[UserRoles] AFTER INSERT,
-                    DROP BLOCK PREDICATE ON [Identity].[UserRoles] AFTER UPDATE,
-                    DROP FILTER PREDICATE ON [Identity].[RoleClaims],
-                    DROP BLOCK PREDICATE ON [Identity].[RoleClaims] AFTER INSERT,
-                    DROP BLOCK PREDICATE ON [Identity].[RoleClaims] AFTER UPDATE,
-                    DROP FILTER PREDICATE ON [Identity].[UserTokens],
-                    DROP BLOCK PREDICATE ON [Identity].[UserTokens] AFTER INSERT,
-                    DROP BLOCK PREDICATE ON [Identity].[UserTokens] AFTER UPDATE;
-                """);
+            migrationBuilder.DropTable(
+                name: "IdentityOperations",
+                schema: "Identity");
 
             migrationBuilder.DropTable(
                 name: "LoginDirectory",
@@ -463,6 +560,18 @@ namespace Workbench.Server.Persistence.Migrations
             migrationBuilder.DropTable(
                 name: "RoleClaims",
                 schema: "Identity");
+
+            migrationBuilder.DropTable(
+                name: "Sessions",
+                schema: "Identity");
+
+            migrationBuilder.DropTable(
+                name: "SystemSecurityAuditEvents",
+                schema: "Security");
+
+            migrationBuilder.DropTable(
+                name: "TenantSecurityAuditEvents",
+                schema: "Security");
 
             migrationBuilder.DropTable(
                 name: "UserClaims",
@@ -488,16 +597,9 @@ namespace Workbench.Server.Persistence.Migrations
                 name: "Users",
                 schema: "Identity");
 
-            migrationBuilder.Sql("""
-                IF DATABASE_PRINCIPAL_ID(N'workbench_web') IS NOT NULL
-                    AND NOT EXISTS
-                    (
-                        SELECT 1
-                        FROM sys.database_role_members
-                        WHERE role_principal_id = DATABASE_PRINCIPAL_ID(N'workbench_web')
-                    )
-                    DROP ROLE [workbench_web];
-                """);
+            migrationBuilder.DropTable(
+                name: "Tenants",
+                schema: "Tenancy");
         }
     }
 }

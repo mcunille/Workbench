@@ -476,12 +476,12 @@ with locked dependencies and nonzero exit codes on any skipped or failed gate:
 # RLS, grants, readiness compatibility, and repeat execution.
 ./scripts/verify-migrations.ps1 -Scenario Clean
 
-# Restore the checked-in prior-schema fixture, load representative two-tenant
+# Apply the declarative InitialSchema baseline, load representative tenant
 # data, migrate forward, and verify data plus isolation.
 ./scripts/verify-migrations.ps1 -Scenario Upgrade
 
-# In a disposable database only, migrate down to the declared prior compatible
-# schema and prove the prior application contract can run.
+# In a disposable database only, remove and reapply the SQL security boundary
+# while preserving the declarative schema and its data.
 ./scripts/verify-migrations.ps1 -Scenario ReversibleRollback
 
 # Restore a disposable SQL backup, run mandatory sanitization, and prove every

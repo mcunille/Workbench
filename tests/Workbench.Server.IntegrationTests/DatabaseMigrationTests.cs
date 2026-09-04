@@ -22,12 +22,19 @@ public sealed class DatabaseMigrationTests(SqlServerFixture sqlServer)
         await using var connection = new SqlConnection(database.AdminConnectionString);
         await connection.OpenAsync();
         await using var command = new SqlCommand(
-            "SELECT COUNT(*) FROM [dbo].[__EFMigrationsHistory]",
+            "SELECT [MigrationId] FROM [dbo].[__EFMigrationsHistory] ORDER BY [MigrationId]",
             connection);
+        await using var reader = await command.ExecuteReaderAsync();
+        var migrations = new List<string>();
+        while (await reader.ReadAsync())
+        {
+            migrations.Add(reader.GetString(0));
+        }
 
-        var migrationCount = Convert.ToInt32(await command.ExecuteScalarAsync());
-
-        Assert.True(migrationCount > 0);
+        Assert.Collection(
+            migrations,
+            migration => Assert.EndsWith("_InitialSchema", migration, StringComparison.Ordinal),
+            migration => Assert.EndsWith("_EstablishSecurityBoundaries", migration, StringComparison.Ordinal));
     }
 
     [Fact]
@@ -36,7 +43,7 @@ public sealed class DatabaseMigrationTests(SqlServerFixture sqlServer)
         await using var database = await sqlServer.CreateDatabaseAsync();
         await DatabaseMigrator.MigrateToAsync(
             database.AdminConnectionString,
-            "20260902042420_AddTenantIsolation",
+            "InitialSchema",
             CancellationToken.None);
         await using (var connection = new SqlConnection(database.AdminConnectionString))
         {
@@ -64,7 +71,7 @@ public sealed class DatabaseMigrationTests(SqlServerFixture sqlServer)
 
         await DatabaseMigrator.MigrateToAsync(
             database.AdminConnectionString,
-            "20260902053620_AddDatabasePrincipals",
+            "InitialSchema",
             CancellationToken.None);
         Assert.Equal(0, await ObjectCountAsync(database.AdminConnectionString, "Security.DatabaseSecurityState"));
 
