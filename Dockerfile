@@ -3,7 +3,7 @@
 FROM node:26.7.0-bookworm-slim AS client-build
 WORKDIR /src/Workbench.Client
 COPY src/Workbench.Client/package.json src/Workbench.Client/package-lock.json ./
-RUN npm ci
+RUN npm ci --ignore-scripts --no-audit --no-fund
 COPY src/Workbench.Client/ ./
 RUN npm run build
 

@@ -1,5 +1,7 @@
 [CmdletBinding()]
-param()
+param(
+    [switch]$SkipClientBuild
+)
 
 $ErrorActionPreference = 'Stop'
 $repositoryRoot = Split-Path -Parent $PSScriptRoot
@@ -17,10 +19,19 @@ function Assert-NativeCommandSucceeded {
 }
 
 try {
-    dotnet publish (Join-Path $repositoryRoot 'src/Workbench.Server/Workbench.Server.csproj') `
-        --configuration Release `
-        --no-restore `
-        --output $publishRoot
+    $serverPublishArguments = @(
+        'publish'
+        (Join-Path $repositoryRoot 'src/Workbench.Server/Workbench.Server.csproj')
+        '--configuration'
+        'Release'
+        '--no-restore'
+        '--output'
+        $publishRoot
+    )
+    if ($SkipClientBuild) {
+        $serverPublishArguments += '-p:BuildClient=false'
+    }
+    dotnet @serverPublishArguments
     Assert-NativeCommandSucceeded 'dotnet publish'
 
     dotnet publish (Join-Path $repositoryRoot 'src/Workbench.Database/Workbench.Database.csproj') `

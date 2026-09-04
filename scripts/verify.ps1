@@ -1,5 +1,7 @@
 [CmdletBinding()]
-param()
+param(
+    [switch]$SkipDependencyInstall
+)
 
 $ErrorActionPreference = 'Stop'
 $repositoryRoot = Split-Path -Parent $PSScriptRoot
@@ -68,11 +70,13 @@ try {
     dotnet restore Workbench.slnx --locked-mode
     Assert-NativeCommandSucceeded 'dotnet restore --locked-mode'
 
-    npm ci --prefix $clientRoot
-    Assert-NativeCommandSucceeded 'npm ci'
+    if (-not $SkipDependencyInstall) {
+        npm ci --prefix $clientRoot --ignore-scripts --no-audit --no-fund
+        Assert-NativeCommandSucceeded 'npm ci'
 
-    npm ci --prefix $browserRoot
-    Assert-NativeCommandSucceeded 'browser npm ci'
+        npm ci --prefix $browserRoot --ignore-scripts --no-audit --no-fund
+        Assert-NativeCommandSucceeded 'browser npm ci'
+    }
 
     dotnet format Workbench.slnx --verify-no-changes --no-restore
     Assert-NativeCommandSucceeded 'dotnet format'
@@ -116,7 +120,7 @@ try {
     npm test --prefix $browserRoot
     Assert-NativeCommandSucceeded 'browser tests'
 
-    & (Join-Path $PSScriptRoot 'test-publish.ps1')
+    & (Join-Path $PSScriptRoot 'test-publish.ps1') -SkipClientBuild
     if (-not $?) {
         throw 'Published release-unit verification failed.'
     }

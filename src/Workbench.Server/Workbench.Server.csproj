@@ -19,7 +19,7 @@
   </ItemGroup>
   <Target Name="BuildAndIncludeClientForPublish" BeforeTargets="ComputeFilesToPublish">
     <Exec
-      Command="npm ci"
+      Command="npm ci --ignore-scripts --no-audit --no-fund"
       Condition="'$(BuildClient)' == 'true'"
       WorkingDirectory="$(ClientRoot)" />
     <Exec
