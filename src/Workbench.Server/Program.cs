@@ -44,8 +44,7 @@ var configuredTenantContextProof = string.IsNullOrWhiteSpace(configuredWebConnec
     ? null
     : TenantContextProof.Parse(
         ProductionSecurityConfigurationValidator.RequireTenantContextProofKey(builder.Configuration));
-var configuredProxy = builder.Configuration["ReverseProxy:KnownProxy"]
-    ?? Environment.GetEnvironmentVariable("WORKBENCH_KNOWN_PROXY");
+var configuredProxy = ProductionSecurityConfigurationValidator.GetKnownProxy(builder.Configuration);
 if (System.Net.IPAddress.TryParse(configuredProxy, out var knownProxy))
 {
     builder.Services.Configure<ForwardedHeadersOptions>(options =>
@@ -67,6 +66,13 @@ if (!string.IsNullOrWhiteSpace(configuredWebConnection))
         new DatabaseReadinessCheck(configuredWebConnection, configuredTenantContextProof!),
         tags: ["ready"]);
 }
+else
+{
+    builder.Services.AddHealthChecks().AddCheck(
+        "database",
+        () => HealthCheckResult.Unhealthy("The Workbench database is not configured."),
+        tags: ["ready"]);
+}
 builder.Services.AddSingleton<IReleaseInformation, AssemblyReleaseInformation>();
 builder.Services.AddHostedService<ProductionSecurityConfigurationValidator>();
 builder.Services.AddSingleton(TimeProvider.System);
@@ -80,7 +86,8 @@ builder.Services.AddSingleton<SessionService>(services => new SessionService(
     services.GetRequiredService<TenantContextProof>()));
 builder.Services.AddScoped<IIdentityVerifier>(services => new BuiltInPasswordVerifier(
     RequireWebConnectionString(services.GetRequiredService<IConfiguration>()),
-    services.GetRequiredService<IPasswordHasher<WorkbenchUser>>()));
+    services.GetRequiredService<IPasswordHasher<WorkbenchUser>>(),
+    services.GetRequiredService<TenantContextProof>()));
 if (builder.Environment.IsDevelopment())
 {
     builder.Services.AddSingleton<DevelopmentIdentityMessageDelivery>();
@@ -98,9 +105,7 @@ else
     else
     {
         builder.Services.AddSingleton<ISensitiveRequestRateLimiter>(services =>
-            new SqlSensitiveRequestRateLimiter(
-                configuredWebConnection,
-                services.GetRequiredService<TimeProvider>()));
+            new SqlSensitiveRequestRateLimiter(configuredWebConnection));
     }
 }
 builder.Services.AddScoped<IdentityOperationService>(services => new IdentityOperationService(
@@ -114,12 +119,7 @@ builder.Services.AddScoped<SecurityAuditWriter>();
 builder.Services
     .AddIdentityCore<WorkbenchUser>(options =>
     {
-        options.Password.RequiredLength = 14;
-        options.Password.RequiredUniqueChars = 4;
-        options.Password.RequireDigit = true;
-        options.Password.RequireLowercase = true;
-        options.Password.RequireUppercase = true;
-        options.Password.RequireNonAlphanumeric = true;
+        WorkbenchPasswordPolicy.Configure(options.Password);
     })
     .AddRoles<WorkbenchRole>()
     .AddEntityFrameworkStores<WorkbenchDbContext>();

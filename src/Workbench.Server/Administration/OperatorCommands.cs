@@ -98,7 +98,7 @@ public sealed class OperatorCommands(
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantName);
         ArgumentException.ThrowIfNullOrWhiteSpace(administratorEmail);
-        ArgumentException.ThrowIfNullOrWhiteSpace(administratorPassword);
+        WorkbenchPasswordPolicy.EnsureValid(administratorPassword, nameof(administratorPassword));
         var tenantId = Guid.CreateVersion7();
         var userId = Guid.CreateVersion7();
         var user = new WorkbenchUser

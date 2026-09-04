@@ -78,6 +78,8 @@ public partial class EstablishSecurityBoundaries : Migration
                 [RequestCount] int NOT NULL,
                 CONSTRAINT [CK_SensitiveRequestLimits_RequestCount] CHECK ([RequestCount] > 0)
             );
+            CREATE INDEX [IX_SensitiveRequestLimits_WindowStartedAtUtc]
+                ON [Security].[SensitiveRequestLimits] ([WindowStartedAtUtc]);
 
             CREATE TABLE [Security].[WorkbenchRestorePending]
             (
@@ -160,14 +162,28 @@ public partial class EstablishSecurityBoundaries : Migration
     {
         migrationBuilder.Sql("""
             CREATE PROCEDURE [Identity].[ResolveCredential]
-                @NormalizedEmail nvarchar(256)
+                @NormalizedEmail nvarchar(256),
+                @Nonce binary(32),
+                @Proof binary(32)
             WITH EXECUTE AS OWNER
             AS
             BEGIN
                 SET NOCOUNT ON;
+                DECLARE @ExpectedProof binary(32) =
+                (
+                    SELECT HASHBYTES(
+                        'SHA2_256',
+                        CONVERT(varbinary(max), [key].[ProofKey]) +
+                        CONVERT(varbinary(max), N'credential:' + @NormalizedEmail) +
+                        CONVERT(varbinary(max), @Nonce))
+                    FROM [Security].[TenantContextKeys] AS [key]
+                    WHERE [key].[Id] = 1
+                );
+                IF @Nonce IS NULL OR @Proof IS NULL OR @ExpectedProof IS NULL OR @Proof <> @ExpectedProof
+                    THROW 50003, 'Credential lookup proof is invalid.', 1;
+
                 SELECT TOP (1)
-                    [user].[Id], [user].[TenantId], [user].[PasswordHash], [user].[SecurityStamp],
-                    [user].[State], [user].[SecurityVersion], [user].[CreatedAtUtc]
+                    [user].[Id], [user].[TenantId], [user].[PasswordHash], [user].[State]
                 FROM [Identity].[LoginDirectory] AS [directory]
                 INNER JOIN [Identity].[Users] AS [user]
                     ON [user].[Id] = [directory].[UserId]
@@ -224,11 +240,26 @@ public partial class EstablishSecurityBoundaries : Migration
 
         migrationBuilder.Sql("""
             CREATE PROCEDURE [Identity].[ResolveRecoveryTarget]
-                @NormalizedEmail nvarchar(256)
+                @NormalizedEmail nvarchar(256),
+                @Nonce binary(32),
+                @Proof binary(32)
             WITH EXECUTE AS OWNER
             AS
             BEGIN
                 SET NOCOUNT ON;
+                DECLARE @ExpectedProof binary(32) =
+                (
+                    SELECT HASHBYTES(
+                        'SHA2_256',
+                        CONVERT(varbinary(max), [key].[ProofKey]) +
+                        CONVERT(varbinary(max), N'recovery:' + @NormalizedEmail) +
+                        CONVERT(varbinary(max), @Nonce))
+                    FROM [Security].[TenantContextKeys] AS [key]
+                    WHERE [key].[Id] = 1
+                );
+                IF @Nonce IS NULL OR @Proof IS NULL OR @ExpectedProof IS NULL OR @Proof <> @ExpectedProof
+                    THROW 50004, 'Recovery lookup proof is invalid.', 1;
+
                 SELECT TOP (1) [user].[Id], [user].[TenantId], [user].[SecurityVersion], [user].[Email]
                 FROM [Identity].[LoginDirectory] AS [directory]
                 INNER JOIN [Identity].[Users] AS [user]
@@ -267,8 +298,31 @@ public partial class EstablishSecurityBoundaries : Migration
             BEGIN
                 SET NOCOUNT ON;
                 SET XACT_ABORT ON;
+                DECLARE @ExpectedProof binary(32) =
+                (
+                    SELECT HASHBYTES(
+                        'SHA2_256',
+                        CONVERT(varbinary(max), [key].[ProofKey]) +
+                        CONVERT(varbinary(max), CONVERT(nvarchar(36), @TenantId)) +
+                        CONVERT(varbinary(max), TRY_CONVERT(varbinary(32), SESSION_CONTEXT(N'TenantNonce'))))
+                    FROM [Security].[TenantContextKeys] AS [key]
+                    WHERE [key].[Id] = 1
+                );
                 IF TRY_CONVERT(uniqueidentifier, SESSION_CONTEXT(N'TenantId')) <> @TenantId
+                    OR TRY_CONVERT(varbinary(32), SESSION_CONTEXT(N'TenantNonce')) IS NULL
+                    OR TRY_CONVERT(varbinary(32), SESSION_CONTEXT(N'TenantProof')) IS NULL
+                    OR @ExpectedProof IS NULL
+                    OR TRY_CONVERT(varbinary(32), SESSION_CONTEXT(N'TenantProof')) <> @ExpectedProof
                     THROW 50001, 'Tenant context mismatch.', 1;
+
+                DECLARE @MemberRoleId uniqueidentifier =
+                (
+                    SELECT TOP (1) [Id]
+                    FROM [Identity].[Roles]
+                    WHERE [TenantId] = @TenantId AND [NormalizedName] = N'TENANT MEMBER'
+                );
+                IF @MemberRoleId IS NULL
+                    THROW 50002, 'Tenant member role is missing.', 1;
 
                 BEGIN TRANSACTION;
                 INSERT INTO [Identity].[Users]
@@ -280,6 +334,8 @@ public partial class EstablishSecurityBoundaries : Migration
                      @Email, @NormalizedEmail, @Email, @NormalizedEmail, 0, 0, 0, 0, 0);
                 INSERT INTO [Identity].[LoginDirectory] ([NormalizedEmail], [UserId], [TenantId])
                 VALUES (@NormalizedEmail, @UserId, @TenantId);
+                INSERT INTO [Identity].[UserRoles] ([UserId], [RoleId], [TenantId])
+                VALUES (@UserId, @MemberRoleId, @TenantId);
                 INSERT INTO [Identity].[IdentityOperations]
                     ([Id], [TenantId], [UserId], [Purpose], [TokenHash], [SecurityVersion],
                      [CreatedAtUtc], [ExpiresAtUtc])
@@ -445,17 +501,20 @@ public partial class EstablishSecurityBoundaries : Migration
     {
         migrationBuilder.Sql("""
             CREATE PROCEDURE [Security].[TryAcquireSensitiveRequest]
-                @PartitionHash binary(32),
-                @Now datetimeoffset,
-                @WindowSeconds int,
-                @PermitLimit int
+                @PartitionHash binary(32)
             WITH EXECUTE AS OWNER
             AS
             BEGIN
                 SET NOCOUNT ON;
                 SET XACT_ABORT ON;
                 SET TRANSACTION ISOLATION LEVEL SERIALIZABLE;
+                DECLARE @Now datetimeoffset = SYSUTCDATETIME();
+                DECLARE @WindowSeconds int = 60;
+                DECLARE @PermitLimit int = 5;
                 BEGIN TRANSACTION;
+                DELETE TOP (1000) FROM [Security].[SensitiveRequestLimits]
+                WHERE [WindowStartedAtUtc] < DATEADD(minute, -5, @Now)
+                    AND [PartitionHash] <> @PartitionHash;
                 DECLARE @WindowStartedAtUtc datetimeoffset;
                 DECLARE @RequestCount int;
                 SELECT @WindowStartedAtUtc = [WindowStartedAtUtc], @RequestCount = [RequestCount]

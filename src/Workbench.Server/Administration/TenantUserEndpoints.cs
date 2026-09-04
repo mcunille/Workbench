@@ -1,5 +1,6 @@
 // Copyright (c) 2026 The White Stag Collection.
 
+using System.Data;
 using Microsoft.EntityFrameworkCore;
 using Workbench.Server.Authorization;
 using Workbench.Server.Http;
@@ -24,15 +25,18 @@ public static class TenantUserEndpoints
         group.MapDelete("/{userId:guid}", DisableAsync)
             .WithMetadata(WorkbenchAntiforgeryMetadata.Instance)
             .Produces(StatusCodes.Status204NoContent)
-            .Produces(StatusCodes.Status404NotFound);
+            .Produces(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status400BadRequest);
         group.MapPost("/{userId:guid}/reactivate", ReactivateAsync)
             .WithMetadata(WorkbenchAntiforgeryMetadata.Instance)
             .Produces(StatusCodes.Status204NoContent)
-            .Produces(StatusCodes.Status404NotFound);
+            .Produces(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status400BadRequest);
         group.MapPost("/{userId:guid}/recovery", InitiateRecoveryAsync)
             .WithMetadata(WorkbenchAntiforgeryMetadata.Instance)
             .Produces(StatusCodes.Status202Accepted)
-            .Produces(StatusCodes.Status404NotFound);
+            .Produces(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status503ServiceUnavailable);
         group.MapDelete("/{userId:guid}/sessions", RevokeSessionsAsync)
             .WithMetadata(WorkbenchAntiforgeryMetadata.Instance)
             .Produces(StatusCodes.Status204NoContent)
@@ -66,6 +70,7 @@ public static class TenantUserEndpoints
         SetStateAsync(
             userId,
             AccountState.Disabled,
+            AccountState.Enabled,
             "tenant.user.disabled",
             actor,
             database,
@@ -85,6 +90,7 @@ public static class TenantUserEndpoints
         SetStateAsync(
             userId,
             AccountState.Enabled,
+            AccountState.Disabled,
             "tenant.user.reactivated",
             actor,
             database,
@@ -96,6 +102,7 @@ public static class TenantUserEndpoints
     private static async Task<IResult> SetStateAsync(
         Guid userId,
         AccountState state,
+        AccountState requiredCurrentState,
         string action,
         RequestActor actor,
         WorkbenchDbContext database,
@@ -104,11 +111,56 @@ public static class TenantUserEndpoints
         TimeProvider timeProvider,
         CancellationToken cancellationToken)
     {
-        await using var transaction = await database.Database.BeginTransactionAsync(cancellationToken);
+        await using var transaction = await database.Database.BeginTransactionAsync(
+            IsolationLevel.Serializable,
+            cancellationToken);
         var user = await database.Users.SingleOrDefaultAsync(user => user.Id == userId, cancellationToken);
         if (user is null)
         {
             return TypedResults.NotFound();
+        }
+
+        if (user.State != requiredCurrentState ||
+            (state == AccountState.Enabled && user.PasswordHash is null))
+        {
+            return ApiProblemResults.InvalidRequest("The requested account state transition is not allowed.");
+        }
+
+        if (state == AccountState.Disabled)
+        {
+            if (userId == actor.UserId)
+            {
+                return ApiProblemResults.InvalidRequest("The current administrator cannot be disabled.");
+            }
+
+            var targetIsAdministrator = await (
+                from membership in database.Set<WorkbenchUserRole>()
+                join claim in database.Set<WorkbenchRoleClaim>()
+                    on new { membership.TenantId, membership.RoleId }
+                    equals new { claim.TenantId, claim.RoleId }
+                where membership.UserId == userId &&
+                    claim.ClaimType == SessionCookieHandler.PermissionClaimType &&
+                    claim.ClaimValue == WorkbenchPermissions.TenantUsersManage
+                select membership.UserId).AnyAsync(cancellationToken);
+            if (targetIsAdministrator)
+            {
+                var enabledAdministratorCount = await (
+                    from administrator in database.Users
+                    join membership in database.Set<WorkbenchUserRole>()
+                        on new { administrator.TenantId, UserId = administrator.Id }
+                        equals new { membership.TenantId, membership.UserId }
+                    join claim in database.Set<WorkbenchRoleClaim>()
+                        on new { membership.TenantId, membership.RoleId }
+                        equals new { claim.TenantId, claim.RoleId }
+                    where administrator.State == AccountState.Enabled &&
+                        claim.ClaimType == SessionCookieHandler.PermissionClaimType &&
+                        claim.ClaimValue == WorkbenchPermissions.TenantUsersManage
+                    select administrator.Id).Distinct().CountAsync(cancellationToken);
+                if (enabledAdministratorCount <= 1)
+                {
+                    return ApiProblemResults.InvalidRequest("The last enabled administrator cannot be disabled.");
+                }
+            }
         }
 
         user.State = state;
@@ -139,6 +191,13 @@ public static class TenantUserEndpoints
         IdentityOperationService operations,
         CancellationToken cancellationToken)
     {
+        if (!operations.PublicOperationsAvailable)
+        {
+            return Results.Problem(
+                statusCode: StatusCodes.Status503ServiceUnavailable,
+                title: "Account recovery is unavailable.");
+        }
+
         var email = await database.Users
             .Where(user => user.Id == userId)
             .Select(user => user.Email)

@@ -3,6 +3,8 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Workbench.Server.Authorization;
 using Workbench.Server.Identity;
 using Workbench.Server.Persistence;
@@ -38,7 +40,9 @@ public sealed class AuthTestApplication : IAsyncDisposable
 
     public string WebConnectionString { get; }
 
-    public static async Task<AuthTestApplication> CreateAsync(SqlServerFixture sqlServer)
+    public static async Task<AuthTestApplication> CreateAsync(
+        SqlServerFixture sqlServer,
+        bool disablePublicOperations = false)
     {
         var database = await sqlServer.CreateDatabaseAsync();
         await DatabaseMigrator.MigrateAsync(database.AdminConnectionString, CancellationToken.None);
@@ -50,6 +54,14 @@ public sealed class AuthTestApplication : IAsyncDisposable
             {
                 builder.UseSetting("ConnectionStrings:Workbench", webConnection);
                 builder.UseSetting("TenantContext:ProofKey", Convert.ToBase64String(proofKey));
+                if (disablePublicOperations)
+                {
+                    builder.ConfigureServices(services =>
+                    {
+                        services.RemoveAll<IIdentityMessageDelivery>();
+                        services.AddSingleton<IIdentityMessageDelivery, DisabledIdentityMessageDelivery>();
+                    });
+                }
             });
         return new AuthTestApplication(database, webConnection, factory);
     }
@@ -86,6 +98,7 @@ public sealed class AuthTestApplication : IAsyncDisposable
         other.TenantId = otherTenantId;
         other.PasswordHash = passwordHasher.HashPassword(other, AdminPassword);
         var roleId = Guid.Parse("22222222-2222-2222-2222-222222222222");
+        var memberRoleId = Guid.Parse("66666666-6666-6666-6666-666666666666");
 
         database.Tenants.Add(new Tenant
         {
@@ -127,13 +140,21 @@ public sealed class AuthTestApplication : IAsyncDisposable
                 UserId = other.Id,
                 TenantId = otherTenantId,
             });
-        database.Roles.Add(new WorkbenchRole
-        {
-            Id = roleId,
-            TenantId = TenantId,
-            Name = "Tenant administrator",
-            NormalizedName = "TENANT ADMINISTRATOR",
-        });
+        database.Roles.AddRange(
+            new WorkbenchRole
+            {
+                Id = roleId,
+                TenantId = TenantId,
+                Name = "Tenant administrator",
+                NormalizedName = "TENANT ADMINISTRATOR",
+            },
+            new WorkbenchRole
+            {
+                Id = memberRoleId,
+                TenantId = TenantId,
+                Name = "Tenant member",
+                NormalizedName = "TENANT MEMBER",
+            });
         database.Set<WorkbenchUserRole>().Add(new WorkbenchUserRole
         {
             TenantId = TenantId,
@@ -154,6 +175,13 @@ public sealed class AuthTestApplication : IAsyncDisposable
                 RoleId = roleId,
                 ClaimType = SessionCookieHandler.PermissionClaimType,
                 ClaimValue = WorkbenchPermissions.TenantUsersManage,
+            },
+            new WorkbenchRoleClaim
+            {
+                TenantId = TenantId,
+                RoleId = memberRoleId,
+                ClaimType = SessionCookieHandler.PermissionClaimType,
+                ClaimValue = WorkbenchPermissions.TenantAccess,
             });
         await database.SaveChangesAsync();
     }

@@ -159,6 +159,12 @@ public static class AuthEndpoints
         HttpContext context,
         CancellationToken cancellationToken)
     {
+        if (!WorkbenchPasswordPolicy.IsWithinInputBounds(request.CurrentPassword) ||
+            !WorkbenchPasswordPolicy.IsWithinInputBounds(request.NewPassword))
+        {
+            return ApiProblemResults.InvalidRequest("The password input is invalid.");
+        }
+
         await using var transaction = await database.Database.BeginTransactionAsync(
             IsolationLevel.Serializable,
             cancellationToken);

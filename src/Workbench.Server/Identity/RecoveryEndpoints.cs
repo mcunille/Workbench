@@ -68,6 +68,11 @@ public static class RecoveryEndpoints
                 title: "Public account recovery is unavailable.");
         }
 
+        if (!HasBoundedConsumeInput(request))
+        {
+            return ApiProblemResults.InvalidRequest("The recovery operation is invalid or expired.");
+        }
+
         var consumed = await operations.ConsumeRecoveryAsync(
             request.Token,
             request.NewPassword,
@@ -91,6 +96,11 @@ public static class RecoveryEndpoints
                 title: "Public invitations are unavailable.");
         }
 
+        if (!HasBoundedConsumeInput(request))
+        {
+            return ApiProblemResults.InvalidRequest("The invitation is invalid or expired.");
+        }
+
         var consumed = await operations.ConsumeInvitationAsync(
             request.Token,
             request.NewPassword,
@@ -100,4 +110,8 @@ public static class RecoveryEndpoints
             ? TypedResults.NoContent()
             : ApiProblemResults.InvalidRequest("The invitation is invalid or expired.");
     }
+
+    private static bool HasBoundedConsumeInput(RecoveryConsumeRequest request) =>
+        request.Token is { Length: SessionToken.EncodedLength } &&
+        WorkbenchPasswordPolicy.IsWithinInputBounds(request.NewPassword);
 }

@@ -21,6 +21,9 @@ if ($builder.InitialCatalog -ne 'master') {
 }
 $escapedSource = $Source.Replace("'", "''", [StringComparison]::Ordinal)
 $previousPassword = $env:SQLCMDPASSWORD
+$restoreFailure = $null
+$cleanupFailure = $null
+$restoreStarted = $false
 try {
     $env:SQLCMDPASSWORD = $builder.Password
     $restoreSql = """
@@ -41,14 +44,34 @@ try {
             UPDATE [Security].[WorkbenchRestorePending] SET [IsPending] = 1 WHERE [Id] = 1;
         ELSE
             INSERT INTO [Security].[WorkbenchRestorePending] ([Id], [IsPending]) VALUES (1, 1);
-        USE [master];
-        ALTER DATABASE [$Database] SET MULTI_USER;
         """
-    & $sqlcmd.Source -S $builder.DataSource -U $builder.UserID -d master -C -b -Q `
+    $restoreStarted = $true
+    & $sqlcmd -S $builder.DataSource -U $builder.UserID -d master -C -b -Q `
         $restoreSql
     if ($LASTEXITCODE -ne 0) { throw 'Database restore failed.' }
-    Write-Host "Database '$Database' restored. Run migrations, restore sanitize, and all security probes before cutover."
+}
+catch {
+    $restoreFailure = $_
 }
 finally {
+    if ($restoreStarted) {
+        try {
+            $cleanupSql = "IF DB_ID(N'$Database') IS NOT NULL ALTER DATABASE [$Database] SET MULTI_USER WITH ROLLBACK IMMEDIATE;"
+            & $sqlcmd -S $builder.DataSource -U $builder.UserID -d master -C -b -Q $cleanupSql
+            if ($LASTEXITCODE -ne 0) { throw 'Database restore cleanup failed.' }
+        }
+        catch {
+            $cleanupFailure = $_
+        }
+    }
     $env:SQLCMDPASSWORD = $previousPassword
 }
+
+if ($restoreFailure -and $cleanupFailure) {
+    throw [InvalidOperationException]::new(
+        "Database restore failed, and MULTI_USER cleanup also failed; the database may require operator recovery. $($cleanupFailure.Exception.Message)",
+        $restoreFailure.Exception)
+}
+if ($restoreFailure) { throw $restoreFailure }
+if ($cleanupFailure) { throw $cleanupFailure }
+Write-Host "Database '$Database' restored. Run migrations, restore sanitize, and all security probes before cutover."

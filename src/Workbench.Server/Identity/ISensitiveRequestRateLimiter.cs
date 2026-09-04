@@ -25,6 +25,10 @@ public sealed class DevelopmentSensitiveRequestRateLimiter(TimeProvider timeProv
     public ValueTask<bool> TryAcquireAsync(string partition, CancellationToken cancellationToken)
     {
         var now = timeProvider.GetUtcNow();
+        foreach (var expired in _requests.Where(request => now - request.Value.Window >= TimeSpan.FromMinutes(5)))
+        {
+            _requests.TryRemove(expired);
+        }
         var entry = _requests.AddOrUpdate(
             partition,
             _ => (now, 1),
@@ -43,9 +47,7 @@ public sealed class DisabledSensitiveRequestRateLimiter : ISensitiveRequestRateL
         ValueTask.FromResult(false);
 }
 
-public sealed class SqlSensitiveRequestRateLimiter(
-    string connectionString,
-    TimeProvider timeProvider) : ISensitiveRequestRateLimiter
+public sealed class SqlSensitiveRequestRateLimiter(string connectionString) : ISensitiveRequestRateLimiter
 {
     public bool IsAvailable => true;
 
@@ -65,9 +67,6 @@ public sealed class SqlSensitiveRequestRateLimiter(
         {
             Value = partitionHash,
         });
-        command.Parameters.AddWithValue("@Now", timeProvider.GetUtcNow());
-        command.Parameters.AddWithValue("@WindowSeconds", 60);
-        command.Parameters.AddWithValue("@PermitLimit", 5);
         return Convert.ToBoolean(await command.ExecuteScalarAsync(cancellationToken));
     }
 }

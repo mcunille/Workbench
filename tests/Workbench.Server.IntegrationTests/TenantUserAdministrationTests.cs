@@ -2,6 +2,7 @@
 
 using System.Net;
 using System.Net.Http.Json;
+using System.Text.Json;
 using Microsoft.Extensions.DependencyInjection;
 using Workbench.Server.IntegrationTests.Infrastructure;
 using Xunit;
@@ -48,6 +49,35 @@ public sealed class TenantUserAdministrationTests(SqlServerFixture sqlServer) : 
     }
 
     [Fact]
+    public async Task TenantAdministratorCannotDisableTheCurrentAndLastAdministrator()
+    {
+        var response = await SendDeleteWithAntiforgeryAsync(AuthTestApplication.AdminUserId);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await _admin.GetAsync("/api/auth/me")).StatusCode);
+    }
+
+    [Fact]
+    public async Task InvitedAccountCannotBeReactivatedWithoutConsumingItsInvitation()
+    {
+        const string email = "pending-invite@example.com";
+        Assert.Equal(HttpStatusCode.Accepted, (await RecoveryTests.PostWithAntiforgeryAsync(
+            _admin,
+            "/api/tenant/users/invitations",
+            new { email })).StatusCode);
+        var users = await _admin.GetFromJsonAsync<Workbench.Server.Administration.TenantUserResponse[]>(
+            "/api/tenant/users");
+        var invited = Assert.Single(users!, user => user.Email == email);
+
+        var response = await RecoveryTests.PostWithAntiforgeryAsync(
+            _admin,
+            $"/api/tenant/users/{invited.Id}/reactivate",
+            new { });
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
     public async Task TenantAdministratorCanRevokeOwnTenantUserSessions()
     {
         using var member = _application.CreateClient();
@@ -62,6 +92,27 @@ public sealed class TenantUserAdministrationTests(SqlServerFixture sqlServer) : 
 
         Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
         Assert.Equal(HttpStatusCode.Unauthorized, (await member.GetAsync("/api/auth/me")).StatusCode);
+    }
+
+    [Fact]
+    public async Task AdministratorRecoveryReportsUnavailableWhenPublicOperationsAreDisabled()
+    {
+        await using var unavailable = await AuthTestApplication.CreateAsync(
+            sqlServer,
+            disablePublicOperations: true);
+        using var admin = unavailable.CreateClient();
+        Assert.Equal(HttpStatusCode.NoContent, (await RecoveryTests.PostWithAntiforgeryAsync(
+            admin,
+            "/api/auth/login",
+            new { email = AuthTestApplication.AdminEmail, password = AuthTestApplication.AdminPassword }))
+            .StatusCode);
+
+        var response = await RecoveryTests.PostWithAntiforgeryAsync(
+            admin,
+            $"/api/tenant/users/{AuthTestApplication.AdminUserId}/recovery",
+            new { });
+
+        Assert.Equal(HttpStatusCode.ServiceUnavailable, response.StatusCode);
     }
 
     [Fact]
@@ -89,6 +140,13 @@ public sealed class TenantUserAdministrationTests(SqlServerFixture sqlServer) : 
             anonymous,
             "/api/auth/login",
             new { email, password })).StatusCode);
+        using var identity = JsonDocument.Parse(
+            await (await anonymous.GetAsync("/api/auth/me")).Content.ReadAsStringAsync());
+        Assert.Contains(
+            "TenantAccess",
+            identity.RootElement.GetProperty("permissions")
+                .EnumerateArray()
+                .Select(permission => permission.GetString()));
     }
 
     private async Task<HttpResponseMessage> SendDeleteWithAntiforgeryAsync(Guid userId)

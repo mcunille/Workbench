@@ -78,6 +78,51 @@ public sealed class RecoveryTests(SqlServerFixture sqlServer) : IAsyncLifetime
         Assert.Equal(HttpStatusCode.Unauthorized, (await signedInClient.GetAsync("/api/auth/me")).StatusCode);
     }
 
+    [Fact]
+    public async Task RecoveryConsumptionRejectsOversizedPasswordBeforeChangingTheAccount()
+    {
+        using var client = _application.CreateClient();
+        await PostWithAntiforgeryAsync(
+            client,
+            "/api/auth/recovery",
+            new { email = AuthTestApplication.AdminEmail });
+        var token = Assert.Single(_application.Factory.Services
+            .GetRequiredService<DevelopmentIdentityMessageDelivery>().Messages).Token;
+
+        var response = await PostWithAntiforgeryAsync(
+            client,
+            "/api/auth/recovery/consume",
+            new { token, newPassword = $"Aa1!{new string('x', WorkbenchPasswordPolicy.MaximumLength)}" });
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public void SessionTokensRequireTheExactEncodedEntropyLength()
+    {
+        var oversizedToken = Microsoft.AspNetCore.WebUtilities.WebEncoders.Base64UrlEncode(new byte[33]);
+
+        Assert.False(SessionToken.TryHash(oversizedToken, out _));
+    }
+
+    [Theory]
+    [InlineData("/api/auth/recovery/consume", true)]
+    [InlineData("/api/auth/recovery/consume", false)]
+    [InlineData("/api/auth/invitations/consume", true)]
+    [InlineData("/api/auth/invitations/consume", false)]
+    public async Task IdentityOperationConsumptionRejectsNullCredentials(string path, bool nullToken)
+    {
+        using var client = _application.CreateClient();
+        var response = await PostWithAntiforgeryAsync(
+            client,
+            path,
+            nullToken
+                ? new RecoveryConsumeRequest(null!, "Valid Password 1!")
+                : new RecoveryConsumeRequest(SessionToken.Create(), null!));
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
     private static Task<HttpResponseMessage> ConsumeAsync(HttpClient client, string token) =>
         PostWithAntiforgeryAsync(
             client,

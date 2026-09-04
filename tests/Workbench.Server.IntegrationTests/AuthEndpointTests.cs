@@ -5,6 +5,7 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Data.SqlClient;
+using Workbench.Server.Identity;
 using Workbench.Server.IntegrationTests.Infrastructure;
 using Xunit;
 
@@ -172,6 +173,34 @@ public sealed class AuthEndpointTests(SqlServerFixture sqlServer) : IAsyncLifeti
             "/api/auth/login",
             new { email = AuthTestApplication.AdminEmail, password = newPassword }))
             .StatusCode);
+    }
+
+    [Fact]
+    public async Task PasswordChangeRejectsOversizedInputs()
+    {
+        Assert.Equal(HttpStatusCode.NoContent, (await LoginAsync()).StatusCode);
+        var oversized = new string('x', WorkbenchPasswordPolicy.MaximumLength + 1);
+
+        var response = await PostWithAntiforgeryAsync(
+            "/api/auth/change-password",
+            new { currentPassword = oversized, newPassword = oversized });
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task PasswordChangeRejectsNullInputs(bool nullCurrentPassword)
+    {
+        Assert.Equal(HttpStatusCode.NoContent, (await LoginAsync()).StatusCode);
+        var response = await PostWithAntiforgeryAsync(
+            "/api/auth/change-password",
+            nullCurrentPassword
+                ? new ChangePasswordRequest(null!, "Valid New Password 2@")
+                : new ChangePasswordRequest(AuthTestApplication.AdminPassword, null!));
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
 
     [Fact]

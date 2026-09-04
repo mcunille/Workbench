@@ -3,6 +3,7 @@
 using System.Data;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Data.SqlClient;
+using Workbench.Server.Tenancy;
 
 namespace Workbench.Server.Identity;
 
@@ -12,6 +13,7 @@ public sealed class BuiltInPasswordVerifier : IIdentityVerifier
 
     private readonly string _connectionString;
     private readonly IPasswordHasher<WorkbenchUser> _passwordHasher;
+    private readonly TenantContextProof _contextProof;
     private readonly WorkbenchUser _dummyUser = new()
     {
         Id = Guid.Empty,
@@ -26,11 +28,13 @@ public sealed class BuiltInPasswordVerifier : IIdentityVerifier
 
     public BuiltInPasswordVerifier(
         string connectionString,
-        IPasswordHasher<WorkbenchUser> passwordHasher)
+        IPasswordHasher<WorkbenchUser> passwordHasher,
+        TenantContextProof contextProof)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(connectionString);
         _connectionString = connectionString;
         _passwordHasher = passwordHasher;
+        _contextProof = contextProof;
         _dummyPasswordHash = passwordHasher.HashPassword(_dummyUser, "dummy-password-never-accepted");
     }
 
@@ -48,6 +52,7 @@ public sealed class BuiltInPasswordVerifier : IIdentityVerifier
         var result = _passwordHasher.VerifyHashedPassword(user ?? _dummyUser, hash, credential);
 
         if (user is null ||
+            user.PasswordHash is null ||
             user.State is not AccountState.Enabled ||
             result is PasswordVerificationResult.Failed)
         {
@@ -71,6 +76,15 @@ public sealed class BuiltInPasswordVerifier : IIdentityVerifier
         {
             Value = normalizedEmail,
         });
+        var proof = _contextProof.CreateCredentialLookupProof(normalizedEmail);
+        command.Parameters.Add(new SqlParameter("@Nonce", SqlDbType.Binary, TenantContextProof.KeySize)
+        {
+            Value = proof.Nonce,
+        });
+        command.Parameters.Add(new SqlParameter("@Proof", SqlDbType.Binary, TenantContextProof.KeySize)
+        {
+            Value = proof.Proof,
+        });
 
         await using var reader = await command.ExecuteReaderAsync(CommandBehavior.SingleRow, cancellationToken);
         if (!await reader.ReadAsync(cancellationToken))
@@ -83,10 +97,7 @@ public sealed class BuiltInPasswordVerifier : IIdentityVerifier
             Id = reader.GetGuid(0),
             TenantId = reader.GetGuid(1),
             PasswordHash = reader.IsDBNull(2) ? null : reader.GetString(2),
-            SecurityStamp = reader.IsDBNull(3) ? null : reader.GetString(3),
-            State = (AccountState)reader.GetInt32(4),
-            SecurityVersion = reader.GetInt64(5),
-            CreatedAtUtc = reader.GetFieldValue<DateTimeOffset>(6),
+            State = (AccountState)reader.GetInt32(3),
         };
     }
 }

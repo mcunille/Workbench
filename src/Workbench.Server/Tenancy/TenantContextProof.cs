@@ -67,13 +67,34 @@ public sealed class TenantContextProof
         await command.ExecuteNonQueryAsync(cancellationToken);
     }
 
+    public ScopedProof CreateCredentialLookupProof(string normalizedEmail)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(normalizedEmail);
+        var nonce = RandomNumberGenerator.GetBytes(KeySize);
+        return new ScopedProof(nonce, Compute($"credential:{normalizedEmail}", nonce));
+    }
+
+    public ScopedProof CreateRecoveryLookupProof(string normalizedEmail)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(normalizedEmail);
+        var nonce = RandomNumberGenerator.GetBytes(KeySize);
+        return new ScopedProof(nonce, Compute($"recovery:{normalizedEmail}", nonce));
+    }
+
     private byte[] Compute(Guid tenantId, byte[] nonce)
     {
-        var tenantBytes = Encoding.Unicode.GetBytes(tenantId.ToString("D").ToUpperInvariant());
-        var input = new byte[_key.Length + tenantBytes.Length + nonce.Length];
+        return Compute(tenantId.ToString("D").ToUpperInvariant(), nonce);
+    }
+
+    private byte[] Compute(string value, byte[] nonce)
+    {
+        var valueBytes = Encoding.Unicode.GetBytes(value);
+        var input = new byte[_key.Length + valueBytes.Length + nonce.Length];
         Buffer.BlockCopy(_key, 0, input, 0, _key.Length);
-        Buffer.BlockCopy(tenantBytes, 0, input, _key.Length, tenantBytes.Length);
-        Buffer.BlockCopy(nonce, 0, input, _key.Length + tenantBytes.Length, nonce.Length);
+        Buffer.BlockCopy(valueBytes, 0, input, _key.Length, valueBytes.Length);
+        Buffer.BlockCopy(nonce, 0, input, _key.Length + valueBytes.Length, nonce.Length);
         return SHA256.HashData(input);
     }
+
+    public sealed record ScopedProof(byte[] Nonce, byte[] Proof);
 }

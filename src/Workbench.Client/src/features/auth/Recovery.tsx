@@ -11,6 +11,21 @@ export function Recovery({ invitation = false }: { invitation?: boolean }) {
   const [complete, setComplete] = useState(false);
   const [failed, setFailed] = useState(false);
 
+  if (invitation && !token) {
+    return (
+      <main className="public-shell">
+        <section className="auth-card" aria-labelledby="recovery-title">
+          <p className="eyebrow">Workbench account</p>
+          <h1 id="recovery-title">Invalid invitation</h1>
+          <p className="form-message error" role="alert">
+            This invitation link is missing its token.
+          </p>
+          <a className="text-link" href="/">Return to sign in</a>
+        </section>
+      </main>
+    );
+  }
+
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setPending(true);

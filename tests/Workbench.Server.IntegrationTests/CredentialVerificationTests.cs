@@ -16,16 +16,19 @@ public sealed class CredentialVerificationTests(SqlServerFixture sqlServer) : IA
     private static readonly Guid TenantId = Guid.Parse("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
     private static readonly Guid UserId = Guid.Parse("11111111-1111-1111-1111-111111111111");
     private static readonly Guid DisabledUserId = Guid.Parse("22222222-2222-2222-2222-222222222222");
+    private static readonly Guid PasswordlessUserId = Guid.Parse("33333333-3333-3333-3333-333333333333");
     private const string Email = "admin@example.com";
     private const string Password = "Correct-Horse-Battery-Staple-47!";
     private SqlTestDatabase _database = null!;
     private string _webConnectionString = null!;
+    private TenantContextProof _contextProof = null!;
 
     public async Task InitializeAsync()
     {
         _database = await sqlServer.CreateDatabaseAsync();
         await DatabaseMigrator.MigrateAsync(_database.AdminConnectionString, CancellationToken.None);
         _webConnectionString = await _database.CreateWebUserAsync();
+        _contextProof = new TenantContextProof(await _database.GetTenantContextProofKeyAsync());
         await SeedUsersAsync();
     }
 
@@ -70,8 +73,21 @@ public sealed class CredentialVerificationTests(SqlServerFixture sqlServer) : IA
         Assert.Null(identity);
     }
 
+    [Fact]
+    public async Task EnabledPasswordlessAccountCannotAuthenticateWithTheDummyCredential()
+    {
+        var verifier = CreateVerifier();
+
+        var identity = await verifier.VerifyAsync(
+            "invited@example.com",
+            "dummy-password-never-accepted",
+            CancellationToken.None);
+
+        Assert.Null(identity);
+    }
+
     private BuiltInPasswordVerifier CreateVerifier() =>
-        new(_webConnectionString, new PasswordHasher<WorkbenchUser>());
+        new(_webConnectionString, new PasswordHasher<WorkbenchUser>(), _contextProof);
 
     private async Task SeedUsersAsync()
     {
@@ -92,10 +108,16 @@ public sealed class CredentialVerificationTests(SqlServerFixture sqlServer) : IA
             DisabledUserId,
             "disabled@example.com",
             AccountState.Disabled);
-        database.Users.AddRange(user, disabledUser);
+        var passwordlessUser = CreateUser(
+            PasswordlessUserId,
+            "invited@example.com",
+            AccountState.Enabled);
+        passwordlessUser.PasswordHash = null;
+        database.Users.AddRange(user, disabledUser, passwordlessUser);
         database.LoginDirectory.AddRange(
             CreateDirectoryEntry(user),
-            CreateDirectoryEntry(disabledUser));
+            CreateDirectoryEntry(disabledUser),
+            CreateDirectoryEntry(passwordlessUser));
 
         await database.SaveChangesAsync();
     }

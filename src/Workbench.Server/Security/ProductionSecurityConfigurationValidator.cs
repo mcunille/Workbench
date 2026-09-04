@@ -32,6 +32,12 @@ public sealed class ProductionSecurityConfigurationValidator(
 
         _ = TenantContextProof.Parse(RequireTenantContextProofKey(configuration));
 
+        if (!System.Net.IPAddress.TryParse(GetKnownProxy(configuration), out _))
+        {
+            throw new InvalidOperationException(
+                "Production requires a valid trusted proxy IP address.");
+        }
+
         var publicIdentityEnabled = configuration.GetValue<bool>("Identity:PublicRecoveryEnabled") ||
             configuration.GetValue<bool>("Identity:PublicInvitationEnabled");
         if (publicIdentityEnabled &&
@@ -56,6 +62,10 @@ public sealed class ProductionSecurityConfigurationValidator(
     public static string? GetWebConnectionString(IConfiguration configuration) =>
         configuration.GetConnectionString("Workbench")
         ?? Environment.GetEnvironmentVariable("WORKBENCH_WEB_CONNECTION");
+
+    public static string? GetKnownProxy(IConfiguration configuration) =>
+        configuration["ReverseProxy:KnownProxy"]
+        ?? Environment.GetEnvironmentVariable("WORKBENCH_KNOWN_PROXY");
 
     public static string RequireTenantContextProofKey(IConfiguration configuration)
     {

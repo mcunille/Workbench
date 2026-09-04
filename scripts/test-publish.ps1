@@ -97,8 +97,8 @@ try {
         }
 
         try {
-            $readiness = Invoke-WebRequest -Uri "$baseUrl/health/ready" -SkipHttpErrorCheck
-            if ($readiness.StatusCode -eq 200) {
+            $liveness = Invoke-WebRequest -Uri "$baseUrl/health/live" -SkipHttpErrorCheck
+            if ($liveness.StatusCode -eq 200) {
                 $ready = $true
                 break
             }
@@ -111,14 +111,14 @@ try {
     }
 
     if (-not $ready) {
-        throw "Published server did not become ready at $baseUrl."
+        throw "Published server did not become live at $baseUrl."
     }
 
     $probeProcessParameters = @{
         FilePath = 'dotnet'
         ArgumentList = @($serverAssembly, '--health-check')
         WorkingDirectory = $publishRoot
-        Environment = @{ WORKBENCH_HEALTH_URL = "$baseUrl/health/ready" }
+        Environment = @{ WORKBENCH_HEALTH_URL = "$baseUrl/health/live" }
         Wait = $true
         PassThru = $true
     }

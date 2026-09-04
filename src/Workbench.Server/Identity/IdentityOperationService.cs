@@ -260,6 +260,15 @@ public sealed class IdentityOperationService(
             CommandType = CommandType.StoredProcedure,
         };
         command.Parameters.AddWithValue("@NormalizedEmail", normalizedEmail);
+        var proof = tenantContextProof.CreateRecoveryLookupProof(normalizedEmail);
+        command.Parameters.Add(new SqlParameter("@Nonce", SqlDbType.Binary, TenantContextProof.KeySize)
+        {
+            Value = proof.Nonce,
+        });
+        command.Parameters.Add(new SqlParameter("@Proof", SqlDbType.Binary, TenantContextProof.KeySize)
+        {
+            Value = proof.Proof,
+        });
         await using var reader = await command.ExecuteReaderAsync(CommandBehavior.SingleRow, cancellationToken);
         return await reader.ReadAsync(cancellationToken)
             ? (reader.GetGuid(0), reader.GetGuid(1), reader.GetInt64(2), reader.GetString(3))

@@ -13,6 +13,26 @@ namespace Workbench.Server.IntegrationTests;
 [Collection(SqlServerCollection.Name)]
 public sealed class BootstrapTests(SqlServerFixture sqlServer)
 {
+    [Theory]
+    [InlineData("alllowercasepassword")]
+    [InlineData("No-Symbols-Or-Digits")]
+    [InlineData("Short-4!")]
+    public async Task BootstrapRejectsPasswordsOutsideTheApplicationPolicy(string password)
+    {
+        await using var database = await sqlServer.CreateDatabaseAsync();
+        await DatabaseMigrator.MigrateAsync(database.AdminConnectionString, CancellationToken.None);
+        var commands = new OperatorCommands(
+            database.AdminConnectionString,
+            new PasswordHasher<WorkbenchUser>(),
+            TimeProvider.System);
+
+        await Assert.ThrowsAsync<ArgumentException>(() => commands.BootstrapAsync(
+            "First Tenant",
+            "admin@example.com",
+            password,
+            CancellationToken.None));
+    }
+
     [Fact]
     public async Task BootstrapCreatesExactlyOneTenantAndAdministrator()
     {
