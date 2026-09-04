@@ -91,7 +91,7 @@ try {
     Assert-CommandSucceeded 'Browser database bootstrap'
 
     dotnet publish (Join-Path $repositoryRoot 'src/Workbench.Server/Workbench.Server.csproj') `
-        --configuration Release --output $publishRoot -p:UseAppHost=false
+        --configuration Release --output $publishRoot -p:UseAppHost=false -p:BuildClient=false
     Assert-CommandSucceeded 'Browser application publish'
 
     $env:ASPNETCORE_ENVIRONMENT = 'Development'
