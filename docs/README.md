@@ -29,6 +29,10 @@ defines the first implementation phase: the independently developed React client
 API, their typed same-origin release unit, health contracts, hardened container, and verification
 gates.
 
+The accepted [data, identity, and tenancy specification](specs/2026-09-01-data-identity-tenancy.md)
+defines the next implementation phase: authoritative SQL persistence, database-enforced tenant
+isolation, built-in identity, durable sessions, explicit migrations, and restore invalidation.
+
 ## Still to be decided
 
 The accepted base architecture deliberately does not yet define:

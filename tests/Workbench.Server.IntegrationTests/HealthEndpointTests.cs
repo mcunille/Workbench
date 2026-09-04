@@ -13,19 +13,29 @@ namespace Workbench.Server.IntegrationTests;
 
 public sealed class HealthEndpointTests
 {
-    [Theory]
-    [InlineData("/health/live")]
-    [InlineData("/health/ready")]
-    public async Task HealthyApplicationReturnsStableHealthContract(string path)
+    [Fact]
+    public async Task LivenessDoesNotRequireDatabaseConfiguration()
     {
         await using var factory = new WebApplicationFactory<Program>();
         using var client = factory.CreateClient();
 
-        var response = await client.GetAsync(path);
+        var response = await client.GetAsync("/health/live");
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Equal("application/json", response.Content.Headers.ContentType?.MediaType);
         Assert.Equal(new HealthPayload("Healthy"), await response.Content.ReadFromJsonAsync<HealthPayload>());
+    }
+
+    [Fact]
+    public async Task ReadinessFailsWhenDatabaseConfigurationIsMissing()
+    {
+        await using var factory = new WebApplicationFactory<Program>();
+        using var client = factory.CreateClient();
+
+        var response = await client.GetAsync("/health/ready");
+
+        Assert.Equal(HttpStatusCode.ServiceUnavailable, response.StatusCode);
+        Assert.Equal(new HealthPayload("Unhealthy"), await response.Content.ReadFromJsonAsync<HealthPayload>());
     }
 
     [Fact]

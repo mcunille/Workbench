@@ -14,6 +14,23 @@ internal sealed class GlobalExceptionHandler(
         Exception exception,
         CancellationToken cancellationToken)
     {
+        if (exception is BadHttpRequestException badRequest)
+        {
+            logger.LogInformation(exception, "The request body or parameters were invalid.");
+            httpContext.Response.StatusCode = badRequest.StatusCode;
+            return await problemDetailsService.TryWriteAsync(new ProblemDetailsContext
+            {
+                HttpContext = httpContext,
+                Exception = exception,
+                ProblemDetails = new ProblemDetails
+                {
+                    Status = badRequest.StatusCode,
+                    Title = "The request is invalid.",
+                    Type = "https://www.rfc-editor.org/rfc/rfc9110#section-15.5.1",
+                },
+            });
+        }
+
         logger.LogError(exception, "An unhandled exception occurred while processing the request.");
 
         httpContext.Response.StatusCode = StatusCodes.Status500InternalServerError;

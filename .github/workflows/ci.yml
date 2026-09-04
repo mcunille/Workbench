@@ -27,11 +27,28 @@ jobs:
         with:
           node-version: 26.7.0
           cache: npm
-          cache-dependency-path: src/Workbench.Client/package-lock.json
+          cache-dependency-path: |
+            src/Workbench.Client/package-lock.json
+            tests/Workbench.BrowserTests/package-lock.json
+
+      - name: Verify build orchestration
+        shell: pwsh
+        run: ./tests/Workbench.BuildTests/VerificationScripts.Tests.ps1
+
+      - name: Install dependencies
+        shell: pwsh
+        run: |
+          npm ci --prefix src/Workbench.Client --ignore-scripts --no-audit --no-fund
+          npm ci --prefix tests/Workbench.BrowserTests --ignore-scripts --no-audit --no-fund
+
+      - name: Install Chromium
+        shell: pwsh
+        run: |
+          npm exec --prefix tests/Workbench.BrowserTests -- playwright install --with-deps chromium
 
       - name: Verify source and published output
         shell: pwsh
-        run: ./scripts/verify.ps1
+        run: ./scripts/verify.ps1 -SkipDependencyInstall
 
   container-smoke:
     name: Hardened container smoke

@@ -1,10 +1,13 @@
 [CmdletBinding()]
-param()
+param(
+    [switch]$SkipClientBuild
+)
 
 $ErrorActionPreference = 'Stop'
 $repositoryRoot = Split-Path -Parent $PSScriptRoot
 $temporaryRoot = [IO.Path]::GetFullPath([IO.Path]::GetTempPath())
 $publishRoot = Join-Path $temporaryRoot ("workbench-publish-{0}" -f [Guid]::NewGuid().ToString('N'))
+$databasePublishRoot = "$publishRoot-database"
 $publishedProcess = $null
 
 function Assert-NativeCommandSucceeded {
@@ -16,11 +19,27 @@ function Assert-NativeCommandSucceeded {
 }
 
 try {
-    dotnet publish (Join-Path $repositoryRoot 'src/Workbench.Server/Workbench.Server.csproj') `
+    $serverPublishArguments = @(
+        'publish'
+        (Join-Path $repositoryRoot 'src/Workbench.Server/Workbench.Server.csproj')
+        '--configuration'
+        'Release'
+        '--no-restore'
+        '--output'
+        $publishRoot
+    )
+    if ($SkipClientBuild) {
+        $serverPublishArguments += '-p:BuildClient=false'
+    }
+    dotnet @serverPublishArguments
+    Assert-NativeCommandSucceeded 'dotnet publish'
+
+    dotnet publish (Join-Path $repositoryRoot 'src/Workbench.Database/Workbench.Database.csproj') `
         --configuration Release `
         --no-restore `
-        --output $publishRoot
-    Assert-NativeCommandSucceeded 'dotnet publish'
+        --output $databasePublishRoot `
+        -p:UseAppHost=false
+    Assert-NativeCommandSucceeded 'database tool publish'
 
     $serverAssembly = Join-Path $publishRoot 'Workbench.Server.dll'
     $clientIndex = Join-Path $publishRoot 'wwwroot/index.html'
@@ -28,6 +47,10 @@ try {
 
     if (-not (Test-Path -LiteralPath $serverAssembly -PathType Leaf)) {
         throw "Published server assembly is missing: $serverAssembly"
+    }
+
+    if (-not (Test-Path -LiteralPath (Join-Path $databasePublishRoot 'Workbench.Database.dll') -PathType Leaf)) {
+        throw 'Published database operations tool is missing.'
     }
 
     if (-not (Test-Path -LiteralPath $clientIndex -PathType Leaf)) {
@@ -57,7 +80,7 @@ try {
         ArgumentList = @($serverAssembly)
         WorkingDirectory = $publishRoot
         Environment = @{
-            ASPNETCORE_ENVIRONMENT = 'Production'
+            ASPNETCORE_ENVIRONMENT = 'Development'
             ASPNETCORE_URLS = $baseUrl
         }
         PassThru = $true
@@ -74,8 +97,8 @@ try {
         }
 
         try {
-            $readiness = Invoke-WebRequest -Uri "$baseUrl/health/ready" -SkipHttpErrorCheck
-            if ($readiness.StatusCode -eq 200) {
+            $liveness = Invoke-WebRequest -Uri "$baseUrl/health/live" -SkipHttpErrorCheck
+            if ($liveness.StatusCode -eq 200) {
                 $ready = $true
                 break
             }
@@ -88,14 +111,14 @@ try {
     }
 
     if (-not $ready) {
-        throw "Published server did not become ready at $baseUrl."
+        throw "Published server did not become live at $baseUrl."
     }
 
     $probeProcessParameters = @{
         FilePath = 'dotnet'
         ArgumentList = @($serverAssembly, '--health-check')
         WorkingDirectory = $publishRoot
-        Environment = @{ WORKBENCH_HEALTH_URL = "$baseUrl/health/ready" }
+        Environment = @{ WORKBENCH_HEALTH_URL = "$baseUrl/health/live" }
         Wait = $true
         PassThru = $true
     }
@@ -146,5 +169,17 @@ finally {
         }
 
         Remove-Item -LiteralPath $resolvedPublishRoot -Recurse -Force
+    }
+
+    $resolvedDatabasePublishRoot = [IO.Path]::GetFullPath($databasePublishRoot)
+    if (Test-Path -LiteralPath $resolvedDatabasePublishRoot) {
+        $isDatabaseTaskDirectory = [IO.Path]::GetFileName($resolvedDatabasePublishRoot).StartsWith(
+            'workbench-publish-', [StringComparison]::Ordinal)
+        $isDatabaseUnderTemporaryRoot = $resolvedDatabasePublishRoot.StartsWith(
+            $temporaryRoot, [StringComparison]::OrdinalIgnoreCase)
+        if (-not $isDatabaseTaskDirectory -or -not $isDatabaseUnderTemporaryRoot) {
+            throw "Refusing to remove unexpected database publish path: $resolvedDatabasePublishRoot"
+        }
+        Remove-Item -LiteralPath $resolvedDatabasePublishRoot -Recurse -Force
     }
 }
