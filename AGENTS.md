@@ -11,3 +11,8 @@
 - Agents may load the ignored `.env.dev` file through `scripts/dev-env.ps1` for local Workbench development.
 - Never print, log, commit, or include credential values in command arguments, test output, diffs, or generated artifacts.
 - Use the migration credential only for explicit migration commands; the web process must use the web credential.
+
+## Change integration
+
+- After requested changes are complete and verification passes, push the working branch and open a pull request against its base branch.
+- Do not merge the pull request without explicit user authorization.
