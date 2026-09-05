@@ -23,8 +23,8 @@ After approval, publish exactly one GitHub review with event `COMMENT`, plus onl
 ## Select scope
 
 1. Read current PR metadata (including labels), paginated top-level PR comments, reviews, paginated inline comments, every page of review-thread state, commits, checks, and the discovered repository-native test and domain guidance. Fetch the current base and head refs, and ensure the fetched head matches the metadata head SHA.
-2. Use the full `origin/<base>...<head>` diff for a first review, explicit full-review request, or no usable prior AI review anchor.
-3. For a follow-up, locate the newest applicable prior AI comment-review `commit_id`; use an AI inline comment's `original_commit_id` only if a comment-review anchor is unavailable. Validate it with `git merge-base --is-ancestor <anchor> <head>` before using `<anchor>..<head>`.
+2. Follow the argv-preserving fetch and boundary procedure in `references/github-operations.md`. Keep provider refs and anchors as data from acquisition through invocation; never substitute them into command source. Use its validated immutable base/head SHAs for a full diff on a first review, explicit full-review request, or no usable prior AI review anchor.
+3. For a follow-up, locate the newest applicable prior AI comment-review `commit_id`; use an AI inline comment's `original_commit_id` only if a comment-review anchor is unavailable. Pass that value to the same boundary procedure, which validates its SHA and ancestry before allowing a delta.
 4. Escalate to a full base-to-head review and name the reason whenever the anchor is not an ancestor, history was rebased or force-pushed, public API/DTO/schema/query shape changed, base changed under affected paths, out-of-scope or structural work landed, or the changes are a large replacement body of work (for example, many new commits). Do not call an unsafe old-anchor comparison a complete delta.
 
 ## Review workflow
