@@ -10,7 +10,10 @@ if (-not $docker -and $IsWindows) {
 }
 if (-not $docker) { throw 'Docker CLI is required for browser tests.' }
 
-$token = "browser-{0}" -f ([Guid]::NewGuid().ToString('N').Substring(0, 12))
+$token = $env:WORKBENCH_BROWSER_RUN
+if ($token -notmatch '^browser-[a-f0-9]{12}$') {
+    throw 'Start browser tests through npm test so the parent process owns cleanup.'
+}
 $database = "workbench_$($token.Replace('-', '_'))"
 $container = "workbench-sql-$token"
 $temporaryRoot = [IO.Path]::GetFullPath((Join-Path ([IO.Path]::GetTempPath()) $token))
@@ -54,6 +57,7 @@ function Assert-CommandSucceeded([string]$name) {
 
 try {
     & $docker.Source run --detach --name $container --env-file $environmentFile `
+        --label 'workbench.purpose=browser-test' --label "workbench.run=$token" `
         --publish "127.0.0.1:${sqlPort}:1433" `
         'mcr.microsoft.com/mssql/server:2022-CU20-ubuntu-22.04' | Out-Null
     Assert-CommandSucceeded 'SQL Server container start'

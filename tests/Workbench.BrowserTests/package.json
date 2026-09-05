@@ -4,7 +4,7 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "test": "playwright test"
+    "test": "pwsh -NoProfile -File ../../scripts/test-browser.ps1"
   },
   "devDependencies": {
     "@playwright/test": "1.62.1"
