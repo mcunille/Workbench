@@ -8,8 +8,11 @@
 
 ## Verification
 
-- For bug fixes, add a regression test when it meaningfully demonstrates the defect; confirm it fails for the expected reason before fixing it when practical. For features, test the affected behavior and important failure cases.
-- Documentation, formatting, generated output, and configuration changes do not automatically require new tests. Run repository-required checks and affected verification. Broaden or repeat testing when changes, failures, or unresolved risks justify it.
+- Use TDD for new or changed behavior, including bug fixes: write a focused test first, run it, and confirm it fails because the intended behavior is missing rather than because of a setup or compilation error. Write the minimal implementation that makes it pass, then refactor while keeping tests green. Cover important failure cases as well as successful behavior.
+- For behavior-preserving refactors, add missing characterization coverage before refactoring and keep existing tests green; do not invent a failing requirement for unchanged behavior.
+- Structure tests with Gherkin comments: `GIVEN` the initial condition, optional `AND` conditions, `WHEN` the action, and `THEN` the expected behavior, with optional `AND` outcomes. Describe domain conditions and observable results next to the relevant setup, action, and assertions. Use comments in the existing test framework; a separate Gherkin framework is not required.
+- Use mutation testing to assess whether tests detect meaningful changes to behavior, especially business rules, authorization, validation, and state transitions. Start with affected code using available mutation tooling. Investigate surviving mutants and strengthen tests when they reveal coverage or assertion gaps; document equivalent mutants and other justified exclusions rather than chasing a blanket 100% score. If tooling is unavailable, report the coverage limitation; do not claim mutation testing ran. Broader mutation runs and tooling or CI integration should be scoped separately based on measured runtime.
+- Changes that do not affect behavior, such as documentation-only or formatting-only edits, do not automatically require new tests. Run repository-required checks and affected verification. Broaden or repeat testing when changes, failures, or unresolved risks justify it.
 
 ## Planning artifacts
 
