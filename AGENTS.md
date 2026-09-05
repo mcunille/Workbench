@@ -20,9 +20,11 @@
 
 ## Planning artifacts
 
-- Put specifications in `docs/specs/`.
+- Write a focused specification in `docs/specs/` when the change needs durable requirements or design reasoning under `CONTRIBUTING.md`. Obtain design approval at the boundaries defined above; an already approved design does not need another approval merely because a plan was written.
+- Maintain an implementation plan for work with multiple dependent deliverables or substantial coordination. Record scope, dependencies, acceptance criteria, verification, and progress; small bounded changes can proceed directly.
 - Implementation plans are temporary working artifacts. Do not commit them.
 - After writing an implementation plan, recommend one execution option with a brief reason and start the recommended option automatically instead of asking the user to choose. For small or sequential plans, use inline execution; for multiple independent tasks, use subagent-driven execution only when subagents are available and permitted.
+- For design, multi-step implementation, delegation, difficult debugging, or internal implementation review, read the relevant section of [the development workflow](docs/development-workflow.md). It defines task briefs, recovery notes, evidence-based debugging, and review expectations without adding approval gates.
 
 ## Development credentials
 
