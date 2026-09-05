@@ -120,7 +120,8 @@ public static class TenantUserEndpoints
             return TypedResults.NotFound();
         }
 
-        if (user.State != requiredCurrentState ||
+        var cancellingInvitation = state == AccountState.Disabled && user.State == AccountState.Invited;
+        if ((!cancellingInvitation && user.State != requiredCurrentState) ||
             (state == AccountState.Enabled && user.PasswordHash is null))
         {
             return ApiProblemResults.InvalidRequest("The requested account state transition is not allowed.");
@@ -142,7 +143,7 @@ public static class TenantUserEndpoints
                     claim.ClaimType == SessionCookieHandler.PermissionClaimType &&
                     claim.ClaimValue == WorkbenchPermissions.TenantUsersManage
                 select membership.UserId).AnyAsync(cancellationToken);
-            if (targetIsAdministrator)
+            if (targetIsAdministrator && user.State == AccountState.Enabled)
             {
                 var enabledAdministratorCount = await (
                     from administrator in database.Users

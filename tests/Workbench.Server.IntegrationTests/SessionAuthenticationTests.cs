@@ -38,7 +38,7 @@ public sealed class SessionAuthenticationTests(SqlServerFixture sqlServer) : IAs
     public async Task CreateStoresOnlyTheHashOfTheRandomToken()
     {
         var created = await _sessions.CreateAsync(
-            new VerifiedIdentity(BuiltInPasswordVerifier.Scheme, UserId.ToString("N"), UserId, TenantId),
+            new VerifiedIdentity(BuiltInPasswordVerifier.Scheme, UserId.ToString("N"), UserId, TenantId, 1),
             Now,
             CancellationToken.None);
 
@@ -120,7 +120,7 @@ public sealed class SessionAuthenticationTests(SqlServerFixture sqlServer) : IAs
 
     private Task<CreatedSession> CreateSessionAsync() =>
         _sessions.CreateAsync(
-            new VerifiedIdentity(BuiltInPasswordVerifier.Scheme, UserId.ToString("N"), UserId, TenantId),
+            new VerifiedIdentity(BuiltInPasswordVerifier.Scheme, UserId.ToString("N"), UserId, TenantId, 1),
             Now,
             CancellationToken.None);
 

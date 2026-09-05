@@ -78,6 +78,34 @@ public sealed class TenantUserAdministrationTests(SqlServerFixture sqlServer) : 
     }
 
     [Fact]
+    public async Task TenantAdministratorCanCancelPendingInvitationWithoutAllowingReactivation()
+    {
+        const string email = "cancelled-invite@example.com";
+        Assert.Equal(HttpStatusCode.Accepted, (await RecoveryTests.PostWithAntiforgeryAsync(
+            _admin, "/api/tenant/users/invitations", new { email })).StatusCode);
+        var token = Assert.Single(_application.Factory.Services
+            .GetRequiredService<Workbench.Server.Identity.DevelopmentIdentityMessageDelivery>()
+            .Messages).Token;
+        var users = await _admin.GetFromJsonAsync<Workbench.Server.Administration.TenantUserResponse[]>(
+            "/api/tenant/users");
+        var invited = Assert.Single(users!, user => user.Email == email);
+
+        Assert.Equal(HttpStatusCode.NoContent, (await SendDeleteWithAntiforgeryAsync(invited.Id)).StatusCode);
+        users = await _admin.GetFromJsonAsync<Workbench.Server.Administration.TenantUserResponse[]>(
+            "/api/tenant/users");
+        Assert.Equal(Workbench.Server.Identity.AccountState.Disabled,
+            Assert.Single(users!, user => user.Id == invited.Id).State);
+        Assert.Equal(HttpStatusCode.BadRequest, (await RecoveryTests.PostWithAntiforgeryAsync(
+            _admin, $"/api/tenant/users/{invited.Id}/reactivate", new { })).StatusCode);
+        using var anonymous = _application.CreateClient();
+        Assert.Equal(HttpStatusCode.BadRequest, (await RecoveryTests.PostWithAntiforgeryAsync(
+            anonymous, "/api/auth/invitations/consume",
+            new { token, newPassword = "Cancelled Invitation 8!" })).StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, (await RecoveryTests.PostWithAntiforgeryAsync(
+            anonymous, "/api/auth/login", new { email, password = "Cancelled Invitation 8!" })).StatusCode);
+    }
+
+    [Fact]
     public async Task TenantAdministratorCanRevokeOwnTenantUserSessions()
     {
         using var member = _application.CreateClient();

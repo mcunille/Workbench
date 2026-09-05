@@ -6,7 +6,8 @@ public sealed record VerifiedIdentity(
     string Scheme,
     string Subject,
     Guid UserId,
-    Guid TenantId);
+    Guid TenantId,
+    long SecurityVersion);
 
 public interface IIdentityVerifier
 {

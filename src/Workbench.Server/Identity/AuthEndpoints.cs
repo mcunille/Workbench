@@ -9,6 +9,7 @@ using Microsoft.EntityFrameworkCore;
 using Workbench.Server.Authorization;
 using Workbench.Server.Http;
 using Workbench.Server.Persistence;
+using Workbench.Server.Security;
 
 namespace Workbench.Server.Identity;
 
@@ -155,6 +156,7 @@ public static class AuthEndpoints
         RequestActor actor,
         WorkbenchDbContext database,
         UserManager<WorkbenchUser> userManager,
+        SecurityAuditWriter audit,
         TimeProvider timeProvider,
         HttpContext context,
         CancellationToken cancellationToken)
@@ -204,6 +206,14 @@ public static class AuthEndpoints
                 .SetProperty(session => session.RevokedAtUtc, now)
                 .SetProperty(session => session.RevocationReason, "PasswordChanged"),
                 cancellationToken);
+        audit.AppendTenant(
+            actor.TenantId,
+            actor.UserId,
+            "identity.password.changed",
+            "User",
+            actor.UserId,
+            "Succeeded",
+            context.TraceIdentifier);
         await database.SaveChangesAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);
         await context.SignOutAsync(SessionCookieHandler.Scheme);

@@ -59,7 +59,7 @@ public sealed class BuiltInPasswordVerifier : IIdentityVerifier
             return null;
         }
 
-        return new VerifiedIdentity(Scheme, user.Id.ToString("N"), user.Id, user.TenantId);
+        return new VerifiedIdentity(Scheme, user.Id.ToString("N"), user.Id, user.TenantId, user.SecurityVersion);
     }
 
     private async Task<WorkbenchUser?> ResolveUserAsync(
@@ -98,6 +98,7 @@ public sealed class BuiltInPasswordVerifier : IIdentityVerifier
             TenantId = reader.GetGuid(1),
             PasswordHash = reader.IsDBNull(2) ? null : reader.GetString(2),
             State = (AccountState)reader.GetInt32(3),
+            SecurityVersion = reader.GetInt64(4),
         };
     }
 }

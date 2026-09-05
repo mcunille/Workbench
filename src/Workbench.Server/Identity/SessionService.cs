@@ -54,19 +54,21 @@ public sealed class SessionService
                 ([Id], [TenantId], [UserId], [TokenHash], [SecurityVersion],
                  [CreatedAtUtc], [LastSeenAtUtc], [IdleExpiresAtUtc], [AbsoluteExpiresAtUtc])
             SELECT
-                @sessionId, @tenantId, [user].[Id], @tokenHash, [user].[SecurityVersion],
+                @sessionId, @tenantId, [user].[Id], @tokenHash, @securityVersion,
                 @now, @now, @idleExpiresAt, @absoluteExpiresAt
             FROM [Identity].[Users] AS [user]
             INNER JOIN [Tenancy].[Tenants] AS [tenant]
                 ON [tenant].[Id] = [user].[TenantId]
             WHERE [user].[Id] = @userId
                 AND [user].[TenantId] = @tenantId
+                AND [user].[SecurityVersion] = @securityVersion
                 AND [user].[State] = 1
                 AND [tenant].[IsEnabled] = 1;
             """, connection);
         command.Parameters.Add(new SqlParameter("@sessionId", SqlDbType.UniqueIdentifier) { Value = sessionId });
         command.Parameters.Add(new SqlParameter("@tenantId", SqlDbType.UniqueIdentifier) { Value = identity.TenantId });
         command.Parameters.Add(new SqlParameter("@userId", SqlDbType.UniqueIdentifier) { Value = identity.UserId });
+        command.Parameters.Add(new SqlParameter("@securityVersion", SqlDbType.BigInt) { Value = identity.SecurityVersion });
         command.Parameters.Add(new SqlParameter("@tokenHash", SqlDbType.Binary, 32) { Value = tokenHash });
         command.Parameters.Add(new SqlParameter("@now", SqlDbType.DateTimeOffset) { Value = now });
         command.Parameters.Add(new SqlParameter("@idleExpiresAt", SqlDbType.DateTimeOffset) { Value = idleExpiresAt });

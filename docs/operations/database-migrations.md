@@ -57,6 +57,13 @@ An agent that needs to run the application loads the ignored file with `./script
 uses the seeded administrator account. It does not need migration authority unless its assigned task
 specifically changes or verifies the schema.
 
+While the initial database PR is unmerged, its two baseline migrations are consolidated in place.
+An existing development database created from an earlier PR revision will not pick up edits to an
+already-applied migration (including the credential lookup's security-version result). Validate a
+new revision against a fresh disposable database and bootstrap it; ordinary `migrate.ps1` is not a
+refresh of that baseline. Preserve any local data you need before explicitly replacing a development
+database. Once the baseline ships, subsequent changes require new forward migrations.
+
 For a non-development provisioning job, pass the Base64-encoded 32-byte value only through
 `--tenant-context-proof-key-file`. After provisioning, remove that temporary file. Configure web
 replicas with `WORKBENCH_TENANT_CONTEXT_PROOF_KEY_FILE` pointing to their read-only secret mount.

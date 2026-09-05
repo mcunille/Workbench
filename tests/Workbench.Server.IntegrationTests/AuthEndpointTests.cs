@@ -5,6 +5,7 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Data.SqlClient;
+using Microsoft.Extensions.DependencyInjection;
 using Workbench.Server.Identity;
 using Workbench.Server.IntegrationTests.Infrastructure;
 using Xunit;
@@ -164,6 +165,26 @@ public sealed class AuthEndpointTests(SqlServerFixture sqlServer) : IAsyncLifeti
             });
 
         Assert.Equal(HttpStatusCode.NoContent, changed.StatusCode);
+        await using (var connection = new SqlConnection(_application.AdminConnectionString))
+        {
+            await connection.OpenAsync();
+            await using var command = new SqlCommand("""
+                SELECT [TenantId], [ActorUserId], [TargetType], [TargetId], [Outcome],
+                    [CorrelationId], [MetadataJson]
+                FROM [Security].[TenantSecurityAuditEvents]
+                WHERE [Action] = N'identity.password.changed';
+                """, connection);
+            await using var reader = await command.ExecuteReaderAsync();
+            Assert.True(await reader.ReadAsync());
+            Assert.Equal(AuthTestApplication.TenantId, reader.GetGuid(0));
+            Assert.Equal(AuthTestApplication.AdminUserId, reader.GetGuid(1));
+            Assert.Equal("User", reader.GetString(2));
+            Assert.Equal(AuthTestApplication.AdminUserId, reader.GetGuid(3));
+            Assert.Equal("Succeeded", reader.GetString(4));
+            Assert.False(string.IsNullOrWhiteSpace(reader.GetString(5)));
+            Assert.True(reader.IsDBNull(6));
+            Assert.False(await reader.ReadAsync());
+        }
         Assert.Equal(HttpStatusCode.Unauthorized, (await _client.GetAsync("/api/auth/me")).StatusCode);
         Assert.Equal(HttpStatusCode.Unauthorized, (await PostWithAntiforgeryAsync(
             "/api/auth/login",
@@ -173,6 +194,87 @@ public sealed class AuthEndpointTests(SqlServerFixture sqlServer) : IAsyncLifeti
             "/api/auth/login",
             new { email = AuthTestApplication.AdminEmail, password = newPassword }))
             .StatusCode);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task SessionCreationRejectsCredentialsVerifiedBeforePasswordReplacement(bool recovery)
+    {
+        const string newPassword = "Replacement Correct Horse 7!";
+        using var scope = _application.Factory.Services.CreateScope();
+        var verifier = scope.ServiceProvider.GetRequiredService<IIdentityVerifier>();
+        var sessions = scope.ServiceProvider.GetRequiredService<SessionService>();
+        var verified = await verifier.VerifyAsync(
+            AuthTestApplication.AdminEmail, AuthTestApplication.AdminPassword, CancellationToken.None);
+        Assert.NotNull(verified);
+
+        if (recovery)
+        {
+            Assert.Equal(HttpStatusCode.Accepted, (await PostWithAntiforgeryAsync(
+                "/api/auth/recovery", new { email = AuthTestApplication.AdminEmail })).StatusCode);
+            var token = Assert.Single(_application.Factory.Services
+                .GetRequiredService<DevelopmentIdentityMessageDelivery>().Messages).Token;
+            Assert.Equal(HttpStatusCode.NoContent, (await PostWithAntiforgeryAsync(
+                "/api/auth/recovery/consume", new { token, newPassword })).StatusCode);
+        }
+        else
+        {
+            Assert.Equal(HttpStatusCode.NoContent, (await LoginAsync()).StatusCode);
+            Assert.Equal(HttpStatusCode.NoContent, (await PostWithAntiforgeryAsync(
+                "/api/auth/change-password",
+                new { currentPassword = AuthTestApplication.AdminPassword, newPassword })).StatusCode);
+        }
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => sessions.CreateAsync(
+            verified, DateTimeOffset.UtcNow, CancellationToken.None));
+        await using var connection = new SqlConnection(_application.AdminConnectionString);
+        await connection.OpenAsync();
+        await using var command = new SqlCommand(
+            "SELECT COUNT(*) FROM [Identity].[Sessions] WHERE [RevokedAtUtc] IS NULL", connection);
+        Assert.Equal(0, Convert.ToInt32(await command.ExecuteScalarAsync()));
+        Assert.Equal(HttpStatusCode.NoContent, (await PostWithAntiforgeryAsync(
+            "/api/auth/login", new { email = AuthTestApplication.AdminEmail, password = newPassword }))
+            .StatusCode);
+    }
+
+    [Fact]
+    public async Task PasswordChangeRollsBackWhenAuditCannotBePersisted()
+    {
+        Assert.Equal(HttpStatusCode.NoContent, (await LoginAsync()).StatusCode);
+        await using var connection = new SqlConnection(_application.AdminConnectionString);
+        await connection.OpenAsync();
+        await using (var rejectAudit = new SqlCommand("""
+            ALTER TABLE [Security].[TenantSecurityAuditEvents]
+            ADD CONSTRAINT [CK_Test_RejectPasswordChangeAudit]
+                CHECK ([Action] <> N'identity.password.changed');
+            """, connection))
+        {
+            await rejectAudit.ExecuteNonQueryAsync();
+        }
+
+        var response = await PostWithAntiforgeryAsync(
+            "/api/auth/change-password",
+            new { currentPassword = AuthTestApplication.AdminPassword, newPassword = "New Password 123!" });
+
+        Assert.Equal(HttpStatusCode.InternalServerError, response.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await _client.GetAsync("/api/auth/me")).StatusCode);
+        Assert.Equal(HttpStatusCode.NoContent, (await LoginAsync()).StatusCode);
+        await using var verify = new SqlCommand("""
+            SELECT [SecurityVersion] FROM [Identity].[Users] WHERE [Id] = @id;
+            SELECT COUNT(*) FROM [Security].[TenantSecurityAuditEvents];
+            SELECT COUNT(*) FROM [Identity].[Sessions] WHERE [RevokedAtUtc] IS NOT NULL;
+            """, connection);
+        verify.Parameters.AddWithValue("@id", AuthTestApplication.AdminUserId);
+        await using var reader = await verify.ExecuteReaderAsync();
+        Assert.True(await reader.ReadAsync());
+        Assert.Equal(1L, reader.GetInt64(0));
+        Assert.True(await reader.NextResultAsync());
+        Assert.True(await reader.ReadAsync());
+        Assert.Equal(0, reader.GetInt32(0));
+        Assert.True(await reader.NextResultAsync());
+        Assert.True(await reader.ReadAsync());
+        Assert.Equal(0, reader.GetInt32(0));
     }
 
     [Fact]

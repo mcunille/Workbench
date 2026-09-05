@@ -57,7 +57,7 @@ public sealed class SessionRevocationTests(SqlServerFixture sqlServer) : IAsyncL
 
     private Task<CreatedSession> CreateSessionAsync() =>
         _firstReplica.CreateAsync(
-            new VerifiedIdentity(BuiltInPasswordVerifier.Scheme, UserId.ToString("N"), UserId, TenantId),
+            new VerifiedIdentity(BuiltInPasswordVerifier.Scheme, UserId.ToString("N"), UserId, TenantId, 1),
             Now,
             CancellationToken.None);
 

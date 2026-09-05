@@ -183,7 +183,8 @@ public partial class EstablishSecurityBoundaries : Migration
                     THROW 50003, 'Credential lookup proof is invalid.', 1;
 
                 SELECT TOP (1)
-                    [user].[Id], [user].[TenantId], [user].[PasswordHash], [user].[State]
+                    [user].[Id], [user].[TenantId], [user].[PasswordHash], [user].[State],
+                    [user].[SecurityVersion]
                 FROM [Identity].[LoginDirectory] AS [directory]
                 INNER JOIN [Identity].[Users] AS [user]
                     ON [user].[Id] = [directory].[UserId]
