@@ -121,6 +121,9 @@ try {
         Remove-Item -LiteralPath $restoreTestRoot -Recurse -Force
     }
 
+    # Expected native failures above must not become GitHub Actions' step exit code.
+    # Reset only after all assertions pass; unexpected failures still throw.
+    $global:LASTEXITCODE = 0
     Write-Host 'Verification script command boundaries passed.'
 }
 finally {
