@@ -10,9 +10,18 @@ The repository pins .NET SDK `10.0.400`, Node.js `26.7.0`, and npm `11.19.0`. Us
 the checked-in scripts and a Linux-container Docker engine for container verification. Do not update
 one toolchain pin without updating its locks, CI setup, documentation, and smoke evidence.
 
-The server and client develop independently:
+Create a worktree-local `.env.dev` from `.env.dev.example`. The file contains credentials and is
+ignored by Git; never commit it, copy it into logs or prompts, or share it between installations.
+The setup principal is used only by `./scripts/bootstrap.ps1`; routine schema changes use the
+migrator principal through `./scripts/migrate.ps1`; the web process receives only the web
+connection. Operator and migrator credentials must never be passed to the running web process.
+
+The server and client develop independently after SQL is started and bootstrapped:
 
 ```powershell
+./scripts/test-sql.ps1 -Action Start
+./scripts/bootstrap.ps1
+. ./scripts/dev-env.ps1
 dotnet run --project src/Workbench.Server
 npm ci --prefix src/Workbench.Client
 npm run dev --prefix src/Workbench.Client
@@ -28,10 +37,16 @@ Before submitting application changes, run:
 ./scripts/smoke-container.ps1
 ```
 
-The first command performs locked restores, formatting, OpenAPI client drift detection, builds,
-tests, and published-output probes. The second requires Docker and verifies the runtime image as
-non-root and read-only with no Node.js or source files. If Docker is unavailable, state that limit
-explicitly; do not report the container gate as passed.
+The first command performs locked restores, documentation checks, formatting, OpenAPI client drift
+detection, builds, tests, migration drills, browser checks, and published-output probes. The second
+requires Docker and verifies a SQL-backed runtime image as non-root and read-only with no Node.js,
+source files, setup credential, operator credential, or migrator credential. If Docker is
+unavailable, state that limit explicitly; do not report the container gate as passed.
+
+Read the [migration runbook](docs/operations/database-migrations.md) before changing the schema and
+the [backup/restore runbook](docs/operations/database-backup-restore.md) before any recovery drill.
+Database backups, connection files, password files, recovery links, and `.env.dev` are sensitive
+artifacts and must remain outside source control.
 
 ## Before proposing a change
 

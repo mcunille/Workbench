@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Workbench.Server.Application;
+using Workbench.Server.Security;
 using Xunit;
 
 namespace Workbench.Server.IntegrationTests;
@@ -65,6 +66,9 @@ public sealed class ErrorAndRoutingTests
                 builder.UseEnvironment("Production");
                 builder.ConfigureServices(services =>
                 {
+                    var productionValidator = services.Single(descriptor =>
+                        descriptor.ImplementationType == typeof(ProductionSecurityConfigurationValidator));
+                    services.Remove(productionValidator);
                     services.RemoveAll<IReleaseInformation>();
                     services.AddSingleton<IReleaseInformation, ThrowingReleaseInformation>();
                 });

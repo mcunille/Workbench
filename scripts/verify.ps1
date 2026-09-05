@@ -1,9 +1,12 @@
 [CmdletBinding()]
-param()
+param(
+    [switch]$SkipDependencyInstall
+)
 
 $ErrorActionPreference = 'Stop'
 $repositoryRoot = Split-Path -Parent $PSScriptRoot
 $clientRoot = Join-Path $repositoryRoot 'src/Workbench.Client'
+$browserRoot = Join-Path $repositoryRoot 'tests/Workbench.BrowserTests'
 $serverProject = Join-Path $repositoryRoot 'src/Workbench.Server/Workbench.Server.csproj'
 $openApiRoot = Join-Path $clientRoot 'openapi'
 
@@ -30,17 +33,50 @@ function Assert-ToolVersion {
     }
 }
 
+function Assert-DocumentationCurrent {
+    $requiredContent = @(
+        @{ Path = 'docs/ARCHITECTURE.md'; Text = '**Status:** Implemented' },
+        @{ Path = 'docs/specs/2026-09-01-data-identity-tenancy.md'; Text = '**Status:** Implemented' },
+        @{ Path = 'docs/operations/database-migrations.md'; Text = './scripts/verify-migrations.ps1 -Scenario Clean' },
+        @{ Path = 'docs/operations/database-backup-restore.md'; Text = './scripts/restore-database.ps1' },
+        @{ Path = 'README.md'; Text = '.env.dev' },
+        @{
+            Path = 'docs/ARCHITECTURE.md'
+            Text = 'Public recovery remains disabled until'
+        }
+    )
+
+    foreach ($requirement in $requiredContent) {
+        $path = Join-Path $repositoryRoot $requirement.Path
+        if (-not (Test-Path -LiteralPath $path)) {
+            throw "Required documentation file '$($requirement.Path)' is missing."
+        }
+
+        $content = Get-Content -LiteralPath $path -Raw
+        if (-not $content.Contains($requirement.Text, [StringComparison]::Ordinal)) {
+            throw "Documentation '$($requirement.Path)' is missing required text: $($requirement.Text)"
+        }
+    }
+}
+
 Push-Location $repositoryRoot
 try {
     Assert-ToolVersion 'dotnet' '10.0.400' { dotnet --version }
     Assert-ToolVersion 'Node.js' 'v26.7.0' { node --version }
     Assert-ToolVersion 'npm' '11.19.0' { npm --version }
 
+    Assert-DocumentationCurrent
+
     dotnet restore Workbench.slnx --locked-mode
     Assert-NativeCommandSucceeded 'dotnet restore --locked-mode'
 
-    npm ci --prefix $clientRoot
-    Assert-NativeCommandSucceeded 'npm ci'
+    if (-not $SkipDependencyInstall) {
+        npm ci --prefix $clientRoot --ignore-scripts --no-audit --no-fund
+        Assert-NativeCommandSucceeded 'npm ci'
+
+        npm ci --prefix $browserRoot --ignore-scripts --no-audit --no-fund
+        Assert-NativeCommandSucceeded 'browser npm ci'
+    }
 
     dotnet format Workbench.slnx --verify-no-changes --no-restore
     Assert-NativeCommandSucceeded 'dotnet format'
@@ -76,7 +112,15 @@ try {
     npm run build --prefix $clientRoot
     Assert-NativeCommandSucceeded 'client build'
 
-    & (Join-Path $PSScriptRoot 'test-publish.ps1')
+    foreach ($scenario in @('Clean', 'Upgrade', 'ReversibleRollback', 'RestoreRollback')) {
+        & (Join-Path $PSScriptRoot 'verify-migrations.ps1') -Scenario $scenario
+        if (-not $?) { throw "Migration scenario '$scenario' failed." }
+    }
+
+    npm test --prefix $browserRoot
+    Assert-NativeCommandSucceeded 'browser tests'
+
+    & (Join-Path $PSScriptRoot 'test-publish.ps1') -SkipClientBuild
     if (-not $?) {
         throw 'Published release-unit verification failed.'
     }

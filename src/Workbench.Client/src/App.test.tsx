@@ -9,13 +9,22 @@ describe('App', () => {
       http.get('*/api/system', () =>
         HttpResponse.json({ name: 'Workbench', version: '1.2.3' }),
       ),
+      http.get('*/api/auth/me', () =>
+        HttpResponse.json({
+          userId: '11111111-1111-1111-1111-111111111111',
+          email: 'admin@example.com',
+          tenantName: 'Tenant A',
+          permissions: ['TenantAccess'],
+        }),
+      ),
+      http.get('*/api/auth/sessions', () => HttpResponse.json([])),
     );
 
     render(<App />);
 
     expect(screen.getByRole('status')).toHaveTextContent('Loading');
-    expect(await screen.findByRole('heading', { name: 'Workbench' })).toBeVisible();
-    expect(screen.getByText('Version 1.2.3')).toBeVisible();
+    expect(await screen.findByRole('heading', { name: 'Welcome to Tenant A' })).toBeVisible();
+    expect(screen.getByText('Workbench 1.2.3')).toBeVisible();
   });
 
   it('renders a safe failure state', async () => {
@@ -31,6 +40,7 @@ describe('App', () => {
           { status: 500 },
         ),
       ),
+      http.get('*/api/auth/me', () => new HttpResponse(null, { status: 401 })),
     );
 
     render(<App />);

@@ -1,6 +1,6 @@
 # Workbench architecture
 
-**Status:** Accepted target architecture; application-foundation implementation is in verification.
+**Status:** Implemented
 
 This document is the authoritative living description of Workbench's current technical
 architecture. Update it when the accepted architecture changes. The dated
@@ -11,15 +11,16 @@ its linked work items.
 
 ## Scope and implementation status
 
-Workbench will begin as a portable, containerized modular monolith. A React and TypeScript client
-and an ASP.NET Core API will be published together as one container image. SQL Server is the only
+Workbench is a portable, containerized modular monolith. A React and TypeScript client
+and an ASP.NET Core API are published together as one container image. SQL Server is the only
 initial structured-data engine, and a provider-neutral blob contract isolates binary storage.
 
-This remains a target architecture rather than a claim that every capability is deployed. The
-React client, typed ASP.NET Core API, health contracts, same-origin publish path, and container
-definition now exist under the application-foundation phase. Its local source, publish, and hardened
-container smoke checks pass. The linked later phases add identity, tenancy, storage, operations, and
-Azure deployment in independently verifiable increments.
+The application-foundation and data-and-identity phases are implemented. The React client, typed
+ASP.NET Core API, SQL persistence, tenant isolation, built-in identity, durable sessions, health
+contracts, same-origin publish path, explicit database operations, and hardened container topology
+are present and covered by source, integration, browser, migration, permission, restore, publish,
+and container checks. Later phases add blob/provider infrastructure and Azure deployment in
+independently verifiable increments.
 
 Detailed inventory, purchasing, accounting, and commerce workflows are outside this document and
 require focused specifications.
@@ -119,14 +120,22 @@ Tenant isolation is enforced in layers:
 7. Integration and adversarial tests attempt cross-tenant reads, writes, identifier substitution,
    attachment access, and background processing.
 
+The authenticated session resolves one tenant before application data access. A connection
+interceptor writes that tenant, a fresh nonce, and a proof from a separately delivered workload key
+to read-only SQL Server `SESSION_CONTEXT`; pooled connections are reasserted on every open and
+missing or invalid proof exposes no tenant rows. The database copy of the proof key is owner-only,
+so possession of the web database credential alone cannot select a tenant. Entity Framework query filters,
+save guards, tenant-consistent composite relationships, and SQL Server filter/block predicates then
+enforce the same boundary. The web principal cannot change security policy, schema, migration
+history, security tables, or session context outside the application path.
+
 The system must not accept a caller-supplied tenant identifier as authority. Administrative and
 background operations use separate, explicit privileged interfaces and remain auditable. Platform
 administration is a separate authority and receives no implicit access to tenant data.
 
-Before tenant domain data is implemented, a focused design must evaluate SQL Server row-level
-security with connection pooling, migrations, background jobs, and administrative access. The
-project must either adopt database row-level security or document and security-review an equivalent
-database-enforced control.
+Operator workflows use narrowly granted stored procedures, emit append-oriented audit records, and
+do not receive general tenant-table read access. Schema changes use a separate migrator principal;
+the running web workload never receives setup, operator, or migrator credentials.
 
 ### Blob storage
 
@@ -175,7 +184,7 @@ mounted secrets or another documented secret store. Scaling and routine deployme
 sessions.
 
 State-changing browser requests require antiforgery protection. Login, recovery, and other sensitive
-flows use non-enumerating failure responses, shared multi-replica-safe rate limits, and audit records.
+flows use non-enumerating failure responses and audit records.
 Rate limits include a normalized account dimension and a client-network dimension derived only
 through trusted proxy configuration, so adding replicas cannot reset an attacker's attempt budget.
 Password reset and email verification use verified, time-limited operations through a provider-neutral
@@ -183,6 +192,13 @@ email contract. Messages contain short-lived, single-purpose links and never dis
 existence to an unauthenticated requester. Local development uses a non-delivering sink. Production
 readiness requires a configured provider; the initial portable provider uses authenticated SMTP with
 encrypted transport and certificate validation.
+
+Login uses a shared SQL-backed limiter across replicas. Public recovery remains disabled until
+provider-backed delivery and its complete abuse-control integration are implemented. Production
+startup rejects public recovery or invitations when either control is unavailable. The
+implemented operations store only token hashes, consume a token exactly once, and revoke affected
+sessions when credentials change. A local setup/database-owner caller can write a one-time development recovery link
+only to an explicitly named new file; that capability is not a public recovery provider.
 
 In every production profile, verification and recovery links use the configured canonical public
 origin and never a `Host`, `Forwarded`, or `X-Forwarded-*` value from an untrusted request path.
@@ -328,6 +344,14 @@ and constraints. Destructive changes use an expand, migrate, and contract sequen
 backup and an explicit compatibility window. Application rollback is allowed only while the deployed
 schema remains compatible; otherwise recovery follows the documented restore procedure.
 
+The [migration runbook](operations/database-migrations.md) defines principal custody, compatibility
+checks, and rollback boundaries. The [backup/restore runbook](operations/database-backup-restore.md)
+keeps cutover human-operated, writes an independent restore-pending marker before multi-user access,
+and requires post-restore sanitation before readiness. Sanitation
+deletes restored sessions, pending identity operations, and data-protection keys; advances every
+user security version and stamp; records an audit event; advances the restore generation; and clears
+the pending marker in the same transaction. Readiness verifies both signals.
+
 ## Security and verification gates
 
 Architecture-level verification includes:
@@ -363,5 +387,7 @@ security, and hosted/self-hosted parity.
 - [Architecture implementation umbrella issue](https://github.com/mcunille/Workbench/issues/8)
 - [Application foundation issue](https://github.com/mcunille/Workbench/issues/9)
 - [Data and identity issue](https://github.com/mcunille/Workbench/issues/10)
+- [Implemented data-and-identity specification](specs/2026-09-01-data-identity-tenancy.md)
+- [Data and identity threat model](security/data-identity-threat-model.md)
 - [Storage and operations issue](https://github.com/mcunille/Workbench/issues/11)
 - [Azure deployment issue](https://github.com/mcunille/Workbench/issues/12)

@@ -1,0 +1,122 @@
+# Database migrations
+
+Database migrations are an explicit, human-controlled deployment operation. A Workbench web
+replica never migrates its database and never receives the setup, operator, or migrator credential.
+
+## Principal boundary
+
+| Principal | Intended use | Must not be available to |
+| --- | --- | --- |
+| Setup/database owner | One-time database initialization and principal provisioning | Web containers, agents doing routine development, scheduled jobs |
+| `workbench_migrator` | Applying and rolling back reviewed EF Core migrations | Web containers and application configuration |
+| `workbench_operator` | Bootstrap, additional-tenant provisioning, and restore sanitation | Web containers and ordinary tenant users |
+| `workbench_web` | Runtime queries and commands through the application | Migration or operator tooling |
+
+Store production principal secrets in the deployment platform's secret facility. Deliver the
+migrator secret only to a one-shot migration job, remove it when that job exits, and audit access to
+it. Do not put connection strings or password files in source control, container layers, logs,
+command history, agent prompts, or build artifacts. Rotate a principal immediately if its secret may
+have crossed one of those boundaries.
+
+The migrator necessarily has schema-change authority and can therefore alter controls enforced in
+SQL. Treat it as a deployment control-plane identity: no interactive application use, no standing
+mount in a web replica, short-lived delivery, separately authorized invocation, and credential
+rotation independent of the web principal.
+
+Tenant RLS also requires a distinct 32-byte proof key. Principal provisioning writes that key into
+an owner-only SQL table; the web and operator roles are explicitly denied direct access. The same
+value is delivered separately to the application workload, preferably as a read-only mounted secret
+file. A web connection string by itself therefore cannot select an arbitrary tenant through
+`SESSION_CONTEXT`. Keep the proof key separate from every database password, rotate both sides
+together under drained traffic, and never expose the raw value in container environment inspection.
+
+Development recovery-link generation is deliberately not granted to the operator role because it
+returns a raw credential-reset capability for an existing user. It requires the local one-time
+setup/database-owner connection, is never part of a production web or operator environment, and
+writes only to an explicitly named new file. Remove that file immediately after use.
+
+## Local one-time setup
+
+Create the ignored environment file, replace all placeholders, and start SQL:
+
+```powershell
+Copy-Item .env.dev.example .env.dev
+./scripts/test-sql.ps1 -Action Start
+./scripts/bootstrap.ps1
+```
+
+`bootstrap.ps1` uses the setup credential to migrate and provision separate database users, then
+uses the operator credential to create the first tenant and administrator. Bootstrap is one-time and
+fails if an installation was already initialized. Subsequent local schema changes use only:
+
+```powershell
+./scripts/migrate.ps1
+```
+
+An agent that needs to run the application loads the ignored file with `./scripts/dev-env.ps1` and
+uses the seeded administrator account. It does not need migration authority unless its assigned task
+specifically changes or verifies the schema.
+
+While the initial database PR is unmerged, its two baseline migrations are consolidated in place.
+An existing development database created from an earlier PR revision will not pick up edits to an
+already-applied migration (including the credential lookup's security-version result). Validate a
+new revision against a fresh disposable database and bootstrap it; ordinary `migrate.ps1` is not a
+refresh of that baseline. Preserve any local data you need before explicitly replacing a development
+database. Once the baseline ships, subsequent changes require new forward migrations.
+
+For a non-development provisioning job, pass the Base64-encoded 32-byte value only through
+`--tenant-context-proof-key-file`. After provisioning, remove that temporary file. Configure web
+replicas with `WORKBENCH_TENANT_CONTEXT_PROOF_KEY_FILE` pointing to their read-only secret mount.
+
+## Authoring and validating a migration
+
+Keep migrations deterministic and reversible where SQL Server permits. Review generated SQL and
+permission changes, especially RLS predicates, grants, denials, migration history, security tables,
+and readiness procedures. Run all four drills against disposable real SQL Server databases:
+
+```powershell
+./scripts/verify-migrations.ps1 -Scenario Clean
+./scripts/verify-migrations.ps1 -Scenario Upgrade
+./scripts/verify-migrations.ps1 -Scenario ReversibleRollback
+./scripts/verify-migrations.ps1 -Scenario RestoreRollback
+./scripts/verify-database-permissions.ps1
+```
+
+The clean drill applies every migration to an empty database. For the initial database release,
+Upgrade starts from `InitialSchema`; after the baseline ships, it starts from the previous supported
+release. Reversible rollback removes and reapplies `EstablishSecurityBoundaries`. Restore rollback
+validates the restored-schema path and mandatory security sanitation. Permission probes exercise the
+actual web, operator, and migrator roles.
+
+## Deployment procedure
+
+1. Identify the immutable application revision and its expected migration.
+2. Confirm a current, restorable backup and the application's schema compatibility window.
+3. Stop or drain incompatible writers when the migration design requires it.
+4. Supply the migrator connection through an access-controlled temporary connection file.
+5. Run the published database tool as a one-shot job:
+
+   ```powershell
+   Workbench.Database migrate --connection-file <path> --expected-database <name>
+   ```
+
+6. Remove the connection file and secret from the job environment.
+7. Run database permission probes and confirm `/health/ready` succeeds with the web principal.
+8. Release only the application revision proven compatible with that schema.
+
+Application rollback is safe only within the documented schema compatibility window. If an older
+binary is incompatible, do not improvise a down migration against live data; follow the reviewed
+restore procedure instead.
+
+## Additional tenant provisioning
+
+Only an installation operator may create another tenant. Supply the operator connection and the new
+administrator password in separate access-controlled files:
+
+```powershell
+Workbench.Database tenant create --connection-file <operator-path> --expected-database <name> `
+  --tenant-name <tenant-name> --admin-email <email> --password-file <password-path>
+```
+
+The operator interface grants no general tenant-data browsing authority. Tenant administrators own
+user management inside their tenant after provisioning.
