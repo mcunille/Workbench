@@ -17,6 +17,9 @@ These documents are living documentation. They should describe the project's cur
 
 ## Change specifications
 
+For scoped design, planning, delegation, debugging, and implementation review practices, see
+[the development workflow](development-workflow.md). Read the section relevant to the task.
+
 The [specs](specs/README.md) directory contains one dated document for each meaningful change that
 needs durable requirements or design reasoning. Specs preserve context and rejected alternatives;
 they do not replace the living documentation above.
