@@ -21,14 +21,11 @@ if ($builder.InitialCatalog -ne 'master') {
 }
 $escapedSource = $Source.Replace("'", "''", [StringComparison]::Ordinal)
 $previousPassword = $env:SQLCMDPASSWORD
-$restoreFailure = $null
-$cleanupFailure = $null
-$restoreStarted = $false
 try {
     $env:SQLCMDPASSWORD = $builder.Password
     $restoreSql = @"
         ALTER DATABASE [$Database] SET SINGLE_USER WITH ROLLBACK IMMEDIATE;
-        RESTORE DATABASE [$Database] FROM DISK = N'$escapedSource' WITH REPLACE, RECOVERY;
+        RESTORE DATABASE [$Database] FROM DISK = N'$escapedSource' WITH REPLACE, RECOVERY, RESTRICTED_USER;
         USE [$Database];
         IF SCHEMA_ID(N'Security') IS NULL EXEC(N'CREATE SCHEMA [Security]');
         IF OBJECT_ID(N'[Security].[WorkbenchRestorePending]', N'U') IS NULL
@@ -45,33 +42,27 @@ try {
         ELSE
             INSERT INTO [Security].[WorkbenchRestorePending] ([Id], [IsPending]) VALUES (1, 1);
 "@
-    $restoreStarted = $true
-    & $sqlcmd -S $builder.DataSource -U $builder.UserID -d master -N -b -Q `
-        $restoreSql
-    if ($LASTEXITCODE -ne 0) { throw 'Database restore failed.' }
-}
-catch {
-    $restoreFailure = $_
+    & $sqlcmd -S $builder.DataSource -U $builder.UserID -d master -N -b -Q $restoreSql
+    if ($LASTEXITCODE -ne 0) {
+        throw 'Database restore failed; access was not released. Keep traffic stopped and recover with a privileged connection.'
+    }
+
+    # A failed restore or marker write must never reopen backup-era authentication state.
+    # Verify the committed guard on a separate connection before releasing restricted access.
+    $releaseSql = @"
+        USE [$Database];
+        IF NOT EXISTS (SELECT 1 FROM [Security].[WorkbenchRestorePending] WHERE [Id] = 1 AND [IsPending] = 1)
+            THROW 51000, 'Restore pending marker is not established; access remains restricted.', 1;
+        USE [master];
+        ALTER DATABASE [$Database] SET MULTI_USER WITH ROLLBACK IMMEDIATE;
+"@
+    & $sqlcmd -S $builder.DataSource -U $builder.UserID -d master -N -b -Q $releaseSql
+    if ($LASTEXITCODE -ne 0) {
+        throw 'Database restore release failed; keep traffic stopped and inspect the pending marker and access mode.'
+    }
 }
 finally {
-    if ($restoreStarted) {
-        try {
-            $cleanupSql = "IF DB_ID(N'$Database') IS NOT NULL ALTER DATABASE [$Database] SET MULTI_USER WITH ROLLBACK IMMEDIATE;"
-            & $sqlcmd -S $builder.DataSource -U $builder.UserID -d master -N -b -Q $cleanupSql
-            if ($LASTEXITCODE -ne 0) { throw 'Database restore cleanup failed.' }
-        }
-        catch {
-            $cleanupFailure = $_
-        }
-    }
     $env:SQLCMDPASSWORD = $previousPassword
 }
 
-if ($restoreFailure -and $cleanupFailure) {
-    throw [InvalidOperationException]::new(
-        "Database restore failed, and MULTI_USER cleanup also failed; the database may require operator recovery. $($cleanupFailure.Exception.Message)",
-        $restoreFailure.Exception)
-}
-if ($restoreFailure) { throw $restoreFailure }
-if ($cleanupFailure) { throw $cleanupFailure }
 Write-Host "Database '$Database' restored. Run migrations, restore sanitize, and all security probes before cutover."

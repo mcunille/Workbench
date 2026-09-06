@@ -67,6 +67,7 @@ jobs:
           ./tests/Workbench.BuildTests/WorkflowActions.Tests.ps1
           ./tests/Workbench.BuildTests/VerificationScripts.Tests.ps1
           ./tests/Workbench.BuildTests/RestoreDatabase.Tests.ps1
+          ./tests/Workbench.BuildTests/RestoreDatabase.Sql.Tests.ps1
 
       - name: Install dependencies
         shell: pwsh
