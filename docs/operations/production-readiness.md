@@ -12,6 +12,37 @@ The local setup, source suite, and container smoke evidence in PR #29 remains va
 scope. It does not establish public TLS, real SMTP, hosted identity/trust, installed monitoring,
 certificate rotation, or full recovery on either production path.
 
+## Follow-up: localhost QA installation
+
+The operator completed a Windows Docker Desktop/WSL2 localhost QA installation and an isolated core
+restore drill on 2026-09-06. The [verification record](deployment-verification.md#windows-localhost-qa-drill-2026-09-06)
+records immutable images, passing checks, manual interventions, and limits. The
+[local self-host script](local-self-host.md) now packages fresh installation with tenant/admin inputs,
+protected generated credentials, SQL TLS, all five principal roles, and ordered workload startup.
+It is a localhost-only QA path, not the public Linux or Azure acceptance procedure.
+
+The manual drill closes the question of whether that selected local configuration can start and
+recover its database. A subsequent isolated automated installation passed the checks recorded in
+the [automation evidence](deployment-verification.md#automated-local-installer-verification).
+Neither drill establishes Linux host
+ownership/trust, public ingress, monitoring/scheduled backups, rotation, or full recovery coverage.
+The backup had zero blob revisions; restored sign-in and rejection of old sessions were explicitly
+left untested when the operator accepted the QA drill. The historical gaps below remain production
+requirements except where the new local path supplies a scoped implementation and recorded evidence.
+
+Local automation incorporates these corrections found during the walkthrough:
+
+| Manual failure | Required installation behavior |
+| --- | --- |
+| SQL executable would not start with all capabilities removed | Retain only `NET_BIND_SERVICE` needed by the selected SQL image while keeping the other restrictions. |
+| TLS helper lost directory traversal before setting file modes | Set restricted file modes/ownership before restricting the TLS directory. |
+| Mounted CA bundle alone did not select the expected OpenSSL trust source | Set `SSL_CERT_FILE` for SQL, application, worker, and relevant one-shot tools, and test validated TLS. |
+| Worker attempted to read a key ring before first app initialization | Wait for app readiness before starting the worker and proxy. |
+
+Setup deliberately refuses an existing installation root and does not implement automatic partial-run
+resumption, upgrades, backup scheduling, or certificate rotation. Those must not be inferred from a
+successful initial installation.
+
 ## Corrections made in this change
 
 | Defect | Correction |

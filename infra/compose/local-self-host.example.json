@@ -1,0 +1,6 @@
+{
+  "TenantName": "Workbench QA",
+  "AdminEmail": "qa-admin@example.test",
+  "SourceRef": "main",
+  "TrustLocalCertificate": true
+}

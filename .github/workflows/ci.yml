@@ -10,6 +10,18 @@ permissions:
   contents: read
 
 jobs:
+  local-setup-contracts:
+    name: Windows local setup contracts
+    runs-on: windows-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - name: Verify local installer without a Docker daemon
+        shell: pwsh
+        run: |
+          ./scripts/test-local-self-host.ps1
+          ./scripts/test-local-self-host-orchestration.ps1
+
   deployment-contracts:
     name: Deployment contracts
     runs-on: ubuntu-latest
