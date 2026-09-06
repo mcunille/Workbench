@@ -122,6 +122,9 @@ pending or cancelled credentialless users. Tenant user rows, roles, invitation t
 and delivery work remain intact. Accepted accounts, including disabled accounts with
 passwords, retain their identities. Stop old web replicas before applying this migration:
 only the matching application version claims identity during invitation consumption.
+The application reports unready until its web principal can execute the required invitation
+claim procedure. Missing procedure or revoked/denied execution authority keeps readiness
+unhealthy while liveness remains available.
 Rollback is blocked because restoring pre-acceptance claims could collide with identities
 accepted since migration. Use a reviewed forward migration or the established offline
 restore and sanitation procedure.

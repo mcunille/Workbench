@@ -83,6 +83,38 @@ public sealed class DatabaseReadinessTests(SqlServerFixture sqlServer) : IAsyncL
     }
 
     [Fact]
+    public async Task PriorInvitationSchemaIsUnreadyUntilIdentityClaimMigrationIsApplied()
+    {
+        // GIVEN the immediate prior schema still reserves identities before invitation acceptance.
+        await using var prior = await AuthTestApplication.CreateAsync(sqlServer, priorMigration: "AddDeploymentQueueTelemetry");
+        using var client = prior.CreateClient();
+        // WHEN the new application probes that incompatible schema.
+        Assert.Equal(HttpStatusCode.ServiceUnavailable, (await client.GetAsync("/health/ready")).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await client.GetAsync("/health/live")).StatusCode);
+        // THEN applying the invitation migration restores readiness without restarting the application.
+        await DatabaseMigrator.MigrateAsync(prior.AdminConnectionString, CancellationToken.None);
+        Assert.Equal(HttpStatusCode.OK, (await client.GetAsync("/health/ready")).StatusCode);
+    }
+
+    [Theory]
+    [InlineData("DROP PROCEDURE [Identity].[ClaimInvitationIdentity]")]
+    [InlineData("REVOKE EXECUTE ON [Identity].[ClaimInvitationIdentity] FROM [workbench_web]")]
+    [InlineData("DENY EXECUTE ON [Identity].[ClaimInvitationIdentity] TO [workbench_web]")]
+    [InlineData("GRANT VIEW DEFINITION ON [Identity].[ClaimInvitationIdentity] TO [workbench_web]; DENY EXECUTE ON [Identity].[ClaimInvitationIdentity] TO [workbench_web]")]
+    public async Task MissingInvitationClaimAuthorityMakesReadinessUnhealthy(string breakInvitation)
+    {
+        // GIVEN the current schema loses the procedure or effective execution authority needed for acceptance.
+        await using var connection = new SqlConnection(_application.AdminConnectionString);
+        await connection.OpenAsync();
+        await using var command = new SqlCommand(breakInvitation, connection);
+        await command.ExecuteNonQueryAsync();
+        // WHEN the application probes readiness using its real web principal.
+        var response = await _client.GetAsync("/health/ready");
+        // THEN the replica is unready while liveness remains available.
+        Assert.Equal(HttpStatusCode.ServiceUnavailable, response.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await _client.GetAsync("/health/live")).StatusCode);
+    }
+    [Fact]
     public async Task DisabledRlsMakesReadinessUnhealthyWithoutStoppingLiveness()
     {
         await using (var connection = new SqlConnection(_application.AdminConnectionString))
