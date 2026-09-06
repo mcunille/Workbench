@@ -81,8 +81,8 @@ function WorkbenchApplication() {
   );
 }
 
-export function App() {
-  if (window.location.pathname === '/recover') return <Recovery />;
-  if (window.location.pathname === '/invite') return <Recovery invitation />;
+export function App({ recoveryToken = null }: { recoveryToken?: string | null }) {
+  if (window.location.pathname === '/recover') return <Recovery token={recoveryToken} />;
+  if (window.location.pathname === '/invite') return <Recovery invitation token={recoveryToken} />;
   return <AuthProvider><WorkbenchApplication /></AuthProvider>;
 }
