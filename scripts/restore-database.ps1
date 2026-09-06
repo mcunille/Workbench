@@ -46,7 +46,7 @@ try {
             INSERT INTO [Security].[WorkbenchRestorePending] ([Id], [IsPending]) VALUES (1, 1);
 "@
     $restoreStarted = $true
-    & $sqlcmd -S $builder.DataSource -U $builder.UserID -d master -C -b -Q `
+    & $sqlcmd -S $builder.DataSource -U $builder.UserID -d master -N -b -Q `
         $restoreSql
     if ($LASTEXITCODE -ne 0) { throw 'Database restore failed.' }
 }
@@ -57,7 +57,7 @@ finally {
     if ($restoreStarted) {
         try {
             $cleanupSql = "IF DB_ID(N'$Database') IS NOT NULL ALTER DATABASE [$Database] SET MULTI_USER WITH ROLLBACK IMMEDIATE;"
-            & $sqlcmd -S $builder.DataSource -U $builder.UserID -d master -C -b -Q $cleanupSql
+            & $sqlcmd -S $builder.DataSource -U $builder.UserID -d master -N -b -Q $cleanupSql
             if ($LASTEXITCODE -ne 0) { throw 'Database restore cleanup failed.' }
         }
         catch {

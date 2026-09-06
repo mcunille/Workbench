@@ -9,6 +9,20 @@ Backup and restore cutovers are deliberately human-operated. The scripts require
 database name, an access-controlled connection file, a SQL Server-visible path, and an exact typed
 confirmation. They do not schedule operations or decide when production traffic may resume.
 
+## SQL transport requirements
+
+Use Microsoft ODBC sqlcmd 18.x for these operations. Both scripts explicitly request encrypted
+connections with `-N` and do not pass `-C`, including the restore failure cleanup connection.
+Provision a SQL Server certificate with a chain trusted by the operator host and a name matching
+`Server` in the connection file. Validate the installed client and certificate configuration in an
+isolated drill before production use. See the [Microsoft sqlcmd reference](https://learn.microsoft.com/en-us/sql/tools/sqlcmd/sqlcmd-utility).
+
+The connection file supplies the server, SQL login, password, and catalog; its `Encrypt` and
+`TrustServerCertificate` values cannot relax this transport policy. Self-signed local development
+servers must also use an explicitly trusted certificate with a matching name. There is no automatic
+loopback or development certificate bypass. Keep the password out of command arguments and retain
+the explicit confirmation requirement for every backup or restore.
+
 ## Backup
 
 Use a privileged backup credential that targets either `master` or the named database. The
