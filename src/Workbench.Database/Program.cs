@@ -195,41 +195,10 @@ static async Task ProvisionPrincipalsAsync(
 {
     var definitions = new[]
     {
-        (User: RequireOption(options, "--web-user"), PasswordFile: RequireOption(options, "--web-password-file"), Role: "workbench_web"),
-        (User: RequireOption(options, "--operator-user"), PasswordFile: RequireOption(options, "--operator-password-file"), Role: "workbench_operator"),
-        (User: RequireOption(options, "--migrator-user"), PasswordFile: RequireOption(options, "--migrator-password-file"), Role: "workbench_migrator"),
+        new PasswordPrincipal(RequireOption(options, "--web-user"), RequireOption(options, "--web-password-file"), "workbench_web"),
+        new PasswordPrincipal(RequireOption(options, "--operator-user"), RequireOption(options, "--operator-password-file"), "workbench_operator"),
+        new PasswordPrincipal(RequireOption(options, "--migrator-user"), RequireOption(options, "--migrator-password-file"), "workbench_migrator"),
     };
-    await using var connection = new SqlConnection(connectionString);
-    await connection.OpenAsync();
-    foreach (var definition in definitions)
-    {
-        if (!System.Text.RegularExpressions.Regex.IsMatch(definition.User, "^[A-Za-z][A-Za-z0-9_]{2,63}$") ||
-            !File.Exists(definition.PasswordFile))
-        {
-            throw new ArgumentException("Database principal input is invalid.");
-        }
-
-        var password = (await File.ReadAllTextAsync(definition.PasswordFile)).TrimEnd('\r', '\n');
-        if (password.Length < 16)
-        {
-            throw new ArgumentException("Database principal passwords must contain at least 16 characters.");
-        }
-
-        var escapedPassword = password.Replace("'", "''", StringComparison.Ordinal);
-        await using var command = new SqlCommand($"""
-            IF USER_ID(N'{definition.User}') IS NULL
-                CREATE USER [{definition.User}] WITH PASSWORD = N'{escapedPassword}';
-            IF NOT EXISTS
-            (
-                SELECT 1 FROM sys.database_role_members
-                WHERE role_principal_id = DATABASE_PRINCIPAL_ID(N'{definition.Role}')
-                    AND member_principal_id = DATABASE_PRINCIPAL_ID(N'{definition.User}')
-            )
-                ALTER ROLE [{definition.Role}] ADD MEMBER [{definition.User}];
-            """, connection);
-        await command.ExecuteNonQueryAsync();
-    }
-
     var proofKeyFile = RequireOption(options, "--tenant-context-proof-key-file");
     if (!File.Exists(proofKeyFile))
     {
@@ -250,17 +219,7 @@ static async Task ProvisionPrincipalsAsync(
         throw new ArgumentException("The tenant context proof key must contain exactly 32 bytes.");
     }
 
-    await using var proofCommand = new SqlCommand(
-        "UPDATE [Security].[TenantContextKeys] SET [ProofKey] = @proofKey WHERE [Id] = 1",
-        connection);
-    proofCommand.Parameters.Add(new SqlParameter("@proofKey", System.Data.SqlDbType.Binary, 32)
-    {
-        Value = proofKey,
-    });
-    if (await proofCommand.ExecuteNonQueryAsync() != 1)
-    {
-        throw new InvalidOperationException("The tenant context proof key store is missing.");
-    }
+    await PasswordPrincipalProvisioning.ProvisionAsync(connectionString, definitions, proofKey);
 }
 
 static string RequireOption(IReadOnlyDictionary<string, string> options, string name) =>
