@@ -6,7 +6,8 @@ import {
 } from '../../api/auth';
 
 export function Recovery({ invitation = false }: { invitation?: boolean }) {
-  const token = new URLSearchParams(window.location.search).get('token');
+  const token = new URLSearchParams(window.location.hash.slice(1)).get('token')
+    ?? new URLSearchParams(window.location.search).get('token');
   const [pending, setPending] = useState(false);
   const [complete, setComplete] = useState(false);
   const [failed, setFailed] = useState(false);

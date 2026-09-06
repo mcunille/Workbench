@@ -46,3 +46,25 @@ test('recovery remains generic and tenant identifier substitution is not observa
   });
   expect(status).toBe(404);
 });
+
+for (const flow of [
+  { path: '/recover', title: 'Reset password', endpoint: '/api/auth/recovery/consume' },
+  { path: '/invite', title: 'Accept invitation', endpoint: '/api/auth/invitations/consume' },
+]) {
+  test(`${flow.title} reads a fragment token without sending it in request URLs`, async ({ page }) => {
+    // GIVEN a syntactically valid but unissued token in an email-style fragment link.
+    const token = 'a'.repeat(43);
+    const urls: string[] = [];
+    page.on('request', (request) => urls.push(request.url()));
+    await page.goto(`${flow.path}#token=${token}`);
+    await expect(page.getByRole('heading', { name: flow.title })).toBeVisible();
+    // WHEN the user submits the password form to the real API.
+    await page.getByLabel('New password').fill('Browser Replacement Horse 9!');
+    const response = page.waitForResponse((item) => item.url().endsWith(flow.endpoint));
+    await page.getByRole('button', { name: flow.title }).click();
+    // THEN the API rejects the unissued token and the browser shows the failure.
+    expect((await response).status()).toBe(400);
+    await expect(page.getByRole('alert')).toContainText('invalid or expired');
+    expect(urls.every((url) => !url.includes(token))).toBe(true);
+  });
+}

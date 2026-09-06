@@ -13,7 +13,7 @@ public sealed class ProductionSecurityConfigurationValidator(
 {
     public Task StartAsync(CancellationToken cancellationToken)
     {
-        if (!environment.IsProduction() || IsOpenApiDocumentGeneration())
+        if (environment.IsDevelopment() || IsOpenApiDocumentGeneration())
         {
             return Task.CompletedTask;
         }
@@ -86,7 +86,7 @@ public sealed class ProductionSecurityConfigurationValidator(
         return File.ReadAllText(path).Trim();
     }
 
-    private static bool IsOpenApiDocumentGeneration() =>
+    internal static bool IsOpenApiDocumentGeneration() =>
         string.Equals(
             System.Reflection.Assembly.GetEntryAssembly()?.GetName().Name,
             "GetDocument.Insider",

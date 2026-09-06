@@ -5,6 +5,7 @@ using System.Data;
 using System.Security.Cryptography;
 using System.Text;
 using Microsoft.Data.SqlClient;
+using Workbench.Server.Tenancy;
 
 namespace Workbench.Server.Identity;
 
@@ -47,7 +48,7 @@ public sealed class DisabledSensitiveRequestRateLimiter : ISensitiveRequestRateL
         ValueTask.FromResult(false);
 }
 
-public sealed class SqlSensitiveRequestRateLimiter(string connectionString) : ISensitiveRequestRateLimiter
+public sealed class SqlSensitiveRequestRateLimiter(string connectionString, TenantContextProof proof) : ISensitiveRequestRateLimiter
 {
     public bool IsAvailable => true;
 
@@ -56,18 +57,27 @@ public sealed class SqlSensitiveRequestRateLimiter(string connectionString) : IS
         CancellationToken cancellationToken)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(partition);
-        var partitionHash = SHA256.HashData(Encoding.UTF8.GetBytes(partition));
-        await using var connection = new SqlConnection(connectionString);
-        await connection.OpenAsync(cancellationToken);
-        await using var command = new SqlCommand("[Security].[TryAcquireSensitiveRequest]", connection)
+        using var deadline = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        deadline.CancelAfter(TimeSpan.FromSeconds(5));
+        try
         {
-            CommandType = CommandType.StoredProcedure,
-        };
-        command.Parameters.Add(new SqlParameter("@PartitionHash", SqlDbType.Binary, 32)
+            var partitionHash = proof.HashRateLimitPartition(partition);
+            await using var connection = new SqlConnection(connectionString);
+            await connection.OpenAsync(deadline.Token);
+            await using var command = new SqlCommand("[Security].[TryAcquireSensitiveRequest]", connection)
+            {
+                CommandType = CommandType.StoredProcedure,
+            };
+            command.Parameters.Add(new SqlParameter("@PartitionHash", SqlDbType.Binary, 32)
+            {
+                Value = partitionHash,
+            });
+            return Convert.ToBoolean(await command.ExecuteScalarAsync(deadline.Token));
+        }
+        catch (Exception error) when (error is SqlException || error is OperationCanceledException && !cancellationToken.IsCancellationRequested)
         {
-            Value = partitionHash,
-        });
-        return Convert.ToBoolean(await command.ExecuteScalarAsync(cancellationToken));
+            throw new Operations.DependencyUnavailableException();
+        }
     }
 }
 

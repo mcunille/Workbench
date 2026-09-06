@@ -49,6 +49,12 @@ final mode transition occurred.
 
 ## Mandatory post-restore sanitation
 
+SQL recovery must be paired with the exact blob snapshot and digest manifest described in the
+[provider runbook](blob-and-service-providers.md). Keep every replica and worker offline until both
+stores are restored and `storage verify` succeeds. Sanitation cancels identity-delivery outbox rows,
+resets outstanding deletion leases, and sets a separate blob-recovery marker when retained content
+exists. SQL sanitation alone does not clear that marker or permit worker claims.
+
 A restored cookie must never regain authority over rolled-back account, role, credential, or
 revocation state. Before exposing readiness, apply the intended migrations and invoke sanitation
 with a unique, non-secret correlation identifier:

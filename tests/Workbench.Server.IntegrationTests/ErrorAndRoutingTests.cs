@@ -16,6 +16,29 @@ namespace Workbench.Server.IntegrationTests;
 public sealed class ErrorAndRoutingTests
 {
     [Fact]
+    public async Task UnavailableDependencyReturnsGenericServiceUnavailable()
+    {
+        // GIVEN a required dependency which cannot process a request.
+        await using var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
+            builder.ConfigureServices(services =>
+            {
+                services.RemoveAll<IReleaseInformation>();
+                services.AddSingleton<IReleaseInformation, UnavailableReleaseInformation>();
+            }));
+        using var client = factory.CreateClient();
+        // WHEN a dependent endpoint is called, THEN it fails closed with stable Problem Details.
+        var response = await client.GetAsync("/api/system");
+        Assert.Equal(HttpStatusCode.ServiceUnavailable, response.StatusCode);
+        Assert.Equal("A required service is temporarily unavailable.",
+            (await response.Content.ReadFromJsonAsync<ProblemDetails>())!.Title);
+    }
+
+    private sealed class UnavailableReleaseInformation : IReleaseInformation
+    {
+        public string Version => throw new Workbench.Server.Operations.DependencyUnavailableException();
+    }
+
+    [Fact]
     public async Task ApiMissReturnsProblemDetailsInsteadOfSpaDocument()
     {
         await using var factory = new WebApplicationFactory<Program>();
@@ -64,6 +87,9 @@ public sealed class ErrorAndRoutingTests
             .WithWebHostBuilder(builder =>
             {
                 builder.UseEnvironment("Production");
+                builder.UseSetting("Storage:Provider", "Azure");
+                builder.UseSetting("Storage:ContainerUri", "https://test.blob.core.windows.net/blobs");
+                builder.UseSetting("Storage:InstallationId", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
                 builder.ConfigureServices(services =>
                 {
                     var productionValidator = services.Single(descriptor =>

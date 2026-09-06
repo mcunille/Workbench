@@ -80,8 +80,6 @@ namespace Workbench.Server.Persistence.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasAlternateKey("TenantId", "Id");
-
                     b.HasIndex("TokenHash")
                         .IsUnique();
 
@@ -428,6 +426,83 @@ namespace Workbench.Server.Persistence.Migrations
                     b.ToTable("UserTokens", "Identity");
                 });
 
+            modelBuilder.Entity("Workbench.Server.Operations.WorkItem", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid?>("AttachmentId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("Attempts")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(0);
+
+                    b.Property<DateTimeOffset>("AvailableAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<long>("Generation")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasDefaultValue(0L);
+
+                    b.Property<Guid?>("IdentityOperationId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("Kind")
+                        .HasColumnType("int");
+
+                    b.Property<DateTimeOffset?>("LeaseExpiresAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid?>("LeaseOwner")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Outcome")
+                        .HasMaxLength(40)
+                        .HasColumnType("nvarchar(40)");
+
+                    b.Property<byte[]>("ProtectedPayload")
+                        .HasMaxLength(8000)
+                        .HasColumnType("varbinary(8000)");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<int>("State")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(0);
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasAlternateKey("TenantId", "Id");
+
+                    b.HasIndex("State", "AvailableAtUtc");
+
+                    b.HasIndex("TenantId", "AttachmentId");
+
+                    b.HasIndex("TenantId", "IdentityOperationId");
+
+                    b.ToTable("WorkItems", "Operations", t =>
+                        {
+                            t.HasCheckConstraint("CK_WorkItems_Kind", "([Kind] = 1 AND [AttachmentId] IS NOT NULL AND [IdentityOperationId] IS NULL AND [ProtectedPayload] IS NULL) OR ([Kind] = 2 AND [IdentityOperationId] IS NOT NULL AND [AttachmentId] IS NULL)");
+
+                            t.HasCheckConstraint("CK_WorkItems_State", "[State] BETWEEN 0 AND 3 AND [Attempts] BETWEEN 0 AND 5 AND [Generation] >= 0");
+                        });
+                });
+
             modelBuilder.Entity("Workbench.Server.Security.SystemSecurityAuditEvent", b =>
                 {
                     b.Property<Guid>("Id")
@@ -519,6 +594,118 @@ namespace Workbench.Server.Persistence.Migrations
                     b.HasAlternateKey("TenantId", "Id");
 
                     b.ToTable("TenantSecurityAuditEvents", "Security");
+                });
+
+            modelBuilder.Entity("Workbench.Server.Storage.Attachment", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid?>("CurrentRevisionId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset?>("DeleteAfterUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<DateTimeOffset?>("DeletedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<bool>("Held")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false);
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TenantId", "Id", "CurrentRevisionId");
+
+                    b.ToTable("Attachments", "Storage");
+                });
+
+            modelBuilder.Entity("Workbench.Server.Storage.AttachmentRevision", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("ActorUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("AttachmentId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<long?>("Length")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("MediaType")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<Guid>("OperationId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid?>("PreviousRevisionId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("ProviderAlias")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<string>("Sha256")
+                        .HasMaxLength(64)
+                        .IsUnicode(false)
+                        .HasColumnType("char(64)")
+                        .IsFixedLength();
+
+                    b.Property<string>("Source")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<int>("State")
+                        .HasColumnType("int");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasAlternateKey("TenantId", "Id");
+
+                    b.HasIndex("TenantId", "OperationId")
+                        .IsUnique();
+
+                    b.HasIndex("TenantId", "AttachmentId", "PreviousRevisionId");
+
+                    b.ToTable("Revisions", "Storage", t =>
+                        {
+                            t.HasCheckConstraint("CK_Revisions_Content", "([State] IN (0,2) AND [Length] IS NULL AND [Sha256] IS NULL) OR ([State] IN (1,3) AND [Length] IS NOT NULL AND [Sha256] IS NOT NULL AND [Length] >= 0 AND LEN([Sha256]) = 64 AND [Sha256] COLLATE Latin1_General_100_BIN2 NOT LIKE '%[^0-9A-F]%')");
+                        });
+
+                    b.HasAnnotation("SqlServer:UseSqlOutputClause", false);
                 });
 
             modelBuilder.Entity("Workbench.Server.Tenancy.Tenant", b =>
@@ -698,6 +885,21 @@ namespace Workbench.Server.Persistence.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("Workbench.Server.Operations.WorkItem", b =>
+                {
+                    b.HasOne("Workbench.Server.Storage.Attachment", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId", "AttachmentId")
+                        .HasPrincipalKey("TenantId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("Workbench.Server.Identity.IdentityOperation", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId", "IdentityOperationId")
+                        .HasPrincipalKey("TenantId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict);
+                });
+
             modelBuilder.Entity("Workbench.Server.Security.TenantSecurityAuditEvent", b =>
                 {
                     b.HasOne("Workbench.Server.Tenancy.Tenant", null)
@@ -705,6 +907,37 @@ namespace Workbench.Server.Persistence.Migrations
                         .HasForeignKey("TenantId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("Workbench.Server.Storage.Attachment", b =>
+                {
+                    b.HasOne("Workbench.Server.Tenancy.Tenant", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Workbench.Server.Storage.AttachmentRevision", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId", "Id", "CurrentRevisionId")
+                        .HasPrincipalKey("TenantId", "AttachmentId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict);
+                });
+
+            modelBuilder.Entity("Workbench.Server.Storage.AttachmentRevision", b =>
+                {
+                    b.HasOne("Workbench.Server.Storage.Attachment", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId", "AttachmentId")
+                        .HasPrincipalKey("TenantId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Workbench.Server.Storage.AttachmentRevision", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId", "AttachmentId", "PreviousRevisionId")
+                        .HasPrincipalKey("TenantId", "AttachmentId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict);
                 });
 #pragma warning restore 612, 618
         }

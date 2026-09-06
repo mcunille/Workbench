@@ -55,7 +55,12 @@ public sealed class DatabaseReadinessCheck(
                 ApplicationTenantProofAccepted = Convert.ToInt32(
                     await proofCommand.ExecuteScalarAsync(cancellationToken)) == 1,
             };
-            return state.IsReady
+            await using var operational = new SqlCommand("[Security].[ReadOperationalReadiness]", connection)
+            {
+                CommandType = CommandType.StoredProcedure,
+            };
+            var operationalReady = Convert.ToBoolean(await operational.ExecuteScalarAsync(cancellationToken));
+            return state.IsReady && operationalReady
                 ? HealthCheckResult.Healthy()
                 : HealthCheckResult.Unhealthy("Database security state is not ready.");
         }

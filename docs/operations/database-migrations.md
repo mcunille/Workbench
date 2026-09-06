@@ -84,7 +84,9 @@ and readiness procedures. Run all four drills against disposable real SQL Server
 
 The clean drill applies every migration to an empty database. For the initial database release,
 Upgrade starts from `InitialSchema`; after the baseline ships, it starts from the previous supported
-release. Reversible rollback removes and reapplies `EstablishSecurityBoundaries`. Restore rollback
+release. The historical `ReversibleRollback` scenario now verifies that blob metadata migrations
+refuse a destructive down-migration; retained revisions and queued work require offline recovery.
+Restore rollback
 validates the restored-schema path and mandatory security sanitation. Permission probes exercise the
 actual web, operator, and migrator roles.
 

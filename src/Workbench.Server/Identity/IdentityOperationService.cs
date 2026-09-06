@@ -6,6 +6,7 @@ using System.Text;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Data.SqlClient;
 using Workbench.Server.Tenancy;
+using Microsoft.AspNetCore.DataProtection;
 
 namespace Workbench.Server.Identity;
 
@@ -15,16 +16,23 @@ public sealed class IdentityOperationService(
     ISensitiveRequestRateLimiter rateLimiter,
     UserManager<WorkbenchUser> userManager,
     TimeProvider timeProvider,
-    TenantContextProof tenantContextProof)
+    TenantContextProof tenantContextProof,
+    IDataProtectionProvider dataProtection,
+    IConfiguration configuration,
+    IHostEnvironment environment,
+    IHttpContextAccessor httpContext)
 {
-    public bool PublicOperationsAvailable => delivery.IsAvailable && rateLimiter.IsAvailable;
+    public bool PublicOperationsAvailable => delivery.IsAvailable && rateLimiter.IsAvailable &&
+        configuration.GetValue("Identity:PublicRecoveryEnabled", environment.IsDevelopment());
+
+    public bool PublicInvitationsAvailable => delivery.IsAvailable && rateLimiter.IsAvailable &&
+        configuration.GetValue("Identity:PublicInvitationEnabled", environment.IsDevelopment());
 
     public async Task RequestRecoveryAsync(string email, CancellationToken cancellationToken)
     {
         var normalizedEmail = email.Trim().ToUpperInvariant();
-        var partition = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(normalizedEmail)));
         if (!PublicOperationsAvailable ||
-            !await rateLimiter.TryAcquireAsync(partition, cancellationToken))
+            !await AcquireAsync("recovery-request", normalizedEmail, cancellationToken))
         {
             return;
         }
@@ -39,14 +47,16 @@ public sealed class IdentityOperationService(
         var now = timeProvider.GetUtcNow();
         var expires = now.AddMinutes(30);
         await using var connection = await OpenTenantConnectionAsync(target.Value.TenantId, cancellationToken);
+        await using var transaction = (SqlTransaction)await connection.BeginTransactionAsync(cancellationToken);
+        var operationId = Guid.NewGuid();
         await using var command = new SqlCommand("""
             INSERT INTO [Identity].[IdentityOperations]
                 ([Id], [TenantId], [UserId], [Purpose], [TokenHash], [SecurityVersion],
                  [CreatedAtUtc], [ExpiresAtUtc])
             VALUES
                 (@id, @tenantId, @userId, 1, @tokenHash, @securityVersion, @now, @expires);
-            """, connection);
-        command.Parameters.AddWithValue("@id", Guid.CreateVersion7());
+            """, connection, transaction);
+        command.Parameters.AddWithValue("@id", operationId);
         command.Parameters.AddWithValue("@tenantId", target.Value.TenantId);
         command.Parameters.AddWithValue("@userId", target.Value.UserId);
         command.Parameters.Add(new SqlParameter("@tokenHash", SqlDbType.Binary, 32)
@@ -57,9 +67,13 @@ public sealed class IdentityOperationService(
         command.Parameters.AddWithValue("@now", now);
         command.Parameters.AddWithValue("@expires", expires);
         await command.ExecuteNonQueryAsync(cancellationToken);
-        await delivery.DeliverAsync(
-            new IdentityMessage(IdentityOperationPurpose.PasswordRecovery, target.Value.Email, token, expires),
-            cancellationToken);
+        var message = new IdentityMessage(IdentityOperationPurpose.PasswordRecovery, target.Value.Email, token, expires);
+        await EnqueueAsync(connection, transaction, target.Value.TenantId, operationId, message, cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+        if (delivery is DevelopmentIdentityMessageDelivery)
+        {
+            await delivery.DeliverAsync(message, cancellationToken);
+        }
     }
 
     public async Task<bool> RequestInvitationAsync(
@@ -67,23 +81,29 @@ public sealed class IdentityOperationService(
         string email,
         CancellationToken cancellationToken)
     {
-        if (!PublicOperationsAvailable || string.IsNullOrWhiteSpace(email) || email.Length > 256)
+        if (!PublicInvitationsAvailable || string.IsNullOrWhiteSpace(email) || email.Length > 256)
         {
             return false;
         }
 
         var normalizedEmail = email.Trim().ToUpperInvariant();
+        if (!await AcquireAsync("invitation-request", $"{tenantId:N}:{normalizedEmail}", cancellationToken))
+        {
+            return false;
+        }
         var token = SessionToken.Create();
         var now = timeProvider.GetUtcNow();
         var expires = now.AddHours(24);
         await using var connection = await OpenTenantConnectionAsync(tenantId, cancellationToken);
-        await using var command = new SqlCommand("[Identity].[CreateInvitation]", connection)
+        await using var transaction = (SqlTransaction)await connection.BeginTransactionAsync(cancellationToken);
+        var operationId = Guid.NewGuid();
+        await using var command = new SqlCommand("[Identity].[CreateInvitation]", connection, transaction)
         {
             CommandType = CommandType.StoredProcedure,
         };
         command.Parameters.AddWithValue("@TenantId", tenantId);
         command.Parameters.AddWithValue("@UserId", Guid.CreateVersion7());
-        command.Parameters.AddWithValue("@OperationId", Guid.CreateVersion7());
+        command.Parameters.AddWithValue("@OperationId", operationId);
         command.Parameters.AddWithValue("@Email", email.Trim());
         command.Parameters.AddWithValue("@NormalizedEmail", normalizedEmail);
         command.Parameters.Add(new SqlParameter("@TokenHash", SqlDbType.Binary, 32)
@@ -101,10 +121,38 @@ public sealed class IdentityOperationService(
             return false;
         }
 
-        await delivery.DeliverAsync(
-            new IdentityMessage(IdentityOperationPurpose.Invitation, email.Trim(), token, expires),
-            cancellationToken);
+        var message = new IdentityMessage(IdentityOperationPurpose.Invitation, email.Trim(), token, expires);
+        await EnqueueAsync(connection, transaction, tenantId, operationId, message, cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+        if (delivery is DevelopmentIdentityMessageDelivery)
+        {
+            await delivery.DeliverAsync(message, cancellationToken);
+        }
         return true;
+    }
+
+    private async Task EnqueueAsync(SqlConnection connection, SqlTransaction transaction, Guid tenantId,
+        Guid operationId, IdentityMessage message, CancellationToken cancellationToken)
+    {
+        // The explicit local sink is non-delivering and deliberately holds messages
+        // only in memory for development. Real providers always use the SQL outbox.
+        if (delivery is DevelopmentIdentityMessageDelivery)
+        {
+            return;
+        }
+        var id = Guid.NewGuid();
+        var payload = dataProtection.CreateProtector("Workbench.IdentityOutbox.v1", tenantId.ToString("N"), id.ToString("N"))
+            .Protect(System.Text.Json.JsonSerializer.SerializeToUtf8Bytes(message));
+        await using var command = new SqlCommand("""
+            INSERT INTO [Operations].[WorkItems]
+                ([Id], [TenantId], [Kind], [IdentityOperationId], [ProtectedPayload], [CreatedAtUtc], [AvailableAtUtc])
+            VALUES (@id, @tenant, 2, @operation, @payload, SYSUTCDATETIME(), SYSUTCDATETIME());
+            """, connection, transaction);
+        command.Parameters.AddWithValue("@id", id);
+        command.Parameters.AddWithValue("@tenant", tenantId);
+        command.Parameters.AddWithValue("@operation", operationId);
+        command.Parameters.Add(new SqlParameter("@payload", SqlDbType.VarBinary, 8000) { Value = payload });
+        await command.ExecuteNonQueryAsync(cancellationToken);
     }
 
     public Task<bool> ConsumeRecoveryAsync(
@@ -128,6 +176,12 @@ public sealed class IdentityOperationService(
         string correlationId,
         CancellationToken cancellationToken)
     {
+        if (!(purpose == IdentityOperationPurpose.Invitation ? PublicInvitationsAvailable : PublicOperationsAvailable) ||
+            !await AcquireAsync(purpose == IdentityOperationPurpose.Invitation ? "invitation-consume" : "recovery-consume",
+                token, cancellationToken))
+        {
+            return false;
+        }
         if (!SessionToken.TryHash(token, out var tokenHash))
         {
             return false;
@@ -248,6 +302,16 @@ public sealed class IdentityOperationService(
         await update.ExecuteNonQueryAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);
         return true;
+    }
+
+    private async Task<bool> AcquireAsync(string operation, string subject, CancellationToken cancellationToken)
+    {
+        var address = httpContext.HttpContext?.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+        if (!await rateLimiter.TryAcquireAsync($"{operation}:network:{address}", cancellationToken))
+        {
+            return false;
+        }
+        return await rateLimiter.TryAcquireAsync($"{operation}:subject:{subject}", cancellationToken);
     }
 
     private async Task<(Guid UserId, Guid TenantId, long SecurityVersion, string Email)?>

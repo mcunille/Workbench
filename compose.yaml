@@ -18,12 +18,16 @@ services:
     ports:
       - "127.0.0.1:${WORKBENCH_PORT:-8080}:8080"
     environment:
+      Storage__Provider: FileSystem
+      Storage__Root: /var/lib/workbench/blobs
+      Storage__DurableVolume: "true"
       WORKBENCH_WEB_CONNECTION: "${WORKBENCH_WEB_CONNECTION:-}"
       WORKBENCH_TENANT_CONTEXT_PROOF_KEY_FILE: /run/secrets/workbench-tenant-context-proof-key
       WORKBENCH_DATA_PROTECTION_CERTIFICATE_PATH: /run/secrets/workbench-data-protection.pfx
       WORKBENCH_DATA_PROTECTION_CERTIFICATE_PASSWORD: "${WORKBENCH_DATA_PROTECTION_CERTIFICATE_PASSWORD:-}"
       WORKBENCH_KNOWN_PROXY: "${WORKBENCH_KNOWN_PROXY:-127.0.0.1}"
     volumes:
+      - "workbench-blobs:/var/lib/workbench/blobs"
       - "${WORKBENCH_DATA_PROTECTION_CERTIFICATE_FILE:-./workbench-data-protection.pfx}:/run/secrets/workbench-data-protection.pfx:ro"
       - "${WORKBENCH_TENANT_CONTEXT_PROOF_KEY_FILE:-./workbench-tenant-context-proof-key}:/run/secrets/workbench-tenant-context-proof-key:ro"
     healthcheck:
@@ -32,3 +36,6 @@ services:
       timeout: 6s
       start_period: 10s
       retries: 3
+
+volumes:
+  workbench-blobs:

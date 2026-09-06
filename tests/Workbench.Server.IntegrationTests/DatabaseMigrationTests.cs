@@ -34,7 +34,10 @@ public sealed class DatabaseMigrationTests(SqlServerFixture sqlServer)
         Assert.Collection(
             migrations,
             migration => Assert.EndsWith("_InitialSchema", migration, StringComparison.Ordinal),
-            migration => Assert.EndsWith("_EstablishSecurityBoundaries", migration, StringComparison.Ordinal));
+            migration => Assert.EndsWith("_EstablishSecurityBoundaries", migration, StringComparison.Ordinal),
+            migration => Assert.EndsWith("_AddBlobMetadata", migration, StringComparison.Ordinal),
+            migration => Assert.EndsWith("_AddImmutableRevisions", migration, StringComparison.Ordinal),
+            migration => Assert.EndsWith("_AddDurableWork", migration, StringComparison.Ordinal));
     }
 
     [Fact]
@@ -64,19 +67,19 @@ public sealed class DatabaseMigrationTests(SqlServerFixture sqlServer)
     }
 
     [Fact]
-    public async Task LatestMigrationCanRollbackOneVersionAndReapply()
+    public async Task RetainedMetadataCannotBeRolledBackDestructively()
     {
         await using var database = await sqlServer.CreateDatabaseAsync();
         await DatabaseMigrator.MigrateAsync(database.AdminConnectionString, CancellationToken.None);
 
-        await DatabaseMigrator.MigrateToAsync(
+        // GIVEN durable storage metadata, WHEN a destructive schema rollback is requested,
+        // THEN it is refused and the current tables remain available for offline recovery.
+        var error = await Assert.ThrowsAsync<SqlException>(() => DatabaseMigrator.MigrateToAsync(
             database.AdminConnectionString,
             "InitialSchema",
-            CancellationToken.None);
-        Assert.Equal(0, await ObjectCountAsync(database.AdminConnectionString, "Security.DatabaseSecurityState"));
-
-        await DatabaseMigrator.MigrateAsync(database.AdminConnectionString, CancellationToken.None);
-        Assert.Equal(1, await ObjectCountAsync(database.AdminConnectionString, "Security.DatabaseSecurityState"));
+            CancellationToken.None));
+        Assert.Equal(50020, error.Number);
+        Assert.Equal(1, await ObjectCountAsync(database.AdminConnectionString, "Storage.Revisions"));
     }
 
     private static async Task<int> CountAsync(string connectionString, string table)

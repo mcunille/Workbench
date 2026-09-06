@@ -19,7 +19,15 @@ using Workbench.Server.Identity;
 using Workbench.Server.Persistence;
 using Workbench.Server.Security;
 using Workbench.Server.Tenancy;
+using Workbench.Server.Operations;
+using Workbench.Server.Storage;
 using DurableSessionOptions = Workbench.Server.Identity.SessionOptions;
+
+if (args is ["--worker"] or ["--worker", "--once"])
+{
+    await WorkerHost.RunAsync(args.Length == 2);
+    return;
+}
 
 if (args is ["--health-check"])
 {
@@ -38,6 +46,7 @@ if (args is ["--health-check"])
 }
 
 var builder = WebApplication.CreateBuilder(args);
+builder.Logging.ClearProviders().AddProvider(new SafeTelemetryLoggerProvider(Console.Out));
 var configuredWebConnection =
     ProductionSecurityConfigurationValidator.GetWebConnectionString(builder.Configuration);
 var configuredTenantContextProof = string.IsNullOrWhiteSpace(configuredWebConnection)
@@ -75,6 +84,12 @@ else
 }
 builder.Services.AddSingleton<IReleaseInformation, AssemblyReleaseInformation>();
 builder.Services.AddHostedService<ProductionSecurityConfigurationValidator>();
+builder.Services.AddHostedService<OperationalConfigurationValidator>();
+builder.Services.AddHealthChecks().AddCheck<BlobReadinessCheck>("blob", tags: ["ready"])
+    .AddCheck<SmtpReadinessCheck>("smtp", tags: ["ready"]);
+builder.Services.AddSingleton<IBlobStore>(services => OperationalConfiguration.CreateStore(
+    services.GetRequiredService<IConfiguration>()) ?? throw new InvalidOperationException("Blob storage is not configured."));
+builder.Services.AddScoped<AttachmentService>();
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddSingleton(new DurableSessionOptions());
 builder.Services.AddSingleton(services => configuredTenantContextProof ?? TenantContextProof.Parse(
@@ -105,8 +120,13 @@ else
     else
     {
         builder.Services.AddSingleton<ISensitiveRequestRateLimiter>(services =>
-            new SqlSensitiveRequestRateLimiter(configuredWebConnection));
+            new SqlSensitiveRequestRateLimiter(configuredWebConnection, services.GetRequiredService<TenantContextProof>()));
     }
+}
+if (builder.Configuration["Identity:DeliveryProvider"] == "Smtp")
+{
+    builder.Services.AddSingleton<IIdentityMessageDelivery>(services => new SmtpIdentityMessageDelivery(
+        OperationalConfiguration.ReadSmtp(services.GetRequiredService<IConfiguration>())));
 }
 builder.Services.AddScoped<IdentityOperationService>(services => new IdentityOperationService(
     RequireWebConnectionString(services.GetRequiredService<IConfiguration>()),
@@ -114,7 +134,11 @@ builder.Services.AddScoped<IdentityOperationService>(services => new IdentityOpe
     services.GetRequiredService<ISensitiveRequestRateLimiter>(),
     services.GetRequiredService<UserManager<WorkbenchUser>>(),
     services.GetRequiredService<TimeProvider>(),
-    services.GetRequiredService<TenantContextProof>()));
+    services.GetRequiredService<TenantContextProof>(),
+    services.GetRequiredService<IDataProtectionProvider>(),
+    services.GetRequiredService<IConfiguration>(),
+    services.GetRequiredService<IHostEnvironment>(),
+    services.GetRequiredService<IHttpContextAccessor>()));
 builder.Services.AddScoped<SecurityAuditWriter>();
 builder.Services
     .AddIdentityCore<WorkbenchUser>(options =>
@@ -158,7 +182,7 @@ if (!string.IsNullOrWhiteSpace(configuredWebConnection))
 {
     dataProtection.PersistKeysToDbContext<WorkbenchDbContext>();
 }
-if (builder.Environment.IsProduction())
+if (!builder.Environment.IsDevelopment())
 {
     var certificatePath = ProductionSecurityConfigurationValidator.GetCertificatePath(builder.Configuration);
     if (!string.IsNullOrWhiteSpace(certificatePath))
