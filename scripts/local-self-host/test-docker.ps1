@@ -2,6 +2,10 @@
 # Offline command fixture, placed on PATH only by test-local-self-host-orchestration.ps1.
 $ErrorActionPreference = 'Stop'
 $a = @($args)
+if ($a -contains '/bin/bash' -and ($a | Where-Object { $_.Contains("`r") })) {
+    Write-Error 'Bash input contains Windows carriage returns.'
+    exit 1
+}
 $root = $env:WB_SETUP_FIXTURE_ROOT
 if (-not $root) { throw 'This fixture requires the orchestration test environment.' }
 [IO.File]::AppendAllText("$root/commands.jsonl", (ConvertTo-Json -InputObject $a -Compress) + "`n")

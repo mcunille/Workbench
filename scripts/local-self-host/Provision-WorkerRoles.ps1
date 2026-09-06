@@ -62,6 +62,8 @@ if [[ ! "$WB_WORKER_PASSWORD" =~ ^Wb-[A-F0-9]{64}-aA9!$ ]] || [[ ! "$WB_MAINTENA
 fi
 exec /opt/mssql-tools18/bin/sqlcmd -S tcp:sql,1433 -U sa -d Workbench -N -b -l 5 -t 30 -i /run/setup/provision.sql
 '@
+# PowerShell preserves checkout line endings in here-strings; Bash requires LF input.
+$command = $command.Replace("`r`n", "`n")
 $temporaryRoot = Join-Path $secretsRoot ('role-provision-' + [Guid]::NewGuid().ToString('N'))
 New-Item -ItemType Directory -Path $temporaryRoot | Out-Null
 try {

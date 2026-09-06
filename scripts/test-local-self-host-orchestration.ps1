@@ -28,6 +28,10 @@ try {
     if ('NET_BIND_SERVICE' -notin $sql.cap_add -or 'ALL' -notin $sql.cap_drop) { throw 'SQL capability regression.' }
     $workerStart = $commands | Where-Object { $_ -contains 'up' -and $_ -contains 'worker' }
     if (-not $workerStart) { throw 'Worker never started.' }
+    # GIVEN a Windows CRLF checkout, WHEN provisioning invokes Bash, THEN shell input remains LF-only.
+    $windowsHelper = (Get-Content "$PSScriptRoot/local-self-host/Provision-WorkerRoles.ps1" -Raw).Replace("`r`n", "`n").Replace("`n", "`r`n")
+    [IO.File]::WriteAllText("$fixture/windows-helper.ps1", $windowsHelper)
+    & "$fixture/windows-helper.ps1" -InstallationRoot "$fixture/install" -Network 'fixture-network'
     $healthIndex = -1; $workerIndex = -1
     for ($i=0; $i -lt $commands.Count; $i++) {
         if ($commands[$i] -contains '--health-check' -and $healthIndex -eq -1) { $healthIndex=$i }
