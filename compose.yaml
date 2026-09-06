@@ -25,7 +25,7 @@ services:
       WORKBENCH_TENANT_CONTEXT_PROOF_KEY_FILE: /run/secrets/workbench-tenant-context-proof-key
       WORKBENCH_DATA_PROTECTION_CERTIFICATE_PATH: /run/secrets/workbench-data-protection.pfx
       WORKBENCH_DATA_PROTECTION_CERTIFICATE_PASSWORD: "${WORKBENCH_DATA_PROTECTION_CERTIFICATE_PASSWORD:-}"
-      WORKBENCH_KNOWN_PROXY: "${WORKBENCH_KNOWN_PROXY:-127.0.0.1}"
+      WORKBENCH_KNOWN_PROXY: "${WORKBENCH_KNOWN_PROXY:?Set WORKBENCH_KNOWN_PROXY to the immediate proxy IP observed by the app container}"
     volumes:
       - "workbench-blobs:/var/lib/workbench/blobs"
       - "${WORKBENCH_DATA_PROTECTION_CERTIFICATE_FILE:-./workbench-data-protection.pfx}:/run/secrets/workbench-data-protection.pfx:ro"

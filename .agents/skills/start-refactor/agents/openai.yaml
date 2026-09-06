@@ -1,0 +1,4 @@
+interface:
+  display_name: "Start Refactor"
+  short_description: "Refactor one unit with behavior-preservation evidence"
+  default_prompt: "Use $start-refactor to simplify a named Workbench unit while preserving its observable behavior."

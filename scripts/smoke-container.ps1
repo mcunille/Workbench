@@ -63,8 +63,7 @@ $certificate.Dispose()
 $rsa.Dispose()
 
 try {
-    & $docker.Source compose --file (Join-Path $repositoryRoot 'compose.yaml') config --quiet
-    Assert-NativeCommandSucceeded 'docker compose config'
+    & (Join-Path $PSScriptRoot 'test-compose-proxy.ps1') -DockerPath $docker.Source
     & $docker.Source build --file (Join-Path $repositoryRoot 'Dockerfile') --tag $image $repositoryRoot
     Assert-NativeCommandSucceeded 'docker build'
     $configuredUser = & $docker.Source image inspect --format '{{.Config.User}}' $image
@@ -148,7 +147,26 @@ Storage__DurableVolume=true
     if ($shell.StatusCode -ne 200 -or $shell.Headers.'Content-Type' -notmatch '^text/html') { throw 'React shell failed.' }
     $apiMiss = Invoke-WebRequest -Uri "$baseUrl/api/not-a-route" -SkipHttpErrorCheck
     if ($apiMiss.StatusCode -ne 404 -or $apiMiss.Headers.'Content-Type' -notmatch '^application/problem\+json') { throw 'API miss contract failed.' }
-    $forwardedHeaders = @{ 'X-Forwarded-For' = $networkGateway; 'X-Forwarded-Proto' = 'https' }
+    # GIVEN one client has exhausted its network budget through the trusted ingress peer.
+    $attackerHeaders = @{ 'X-Forwarded-For' = '192.0.2.10'; 'X-Forwarded-Proto' = 'https' }
+    $attackerAntiforgery = Invoke-WebRequest -Uri "$baseUrl/api/auth/antiforgery" -Headers $attackerHeaders
+    $attackerHeaders['X-CSRF-TOKEN'] = ($attackerAntiforgery.Content | ConvertFrom-Json).requestToken
+    $attackerHeaders['Cookie'] = ($attackerAntiforgery.Headers.'Set-Cookie' -split ';')[0]
+    for ($attempt = 0; $attempt -lt 6; $attempt++) {
+        $rejected = Invoke-WebRequest -Uri "$baseUrl/api/auth/login" -Method Post `
+            -Headers $attackerHeaders -ContentType 'application/json' `
+            -Body (@{ email = 'unknown@example.test'; password = 'Invalid Password 8!' } | ConvertTo-Json) `
+            -SkipHttpErrorCheck
+        if ($rejected.StatusCode -ne 401) { throw 'Expected rejected login while exhausting the client budget.' }
+    }
+    # THEN even valid credentials are rejected from the exhausted network partition.
+    $limitedLogin = Invoke-WebRequest -Uri "$baseUrl/api/auth/login" -Method Post `
+        -Headers $attackerHeaders -ContentType 'application/json' `
+        -Body (@{ email = 'smoke-admin@example.test'; password = 'Smoke Correct Horse 8!' } | ConvertTo-Json) `
+        -SkipHttpErrorCheck
+    if ($limitedLogin.StatusCode -ne 401) { throw 'Exhausted client network budget allowed valid credentials.' }
+    # WHEN another forwarded client signs in with valid credentials.
+    $forwardedHeaders = @{ 'X-Forwarded-For' = '192.0.2.20'; 'X-Forwarded-Proto' = 'https' }
     $antiforgeryResponse = Invoke-WebRequest -Uri "$baseUrl/api/auth/antiforgery" -Headers $forwardedHeaders
     $antiforgery = $antiforgeryResponse.Content | ConvertFrom-Json
     $antiforgeryCookie = ($antiforgeryResponse.Headers.'Set-Cookie' -split ';')[0]
@@ -159,7 +177,8 @@ Storage__DurableVolume=true
         -Headers $loginHeaders -ContentType 'application/json' `
         -Body (@{ email = 'smoke-admin@example.test'; password = 'Smoke Correct Horse 8!' } | ConvertTo-Json) `
         -SkipHttpErrorCheck
-    if ($login.StatusCode -ne 204) { throw 'Container authentication failed.' }
+    # THEN the first client has not exhausted this client's network partition.
+    if ($login.StatusCode -ne 204) { throw 'Container authentication failed after a different client exhausted its budget.' }
     $sessionCookie = (($login.Headers.'Set-Cookie' | Where-Object { $_ -match '__Host-Workbench.Session=' }) -split ';')[0]
     $identityHeaders = $forwardedHeaders.Clone()
     $identityHeaders['Cookie'] = $sessionCookie
