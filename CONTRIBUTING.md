@@ -10,25 +10,9 @@ The repository pins .NET SDK `10.0.400`, Node.js `26.7.0`, and npm `11.19.0`. Us
 the checked-in scripts and a Linux-container Docker engine for container verification. Do not update
 one toolchain pin without updating its locks, CI setup, documentation, and smoke evidence.
 
-Create a worktree-local `.env.dev` from `.env.dev.example`. The file contains credentials and is
-ignored by Git; never commit it, copy it into logs or prompts, or share it between installations.
-The setup principal is used only by `./scripts/bootstrap.ps1`; routine schema changes use the
-migrator principal through `./scripts/migrate.ps1`; the web process receives only the web
-connection. Operator and migrator credentials must never be passed to the running web process.
-
-The server and client develop independently after SQL is started and bootstrapped:
-
-```powershell
-./scripts/test-sql.ps1 -Action Start
-./scripts/bootstrap.ps1
-. ./scripts/dev-env.ps1
-dotnet run --project src/Workbench.Server
-npm ci --prefix src/Workbench.Client
-npm run dev --prefix src/Workbench.Client
-```
-
-The server listens at `http://localhost:5000`; Vite listens at `http://localhost:5173` and proxies
-relative API and health requests. Production does not use CORS or a separate client origin.
+Use the [canonical setup and installation guide](docs/setup.md) for local SQL initialization,
+credential configuration, bootstrap, startup, and first login. It also distinguishes supported
+self-hosted paths from pending production acceptance.
 
 Before submitting application changes, run:
 
