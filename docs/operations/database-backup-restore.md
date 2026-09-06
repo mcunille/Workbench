@@ -12,7 +12,7 @@ confirmation. They do not schedule operations or decide when production traffic 
 ## SQL transport requirements
 
 Use Microsoft ODBC sqlcmd 18.x for these operations. Both scripts explicitly request encrypted
-connections with `-N` and do not pass `-C`, including the restore failure cleanup connection.
+connections with `-N` and do not pass `-C`, including the restore marker verification and access-release connection.
 Provision a SQL Server certificate with a chain trusted by the operator host and a name matching
 `Server` in the connection file. Validate the installed client and certificate configuration in an
 isolated drill before production use. See the [Microsoft sqlcmd reference](https://learn.microsoft.com/en-us/sql/tools/sqlcmd/sqlcmd-utility).
@@ -62,12 +62,19 @@ and the [Azure marker/sanitation procedure](azure-deployment.md#paired-checkpoin
   -Confirmation 'RESTORE <name>'
 ```
 
-The script forces the target into single-user mode, restores with replacement and recovery, creates
-or updates an owner-controlled restore-pending marker inside the restored database, then returns it
-to multi-user mode. This marker is independent of the restored readiness generation, so an older
-backup cannot report ready merely because its historical generation values match. If SQL Server
-reports a failure, keep traffic stopped and inspect the database state manually; do not assume the
-final mode transition occurred.
+The script forces the target into single-user mode and restores with replacement, recovery, and
+`RESTRICTED_USER`, so the backup's multi-user setting cannot expose restored credentials before the
+pending marker is written. It creates or updates the owner-controlled restore-pending marker, then
+independently verifies that marker on a separate connection before returning to multi-user mode.
+This marker is independent of the restored readiness generation, so an older backup cannot report
+ready merely because its historical generation values match.
+
+On any restore or marker-write failure, the script does not attempt to return to multi-user mode.
+A failure after recovery leaves access restricted to privileged SQL principals. Keep all replicas
+and workers stopped; use a privileged connection to inspect the failure, access mode, and pending
+marker, then rerun the restore or follow a reviewed DBA recovery procedure. Do not manually reopen
+access without establishing the pending marker and completing sanitation. A lost connection or
+failed release can leave the final mode uncertain; the script's error is not permission to cut over.
 
 ## Mandatory post-restore sanitation
 
@@ -103,6 +110,7 @@ The following are source regression checks using their own **disposable test dat
 not accept a target connection and do not validate the restored installation:
 
 ```powershell
+./tests/Workbench.BuildTests/RestoreDatabase.Sql.Tests.ps1
 ./scripts/verify-migrations.ps1 -Scenario RestoreRollback
 ./scripts/verify-database-permissions.ps1
 ```
