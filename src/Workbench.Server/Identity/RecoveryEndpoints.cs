@@ -89,7 +89,7 @@ public static class RecoveryEndpoints
         HttpContext context,
         CancellationToken cancellationToken)
     {
-        if (!operations.PublicOperationsAvailable)
+        if (!operations.PublicInvitationsAvailable)
         {
             return Results.Problem(
                 statusCode: StatusCodes.Status503ServiceUnavailable,

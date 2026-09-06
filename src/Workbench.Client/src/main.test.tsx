@@ -28,6 +28,9 @@ describe('recovery startup', () => {
   it.each([
     ['/recover?%74oken=a%2Bb%2Fc%3D', '/recover', 'a+b/c='],
     ['/invite?token=', '/invite', ''],
+    ['/recover#token=fragment&token=duplicate&section=help', '/recover#section=help', 'fragment'],
+    ['/invite?token=query&next=help#token=fragment', '/invite?next=help', 'fragment'],
+    ['/invite#token=a%2Bb%2Fc%3D', '/invite', 'a+b/c='],
     ['/recover', '/recover', null],
     ['/?token=ordinary', '/?token=ordinary', null],
   ])('handles startup at %s', async (input, expected, token) => {
@@ -36,7 +39,7 @@ describe('recovery startup', () => {
     document.body.innerHTML = '<div id="root"></div>';
     render.mockImplementation((element: ReactElement<{ children: ReactElement<{ recoveryToken: string | null }> }>) => {
       // THEN only recovery capabilities are removed, with decoded data retained in memory
-      expect(window.location.pathname + window.location.search).toBe(expected);
+      expect(window.location.pathname + window.location.search + window.location.hash).toBe(expected);
       expect(element.props.children.props.recoveryToken).toBe(token);
     });
     vi.resetModules();

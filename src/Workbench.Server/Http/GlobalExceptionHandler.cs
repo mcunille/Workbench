@@ -33,7 +33,8 @@ internal sealed class GlobalExceptionHandler(
 
         logger.LogError(exception, "An unhandled exception occurred while processing the request.");
 
-        httpContext.Response.StatusCode = StatusCodes.Status500InternalServerError;
+        var unavailable = exception is Operations.DependencyUnavailableException;
+        httpContext.Response.StatusCode = unavailable ? StatusCodes.Status503ServiceUnavailable : StatusCodes.Status500InternalServerError;
 
         return await problemDetailsService.TryWriteAsync(new ProblemDetailsContext
         {
@@ -41,9 +42,9 @@ internal sealed class GlobalExceptionHandler(
             Exception = exception,
             ProblemDetails = new ProblemDetails
             {
-                Status = StatusCodes.Status500InternalServerError,
-                Title = "An unexpected error occurred.",
-                Type = "https://www.rfc-editor.org/rfc/rfc9110#section-15.6.1",
+                Status = httpContext.Response.StatusCode,
+                Title = unavailable ? "A required service is temporarily unavailable." : "An unexpected error occurred.",
+                Type = unavailable ? "https://www.rfc-editor.org/rfc/rfc9110#section-15.6.4" : "https://www.rfc-editor.org/rfc/rfc9110#section-15.6.1",
             },
         });
     }

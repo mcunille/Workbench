@@ -13,6 +13,19 @@ public sealed class TenantContextProof
     public const int KeySize = 32;
     private readonly byte[] _key;
 
+    public byte[] HashRateLimitPartition(string partition)
+    {
+        var derived = HMACSHA256.HashData(_key, "Workbench.RateLimits.v1"u8);
+        try
+        {
+            return HMACSHA256.HashData(derived, Encoding.UTF8.GetBytes(partition));
+        }
+        finally
+        {
+            CryptographicOperations.ZeroMemory(derived);
+        }
+    }
+
     public TenantContextProof(byte[] key)
     {
         ArgumentNullException.ThrowIfNull(key);

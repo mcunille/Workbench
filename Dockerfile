@@ -9,6 +9,7 @@ RUN npm run build
 
 FROM mcr.microsoft.com/dotnet/sdk:10.0.400-noble AS server-build
 WORKDIR /src
+RUN mkdir -p /runtime-data/blobs
 COPY global.json Directory.Build.props Directory.Packages.props ./
 COPY src/Workbench.Server/Workbench.Server.csproj src/Workbench.Server/packages.lock.json ./src/Workbench.Server/
 COPY src/Workbench.Database/Workbench.Database.csproj src/Workbench.Database/packages.lock.json ./src/Workbench.Database/
@@ -36,6 +37,7 @@ ENV ASPNETCORE_HTTP_PORTS=8080 \
     WORKBENCH_HEALTH_URL=http://127.0.0.1:8080/health/ready
 COPY --from=server-build --chown=1654:1654 /app/publish/ ./
 COPY --from=server-build --chown=1654:1654 /database/publish/ /opt/workbench/database/
+COPY --from=server-build --chown=1654:1654 /runtime-data/ /var/lib/workbench/
 USER 1654
 EXPOSE 8080
 HEALTHCHECK --interval=10s --timeout=6s --start-period=10s --retries=3 \

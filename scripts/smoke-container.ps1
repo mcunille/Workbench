@@ -114,12 +114,19 @@ WORKBENCH_TENANT_CONTEXT_PROOF_KEY_FILE=/run/secrets/tenant-context-proof-key
 WORKBENCH_DATA_PROTECTION_CERTIFICATE_PATH=/run/secrets/data-protection.pfx
 WORKBENCH_DATA_PROTECTION_CERTIFICATE_PASSWORD=$certificatePassword
 WORKBENCH_KNOWN_PROXY=$networkGateway
+Storage__Provider=FileSystem
+Storage__InstallationId=$([Guid]::NewGuid())
+Storage__Root=/var/lib/workbench/blobs
+Storage__DurableVolume=true
 "@
+    $blobRoot = Join-Path $temporaryRoot 'blobs'
+    New-Item -ItemType Directory -Path $blobRoot | Out-Null
     $listener = [Net.Sockets.TcpListener]::new([Net.IPAddress]::Loopback, 0)
     $listener.Start(); $hostPort = ([Net.IPEndPoint]$listener.LocalEndpoint).Port; $listener.Stop()
     & $docker.Source run --detach --name $appContainer --network $network --env-file $appEnvironment `
         --read-only --tmpfs '/tmp:rw,noexec,nosuid,size=64m,uid=1654,gid=1654' `
         --cap-drop ALL --security-opt 'no-new-privileges:true' `
+        --volume "${blobRoot}:/var/lib/workbench/blobs" `
         --volume "${certificatePath}:/run/secrets/data-protection.pfx:ro" `
         --volume "${tenantContextProofKeyFile}:/run/secrets/tenant-context-proof-key:ro" `
         --publish "127.0.0.1:${hostPort}:8080" $image | Out-Null

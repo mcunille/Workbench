@@ -7,6 +7,7 @@ using Workbench.Server.Identity;
 using Workbench.Server.IntegrationTests.Infrastructure;
 using Workbench.Server.Persistence;
 using Xunit;
+using Workbench.Server.Tenancy;
 
 namespace Workbench.Server.IntegrationTests;
 
@@ -19,8 +20,9 @@ public sealed class SensitiveRequestRateLimiterTests(SqlServerFixture sqlServer)
         await using var database = await sqlServer.CreateDatabaseAsync();
         await DatabaseMigrator.MigrateAsync(database.AdminConnectionString, CancellationToken.None);
         var webConnection = await database.CreateWebUserAsync();
-        var first = new SqlSensitiveRequestRateLimiter(webConnection);
-        var second = new SqlSensitiveRequestRateLimiter(webConnection);
+        var proof = new TenantContextProof(await database.GetTenantContextProofKeyAsync());
+        var first = new SqlSensitiveRequestRateLimiter(webConnection, proof);
+        var second = new SqlSensitiveRequestRateLimiter(webConnection, proof);
 
         for (var request = 0; request < 5; request++)
         {
@@ -29,6 +31,12 @@ public sealed class SensitiveRequestRateLimiterTests(SqlServerFixture sqlServer)
         }
 
         Assert.False(await second.TryAcquireAsync("shared-login-window", CancellationToken.None));
+        // THEN the stored partition cannot be reproduced with an unkeyed dictionary hash.
+        await using var inspection = new SqlConnection(database.AdminConnectionString);
+        await inspection.OpenAsync();
+        await using var readPartition = new SqlCommand("SELECT TOP (1) [PartitionHash] FROM [Security].[SensitiveRequestLimits]", inspection);
+        Assert.NotEqual(SHA256.HashData(System.Text.Encoding.UTF8.GetBytes("shared-login-window")),
+            (byte[])(await readPartition.ExecuteScalarAsync())!);
     }
 
     [Fact]
@@ -75,7 +83,7 @@ public sealed class SensitiveRequestRateLimiterTests(SqlServerFixture sqlServer)
             await seed.ExecuteNonQueryAsync();
         }
 
-        Assert.True(await new SqlSensitiveRequestRateLimiter(webConnection)
+        Assert.True(await new SqlSensitiveRequestRateLimiter(webConnection, new TenantContextProof(await database.GetTenantContextProofKeyAsync()))
             .TryAcquireAsync("current-partition", CancellationToken.None));
 
         await using var verifyConnection = new SqlConnection(database.AdminConnectionString);

@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Identity;
 using Workbench.Server.Administration;
 using Workbench.Server.Identity;
 using Workbench.Server.Persistence;
+using Workbench.Server.Storage;
 
 return await RunAsync(args);
 
@@ -13,7 +14,7 @@ static async Task<int> RunAsync(string[] arguments)
     try
     {
         var hasSubcommand = arguments.Length > 1 &&
-            arguments[0] is "tenant" or "principals" or "restore" or "development";
+            arguments[0] is "tenant" or "principals" or "restore" or "development" or "storage";
         var options = ParseOptions(arguments.Skip(hasSubcommand ? 2 : 1));
         if (arguments.Length == 0 ||
             !options.TryGetValue("--connection-file", out var connectionFile) ||
@@ -23,6 +24,12 @@ static async Task<int> RunAsync(string[] arguments)
         }
 
         var connectionString = await ReadValidatedConnectionAsync(connectionFile, expectedDatabase);
+        if (arguments is ["storage", var action, ..])
+        {
+            await StorageMaintenanceCommand.RunAsync(action, connectionString, expectedDatabase, options, CancellationToken.None);
+            Console.WriteLine("Storage maintenance completed.");
+            return 0;
+        }
         if (arguments[0] == "migrate")
         {
             await DatabaseMigrator.MigrateAsync(connectionString, CancellationToken.None);
@@ -117,7 +124,7 @@ static async Task<int> RunAsync(string[] arguments)
         Console.Error.WriteLine(error.Message);
         return 3;
     }
-    catch (Exception error) when (error is ArgumentException or IOException or SqlException)
+    catch (Exception)
     {
         Console.Error.WriteLine("Database command failed. No credentials were printed.");
         return 1;
@@ -162,6 +169,7 @@ static int Usage()
           Workbench.Database tenant create --connection-file <path> --expected-database <name> --tenant-name <name> --admin-email <email> --password-file <path>
           Workbench.Database principals provision --connection-file <path> --expected-database <name> --web-user <name> --web-password-file <path> --operator-user <name> --operator-password-file <path> --migrator-user <name> --migrator-password-file <path> --tenant-context-proof-key-file <path>
           Workbench.Database restore sanitize --connection-file <path> --expected-database <name> --correlation-id <id>
+          Workbench.Database storage <manifest|snapshot|verify|migrate|reconcile> --connection-file <maintenance-path> --expected-database <name> --config-file <path> --offline-confirmation "OFFLINE <name>" [--output-file <new-path>] [--manifest-file <path>]
           Workbench.Database development recovery-link --connection-file <path> --expected-database <name> --environment Development --base-url <url> --email <email> --output-file <path>
         """);
     return 2;

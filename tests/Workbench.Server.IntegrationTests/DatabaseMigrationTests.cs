@@ -13,8 +13,10 @@ public sealed class DatabaseMigrationTests(SqlServerFixture sqlServer)
     [Fact]
     public async Task MigratorCreatesCurrentSchemaOnEmptyDatabase()
     {
+        // GIVEN an empty database.
         await using var database = await sqlServer.CreateDatabaseAsync();
 
+        // WHEN the complete release schema is applied.
         await DatabaseMigrator.MigrateAsync(
             database.AdminConnectionString,
             CancellationToken.None);
@@ -31,19 +33,24 @@ public sealed class DatabaseMigrationTests(SqlServerFixture sqlServer)
             migrations.Add(reader.GetString(0));
         }
 
+        // THEN this feature adds one migration after the established schema history.
         Assert.Collection(
             migrations,
             migration => Assert.EndsWith("_InitialSchema", migration, StringComparison.Ordinal),
-            migration => Assert.EndsWith("_EstablishSecurityBoundaries", migration, StringComparison.Ordinal));
+            migration => Assert.EndsWith("_EstablishSecurityBoundaries", migration, StringComparison.Ordinal),
+            migration => Assert.EndsWith("_AddBlobAndOperationalProviders", migration, StringComparison.Ordinal));
     }
 
-    [Fact]
-    public async Task MigratorUpgradesASeededPriorSchemaWithoutLosingTenantData()
+    [Theory]
+    [InlineData("InitialSchema")]
+    [InlineData("EstablishSecurityBoundaries")]
+    public async Task MigratorUpgradesASeededPriorSchemaWithoutLosingTenantData(string priorMigration)
     {
+        // GIVEN tenant data in either the initial schema or the PR base schema.
         await using var database = await sqlServer.CreateDatabaseAsync();
         await DatabaseMigrator.MigrateToAsync(
             database.AdminConnectionString,
-            "InitialSchema",
+            priorMigration,
             CancellationToken.None);
         await using (var connection = new SqlConnection(database.AdminConnectionString))
         {
@@ -58,25 +65,27 @@ public sealed class DatabaseMigrationTests(SqlServerFixture sqlServer)
             await seed.ExecuteNonQueryAsync();
         }
 
+        // WHEN the current release is applied.
         await DatabaseMigrator.MigrateAsync(database.AdminConnectionString, CancellationToken.None);
 
+        // THEN existing tenant data survives the upgrade.
         Assert.Equal(1, await CountAsync(database.AdminConnectionString, "[Tenancy].[Tenants]"));
     }
 
     [Fact]
-    public async Task LatestMigrationCanRollbackOneVersionAndReapply()
+    public async Task RetainedMetadataCannotBeRolledBackDestructively()
     {
         await using var database = await sqlServer.CreateDatabaseAsync();
         await DatabaseMigrator.MigrateAsync(database.AdminConnectionString, CancellationToken.None);
 
-        await DatabaseMigrator.MigrateToAsync(
+        // GIVEN durable storage metadata, WHEN a destructive schema rollback is requested,
+        // THEN it is refused and the current tables remain available for offline recovery.
+        var error = await Assert.ThrowsAsync<SqlException>(() => DatabaseMigrator.MigrateToAsync(
             database.AdminConnectionString,
             "InitialSchema",
-            CancellationToken.None);
-        Assert.Equal(0, await ObjectCountAsync(database.AdminConnectionString, "Security.DatabaseSecurityState"));
-
-        await DatabaseMigrator.MigrateAsync(database.AdminConnectionString, CancellationToken.None);
-        Assert.Equal(1, await ObjectCountAsync(database.AdminConnectionString, "Security.DatabaseSecurityState"));
+            CancellationToken.None));
+        Assert.Equal(50020, error.Number);
+        Assert.Equal(1, await ObjectCountAsync(database.AdminConnectionString, "Storage.Revisions"));
     }
 
     private static async Task<int> CountAsync(string connectionString, string table)

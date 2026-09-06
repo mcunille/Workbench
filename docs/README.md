@@ -36,6 +36,11 @@ The accepted [data, identity, and tenancy specification](specs/2026-09-01-data-i
 defines the next implementation phase: authoritative SQL persistence, database-enforced tenant
 isolation, built-in identity, durable sessions, explicit migrations, and restore invalidation.
 
+The accepted [blob and operational providers specification](specs/2026-09-05-blob-operational-providers.md)
+defines immutable blob storage, SMTP delivery, shared abuse controls, and durable workers. The
+[provider runbook](operations/blob-and-service-providers.md) covers configuration, retention,
+reconciliation, paired backups, restore verification, and provider migration.
+
 ## Still to be decided
 
 The accepted base architecture deliberately does not yet define:

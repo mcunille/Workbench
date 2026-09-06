@@ -7,6 +7,9 @@
     <OpenApiDocumentsDirectory>$(MSBuildProjectDirectory)\openapi</OpenApiDocumentsDirectory>
   </PropertyGroup>
   <ItemGroup>
+    <PackageReference Include="Azure.Identity" />
+    <PackageReference Include="Azure.Storage.Blobs" />
+    <PackageReference Include="MailKit" />
     <PackageReference Include="Microsoft.AspNetCore.DataProtection.EntityFrameworkCore" />
     <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" />
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" />
@@ -18,17 +21,9 @@
     <Content Update="wwwroot\index.html" CopyToPublishDirectory="Never" />
   </ItemGroup>
   <Target Name="BuildAndIncludeClientForPublish" BeforeTargets="ComputeFilesToPublish">
-    <Exec
-      Command="npm ci --ignore-scripts --no-audit --no-fund"
-      Condition="'$(BuildClient)' == 'true'"
-      WorkingDirectory="$(ClientRoot)" />
-    <Exec
-      Command="npm run build"
-      Condition="'$(BuildClient)' == 'true'"
-      WorkingDirectory="$(ClientRoot)" />
-    <Error
-      Condition="!Exists('$(ClientRoot)dist\index.html')"
-      Text="The Workbench client has not been built. Expected $(ClientRoot)dist\index.html." />
+    <Exec Command="npm ci --ignore-scripts --no-audit --no-fund" Condition="'$(BuildClient)' == 'true'" WorkingDirectory="$(ClientRoot)" />
+    <Exec Command="npm run build" Condition="'$(BuildClient)' == 'true'" WorkingDirectory="$(ClientRoot)" />
+    <Error Condition="!Exists('$(ClientRoot)dist\index.html')" Text="The Workbench client has not been built. Expected $(ClientRoot)dist\index.html." />
     <ItemGroup>
       <ClientDistFiles Include="$(ClientRoot)dist\**\*" />
       <ResolvedFileToPublish Include="@(ClientDistFiles)">

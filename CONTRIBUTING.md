@@ -48,6 +48,14 @@ the [backup/restore runbook](docs/operations/database-backup-restore.md) before 
 Database backups, connection files, password files, recovery links, and `.env.dev` are sensitive
 artifacts and must remain outside source control.
 
+Read the [blob and operational provider runbook](docs/operations/blob-and-service-providers.md) when
+changing storage, SMTP, workers, retention, or recovery. Blob metadata migrations intentionally reject
+destructive down-migration; the rollback gate verifies that guard and the restore path. Run
+`BlobRecoveryTests` for paired SQL/blob recovery and `AzureBlobStoreTests` for emulator portability.
+For filesystem durability changes, run `bash scripts/test-storage-durability.sh` on Linux with .NET 10
+and `strace`. It builds a probe from the current storage source, checks directory sync ordering, and
+injects sync errors and interruptions. This tests syscall behavior, not physical power-loss recovery.
+
 ## Before proposing a change
 
 1. Read the [product vision](docs/VISION.md) and [design principles](docs/DESIGN-PRINCIPLES.md).

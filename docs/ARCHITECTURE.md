@@ -19,8 +19,10 @@ The application-foundation and data-and-identity phases are implemented. The Rea
 ASP.NET Core API, SQL persistence, tenant isolation, built-in identity, durable sessions, health
 contracts, same-origin publish path, explicit database operations, and hardened container topology
 are present and covered by source, integration, browser, migration, permission, restore, publish,
-and container checks. Later phases add blob/provider infrastructure and Azure deployment in
-independently verifiable increments.
+and container checks. Portable filesystem/Azure blob storage, immutable SQL revisions, encrypted SMTP
+outbox delivery, and an explicit SQL-leased worker now provide the operational service foundation.
+Azure deployment remains a separate phase. See the [provider runbook](operations/blob-and-service-providers.md)
+for configuration, paired recovery, and migration procedures.
 
 Detailed inventory, purchasing, accounting, and commerce workflows are outside this document and
 require focused specifications.
@@ -194,9 +196,11 @@ readiness requires a configured provider; the initial portable provider uses aut
 encrypted transport and certificate validation.
 
 Login uses a shared SQL-backed limiter across replicas. Public recovery remains disabled until
-provider-backed delivery and its complete abuse-control integration are implemented. Production
+authenticated SMTP, the shared SQL limiter, and an explicit worker are configured and exercised. Production
 startup rejects public recovery or invitations when either control is unavailable. The
-implemented operations store only token hashes, consume a token exactly once, and revoke affected
+implemented authorization operations store only token hashes; a separately purpose-encrypted outbox
+retains delivery material until completion, expiry/failure, or restore sanitation. Operations consume
+a token exactly once and revoke affected
 sessions when credentials change. A local setup/database-owner caller can write a one-time development recovery link
 only to an explicitly named new file; that capability is not a public recovery provider.
 

@@ -68,6 +68,12 @@ For a non-development provisioning job, pass the Base64-encoded 32-byte value on
 `--tenant-context-proof-key-file`. After provisioning, remove that temporary file. Configure web
 replicas with `WORKBENCH_TENANT_CONTEXT_PROOF_KEY_FILE` pointing to their read-only secret mount.
 
+The blob/provider phase adds one migration, `20260905222755_AddBlobAndOperationalProviders`, after
+the two established baseline migrations. It consolidates three development-only migrations from
+earlier revisions of PR #23. Databases created by those earlier revisions must not be treated as an
+upgrade baseline: use a fresh disposable database for verification, and preserve any retained data
+before planning an explicit transition. No database or migration-history rows are automatically reset.
+
 ## Authoring and validating a migration
 
 Keep migrations deterministic and reversible where SQL Server permits. Review generated SQL and
@@ -84,7 +90,9 @@ and readiness procedures. Run all four drills against disposable real SQL Server
 
 The clean drill applies every migration to an empty database. For the initial database release,
 Upgrade starts from `InitialSchema`; after the baseline ships, it starts from the previous supported
-release. Reversible rollback removes and reapplies `EstablishSecurityBoundaries`. Restore rollback
+release. The historical `ReversibleRollback` scenario now verifies that blob metadata migrations
+refuse a destructive down-migration; retained revisions and queued work require offline recovery.
+Restore rollback
 validates the restored-schema path and mandatory security sanitation. Permission probes exercise the
 actual web, operator, and migrator roles.
 

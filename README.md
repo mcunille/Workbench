@@ -68,6 +68,10 @@ The proxy must replace incoming forwarded headers; verify that separate remote c
 separate login rate-limit budgets through the deployed proxy path. The container smoke test
 checks distinct forwarded clients using its explicitly discovered gateway.
 
+Set `WORKBENCH_INSTALLATION_ID` to a nonempty UUID before starting Compose for the first time
+(generate one with `[Guid]::NewGuid()`). Retain the exact value and formatting across restarts,
+backups, restores, and maintenance: it is part of every stored blob's provider binding.
+
 ## Start here
 
 - [Product vision](docs/VISION.md)

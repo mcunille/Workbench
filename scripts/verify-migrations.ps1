@@ -13,7 +13,7 @@ $logPath = Join-Path $artifactRoot ("{0}-{1}.log" -f $Scenario, (Get-Date -Forma
 $filters = @{
     Clean = 'FullyQualifiedName~DatabaseMigrationTests.MigratorCreatesCurrentSchemaOnEmptyDatabase'
     Upgrade = 'FullyQualifiedName~DatabaseMigrationTests.MigratorUpgradesASeededPriorSchemaWithoutLosingTenantData'
-    ReversibleRollback = 'FullyQualifiedName~DatabaseMigrationTests.LatestMigrationCanRollbackOneVersionAndReapply'
+    ReversibleRollback = 'FullyQualifiedName~DatabaseMigrationTests.RetainedMetadataCannotBeRolledBackDestructively'
     RestoreRollback = 'FullyQualifiedName~RestoreSanitizationTests.RestoreSanitizationInvalidatesAllAuthenticationArtifacts'
 }
 

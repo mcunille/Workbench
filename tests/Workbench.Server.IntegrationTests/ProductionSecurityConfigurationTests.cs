@@ -10,11 +10,14 @@ namespace Workbench.Server.IntegrationTests;
 
 public sealed class ProductionSecurityConfigurationTests
 {
-    [Fact]
-    public async Task ProductionRejectsMissingDataProtectionCertificate()
+    [Theory]
+    [InlineData("Production")]
+    [InlineData("Staging")]
+    [InlineData("Hosted")]
+    public async Task ProductionRejectsMissingDataProtectionCertificate(string environment)
     {
         var validator = new ProductionSecurityConfigurationValidator(
-            new TestHostEnvironment { EnvironmentName = Environments.Production },
+            new TestHostEnvironment { EnvironmentName = environment },
             new ConfigurationBuilder().Build(),
             [],
             []);
