@@ -9,6 +9,11 @@ release image. Only Caddy publishes ports 80/443; the app and SQL listeners rema
 A production installation must pass the acceptance drill below. Static Compose checks do not establish
 TLS, login, mail delivery, filesystem durability, or recovery readiness.
 
+For Windows Docker Desktop with WSL2 and access only from the same computer, follow the
+[automated local self-host guide](local-self-host.md). It generates credentials and certificates from
+tenant/admin inputs and uses local-CA HTTPS with loopback port bindings. The public-DNS instructions
+below are a different deployment scope; do not apply them to expose that QA installation.
+
 ## Prepare the installation
 
 Use a Linux Docker host, a public DNS hostname routed directly to that host, an approved image digest,
@@ -172,5 +177,7 @@ Record the image digest, schema, installation UUID, host platform, timestamp, an
 Do not use `docker compose down --volumes` as a restart or rollback operation. This recipe has no
 zero-downtime claim. The [local verification record](deployment-verification.md) covers disposable
 SQL-backed Compose, validated internal-CA TLS, and session persistence after app replacement.
-Public CA issuance, external SQL certificate validation, the optional local-SQL production profile,
-SMTP delivery, and full installation recovery remain pending separately authorized acceptance.
+The manual Windows localhost drill also exercised the optional SQL profile with a validated private
+CA, first login, restart recovery, and isolated database/empty-blob recovery. Public CA issuance,
+external SQL certificate validation, SMTP delivery, and full installation recovery remain pending
+separately authorized acceptance. See the verification record for the exact limits.

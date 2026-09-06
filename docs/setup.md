@@ -5,6 +5,11 @@ Start here for a new checkout. Run all commands from the repository root in **Po
 HTTP on loopback, and development certificate trust. Keep valuable data in a separately managed
 installation with tested backups; this fixture is not a production database.
 
+For a retained QA service on this Windows computer, use the automated
+[local self-host installation](operations/local-self-host.md) instead. It accepts a tenant name and
+administrator email, builds the selected commit, and provisions Docker SQL, the application, worker,
+and localhost HTTPS. The development instructions below remain a separate disposable workflow.
+
 ## Prerequisites and supported paths
 
 Install .NET SDK **10.0.400**, Node.js **26.7.0**, npm **11.19.0**, PowerShell 7, Git, and Docker
