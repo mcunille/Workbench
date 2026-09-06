@@ -68,6 +68,12 @@ For a non-development provisioning job, pass the Base64-encoded 32-byte value on
 `--tenant-context-proof-key-file`. After provisioning, remove that temporary file. Configure web
 replicas with `WORKBENCH_TENANT_CONTEXT_PROOF_KEY_FILE` pointing to their read-only secret mount.
 
+The blob/provider phase adds one migration, `20260905222755_AddBlobAndOperationalProviders`, after
+the two established baseline migrations. It consolidates three development-only migrations from
+earlier revisions of PR #23. Databases created by those earlier revisions must not be treated as an
+upgrade baseline: use a fresh disposable database for verification, and preserve any retained data
+before planning an explicit transition. No database or migration-history rows are automatically reset.
+
 ## Authoring and validating a migration
 
 Keep migrations deterministic and reversible where SQL Server permits. Review generated SQL and

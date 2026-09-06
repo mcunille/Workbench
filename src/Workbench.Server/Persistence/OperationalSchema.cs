@@ -131,7 +131,7 @@ internal static class OperationalSchema
         migration.Sql("""
             DECLARE @Readiness nvarchar(max) = OBJECT_DEFINITION(OBJECT_ID(N'[Security].[ReadDatabaseReadiness]'));
             SET @Readiness = REPLACE(@Readiness, N'CREATE PROCEDURE', N'ALTER PROCEDURE');
-            SET @Readiness = REPLACE(@Readiness, N'20260904061246_EstablishSecurityBoundaries', N'20260905222755_AddDurableWork');
+            SET @Readiness = REPLACE(@Readiness, N'20260904061246_EstablishSecurityBoundaries', N'20260905222755_AddBlobAndOperationalProviders');
             EXEC sys.sp_executesql @Readiness;
             DECLARE @Sanitize nvarchar(max) = OBJECT_DEFINITION(OBJECT_ID(N'[Administration].[SanitizeRestore]'));
             SET @Sanitize = REPLACE(@Sanitize, N'CREATE PROCEDURE', N'ALTER PROCEDURE');

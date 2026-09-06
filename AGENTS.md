@@ -32,5 +32,6 @@
 
 ## Change integration
 
+- Before opening or updating a pull request, consolidate development-only migrations introduced by the current change into one migration per coherent release change. Preserve dependency ordering, custom SQL, security controls, data transformations, and rollback guards; update the final designer/model snapshot, migration-history assertions, and schema-version references, then verify fresh-database creation and upgrade from the PR base schema. Keep separate migrations only when a staged deployment, backfill, or compatibility boundary requires them, and explain that reason in the PR. Never rewrite migrations from the base branch or migrations applied to a retained/shared environment; use forward migrations instead. Disposable test databases do not prevent consolidation.
 - After requested changes are complete and verification passes, push the working branch and open a pull request against its base branch.
 - Do not merge the pull request without explicit user authorization.

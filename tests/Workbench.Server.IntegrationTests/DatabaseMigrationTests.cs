@@ -13,8 +13,10 @@ public sealed class DatabaseMigrationTests(SqlServerFixture sqlServer)
     [Fact]
     public async Task MigratorCreatesCurrentSchemaOnEmptyDatabase()
     {
+        // GIVEN an empty database.
         await using var database = await sqlServer.CreateDatabaseAsync();
 
+        // WHEN the complete release schema is applied.
         await DatabaseMigrator.MigrateAsync(
             database.AdminConnectionString,
             CancellationToken.None);
@@ -31,22 +33,24 @@ public sealed class DatabaseMigrationTests(SqlServerFixture sqlServer)
             migrations.Add(reader.GetString(0));
         }
 
+        // THEN this feature adds one migration after the established schema history.
         Assert.Collection(
             migrations,
             migration => Assert.EndsWith("_InitialSchema", migration, StringComparison.Ordinal),
             migration => Assert.EndsWith("_EstablishSecurityBoundaries", migration, StringComparison.Ordinal),
-            migration => Assert.EndsWith("_AddBlobMetadata", migration, StringComparison.Ordinal),
-            migration => Assert.EndsWith("_AddImmutableRevisions", migration, StringComparison.Ordinal),
-            migration => Assert.EndsWith("_AddDurableWork", migration, StringComparison.Ordinal));
+            migration => Assert.EndsWith("_AddBlobAndOperationalProviders", migration, StringComparison.Ordinal));
     }
 
-    [Fact]
-    public async Task MigratorUpgradesASeededPriorSchemaWithoutLosingTenantData()
+    [Theory]
+    [InlineData("InitialSchema")]
+    [InlineData("EstablishSecurityBoundaries")]
+    public async Task MigratorUpgradesASeededPriorSchemaWithoutLosingTenantData(string priorMigration)
     {
+        // GIVEN tenant data in either the initial schema or the PR base schema.
         await using var database = await sqlServer.CreateDatabaseAsync();
         await DatabaseMigrator.MigrateToAsync(
             database.AdminConnectionString,
-            "InitialSchema",
+            priorMigration,
             CancellationToken.None);
         await using (var connection = new SqlConnection(database.AdminConnectionString))
         {
@@ -61,8 +65,10 @@ public sealed class DatabaseMigrationTests(SqlServerFixture sqlServer)
             await seed.ExecuteNonQueryAsync();
         }
 
+        // WHEN the current release is applied.
         await DatabaseMigrator.MigrateAsync(database.AdminConnectionString, CancellationToken.None);
 
+        // THEN existing tenant data survives the upgrade.
         Assert.Equal(1, await CountAsync(database.AdminConnectionString, "[Tenancy].[Tenants]"));
     }
 
