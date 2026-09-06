@@ -59,6 +59,15 @@ hardened Compose topology with:
 ./scripts/smoke-container.ps1
 ```
 
+Production Compose requires an explicit `WORKBENCH_KNOWN_PROXY`: the immediate proxy IP as
+observed by the app container. Publishing on host `127.0.0.1` does not mean the container sees
+that peer as loopback; a host reverse proxy may arrive through the Docker network gateway.
+Determine the peer for your deployment and set that exact address before starting Compose.
+Missing or empty values fail configuration. Do not trust an entire network to avoid this check.
+The proxy must replace incoming forwarded headers; verify that separate remote clients retain
+separate login rate-limit budgets through the deployed proxy path. The container smoke test
+checks distinct forwarded clients using its explicitly discovered gateway.
+
 ## Start here
 
 - [Product vision](docs/VISION.md)
