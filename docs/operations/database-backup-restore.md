@@ -46,6 +46,14 @@ Choose a target deliberately. A drill should use an isolated database and networ
 recovery, drain application traffic and preserve the incident evidence and current database when
 safe. The restore credential must target `master`.
 
+The current script is a **replacement restore to an existing SQL Server database**: it runs
+`ALTER DATABASE` before restore and has no `MOVE` options. It does not create an absent target or
+relocate the backup's physical files. Use an isolated SQL Server with an explicitly prepared target
+and compatible file paths, or a separately reviewed DBA restore procedure for new/relocated files.
+Never use the production target merely to satisfy this limitation. Azure SQL Database instead needs
+[point-in-time restore to a new database](https://learn.microsoft.com/en-us/azure/azure-sql/database/recovery-using-backups?view=azuresql)
+and the [Azure marker/sanitation procedure](azure-deployment.md#paired-checkpoint-and-isolated-azure-restore).
+
 ```powershell
 ./scripts/restore-database.ps1 `
   -ConnectionFile <restore-path> `
@@ -91,14 +99,17 @@ pre-restore key-ring copy.
 
 ## Validation before cutover
 
-Run the following against the restored environment before a human authorizes traffic:
+The following are source regression checks using their own **disposable test databases**. They do
+not accept a target connection and do not validate the restored installation:
 
 ```powershell
 ./scripts/verify-migrations.ps1 -Scenario RestoreRollback
 ./scripts/verify-database-permissions.ps1
 ```
 
-Also confirm:
+Before a human authorizes traffic, separately confirm the following against the actual isolated
+restored installation using its reviewed image, mounted secrets, and role-specific connections.
+Do not count passing disposable tests as evidence for these outcomes:
 
 - the expected migration is present and `/health/ready` succeeds through the web principal;
 - liveness remains distinct from dependency readiness;

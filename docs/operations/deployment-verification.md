@@ -1,5 +1,8 @@
 # Deployment verification record
 
+See the [production operations completeness audit](production-readiness.md) for subsequently
+identified runbook and tooling gaps. The local evidence below does not close those acceptance blockers.
+
 Implementation evidence for issue #12, recorded on 2026-09-06 UTC. These checks used disposable
 local resources. No Azure deployment or production operation was performed. The accepted deployment
 specification and issue remain open for hosted acceptance.

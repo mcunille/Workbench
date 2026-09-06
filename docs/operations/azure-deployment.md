@@ -1,5 +1,9 @@
 # Azure deployment operations
 
+**Readiness status:** This runbook is not yet a self-contained, verified production installation.
+See the [production operations audit](production-readiness.md) for missing administrative-host,
+proxy-discovery, monitoring, release, and recovery procedures. These are acceptance blockers.
+
 The [accepted deployment design](../specs/2026-09-05-azure-deployment.md) establishes the target;
 the templates in [infra/azure](../../infra/azure/main.bicep) implement the resource configuration.
 Compilation and parameter checks are local evidence only. No Azure environment, ingress trust,
@@ -87,11 +91,34 @@ to avoid circular secret-resolution dependencies:
    somehow run against an inaccessible public endpoint. Public recovery remains disabled until
    controlled end-to-end email delivery succeeds.
 
+As part of step 3, the initial SQL sequence below runs on the protected administrative host using the database tool
+from the reviewed release. Obtain a setup connection authenticated as the SQL Entra administrator
+and a **different** operator connection authenticated as the identity mapped to `workbench_operator`.
+Both connection files target `Workbench`, require encryption and certificate validation, and must use
+an authentication method available on that host. A system-managed-identity connection works only
+where that actual identity is available; copying a job's connection file onto a laptop does not
+impersonate the job. Keep connection files, proof and administrator password in protected storage.
+
+Run these three commands in order and stop at any nonzero exit:
+
 ```powershell
+dotnet Workbench.Database.dll migrate --connection-file <setup-connection-file> `
+  --expected-database Workbench
+if ($LASTEXITCODE -ne 0) { throw 'Initial migration failed.' }
 dotnet Workbench.Database.dll principals provision-entra --connection-file <setup-connection-file> `
   --expected-database Workbench --identity-file <identity-mappings.json> `
   --tenant-context-proof-key-file <proof-key-file>
+if ($LASTEXITCODE -ne 0) { throw 'Entra principal provisioning failed.' }
+dotnet Workbench.Database.dll bootstrap --connection-file <operator-connection-file> `
+  --expected-database Workbench --tenant-name <tenant-name> --admin-email <administrator-email> `
+  --password-file <administrator-password-file>
+if ($LASTEXITCODE -ne 0) { throw 'Initial tenant/administrator bootstrap failed.' }
 ```
+
+The provisioning command requires the migrated tables and roles; it does not create the schema or
+administrator account. Bootstrap is one-time. The later migration-job run proves the job identity's
+authority and cannot substitute for this initial setup. Verify the administrator can log in through
+the runtime web identity during private acceptance; do not make SQL setup authority available to it.
 
 The identity file is a JSON array of `{ "role": "workbench_web", "name": "<database-user-name>",
 "objectId": "<actual-system-principal-id>" }` entries for `workbench_web`, `workbench_worker`,
@@ -182,8 +209,14 @@ catalog. Confirm the SQL point is actually restorable before calling the checkpo
 
 For a drill use [Azure SQL point-in-time restore](https://learn.microsoft.com/en-us/azure/azure-sql/database/recovery-using-backups?view=azuresql)
 to a new isolated database, not `RESTORE DATABASE`. Keep runtime principals and public routes blocked
-before its first workload connection. Establish restore-pending state through the protected operator
-session, run `restore sanitize`, restore the exact paired blobs, and run `storage verify` before
+before its first workload connection. Establish restore-pending state using **setup/restore authority**,
+not the narrow `workbench_operator` identity: that role is explicitly denied the marking procedure
+and direct marker writes. In an authenticated, protected setup/restore SQL session targeting the
+restored database, execute `EXEC [Administration].[MarkRestorePending];` and verify it succeeded.
+For an older schema lacking that procedure, keep runtime access blocked and apply the reviewed
+migration/marker procedure before any workload connection; do not invent a bypass.
+Then use the distinct operator connection to run `restore sanitize`, restore the exact paired blobs,
+and use the maintenance connection to run `storage verify` before
 readiness. Restore SQL retains old provider aliases: when the isolated blob URI differs, use the
 documented offline `storage migrate` procedure to relocate from an exact restored source binding;
 changing environment variables alone cannot relocate references. Failure to reconstruct that source

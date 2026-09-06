@@ -39,8 +39,11 @@ Local ports are SQL **127.0.0.1:14333** (container 1433), API **localhost:5000**
 The SQL fixture name `workbench-test-sql` and its port are shared across worktrees on one Docker
 engine. Only one checkout should own it at a time.
 
-For installation beyond development, follow the [self-hosted Compose runbook](operations/self-hosted-deployment.md)
-or [Azure runbook](operations/azure-deployment.md). These are the checked-in deployment paths.
+For installation beyond development, start with the [production operations audit](operations/production-readiness.md).
+Neither production runbook is currently a complete, self-contained installation procedure. The
+[self-hosted Compose runbook](operations/self-hosted-deployment.md)
+and [Azure runbook](operations/azure-deployment.md) describe the checked-in deployment paths and
+their acceptance requirements; they must not be treated as production-readiness certification.
 [Provider issue #11](https://github.com/mcunille/Workbench/issues/11) is closed; provider support is
 implemented. [Deployment issue #12](https://github.com/mcunille/Workbench/issues/12) remains open for
 hosted acceptance. Public TLS, real SMTP, external SQL certificate validation, the optional production

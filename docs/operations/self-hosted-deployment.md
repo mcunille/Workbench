@@ -1,5 +1,9 @@
 # Self-hosted deployment
 
+**Readiness status:** This runbook is not yet a self-contained, verified production installation.
+The [production operations audit](production-readiness.md) identifies missing provisioning,
+rotation, monitoring, and recovery procedures. Passing the local smoke test does not close them.
+
 This is the production Compose path for one web replica and one continuous worker using the same
 release image. Only Caddy publishes ports 80/443; the app and SQL listeners remain on Docker bridges.
 A production installation must pass the acceptance drill below. Static Compose checks do not establish
@@ -59,7 +63,22 @@ separate verified mount semantics and are outside this single-host configuration
 
 ## Optional local SQL
 
-Add `-f infra/compose/local-sql.yaml --profile local-sql` to Compose invocations. Set a licensed production
+Add **both** `-f compose.yaml -f infra/compose/local-sql.yaml --profile local-sql` to Compose invocations.
+An explicit `-f` replaces automatic base-file discovery; passing only the SQL overlay omits the
+application, worker, and proxy. Paths are relative to the first file; see
+[Compose file merging](https://docs.docker.com/compose/how-tos/multiple-compose-files/merge/).
+For example, after preparing the required SQL secrets and certificates:
+
+```powershell
+docker compose --env-file /srv/workbench/deployment.env `
+  -f compose.yaml -f infra/compose/local-sql.yaml --profile local-sql config --quiet
+docker compose --env-file /srv/workbench/deployment.env `
+  -f compose.yaml -f infra/compose/local-sql.yaml --profile local-sql up -d sql
+```
+
+Retain the same base/overlay/profile arguments for subsequent `pull`, `up`, `stop`, and `ps` commands.
+Do not start app/worker/proxy until database provisioning has completed.
+Set a licensed production
 `WORKBENCH_SQL_EDITION`; Developer edition is for disposable testing only. Prepare
 `sql-bootstrap-password` and `sql-tls/server.pem` / `sql-tls/server.key` under the secret directory.
 The TLS certificate must match the SQL DNS name used in connections (`sql` on the dependency network)
@@ -100,6 +119,27 @@ it after the drill unless that flow is intentionally enabled. Only after this ev
 chosen flows in the publicly accessible installation. The worker is a supervised continuous process,
 independent of HTTP traffic, with graceful shutdown. Its inherited HTTP healthcheck is disabled because
 it has no HTTP listener; supervise process restarts and persisted queue age/dead letters separately.
+
+The checked-in `test-self-hosted.ps1` validates only `compose.yaml`; it does not load the optional SQL
+overlay or custom rotation overrides. `config --quiet` verifies merged syntax, not SQL certificates,
+file ownership, connectivity, or readiness. Those require an isolated installation drill.
+
+## Data-protection certificate rotation
+
+Retaining old certificates on disk is insufficient. Both workloads must mount each retained PFX and
+its password and configure `DataProtection__PreviousCertificates__0__Path` and
+`DataProtection__PreviousCertificates__0__PasswordFile` (use consecutive indexes for more versions).
+`DataProtection__PreviousCertificates__0__Format=Pfx` selects binary PFX; Azure's Base64 secret
+representation is a separate format. The runtime loads these alongside the current certificate for
+decryption; current secrets alone do not preserve old key access.
+
+Before replacing the current PFX, prepare a protected Compose override for both app and worker with
+those mounts/settings, preserving their existing secrets. Apply and verify that override while the
+old certificate is still current. Then replace current certificate/password together and recreate
+both workloads with the same override. Verify existing sessions and pending encrypted mail still
+work, and drill restoration of a retained paired backup. Keep old certificates and override entries
+until no retained keys, work, or backups depend on them. This required override and live rotation drill
+are not yet supplied as an executable, verified installation procedure; see the audit.
 
 ## Acceptance and release evidence
 
