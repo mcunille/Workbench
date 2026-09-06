@@ -14,7 +14,7 @@ public sealed record BlobManifest(int Version, string SchemaVersion, Guid Backup
 // exposes this authority. Stop every replica and worker before invoking it.
 public static class StorageMaintenanceCommand
 {
-    private const string SchemaVersion = "20260905222755_AddBlobAndOperationalProviders";
+    private const string SchemaVersion = "20260906031109_AddDeploymentQueueTelemetry";
     public static async Task RunAsync(string action, string connectionString, string database,
         IReadOnlyDictionary<string, string> arguments, CancellationToken cancellationToken)
     {

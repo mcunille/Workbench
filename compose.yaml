@@ -1,42 +1,116 @@
 name: workbench
 
+x-runtime: &runtime
+  image: "${WORKBENCH_IMAGE:?Set WORKBENCH_IMAGE to the approved immutable image digest}"
+  init: true
+  restart: unless-stopped
+  user: "1654:1654"
+  read_only: true
+  tmpfs:
+    - /tmp:rw,noexec,nosuid,size=64m,uid=1654,gid=1654
+  cap_drop: [ALL]
+  security_opt: [no-new-privileges:true]
+  stop_grace_period: 90s
+  volumes:
+    - workbench-blobs:/var/lib/workbench/blobs
+
+x-environment: &environment
+  ASPNETCORE_ENVIRONMENT: Production
+  PublicOrigin: "${WORKBENCH_PUBLIC_ORIGIN:?Set WORKBENCH_PUBLIC_ORIGIN to the canonical HTTPS origin}"
+  Storage__Provider: "${WORKBENCH_STORAGE_PROVIDER:-FileSystem}"
+  Storage__InstallationId: "${WORKBENCH_INSTALLATION_ID:?Set WORKBENCH_INSTALLATION_ID to a stable installation UUID}"
+  Storage__Root: /var/lib/workbench/blobs
+  Storage__DurableVolume: "true"
+  Storage__ContainerUri: "${WORKBENCH_BLOB_CONTAINER_URI:-}"
+  Deployment__Replicas: "1"
+  WORKBENCH_TENANT_CONTEXT_PROOF_KEY_FILE: /run/secrets/tenant-proof
+  WORKBENCH_DATA_PROTECTION_CERTIFICATE_PATH: /run/secrets/data-protection.pfx
+  DataProtection__CertificatePasswordFile: /run/secrets/certificate-password
+  Identity__DeliveryProvider: "${WORKBENCH_DELIVERY_PROVIDER:-Disabled}"
+  Smtp__Host: "${WORKBENCH_SMTP_HOST:-}"
+  Smtp__Port: "${WORKBENCH_SMTP_PORT:-587}"
+  Smtp__Security: "${WORKBENCH_SMTP_SECURITY:-StartTls}"
+  Smtp__Username: "${WORKBENCH_SMTP_USERNAME:-}"
+  Smtp__Sender: "${WORKBENCH_SMTP_SENDER:-}"
+  Smtp__PasswordFile: /run/secrets/smtp-password
+
 services:
-  app:
-    image: workbench:local
-    build:
-      context: .
-      dockerfile: Dockerfile
-    init: true
-    user: "1654:1654"
+  proxy:
+    image: caddy:2.10.2-alpine
+    restart: unless-stopped
     read_only: true
-    tmpfs:
-      - /tmp:rw,noexec,nosuid,size=64m,uid=1654,gid=1654
-    cap_drop:
-      - ALL
-    security_opt:
-      - no-new-privileges:true
+    cap_drop: [ALL]
+    cap_add: [NET_BIND_SERVICE]
+    security_opt: [no-new-privileges:true]
     ports:
-      - "127.0.0.1:${WORKBENCH_PORT:-8080}:8080"
+      - "80:80"
+      - "443:443"
     environment:
-      Storage__Provider: FileSystem
-      Storage__InstallationId: "${WORKBENCH_INSTALLATION_ID:?Set WORKBENCH_INSTALLATION_ID to a stable installation UUID}"
-      Storage__Root: /var/lib/workbench/blobs
-      Storage__DurableVolume: "true"
-      WORKBENCH_WEB_CONNECTION: "${WORKBENCH_WEB_CONNECTION:-}"
-      WORKBENCH_TENANT_CONTEXT_PROOF_KEY_FILE: /run/secrets/workbench-tenant-context-proof-key
-      WORKBENCH_DATA_PROTECTION_CERTIFICATE_PATH: /run/secrets/workbench-data-protection.pfx
-      WORKBENCH_DATA_PROTECTION_CERTIFICATE_PASSWORD: "${WORKBENCH_DATA_PROTECTION_CERTIFICATE_PASSWORD:-}"
-      WORKBENCH_KNOWN_PROXY: "${WORKBENCH_KNOWN_PROXY:?Set WORKBENCH_KNOWN_PROXY to the immediate proxy IP observed by the app container}"
+      WORKBENCH_PUBLIC_HOST: "${WORKBENCH_PUBLIC_HOST:?Set WORKBENCH_PUBLIC_HOST to the exact public DNS hostname}"
     volumes:
-      - "workbench-blobs:/var/lib/workbench/blobs"
-      - "${WORKBENCH_DATA_PROTECTION_CERTIFICATE_FILE:-./workbench-data-protection.pfx}:/run/secrets/workbench-data-protection.pfx:ro"
-      - "${WORKBENCH_TENANT_CONTEXT_PROOF_KEY_FILE:-./workbench-tenant-context-proof-key}:/run/secrets/workbench-tenant-context-proof-key:ro"
+      - ./infra/compose/Caddyfile:/etc/caddy/Caddyfile:ro
+      - proxy-data:/data
+      - proxy-config:/config
+    networks:
+      ingress:
+        ipv4_address: "${WORKBENCH_KNOWN_PROXY:?Set WORKBENCH_KNOWN_PROXY to a reserved IPv4 in the ingress subnet}"
+    depends_on:
+      app:
+        condition: service_started
+
+  app:
+    <<: *runtime
+    environment:
+      <<: *environment
+      ConnectionStrings__WorkbenchFile: /run/secrets/web-connection
+      AllowedHosts: "${WORKBENCH_PUBLIC_HOST:?Set WORKBENCH_PUBLIC_HOST to the exact public DNS hostname}"
+      WORKBENCH_HEALTH_HOST: "${WORKBENCH_PUBLIC_HOST:?Set WORKBENCH_PUBLIC_HOST to the exact public DNS hostname}"
+      WORKBENCH_KNOWN_PROXY: "${WORKBENCH_KNOWN_PROXY:?Set WORKBENCH_KNOWN_PROXY to a reserved IPv4 in the ingress subnet}"
+      Identity__PublicRecoveryEnabled: "${WORKBENCH_PUBLIC_RECOVERY_ENABLED:-false}"
+      Identity__PublicInvitationEnabled: "${WORKBENCH_PUBLIC_INVITATION_ENABLED:-false}"
+    secrets: [web-connection, tenant-proof, data-protection.pfx, certificate-password, smtp-password]
+    networks: [ingress, dependencies]
     healthcheck:
-      test: ["CMD", "dotnet", "Workbench.Server.dll", "--health-check"]
+      test: [CMD, dotnet, Workbench.Server.dll, --health-check]
       interval: 10s
       timeout: 6s
-      start_period: 10s
+      start_period: 120s
       retries: 3
+
+  worker:
+    <<: *runtime
+    command: [--worker]
+    environment:
+      <<: *environment
+      ConnectionStrings__WorkerFile: /run/secrets/worker-connection
+    secrets: [worker-connection, tenant-proof, data-protection.pfx, certificate-password, smtp-password]
+    networks: [dependencies]
+    healthcheck:
+      disable: true
+
+networks:
+  ingress:
+    ipam:
+      config:
+        - subnet: "${WORKBENCH_INGRESS_SUBNET:-172.30.74.0/24}"
+          ip_range: "${WORKBENCH_INGRESS_DYNAMIC_RANGE:-172.30.74.128/25}"
+  dependencies: {}
 
 volumes:
   workbench-blobs:
+  proxy-data:
+  proxy-config:
+
+secrets:
+  web-connection:
+    file: "${WORKBENCH_SECRET_DIRECTORY:?Set WORKBENCH_SECRET_DIRECTORY to a protected absolute directory}/web-connection"
+  worker-connection:
+    file: "${WORKBENCH_SECRET_DIRECTORY:?Set WORKBENCH_SECRET_DIRECTORY to a protected absolute directory}/worker-connection"
+  tenant-proof:
+    file: "${WORKBENCH_SECRET_DIRECTORY:?Set WORKBENCH_SECRET_DIRECTORY to a protected absolute directory}/tenant-proof"
+  data-protection.pfx:
+    file: "${WORKBENCH_SECRET_DIRECTORY:?Set WORKBENCH_SECRET_DIRECTORY to a protected absolute directory}/data-protection.pfx"
+  certificate-password:
+    file: "${WORKBENCH_SECRET_DIRECTORY:?Set WORKBENCH_SECRET_DIRECTORY to a protected absolute directory}/certificate-password"
+  smtp-password:
+    file: "${WORKBENCH_SECRET_DIRECTORY:?Set WORKBENCH_SECRET_DIRECTORY to a protected absolute directory}/smtp-password"

@@ -1,0 +1,10 @@
+ContainerAppConsoleLogs_CL
+| where TimeGenerated > ago(10m)
+| where ContainerGroupName_s startswith '__WORKER_NAME__-'
+| extend status = parse_json(Log_s)
+| where tostring(status.Event) == 'WorkQueueStatus'
+| extend PendingCount = tolong(status.PendingCount), OldestPendingAgeSeconds = todouble(status.OldestPendingAgeSeconds)
+| where isnotnull(PendingCount) and PendingCount >= 0 and isnotnull(OldestPendingAgeSeconds) and OldestPendingAgeSeconds >= 0
+| summarize arg_max(TimeGenerated, PendingCount, OldestPendingAgeSeconds)
+| where PendingCount > 0 and OldestPendingAgeSeconds > 300
+| project TimeGenerated, PendingCount, OldestPendingAgeSeconds

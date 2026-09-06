@@ -1,0 +1,7 @@
+ContainerAppSystemLogs_CL
+| where TimeGenerated > ago(10m)
+| where ContainerAppName_s == '__WEB_NAME__'
+| where Log_s contains 'readiness probe failed'
+| summarize FirstFailure = min(TimeGenerated), LastFailure = max(TimeGenerated) by RevisionName_s
+| where LastFailure - FirstFailure >= 5m and LastFailure > ago(2m)
+| project RevisionName_s, FirstFailure, LastFailure

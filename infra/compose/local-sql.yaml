@@ -1,0 +1,25 @@
+# Optional local SQL profile; never exposes SQL on a host port.
+services:
+  sql:
+    image: mcr.microsoft.com/mssql/server:2022-CU20-ubuntu-22.04
+    profiles: [local-sql]
+    restart: unless-stopped
+    environment:
+      ACCEPT_EULA: Y
+      MSSQL_PID: "${WORKBENCH_SQL_EDITION:?Set a licensed production SQL edition}"
+    entrypoint: [/bin/bash, -ec]
+    command:
+      - 'export MSSQL_SA_PASSWORD="$$(cat /run/secrets/sql-bootstrap-password)"; exec /opt/mssql/bin/sqlservr'
+    secrets: [sql-bootstrap-password]
+    volumes:
+      - sql-data:/var/opt/mssql
+      - "${WORKBENCH_SECRET_DIRECTORY:?Set protected secret directory}/sql-tls:/var/opt/mssql/tls:ro"
+      - ./infra/compose/mssql.conf:/var/opt/mssql/mssql.conf:ro
+    networks: [dependencies]
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+volumes:
+  sql-data:
+secrets:
+  sql-bootstrap-password:
+    file: "${WORKBENCH_SECRET_DIRECTORY:?Set protected secret directory}/sql-bootstrap-password"

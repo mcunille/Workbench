@@ -92,6 +92,12 @@ public static class OperationalConfiguration
     public static SmtpOptions ReadSmtp(IConfiguration configuration)
     {
         var options = configuration.GetSection("Smtp").Get<SmtpOptions>() ?? new SmtpOptions();
+        if (!string.IsNullOrEmpty(options.PublicOrigin) && configuration["PublicOrigin"] is { Length: > 0 } canonical &&
+            (!Uri.TryCreate(options.PublicOrigin, UriKind.Absolute, out var messageOrigin) ||
+             !Uri.TryCreate(canonical, UriKind.Absolute, out var publicOrigin) || messageOrigin != publicOrigin))
+        {
+            throw new InvalidOperationException("SMTP public origin must match the canonical public origin.");
+        }
         options.PublicOrigin = configuration["PublicOrigin"] ?? options.PublicOrigin;
         if (configuration["Smtp:PasswordFile"] is { Length: > 0 } path)
         {

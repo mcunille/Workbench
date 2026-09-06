@@ -21,7 +21,10 @@ contracts, same-origin publish path, explicit database operations, and hardened 
 are present and covered by source, integration, browser, migration, permission, restore, publish,
 and container checks. Portable filesystem/Azure blob storage, immutable SQL revisions, encrypted SMTP
 outbox delivery, and an explicit SQL-leased worker now provide the operational service foundation.
-Azure deployment remains a separate phase. See the [provider runbook](operations/blob-and-service-providers.md)
+The Azure deployment phase supplies Bicep, scoped workload identities, explicit migration and worker
+jobs, and a production Compose topology. Its hosted acceptance drills remain pending; see the
+[Azure deployment runbook](operations/azure-deployment.md) and
+[self-hosting runbook](operations/self-hosted-deployment.md). See the [provider runbook](operations/blob-and-service-providers.md)
 for configuration, paired recovery, and migration procedures.
 
 Detailed inventory, purchasing, accounting, and commerce workflows are outside this document and
@@ -262,7 +265,8 @@ same image can use external services or multiple replicas. Azure Container Apps 
 the first request after idle may therefore have cold-start latency.
 
 For self-hosting, the application origin listener is private to the deployment network by default.
-Only explicitly configured proxy addresses may supply forwarded scheme, host, or client-address data.
+Only explicitly configured proxy addresses or narrow networks may supply forwarded scheme or
+client-address data, within a configured hop limit. Forwarded host is never consumed.
 Production configuration requires an allowlisted public host and one canonical public origin. Security
 links and redirects use that configured origin and never request-supplied host or forwarded metadata.
 Startup validation rejects inconsistent proxy, origin, provider, and replica settings.

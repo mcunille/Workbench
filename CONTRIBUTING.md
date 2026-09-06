@@ -58,6 +58,12 @@ injects sync errors and interruptions. This tests syscall behavior, not physical
 
 ## Before proposing a change
 
+Deployment changes also run `./infra/azure/test-parameters.ps1` and
+`./scripts/test-compose-proxy.ps1`. CI compiles and lints `infra/azure/main.bicep` with Bicep
+`0.46.1`. These checks do not create Azure resources. The container smoke gate exercises the
+production Compose topology using disposable SQL and local test TLS; public DNS/certificates,
+real SMTP delivery, and hosted recovery still require their documented operational drills.
+
 1. Read the [product vision](docs/VISION.md) and [design principles](docs/DESIGN-PRINCIPLES.md).
 2. Open or join a discussion about a substantial change before investing in an implementation.
 3. Write a spec for a change that introduces meaningful product behavior, changes a durable

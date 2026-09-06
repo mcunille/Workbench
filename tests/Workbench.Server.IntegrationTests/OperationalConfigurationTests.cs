@@ -8,6 +8,19 @@ namespace Workbench.Server.IntegrationTests;
 
 public sealed class OperationalConfigurationTests
 {
+    [Fact]
+    public void MessageDeliveryCannotOverrideTheInstallationOrigin()
+    {
+        // GIVEN worker configuration with conflicting URL authorities.
+        var configuration = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
+        {
+            ["PublicOrigin"] = "https://workbench.example",
+            ["Smtp:PublicOrigin"] = "https://other.example",
+        }).Build();
+        // WHEN SMTP options are selected outside the web host, THEN the conflicting configuration is rejected.
+        Assert.Throws<InvalidOperationException>(() => OperationalConfiguration.ReadSmtp(configuration));
+    }
+
     [Theory]
     [InlineData(false)]
     [InlineData(true)]

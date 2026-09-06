@@ -10,6 +10,24 @@ permissions:
   contents: read
 
 jobs:
+  deployment-contracts:
+    name: Deployment contracts
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - name: Validate configuration and compile infrastructure
+        shell: pwsh
+        run: |
+          ./infra/azure/test-parameters.ps1
+          ./scripts/test-compose-proxy.ps1
+          az bicep install --version v0.46.1
+          if ($LASTEXITCODE -ne 0) { throw 'Bicep installation failed.' }
+          az bicep build --file infra/azure/main.bicep --outfile /tmp/workbench-infra.json
+          if ($LASTEXITCODE -ne 0) { throw 'Infrastructure compilation failed.' }
+          az bicep lint --file infra/azure/main.bicep
+          if ($LASTEXITCODE -ne 0) { throw 'Infrastructure lint failed.' }
+
   verify:
     name: Source and release unit
     runs-on: ubuntu-latest

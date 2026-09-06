@@ -53,6 +53,14 @@ uploads remain recoverable pending operations; reconciliation reports their unre
 
 ## Identity delivery and worker
 
+Hosted scheduled jobs use `dotnet Workbench.Server.dll --worker --drain`. `Worker:MaxItems` defaults
+to 100 and `Worker:MaxDurationSeconds` to 45; the run stops at an empty eligible queue, its item/time
+bound, or cancellation. The existing `--once` remains a single-item operation. Continuous workers
+emit aggregate queue status at startup processing and at least once per minute between work items;
+drain jobs emit it after the batch. The `WorkQueueStatus` event contains only pending count and oldest
+due age, including zeros for an empty queue. SQL grants the aggregate procedure only to workers and
+does not expose cross-tenant rows. Delayed future work is counted but does not acquire premature age.
+
 Public recovery and invitations default to disabled outside Development. Enable each separately with
 `Identity:PublicRecoveryEnabled` and `Identity:PublicInvitationEnabled` only after configuring
 `Identity:DeliveryProvider=Smtp`, the shared SQL limiter, and a running worker. SMTP settings are
