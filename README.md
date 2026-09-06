@@ -7,70 +7,14 @@ separately: inventory and collections, bookkeeping and accounting, and commerce.
 The project is implementing its accepted base architecture in phases. Its React and TypeScript
 client and ASP.NET Core API publish as one same-origin release unit. SQL Server persistence,
 database-enforced tenant isolation, built-in identity, durable sessions, and explicit database
-operations are implemented. Provider infrastructure and Azure deployment remain later phases.
+operations are implemented. Blob and operational providers and deployment infrastructure are
+implemented; hosted acceptance remains pending.
 
-## Develop locally
+## Setup and installation
 
-Install the pinned .NET SDK `10.0.400`, Node.js `26.7.0`, npm `11.19.0`, and PowerShell 7. Docker is
-also required for the container smoke test.
-
-Copy `.env.dev.example` to the ignored `.env.dev`, replace every placeholder with a distinct local
-secret, start the disposable SQL Server, and perform the one-time bootstrap:
-
-```powershell
-Copy-Item .env.dev.example .env.dev
-# Generate WORKBENCH_TENANT_CONTEXT_PROOF_KEY with:
-# [Convert]::ToBase64String([Security.Cryptography.RandomNumberGenerator]::GetBytes(32))
-./scripts/test-sql.ps1 -Action Start
-./scripts/bootstrap.ps1
-```
-
-Keep `.env.dev` only in the worktree that uses it. Never commit it, paste it into agent prompts, or
-reuse its setup, web, operator, migrator, tenant-proof key, or administrator passwords outside local development.
-Agents may use the stable local administrator account after the human-controlled bootstrap; they do
-not need the setup, operator, or migrator principal for ordinary application development.
-
-Start the API at `http://localhost:5000` after loading the local environment:
-
-```powershell
-. ./scripts/dev-env.ps1
-dotnet run --project src/Workbench.Server
-```
-
-In another terminal, start the client at `http://localhost:5173`; Vite proxies relative `/api` and
-`/health` requests to the API:
-
-```powershell
-npm ci --prefix src/Workbench.Client
-npm run dev --prefix src/Workbench.Client
-```
-
-Run locked restores, formatting, contract generation, builds, server and client tests, SQL
-migration/browser checks, and the published same-origin smoke test with:
-
-```powershell
-./scripts/verify.ps1
-```
-
-On a machine with a Linux-container Docker engine, verify the non-root, read-only runtime image and
-hardened Compose topology with:
-
-```powershell
-./scripts/smoke-container.ps1
-```
-
-Production Compose requires an explicit `WORKBENCH_KNOWN_PROXY`: the immediate proxy IP as
-observed by the app container. Publishing on host `127.0.0.1` does not mean the container sees
-that peer as loopback; a host reverse proxy may arrive through the Docker network gateway.
-Determine the peer for your deployment and set that exact address before starting Compose.
-Missing or empty values fail configuration. Do not trust an entire network to avoid this check.
-The proxy must replace incoming forwarded headers; verify that separate remote clients retain
-separate login rate-limit budgets through the deployed proxy path. The container smoke test
-checks distinct forwarded clients using its explicitly discovered gateway.
-
-Set `WORKBENCH_INSTALLATION_ID` to a nonempty UUID before starting Compose for the first time
-(generate one with `[Guid]::NewGuid()`). Retain the exact value and formatting across restarts,
-backups, restores, and maintenance: it is part of every stored blob's provider binding.
+Follow the [canonical setup guide](docs/setup.md) for prerequisites, safe `.env.dev` creation,
+SQL initialization, first login, routine startup, and supported installation paths.
+See [Contributing](CONTRIBUTING.md) for verification and change-delivery requirements.
 
 ## Start here
 

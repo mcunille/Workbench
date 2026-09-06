@@ -3,6 +3,10 @@
 This directory separates current product direction from the historical reasoning behind individual
 changes.
 
+Start with the [setup and installation guide](setup.md) to initialize a checkout and log in.
+The [production operations audit](operations/production-readiness.md) records why the production
+runbooks do not yet constitute complete, self-contained installation procedures.
+
 ## Current direction
 
 - [VISION.md](VISION.md) defines what Workbench is for, the people it serves, and its major product

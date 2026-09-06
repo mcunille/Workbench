@@ -37,32 +37,10 @@ writes only to an explicitly named new file. Remove that file immediately after 
 
 ## Local one-time setup
 
-Create the ignored environment file, replace all placeholders, and start SQL:
-
-```powershell
-Copy-Item .env.dev.example .env.dev
-./scripts/test-sql.ps1 -Action Start
-./scripts/bootstrap.ps1
-```
-
-`bootstrap.ps1` uses the setup credential to migrate and provision separate database users, then
-uses the operator credential to create the first tenant and administrator. Bootstrap is one-time and
-fails if an installation was already initialized. Subsequent local schema changes use only:
-
-```powershell
-./scripts/migrate.ps1
-```
-
-An agent that needs to run the application loads the ignored file with `./scripts/dev-env.ps1` and
-uses the seeded administrator account. It does not need migration authority unless its assigned task
-specifically changes or verifies the schema.
-
-While the initial database PR is unmerged, its two baseline migrations are consolidated in place.
-An existing development database created from an earlier PR revision will not pick up edits to an
-already-applied migration (including the credential lookup's security-version result). Validate a
-new revision against a fresh disposable database and bootstrap it; ordinary `migrate.ps1` is not a
-refresh of that baseline. Preserve any local data you need before explicitly replacing a development
-database. Once the baseline ships, subsequent changes require new forward migrations.
+Follow the [canonical setup guide](../setup.md) for generated credentials, SQL containment,
+bootstrap, routine migrations, and existing-database precautions. The original identity baseline
+has shipped; never rewrite shipped migrations or retained database history. Earlier unmerged
+PR snapshots require an explicit transition or a deliberately disposable replacement.
 
 For a non-development provisioning job, pass the Base64-encoded 32-byte value only through
 `--tenant-context-proof-key-file`. After provisioning, remove that temporary file. Configure web
