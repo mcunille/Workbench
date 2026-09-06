@@ -39,13 +39,15 @@ public sealed class DatabaseMigrationTests(SqlServerFixture sqlServer)
             migration => Assert.EndsWith("_InitialSchema", migration, StringComparison.Ordinal),
             migration => Assert.EndsWith("_EstablishSecurityBoundaries", migration, StringComparison.Ordinal),
             migration => Assert.EndsWith("_AddBlobAndOperationalProviders", migration, StringComparison.Ordinal),
-            migration => Assert.EndsWith("_AddDeploymentQueueTelemetry", migration, StringComparison.Ordinal));
+            migration => Assert.EndsWith("_AddDeploymentQueueTelemetry", migration, StringComparison.Ordinal),
+            migration => Assert.EndsWith("_DeferInvitationIdentityClaim", migration, StringComparison.Ordinal));
     }
 
     [Theory]
     [InlineData("InitialSchema")]
     [InlineData("EstablishSecurityBoundaries")]
     [InlineData("AddBlobAndOperationalProviders")]
+    [InlineData("AddDeploymentQueueTelemetry")]
     public async Task MigratorUpgradesASeededPriorSchemaWithoutLosingTenantData(string priorMigration)
     {
         // GIVEN tenant data in either the initial schema or the PR base schema.
@@ -129,12 +131,12 @@ public sealed class DatabaseMigrationTests(SqlServerFixture sqlServer)
         await Task.WhenAll(first, second);
 
         // THEN both complete successfully, history appears once, and the current schema exists.
-        Assert.Equal(4, await CountAsync(database.AdminConnectionString, "[dbo].[__EFMigrationsHistory]"));
+        Assert.Equal(5, await CountAsync(database.AdminConnectionString, "[dbo].[__EFMigrationsHistory]"));
         Assert.Equal(1, await ObjectCountAsync(database.AdminConnectionString, "Storage.Revisions"));
         Assert.Equal(1, await ObjectCountAsync(database.AdminConnectionString, "Operations.WorkItems"));
         // AND another invocation observes the completed schema without applying it again.
         await DatabaseMigrator.MigrateAsync(connectionString, timeout.Token);
-        Assert.Equal(4, await CountAsync(database.AdminConnectionString, "[dbo].[__EFMigrationsHistory]"));
+        Assert.Equal(5, await CountAsync(database.AdminConnectionString, "[dbo].[__EFMigrationsHistory]"));
     }
 
     [Fact]
@@ -173,10 +175,53 @@ public sealed class DatabaseMigrationTests(SqlServerFixture sqlServer)
         await SetMigrationLockAsync(lockConnection, acquire: false);
         using var retryTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(45));
         await DatabaseMigrator.MigrateAsync(connectionString, retryTimeout.Token);
-        Assert.Equal(4, await CountAsync(database.AdminConnectionString, "[dbo].[__EFMigrationsHistory]"));
+        Assert.Equal(5, await CountAsync(database.AdminConnectionString, "[dbo].[__EFMigrationsHistory]"));
         Assert.Equal(1, await ObjectCountAsync(database.AdminConnectionString, "Storage.Revisions"));
     }
 
+    [Fact]
+    public async Task UpgradeReleasesOnlyUnacceptedLegacyIdentityClaims()
+    {
+        // GIVEN legacy pending, cancelled and accepted identities, even without operation history.
+        await using var database = await sqlServer.CreateDatabaseAsync();
+        await DatabaseMigrator.MigrateToAsync(database.AdminConnectionString, "AddDeploymentQueueTelemetry", CancellationToken.None);
+        await using var connection = new SqlConnection(database.AdminConnectionString);
+        await connection.OpenAsync();
+        await using (var seed = new SqlCommand("""
+            DECLARE @tenant uniqueidentifier = NEWID();
+            INSERT INTO [Tenancy].[Tenants] ([Id], [Name], [NormalizedName], [IsEnabled], [CreatedAtUtc])
+            VALUES (@tenant, N'Legacy', N'LEGACY', 1, SYSUTCDATETIME());
+            INSERT INTO [Identity].[Users]
+                ([Id], [TenantId], [State], [CreatedAtUtc], [UserName], [NormalizedUserName], [Email], [NormalizedEmail],
+                 [PasswordHash], [EmailConfirmed], [PhoneNumberConfirmed], [TwoFactorEnabled], [LockoutEnabled], [AccessFailedCount])
+            SELECT NEWID(), @tenant, v.[State], SYSUTCDATETIME(), v.[Email], UPPER(v.[Email]), v.[Email], UPPER(v.[Email]),
+                v.[PasswordHash], 0, 0, 0, 0, 0
+            FROM (VALUES (3, N'pending@example.com', NULL), (2, N'cancelled@example.com', NULL),
+                (1, N'enabled@example.com', N'accepted-hash'), (2, N'disabled@example.com', N'accepted-hash'))
+                v([State], [Email], [PasswordHash]);
+            INSERT INTO [Identity].[LoginDirectory] ([NormalizedEmail], [UserId], [TenantId])
+            SELECT [NormalizedEmail], [Id], [TenantId] FROM [Identity].[Users];
+            """, connection))
+        {
+            await seed.ExecuteNonQueryAsync();
+        }
+        // WHEN the forward migration is applied.
+        await DatabaseMigrator.MigrateAsync(database.AdminConnectionString, CancellationToken.None);
+        // THEN only accepted identities retain their global claims, and every tenant row survives.
+        await using var read = new SqlCommand("""
+            SELECT COUNT(*) FROM [Identity].[Users] u
+            WHERE (u.[PasswordHash] IS NULL AND u.[NormalizedUserName] IS NULL
+                AND NOT EXISTS (SELECT 1 FROM [Identity].[LoginDirectory] d WHERE d.[UserId] = u.[Id]))
+            OR (u.[PasswordHash] = N'accepted-hash' AND u.[NormalizedUserName] = u.[NormalizedEmail]
+                AND EXISTS (SELECT 1 FROM [Identity].[LoginDirectory] d WHERE d.[UserId] = u.[Id]));
+            """, connection);
+        Assert.Equal(4, (int)(await read.ExecuteScalarAsync())!);
+        Assert.Equal(2, await CountAsync(database.AdminConnectionString, "[Identity].[LoginDirectory]"));
+        // AND rollback cannot reintroduce reservations or discard pending state.
+        var blocked = await Assert.ThrowsAsync<SqlException>(() => DatabaseMigrator.MigrateToAsync(
+            database.AdminConnectionString, "AddDeploymentQueueTelemetry", CancellationToken.None));
+        Assert.Equal(50020, blocked.Number);
+    }
     private static async Task SetMigrationLockAsync(SqlConnection connection, bool acquire)
     {
         await using var command = new SqlCommand(acquire

@@ -56,13 +56,14 @@ public sealed class DatabaseReadinessTests(SqlServerFixture sqlServer) : IAsyncL
     public async Task PriorReleaseSchemaIsUnreadyUntilDeploymentMigrationIsApplied()
     {
         // GIVEN the previous release schema remains valid but lacks deployment telemetry.
-        await DatabaseMigrator.MigrateToAsync(_application.AdminConnectionString, "AddBlobAndOperationalProviders", CancellationToken.None);
+        await using var prior = await AuthTestApplication.CreateAsync(sqlServer, priorMigration: "AddBlobAndOperationalProviders");
+        using var client = prior.CreateClient();
         // WHEN the current application probes that older schema.
-        Assert.Equal(HttpStatusCode.ServiceUnavailable, (await _client.GetAsync("/health/ready")).StatusCode);
-        Assert.Equal(HttpStatusCode.OK, (await _client.GetAsync("/health/live")).StatusCode);
+        Assert.Equal(HttpStatusCode.ServiceUnavailable, (await client.GetAsync("/health/ready")).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await client.GetAsync("/health/live")).StatusCode);
         // THEN applying the required deployment migration makes this release ready.
-        await DatabaseMigrator.MigrateAsync(_application.AdminConnectionString, CancellationToken.None);
-        Assert.Equal(HttpStatusCode.OK, (await _client.GetAsync("/health/ready")).StatusCode);
+        await DatabaseMigrator.MigrateAsync(prior.AdminConnectionString, CancellationToken.None);
+        Assert.Equal(HttpStatusCode.OK, (await client.GetAsync("/health/ready")).StatusCode);
     }
 
     [Theory]

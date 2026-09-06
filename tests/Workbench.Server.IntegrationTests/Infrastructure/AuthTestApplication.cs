@@ -44,10 +44,11 @@ public sealed class AuthTestApplication : IAsyncDisposable
 
     public static async Task<AuthTestApplication> CreateAsync(
         SqlServerFixture sqlServer,
-        bool disablePublicOperations = false)
+        bool disablePublicOperations = false,
+        string? priorMigration = null)
     {
         var database = await sqlServer.CreateDatabaseAsync();
-        await DatabaseMigrator.MigrateAsync(database.AdminConnectionString, CancellationToken.None);
+        await DatabaseMigrator.MigrateToAsync(database.AdminConnectionString, priorMigration, CancellationToken.None);
         var proofKey = await database.GetTenantContextProofKeyAsync();
         var webConnection = await database.CreateWebUserAsync();
         await SeedAsync(database.AdminConnectionString);
