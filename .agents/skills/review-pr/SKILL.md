@@ -30,6 +30,7 @@ After approval, publish exactly one GitHub review with event `COMMENT`, plus onl
 ## Review workflow
 
 1. Read the selected diff and relevant surrounding code for correctness, security, regressions, test adequacy, and repository requirements.
+   For changed behavior, trace the actual caller or documented entry point through affected boundaries to its observable result. Identify assumptions the existing tests do not exercise, then choose focused checks that could disprove them. Read [verification-boundaries.md](references/verification-boundaries.md) when the change crosses runtimes, services, persistence, or deployment environments, or when mocks bypass an affected boundary. Keep documentation-only and other low-risk reviews proportional to their scope.
 2. On a follow-up, independently validate every author reply, including replies in review threads and top-level replies to unanchorable findings. Read the claimed commit or code, inspect a cited issue when relevant, and run affected repository-native verification when feasible. A user request not to rerun tests is a coverage limit to report, not permission to treat author or CI claims as proof.
 3. Record every prior thread as **satisfied**, **still open**, **conceded**, or **deferred**. Distinguish an outdated thread from a resolved one. A resolved thread without an explanatory reply is still an author claim that requires validation.
 4. Anchor new findings to a changed file and line where possible. Preserve the observed diff side for each anchor: `RIGHT` for additions and context, `LEFT` for deletions. Put concerns that genuinely cannot be line-anchored under **Unanchorable findings** in the grouped review body.
@@ -47,7 +48,7 @@ Before any GitHub write, present this exact preview in chat and wait for fresh e
 
 1. Exact verdict line
 2. Reviewed SHA and full-diff or anchored-delta scope, including escalation reason
-3. Verification and coverage limits
+3. Verification and coverage limits: distinguish static inspection, mocked checks, and actual runtime execution; name material untested boundaries and the scenarios they leave unverified
 4. Prior-thread dispositions: satisfied / still open / conceded / deferred
 5. New line-anchored findings or labeled Unanchorable findings
 6. Exact replies and grouped review body proposed for publication
