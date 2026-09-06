@@ -42,7 +42,7 @@ internal static class OperationalSchema
                     OR EXISTS (SELECT 1 FROM [Security].[BlobRecoveryState] WHERE [IsPending] = 1)
                     THROW 50022, 'Work processing is paused.', 1;
                 DECLARE @Now datetimeoffset = SYSUTCDATETIME();
-                UPDATE [Operations].[WorkItems]
+                UPDATE [Operations].[WorkItems] WITH (UPDLOCK, READPAST, ROWLOCK)
                 SET [State] = 3, [ProtectedPayload] = NULL, [Outcome] = N'AttemptsExhausted',
                     [LeaseOwner] = NULL, [LeaseExpiresAtUtc] = NULL
                 WHERE [State] = 1 AND [Attempts] >= 5 AND [LeaseExpiresAtUtc] <= @Now;

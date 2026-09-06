@@ -52,6 +52,9 @@ Read the [blob and operational provider runbook](docs/operations/blob-and-servic
 changing storage, SMTP, workers, retention, or recovery. Blob metadata migrations intentionally reject
 destructive down-migration; the rollback gate verifies that guard and the restore path. Run
 `BlobRecoveryTests` for paired SQL/blob recovery and `AzureBlobStoreTests` for emulator portability.
+For filesystem durability changes, run `bash scripts/test-storage-durability.sh` on Linux with .NET 10
+and `strace`. It builds a probe from the current storage source, checks directory sync ordering, and
+injects sync errors and interruptions. This tests syscall behavior, not physical power-loss recovery.
 
 ## Before proposing a change
 

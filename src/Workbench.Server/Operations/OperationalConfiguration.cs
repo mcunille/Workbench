@@ -19,6 +19,7 @@ public static class OperationalConfiguration
         }
         if (provider == "FileSystem")
         {
+            RequireInstallationId(configuration);
             var root = configuration["Storage:Root"];
             if (string.IsNullOrWhiteSpace(root) || !Path.IsPathFullyQualified(root) ||
                 !development && !configuration.GetValue<bool>("Storage:DurableVolume"))
@@ -61,11 +62,20 @@ public static class OperationalConfiguration
 
     private static string ProviderAlias(IConfiguration configuration)
     {
+        RequireInstallationId(configuration);
         var location = configuration["Storage:Provider"] == "FileSystem"
             ? Path.TrimEndingDirectorySeparator(Path.GetFullPath(configuration["Storage:Root"]!))
             : new Uri(configuration["Storage:ContainerUri"]!).AbsoluteUri.TrimEnd('/');
         var binding = $"{configuration["Storage:Provider"]}\n{location}\n{configuration["Storage:InstallationId"]}";
         return Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(binding)));
+    }
+
+    private static void RequireInstallationId(IConfiguration configuration)
+    {
+        if (!Guid.TryParse(configuration["Storage:InstallationId"], out var installation) || installation == Guid.Empty)
+        {
+            throw new InvalidOperationException("Storage requires a stable nonempty installation UUID.");
+        }
     }
 
     private static BlobClientOptions AzureOptions()

@@ -44,6 +44,11 @@ public sealed class FileSystemBlobStore(string root, string alias = "filesystem"
         {
             directory.Publish(Name(id, published: false), Name(id, published: true));
         }
+        else
+        {
+            // A prior rename may have succeeded while its directory sync failed.
+            directory.Synchronize();
+        }
         return Task.CompletedTask;
     }
 
@@ -61,6 +66,7 @@ public sealed class FileSystemBlobStore(string root, string alias = "filesystem"
         directory.Delete(Name(id, published: true));
         directory.Delete(Name(id, published: false));
         directory.Delete($"{id.TenantId:N}-{id.RevisionId:N}.c");
+        directory.Synchronize();
         return Task.CompletedTask;
     }
 

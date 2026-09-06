@@ -115,6 +115,7 @@ WORKBENCH_DATA_PROTECTION_CERTIFICATE_PATH=/run/secrets/data-protection.pfx
 WORKBENCH_DATA_PROTECTION_CERTIFICATE_PASSWORD=$certificatePassword
 WORKBENCH_KNOWN_PROXY=$networkGateway
 Storage__Provider=FileSystem
+Storage__InstallationId=$([Guid]::NewGuid())
 Storage__Root=/var/lib/workbench/blobs
 Storage__DurableVolume=true
 "@

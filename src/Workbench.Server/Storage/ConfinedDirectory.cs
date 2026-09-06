@@ -101,6 +101,24 @@ internal sealed class ConfinedDirectory : IDisposable
         {
             ThrowIo(Marshal.GetLastPInvokeError());
         }
+        Synchronize();
+    }
+
+    public void Synchronize()
+    {
+        if (!OperatingSystem.IsLinux())
+        {
+            return;
+        }
+        // Flushing file bytes does not persist a renamed or removed directory entry.
+        while (Fsync(Descriptor) != 0)
+        {
+            var error = Marshal.GetLastPInvokeError();
+            if (error != 4) // EINTR: no durability acknowledgement until the retry succeeds.
+            {
+                ThrowIo(error);
+            }
+        }
     }
 
     public void Delete(string name)
@@ -193,4 +211,7 @@ internal sealed class ConfinedDirectory : IDisposable
 
     [DllImport("libc", EntryPoint = "unlinkat", SetLastError = true)]
     private static extern int UnlinkAt(int directory, [MarshalAs(UnmanagedType.LPUTF8Str)] string name, int flags);
+
+    [DllImport("libc", EntryPoint = "fsync", SetLastError = true)]
+    private static extern int Fsync(int descriptor);
 }

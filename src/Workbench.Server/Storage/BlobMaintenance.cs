@@ -27,6 +27,8 @@ public static class BlobMaintenance
         try
         {
             await VerifyAsync(target, entry, cancellationToken);
+            // A prior copy may have renamed the destination but failed to persist its directory.
+            await target.PublishAsync(new BlobObjectId(entry.TenantId, entry.RevisionId), cancellationToken);
             return;
         }
         catch (FileNotFoundException) { }

@@ -16,7 +16,7 @@ variables (`__` replaces `:`) or mounted configuration/secret files. Do not put 
 | `Storage:Root` | Existing absolute local path | Unused |
 | `Storage:DurableVolume` | `true` outside Development | Unused |
 | `Storage:ContainerUri` | Unused | Private HTTPS container URI, without SAS/query |
-| `Storage:InstallationId` | Stable installation UUID, required for maintenance | Stable installation UUID |
+| `Storage:InstallationId` | Stable nonempty installation UUID, required before startup or uploads | Stable installation UUID |
 | `Deployment:Replicas` | Defaults to 1 | Positive replica count |
 
 The filesystem root must belong exclusively to the installation. Protect it and its ancestors from
@@ -38,7 +38,10 @@ Changing any binding requires an explicit migration. Keep `InstallationId` forma
 change a root, container, or installation setting and expect old references to follow it automatically.
 
 Uploads are bounded to 25 MiB and two minutes. The SHA-256 and length describe exact stored bytes.
-Filesystem uploads write `.c`, flush, rename to staged `.a`, then publish create-only `.b`. Azure commits
+Filesystem uploads write `.c`, flush, rename to staged `.a`, then publish create-only `.b`. On Linux,
+each rename and physical deletion synchronizes the pinned directory before acknowledging completion;
+sync failures propagate, and publication/deletion retries synchronize even when the rename/unlink
+already happened. The filesystem must support directory `fsync`. Azure commits
 an exclusive block list before publication; uncommitted blocks expire under Azure's lifecycle. Streaming
 downloads verify identity at EOF: callers must observe successful completion before accepting a file.
 No filename supplied by a client enters a physical path. Replacements retain earlier immutable bytes.
