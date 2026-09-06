@@ -5,8 +5,10 @@ import {
   requestRecovery,
 } from '../../api/auth';
 
-export function Recovery({ invitation = false }: { invitation?: boolean }) {
-  const token = new URLSearchParams(window.location.search).get('token');
+export function Recovery({ invitation = false, token = null }: {
+  invitation?: boolean;
+  token?: string | null;
+}) {
   const [pending, setPending] = useState(false);
   const [complete, setComplete] = useState(false);
   const [failed, setFailed] = useState(false);

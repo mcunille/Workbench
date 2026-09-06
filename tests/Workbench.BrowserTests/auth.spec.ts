@@ -3,6 +3,40 @@ import { expect, test } from '@playwright/test';
 const email = 'browser-admin@example.test';
 const password = 'Browser Correct Horse 9!';
 
+for (const path of ['/recover', '/invite']) {
+  test(`capability URL is scrubbed and remains usable at ${path}`, async ({ page }) => {
+    // GIVEN a query capability and intercepted account APIs
+    const token = 'browser-sentinel';
+    const requests: import('@playwright/test').Request[] = [];
+    page.on('request', (request) => requests.push(request));
+    await page.route('**/api/auth/antiforgery', (route) => route.fulfill({ json: { requestToken: 'csrf' } }));
+    const endpoint = path === '/invite' ? '/api/auth/invitations/consume' : '/api/auth/recovery/consume';
+    await page.route(`**${endpoint}`, async (route) => {
+      // THEN the capability travels only in the consumption body
+      expect(route.request().postDataJSON()).toEqual({ token, newPassword: password });
+      expect(route.request().headers()['referer']).toBeUndefined();
+      await route.fulfill({ status: 204 });
+    });
+    await page.goto('/recover');
+    // WHEN the link opens and the form is submitted
+    await page.goto(`${path}?token=${token}&token=discarded`);
+    await expect(page).toHaveURL(new RegExp(`${path}$`));
+    await page.getByLabel('New password').fill(password);
+    await page.getByRole('button').click();
+    await expect(page.getByRole('status')).toContainText('Your password has been set');
+    // THEN resources and API requests suppress referrers and history contains the scrubbed entry
+    for (const request of requests.filter((request) => !request.isNavigationRequest())) {
+      expect(request.headers()['referer']).toBeUndefined();
+    }
+    await page.goto('/recover');
+    await page.goBack();
+    await expect(page).toHaveURL(new RegExp(`${path}$`));
+    await page.reload();
+    await expect(page).toHaveURL(new RegExp(`${path}$`));
+    await expect(page.getByLabel('New password')).toHaveCount(0);
+  });
+}
+
 async function signIn(page: import('@playwright/test').Page) {
   await page.goto('/');
   await page.getByLabel('Email').fill(email);
