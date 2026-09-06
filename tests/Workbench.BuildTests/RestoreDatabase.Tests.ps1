@@ -8,6 +8,9 @@ $connectionFile = Join-Path $testRoot 'connection.txt'
 $previousPassword = $env:SQLCMDPASSWORD
 $global:restoreBatchCalls = [Collections.Generic.List[string]]::new()
 function global:sqlcmd {
+    if ($args -cnotcontains '-N' -or $args -ccontains '-C' -or $args -ccontains '-P') {
+        $global:restoreTlsSafe = $false
+    }
     $queryIndex = [Array]::IndexOf($args, '-Q')
     if ($queryIndex -lt 0 -or $queryIndex + 2 -ne $args.Count) {
         throw 'Expected a single SQL batch argument after -Q.'
@@ -27,6 +30,7 @@ try {
             $global:restoreBatchFails = $restoreFails
             $global:restoreCleanupFails = $cleanupFails
             $global:restoreBatchCalls.Clear()
+            $global:restoreTlsSafe = $true
             $env:SQLCMDPASSWORD = 'prior-test-password'
             $failure = $null
 
@@ -39,6 +43,8 @@ try {
 
             # THEN the actual -Q argument contains executable SQL without surrounding quotes.
             if ($global:restoreBatchCalls.Count -ne 2) { throw 'Expected restore and separate cleanup calls.' }
+            # AND every outcome requires encrypted, certificate-validated transport without password arguments.
+            if (-not $global:restoreTlsSafe) { throw 'Restore and cleanup must enforce authenticated TLS.' }
             $batch = $global:restoreBatchCalls[0].Trim()
             if (-not $batch.StartsWith('ALTER DATABASE [WorkbenchRestoreTest] SET SINGLE_USER WITH ROLLBACK IMMEDIATE;') -or
                 -not $batch.EndsWith('INSERT INTO [Security].[WorkbenchRestorePending] ([Id], [IsPending]) VALUES (1, 1);')) {
@@ -85,7 +91,7 @@ try {
 finally {
     $env:SQLCMDPASSWORD = $previousPassword
     Remove-Item Function:\sqlcmd -ErrorAction SilentlyContinue
-    Remove-Variable restoreBatchCalls, restoreBatchFails, restoreCleanupFails -Scope Global -ErrorAction SilentlyContinue
+    Remove-Variable restoreBatchCalls, restoreBatchFails, restoreCleanupFails, restoreTlsSafe -Scope Global -ErrorAction SilentlyContinue
     $resolved = [IO.Path]::GetFullPath($testRoot)
     if (-not $resolved.StartsWith([IO.Path]::GetFullPath([IO.Path]::GetTempPath()), [StringComparison]::OrdinalIgnoreCase)) {
         throw 'Unexpected test cleanup path.'

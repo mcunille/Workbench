@@ -23,7 +23,7 @@ $escapedDestination = $Destination.Replace("'", "''", [StringComparison]::Ordina
 $previousPassword = $env:SQLCMDPASSWORD
 try {
     $env:SQLCMDPASSWORD = $builder.Password
-    & $sqlcmd.Source -S $builder.DataSource -U $builder.UserID -d master -C -b -Q `
+    & $sqlcmd -S $builder.DataSource -U $builder.UserID -d master -N -b -Q `
         "BACKUP DATABASE [$Database] TO DISK = N'$escapedDestination' WITH COPY_ONLY, CHECKSUM, INIT"
     if ($LASTEXITCODE -ne 0) { throw 'Database backup failed.' }
     Write-Host "Database '$Database' backup completed at the explicit server destination."
