@@ -25,10 +25,12 @@ $sqlPassword = "SmokeSql-$suffix-Aa9!"
 $webPassword = "SmokeWeb-$suffix-Aa9!"
 $operatorPassword = "SmokeOperator-$suffix-Aa9!"
 $migratorPassword = "SmokeMigrator-$suffix-Aa9!"
+$workerPassword = "SmokeWorker-$suffix-Aa9!"
 $certificatePassword = "SmokeCertificate-$suffix-Aa9!"
 $webUser = "workbench_web_$($suffix.Substring(0, 12))"
 $operatorUser = "workbench_operator_$($suffix.Substring(0, 12))"
 $migratorUser = "workbench_migrator_$($suffix.Substring(0, 12))"
+$workerUser = "workbench_worker_$($suffix.Substring(0, 12))"
 
 function Assert-NativeCommandSucceeded([string]$name) {
     if ($LASTEXITCODE -ne 0) { throw "$name failed with exit code $LASTEXITCODE." }
@@ -109,6 +111,8 @@ try {
     Assert-NativeCommandSucceeded 'docker network inspect'
     $appEnvironment = Write-SecretFile 'app.env' @"
 ASPNETCORE_ENVIRONMENT=Production
+PublicOrigin=https://127.0.0.1
+AllowedHosts=127.0.0.1
 WORKBENCH_WEB_CONNECTION=Server=$sqlContainer,1433;Database=$database;User Id=$webUser;Password=$webPassword;Encrypt=True;TrustServerCertificate=True
 WORKBENCH_TENANT_CONTEXT_PROOF_KEY_FILE=/run/secrets/tenant-context-proof-key
 WORKBENCH_DATA_PROTECTION_CERTIFICATE_PATH=/run/secrets/data-protection.pfx
@@ -187,6 +191,25 @@ Storage__DurableVolume=true
         throw 'Container durable session validation failed.'
     }
 
+    # GIVEN the current release and separate runtime principals, WHEN the documented Compose
+    # topology starts with local test TLS, THEN sessions survive app replacement through the proxy.
+    $workerSql = Write-SecretFile 'worker-provision.sql' @"
+USE [$database];
+CREATE USER [$workerUser] WITH PASSWORD = N'$workerPassword';
+ALTER ROLE [workbench_worker] ADD MEMBER [$workerUser];
+"@
+    & $docker.Source cp $workerSql "${sqlContainer}:/tmp/workbench-worker.sql"
+    Assert-NativeCommandSucceeded 'worker provisioning input'
+    & $docker.Source exec $sqlContainer /bin/bash -c 'export SQLCMDPASSWORD="$MSSQL_SA_PASSWORD"; /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -C -b -i /tmp/workbench-worker.sql'
+    Assert-NativeCommandSucceeded 'worker principal provisioning'
+    $null = Write-SecretFile 'web-connection' "Server=$sqlContainer,1433;Database=$database;User Id=$webUser;Password=$webPassword;Encrypt=True;TrustServerCertificate=True"
+    $null = Write-SecretFile 'worker-connection' "Server=$sqlContainer,1433;Database=$database;User Id=$workerUser;Password=$workerPassword;Encrypt=True;TrustServerCertificate=True"
+    $null = Write-SecretFile 'tenant-proof' $tenantContextProofKey
+    $null = Write-SecretFile 'certificate-password' $certificatePassword
+    $null = Write-SecretFile 'smtp-password' ''
+    & (Join-Path $PSScriptRoot 'test-compose-runtime.ps1') -DockerPath $docker.Source -Image $image `
+        -SqlNetwork $network -SecretDirectory $temporaryRoot -AdminPasswordFile $adminPasswordFile
+
     $runtimeEnvironment = & $docker.Source inspect --format '{{json .Config.Env}}' $appContainer
     if ($runtimeEnvironment -match [regex]::Escape($sqlPassword) -or
         $runtimeEnvironment -match [regex]::Escape($operatorPassword) -or
@@ -203,11 +226,12 @@ Storage__DurableVolume=true
     Write-Host "Hardened SQL-backed runtime verified at $baseUrl as user $configuredUser."
 }
 catch {
+    $failure = $_
     $runningApp = & $docker.Source ps --all --quiet --filter "name=^/${appContainer}$" 2>$null
     if ($runningApp) {
-        Write-Error "Runtime logs:`n$(& $docker.Source logs $appContainer 2>&1)"
+        Write-Warning "Runtime logs:`n$(& $docker.Source logs $appContainer 2>&1)"
     }
-    throw
+    throw $failure
 }
 finally {
     foreach ($container in @($appContainer, $sqlContainer)) {

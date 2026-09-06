@@ -32,11 +32,7 @@ public sealed class ProductionSecurityConfigurationValidator(
 
         _ = TenantContextProof.Parse(RequireTenantContextProofKey(configuration));
 
-        if (!System.Net.IPAddress.TryParse(GetKnownProxy(configuration), out _))
-        {
-            throw new InvalidOperationException(
-                "Production requires a valid trusted proxy IP address.");
-        }
+        PublicEndpointConfiguration.ConfigureProxy(configuration, new Microsoft.AspNetCore.Builder.ForwardedHeadersOptions(), required: true);
 
         var publicIdentityEnabled = configuration.GetValue<bool>("Identity:PublicRecoveryEnabled") ||
             configuration.GetValue<bool>("Identity:PublicInvitationEnabled");
@@ -50,6 +46,7 @@ public sealed class ProductionSecurityConfigurationValidator(
                 "Public recovery and invitations require production message delivery and shared rate limiting.");
         }
 
+        PublicEndpointConfiguration.Validate(configuration);
         return Task.CompletedTask;
     }
 
@@ -60,8 +57,8 @@ public sealed class ProductionSecurityConfigurationValidator(
         ?? Environment.GetEnvironmentVariable("WORKBENCH_DATA_PROTECTION_CERTIFICATE_PATH");
 
     public static string? GetWebConnectionString(IConfiguration configuration) =>
-        configuration.GetConnectionString("Workbench")
-        ?? Environment.GetEnvironmentVariable("WORKBENCH_WEB_CONNECTION");
+        DeploymentSecrets.ReadValue(configuration, "ConnectionStrings:Workbench",
+            Environment.GetEnvironmentVariable("WORKBENCH_WEB_CONNECTION"));
 
     public static string? GetKnownProxy(IConfiguration configuration) =>
         configuration["ReverseProxy:KnownProxy"]

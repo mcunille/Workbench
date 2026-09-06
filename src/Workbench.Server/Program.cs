@@ -8,7 +8,6 @@ using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using System.Security.Claims;
-using System.Security.Cryptography.X509Certificates;
 using Workbench.Server.Application;
 using Workbench.Server.Administration;
 using Workbench.Server.Authorization;
@@ -23,9 +22,9 @@ using Workbench.Server.Operations;
 using Workbench.Server.Storage;
 using DurableSessionOptions = Workbench.Server.Identity.SessionOptions;
 
-if (args is ["--worker"] or ["--worker", "--once"])
+if (args is ["--worker"] or ["--worker", "--once"] or ["--worker", "--drain"])
 {
-    await WorkerHost.RunAsync(args.Length == 2);
+    await WorkerHost.RunAsync(args is ["--worker", "--once"], args is ["--worker", "--drain"]);
     return;
 }
 
@@ -41,6 +40,10 @@ if (args is ["--health-check"])
     }
 
     using var healthClient = new HttpClient { Timeout = TimeSpan.FromSeconds(5) };
+    if (Environment.GetEnvironmentVariable("WORKBENCH_HEALTH_HOST") is { Length: > 0 } healthHost)
+    {
+        healthClient.DefaultRequestHeaders.Host = healthHost;
+    }
     Environment.ExitCode = await HealthProbe.RunAsync(healthClient, readinessUri);
     return;
 }
@@ -53,16 +56,8 @@ var configuredTenantContextProof = string.IsNullOrWhiteSpace(configuredWebConnec
     ? null
     : TenantContextProof.Parse(
         ProductionSecurityConfigurationValidator.RequireTenantContextProofKey(builder.Configuration));
-var configuredProxy = ProductionSecurityConfigurationValidator.GetKnownProxy(builder.Configuration);
-if (System.Net.IPAddress.TryParse(configuredProxy, out var knownProxy))
-{
-    builder.Services.Configure<ForwardedHeadersOptions>(options =>
-    {
-        options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
-        options.ForwardLimit = 1;
-        options.KnownProxies.Add(knownProxy);
-    });
-}
+builder.Services.Configure<ForwardedHeadersOptions>(options =>
+    PublicEndpointConfiguration.ConfigureProxy(builder.Configuration, options, required: false));
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 builder.Services.AddHealthChecks().AddCheck(
     "self",
@@ -187,13 +182,7 @@ if (!builder.Environment.IsDevelopment())
     var certificatePath = ProductionSecurityConfigurationValidator.GetCertificatePath(builder.Configuration);
     if (!string.IsNullOrWhiteSpace(certificatePath))
     {
-        var certificatePassword = builder.Configuration["DataProtection:CertificatePassword"]
-            ?? Environment.GetEnvironmentVariable("WORKBENCH_DATA_PROTECTION_CERTIFICATE_PASSWORD");
-        var certificate = X509CertificateLoader.LoadPkcs12FromFile(
-            certificatePath,
-            certificatePassword,
-            X509KeyStorageFlags.EphemeralKeySet);
-        dataProtection.ProtectKeysWithCertificate(certificate);
+        DeploymentSecrets.ConfigureProtection(dataProtection, builder.Configuration);
     }
 }
 

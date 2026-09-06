@@ -1,0 +1,17 @@
+{
+    admin off
+}
+
+:443 {
+    respond "Unrecognized host" 421
+}
+
+{$WORKBENCH_PUBLIC_HOST} {
+    reverse_proxy app:8080 {
+        # Replace caller-supplied forwarding headers at the sole trusted hop.
+        header_up X-Forwarded-For {remote_host}
+        header_up X-Forwarded-Proto https
+        header_up -X-Forwarded-Host
+    }
+    # Access logging is deliberately disabled: identity URLs must not enter logs.
+}

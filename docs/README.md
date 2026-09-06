@@ -41,6 +41,15 @@ defines immutable blob storage, SMTP delivery, shared abuse controls, and durabl
 [provider runbook](operations/blob-and-service-providers.md) covers configuration, retention,
 reconciliation, paired backups, restore verification, and provider migration.
 
+The accepted [Azure deployment specification](specs/2026-09-05-azure-deployment.md) defines
+scale-to-zero hosting and portable self-hosting. The [Azure runbook](operations/azure-deployment.md)
+and [Compose runbook](operations/self-hosted-deployment.md) describe the release configuration and
+explicit operational gates. Hosted deployment, cold-start measurements, and cloud recovery evidence
+remain pending; checked-in infrastructure is not evidence that an environment has been deployed.
+The [cost worksheet](operations/deployment-costs.md) records public retail rates and unmeasured
+usage scenarios. The [verification record](operations/deployment-verification.md) separates local
+evidence from pending hosted acceptance.
+
 ## Still to be decided
 
 The accepted base architecture deliberately does not yet define:

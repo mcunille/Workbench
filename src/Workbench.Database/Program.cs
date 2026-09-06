@@ -44,6 +44,19 @@ static async Task<int> RunAsync(string[] arguments)
             return 0;
         }
 
+        if (arguments is ["principals", "provision-entra", ..])
+        {
+            var identities = System.Text.Json.JsonSerializer.Deserialize<EntraPrincipal[]>(
+                await File.ReadAllTextAsync(RequireOption(options, "--identity-file")),
+                new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true })
+                ?? throw new ArgumentException("An identity manifest is required.");
+            var proofKey = Convert.FromBase64String((await File.ReadAllTextAsync(
+                RequireOption(options, "--tenant-context-proof-key-file"))).Trim());
+            await EntraPrincipalProvisioning.ProvisionAsync(connectionString, identities, proofKey, CancellationToken.None);
+            Console.WriteLine("Workbench Entra principals provisioned successfully.");
+            return 0;
+        }
+
         if (arguments is ["restore", "sanitize", ..])
         {
             var correlationId = RequireOption(options, "--correlation-id");
@@ -169,6 +182,7 @@ static int Usage()
           Workbench.Database tenant create --connection-file <path> --expected-database <name> --tenant-name <name> --admin-email <email> --password-file <path>
           Workbench.Database principals provision --connection-file <path> --expected-database <name> --web-user <name> --web-password-file <path> --operator-user <name> --operator-password-file <path> --migrator-user <name> --migrator-password-file <path> --tenant-context-proof-key-file <path>
           Workbench.Database restore sanitize --connection-file <path> --expected-database <name> --correlation-id <id>
+          Workbench.Database principals provision-entra --connection-file <setup-path> --expected-database <name> --identity-file <path> --tenant-context-proof-key-file <path>
           Workbench.Database storage <manifest|snapshot|verify|migrate|reconcile> --connection-file <maintenance-path> --expected-database <name> --config-file <path> --offline-confirmation "OFFLINE <name>" [--output-file <new-path>] [--manifest-file <path>]
           Workbench.Database development recovery-link --connection-file <path> --expected-database <name> --environment Development --base-url <url> --email <email> --output-file <path>
         """);

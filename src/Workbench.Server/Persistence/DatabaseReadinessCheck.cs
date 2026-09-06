@@ -60,7 +60,12 @@ public sealed class DatabaseReadinessCheck(
                 CommandType = CommandType.StoredProcedure,
             };
             var operationalReady = Convert.ToBoolean(await operational.ExecuteScalarAsync(cancellationToken));
-            return state.IsReady && operationalReady
+            await using var deployment = new SqlCommand("[Security].[ReadDeploymentReadiness]", connection)
+            {
+                CommandType = CommandType.StoredProcedure,
+            };
+            var deploymentReady = Convert.ToBoolean(await deployment.ExecuteScalarAsync(cancellationToken));
+            return state.IsReady && operationalReady && deploymentReady
                 ? HealthCheckResult.Healthy()
                 : HealthCheckResult.Unhealthy("Database security state is not ready.");
         }

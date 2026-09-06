@@ -11,6 +11,59 @@ namespace Workbench.Server.IntegrationTests;
 public sealed class ProductionSecurityConfigurationTests
 {
     [Theory]
+    [InlineData(null, "workbench.example")]
+    [InlineData("http://workbench.example", "workbench.example")]
+    [InlineData("https://workbench.example/path", "workbench.example")]
+    [InlineData("https://user@workbench.example", "workbench.example")]
+    [InlineData("https://workbench.example?x=1", "workbench.example")]
+    [InlineData("https://workbench.example#token", "workbench.example")]
+    [InlineData("https://workbench.example", "*")]
+    [InlineData("https://workbench.example", "other.example")]
+    public async Task ProductionRejectsAnUnsafePublicOrigin(string? origin, string hosts)
+    {
+        // GIVEN otherwise valid production configuration with an unsafe public origin or host policy.
+        var settings = ValidSettings();
+        settings["PublicOrigin"] = origin;
+        settings["AllowedHosts"] = hosts;
+        var validator = Validator(settings);
+        // WHEN production starts, THEN external URL authority fails closed.
+        await Assert.ThrowsAsync<InvalidOperationException>(() => validator.StartAsync(CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task ProductionRejectsConflictingMessageOrigin()
+    {
+        // GIVEN a message origin that contradicts the installation origin.
+        var settings = ValidSettings();
+        settings["Smtp:PublicOrigin"] = "https://attacker.example";
+        // WHEN production starts, THEN provider-specific links cannot override deployment authority.
+        await Assert.ThrowsAsync<InvalidOperationException>(() => Validator(settings).StartAsync(CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task ProductionAcceptsExplicitCanonicalOrigin()
+    {
+        // GIVEN one canonical HTTPS origin and an explicit host and proxy.
+        var validator = Validator(ValidSettings());
+        // WHEN production starts, THEN the configuration is accepted.
+        await validator.StartAsync(CancellationToken.None);
+    }
+
+    private static Dictionary<string, string?> ValidSettings() => new()
+    {
+        ["DataProtection:CertificatePath"] = "deployment-certificate.pfx",
+        ["ConnectionStrings:Workbench"] = "Server=database;Database=workbench",
+        ["TenantContext:ProofKey"] = Convert.ToBase64String(new byte[32]),
+        ["ReverseProxy:KnownProxy"] = "10.42.0.2",
+        ["PublicOrigin"] = "https://workbench.example",
+        ["AllowedHosts"] = "workbench.example",
+    };
+
+    private static ProductionSecurityConfigurationValidator Validator(Dictionary<string, string?> settings) => new(
+        new TestHostEnvironment { EnvironmentName = Environments.Production },
+        new ConfigurationBuilder().AddInMemoryCollection(settings).Build(), [], []);
+
+    [Theory]
     [InlineData("Production")]
     [InlineData("Staging")]
     [InlineData("Hosted")]

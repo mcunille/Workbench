@@ -76,6 +76,14 @@ before planning an explicit transition. No database or migration-history rows ar
 
 ## Authoring and validating a migration
 
+The deployment phase adds `20260906031109_AddDeploymentQueueTelemetry` after the shipped provider
+schema. It adds aggregate worker telemetry and deployment readiness procedures with narrow execution
+grants; it does not rewrite the baseline or change tenant rows. The current release requires this
+migration before web readiness or worker activation. Upgrade verification includes the provider
+release as its base. Application rollback to that release is allowed only after verifying its
+readiness/schema compatibility; this migration's down path removes its additive procedures and
+restores the prior readiness version without deleting durable data.
+
 Keep migrations deterministic and reversible where SQL Server permits. Review generated SQL and
 permission changes, especially RLS predicates, grants, denials, migration history, security tables,
 and readiness procedures. Run all four drills against disposable real SQL Server databases:

@@ -4,6 +4,7 @@ using System.Net;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Data.SqlClient;
 using Workbench.Server.IntegrationTests.Infrastructure;
+using Workbench.Server.Persistence;
 using Xunit;
 
 namespace Workbench.Server.IntegrationTests;
@@ -49,6 +50,35 @@ public sealed class DatabaseReadinessTests(SqlServerFixture sqlServer) : IAsyncL
         var response = await _client.GetAsync("/health/ready");
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task PriorReleaseSchemaIsUnreadyUntilDeploymentMigrationIsApplied()
+    {
+        // GIVEN the previous release schema remains valid but lacks deployment telemetry.
+        await DatabaseMigrator.MigrateToAsync(_application.AdminConnectionString, "AddBlobAndOperationalProviders", CancellationToken.None);
+        // WHEN the current application probes that older schema.
+        Assert.Equal(HttpStatusCode.ServiceUnavailable, (await _client.GetAsync("/health/ready")).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await _client.GetAsync("/health/live")).StatusCode);
+        // THEN applying the required deployment migration makes this release ready.
+        await DatabaseMigrator.MigrateAsync(_application.AdminConnectionString, CancellationToken.None);
+        Assert.Equal(HttpStatusCode.OK, (await _client.GetAsync("/health/ready")).StatusCode);
+    }
+
+    [Theory]
+    [InlineData("DROP PROCEDURE [Operations].[ReadWorkQueueStatus]")]
+    [InlineData("REVOKE EXECUTE ON [Operations].[ReadWorkQueueStatus] FROM [workbench_worker]")]
+    public async Task MissingQueueTelemetryAuthorityMakesReadinessUnhealthy(string breakTelemetry)
+    {
+        // GIVEN the required worker telemetry procedure or its execution authority is missing.
+        await using var connection = new SqlConnection(_application.AdminConnectionString);
+        await connection.OpenAsync();
+        await using var command = new SqlCommand(breakTelemetry, connection);
+        await command.ExecuteNonQueryAsync();
+        // WHEN readiness examines the deployed database.
+        var response = await _client.GetAsync("/health/ready");
+        // THEN this release does not advertise readiness with incomplete worker telemetry.
+        Assert.Equal(HttpStatusCode.ServiceUnavailable, response.StatusCode);
     }
 
     [Fact]
