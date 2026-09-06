@@ -26,7 +26,7 @@ $cleanupFailure = $null
 $restoreStarted = $false
 try {
     $env:SQLCMDPASSWORD = $builder.Password
-    $restoreSql = """
+    $restoreSql = @"
         ALTER DATABASE [$Database] SET SINGLE_USER WITH ROLLBACK IMMEDIATE;
         RESTORE DATABASE [$Database] FROM DISK = N'$escapedSource' WITH REPLACE, RECOVERY;
         USE [$Database];
@@ -44,7 +44,7 @@ try {
             UPDATE [Security].[WorkbenchRestorePending] SET [IsPending] = 1 WHERE [Id] = 1;
         ELSE
             INSERT INTO [Security].[WorkbenchRestorePending] ([Id], [IsPending]) VALUES (1, 1);
-        """
+"@
     $restoreStarted = $true
     & $sqlcmd -S $builder.DataSource -U $builder.UserID -d master -C -b -Q `
         $restoreSql
