@@ -21,9 +21,9 @@ and subtitle support. From the repository root:
 
 ```powershell
 npm run build --prefix src/Workbench.Client
-./scripts/record-h1-narration.ps1 -Scenario h3
+./docs/demos/record-narration.ps1 -Scenario h3
 npm test --prefix tests/Workbench.BrowserTests -- --config demos/h3.config.ts
-python ./scripts/render-h1-video.py --scenario h3 --ffmpeg /absolute/path/to/ffmpeg.exe
+python ./docs/demos/render-video.py --scenario h3 --ffmpeg /absolute/path/to/ffmpeg.exe
 ```
 
 Recording is opt-in and excluded from the ordinary browser suite. Raw footage, narration, and

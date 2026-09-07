@@ -20,7 +20,7 @@ def main() -> None:
     parser.add_argument("--ffmpeg", required=True, type=Path)
     parser.add_argument("--scenario", choices=["h1", "h2", "h3"], default="h1")
     args = parser.parse_args()
-    root = Path(__file__).resolve().parent.parent
+    root = Path(__file__).resolve().parents[2]
     source = root / f"artifacts/{args.scenario}-video"
     destination = root / f"docs/demos/{args.scenario}"
     destination.mkdir(parents=True, exist_ok=True)

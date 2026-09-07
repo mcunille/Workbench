@@ -15,9 +15,9 @@ Use the repository development prerequisites, Playwright Chromium, Docker, and a
 
 ```powershell
 npm run build --prefix src/Workbench.Client
-./scripts/record-h1-narration.ps1 -Scenario h2
+./docs/demos/record-narration.ps1 -Scenario h2
 npm test --prefix tests/Workbench.BrowserTests -- --config demos/h2.config.ts
-python ./scripts/render-h1-video.py --scenario h2 --ffmpeg /absolute/path/to/ffmpeg.exe
+python ./docs/demos/render-video.py --scenario h2 --ffmpeg /absolute/path/to/ffmpeg.exe
 ```
 
 The existing scripts retain H1 as their default. H2 recording is opt-in and excluded from the ordinary browser suite. Raw footage, narration, and timing metadata are written to ignored `artifacts/h2-video`. The renderer writes `h2-walkthrough.mp4`, captions, and a timestamped transcript here and decodes the entire result to check video/audio integrity. The recorded scenario passed against the real application at `http://127.0.0.1:4179`; the harness removed its disposable database and storage afterward. The two H2 browser tests also passed. Desktop/light, 320px/dark, gallery, preview, retry, phone, and removal frames were visually inspected. The finished MP4 is 1 minute 49 seconds and 2.7 MB, with complete audio/video decoding verified and a measured audio peak of -0.9 dBFS.
