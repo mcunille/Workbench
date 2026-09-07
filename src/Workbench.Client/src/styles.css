@@ -23,6 +23,9 @@
   --danger: #a12835;
   --focus: #286a9a;
   --overlay-shadow: 0 16px 48px #29282426;
+  --header-material: rgb(255 255 255 / 88%);
+  --card-shadow: 0 2px 4px #29282404, 0 8px 24px #2928240a;
+  --card-hover-shadow: 0 4px 8px #29282408, 0 12px 28px #29282414;
   color-scheme: light;
   background: var(--canvas);
   color: var(--text);
@@ -43,6 +46,9 @@
   --danger: #ffb3bb;
   --focus: #8ccbfa;
   --overlay-shadow: none;
+  --header-material: rgb(34 34 33 / 92%);
+  --card-shadow: 0 2px 4px #00000010, 0 8px 24px #00000020;
+  --card-hover-shadow: 0 4px 8px #00000020, 0 12px 28px #00000030;
   color-scheme: dark;
 }
 * {
@@ -246,6 +252,9 @@ textarea[aria-invalid="true"] {
 
 /* One compact header and a quiet rail keep attention on the current task. */
 .topbar {
+  position: sticky;
+  top: 0;
+  z-index: 10;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -373,7 +382,7 @@ footer {
   overflow-wrap: anywhere;
 }
 
-/* Collection rows form one readable surface instead of a grid of decorative cards. */
+/* Grid and compact list share the same records and link semantics. */
 .collection-list {
   margin: 0 0 1.5rem;
   padding: 0;
@@ -680,7 +689,7 @@ dialog::backdrop {
   top: -100px;
   padding: 1rem;
   background: var(--surface);
-  z-index: 10;
+  z-index: 20;
 }
 .skip-link:focus {
   top: 0;
@@ -868,4 +877,97 @@ dialog::backdrop {
   .workspace-nav a[aria-current="page"] {
     outline: 1px solid Highlight;
   }
+}
+
+/* Material is confined to chrome; reading and editing surfaces stay opaque. */
+@supports (backdrop-filter: blur(16px)) {
+  .topbar {
+    background: var(--header-material);
+    backdrop-filter: blur(16px);
+  }
+}
+@media (prefers-reduced-transparency: reduce), (forced-colors: active) {
+  .topbar {
+    background: var(--surface);
+    backdrop-filter: none;
+  }
+}
+/* Avoid a tall sticky header covering focused content on small or zoomed screens. */
+@media (max-width: 48rem), (max-height: 35rem) {
+  .topbar { position: static; }
+}
+html { scroll-padding-top: 8rem; }
+.collection-view {
+  display: inline-flex;
+  gap: 0.25rem;
+  padding: 0.25rem;
+  margin-bottom: 1.5rem;
+  background: var(--surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: 0.875rem;
+}
+.collection-view button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  min-width: 6rem;
+  background: transparent;
+  color: var(--muted);
+  border: 1px solid transparent;
+}
+.collection-view button[aria-pressed="true"] {
+  background: var(--selected);
+  color: var(--text);
+  border-color: var(--border);
+}
+.collection-list[data-view="grid"] {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 18rem), 1fr));
+  gap: 1.5rem;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+}
+.collection-list[data-view="grid"] li { min-width: 0; }
+.collection-list[data-view="grid"] li::before { content: none; }
+.collection-list[data-view="grid"] a {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0;
+  height: 100%;
+  padding: 0;
+  border: 1px solid var(--border-subtle);
+  border-radius: 1rem;
+  background: var(--surface);
+  box-shadow: var(--card-shadow);
+}
+.collection-list[data-view="grid"] .photo-placeholder {
+  width: 100%;
+  height: auto;
+  aspect-ratio: 3 / 2;
+  border-radius: calc(1rem - 1px) calc(1rem - 1px) 0 0;
+}
+.collection-list[data-view="grid"] .photo-placeholder .icon {
+  width: 36px;
+  height: 36px;
+  opacity: 0.65;
+}
+.collection-list[data-view="grid"] a > span:nth-child(2) {
+  padding: 1.25rem;
+  align-content: start;
+  gap: 0.625rem;
+}
+.collection-list[data-view="grid"] .icon-chevron { display: none; }
+.collection-list[data-view="grid"] a:focus-visible {
+  box-shadow: var(--card-hover-shadow);
+}
+@media (hover: hover) and (pointer: fine) {
+  .collection-list[data-view="grid"] a:hover {
+    box-shadow: var(--card-hover-shadow);
+  }
+}
+@media (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
+  .collection-list[data-view="grid"] a:hover { transform: translateY(-2px); }
 }

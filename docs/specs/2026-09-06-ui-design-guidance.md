@@ -113,7 +113,13 @@ Avoid locked-feature advertisements and empty future modules in ordinary navigat
 Think of a well-organized jeweler's work surface: quiet surroundings, precise labels, and objects
 that reward close inspection. Use neutral paper-like light surfaces and charcoal dark surfaces,
 with a restrained bronze accent derived from The White Stag Collection identity. Avoid simulated
-wood, velvet, metallic gradients, glass blur, and ornamental gem shapes in routine controls.
+wood, velvet, metallic gradients, and ornamental gem shapes in routine controls.
+
+The owner's subsequent approval of the gallery/material refinement permits selective glass blur
+in the workspace header. Cards, forms and record details retain opaque reading surfaces. Provide
+an opaque fallback when blur is unsupported, transparency is reduced or forced colors are active.
+The collection defaults to responsive cards with a compact list option. This supersedes the
+earlier blanket exclusion of glass blur; it does not authorize decorative effects on every surface.
 
 ### Brand relationship and selected accent
 

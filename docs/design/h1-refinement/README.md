@@ -4,6 +4,70 @@ This refinement implements the owner's request for a more beautiful, polished an
 within the accepted [UI direction](../../specs/2026-09-06-ui-design-guidance.md). It changes
 presentation, not inventory capability, authentication, API contracts, or data ownership.
 
+## Approved gallery and material update
+
+The owner subsequently approved responsive collection cards, a compact list option, and selective
+translucency. This supersedes the original single-surface collection treatment and blanket exclusion
+of glass below. The [accepted guidance](../../specs/2026-09-06-ui-design-guidance.md#visual-direction-a-calm-studio-workspace)
+records that change. Earlier research and verification sections remain evidence for the first refinement.
+
+[Gallery concept](gallery-concept.png) is a desktop/phone reference board generated for this update.
+The implementation keeps the original stag, existing navigation labels, system sans headings and
+native appearance control. The generated tenant dropdown is omitted because tenant switching is not
+an H1 capability, and mobile navigation remains available. Cards show neutral image placeholders;
+the design does not fabricate photographs or introduce photo upload.
+
+The collection defaults to Grid. Grid and List are keyboard-operable pressed buttons in a named
+group; switching changes presentation without replacing loaded records, changing links or fetching
+again. View choice is local to the current collection visit. Each card uses a 3:2 placeholder above
+name and location, a 16px radius, an opaque surface and a restrained shadow. A 24px gutter and 18rem
+minimum column width produce three columns at 1440px and one on phones, while allowing long text to
+wrap. List preserves the previous compact rows. Forms and record details stay opaque.
+
+Only the header uses backdrop blur: 16px beneath 88% white in light mode or 92% charcoal in dark mode.
+Unsupported blur, reduced transparency and forced colors use the solid surface token. Desktop
+headers remain visible while scrolling; narrow or short viewports use normal document flow to keep
+content accessible. Skip navigation stays above the header. Cards respond to precise-pointer hover
+with a slight lift and shadow, and keyboard focus remains explicit. Reduced motion removes the lift.
+
+| Fidelity check | Implementation decision |
+| --- | --- |
+| Composition | Responsive gallery replaces the earlier collection wrapper; compact list remains available. |
+| Typography and copy | Existing sans title, exact task copy and navigation names retained; Grid and List are the only new visible labels. |
+| Material and palette | Warm canvas, bronze and charcoal stay consistent; transparency belongs to header chrome, with opaque reading surfaces. |
+| Card geometry | 3:2 image regions, 16px corners, 24px gutters and three desktop columns follow the normalized concept. |
+| Brand and imagery | Original stag and outline icon family retained; generated brand substitutes and fictional photos are excluded. |
+| Mobile | Single-column cards with complete controls; the concept's abbreviated phone chrome is not copied. |
+
+The reference board is 1548x1016 including two device compositions, not a single viewport target.
+Actual desktop and phone layouts are checked separately. The comparison is against the normalized
+specification above, not literal pixel equivalence to generated typography or device frames.
+
+[Desktop gallery](gallery-1440-light.png) · [Compact list](list-1440-light.png) · [Phone gallery, dark](gallery-390-dark.png)
+
+The concept and these final Playwright captures were inspected together with `view_image` for all
+six comparison points above. The first render used four small desktop columns; increasing the
+minimum card width to 18rem corrected that mismatch. No material mismatch remains against the
+normalized specification. In-app browser inspection at `http://127.0.0.1:4181` covered 1440x1000
+and 390x844, Grid/List switching, opening details, and a real phone save surviving reload. The
+temporary browser tab, viewport override, server and SQL database were cleaned up.
+
+The focused presentation regression first failed because the Grid control was absent, then passed.
+All 32 client tests and the first full 16-test browser run passed. Independent source review found
+no actionable findings. The refreshed narrated recording passed its real SQL scenario and complete
+audio/video decode, and its Grid/List frames were inspected. The current hardened-container gate
+passed at `http://127.0.0.1:51595`. No new runtime dependencies were introduced; the built client is
+226.27 kB JS (69.83 kB gzip) and 14.68 kB CSS (3.82 kB gzip). These are build sizes, not field metrics.
+No automated mutation tool is configured for this client; the earlier bounded mutation evidence
+below does not represent mutation coverage of the new gallery controls.
+
+The final complete `scripts/verify.ps1 -SkipDependencyInstall` run passed with 305 server tests,
+32 client tests, all 16 browser tests, formatting, contract drift, builds, all four migration
+scenarios and published-release verification at `http://127.0.0.1:65258`. That browser run includes
+the final three-column geometry, keyboard view changes without refetch, opaque cards, reduced
+transparency, reduced motion and 200% text in the gallery. The disposable published instance was
+cleaned up. Screen-reader and physical-device limitations described below still apply.
+
 ## Design and research
 
 The earlier implementation used the control-border color for nearly every structural divider,

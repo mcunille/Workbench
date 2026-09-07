@@ -12,6 +12,7 @@ type Props = {
   onAuthLost(): void;
 };
 export function Collection({ follow, onAuthLost }: Props) {
+  const [view, setView] = useState<'grid' | 'list'>('grid');
   const [page, setPage] = useState<ItemPage>();
   const [loading, setLoading] = useState(true);
   const [failed, setFailed] = useState(false);
@@ -110,25 +111,40 @@ export function Collection({ follow, onAuthLost }: Props) {
         </div>
       ) : null}
       {page?.items.length ? (
-        <ul className="collection-list">
-          {page.items.map((item) => (
-            <li key={item.id}>
-              <a href={`/inventory/${item.id}`} onClick={follow}>
-                <span className="photo-placeholder" aria-hidden="true">
-                  <Icon name="image" />
-                </span>
-                <span>
-                  <strong className="item-title">{item.name}</strong>
-                  <small className="item-location">
-                    <Icon name="location" />
-                    {item.location ?? 'No location recorded'}
-                  </small>
-                </span>
-                <Icon name="chevron" />
-              </a>
-            </li>
-          ))}
-        </ul>
+        <>
+          <div className="collection-view" role="group" aria-label="Collection view">
+            {(['grid', 'list'] as const).map((mode) => (
+              <button
+                key={mode}
+                type="button"
+                aria-pressed={view === mode}
+                onClick={() => setView(mode)}
+              >
+                <Icon name={mode} />
+                {mode === 'grid' ? 'Grid' : 'List'}
+              </button>
+            ))}
+          </div>
+          <ul className="collection-list" data-view={view}>
+            {page.items.map((item) => (
+              <li key={item.id}>
+                <a href={`/inventory/${item.id}`} onClick={follow}>
+                  <span className="photo-placeholder" aria-hidden="true">
+                    <Icon name="image" />
+                  </span>
+                  <span>
+                    <strong className="item-title">{item.name}</strong>
+                    <small className="item-location">
+                      <Icon name="location" />
+                      {item.location ?? 'No location recorded'}
+                    </small>
+                  </span>
+                  <Icon name="chevron" />
+                </a>
+              </li>
+            ))}
+          </ul>
+        </>
       ) : null}
       {page?.nextCursor ? (
         <button

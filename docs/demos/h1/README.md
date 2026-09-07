@@ -10,7 +10,7 @@ Duration: approximately 2 minutes 20 seconds; MP4, H.264 video with AAC narratio
 
 The walkthrough covers an empty collection, adding a sapphire with notes and a storage location,
 reopening and reloading its details, protecting and discarding a draft, recovering an uncertain
-pendant save without duplication, appearance choices, and a narrow phone viewport. A separate
+pendant save without duplication, appearance choices, Grid/List switching, and a narrow phone viewport. A separate
 authenticated session is verified off camera. The lost response is deliberately induced by
 Playwright after a real server commit; other persistence calls use the real application unchanged.
 
@@ -40,5 +40,5 @@ browser harness provisions and cleans up the disposable database and application
 audio, and timing metadata stay in ignored `artifacts/h1-video`; only the finished MP4, captions,
 transcript, and recording source are included in the PR. The renderer checks the finished file
 by decoding its entire video and audio streams. The recorded scenario passed; ordinary browser
-discovery reports 15 tests after the UI refinement. Representative creation, retry, and mobile frames
+discovery reports 16 tests after the gallery refinement. Representative creation, retry, and mobile frames
 were visually inspected, and the narration's measured peak remained below clipping.

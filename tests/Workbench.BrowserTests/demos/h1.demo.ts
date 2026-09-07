@@ -119,7 +119,11 @@ test('record the narrated H1 scenario against the real database', async ({ brows
   });
   await scene('appearance', async () => {
     await page.getByRole('combobox', { name: 'Appearance', exact: true }).selectOption('dark');
-    await page.waitForTimeout(5000);
+    await page.waitForTimeout(2000);
+    await page.getByRole('button', { name: 'List', exact: true }).click();
+    await page.waitForTimeout(2000);
+    await page.getByRole('button', { name: 'Grid', exact: true }).click();
+    await page.waitForTimeout(1000);
     await page.getByRole('combobox', { name: 'Appearance', exact: true }).selectOption('light');
   });
   await scene('mobile', async () => {

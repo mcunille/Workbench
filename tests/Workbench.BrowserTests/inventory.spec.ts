@@ -44,6 +44,84 @@ async function inspectLayout(page: Page) {
   }
 }
 
+test('collection grid and list preserve saved links across responsive layouts and transparency preferences', async ({ page, context }) => {
+  // GIVEN several real saved holdings and a collection rendered in its default grid.
+  await signIn(page);
+  const names = ['Rose-cut garnet', 'Silver leaf pendant', 'Quartz specimen', 'Copper practice sheet'];
+  for (const [index, name] of names.entries()) {
+    await startItem(page, name);
+    await page.getByLabel('Storage location (optional)', { exact: true }).fill(`Studio drawer ${index + 1}`);
+    await page.getByRole('button', { name: 'Save item', exact: true }).click();
+    await expect(page.getByRole('heading', { name, exact: true })).toBeVisible();
+    await page.getByRole('link', { name: 'Back to collection', exact: true }).click();
+    await expect(itemLink(page, name)).toBeVisible();
+  }
+  const grid = page.getByRole('button', { name: 'Grid', exact: true });
+  const list = page.getByRole('button', { name: 'List', exact: true });
+  await expect(grid).toHaveAttribute('aria-pressed', 'true');
+  const originalLinks = await Promise.all(names.map(name => itemLink(page, name).getAttribute('href')));
+  let reads = 0;
+  page.on('request', request => {
+    if (new URL(request.url()).pathname === '/api/items' && request.method() === 'GET') reads++;
+  });
+  await mkdir(screenshotDirectory, { recursive: true });
+
+  // WHEN each view is selected by keyboard at phone, tablet and desktop sizes in both themes.
+  for (const width of [320, 390, 768, 1440]) {
+    await page.setViewportSize({ width, height: 1000 });
+    for (const appearance of ['light', 'dark']) {
+      await page.getByRole('combobox', { name: 'Appearance', exact: true }).selectOption(appearance);
+      for (const [view, button] of [['grid', grid], ['list', list]] as const) {
+        await button.focus();
+        await page.keyboard.press('Enter');
+        await expect(button).toHaveAttribute('aria-pressed', 'true');
+        await expect(button).toBeFocused();
+        await inspectLayout(page);
+        // THEN every saved item retains its link and no collection data is fetched again.
+        expect(await Promise.all(names.map(name => itemLink(page, name).getAttribute('href')))).toEqual(originalLinks);
+        expect(reads).toBe(0);
+        const columns = new Set(await Promise.all(names.map(async name => Math.round((await itemLink(page, name).boundingBox())!.x))));
+        if (view === 'list' || width === 320) expect(columns.size).toBe(1);
+        if (view === 'grid' && width === 1440) expect(columns.size).toBeGreaterThan(1);
+        await page.screenshot({ path: `${screenshotDirectory}/collection-${view}-${width}-${appearance}.png`, fullPage: true });
+      }
+    }
+  }
+
+  // AND reduced motion removes card travel, while enlarged text still reflows in the grid.
+  await grid.click();
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await itemLink(page, names[0]).hover();
+  expect(await itemLink(page, names[0]).evaluate(element => getComputedStyle(element).transform)).toBe('none');
+  expect(await itemLink(page, names[0]).evaluate(element => getComputedStyle(element).backgroundColor)).toMatch(/^rgb\(/);
+  await page.setViewportSize({ width: 640, height: 1000 });
+  const enlargedText = await page.addStyleTag({ content: 'html { font-size: 200%; }' });
+  await inspectLayout(page);
+  await enlargedText.evaluate(element => element.remove());
+  await page.setViewportSize({ width: 1440, height: 1000 });
+
+  // AND a reduced-transparency preference makes the header opaque without changing item links.
+  const cdp = await context.newCDPSession(page);
+  try {
+    await cdp.send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-reduced-transparency', value: 'reduce' }] });
+    expect(await page.evaluate(() => matchMedia('(prefers-reduced-transparency: reduce)').matches)).toBe(true);
+    for (const appearance of ['light', 'dark']) {
+      await page.getByRole('combobox', { name: 'Appearance', exact: true }).selectOption(appearance);
+      const header = page.locator('header.topbar');
+      await expect.poll(() => header.evaluate(element => getComputedStyle(element).backdropFilter)).toBe('none');
+      const background = await header.evaluate(element => getComputedStyle(element).backgroundColor);
+      expect(background).toMatch(/^rgb\(/);
+      await inspectLayout(page);
+      await page.screenshot({ path: `${screenshotDirectory}/collection-opaque-header-${appearance}.png`, fullPage: true });
+    }
+  } finally {
+    await cdp.detach();
+  }
+  expect(reads).toBe(0);
+  await itemLink(page, names[0]).click();
+  await expect(page.getByRole('heading', { name: names[0], exact: true })).toBeVisible();
+});
+
 test('the studio shell reflows with enlarged text and respects reduced motion', async ({ page }) => {
   // GIVEN a collector entering a draft with the refined header and form surfaces.
   await signIn(page);
