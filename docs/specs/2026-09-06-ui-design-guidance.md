@@ -32,8 +32,9 @@ session infrastructure; it is not yet a collection workspace.
 
 [styles.css](../../src/Workbench.Client/src/styles.css) supplies a green light palette, large
 headings, rounded panels, and one responsive media query. It has no dark-theme token mapping or
-theme preference control. Retain the existing green identity while reducing oversized operational
-headings and decorative panel treatment. This is source inspection, not a rendered UI audit or an
+theme preference control. The existing green is implementation history, not established brand
+authority. Subsequent owner feedback rejects that accent and supplies The White Stag Collection
+logo as the brand reference. Reduce oversized operational headings and decorative panel treatment. This is source inspection, not a rendered UI audit or an
 accessibility conformance assessment.
 
 ## Research synthesis
@@ -107,8 +108,34 @@ Avoid locked-feature advertisements and empty future modules in ordinary navigat
 
 Think of a well-organized jeweler's work surface: quiet surroundings, precise labels, and objects
 that reward close inspection. Use neutral paper-like light surfaces and charcoal dark surfaces,
-with a restrained green accent that continues the current identity. Avoid simulated wood, velvet,
+with a restrained bronze accent derived from The White Stag Collection identity. Avoid simulated wood, velvet,
 metallic gradients, glass blur, and ornamental gem shapes in routine controls.
+
+### Brand relationship and accent options
+
+The owner-supplied **The White Stag Collection.svg** uses `#947C4A`, a muted antique gold, with
+an angular, finely drawn stag and classic lettering. Preserve the original artwork and its gold;
+do not replace it with a generic gem icon. A compact stag emblem beside a serif Workbench wordmark
+is the proposed product signature. Keep the full company lockup for settings/about or larger brand
+placements where its lettering remains legible. Body text, controls and numerical tables retain
+the system sans-serif stack. An emblem-only presentation is a proposed adaptation of the supplied
+artwork, not a newly approved company logo.
+
+Use warm stone and charcoal neutrals without a green cast. **Bronze is recommended**, with Ink and
+Slate blue retained as comparison options in the mockup. Accent choice remains proposed; the owner
+has supported the overall direction but has not selected a final accent.
+
+| Accent option | Light action fill / text | Dark action fill / text | Character |
+| --- | --- | --- | --- |
+| Bronze (recommended) | `#775D2F` / `#FFFFFF` | `#D1B77C` / `#292316` | Closest relationship to the logo, warm and understated. |
+| Ink | `#343944` / `#FFFFFF` | `#CFD0D2` / `#202329` | Quiet, largely neutral controls; the gold emblem supplies the brand color. |
+| Slate blue | `#405D78` / `#FFFFFF` | `#A5C3E0` / `#1A2938` | A cooler complement to the gold identity. |
+
+The original gold has approximately 4.01:1 contrast against white, so it is not the default fill
+for buttons with normal-sized white text. Bronze uses darker/lighter functional variants while
+leaving the artwork unchanged. The opaque action pairs above calculate to 6.19:1 / 8.00:1 for
+Bronze, 11.57:1 / 10.20:1 for Ink, and 6.87:1 / 8.10:1 for Slate blue (light / dark). These are
+static pair checks, not proof of complete component-state accessibility.
 
 The recognizable pattern is the **item identity block**: photograph or honest missing-photo
 placeholder, readable name, stable identifier, and a short line of relevant measurements. Reuse
@@ -148,15 +175,15 @@ entire component's opacity to create disabled styling.
 
 | Token role | Light | Dark | Use |
 | --- | --- | --- | --- |
-| `canvas` | `#F6F7F5` | `#151816` | Application background. |
-| `surface` | `#FFFFFF` | `#1D221F` | Content and controls. |
-| `surface-raised` | `#FFFFFF` | `#272D29` | Menus, dialogs and floating surfaces. |
-| `text` | `#202923` | `#EDF2EE` | Primary content. |
-| `text-muted` | `#566259` | `#AFBBB2` | Readable supporting content, never decorative opacity. |
-| `border-subtle` | `#D9DFDA` | `#3E4942` | Decorative separation only. |
-| `border-control` | `#78877D` | `#7D8F82` | Identifiable input/control boundary. |
-| `accent` | `#245C40` | `#9BD5AF` | Primary action fill and selected emphasis. |
-| `on-accent` | `#FFFFFF` | `#14251A` | Text/icons on the accent fill. |
+| `canvas` | `#F6F5F2` | `#191919` | Application background. |
+| `surface` | `#FFFFFF` | `#222221` | Content and controls. |
+| `surface-raised` | `#FFFFFF` | `#2C2C2A` | Menus, dialogs and floating surfaces. |
+| `text` | `#292824` | `#F1EFEB` | Primary content. |
+| `text-muted` | `#625F58` | `#BAB7AF` | Readable supporting content, never decorative opacity. |
+| `border-subtle` | `#DFDDD6` | `#494741` | Decorative separation only. |
+| `border-control` | `#878176` | `#969083` | Identifiable input/control boundary. |
+| `accent` | `#775D2F` | `#D1B77C` | Primary action fill and selected emphasis. |
+| `on-accent` | `#FFFFFF` | `#292316` | Text/icons on the accent fill. |
 | `focus` | `#286A9A` | `#8CCBFA` | Visible focus ring, with surface-colored offset. |
 | `danger-text` | `#A12835` | `#FFB3BB` | Error/destructive text paired with an explicit label. |
 | `warning-text` | `#775000` | `#F1CF83` | Warning text paired with an explicit label. |
@@ -169,14 +196,15 @@ still require rendered verification.
 
 | Pair | Light minimum | Dark minimum |
 | --- | --- | --- |
-| Primary text / base surfaces | 13.93:1 | 12.41:1 |
-| Muted text / base surfaces | 5.95:1 | 7.08:1 |
-| Control border / base surfaces | 3.51:1 | 4.10:1 |
-| Focus / base surfaces | 5.40:1 | 8.06:1 |
-| Danger, warning and success text / base surfaces | 6.57:1 | 8.31:1 |
-| On-accent / accent | 7.84:1 | 9.57:1 |
+| Primary text / base surfaces | 13.53:1 | 12.18:1 |
+| Muted text / base surfaces | 5.84:1 | 6.98:1 |
+| Control border / base surfaces | 3.55:1 | 4.41:1 |
+| Focus / base surfaces | 5.32:1 | 8.02:1 |
+| Danger, warning and success text / base surfaces | 6.48:1 | 8.27:1 |
+| On-accent / accent | 6.19:1 | 8.00:1 |
 
-Keep accent and success as separate roles even when related in hue. Use spacing and surface levels
+Keep brand accent and semantic status as separate roles. Neutral availability labels do not need
+success coloring; reserve semantic color for states that benefit from it. Use spacing and surface levels
 for hierarchy, thin separators for structure, and restrained shadows on actual overlays. In dark
 mode, distinguish overlays through surface and border contrast rather than stronger black shadows.
 The semantic-role approach is informed by
