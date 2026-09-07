@@ -2,7 +2,7 @@
 
 **Readiness status:** This runbook is not yet a self-contained, verified production installation.
 See the [production operations audit](production-readiness.md) for missing administrative-host,
-proxy-discovery, monitoring, release, and recovery procedures. These are acceptance blockers.
+ingress acceptance, monitoring, release, and recovery procedures. These are acceptance blockers.
 
 The [accepted deployment design](../specs/2026-09-05-azure-deployment.md) establishes the target;
 the templates in [infra/azure](../../infra/azure/main.bicep) implement the resource configuration.
