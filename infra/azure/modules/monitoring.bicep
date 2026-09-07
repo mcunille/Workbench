@@ -75,7 +75,7 @@ resource logRules 'Microsoft.Insights/scheduledQueryRules@2023-12-01' = [for ale
     severity: 2
     enabled: alert.enabled
     scopes: [logsId]
-    evaluationFrequency: 'PT1M'
+    evaluationFrequency: alert.name == 'readiness-failures' ? 'PT1M' : 'PT5M'
     windowSize: 'PT10M'
     // Tables do not exist during the first inactive bootstrap. Live query validation is a release gate.
     skipQueryValidation: true

@@ -52,11 +52,15 @@ public sealed class DatabaseReadinessTests(SqlServerFixture sqlServer) : IAsyncL
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
     }
 
-    [Fact]
-    public async Task PriorReleaseSchemaIsUnreadyUntilDeploymentMigrationIsApplied()
+    [Theory]
+    [InlineData("AddBlobAndOperationalProviders")]
+    [InlineData("AddDeploymentQueueTelemetry")]
+    [InlineData("DeferInvitationIdentityClaim")]
+    [InlineData("AddProviderRetryDelay")]
+    public async Task PriorReleaseSchemaIsUnreadyUntilDeploymentMigrationIsApplied(string priorMigration)
     {
-        // GIVEN the previous release schema remains valid but lacks deployment telemetry.
-        await using var prior = await AuthTestApplication.CreateAsync(sqlServer, priorMigration: "AddBlobAndOperationalProviders");
+        // GIVEN a prior release schema lacks one of this release's required worker or identity capabilities.
+        await using var prior = await AuthTestApplication.CreateAsync(sqlServer, priorMigration: priorMigration);
         using var client = prior.CreateClient();
         // WHEN the current application probes that older schema.
         Assert.Equal(HttpStatusCode.ServiceUnavailable, (await client.GetAsync("/health/ready")).StatusCode);
@@ -69,6 +73,9 @@ public sealed class DatabaseReadinessTests(SqlServerFixture sqlServer) : IAsyncL
     [Theory]
     [InlineData("DROP PROCEDURE [Operations].[ReadWorkQueueStatus]")]
     [InlineData("REVOKE EXECUTE ON [Operations].[ReadWorkQueueStatus] FROM [workbench_worker]")]
+    [InlineData("DROP PROCEDURE [Security].[ReadProviderRetryReadiness]")]
+    [InlineData("REVOKE EXECUTE ON [Operations].[RetryWork] FROM [workbench_worker]")]
+    [InlineData("ALTER PROCEDURE [Operations].[RetryWork] AS SELECT 0;")]
     public async Task MissingQueueTelemetryAuthorityMakesReadinessUnhealthy(string breakTelemetry)
     {
         // GIVEN the required worker telemetry procedure or its execution authority is missing.

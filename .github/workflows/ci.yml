@@ -32,6 +32,7 @@ jobs:
         shell: pwsh
         run: |
           ./infra/azure/test-parameters.ps1
+          ./infra/azure/test-bootstrap.ps1
           ./scripts/test-compose-proxy.ps1
           az bicep install --version v0.46.1
           if ($LASTEXITCODE -ne 0) { throw 'Bicep installation failed.' }

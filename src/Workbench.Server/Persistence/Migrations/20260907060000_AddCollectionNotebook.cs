@@ -68,7 +68,7 @@ namespace Workbench.Server.Persistence.Migrations
                 DENY UPDATE, DELETE ON [Inventory].[Items] TO [workbench_web];
                 DECLARE @Readiness nvarchar(max) = OBJECT_DEFINITION(OBJECT_ID(N'[Security].[ReadDatabaseReadiness]'));
                 SET @Readiness = REPLACE(@Readiness, N'CREATE PROCEDURE', N'ALTER PROCEDURE');
-                SET @Readiness = REPLACE(@Readiness, N'20260906092000_DeferInvitationIdentityClaim', N'20260907043931_AddCollectionNotebook');
+                SET @Readiness = REPLACE(@Readiness, N'20260907054000_AddProviderRetryDelay', N'20260907060000_AddCollectionNotebook');
                 EXEC sys.sp_executesql @Readiness;
                 """);
         }

@@ -15,7 +15,7 @@ public sealed class InventoryReadinessTests(SqlServerFixture sqlServer)
     public async Task ImmediatePriorSchemaMustBeUpgradedBeforeServingInventory()
     {
         // GIVEN the immediate prior release with valid authentication but no inventory schema.
-        await using var application = await AuthTestApplication.CreateAsync(sqlServer, priorMigration: "DeferInvitationIdentityClaim");
+        await using var application = await AuthTestApplication.CreateAsync(sqlServer, priorMigration: "AddProviderRetryDelay");
         using var client = application.CreateClient();
         // WHEN this release probes readiness.
         var response = await client.GetAsync("/health/ready");

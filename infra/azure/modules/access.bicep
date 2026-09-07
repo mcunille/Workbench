@@ -1,3 +1,5 @@
+@allowed(['Smtp', 'Graph'])
+param deliveryProvider string = 'Smtp'
 param storageName string
 param vaultName string
 param webPrincipalId string
@@ -40,7 +42,7 @@ var baseAssignments = [
 ]
 var webPrevious = [for (name, i) in previousSecretNames: { principal: webPrincipalId, secretIndex: i + 5 }]
 var workerPrevious = [for (name, i) in previousSecretNames: { principal: workerPrincipalId, secretIndex: i + 5 }]
-var assignments = concat(baseAssignments, webPrevious, workerPrevious)
+var assignments = concat(filter(baseAssignments, assignment => deliveryProvider == 'Smtp' || assignment.secretIndex != 3), webPrevious, workerPrevious)
 resource secretRoles 'Microsoft.Authorization/roleAssignments@2022-04-01' = [for assignment in assignments: {
   name: guid(vault.id, secretNames[assignment.secretIndex], assignment.principal, 'secret-reader')
   scope: secrets[assignment.secretIndex]

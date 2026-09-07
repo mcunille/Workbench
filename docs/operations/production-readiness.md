@@ -45,6 +45,14 @@ successful initial installation.
 
 ## Corrections made in this change
 
+The subsequent [Azure release verification fixes](../specs/azure-release-verification-fixes.md)
+add worker-only Graph delivery, versioned Entra manifests using client IDs for SQL SIDs,
+verified bootstrap revision deactivation, independent migration configuration, and five-minute
+evaluation for the two affected worker alerts. These implementation corrections do not close
+hosted acceptance. The released worker must still deliver a queued message using its own identity;
+web login, public TLS/proxy trust, recovery, alerts, and measured costs need target-environment
+evidence. The operator's successful bootstrap-VM mail test does not substitute for that worker test.
+
 | Defect | Correction |
 | --- | --- |
 | SQL overlay invocation omitted the base Compose file | Show `-f compose.yaml -f infra/compose/local-sql.yaml --profile local-sql`; using only the overlay drops the app/worker/proxy. |

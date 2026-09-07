@@ -20,6 +20,13 @@ param containerUri string
 param vaultUri string
 param maxReplicas int
 param workerSchedule string
+@allowed(['Smtp', 'Graph'])
+param deliveryProvider string = 'Smtp'
+param graphMailboxId string = ''
+param graphManagedIdentityClientId string = ''
+param mailIdentityId string = ''
+@description('Configure the manual migration job independently of web activation.')
+param migrationConfigured bool = false
 param smtpHost string
 param smtpPort int
 param smtpUsername string
@@ -31,7 +38,7 @@ var identities = union({ '${registryPullIdentityId}': {} }, {})
 var registry = [{ server: registryServer, identity: registryPullIdentityId }]
 var previousPfxNames = [for certificate in previousCertificates: certificate.secretName]
 var previousPasswordNames = [for certificate in previousCertificates: certificate.passwordSecretName]
-var sharedSecretNames = concat(['tenant-proof', 'protection-pfx', 'protection-password', 'smtp-password'], previousPfxNames, previousPasswordNames)
+var sharedSecretNames = concat(['tenant-proof', 'protection-pfx', 'protection-password'], deliveryProvider == 'Smtp' ? ['smtp-password'] : [], previousPfxNames, previousPasswordNames)
 var sharedSecrets = [for name in sharedSecretNames: {
   name: name
   keyVaultUrl: '${vaultUri}secrets/${name}'
@@ -49,9 +56,12 @@ var baseEnv = [
   { name: 'DataProtection__CertificatePath', value: '/secrets/protection-pfx' }
   { name: 'DataProtection__CertificateFormat', value: 'Base64' }
   { name: 'DataProtection__CertificatePasswordFile', value: '/secrets/protection-password' }
-  { name: 'Identity__DeliveryProvider', value: 'Smtp' }
+  { name: 'Identity__DeliveryProvider', value: deliveryProvider }
   { name: 'Identity__PublicRecoveryEnabled', value: string(enablePublicRecovery) }
   { name: 'Identity__PublicInvitationEnabled', value: 'false' }
+]
+var smtpEnv = [
+  { name: 'Smtp__PublicOrigin', value: publicOrigin }
   { name: 'Smtp__Host', value: smtpHost }
   { name: 'Smtp__Port', value: string(smtpPort) }
   { name: 'Smtp__Security', value: 'StartTls' }
@@ -62,7 +72,12 @@ var baseEnv = [
 var previousPaths = [for (certificate, i) in previousCertificates: { name: 'DataProtection__PreviousCertificates__${i}__Path', value: '/secrets/${certificate.secretName}' }]
 var previousFormats = [for (certificate, i) in previousCertificates: { name: 'DataProtection__PreviousCertificates__${i}__Format', value: 'Base64' }]
 var previousPasswords = [for (certificate, i) in previousCertificates: { name: 'DataProtection__PreviousCertificates__${i}__PasswordFile', value: '/secrets/${certificate.passwordSecretName}' }]
-var sharedEnv = concat(baseEnv, previousPaths, previousFormats, previousPasswords)
+var graphEnv = [
+  { name: 'Graph__MailboxId', value: graphMailboxId }
+  { name: 'Graph__ManagedIdentityClientId', value: graphManagedIdentityClientId }
+  { name: 'Graph__PublicOrigin', value: publicOrigin }
+]
+var sharedEnv = concat(baseEnv, deliveryProvider == 'Graph' ? graphEnv : smtpEnv, previousPaths, previousFormats, previousPasswords)
 var proxyAddresses = [for (address, i) in trustedProxyAddresses: { name: 'ReverseProxy__KnownProxies__${i}', value: address }]
 var proxyNetworks = [for (network, i) in trustedProxyNetworks: { name: 'ReverseProxy__KnownNetworks__${i}', value: network }]
 var proxyEnv = concat(
@@ -146,7 +161,7 @@ resource web 'Microsoft.App/containerApps@2025-01-01' = {
 resource worker 'Microsoft.App/jobs@2025-01-01' = {
   name: '${prefix}-worker'
   location: location
-  identity: { type: 'SystemAssigned, UserAssigned', userAssignedIdentities: identities }
+  identity: { type: 'SystemAssigned, UserAssigned', userAssignedIdentities: deliveryProvider == 'Graph' ? union(identities, { '${mailIdentityId}': {} }) : identities }
   properties: {
     environmentId: environmentId
     workloadProfileName: 'Consumption'
@@ -190,7 +205,7 @@ resource migration 'Microsoft.App/jobs@2025-01-01' = {
       replicaRetryLimit: 0
       manualTriggerConfig: { parallelism: 1, replicaCompletionCount: 1 }
       registries: registry
-      secrets: activate ? [{ name: 'migration-connection', keyVaultUrl: '${vaultUri}secrets/migration-connection', identity: 'system' }] : []
+      secrets: (activate || migrationConfigured) ? [{ name: 'migration-connection', keyVaultUrl: '${vaultUri}secrets/migration-connection', identity: 'system' }] : []
     }
     template: {
       containers: [{
@@ -199,9 +214,9 @@ resource migration 'Microsoft.App/jobs@2025-01-01' = {
         command: ['dotnet', '/opt/workbench/database/Workbench.Database.dll']
         args: ['migrate', '--connection-file', '/secrets/connection', '--expected-database', databaseName]
         resources: { cpu: json('0.5'), memory: '1Gi' }
-        volumeMounts: activate ? mounts : []
+        volumeMounts: (activate || migrationConfigured) ? mounts : []
       }]
-      volumes: activate ? [{ name: 'secrets', storageType: 'Secret', secrets: [{ secretRef: 'migration-connection', path: 'connection' }] }] : []
+      volumes: (activate || migrationConfigured) ? [{ name: 'secrets', storageType: 'Secret', secrets: [{ secretRef: 'migration-connection', path: 'connection' }] }] : []
     }
   }
 }

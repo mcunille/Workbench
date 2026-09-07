@@ -13,6 +13,20 @@ function Test-MappedAddressOverlap([Net.IPNetwork] $Network) {
 }
 function Test-WorkbenchAzureParameters([hashtable] $Document) {
     $p = $Document.parameters
+    $provider = if ($p.deliveryProvider) { $p.deliveryProvider.value } else { 'Smtp' }
+    if ($provider -cnotin @('Smtp', 'Graph')) { throw 'Delivery provider must be Smtp or Graph.' }
+    if ($provider -eq 'Graph') {
+        foreach ($key in @('graphMailboxId', 'graphManagedIdentityClientId')) {
+            $id = [guid]::Empty
+            if (-not [guid]::TryParse($p[$key].value, [ref] $id) -or $id -eq [guid]::Empty) {
+                throw "Graph requires an explicit nonempty $key UUID."
+            }
+        }
+        if ($p.mailIdentityId.value -notmatch '^/subscriptions/[0-9a-f-]+/resourceGroups/[^/]+/providers/Microsoft.ManagedIdentity/userAssignedIdentities/[^/]+$' -or
+            $p.mailIdentityId.value -eq $p.registryPullIdentityId.value) {
+            throw 'Graph requires a dedicated mail managed identity resource ID distinct from registry pull.'
+        }
+    }
     if ($p.image.value -notmatch '^[a-z0-9.-]+(?::[0-9]+)?/[a-z0-9/._-]+@sha256:[a-f0-9]{64}$') {
         throw 'The image must contain a registry/repository and immutable lowercase SHA-256 digest.'
     }

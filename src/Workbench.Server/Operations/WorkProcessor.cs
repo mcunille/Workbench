@@ -48,7 +48,13 @@ public sealed class WorkProcessor(string connectionString, TenantContextProof pr
             retry.Parameters.AddWithValue("@Transient", error is DependencyUnavailableException or TimeoutException or OperationCanceledException or
                 System.Net.Sockets.SocketException or SmtpProtocolException ||
                 error is SmtpCommandException smtp && (int)smtp.StatusCode is >= 400 and < 500 ||
-                error is SqlException sql && sql.Number is -2 or 1205);
+                error is SqlException sql && sql.Number is -2 or 1205 ||
+                error is GraphDeliveryException { IsTransient: true });
+            if (error is GraphDeliveryException { IsTransient: true, RetryAfter: { } retryAfter })
+            {
+                retry.Parameters.AddWithValue("@RetryAfterSeconds",
+                    (int)Math.Clamp(Math.Ceiling(retryAfter.TotalSeconds), 0, 3600));
+            }
             await retry.ExecuteScalarAsync(cleanup.Token);
             if (cancellationToken.IsCancellationRequested)
             {

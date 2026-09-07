@@ -33,6 +33,13 @@ param installationId string
 @maxValue(10)
 param maxReplicas int = 3
 param workerSchedule string = '* * * * *'
+@allowed(['Smtp', 'Graph'])
+param deliveryProvider string = 'Smtp'
+param graphMailboxId string = ''
+param graphManagedIdentityClientId string = ''
+param mailIdentityId string = ''
+@description('Configure the manual migration job independently of web activation.')
+param migrationConfigured bool = false
 param smtpHost string
 param smtpPort int = 587
 param smtpUsername string
@@ -102,6 +109,11 @@ module workloads 'modules/workloads.bicep' = {
     installationId: installationId
     maxReplicas: maxReplicas
     workerSchedule: workerSchedule
+    deliveryProvider: deliveryProvider
+    graphMailboxId: graphMailboxId
+    graphManagedIdentityClientId: graphManagedIdentityClientId
+    mailIdentityId: mailIdentityId
+    migrationConfigured: migrationConfigured
     smtpHost: smtpHost
     smtpPort: smtpPort
     smtpUsername: smtpUsername
@@ -115,6 +127,7 @@ module workloads 'modules/workloads.bicep' = {
 module access 'modules/access.bicep' = if (grantAccess) {
   name: '${prefix}-access'
   params: {
+    deliveryProvider: deliveryProvider
     storageName: foundation.outputs.storageName
     vaultName: foundation.outputs.vaultName
     webPrincipalId: workloads.outputs.webPrincipalId

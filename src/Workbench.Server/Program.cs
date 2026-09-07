@@ -124,6 +124,11 @@ if (builder.Configuration["Identity:DeliveryProvider"] == "Smtp")
     builder.Services.AddSingleton<IIdentityMessageDelivery>(services => new SmtpIdentityMessageDelivery(
         OperationalConfiguration.ReadSmtp(services.GetRequiredService<IConfiguration>())));
 }
+if (builder.Configuration["Identity:DeliveryProvider"] == "Graph")
+{
+    builder.Services.AddSingleton<IIdentityMessageDelivery>(services => new QueuedGraphIdentityMessageDelivery(
+        OperationalConfiguration.ReadGraph(services.GetRequiredService<IConfiguration>())));
+}
 builder.Services.AddScoped<IdentityOperationService>(services => new IdentityOperationService(
     RequireWebConnectionString(services.GetRequiredService<IConfiguration>()),
     services.GetRequiredService<IIdentityMessageDelivery>(),
