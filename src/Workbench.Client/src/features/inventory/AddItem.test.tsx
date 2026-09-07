@@ -14,6 +14,8 @@ const saved = {
   notes: null,
   location: null,
   createdAtUtc: '2026-09-06T00:00:00Z',
+  photo: null,
+  version: 'version',
 };
 const props = () => ({
   onSaved: vi.fn(),

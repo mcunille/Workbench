@@ -1,8 +1,8 @@
 # First hobbyist scenario: remember and find my collection
 
 **Status:** Partially delivered. H1 was merged in [PR #37](https://github.com/mcunille/Workbench/pull/37)
-on 2026-09-07. H2–H4 are planned issues; their unresolved technical designs still need approval
-before implementation. This is not a committed sprint forecast.
+on 2026-09-07. H2 is implemented according to its accepted [design](2026-09-07-h2-item-photographs.md)
+with browser-side preparation. H3/H4 still need design approval. This is not a committed sprint forecast.
 
 **Delivery tracking:** [Scenario issue #43](https://github.com/mcunille/Workbench/issues/43).
 GitHub issues own story acceptance criteria, implementation progress, dependencies and completion
@@ -24,7 +24,8 @@ durable records and room to grow; do not require accounting, a business profile,
 H1 now provides a durable collection notebook: create an individual item with a name, optional
 notes and storage location, browse it in the responsive gallery or compact List view, and reopen
 its details after reload or another authenticated session. Saves are duplicate-safe and unsaved
-work is protected. Photographs, search and editing are not yet delivered.
+work is protected. H2 extends these saved records with one photograph, replacement and removal;
+search and descriptive editing remain later increments.
 
 Apply the accepted [UI guidance](2026-09-06-ui-design-guidance.md) and
 [implemented refinement](../design/h1-refinement/README.md): original stag branding, bronze accents,
@@ -63,7 +64,7 @@ Issue status is authoritative; H1's merged delivery is recorded here as a histor
 | H3 — Find an item when I need it | Search names, notes and locations across the entire authorized collection, including pagination. Preserve query, view and position when returning from details. | [#41](https://github.com/mcunille/Workbench/issues/41) |
 | H4 — Keep the record accurate | Edit name, notes and location without changing identity. Preserve recoverable edits and detect concurrent changes rather than silently overwriting them. | [#42](https://github.com/mcunille/Workbench/issues/42) |
 
-**H2 is the next recommended increment.** All remaining stories depend on H1. H3 does not require
+**H3 is the next recommended increment after H2 integration.** All remaining stories depend on H1. H3 does not require
 photos to search text, but includes thumbnails when H2 is available. H4 verifies that H3 search
 reflects saved edits. The [scenario issue](https://github.com/mcunille/Workbench/issues/43) tracks
 the integrated journey and collector usability validation beyond completion of the individual stories.
@@ -78,7 +79,7 @@ identity, API and schema boundaries. Remaining stories extend those records and 
   quantities, sets and component relationships remain later workflows under the domain foundation.
 - A descriptive owner name is the only required user-entered field. Notes and storage location are
   optional plain text. Names need not be unique; item identifiers remain stable.
-- H2 proposes one optional private photograph per saved item. Missing photos retain neutral
+- H2 adds one optional private photograph per saved item. Missing photos retain neutral
   placeholders. Photo removal does not remove the item or promise immediate physical erasure;
   existing blob retention and recovery rules apply.
 - Location describes the whereabouts of an individual object; it does not create a structured
@@ -88,8 +89,8 @@ identity, API and schema boundaries. Remaining stories extend those records and 
 - Collection records and photographs remain private to the authorized tenant, including direct
   identifier and image requests. Authorization is enforced by the server.
 
-H2's design must settle file formats/limits, orientation and color handling, thumbnail generation,
-metadata privacy, validation and safe replacement/removal using the existing blob-provider boundary.
+The accepted [H2 design](2026-09-07-h2-item-photographs.md) settles browser preparation,
+file limits, orientation/color, thumbnails, privacy, validation, replacement and removal.
 H3 must settle text matching, pagination, query limits, indexing and navigation-state handling.
 H4 must settle concurrency-token contracts, retry and conflict recovery. The issues record these
 open decisions without approving a schema or expanding scope merely by creating a tracking ticket.

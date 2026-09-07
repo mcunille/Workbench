@@ -98,6 +98,11 @@ try {
         --configuration Release --output $publishRoot -p:UseAppHost=false -p:BuildClient=false
     Assert-CommandSucceeded 'Browser application publish'
 
+    $photoStorageRoot = Join-Path $temporaryRoot 'blobs'
+    New-Item -ItemType Directory -Path $photoStorageRoot -Force | Out-Null
+    $env:Storage__Provider = 'FileSystem'
+    $env:Storage__Root = $photoStorageRoot
+    $env:Storage__InstallationId = [Guid]::NewGuid().ToString()
     $env:ASPNETCORE_ENVIRONMENT = 'Development'
     $env:ASPNETCORE_URLS = 'http://127.0.0.1:4179'
     $env:ASPNETCORE_CONTENTROOT = $publishRoot

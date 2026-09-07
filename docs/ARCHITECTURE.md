@@ -29,8 +29,9 @@ for configuration, paired recovery, and migration procedures.
 
 The first inventory slice is the [H1 collection notebook](specs/2026-09-06-h1-collection-notebook.md):
 authenticated tenant members can create, browse, and reopen individual objects with names, notes,
-and descriptive storage locations. Photos, search, editing, quantity-based stock, purchasing,
-accounting, and commerce require their own focused specifications.
+and descriptive storage locations. The [H2 photograph increment](specs/2026-09-07-h2-item-photographs.md)
+adds one private photo per saved item. Search, descriptive editing, quantity-based stock,
+purchasing, accounting, and commerce require their own focused specifications.
 
 ### Collection identity
 
@@ -40,7 +41,7 @@ remain user-entered regardless of future classification. A server UUID is perman
 tenant-unique creation request UUID makes concurrent submissions and uncertain-save retries
 idempotent. SQL rowversion establishes a concurrency token for subsequent edit workflows.
 
-The runtime has SELECT/INSERT access with RLS and cannot update or delete collection rows.
+The runtime has SELECT/INSERT access with RLS; direct collection UPDATE/DELETE remains denied.
 `/api/items` exposes create and chronological cursor-paged browsing; item details return only
 the public contract. Responses are private and not stored in HTTP caches. Drafts stay in browser
 memory; only the System/Light/Dark appearance preference is persisted locally. Authentication
@@ -50,6 +51,27 @@ The accepted [inventory foundation](specs/2026-09-06-inventory-domain-foundation
 classification, individual/lot tracking, measurements, stock movements, composition, acquisition,
 and valuation. Later lot and work-order features must preserve existing identities and record
 splits, consumption, and transformations explicitly; they do not reinterpret H1 rows.
+
+### Item photographs
+
+The browser prepares JPEG, PNG, or WebP sources locally, preserving orientation and aspect ratio
+and producing a preview before an explicit upload. Original files remain on the device. The
+server accepts at most 4 MiB and 2,048 pixels per edge, sanitizes the image, and derives an
+uncropped thumbnail. Only freshly encoded, metadata-stripped WebP variants enter private storage.
+
+`Inventory.ItemPhotoOperations` binds each request UUID to its input digest and expected item
+rowversion. Pending attachment revisions are persisted before provider I/O. Both variants and
+the current item pointer become visible in one SQL transaction; replacement/removal retires the
+old pair under the existing retention rules. Exact retries resolve uncertain acknowledgments.
+An item-scoped SQL procedure compares rowversion and changes only `CurrentPhotoId`; the runtime
+retains its denial of direct item UPDATE/DELETE. Tenant-qualified foreign keys and RLS protect
+both new tables. Photo authority follows the existing authenticated inventory membership.
+
+Photo URLs resolve the current item/photo relationship and session on every request. Responses
+are private/no-store and verified to EOF before successful delivery. There are no public provider
+URLs or original/historical photo routes. Pending and retained variants remain within the existing
+manifest, reconciliation, worker hold, and paired recovery boundary; see the
+[provider runbook](operations/blob-and-service-providers.md#item-photograph-ingestion).
 
 ## Architectural invariants
 

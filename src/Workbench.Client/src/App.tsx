@@ -119,6 +119,7 @@ function SignedInApplication({
             <ItemDetails
               key={path}
               id={path.slice('/inventory/'.length)}
+              onDirtyChange={navigation.setDirty}
               follow={navigation.follow}
               onAuthLost={authLost}
             />

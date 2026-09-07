@@ -6,9 +6,15 @@ namespace Workbench.Server.Inventory;
 
 [JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
 public sealed record CreateItemRequest(Guid CreationRequestId, string? Name, string? Notes, string? Location);
-public sealed record ItemDetailResponse(Guid Id, string Name, string? Notes, string? Location, DateTimeOffset CreatedAtUtc);
-public sealed record ItemSummaryResponse(Guid Id, string Name, string? Location, DateTimeOffset CreatedAtUtc);
+public sealed record ItemDetailResponse(Guid Id, string Name, string? Notes, string? Location, DateTimeOffset CreatedAtUtc,
+    string Version, ItemPhotoResponse? Photo);
+public sealed record ItemSummaryResponse(Guid Id, string Name, string? Location, DateTimeOffset CreatedAtUtc, ItemPhotoResponse? Photo);
 public sealed record ItemPageResponse(IReadOnlyList<ItemSummaryResponse> Items, string? NextCursor);
+public sealed record ItemPhotoResponse(Guid Id, string ThumbnailUrl, string DetailUrl, int Width, int Height);
+public sealed record ItemPhotoMutationResponse(Guid RequestId, string Version, Guid? PhotoId);
+[JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
+public sealed record RemoveItemPhotoRequest(Guid RequestId, string ExpectedVersion);
+public sealed record UploadItemPhotoRequest(IFormFile File, Guid RequestId, string ExpectedVersion);
 
 public static class ItemInput
 {

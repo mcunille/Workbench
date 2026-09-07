@@ -10,7 +10,7 @@ namespace Workbench.Server.Storage;
 
 public sealed record AttachmentRevisionInfo(Guid Id, long Length, string Sha256);
 
-public sealed class AttachmentService(WorkbenchDbContext database, IBlobStore store, RequestActor actor)
+public sealed partial class AttachmentService(WorkbenchDbContext database, IBlobStore store, RequestActor actor)
 {
     public const string ManagePermission = "attachments.manage";
     public const string ReadPermission = "attachments.read";

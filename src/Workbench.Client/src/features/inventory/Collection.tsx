@@ -1,6 +1,8 @@
-import { useEffect, useState, type MouseEvent } from 'react';
+import { useEffect, useRef, useState, type MouseEvent } from 'react';
 import { ApiError } from '../../api/auth';
 import { Icon } from '../../Icon';
+import { ItemPhoto } from './ItemPhoto';
+import { PhotoEditor } from './PhotoEditor';
 import {
   getItem,
   getItems,
@@ -112,7 +114,11 @@ export function Collection({ follow, onAuthLost }: Props) {
       ) : null}
       {page?.items.length ? (
         <>
-          <div className="collection-view" role="group" aria-label="Collection view">
+          <div
+            className="collection-view"
+            role="group"
+            aria-label="Collection view"
+          >
             {(['grid', 'list'] as const).map((mode) => (
               <button
                 key={mode}
@@ -129,9 +135,11 @@ export function Collection({ follow, onAuthLost }: Props) {
             {page.items.map((item) => (
               <li key={item.id}>
                 <a href={`/inventory/${item.id}`} onClick={follow}>
-                  <span className="photo-placeholder" aria-hidden="true">
-                    <Icon name="image" />
-                  </span>
+                  <ItemPhoto
+                    url={item.photo?.thumbnailUrl}
+                    name={item.name}
+                    onAuthLost={onAuthLost}
+                  />
                   <span>
                     <strong className="item-title">{item.name}</strong>
                     <small className="item-location">
@@ -160,14 +168,20 @@ export function Collection({ follow, onAuthLost }: Props) {
 }
 export function ItemDetails({
   id,
+  onDirtyChange,
   follow,
   onAuthLost,
-}: Props & { id: string }) {
+}: Props & {
+  id: string;
+  onDirtyChange(value: boolean, uncertain: boolean): void;
+}) {
   const [item, setItem] = useState<ItemDetail>();
+  const currentId = useRef(id);
   const [failed, setFailed] = useState<number>();
   const [retry, setRetry] = useState(0);
   useEffect(() => {
     let current = true;
+    currentId.current = id;
     void getItem(id).then(
       (result) => {
         if (current) {
@@ -212,7 +226,7 @@ export function ItemDetails({
             </button>
           ) : null}
         </div>
-      ) : item ? (
+      ) : item?.id === id ? (
         <div className="detail-surface">
           <div className="item-identity">
             <span className="photo-placeholder" aria-hidden="true">
@@ -220,6 +234,16 @@ export function ItemDetails({
             </span>
             <h1 className="item-title">{item.name}</h1>
           </div>
+          <PhotoEditor
+            key={item.id}
+            item={item}
+            onAuthLost={onAuthLost}
+            onDirtyChange={onDirtyChange}
+            reload={async () => {
+              const result = await getItem(id);
+              if (currentId.current === id) setItem(result);
+            }}
+          />
           <dl className="item-details">
             <div className="detail-field">
               <dt>Storage location</dt>

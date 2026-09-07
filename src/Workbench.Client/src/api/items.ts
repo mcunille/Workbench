@@ -34,3 +34,59 @@ export async function getItem(id: string): Promise<ItemDetail> {
   if (!response.ok || !data) throw new ApiError(response.status);
   return data;
 }
+
+export type PhotoMutationResponse =
+  components['schemas']['ItemPhotoMutationResponse'];
+export async function putItemPhoto(
+  id: string,
+  file: Blob,
+  requestId: string,
+  expectedVersion: string,
+): Promise<PhotoMutationResponse> {
+  const { data, response } = await api.PUT('/api/items/{id}/photo', {
+    params: { path: { id } },
+    // OpenAPI represents binary as string; the serializer below sends the actual Blob.
+    body: { file: '', requestId, expectedVersion },
+    bodySerializer: () => {
+      const form = new FormData();
+      const extension =
+        file.type === 'image/webp'
+          ? 'webp'
+          : file.type === 'image/png'
+            ? 'png'
+            : 'jpg';
+      form.append('file', file, `photograph.${extension}`);
+      form.append('requestId', requestId);
+      form.append('expectedVersion', expectedVersion);
+      return form;
+    },
+    headers: await mutationHeaders(),
+  });
+  if (!response.ok || !data) throw new ApiError(response.status);
+  return data;
+}
+export async function removeItemPhoto(
+  id: string,
+  requestId: string,
+  expectedVersion: string,
+): Promise<PhotoMutationResponse> {
+  const { data, response } = await api.DELETE('/api/items/{id}/photo', {
+    params: { path: { id } },
+    body: { requestId, expectedVersion },
+    headers: await mutationHeaders(),
+  });
+  if (!response.ok || !data) throw new ApiError(response.status);
+  return data;
+}
+export async function getPhoto(
+  url: string,
+  signal?: AbortSignal,
+): Promise<Blob> {
+  const response = await fetch(new URL(url, window.location.origin), {
+    credentials: 'same-origin',
+    signal,
+    cache: 'no-store',
+  });
+  if (!response.ok) throw new ApiError(response.status);
+  return response.blob();
+}

@@ -26,6 +26,7 @@ public static class InventoryEndpoints
             .ProducesProblem(StatusCodes.Status409Conflict);
         group.MapGet("", ListAsync).Produces<ItemPageResponse>().ProducesProblem(StatusCodes.Status400BadRequest);
         group.MapGet("/{id:guid}", DetailAsync).Produces<ItemDetailResponse>().ProducesProblem(StatusCodes.Status404NotFound);
+        group.MapItemPhotos();
         return endpoints;
     }
 
@@ -37,7 +38,7 @@ public static class InventoryEndpoints
         if (errors.Count != 0)
             return Results.ValidationProblem(errors);
 
-        var existing = await database.Items.AsNoTracking().SingleOrDefaultAsync(
+        var existing = await database.Items.AsNoTracking().Include(row => row.CurrentPhoto).SingleOrDefaultAsync(
             item => item.CreationRequestId == request.CreationRequestId, cancellationToken);
         if (existing is not null)
             return Replay(existing, request);
@@ -62,7 +63,7 @@ public static class InventoryEndpoints
             // The unique tenant/request index arbitrates competing saves. A failed INSERT's
             // implicit transaction has ended; read the committed winner through the tenant filter.
             database.Entry(item).State = EntityState.Detached;
-            existing = await database.Items.AsNoTracking().SingleOrDefaultAsync(
+            existing = await database.Items.AsNoTracking().Include(row => row.CurrentPhoto).SingleOrDefaultAsync(
                 row => row.CreationRequestId == request.CreationRequestId, cancellationToken);
             if (existing is null)
                 throw;
@@ -79,7 +80,7 @@ public static class InventoryEndpoints
 
     private static async Task<IResult> DetailAsync(Guid id, WorkbenchDbContext database, CancellationToken cancellationToken)
     {
-        var item = await database.Items.AsNoTracking().SingleOrDefaultAsync(row => row.Id == id, cancellationToken);
+        var item = await database.Items.AsNoTracking().Include(row => row.CurrentPhoto).SingleOrDefaultAsync(row => row.Id == id, cancellationToken);
         return item is null ? Results.Problem(statusCode: StatusCodes.Status404NotFound, title: "Item not found.") : Results.Ok(Detail(item));
     }
 
@@ -97,9 +98,10 @@ public static class InventoryEndpoints
             query = query.Where(row => row.CreatedAtUtc > timestamp ||
                 (row.CreatedAtUtc == timestamp && row.Id.CompareTo(id) > 0));
         }
-        var rows = await query.OrderBy(row => row.CreatedAtUtc).ThenBy(row => row.Id)
-            .Take(51).Select(row => new ItemSummaryResponse(row.Id, row.Name, row.StorageLocation, row.CreatedAtUtc))
-            .ToListAsync(cancellationToken);
+        var entities = await query.Include(row => row.CurrentPhoto).OrderBy(row => row.CreatedAtUtc).ThenBy(row => row.Id)
+            .Take(51).ToListAsync(cancellationToken);
+        var rows = entities.Select(row => new ItemSummaryResponse(row.Id, row.Name, row.StorageLocation, row.CreatedAtUtc,
+            Photo(row.CurrentPhoto))).ToList();
         string? nextCursor = null;
         if (rows.Count > 50)
         {
@@ -111,5 +113,8 @@ public static class InventoryEndpoints
     }
 
     private static ItemDetailResponse Detail(InventoryItem item) =>
-        new(item.Id, item.Name, item.Notes, item.StorageLocation, item.CreatedAtUtc);
+        new(item.Id, item.Name, item.Notes, item.StorageLocation, item.CreatedAtUtc, Convert.ToBase64String(item.RowVersion), Photo(item.CurrentPhoto));
+
+    private static ItemPhotoResponse? Photo(ItemPhoto? photo) => photo is null ? null : new(photo.Id,
+        $"/api/items/{photo.ItemId}/photo/{photo.Id}/thumbnail", $"/api/items/{photo.ItemId}/photo/{photo.Id}/detail", photo.Width, photo.Height);
 }

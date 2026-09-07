@@ -14,5 +14,7 @@ public sealed class InventoryItem : ITenantOwned
     public string? StorageLocation { get; init; }
     public DateTimeOffset CreatedAtUtc { get; init; }
     public Guid CreationRequestId { get; init; }
+    public Guid? CurrentPhotoId { get; set; }
+    public ItemPhoto? CurrentPhoto { get; set; }
     public byte[] RowVersion { get; set; } = [];
 }
