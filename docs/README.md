@@ -28,6 +28,11 @@ The [specs](specs/README.md) directory contains one dated document for each mean
 needs durable requirements or design reasoning. Specs preserve context and rejected alternatives;
 they do not replace the living documentation above.
 
+The proposed [UI design guidance](specs/2026-09-06-ui-design-guidance.md) applies UI Skills research
+to Workbench's visual system, progressive capability, desktop/mobile layouts, accessibility, and
+light/dark themes. It is a design proposal for review, not an implemented UI or an accepted domain
+workflow specification.
+
 The accepted [base-architecture specification](specs/2026-08-31-base-application-architecture.md) is
 the decision record behind `ARCHITECTURE.md`.
 
