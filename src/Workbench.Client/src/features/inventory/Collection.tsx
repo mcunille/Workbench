@@ -1,12 +1,12 @@
-import { useEffect, useState, type MouseEvent } from "react";
-import { ApiError } from "../../api/auth";
-import { Icon } from "../../Icon";
+import { useEffect, useState, type MouseEvent } from 'react';
+import { ApiError } from '../../api/auth';
+import { Icon } from '../../Icon';
 import {
   getItem,
   getItems,
   type ItemDetail,
   type ItemPage,
-} from "../../api/items";
+} from '../../api/items';
 type Props = {
   follow(event: MouseEvent<HTMLAnchorElement>): void;
   onAuthLost(): void;
@@ -78,10 +78,10 @@ export function Collection({ follow, onAuthLost }: Props) {
       {failed ? (
         <div role="alert">
           <p>
-            We could not load the collection.{" "}
+            We could not load the collection.{' '}
             {page
-              ? "The items below are still available."
-              : "Please try again."}
+              ? 'The items below are still available.'
+              : 'Please try again.'}
           </p>
           <button
             className="secondary"
@@ -121,7 +121,7 @@ export function Collection({ follow, onAuthLost }: Props) {
                   <strong className="item-title">{item.name}</strong>
                   <small className="item-location">
                     <Icon name="location" />
-                    {item.location ?? "No location recorded"}
+                    {item.location ?? 'No location recorded'}
                   </small>
                 </span>
                 <Icon name="chevron" />
@@ -181,11 +181,11 @@ export function ItemDetails({
       </a>
       {failed ? (
         <div role="alert">
-          <h1>{failed === 404 ? "Item not found" : "Item unavailable"}</h1>
+          <h1>{failed === 404 ? 'Item not found' : 'Item unavailable'}</h1>
           <p>
             {failed === 404
-              ? "This item is not available in your collection."
-              : "We could not load this item."}
+              ? 'This item is not available in your collection.'
+              : 'We could not load this item.'}
           </p>
           {failed !== 404 ? (
             <button
@@ -207,11 +207,11 @@ export function ItemDetails({
           <dl className="item-details">
             <div className="detail-field">
               <dt>Storage location</dt>
-              <dd>{item.location ?? "No location recorded"}</dd>
+              <dd>{item.location ?? 'No location recorded'}</dd>
             </div>
             <div className="detail-field">
               <dt>Notes</dt>
-              <dd className="notes">{item.notes ?? "No notes recorded"}</dd>
+              <dd className="notes">{item.notes ?? 'No notes recorded'}</dd>
             </div>
             <div className="detail-field record-metadata">
               <dt>Item identifier</dt>

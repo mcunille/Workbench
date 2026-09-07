@@ -1,13 +1,18 @@
-import { useEffect, useState } from "react";
-import { applyAppearance, readAppearance, type Appearance } from "./appearance";
-export function AppearanceControl() {
-  const [preference, setPreference] = useState(readAppearance);
+import { useEffect } from 'react';
+import { applyAppearance, type Appearance } from './appearance';
+export function AppearanceControl({
+  preference,
+  setPreference,
+}: {
+  preference: Appearance;
+  setPreference(value: Appearance): void;
+}) {
   useEffect(() => {
-    const media = window.matchMedia?.("(prefers-color-scheme: dark)");
+    const media = window.matchMedia?.('(prefers-color-scheme: dark)');
     const update = () => applyAppearance(preference, media?.matches ?? false);
     update();
-    media?.addEventListener("change", update);
-    return () => media?.removeEventListener("change", update);
+    media?.addEventListener('change', update);
+    return () => media?.removeEventListener('change', update);
   }, [preference]);
   return (
     <label className="appearance">
@@ -18,7 +23,7 @@ export function AppearanceControl() {
           const value = e.target.value as Appearance;
           setPreference(value);
           try {
-            localStorage.setItem("workbench.appearance", value);
+            localStorage.setItem('workbench.appearance', value);
           } catch {
             /* Preference remains usable for this page. */
           }

@@ -1,5 +1,5 @@
-import { useState, type FormEvent } from "react";
-import { useAuth } from "./useAuth";
+import { useState, type FormEvent } from 'react';
+import { useAuth } from './useAuth';
 
 export function SignIn() {
   const { identity, signIn } = useAuth();
@@ -13,8 +13,8 @@ export function SignIn() {
     const form = new FormData(event.currentTarget);
     try {
       await signIn(
-        String(form.get("email") ?? ""),
-        String(form.get("password") ?? ""),
+        String(form.get('email') ?? ''),
+        String(form.get('password') ?? ''),
       );
     } catch {
       setFailed(true);
@@ -53,7 +53,7 @@ export function SignIn() {
           </p>
         ) : null}
         <button className="primary" type="submit" disabled={pending}>
-          {pending ? "Signing in…" : "Sign in"}
+          {pending ? 'Signing in…' : 'Sign in'}
         </button>
       </form>
       <a className="text-link" href="/recover">
