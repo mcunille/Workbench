@@ -225,6 +225,20 @@ secrets. Measure actual shutdown against the 60-second web grace period.
 
 ## Paired checkpoint and isolated Azure restore
 
+The foundation requests geo-redundant SQL backups (`Geo`) and geographically redundant application
+blob storage (`Standard_GRS`). Keep both settings in infrastructure source so subsequent deployments
+preserve geographic recovery protection. Existing SQL backup copies are not converted retroactively;
+the new redundancy applies to future backups. Blob geo-replication is asynchronous: verify replication
+status and the available recovery point before claiming cross-region recovery. GRS is not an
+independent backup against deletion or corruption, and it does not provide automatic application
+failover. Keep the paired manifests, installation metadata and cryptographic recovery material
+recoverable outside the primary region as well.
+
+Adding Blob GRS incurs replication transfer charges and different storage/write rates. SQL backup
+pricing depends on the purchasing model; review current pricing before changing tiers or retention.
+See [SQL backup settings](https://learn.microsoft.com/en-us/azure/azure-sql/database/automated-backups-change-settings?view=azuresql)
+and [storage redundancy changes](https://learn.microsoft.com/en-us/azure/storage/common/redundancy-migration).
+
 SQL PITR retention defaults to seven days; blob versions and soft-deleted containers/objects to
 30 days. These settings do not establish a recoverable pair. Freeze every writer and worker, ensure
 no execution remains, produce and verify the exact protected blob manifest/copy using the

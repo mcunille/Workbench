@@ -76,7 +76,7 @@ resource database 'Microsoft.Sql/servers/databases@2023-08-01' = {
   name: 'Workbench'
   location: location
   sku: { name: sqlSku, tier: sqlTier }
-  properties: { requestedBackupStorageRedundancy: 'Local' }
+  properties: { requestedBackupStorageRedundancy: 'Geo' }
 }
 resource retention 'Microsoft.Sql/servers/databases/backupShortTermRetentionPolicies@2023-08-01' = {
   parent: database
@@ -87,7 +87,7 @@ resource storage 'Microsoft.Storage/storageAccounts@2023-05-01' = {
   name: 'wb${suffix}'
   location: location
   kind: 'StorageV2'
-  sku: { name: 'Standard_LRS' }
+  sku: { name: 'Standard_GRS' }
   properties: {
     minimumTlsVersion: 'TLS1_2'
     supportsHttpsTrafficOnly: true
