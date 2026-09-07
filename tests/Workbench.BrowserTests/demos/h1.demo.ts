@@ -18,7 +18,21 @@ test('record the narrated H1 scenario against the real database', async ({ brows
   await mkdir(output, { recursive: true });
   const durations = JSON.parse(await readFile(`${output}/durations.json`, 'utf8')) as Record<string, number>;
   const login = await browser.newContext({ baseURL: 'http://127.0.0.1:4179' });
-  await signIn(await login.newPage());
+  const loginPage = await login.newPage();
+  // Shared styling also reaches public and account surfaces; inspect these off camera.
+  await loginPage.setViewportSize({ width: 320, height: 900 });
+  await loginPage.goto('/');
+  await expect(loginPage.getByRole('heading', { name: 'Sign in', exact: true })).toBeVisible();
+  expect(await loginPage.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await loginPage.screenshot({ path: `${output}/sign-in-320.png`, fullPage: true });
+  await signIn(loginPage);
+  for (const route of ['account', 'administration']) {
+    await loginPage.goto(`/${route}`);
+    await expect(loginPage.getByRole('heading', { name: route === 'account' ? 'Account' : 'Administration', exact: true })).toBeVisible();
+    await expect(loginPage.getByText(route === 'account' ? 'Loading sessions…' : 'Loading tenant users…', { exact: true })).toBeHidden();
+    expect(await loginPage.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    await loginPage.screenshot({ path: `${output}/${route}-320.png`, fullPage: true });
+  }
   const context = await browser.newContext({
     baseURL: 'http://127.0.0.1:4179', storageState: await login.storageState(),
     viewport: { width: 1280, height: 900 }, colorScheme: 'light',

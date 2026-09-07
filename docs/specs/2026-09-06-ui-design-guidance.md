@@ -386,6 +386,10 @@ input on nonessential animation or reports.
 
 ## Verification and implementation handoff
 
+The H1 [studio refinement](../design/h1-refinement/README.md) records the subsequent production
+polish pass, additional Apple/Disney research, visual comparisons, and scoped verification.
+It preserves this document's product, brand, accessibility, and capability boundaries.
+
 The [reviewed UI mockup](../design/workbench-ui-preview.html) is a standalone HTML visual reference.
 See its [usage and verification notes](../design/README.md). It demonstrates the accepted branding,
 themes, collection views and item-title correction using illustrative data and generated imagery.

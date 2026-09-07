@@ -40,5 +40,5 @@ browser harness provisions and cleans up the disposable database and application
 audio, and timing metadata stay in ignored `artifacts/h1-video`; only the finished MP4, captions,
 transcript, and recording source are included in the PR. The renderer checks the finished file
 by decoding its entire video and audio streams. The recorded scenario passed; ordinary browser
-discovery still reports the original 13 tests. Representative creation, retry, and mobile frames
+discovery reports 15 tests after the UI refinement. Representative creation, retry, and mobile frames
 were visually inspected, and the narration's measured peak remained below clipping.

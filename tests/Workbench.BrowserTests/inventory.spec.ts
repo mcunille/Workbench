@@ -61,7 +61,7 @@ test('the studio shell reflows with enlarged text and respects reduced motion', 
   }
   // THEN enlarged text reflows, and reduced motion removes pressed-control travel.
   await page.setViewportSize({ width: 640, height: 1000 });
-  await page.addStyleTag({ content: 'html { font-size: 200%; }' });
+  const enlargedText = await page.addStyleTag({ content: 'html { font-size: 200%; }' });
   await inspectLayout(page);
   await page.emulateMedia({ reducedMotion: 'reduce' });
   const save = page.getByRole('button', { name: 'Save item', exact: true });
@@ -73,10 +73,28 @@ test('the studio shell reflows with enlarged text and respects reduced motion', 
   expect(await save.evaluate(element => getComputedStyle(element).transitionDuration)).toBe('0s');
   await page.emulateMedia({ forcedColors: 'active' });
   expect(await save.evaluate(element => getComputedStyle(element).borderTopStyle)).toBe('solid');
+  // AND shared account panels remain readable after their real data has loaded on a phone.
+  await enlargedText.evaluate(element => element.remove());
+  await page.emulateMedia({ forcedColors: 'none' });
+  await page.setViewportSize({ width: 320, height: 900 });
+  await page.getByRole('button', { name: 'Cancel', exact: true }).click();
+  await page.getByRole('button', { name: 'Discard changes', exact: true }).click();
+  await page.getByRole('link', { name: 'Account', exact: true }).click();
+  const sessionsTitle = page.getByRole('heading', { name: 'Sessions', exact: true });
+  await expect(sessionsTitle).toBeVisible();
+  await expect(page.getByText('Loading sessions…', { exact: true })).toBeHidden();
+  expect(await sessionsTitle.evaluate(element => element.getBoundingClientRect().height <= parseFloat(getComputedStyle(element).lineHeight) + 1)).toBe(true);
+  await inspectLayout(page);
+  await page.screenshot({ path: `${screenshotDirectory}/account-320-dark.png`, fullPage: true });
+  await page.getByRole('link', { name: 'Administration', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Tenant users', exact: true })).toBeVisible();
+  await expect(page.getByText('Loading tenant users…', { exact: true })).toBeHidden();
+  await inspectLayout(page);
+  await page.screenshot({ path: `${screenshotDirectory}/administration-320-dark.png`, fullPage: true });
 });
 
-async function signIn(page: Page) {
-  await page.goto('/');
+async function signIn(page: Page, navigate = true) {
+  if (navigate) await page.goto('/');
   let status: number | undefined;
   // The disposable fixture shares the real per-network login budget. Retry only its
   // generic 401 rejection, bounded by the server's one-minute limiter window.
@@ -91,6 +109,24 @@ async function signIn(page: Page) {
   expect(status).toBe(204);
   await expect(page.getByRole('heading', { name: 'Collection', exact: true })).toBeVisible();
 }
+
+test('appearance survives authentication transitions when browser storage is blocked', async ({ page }) => {
+  // GIVEN blocked storage and an explicit appearance selected on the public screen.
+  await page.addInitScript(() => {
+    Storage.prototype.getItem = () => { throw new Error('Storage blocked for this test'); };
+    Storage.prototype.setItem = () => { throw new Error('Storage blocked for this test'); };
+  });
+  await page.goto('/');
+  await page.getByRole('combobox', { name: 'Appearance' }).selectOption('dark');
+  // WHEN signing in and then out without reloading the document.
+  await signIn(page, false);
+  // THEN the in-memory choice remains intact in both control locations.
+  await expect(page.getByRole('combobox', { name: 'Appearance' })).toHaveValue('dark');
+  await page.getByRole('button', { name: 'Sign out', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Sign in', exact: true })).toBeVisible();
+  await expect(page.getByRole('combobox', { name: 'Appearance' })).toHaveValue('dark');
+  expect(await page.evaluate(() => document.documentElement.dataset.theme)).toBe('dark');
+});
 
 async function startItem(page: Page, name: string) {
   await page.getByRole('link', { name: 'Add item', exact: true }).click();

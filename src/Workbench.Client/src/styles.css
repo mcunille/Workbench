@@ -832,7 +832,8 @@ dialog::backdrop {
     padding: 1rem;
   }
   .inline-form,
-  .record-list li {
+  .record-list li,
+  .panel-heading {
     align-items: stretch;
     flex-direction: column;
   }
