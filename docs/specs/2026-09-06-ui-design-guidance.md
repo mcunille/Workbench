@@ -1,13 +1,16 @@
 # Workbench UI design guidance
 
-**Status:** Proposed
+**Status:** Accepted
 
 **Research date:** 2026-09-06
 
-**Scope:** Product UI design direction; no application behavior or dependency changes.
+**Scope:** Product UI design direction and a standalone visual reference; no application behavior
+or dependency changes.
 
-**Decision:** Recommend a calm studio workspace with progressive capability, responsive task
-layouts, and equally complete light and dark themes. Implementation requires design acceptance.
+**Decision:** Use a calm studio workspace with progressive capability, responsive task layouts,
+equally complete light and dark themes, and bronze accents aligned with The White Stag Collection.
+The owner accepted the branded mockup after correction of item-title contrast in light mode.
+Acceptance establishes the design direction; application implementation remains separate work.
 
 ## Purpose and product fit
 
@@ -16,8 +19,8 @@ business works through hundreds of records. Modern means clear hierarchy, fast r
 platform behavior. Lightweight means little visual clutter and little unnecessary code. Flexible
 means the same records and concepts can support different tasks and levels of experience.
 
-This proposal extends the [product vision](../VISION.md) and
-[design principles](../DESIGN-PRINCIPLES.md). It proposes presentation conventions for the four
+This specification extends the [product vision](../VISION.md) and
+[design principles](../DESIGN-PRINCIPLES.md). It establishes presentation conventions for the four
 product areas; it does not approve inventory fields, accounting commands, saved-view persistence,
 commerce workflows, public sharing, or a component-library migration. Those need their own scoped
 requirements. Examples below illustrate future screens, not capabilities already implemented.
@@ -34,8 +37,9 @@ session infrastructure; it is not yet a collection workspace.
 headings, rounded panels, and one responsive media query. It has no dark-theme token mapping or
 theme preference control. The existing green is implementation history, not established brand
 authority. Subsequent owner feedback rejects that accent and supplies The White Stag Collection
-logo as the brand reference. Reduce oversized operational headings and decorative panel treatment. This is source inspection, not a rendered UI audit or an
-accessibility conformance assessment.
+logo as the brand reference. Reduce oversized operational headings and decorative panel treatment.
+This source inspection is distinct from the later mockup checks; it is not a rendered application
+audit or an accessibility conformance assessment.
 
 ## Research synthesis
 
@@ -108,26 +112,26 @@ Avoid locked-feature advertisements and empty future modules in ordinary navigat
 
 Think of a well-organized jeweler's work surface: quiet surroundings, precise labels, and objects
 that reward close inspection. Use neutral paper-like light surfaces and charcoal dark surfaces,
-with a restrained bronze accent derived from The White Stag Collection identity. Avoid simulated wood, velvet,
-metallic gradients, glass blur, and ornamental gem shapes in routine controls.
+with a restrained bronze accent derived from The White Stag Collection identity. Avoid simulated
+wood, velvet, metallic gradients, glass blur, and ornamental gem shapes in routine controls.
 
-### Brand relationship and accent options
+### Brand relationship and selected accent
 
 The owner-supplied **The White Stag Collection.svg** uses `#947C4A`, a muted antique gold, with
 an angular, finely drawn stag and classic lettering. Preserve the original artwork and its gold;
 do not replace it with a generic gem icon. A compact stag emblem beside a serif Workbench wordmark
-is the proposed product signature. Keep the full company lockup for settings/about or larger brand
+is the accepted product signature. Keep the full company lockup for settings/about or larger brand
 placements where its lettering remains legible. Body text, controls and numerical tables retain
-the system sans-serif stack. An emblem-only presentation is a proposed adaptation of the supplied
-artwork, not a newly approved company logo.
+the system sans-serif stack. The emblem-only presentation adapts the supplied artwork for Workbench;
+it does not replace the full company logo.
 
-Use warm stone and charcoal neutrals without a green cast. **Bronze is recommended**, with Ink and
-Slate blue retained as comparison options in the mockup. Accent choice remains proposed; the owner
-has supported the overall direction but has not selected a final accent.
+Use warm stone and charcoal neutrals without a green cast. **Bronze is the accepted default.** Ink
+and Slate blue document the alternatives considered; they do not establish a requirement for an
+end-user accent picker. The visual reference opens with bronze.
 
 | Accent option | Light action fill / text | Dark action fill / text | Character |
 | --- | --- | --- | --- |
-| Bronze (recommended) | `#775D2F` / `#FFFFFF` | `#D1B77C` / `#292316` | Closest relationship to the logo, warm and understated. |
+| Bronze (accepted) | `#775D2F` / `#FFFFFF` | `#D1B77C` / `#292316` | Closest relationship to the logo, warm and understated. |
 | Ink | `#343944` / `#FFFFFF` | `#CFD0D2` / `#202329` | Quiet, largely neutral controls; the gold emblem supplies the brand color. |
 | Slate blue | `#405D78` / `#FFFFFF` | `#A5C3E0` / `#1A2938` | A cooler complement to the gold identity. |
 
@@ -168,7 +172,7 @@ This adapts [better-typography](https://www.ui-skills.com/skills/jakubkrehel/bet
 
 ### Semantic color tokens
 
-Components consume semantic roles, not raw colors. The following opaque sRGB values are a proposed
+Components consume semantic roles, not raw colors. The following opaque sRGB values are the accepted
 starting palette, not a complete state palette or a conformance claim. Separate selected, hover,
 pressed, disabled, focus, chart and status backgrounds during implementation. Do not lower an
 entire component's opacity to create disabled styling.
@@ -209,6 +213,16 @@ for hierarchy, thin separators for structure, and restrained shadows on actual o
 mode, distinguish overlays through surface and border contrast rather than stronger black shadows.
 The semantic-role approach is informed by
 [interface-design](https://www.ui-skills.com/skills/dammyjay93/interface-design).
+
+Item titles in list rows, gallery tiles and the detail inspector explicitly use `text`, including
+when a row is selected or hovered. A pale bronze selection background does not use `on-accent`;
+that token is reserved for content on the solid accent fill. Scope text colors and inherited
+`color-scheme` to the product theme so an embedding page or host theme cannot supply white item
+titles in light mode. Switching themes must update nested controls and title text together.
+
+The reviewed mockup correction binds item titles directly to the text token. Browser-computed
+title colors were `rgb(41, 40, 36)` in light mode and `rgb(241, 239, 235)` in dark mode. This verifies
+the mockup's text-color resolution, not the production application's theme implementation.
 
 ### Theme behavior
 
@@ -289,7 +303,7 @@ disable pinch zoom, or open the mobile keyboard automatically on ordinary page e
 
 Prefer existing controls, semantic HTML and ordinary CSS. Evaluate an accessible headless primitive
 only when composite behavior needs it; style it through Workbench tokens. Keep component selection
-separate from product design acceptance. No proposed guidance requires Tailwind, shadcn, a motion
+separate from product design acceptance. This guidance does not require Tailwind, shadcn, a motion
 library, or a global state framework. The composition reference is
 [frontend-ui-engineering](https://www.ui-skills.com/skills/addyosmani/frontend-ui-engineering), and
 the behavior reference for composite widgets is the [W3C APG](https://www.w3.org/WAI/ARIA/apg/patterns/).
@@ -360,7 +374,7 @@ the following highlights are not the entire standard. Use the
 For performance, use the published good Core Web Vitals thresholds as targets: LCP ≤2.5 seconds,
 INP ≤200 milliseconds, CLS ≤0.1 at the 75th percentile, considered separately for mobile and desktop.
 [Web Vitals](https://web.dev/articles/vitals) describes these metrics. No measurements are claimed
-for Workbench by this proposal. Distinguish client interaction time, network delay and server cold
+for the Workbench application by this specification. Distinguish client interaction time, network delay and server cold
 start; record realistic cold and warm visits rather than hiding server latency behind a skeleton.
 
 Keep typography local, serve appropriately sized images, defer offscreen media, and reserve space
@@ -372,16 +386,22 @@ input on nonessential animation or reports.
 
 ## Verification and implementation handoff
 
-Before application work, accept or revise this direction. Then establish rendered specimens using
-current sign-in, sessions and user administration as real workflows. Add representative collection
-and financial examples only as clearly labeled fixtures until their domain specifications exist.
-Promote this proposal into living UI guidance when the accepted design is implemented.
+The [reviewed UI mockup](../design/workbench-ui-preview.html) is a standalone HTML visual reference.
+See its [usage and verification notes](../design/README.md). It demonstrates the accepted branding,
+themes, collection views and item-title correction using illustrative data and generated imagery.
+Its interactions do not define production inventory, accounting, work-order or commerce contracts.
+
+For application work, establish rendered specimens using current sign-in, sessions and user
+administration as real workflows. Keep collection and financial examples clearly labeled as
+fixtures until their domain specifications exist. Promote this specification into living UI
+guidance when the accepted design is implemented.
 
 | Acceptance scenario | Evidence required during implementation |
 | --- | --- |
 | Begin simply and discover depth | A hobbyist can complete the agreed first-item task without accounting setup; a professional can find additional controls without changing products. Validate with representative users when domain screens exist. |
 | Desktop and mobile | Inspect 320, 390, 768, 1024 and 1440 CSS-pixel widths plus intermediate resize; check portrait/landscape and the on-screen keyboard. No clipped actions or inaccessible record fields. |
 | Theme parity | Every component/state in light and dark; System follows OS changes, explicit choice persists, unavailable storage falls back, and first paint is correct. |
+| Item-title contrast | List, gallery and detail titles remain readable on white, bronze-tinted selection and hover surfaces in light mode, and corresponding dark surfaces. Verify both OS/host theme mismatches and repeated theme switching; inspect computed foreground/background pairs as well as screenshots. |
 | Accessibility | Automated audit plus manual keyboard, Windows NVDA and Safari VoiceOver checks; zoom, enlarged text, reduced motion and forced colors. Record browser/OS versions and actual limits. |
 | Realistic content | Long names, missing images, large/negative/zero/unknown values, currency codes, precision, long translations and RTL specimen. No misleading totals or hidden essential content. |
 | Resilience and authority | Delayed/error responses, duplicate clicks, access loss and stale edits. No false success, unsafe replay, leaked data or accidental input loss. |
@@ -410,8 +430,8 @@ Retain existing working screens until their replacements pass the agreed checks.
 | Adopt a full framework immediately | Could accelerate complex widgets but adds conventions and migration work. Decide against actual component needs after specimens. |
 | Dark theme by color inversion | Quick but distorts media and ignores surface/state contrast. Define both themes explicitly. |
 
-The proposed palette, density and layout ranges need visual validation with actual item imagery and
-long records. Product navigation still depends on which modules ship. Saved views, shortcuts,
+The accepted palette, density and layout ranges still need production validation with actual item
+imagery and long records. Product navigation depends on which modules ship. Saved views, shortcuts,
 preference synchronization and bulk commands need scoped requirements; none are silently added to
 the delivery backlog by this document. Public collection sharing remains outside the accepted
 product scope. Research links are mutable snapshots accessed on the date above; revisit a source
