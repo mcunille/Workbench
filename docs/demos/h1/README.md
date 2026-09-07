@@ -1,6 +1,9 @@
 # H1 narrated walkthrough
 
-[Watch or download the narrated video](h1-walkthrough.mp4) · [Transcript](transcript.md) · [Captions](captions.srt)
+[Transcript](transcript.md) · [Captions](captions.srt)
+
+Generate `h1-walkthrough.mp4` locally using the commands below. MP4 recordings are ignored by Git;
+share verification videos as external attachments instead of committing them.
 
 The video showcases the actual H1 application through Playwright against a fresh, disposable
 SQL Server database. Narration uses the local Microsoft Zira synthetic voice. Captions are
@@ -37,8 +40,8 @@ python ./scripts/render-h1-video.py --ffmpeg /absolute/path/to/ffmpeg.exe
 The recording configuration is opt-in and excluded from the ordinary `*.spec.ts` suite. It
 asserts the demonstrated outcomes and deliberately pauses for narration pacing. The standard
 browser harness provisions and cleans up the disposable database and application. Raw footage,
-audio, and timing metadata stay in ignored `artifacts/h1-video`; only the finished MP4, captions,
-transcript, and recording source are included in the PR. The renderer checks the finished file
+audio, and timing metadata stay in ignored `artifacts/h1-video`. The finished MP4 stays local;
+captions, transcript, and recording source remain tracked. The renderer checks the finished file
 by decoding its entire video and audio streams. The recorded scenario passed; ordinary browser
 discovery reports 16 tests after the gallery refinement. Representative creation, retry, and mobile frames
 were visually inspected, and the narration's measured peak remained below clipping.

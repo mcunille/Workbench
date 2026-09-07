@@ -1,6 +1,9 @@
 # H2 narrated walkthrough
 
-[Watch or download the narrated video](h2-walkthrough.mp4) · [Transcript](transcript.md) · [Captions](captions.srt)
+[Transcript](transcript.md) · [Captions](captions.srt)
+
+Generate `h2-walkthrough.mp4` locally using the commands below. MP4 recordings are ignored by Git;
+share verification videos as external attachments instead of committing them.
 
 The recording source exercises the real photo workflow against a disposable SQL Server database and private local blob storage. Authentication happens off camera. The gemstone illustrations are synthetic demonstration fixtures, not photographs of real possessions. Narration uses Microsoft Zira, a synthetic voice.
 
