@@ -22,6 +22,8 @@ public sealed class PasswordPrincipalProvisioningTests(SqlServerFixture sqlServe
     [InlineData("GRANT EXECUTE ON OBJECT::[Administration].[ProvisionTenant] TO [workbench_web]")]
     [InlineData("GRANT SELECT ON OBJECT::[Security].[TenantContextKeys] ([ProofKey]) TO [workbench_web]")]
     [InlineData("GRANT SELECT ON OBJECT::[Identity].[Users] TO [workbench_web] WITH GRANT OPTION")]
+    [InlineData("GRANT ALTER ON OBJECT::[Identity].[ClaimInvitationIdentity] TO [workbench_web]")]
+    [InlineData("GRANT EXECUTE ON OBJECT::[Identity].[ClaimInvitationIdentity] TO [workbench_web] WITH GRANT OPTION")]
     public async Task DestinationRoleGrantsAreRejectedBeforeProvisioning(string unsafeGrant)
     {
         // GIVEN a destination role with direct authority outside its migration-defined grants.
@@ -133,6 +135,10 @@ public sealed class PasswordPrincipalProvisioningTests(SqlServerFixture sqlServe
             await connection.OpenAsync();
             await using var permission = new SqlCommand("SELECT HAS_PERMS_BY_NAME(DB_NAME(), 'DATABASE', 'CONTROL')", connection);
             Assert.Equal(principal.Role == "workbench_migrator" ? 1 : 0, Convert.ToInt32(await permission.ExecuteScalarAsync()));
+            // AND the current invitation-claim migration remains usable only by its intended roles.
+            await using var claimPermission = new SqlCommand(
+                "SELECT HAS_PERMS_BY_NAME('Identity.ClaimInvitationIdentity', 'OBJECT', 'EXECUTE')", connection);
+            Assert.Equal(principal.Role == "workbench_operator" ? 0 : 1, Convert.ToInt32(await claimPermission.ExecuteScalarAsync()));
         }
     }
 
