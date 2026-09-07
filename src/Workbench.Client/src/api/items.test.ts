@@ -8,6 +8,19 @@ const request = {
   location: null,
 };
 describe('Inventory API', () => {
+  it('encodes literal search text and the page cursor independently', async () => {
+    // GIVEN literal punctuation that would be special in a query string.
+    server.use(
+      http.get('*/api/items', ({ request }) => {
+        const query = new URL(request.url).searchParams;
+        expect(query.get('q')).toBe('stone %_[]\\ &+#');
+        expect(query.get('cursor')).toBe('opaque+/=');
+        return HttpResponse.json({ items: [], nextCursor: null });
+      }),
+    );
+    // WHEN loading a search page THEN neither value is altered in transport.
+    await getItems('opaque+/=', 'stone %_[]\\ &+#');
+  });
   it('sends the draft and antiforgery token through the generated contract', async () => {
     // GIVEN a valid antiforgery token and a saved response
     let received: unknown;

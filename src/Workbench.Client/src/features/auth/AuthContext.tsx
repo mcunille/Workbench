@@ -26,6 +26,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [status, setStatus] = useState<AuthStatus>('loading');
 
   const refresh = useCallback(async () => {
+    // Discard protected application state immediately while rechecking access.
+    setIdentity(null);
+    setStatus('loading');
     try {
       const result = await getCurrentIdentity();
       setIdentity(result);

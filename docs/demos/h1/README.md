@@ -32,9 +32,9 @@ From the repository root:
 
 ```powershell
 npm run build --prefix src/Workbench.Client
-./scripts/record-h1-narration.ps1
+./docs/demos/record-narration.ps1
 npm test --prefix tests/Workbench.BrowserTests -- --config demos/playwright.config.ts
-python ./scripts/render-h1-video.py --ffmpeg /absolute/path/to/ffmpeg.exe
+python ./docs/demos/render-video.py --ffmpeg /absolute/path/to/ffmpeg.exe
 ```
 
 The recording configuration is opt-in and excluded from the ordinary `*.spec.ts` suite. It

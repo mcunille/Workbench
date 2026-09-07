@@ -40,7 +40,9 @@ and keep it accurate. It defines four value-delivering stories and shared comple
 H1 has an accepted [implementation design](specs/2026-09-06-h1-collection-notebook.md) and
 [inventory domain foundation](specs/2026-09-06-inventory-domain-foundation.md) informed by GemInv.
 H2 has an accepted [photograph design](specs/2026-09-07-h2-item-photographs.md), including browser
-preparation, bounded server sanitation, and atomic photo replacement. H3/H4 await acceptance;
+preparation, bounded server sanitation, and atomic photo replacement. H3 has an accepted
+[search design](specs/2026-09-07-h3-collection-search.md), including literal SQL search,
+bounded pagination, and private in-memory navigation state. H4 awaits acceptance;
 these increments do not complete the entire scenario.
 
 The accepted [base-architecture specification](specs/2026-08-31-base-application-architecture.md) is

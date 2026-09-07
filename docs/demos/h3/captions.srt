@@ -1,0 +1,57 @@
+1
+00:00:00,427 --> 00:00:08,707
+Workbench now searches the entire collection by name, notes, or storage location.
+This demonstration uses synthetic
+
+2
+00:00:08,707 --> 00:00:11,295
+records in a disposable database.
+
+3
+00:00:12,708 --> 00:00:19,504
+Type a remembered phrase and press Search. Matching ignores letter case and treats
+punctuation literally. Here,
+
+4
+00:00:19,504 --> 00:00:26,300
+September fair appears in the notes, so the sapphire is found even though its name is
+
+5
+00:00:26,300 --> 00:00:26,725
+different.
+
+6
+00:00:28,138 --> 00:00:35,170
+On a phone, choose the compact list and open the sapphire. Its location is right
+here.
+
+7
+00:00:35,170 --> 00:00:42,201
+Returning to the collection preserves the query, list view, and selected result.
+Changing appearance keeps the
+
+8
+00:00:42,201 --> 00:00:43,080
+task intact.
+
+9
+00:00:44,502 --> 00:00:51,616
+A simulated connection failure shows an error, not an empty collection. Retry repeats
+the submitted query
+
+10
+00:00:51,616 --> 00:00:53,840
+and retrieves the matching piece.
+
+11
+00:00:55,250 --> 00:01:01,205
+A phrase with no matches has its own message. Clear returns to the collection without
+changing
+
+12
+00:01:01,205 --> 00:01:07,160
+any records. Search state stays in this signed-in app and resets on a full reload or
+
+13
+00:01:07,160 --> 00:01:07,532
+sign-out.

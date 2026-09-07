@@ -84,9 +84,21 @@ public static class InventoryEndpoints
         return item is null ? Results.Problem(statusCode: StatusCodes.Status404NotFound, title: "Item not found.") : Results.Ok(Detail(item));
     }
 
-    private static async Task<IResult> ListAsync(string? cursor, WorkbenchDbContext database, CancellationToken cancellationToken)
+    private static async Task<IResult> ListAsync(string? cursor, string? q, WorkbenchDbContext database, CancellationToken cancellationToken)
     {
+        q = q?.Trim();
+        if (q is { Length: > 200 } || q?.Contains('\0') == true)
+            return ApiProblemResults.InvalidRequest("Search must be at most 200 characters and must not contain NUL.");
+
         var query = database.Items.AsNoTracking();
+        if (!string.IsNullOrEmpty(q))
+        {
+            // Explicit collation keeps case/accent behavior independent of database defaults.
+            // Contains is translated as a parameterized literal substring, not user-supplied LIKE syntax.
+            query = query.Where(row => EF.Functions.Collate(row.Name, "Latin1_General_100_CI_AS_SC").Contains(q) ||
+                (row.Notes != null && EF.Functions.Collate(row.Notes, "Latin1_General_100_CI_AS_SC").Contains(q)) ||
+                (row.StorageLocation != null && EF.Functions.Collate(row.StorageLocation, "Latin1_General_100_CI_AS_SC").Contains(q)));
+        }
         if (cursor is not null)
         {
             var parts = cursor.Split('_');

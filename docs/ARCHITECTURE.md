@@ -30,7 +30,13 @@ for configuration, paired recovery, and migration procedures.
 The first inventory slice is the [H1 collection notebook](specs/2026-09-06-h1-collection-notebook.md):
 authenticated tenant members can create, browse, and reopen individual objects with names, notes,
 and descriptive storage locations. The [H2 photograph increment](specs/2026-09-07-h2-item-photographs.md)
-adds one private photo per saved item. Search, descriptive editing, quantity-based stock,
+adds one private photo per saved item. The [H3 search increment](specs/2026-09-07-h3-collection-search.md)
+adds tenant-scoped literal phrase search across names, notes, and locations before chronological
+pagination. Matching is case-insensitive and accent-sensitive with an explicit SQL collation;
+queries are trimmed and limited to 200 UTF-16 code units. The existing tenant/chronology index
+is retained; arbitrary substring queries can scan the tenant's candidates. Collection navigation
+state stays in authenticated application memory and resets on reload or authentication loss.
+Descriptive editing, quantity-based stock,
 purchasing, accounting, and commerce require their own focused specifications.
 
 ### Collection identity

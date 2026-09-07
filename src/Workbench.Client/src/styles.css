@@ -897,6 +897,22 @@ dialog::backdrop {
   .topbar { position: static; }
 }
 html { scroll-padding-top: 8rem; }
+.collection-search {
+  margin-block: 1.5rem;
+}
+.collection-search-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+}
+.collection-search-controls input {
+  flex: 1 1 16rem;
+  min-width: 0;
+}
+.collection-search-controls button {
+  flex: 0 0 auto;
+}
 .collection-view {
   display: inline-flex;
   gap: 0.25rem;

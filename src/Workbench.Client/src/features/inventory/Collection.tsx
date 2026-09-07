@@ -1,4 +1,11 @@
-import { useEffect, useRef, useState, type MouseEvent } from 'react';
+import {
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type MouseEvent,
+} from 'react';
+import { CollectionMemory } from './collectionMemory';
 import { ApiError } from '../../api/auth';
 import { Icon } from '../../Icon';
 import { ItemPhoto } from './ItemPhoto';
@@ -13,63 +20,103 @@ type Props = {
   follow(event: MouseEvent<HTMLAnchorElement>): void;
   onAuthLost(): void;
 };
-export function Collection({ follow, onAuthLost }: Props) {
-  const [view, setView] = useState<'grid' | 'list'>('grid');
-  const [page, setPage] = useState<ItemPage>();
-  const [loading, setLoading] = useState(true);
-  const [failed, setFailed] = useState(false);
-  const [retry, setRetry] = useState(0);
+export function Collection({
+  follow,
+  onAuthLost,
+  memory: providedMemory,
+}: Props & { memory?: CollectionMemory }) {
+  const [localMemory] = useState(() => new CollectionMemory());
+  const memory = providedMemory ?? localMemory;
+  const [view, setView] = useState(() => memory.snapshot?.view ?? 'grid');
+  const [draft, setDraft] = useState(() => memory.snapshot?.draft ?? '');
+  const [query, setQuery] = useState(() => memory.snapshot?.query ?? '');
+  const [page, setPage] = useState<ItemPage | undefined>(
+    () => memory.snapshot?.page,
+  );
+  const [request, setRequest] = useState<{ cursor?: string } | undefined>(() =>
+    memory.snapshot?.page ? undefined : {},
+  );
+  const [failed, setFailed] = useState<number>();
+  const heading = useRef<HTMLHeadingElement>(null);
+  const links = useRef(new Map<string, HTMLAnchorElement>());
+  const loading = Boolean(request);
+  useLayoutEffect(
+    () =>
+      memory.subscribePhotos((id, photo) => {
+        setPage((previous) =>
+          previous
+            ? {
+                ...previous,
+                items: previous.items.map((item) =>
+                  item.id === id ? { ...item, photo } : item,
+                ),
+              }
+            : previous,
+        );
+      }),
+    [memory],
+  );
   useEffect(() => {
+    memory.save({ view, draft, query, page });
+  }, [memory, view, draft, query, page]);
+  useLayoutEffect(() => {
+    if (memory.snapshot?.page) {
+      const selected = memory.selectedId
+        ? links.current.get(memory.selectedId)
+        : undefined;
+      (selected ?? heading.current)?.focus({ preventScroll: true });
+      window.scrollTo({ top: memory.scrollY ?? 0, behavior: 'instant' });
+    }
+    const savePosition = () => {
+      memory.savePosition(window.scrollY);
+    };
+    window.addEventListener('scroll', savePosition, { passive: true });
+    return () => window.removeEventListener('scroll', savePosition);
+  }, [memory]);
+  useEffect(() => {
+    if (!request) return;
     let current = true;
-    void getItems().then(
+    void getItems(request.cursor, query || undefined).then(
       (result) => {
-        if (current) {
-          setPage(result);
-          setLoading(false);
-          setFailed(false);
-        }
+        if (!current) return;
+        setPage((previous) =>
+          request.cursor && previous
+            ? {
+                items: [...previous.items, ...result.items],
+                nextCursor: result.nextCursor,
+              }
+            : result,
+        );
+        setFailed(undefined);
+        setRequest(undefined);
       },
       (error) => {
         if (!current) return;
-        if (
-          error instanceof ApiError &&
-          (error.status === 401 || error.status === 403)
-        )
-          onAuthLost();
-        setLoading(false);
-        setFailed(true);
+        const status = error instanceof ApiError ? error.status : 500;
+        if (status === 401 || status === 403) onAuthLost();
+        setFailed(status);
+        setRequest(undefined);
       },
     );
     return () => {
       current = false;
     };
-  }, [retry, onAuthLost]);
-  async function more() {
-    if (loading || !page?.nextCursor) return;
-    setLoading(true);
-    setFailed(false);
-    try {
-      const next = await getItems(page.nextCursor);
-      setPage({
-        items: [...page.items, ...next.items],
-        nextCursor: next.nextCursor,
-      });
-    } catch (error) {
-      if (
-        error instanceof ApiError &&
-        (error.status === 401 || error.status === 403)
-      )
-        onAuthLost();
-      setFailed(true);
-    } finally {
-      setLoading(false);
-    }
+  }, [request, query, onAuthLost]);
+  function search(value: string) {
+    setQuery(value.trim());
+    setPage(undefined);
+    setFailed(undefined);
+    memory.select(undefined);
+    memory.savePosition(0);
+    setRequest({});
   }
   return (
     <section>
       <div className="page-heading">
         <div>
-          <h1>Collection</h1>
+          <h1 ref={heading} tabIndex={-1}>
+            Collection
+          </h1>
           <p className="lede">A place for the pieces you want to remember.</p>
         </div>
         <a className="primary button" href="/inventory/new" onClick={follow}>
@@ -77,23 +124,61 @@ export function Collection({ follow, onAuthLost }: Props) {
           Add item
         </a>
       </div>
-      {loading ? <p role="status">Loading collection…</p> : null}
+      <form
+        className="collection-search"
+        role="search"
+        onSubmit={(event) => {
+          event.preventDefault();
+          search(draft);
+        }}
+      >
+        <label htmlFor="collection-query">Search collection</label>
+        <div className="collection-search-controls">
+          <input
+            id="collection-query"
+            type="search"
+            value={draft}
+            aria-describedby="collection-search-help"
+            onChange={(event) => setDraft(event.target.value)}
+          />
+          <button className="primary" type="submit">
+            Search
+          </button>
+          <button
+            className="secondary"
+            type="button"
+            onClick={() => {
+              setDraft('');
+              search('');
+            }}
+          >
+            Clear
+          </button>
+        </div>
+        <p className="hint" id="collection-search-help">
+          Find words in a name, notes, or location. Up to 200 characters.
+        </p>
+      </form>
+      {loading ? (
+        <p role="status">
+          {page ? 'Loading more items…' : 'Loading collection…'}
+        </p>
+      ) : null}
       {failed ? (
         <div role="alert">
           <p>
-            We could not load the collection.{' '}
-            {page
-              ? 'The items below are still available.'
-              : 'Please try again.'}
+            {failed === 400
+              ? 'The search could not be accepted. Use up to 200 characters and remove unsupported characters.'
+              : 'We could not load the collection. ' +
+                (page
+                  ? 'The items below are still available.'
+                  : 'Please try again.')}
           </p>
           <button
             className="secondary"
             onClick={() => {
-              if (page) void more();
-              else {
-                setLoading(true);
-                setRetry((value) => value + 1);
-              }
+              setFailed(undefined);
+              setRequest({ cursor: page?.nextCursor ?? undefined });
             }}
           >
             Retry
@@ -101,19 +186,33 @@ export function Collection({ follow, onAuthLost }: Props) {
         </div>
       ) : null}
       {page?.items.length === 0 && !loading && !failed ? (
-        <div className="empty-state">
-          <span className="photo-placeholder" aria-hidden="true">
-            <Icon name="image" />
-          </span>
-          <h2>Your collection starts here</h2>
-          <p>
-            Add your first item with just a name. Notes and a location can help
-            tell its story.
-          </p>
-        </div>
+        query ? (
+          <div className="empty-state" role="status">
+            <h2>No matches</h2>
+            <p>Try different words or clear the search.</p>
+          </div>
+        ) : (
+          <div className="empty-state">
+            <span className="photo-placeholder" aria-hidden="true">
+              <Icon name="image" />
+            </span>
+            <h2>Your collection starts here</h2>
+            <p>
+              Add your first item with just a name. Notes and a location can
+              help tell its story.
+            </p>
+          </div>
+        )
       ) : null}
       {page?.items.length ? (
         <>
+          {!loading && !failed ? (
+            <p role="status">
+              {page.items.length} {query ? 'matching ' : ''}
+              {page.items.length === 1 ? 'item' : 'items'} loaded
+              {page.nextCursor ? '; more available.' : '.'}
+            </p>
+          ) : null}
           <div
             className="collection-view"
             role="group"
@@ -134,7 +233,18 @@ export function Collection({ follow, onAuthLost }: Props) {
           <ul className="collection-list" data-view={view}>
             {page.items.map((item) => (
               <li key={item.id}>
-                <a href={`/inventory/${item.id}`} onClick={follow}>
+                <a
+                  href={'/inventory/' + item.id}
+                  ref={(node) => {
+                    if (node) links.current.set(item.id, node);
+                    else links.current.delete(item.id);
+                  }}
+                  onClick={(event) => {
+                    memory.select(item.id);
+                    memory.scrollY = window.scrollY;
+                    follow(event);
+                  }}
+                >
                   <ItemPhoto
                     url={item.photo?.thumbnailUrl}
                     name={item.name}
@@ -158,7 +268,10 @@ export function Collection({ follow, onAuthLost }: Props) {
         <button
           className="secondary"
           disabled={loading}
-          onClick={() => void more()}
+          onClick={() => {
+            setFailed(undefined);
+            setRequest({ cursor: page.nextCursor! });
+          }}
         >
           Load more
         </button>
@@ -171,8 +284,10 @@ export function ItemDetails({
   onDirtyChange,
   follow,
   onAuthLost,
+  memory,
 }: Props & {
   id: string;
+  memory?: CollectionMemory;
   onDirtyChange(value: boolean, uncertain: boolean): void;
 }) {
   const [item, setItem] = useState<ItemDetail>();
@@ -186,6 +301,7 @@ export function ItemDetails({
       (result) => {
         if (current) {
           setItem(result);
+          memory?.updatePhoto(id, result.photo);
           setFailed(undefined);
         }
       },
@@ -196,13 +312,16 @@ export function ItemDetails({
           (error.status === 401 || error.status === 403)
         )
           onAuthLost();
+        if (error instanceof ApiError && error.status === 404)
+          memory?.removeUnavailable(id);
         setFailed(error instanceof ApiError ? error.status : 500);
       },
     );
     return () => {
       current = false;
+      currentId.current = '';
     };
-  }, [id, retry, onAuthLost]);
+  }, [id, retry, onAuthLost, memory]);
   return (
     <section className="editor">
       <a className="text-link back-link" href="/inventory" onClick={follow}>
@@ -239,9 +358,15 @@ export function ItemDetails({
             item={item}
             onAuthLost={onAuthLost}
             onDirtyChange={onDirtyChange}
+            onPhotoChanged={() => {
+              memory?.updatePhoto(id, null);
+            }}
             reload={async () => {
               const result = await getItem(id);
-              if (currentId.current === id) setItem(result);
+              if (currentId.current === id) {
+                setItem(result);
+                memory?.updatePhoto(id, result.photo);
+              }
             }}
           />
           <dl className="item-details">

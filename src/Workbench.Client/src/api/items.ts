@@ -20,9 +20,9 @@ export async function createItem(body: CreateItemRequest): Promise<ItemDetail> {
   if (!response.ok || !data) throw new ApiError(response.status);
   return data;
 }
-export async function getItems(cursor?: string): Promise<ItemPage> {
+export async function getItems(cursor?: string, q?: string): Promise<ItemPage> {
   const { data, response } = await api.GET('/api/items', {
-    params: { query: { cursor } },
+    params: { query: { cursor, q } },
   });
   if (!response.ok || !data) throw new ApiError(response.status);
   return data;

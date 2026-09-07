@@ -1,9 +1,9 @@
 [CmdletBinding()]
-param([ValidateSet('h1', 'h2')][string]$Scenario = 'h1')
+param([ValidateSet('h1', 'h2', 'h3')][string]$Scenario = 'h1')
 
 $ErrorActionPreference = 'Stop'
 if (-not $IsWindows) { throw 'Narration generation requires Windows SAPI desktop voices.' }
-$repositoryRoot = Split-Path -Parent $PSScriptRoot
+$repositoryRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
 $output = Join-Path $repositoryRoot "artifacts/$Scenario-video"
 New-Item -ItemType Directory -Path $output -Force | Out-Null
 $scenes = Get-Content (Join-Path $repositoryRoot "tests/Workbench.BrowserTests/demos/$Scenario-narration.json") -Raw | ConvertFrom-Json

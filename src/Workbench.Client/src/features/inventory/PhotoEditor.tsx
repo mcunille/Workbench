@@ -13,11 +13,13 @@ export function PhotoEditor({
   onAuthLost,
   onDirtyChange,
   reload,
+  onPhotoChanged,
 }: {
   item: ItemDetail;
   onAuthLost(): void;
   onDirtyChange(value: boolean, uncertain: boolean): void;
   reload(): Promise<void>;
+  onPhotoChanged?(): void;
 }) {
   const [prepared, setPrepared] = useState<{ blob: Blob; url: string }>();
   const [busy, setBusy] = useState<'prepare' | 'save'>();
@@ -103,6 +105,8 @@ export function PhotoEditor({
       if (next.file)
         await putItemPhoto(item.id, next.file, next.requestId, next.version);
       else await removeItemPhoto(item.id, next.requestId, next.version);
+      onPhotoChanged?.();
+      if (!active.current) return;
       await reload();
       if (active.current) {
         setCommand(undefined);
