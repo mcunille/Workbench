@@ -63,7 +63,7 @@ restorability. Record SQL coverage and blob coverage separately; do not call the
 Start with daily collection and a configurable UTC schedule. Retention must cover the SQL recovery
 window and a collection/retry margin. Retain an older object while any retained catalog needs it;
 do not base expiration only on its original upload time. Extending SQL retention requires extending
-blob/catalog/key retention together. Missing the daily collection alerts at 24 hours; elapsed time
+blob/catalog/key retention together. Missing the daily collection alerts at 26 hours (24-hour cadence plus a two-hour runtime and log-ingestion margin); elapsed time
 alone does not mark an incomplete collection successful.
 
 Proposed Azure shape: one scheduled Container Apps backup job, one separate private backup storage
