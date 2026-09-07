@@ -21,6 +21,9 @@ jobs:
         run: |
           ./scripts/test-local-self-host.ps1
           ./scripts/test-local-self-host-orchestration.ps1
+          ./scripts/test-local-self-host-update.ps1
+          ./scripts/test-local-self-host-update-validation.ps1
+          ./scripts/test-local-self-host-update-checkpoint.ps1
 
   deployment-contracts:
     name: Deployment contracts

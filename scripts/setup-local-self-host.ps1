@@ -15,6 +15,7 @@ $ErrorActionPreference = 'Stop'
 $PSNativeCommandUseErrorActionPreference = $false
 if (-not $IsWindows) { throw 'This installer requires Windows, PowerShell 7, and Docker Desktop with Linux containers.' }
 . "$PSScriptRoot/local-self-host/Configuration.ps1"
+. "$PSScriptRoot/local-self-host/Common.ps1"
 $values = if ($ConfigurationFile) { Get-Content -LiteralPath $ConfigurationFile -Raw | ConvertFrom-Json -AsHashtable } else { @{} }
 foreach ($key in @('TenantName','AdminEmail','InstallationRoot','SourceRef','HttpPort','HttpsPort')) {
     if ($PSBoundParameters.ContainsKey($key)) { $values[$key] = $PSBoundParameters[$key] }
@@ -23,28 +24,17 @@ if ($PSBoundParameters.ContainsKey('TrustLocalCertificate')) { $values.TrustLoca
 $settings = Get-LocalSetupConfiguration $values
 $root = $settings.InstallationRoot
 if (Test-Path -LiteralPath $root) { throw 'Installation root already exists. Existing installations are never overwritten or resumed automatically.' }
-$docker = Get-Command docker -CommandType Application,ExternalScript -ErrorAction SilentlyContinue | Select-Object -First 1
-if (-not $docker) {
-    foreach ($candidate in @("$env:LOCALAPPDATA/Programs/DockerDesktop/resources/bin/docker.exe", 'C:/Program Files/Docker/Docker/resources/bin/docker.exe')) {
-        if (Test-Path -LiteralPath $candidate) { $docker = Get-Command $candidate; break }
-    }
-}
-if (-not $docker) { throw 'Docker Desktop CLI is required.' }
-function Invoke-SetupDocker([string[]]$Arguments) {
-    $output = & $docker.Source @Arguments 2>&1
-    if ($LASTEXITCODE -ne 0) { throw 'Docker operation failed. Installation state is preserved; inspect the current stage before retrying.' }
-    return $output
-}
+$docker = Get-LocalDocker
+function Invoke-SetupDocker([string[]]$Arguments) { Invoke-LocalDocker $docker $Arguments }
 if ((Invoke-SetupDocker @('info','--format','{{.OSType}}')) -ne 'linux') { throw 'Select Docker Linux containers.' }
 # Reject caller environment overrides before they can alter the generated deployment.
-if (Get-ChildItem Env: | Where-Object Name -Match '^(COMPOSE_|WORKBENCH_|ConnectionStrings__|Storage__|DataProtection__)') { throw 'Run setup in a clean shell without deployment overrides.' }
+Assert-LocalEnvironment
 foreach ($port in @($settings.HttpPort, $settings.HttpsPort)) {
     $listener = [Net.Sockets.TcpListener]::new([Net.IPAddress]::Loopback, $port)
     try { $listener.Start() } finally { $listener.Stop() }
 }
 $repository = Split-Path -Parent $PSScriptRoot
-$revision = & git -C $repository rev-parse --verify "$($settings.SourceRef)^{commit}"
-if ($LASTEXITCODE -ne 0 -or $revision -notmatch '^[a-f0-9]{40}$') { throw 'SourceRef must resolve to a committed revision.' }
+$revision = Resolve-LocalRevision $repository $settings.SourceRef
 $project = 'workbench-local-' + [Convert]::ToHexString([Security.Cryptography.SHA256]::HashData([Text.Encoding]::UTF8.GetBytes($root.ToLowerInvariant()))).Substring(0,10).ToLowerInvariant()
 $names = Invoke-SetupDocker @('container','ls','-a','--filter',"label=com.docker.compose.project=$project",'--format','{{.ID}}')
 if ($names) { throw 'Containers for this installation already exist.' }
@@ -77,34 +67,17 @@ function Save-State([string]$Status) {
     @{ Status=$Status; Stage=$stage; SourceRevision=$revision; Project=$project; UpdatedAtUtc=[DateTimeOffset]::UtcNow.ToString('o'); PublicOrigin=$origin } |
         ConvertTo-Json | Set-Content -LiteralPath "$root/installation.json" -Encoding utf8
 }
-function New-SetupMount([string]$Source, [string]$Target, [bool]$ReadOnly = $true, [string]$Type = 'bind') {
-    $mount = @{type=$Type;source=$Source;target=$Target;read_only=$ReadOnly}
-    if ($Type -eq 'bind') { $mount.bind = @{create_host_path=$false} }
-    return $mount
-}
 function Write-Secret([string]$Name, [string]$Value) { [IO.File]::WriteAllText("$root/secrets/$Name", $Value) }
 function Run-Database([string]$Role, [string[]]$Command, [string[]]$AdditionalSecrets = @()) {
-    $argsList = @('run','--rm','--pull','never','--network',"${project}_dependencies",'--read-only','--cap-drop','ALL','--security-opt','no-new-privileges:true',
-        '--tmpfs','/tmp:rw,noexec,nosuid,size=64m,uid=1654,gid=1654','--env','SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt',
-        '--mount',"type=bind,source=$root/trust/ca-certificates.crt,target=/etc/ssl/certs/ca-certificates.crt,readonly",
-        '--mount',"type=bind,source=$root/secrets/$Role-connection,target=/run/secrets/connection,readonly")
-    foreach ($secret in $AdditionalSecrets) { $argsList += @('--mount',"type=bind,source=$root/secrets/$secret,target=/run/secrets/$secret,readonly") }
-    $argsList += @('--entrypoint','dotnet',$appImage,'/opt/workbench/database/Workbench.Database.dll') + $Command + @('--connection-file','/run/secrets/connection','--expected-database','Workbench')
-    Invoke-SetupDocker $argsList | Out-Null
+    Invoke-LocalDatabase @{Docker=$docker;Root=$root;Project=$project;Image=$appImage} $Role $Command $AdditionalSecrets
 }
-function Run-Sql([string]$Sql) {
-    $command = 'export SQLCMDPASSWORD="$(cat /run/secrets/sql-bootstrap-password)"; exec /opt/mssql-tools18/bin/sqlcmd -S tcp:sql,1433 -U sa -d master -N -b -l 5 -t 60'
-    $Sql | & $docker.Source @compose exec -T sql /bin/bash -ec $command *> $null
-    if ($LASTEXITCODE -ne 0) { throw 'Validated SQL operation failed.' }
-}
+function Run-Sql([string]$Sql) { Invoke-LocalSql @{Docker=$docker;Compose=$compose} $Sql }
 $origin = if ($settings.HttpsPort -eq 443) { 'https://localhost' } else { "https://localhost:$($settings.HttpsPort)" }
 New-Item -ItemType Directory -Path $root | Out-Null
-$sid = [Security.Principal.WindowsIdentity]::GetCurrent().User.Value
-& icacls $root /inheritance:r /grant:r "*${sid}:(OI)(CI)F" '*S-1-5-18:(OI)(CI)F' *> $null
-if ($LASTEXITCODE -ne 0) { throw 'Installation ACL could not be secured. No secrets generated.' }
+Protect-LocalDirectory $root
 try {
     Save-State 'Installing'
-    New-Item -ItemType Directory -Path "$root/secrets", "$root/trust", "$root/source" | Out-Null
+    New-Item -ItemType Directory -Path "$root/secrets", "$root/trust" | Out-Null
     # Verify Docker sees host bind files before generating any credentials or starting SQL.
     $stage = 'host-file-sharing'
     Invoke-SetupDocker @('pull',$proxyImage) | Out-Null
@@ -113,13 +86,7 @@ try {
     if (($probe | Out-String).Trim() -cne 'workbench-mount-probe') { throw 'Docker Desktop cannot read files from the selected installation root. Check host file sharing.' }
     $stage = 'build'
     Write-Host 'Building the committed release and obtaining pinned dependencies...'
-    & git -C $repository archive --format=tar "--output=$root/source.tar" $revision
-    if ($LASTEXITCODE -ne 0) { throw 'Git archive failed.' }
-    & tar -xf "$root/source.tar" -C "$root/source"
-    if ($LASTEXITCODE -ne 0) { throw 'Source archive extraction failed.' }
-    Invoke-SetupDocker @('build','--pull','--label',"org.opencontainers.image.revision=$revision",'--iidfile',"$root/image-id", "$root/source") | Out-Null
-    $appImage = (Get-Content "$root/image-id" -Raw).Trim()
-    if ($appImage -notmatch '^sha256:[a-f0-9]{64}$') { throw 'Build did not produce an immutable image ID.' }
+    $appImage = Build-LocalImage $docker $repository $revision $root
     Invoke-SetupDocker @('pull',$sqlImage) | Out-Null; Invoke-SetupDocker @('pull',$proxyImage) | Out-Null
     $stage = 'secrets'
     foreach ($name in @('sql-bootstrap','web','worker','migrator','operator','maintenance','admin','certificate')) {
@@ -211,13 +178,7 @@ https://localhost {
     Run-Database 'operator' @('bootstrap','--tenant-name',$settings.TenantName,'--admin-email',$settings.AdminEmail,'--password-file','/run/secrets/admin-password') @('admin-password')
     $stage = 'workloads'
     Invoke-SetupDocker ($compose + @('up','-d','--no-deps','app')) | Out-Null
-    $deadline = [DateTimeOffset]::UtcNow.AddMinutes(2)
-    do {
-        & $docker.Source @compose exec -T app dotnet Workbench.Server.dll --health-check *> $null
-        $ready = $LASTEXITCODE -eq 0
-        if (-not $ready) { Start-Sleep -Seconds 2 }
-    } while (-not $ready -and [DateTimeOffset]::UtcNow -lt $deadline)
-    if (-not $ready) { throw 'Application readiness failed.' }
+    Wait-LocalApp @{Docker=$docker;Compose=$compose}
     Invoke-SetupDocker ($compose + @('run','--rm','--no-deps','worker','--worker','--once')) | Out-Null
     Invoke-SetupDocker ($compose + @('up','-d','--no-deps','worker','proxy')) | Out-Null
     $proxy = (Invoke-SetupDocker ($compose + @('ps','-q','proxy')) | Out-String).Trim()
