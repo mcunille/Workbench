@@ -22,6 +22,34 @@ composition, and its [animation practice](https://www.disneyanimation.com/proces
 connects timing with readable action. Applying these film principles to task focus is a Workbench
 design interpretation, not a Disney web-UI standard. Research was accessed on 2026-09-07.
 
+### UI Skills follow-up research
+
+The owner requested a further review of [UI Skills](https://www.ui-skills.com/). On 2026-09-07,
+the catalog and four relevant skill texts were reviewed against the accepted guidance and current
+H1 source at `5f2c4ff`. The earlier [research synthesis](../../specs/2026-09-06-ui-design-guidance.md#research-synthesis)
+already covers layout, typography, accessibility and interface design. This follow-up adds the
+following assessment; external skills were read as sources, not installed or adopted as workflow policy.
+
+| Source | Useful lesson | Application to Workbench |
+| --- | --- | --- |
+| [improve-ui](https://www.ui-skills.com/skills/ibelick/improve-ui) | Ground findings in the governing design, the rendered ownership path and a demonstrable correction. | Keep future polish reviews tied to a specific task and evidence. A different stylistic preference alone does not establish a defect. Its audit-only workflow and exclusion of unsolicited accessibility findings do not replace repository verification requirements. |
+| [better-ui](https://www.ui-skills.com/skills/jakubkrehel/better-ui) | Inspect optical alignment, distinguish structural borders from elevation, keep interactive motion interruptible, and avoid palette interpolation during theme changes. | The refinement already separates structural edges from controls, uses one currentColor icon family and changes theme colors immediately. Check concentric corners where surfaces actually share an inset; do not apply a radius equation to every control inside a spacious panel. |
+| [12-principles-of-animation](https://www.ui-skills.com/skills/raphaelsalaja/12-principles-of-animation) | Keep timing consistent and attention focused on the action. | This is an independent author's adaptation of Disney principles, not official Disney web guidance. Retain brief press feedback and reduced-motion support; H1 does not need animated entrances or springs. |
+| [frontend-ui-engineering](https://www.ui-skills.com/skills/addyosmani/frontend-ui-engineering) | Preserve the product's design system, simple state ownership, real content, and complete loading, empty and error states. | Continue with existing React and CSS owners. H1's shared appearance state and recoverable save states fit this direction. Examples of skeletons, optimistic updates and libraries are options to assess, not reasons to add them automatically. |
+
+The sources are not one consistent specification. For example, better-ui recommends approximately
+100ms stagger intervals for occasional staged entrances and ease-out exits; the animation skill
+limits stagger intervals to 50ms and calls for ease-in exits. These are author preferences, not
+universal correctness rules. Neither justifies changing H1's accepted 120ms feedback or introducing
+staged motion. Likewise, exact press-scale recipes do not establish a defect in its subtle translation.
+
+The useful next review priorities are optical alignment in real content, continuity through loading
+and recovery, and assistive-technology checks. These are review priorities, not newly verified bugs.
+This research adds no product changes or fresh browser-conformance claim. Current source confirms
+explicit transition properties, reduced-motion handling and shared icon coloring; the rendered
+evidence and its remaining limits are documented below. Documentation validation for this supplement
+consists of source-link retrieval and `git diff --check`; application tests were not rerun for it.
+
 ## Visual specification
 
 - Preserve the supplied gold stag, serif Workbench wordmark, bronze actions, local system body
