@@ -1,6 +1,6 @@
 # Online backup and SQL-authoritative manual recovery
 
-**Status:** Accepted direction; implementation and hosted verification pending.
+**Status:** Implemented locally; hosted verification and activation pending.
 
 ## Decision and scope
 

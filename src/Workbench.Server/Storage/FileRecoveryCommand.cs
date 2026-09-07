@@ -48,13 +48,14 @@ public static class FileRecoveryCommand
         }
         var json = await ReadInventoryAsync(connection, transaction, cancellationToken);
         var inventory = JsonSerializer.Deserialize<RecoveryInventory>(json) ?? throw new InvalidDataException("Missing recovery inventory.");
+        var originalAlias = RecoveryBinding.Validate(configuration, inventory);
         if (action == "recovery-plan")
         {
             // Validate the isolated binding before any materialization can write provider bytes.
             if (inventory.Rows.Any(row => row.ProviderAlias == target.Alias) || inventory.Rows.Any(row => row.State == 0))
                 throw new InvalidOperationException("Use a distinct recovery store and resolve pending SQL operations first.");
             if (arguments.TryGetValue("--catalog-directory", out var directory))
-                await MaterializeAsync(directory, configuration, inventory, target, installation, cancellationToken);
+                await MaterializeAsync(directory, configuration, inventory, target, installation, originalAlias, cancellationToken);
             var report = await FileRecovery.InspectAsync(inventory, json, target, installation, cancellationToken);
             await WriteNewAsync(path, report, cancellationToken);
             await transaction.CommitAsync(cancellationToken);
@@ -106,7 +107,7 @@ public static class FileRecoveryCommand
     }
 
     private static async Task MaterializeAsync(string directory, IConfiguration configuration, RecoveryInventory inventory,
-        IBlobStore target, Guid installation, CancellationToken cancellationToken)
+        IBlobStore target, Guid installation, string originalAlias, CancellationToken cancellationToken)
     {
         var uri = new Uri(configuration["Recovery:ArchiveContainer"] ?? throw new ArgumentException("Backup archive binding is required."));
         if (uri.Scheme != "https" || !uri.Host.EndsWith(".blob.core.windows.net", StringComparison.OrdinalIgnoreCase) ||
@@ -126,8 +127,9 @@ public static class FileRecoveryCommand
                 catalog.ExpiresAtUtc <= DateTimeOffset.UtcNow || catalog.Outcome is not ("IntegrityChecked" or "Incomplete"))
                 throw new InvalidDataException("Catalog identity or retention differs.");
             var prefix = $"{installation:N}/{catalog.BackupId:N}/objects/";
-            var sourceAlias = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(
-                $"Azure\n{catalog.Metadata.SourceContainer.TrimEnd('/')}\n{installation}")));
+            if (new Uri(catalog.Metadata.SourceContainer) != new Uri(configuration["Recovery:Source:Storage:ContainerUri"]!))
+                throw new InvalidDataException("Catalog source does not match verified original storage.");
+            var sourceAlias = originalAlias;
             foreach (var entry in catalog.Objects)
             {
                 if (!entry.Destination.StartsWith(prefix, StringComparison.Ordinal) || entry.Destination.Length != prefix.Length + 64 ||

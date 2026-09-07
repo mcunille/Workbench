@@ -93,6 +93,9 @@ public sealed class BlobRecoveryTests(SqlServerFixture sqlServer)
                 command.Parameters.AddWithValue("@now", DateTimeOffset.UtcNow);
                 await command.ExecuteNonQueryAsync();
             }
+            // GIVEN a compatible exact-pair manifest produced by the preceding release.
+            var priorManifest = JsonSerializer.Deserialize<BlobManifest>(await File.ReadAllTextAsync(manifestPath))!;
+            await File.WriteAllTextAsync(manifestPath, JsonSerializer.Serialize(priorManifest with { SchemaVersion = "20260907194500_AddItemDetailEditing" }));
             // THEN verification blocks reopening until every referenced object is restored.
             await Assert.ThrowsAsync<FileNotFoundException>(() => StorageMaintenanceCommand.RunAsync("verify", maintenance, databaseName, options, CancellationToken.None));
             await using (var connection = new SqlConnection(database.AdminConnectionString))
@@ -150,7 +153,7 @@ public sealed class BlobRecoveryTests(SqlServerFixture sqlServer)
             // AND the paired manifest records its schema boundary as well as immutable content identity.
             using var manifest = JsonDocument.Parse(await File.ReadAllTextAsync(manifestPath));
             Assert.True(manifest.RootElement.TryGetProperty("SchemaVersion", out var schema));
-            Assert.Equal("20260907225320_AddOnlineRecovery", schema.GetString());
+            Assert.Equal("20260907194500_AddItemDetailEditing", schema.GetString());
             // WHEN the migrated attachment is deleted after its retention deadline.
             await using var contextAfterMigration = BlobPersistenceTests.CreateContext(web, proof, tenant);
             var attachmentAfterMigration = await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.SingleAsync(contextAfterMigration.Attachments);

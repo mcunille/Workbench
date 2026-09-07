@@ -90,6 +90,7 @@ public static class PasswordPrincipalProvisioning
                                     (N'workbench_web', N'[Identity].[ClaimInvitationIdentity]', N'EXECUTE'),
                                     (N'workbench_web', N'[Security].[TryAcquireSensitiveRequest]', N'EXECUTE'),
                                     (N'workbench_web', N'[Security].[ReadDatabaseReadiness]', N'EXECUTE'),
+                                    (N'workbench_web', N'[Security].[ReadFileRecoveryReadiness]', N'EXECUTE'),
                                     (N'workbench_web', N'[Security].[ReadDeploymentReadiness]', N'EXECUTE'),
                                     (N'workbench_web', N'[Security].[ReadProviderRetryReadiness]', N'EXECUTE'),
                                     (N'workbench_web', N'[Security].[ReadOperationalReadiness]', N'EXECUTE'),

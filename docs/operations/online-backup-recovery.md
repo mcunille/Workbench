@@ -90,7 +90,7 @@ evidence for its 24-hour window; inspect later successful executions before clos
 4. Create the configuration below outside Git, using the installation's original UUID. `Storage` is
    the recovered target, not the original source. Provide the original SQL resource ID from the backup
    catalog; it will differ from the isolated SQL connection. A filesystem target can use the existing
-   `FileSystem` provider settings instead.
+   `FileSystem` provider settings instead. `Recovery:Source:Storage` must reproduce the original configuration exactly, including UUID spelling; its alias is verified against SQL. The destination must be a separate container or a nonoverlapping filesystem root. Original storage is never read or written by this validation.
 
 ```json
 {
@@ -100,6 +100,11 @@ evidence for its 24-hour window; inspect later successful executions before clos
     "InstallationId": "ORIGINAL-INSTALLATION-UUID"
   },
   "Recovery": {
+    "Source": { "Storage": {
+      "Provider": "Azure",
+      "ContainerUri": "https://ORIGINAL.blob.core.windows.net/workbench",
+      "InstallationId": "EXACT-ORIGINAL-CONFIGURATION-UUID-TEXT"
+    } },
     "ArchiveContainer": "https://BACKUP.blob.core.windows.net/backups",
     "OriginalSqlResourceId": "/subscriptions/SUB/resourceGroups/RG/providers/Microsoft.Sql/servers/ORIGINAL/databases/Workbench"
   }

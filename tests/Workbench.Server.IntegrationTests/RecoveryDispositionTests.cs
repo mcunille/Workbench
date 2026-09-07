@@ -32,16 +32,20 @@ public sealed class RecoveryDispositionTests(SqlServerFixture sqlServer)
         Directory.CreateDirectory(root);
         try
         {
-            var original = new FileSystemBlobStore(Directory.CreateDirectory(Path.Combine(root, "original")).FullName, alias: "original");
+            var originalPath = Directory.CreateDirectory(Path.Combine(root, "original")).FullName;
             var targetPath = Directory.CreateDirectory(Path.Combine(root, "recovered")).FullName;
             var installation = Guid.NewGuid();
             var configuration = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
             {
+                ["Recovery:Source:Storage:Provider"] = "FileSystem",
+                ["Recovery:Source:Storage:Root"] = originalPath,
+                ["Recovery:Source:Storage:InstallationId"] = installation.ToString(),
                 ["Storage:Provider"] = "FileSystem",
                 ["Storage:Root"] = targetPath,
                 ["Storage:DurableVolume"] = "true",
                 ["Storage:InstallationId"] = installation.ToString(),
             }).Build();
+            var original = OperationalConfiguration.CreateStore(configuration.GetSection("Recovery:Source"))!;
             var target = OperationalConfiguration.CreateStore(configuration)!;
             var attachment = Guid.NewGuid();
             var actor = new RequestActor(Guid.NewGuid(), tenant, Guid.NewGuid(), new HashSet<string>
@@ -66,6 +70,14 @@ public sealed class RecoveryDispositionTests(SqlServerFixture sqlServer)
             Assert.Equal(revision.Id, Assert.Single(report.Missing).RevisionId);
             // WHEN the exact report is accepted and applied manually.
             arguments["--accept-report-sha256"] = Convert.ToHexString(SHA256.HashData(reportBytes));
+            // AND a concurrent SQL change invalidates acceptance before orphan deletion.
+            await using (var change = new SqlCommand("UPDATE [Storage].[Revisions] SET [State]=[State]", setup))
+                await change.ExecuteNonQueryAsync();
+            await Assert.ThrowsAsync<InvalidDataException>(() => FileRecoveryCommand.RunAsync("recovery-apply", maintenance, arguments, configuration, target, installation, default));
+            await using (var retainedOrphan = await target.OpenReadAsync(orphan, default)) Assert.Equal(8, retainedOrphan.ReadByte());
+            arguments["--report-file"] = Path.Combine(root, "fresh-report.json");
+            await FileRecoveryCommand.RunAsync("recovery-plan", maintenance, arguments, configuration, target, installation, default);
+            arguments["--accept-report-sha256"] = Convert.ToHexString(SHA256.HashData(await File.ReadAllBytesAsync(arguments["--report-file"])));
             await FileRecoveryCommand.RunAsync("recovery-apply", maintenance, arguments, configuration, target, installation, default);
             // THEN the source bytes survive, the recovered orphan is absent, and SQL retains an explicit disposition.
             await using var sourceBytes = await original.OpenReadAsync(new(tenant, revision.Id), default);
