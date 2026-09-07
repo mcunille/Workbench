@@ -17,13 +17,13 @@ describe('App', () => {
           permissions: ['TenantAccess'],
         }),
       ),
-      http.get('*/api/auth/sessions', () => HttpResponse.json([])),
+      http.get('*/api/items', () => HttpResponse.json({ items: [], nextCursor: null })),
     );
 
     render(<App />);
 
     expect(screen.getByRole('status')).toHaveTextContent('Loading');
-    expect(await screen.findByRole('heading', { name: 'Welcome to Tenant A' })).toBeVisible();
+    expect(await screen.findByRole('heading', { name: 'Collection' })).toBeVisible();
     expect(screen.getByText('Workbench 1.2.3')).toBeVisible();
   });
 

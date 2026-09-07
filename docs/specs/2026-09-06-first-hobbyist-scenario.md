@@ -3,6 +3,10 @@
 **Status: Proposed** — a product scenario and story proposal, not approval to implement or a
 committed sprint forecast.
 
+**H1 exception:** The owner approved the [H1 collection notebook](2026-09-06-h1-collection-notebook.md)
+and [inventory domain foundation](2026-09-06-inventory-domain-foundation.md). Those specifications
+settle H1's API/schema boundaries. H2–H4 and the complete scenario remain proposed.
+
 ## Direction and evidence
 
 Start with a hobbyist who owns individually identifiable gemstones or jewelry and currently

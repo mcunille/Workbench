@@ -10,6 +10,12 @@ database-enforced tenant isolation, built-in identity, durable sessions, and exp
 operations are implemented. Blob and operational providers and deployment infrastructure are
 implemented; hosted acceptance remains pending.
 
+The first collection workflow lets an authenticated tenant member save an individually tracked
+piece with a name, optional notes, and storage location, then browse and reopen it across sessions.
+It supports mobile and desktop layouts with System/Light/Dark appearance. Photos, search, editing,
+deletion, bulk stock, and financial workflows are not part of this first notebook slice. See the
+[H1 specification](docs/specs/2026-09-06-h1-collection-notebook.md) for its scope and guarantees.
+
 ## Setup and installation
 
 Follow the [canonical setup guide](docs/setup.md) for prerequisites, safe `.env.dev` creation,

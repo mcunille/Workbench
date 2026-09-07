@@ -12,6 +12,9 @@ namespace Workbench.Server.IntegrationTests;
 public sealed class PasswordPrincipalProvisioningTests(SqlServerFixture sqlServer)
 {
     [Theory]
+    [InlineData("GRANT UPDATE ON OBJECT::[Inventory].[Items] TO [workbench_web]")]
+    [InlineData("GRANT DELETE ON OBJECT::[Inventory].[Items] TO [workbench_web]")]
+    [InlineData("GRANT SELECT ON OBJECT::[Inventory].[Items] TO [workbench_web] WITH GRANT OPTION")]
     [InlineData("GRANT CONTROL TO [workbench_web]")]
     [InlineData("GRANT CONTROL TO [workbench_operator]")]
     [InlineData("GRANT IMPERSONATE ON USER::dbo TO [workbench_web]")]
@@ -139,6 +142,16 @@ public sealed class PasswordPrincipalProvisioningTests(SqlServerFixture sqlServe
             await using var claimPermission = new SqlCommand(
                 "SELECT HAS_PERMS_BY_NAME('Identity.ClaimInvitationIdentity', 'OBJECT', 'EXECUTE')", connection);
             Assert.Equal(principal.Role == "workbench_operator" ? 0 : 1, Convert.ToInt32(await claimPermission.ExecuteScalarAsync()));
+            // AND collection grants expose only reading and creation to the runtime user.
+            foreach (var operation in new[] { "SELECT", "INSERT", "UPDATE", "DELETE" })
+            {
+                await using var inventoryPermission = new SqlCommand(
+                    "SELECT HAS_PERMS_BY_NAME('Inventory.Items', 'OBJECT', @operation)", connection);
+                inventoryPermission.Parameters.AddWithValue("@operation", operation);
+                var expected = principal.Role == "workbench_migrator" ||
+                    (principal.Role == "workbench_web" && operation is "SELECT" or "INSERT");
+                Assert.Equal(expected ? 1 : 0, Convert.ToInt32(await inventoryPermission.ExecuteScalarAsync()));
+            }
         }
     }
 

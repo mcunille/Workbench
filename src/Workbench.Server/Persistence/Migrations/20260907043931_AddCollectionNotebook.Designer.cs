@@ -5,6 +5,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Workbench.Server.Persistence;
 
@@ -13,9 +14,11 @@ using Workbench.Server.Persistence;
 namespace Workbench.Server.Persistence.Migrations
 {
     [DbContext(typeof(WorkbenchDbContext))]
-    partial class WorkbenchDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260907043931_AddCollectionNotebook")]
+    partial class AddCollectionNotebook
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder

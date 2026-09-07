@@ -15,6 +15,7 @@ using Workbench.Server.Contracts;
 using Workbench.Server.Health;
 using Workbench.Server.Http;
 using Workbench.Server.Identity;
+using Workbench.Server.Inventory;
 using Workbench.Server.Persistence;
 using Workbench.Server.Security;
 using Workbench.Server.Tenancy;
@@ -252,6 +253,7 @@ app.MapGet(
     .Produces<SystemResponse>();
 
 app.MapWorkbenchAuthentication();
+app.MapWorkbenchInventory();
 app.MapWorkbenchRecovery();
 app.MapTenantUserAdministration();
 

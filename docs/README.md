@@ -37,7 +37,9 @@ Design acceptance does not imply an implemented application UI or accepted domai
 The proposed [first hobbyist scenario](specs/2026-09-06-first-hobbyist-scenario.md) applies that
 guidance to a complete collection journey: save an item, recognize it by photograph, find it,
 and keep it accurate. It defines four value-delivering stories and shared completion criteria;
-the scenario awaits design acceptance and sprint capacity assessment.
+H1 has an accepted [implementation design](specs/2026-09-06-h1-collection-notebook.md) and
+[inventory domain foundation](specs/2026-09-06-inventory-domain-foundation.md) informed by GemInv.
+The remaining stories await acceptance; implementing H1 does not complete the entire scenario.
 
 The accepted [base-architecture specification](specs/2026-08-31-base-application-architecture.md) is
 the decision record behind `ARCHITECTURE.md`.

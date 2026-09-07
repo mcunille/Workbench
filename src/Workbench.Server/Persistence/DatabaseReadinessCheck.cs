@@ -72,7 +72,17 @@ public sealed class DatabaseReadinessCheck(
                     THEN 1 ELSE 0 END);
                 """, connection);
             var invitationReady = Convert.ToBoolean(await invitation.ExecuteScalarAsync(cancellationToken));
-            return state.IsReady && operationalReady && deploymentReady && invitationReady
+            // Verify this application's inventory contract independently of an older schema's self-report.
+            await using var inventory = new SqlCommand("""
+                SELECT CONVERT(bit, CASE WHEN OBJECT_ID(N'[Inventory].[Items]', N'U') IS NOT NULL
+                    AND HAS_PERMS_BY_NAME(N'[Inventory].[Items]', N'OBJECT', N'SELECT') = 1
+                    AND HAS_PERMS_BY_NAME(N'[Inventory].[Items]', N'OBJECT', N'INSERT') = 1
+                    AND HAS_PERMS_BY_NAME(N'[Inventory].[Items]', N'OBJECT', N'UPDATE') = 0
+                    AND HAS_PERMS_BY_NAME(N'[Inventory].[Items]', N'OBJECT', N'DELETE') = 0
+                    THEN 1 ELSE 0 END);
+                """, connection);
+            var inventoryReady = Convert.ToBoolean(await inventory.ExecuteScalarAsync(cancellationToken));
+            return state.IsReady && operationalReady && deploymentReady && invitationReady && inventoryReady
                 ? HealthCheckResult.Healthy()
                 : HealthCheckResult.Unhealthy("Database security state is not ready.");
         }
