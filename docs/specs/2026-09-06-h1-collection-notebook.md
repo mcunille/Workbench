@@ -76,6 +76,10 @@ and access to details. Details expose the complete stable identifier and all sav
 successful creation, open the saved detail; returning to the collection reloads its first page.
 Expose account/session management separately and administration only to authorized users.
 
+For this three-destination slice, navigation stays directly visible and wraps on narrow screens.
+The UI guidance's drawer becomes useful as navigation grows; H1 avoids adding a menu interaction
+to these few destinations. Both layouts retain ordinary links and browser history behavior.
+
 The short add form has persistent labels, optional-field labels, examples, Save item, and Cancel.
 Associate validation messages with inputs, focus the first invalid field, and preserve all input
 on validation or recoverable failure. Distinguish loading, empty, unavailable, and retry states.
@@ -132,3 +136,20 @@ living documentation, then commit, push, and open a ready-for-review PR. Merge r
 
 Human hobbyist usability validation remains external evidence, not something automated checks
 can establish. Completing H1 delivers a text collection notebook and does not complete H2–H4.
+
+### Development evidence
+
+Focused tests first demonstrated missing creation (HTTP 404 instead of 201) and incorrect
+prior-schema readiness (200 instead of 503). Integration subsequently exposed the principal
+provisioning allowlist gap; its success test failed before the narrow inventory grant entry was
+added. Tests retain rejection of UPDATE, DELETE, and grant-option authority.
+
+Independent source review found a dirty-form guard failure during native fragment navigation.
+Regressions at initial and later history positions failed before the fix; same-page fragment
+navigation now preserves the draft while ordinary route changes still require confirmation.
+
+Six targeted manual mutations were detected: accepting an oversized name, bypassing replay
+conflict checks, removing the immediate duplicate-submit guard, changing the retry request ID,
+using the wrong corrupt-storage fallback, and bypassing dirty navigation. Every mutation was
+restored and the relevant tests passed afterward. These are bounded mutation experiments, not a
+comprehensive mutation-tool run or a repository-wide mutation score.

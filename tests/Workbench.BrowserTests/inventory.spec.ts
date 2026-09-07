@@ -11,28 +11,33 @@ function itemLink(page: Page, name: string) {
 }
 
 async function inspectLayout(page: Page) {
-  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
-  const titleContrast = await page.getByRole('heading', { level: 1 }).evaluate(title => {
-    const channels = (value: string) => value.match(/[\d.]+/g)!.slice(0, 3).map(Number);
-    const luminance = (color: string) => channels(color).map(channel => {
-      const value = channel / 255;
-      return value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4;
-    }).reduce((sum, value, index) => sum + value * [0.2126, 0.7152, 0.0722][index], 0);
-    let parent: Element | null = title;
-    let background = 'rgb(255, 255, 255)';
-    while (parent) {
-      const candidate = getComputedStyle(parent).backgroundColor;
-      if (candidate !== 'rgba(0, 0, 0, 0)' && candidate !== 'transparent') {
-        background = candidate;
-        break;
+  const overflow = await page.evaluate(() => [...document.querySelectorAll('body *')]
+    .filter(element => element.getBoundingClientRect().right > window.innerWidth + 1 || element.scrollWidth > element.clientWidth + 1)
+    .map(element => ({ tag: element.tagName, className: element.className, width: element.getBoundingClientRect().width, scrollWidth: element.scrollWidth })));
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), JSON.stringify(overflow)).toBe(true);
+  for (const title of await page.locator('h1, .item-title').all()) {
+    const titleContrast = await title.evaluate(title => {
+      const channels = (value: string) => value.match(/[\d.]+/g)!.slice(0, 3).map(Number);
+      const luminance = (color: string) => channels(color).map(channel => {
+        const value = channel / 255;
+        return value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4;
+      }).reduce((sum, value, index) => sum + value * [0.2126, 0.7152, 0.0722][index], 0);
+      let parent: Element | null = title;
+      let background = 'rgb(255, 255, 255)';
+      while (parent) {
+        const candidate = getComputedStyle(parent).backgroundColor;
+        if (candidate !== 'rgba(0, 0, 0, 0)' && candidate !== 'transparent') {
+          background = candidate;
+          break;
+        }
+        parent = parent.parentElement;
       }
-      parent = parent.parentElement;
-    }
-    const foregroundLight = luminance(getComputedStyle(title).color);
-    const backgroundLight = luminance(background);
-    return (Math.max(foregroundLight, backgroundLight) + 0.05) / (Math.min(foregroundLight, backgroundLight) + 0.05);
-  });
-  expect(titleContrast).toBeGreaterThanOrEqual(4.5);
+      const foregroundLight = luminance(getComputedStyle(title).color);
+      const backgroundLight = luminance(background);
+      return (Math.max(foregroundLight, backgroundLight) + 0.05) / (Math.min(foregroundLight, backgroundLight) + 0.05);
+    });
+    expect(titleContrast).toBeGreaterThanOrEqual(4.5);
+  }
   for (const target of await page.locator('button:visible, a:visible, select:visible, input:visible').all()) {
     const bounds = await target.boundingBox();
     expect(bounds?.height, `Touch target: ${await target.textContent()}`).toBeGreaterThanOrEqual(44);
@@ -234,7 +239,7 @@ for (const width of [320, 1280]) {
 
     // WHEN appearance changes on a dirty form, entered content remains available.
     for (const appearance of ['Dark', 'Light']) {
-      await page.getByLabel('Appearance', { exact: true }).selectOption({ label: appearance });
+      await page.getByRole('combobox', { name: 'Appearance', exact: true }).selectOption({ label: appearance });
       await expect(page.getByLabel('Name', { exact: true })).toHaveValue(name);
       await expect(page.getByLabel('Notes (optional)', { exact: true })).toHaveValue(notes);
       await expect.poll(() => page.evaluate(() => getComputedStyle(document.documentElement).colorScheme)).toBe(appearance.toLowerCase());
@@ -246,7 +251,7 @@ for (const width of [320, 1280]) {
     await page.keyboard.press('Enter');
     await expect(page.getByRole('heading', { name, exact: true })).toBeVisible();
     for (const appearance of ['Dark', 'Light']) {
-      await page.getByLabel('Appearance', { exact: true }).selectOption({ label: appearance });
+      await page.getByRole('combobox', { name: 'Appearance', exact: true }).selectOption({ label: appearance });
       // THEN the entire identifier and notes fit without horizontal page overflow.
       await expect(page.getByText(notes, { exact: true })).toBeVisible();
       await inspectLayout(page);
@@ -255,6 +260,7 @@ for (const width of [320, 1280]) {
         await page.screenshot({ path: `${screenshotDirectory}/detail-${width}-${appearance.toLowerCase()}.png`, fullPage: true });
         await page.getByRole('link', { name: 'Back to collection', exact: true }).click();
         await expect(itemLink(page, name)).toBeVisible();
+        await itemLink(page, name).hover();
         await inspectLayout(page);
         await page.screenshot({ path: `${screenshotDirectory}/collection-${width}-${appearance.toLowerCase()}.png`, fullPage: true });
         await itemLink(page, name).click();
@@ -262,7 +268,7 @@ for (const width of [320, 1280]) {
       }
     }
     await page.reload();
-    await expect(page.getByLabel('Appearance', { exact: true })).toHaveValue('light');
+    await expect(page.getByRole('combobox', { name: 'Appearance', exact: true })).toHaveValue('light');
     await expect(page.getByRole('heading', { name, exact: true })).toBeVisible();
   });
 }
