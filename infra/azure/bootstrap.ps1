@@ -33,8 +33,10 @@ function Invoke-WorkbenchBootstrap {
 if ($ParametersFile) {
     $ErrorActionPreference = 'Stop'
     if (-not $Subscription -or -not $ResourceGroup) { throw 'Subscription and ResourceGroup are required.' }
+    # The imported script binds its own ParametersFile in this scope.
+    $bootstrapParametersPath = $ParametersFile
     . "$PSScriptRoot/validate-parameters.ps1"
-    $document = Get-Content -LiteralPath $ParametersFile -Raw | ConvertFrom-Json -AsHashtable
+    $document = Get-Content -LiteralPath $bootstrapParametersPath -Raw | ConvertFrom-Json -AsHashtable
     Test-WorkbenchAzureParameters $document
     $p = $document.parameters
     if ($p.activate.value -or $p.workerEnabled.value -or $p.publishIngress.value) {
@@ -51,7 +53,7 @@ if ($ParametersFile) {
         }
     }
     Invoke-WorkbenchBootstrap -Deploy {
-        az deployment group create --subscription $Subscription --resource-group $ResourceGroup --name ($p.prefix.value + '-bootstrap') --mode Incremental --template-file "$PSScriptRoot/main.bicep" --parameters "@$ParametersFile" --output none
+        az deployment group create --subscription $Subscription --resource-group $ResourceGroup --name ($p.prefix.value + '-bootstrap') --mode Incremental --template-file "$PSScriptRoot/main.bicep" --parameters "@$bootstrapParametersPath" --output none
         if ($LASTEXITCODE -ne 0) { throw 'Bootstrap deployment failed.' }
     } -GetRevisions {
         $raw = az containerapp revision list --subscription $Subscription --resource-group $ResourceGroup --name $webName --all -o json
