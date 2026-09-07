@@ -1,6 +1,6 @@
 # H1: durable collection notebook
 
-**Status: Accepted** — the owner approved implementation of H1 and the inventory foundation
+**Status: Implemented** — the owner approved implementation of H1 and the inventory foundation
 after reviewing the schema, GemInv comparison, and delivered-action boundary.
 
 ## Scope and evidence
@@ -153,3 +153,19 @@ conflict checks, removing the immediate duplicate-submit guard, changing the ret
 using the wrong corrupt-storage fallback, and bypassing dirty navigation. Every mutation was
 restored and the relevant tests passed afterward. These are bounded mutation experiments, not a
 comprehensive mutation-tool run or a repository-wide mutation score.
+
+Final verification completed 305 server tests, 30 client tests, and all four migration drills
+(clean creation, upgrade, reversible rollback, and restore rollback). `scripts/verify.ps1`
+passed its restore, formatting, generated-contract, build, unit/integration, and migration stages;
+its browser stage exposed an appearance-selector mismatch and narrow-screen footer overflow.
+After those fixes, the full 13-test browser suite and `scripts/test-publish.ps1` passed separately.
+The final `scripts/smoke-container.ps1` run also passed, including authenticated inventory
+create/replay/read/list using the restricted runtime principal. Independent implementation
+review found no remaining actionable findings after the fragment-navigation correction.
+
+Browser workflows ran at `http://127.0.0.1:4179`; the published release probe ran at
+`http://127.0.0.1:64264` and the final hardened container at `http://127.0.0.1:56391`.
+These disposable verification instances were cleaned up afterward. Desktop dark and mobile light
+screenshots were visually inspected; browser assertions covered both appearances at 320px and
+1280px, keyboard submission, contrast, touch targets, and page overflow. Container checks also
+covered local Compose TLS and durable sessions; public CA issuance and SMTP delivery were not tested.
