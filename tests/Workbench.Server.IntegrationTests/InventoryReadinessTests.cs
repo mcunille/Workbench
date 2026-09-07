@@ -29,6 +29,7 @@ public sealed class InventoryReadinessTests(SqlServerFixture sqlServer)
     [InlineData("REVOKE INSERT ON [Inventory].[Items] FROM [workbench_web]")]
     [InlineData("DENY SELECT ON [Inventory].[Items] TO [workbench_web]")]
     [InlineData("DENY EXECUTE ON [Inventory].[UpdateItemDetails] TO [workbench_web]")]
+    [InlineData("DENY SELECT ON [Inventory].[ItemCreationSnapshots] TO [workbench_web]")]
     public async Task MissingInventoryAuthorityPreventsReadiness(string sql)
     {
         // GIVEN the runtime principal loses a required inventory operation.

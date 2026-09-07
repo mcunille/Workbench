@@ -53,6 +53,14 @@ photo command and avoids introducing a second version model for three descriptiv
 
 ## Retry and uncertain outcomes
 
+Creation retries retain the H1 contract after editing: the original normalized creation payload
+returns 200 with the current item, while a different payload with that creation request ID returns
+409. The first successful descriptive edit captures the pre-edit name, notes, and location in
+`Inventory.ItemCreationSnapshots` in the same transaction. Subsequent edits cannot replace this
+tenant-qualified, read-only replay evidence. Until the first edit, the item fields themselves are
+the unchanged creation payload. Replay reads the item before checking its snapshot so concurrent
+capture cannot pair changed item fields with a missing snapshot. A failed capture rolls back the edit.
+
 Do not introduce an edit operation ledger or promise exactly-once acknowledgments. The checked
 version makes resending the same request safe: after a successful commit its old token cannot
 overwrite a subsequent update. Disable duplicate submissions while a request is pending.
@@ -95,8 +103,12 @@ after a mutation that can change result membership; ordinary read-only H3 naviga
 ## Migration, compatibility, and recovery
 
 Keep all shipped migrations unchanged. The additive migration adds the command and its grants,
-advances readiness/schema markers, and updates provisioning checks. It adds no item columns,
-edit history, or blob objects. Require the migration before running the new release. Verify fresh
+advances readiness/schema markers, and updates provisioning checks. Its tenant-qualified creation
+snapshot table preserves H1 replay identity; it adds no item columns, edit history, or blob objects.
+Existing rows need no backfill because their original payload is captured atomically by their first
+edit. Direct INSERT/UPDATE/DELETE of snapshots is denied to the runtime; only the checked command
+can capture them through ownership chaining under caller RLS. Rollback refuses to discard captured
+creation evidence. Require the migration before running the new release. Verify fresh
 creation and upgrade from the PR base schema with retained items/photos. Follow the existing
 [migration runbook](../operations/database-migrations.md) for release and rollback evidence;
 prefer a forward correction, with established SQL/blob restore for recovery when necessary.

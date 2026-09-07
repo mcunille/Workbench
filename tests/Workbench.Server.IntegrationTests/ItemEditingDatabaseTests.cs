@@ -78,6 +78,26 @@ public sealed class ItemEditingDatabaseTests(SqlServerFixture sqlServer)
         // THEN exactly one version-checked mutation commits, and the old token cannot overwrite it.
         Assert.Single(results, won => won);
         Assert.Equal(2, await EditAsync(text, id, version, "Late retry"));
+        // AND original replay evidence remains immutable and hidden from the other tenant.
+        await using var original = new SqlCommand("SELECT [Name] FROM [Inventory].[ItemCreationSnapshots] WHERE [ItemId]=@id", text);
+        original.Parameters.AddWithValue("@id", id);
+        Assert.Equal("Original", await original.ExecuteScalarAsync());
+        await using var hidden = new SqlCommand("SELECT COUNT(*) FROM [Inventory].[ItemCreationSnapshots]", foreign);
+        Assert.Equal(0, await hidden.ExecuteScalarAsync());
+        foreach (var sql in new[] {
+            "UPDATE [Inventory].[ItemCreationSnapshots] SET [Name]=N'Changed'",
+            "DELETE FROM [Inventory].[ItemCreationSnapshots]",
+            "INSERT [Inventory].[ItemCreationSnapshots] (TenantId,ItemId,Name) VALUES(NEWID(),NEWID(),N'Forged')",
+        })
+        {
+            await using var denied = new SqlCommand(sql, text);
+            Assert.Equal(229, (await Assert.ThrowsAsync<SqlException>(() => denied.ExecuteNonQueryAsync())).Number);
+        }
+        // WHEN rolling back the release THEN durable creation evidence is not discarded.
+        var migratorConnection = await database.CreateRoleUserAsync("workbench_migrator");
+        Assert.Equal(50020, (await Assert.ThrowsAsync<SqlException>(() => DatabaseMigrator.MigrateToAsync(
+            migratorConnection, "AddItemPhotographs", CancellationToken.None))).Number);
+        Assert.Equal("Original", await original.ExecuteScalarAsync());
     }
 
     private static async Task<int> EditAsync(SqlConnection connection, Guid id, byte[] version, string name, string? notes = null, string? location = null)

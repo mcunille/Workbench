@@ -49,7 +49,7 @@ public static class InventoryEndpoints
         var existing = await database.Items.AsNoTracking().Include(row => row.CurrentPhoto).SingleOrDefaultAsync(
             item => item.CreationRequestId == request.CreationRequestId, cancellationToken);
         if (existing is not null)
-            return Replay(existing, request);
+            return await ReplayAsync(database, existing, request, cancellationToken);
 
         var item = new InventoryItem
         {
@@ -75,16 +75,26 @@ public static class InventoryEndpoints
                 row => row.CreationRequestId == request.CreationRequestId, cancellationToken);
             if (existing is null)
                 throw;
-            return Replay(existing, request);
+            return await ReplayAsync(database, existing, request, cancellationToken);
         }
         return Results.Created($"/api/items/{item.Id}", Detail(item));
     }
 
-    private static IResult Replay(InventoryItem item, CreateItemRequest request) =>
-        item.Name == request.Name && item.Notes == request.Notes && item.StorageLocation == request.Location
+    private static async Task<IResult> ReplayAsync(WorkbenchDbContext database, InventoryItem item,
+        CreateItemRequest request, CancellationToken cancellationToken)
+    {
+        // Read after the item: an edited item and its immutable snapshot commit atomically.
+        // Without a snapshot the fields read above are still the original creation payload.
+        var original = await database.ItemCreationSnapshots.AsNoTracking()
+            .SingleOrDefaultAsync(row => row.ItemId == item.Id, cancellationToken);
+        var name = original is null ? item.Name : original.Name;
+        var notes = original is null ? item.Notes : original.Notes;
+        var location = original is null ? item.StorageLocation : original.StorageLocation;
+        return name == request.Name && notes == request.Notes && location == request.Location
             ? Results.Ok(Detail(item))
             : Results.Problem(statusCode: StatusCodes.Status409Conflict,
                 title: "This save identifier was already used for different item details.");
+    }
 
     private static async Task<IResult> UpdateAsync(Guid id, UpdateItemDetailsRequest request,
         WorkbenchDbContext database, CancellationToken cancellationToken)

@@ -38,8 +38,9 @@ is retained; arbitrary substring queries can scan the tenant's candidates. Colle
 state stays in authenticated application memory and resets on reload or authentication loss.
 The [H4 editing increment](specs/2026-09-07-h4-item-editing.md) uses a required version token
 and a restricted SQL command to update descriptive fields. Text and photo changes share the
-item rowversion; stale saves return a conflict and require explicit reconciliation. Failed saves
-retain the draft in memory for safe retry. Successful edits invalidate collection pages while
+item rowversion; stale saves return a conflict and require explicit reconciliation. An immutable
+snapshot captured by the first edit preserves H1 creation replay identity. Failed saves retain
+the draft in memory for safe retry. Successful edits invalidate collection pages while
 preserving the query and view. Quantity-based stock,
 purchasing, accounting, and commerce require their own focused specifications.
 

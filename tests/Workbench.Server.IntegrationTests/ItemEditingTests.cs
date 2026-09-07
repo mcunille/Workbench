@@ -5,6 +5,8 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using Workbench.Server.IntegrationTests.Infrastructure;
 using Workbench.Server.Inventory;
+using Workbench.Server.Persistence;
+using Microsoft.Data.SqlClient;
 using Xunit;
 
 namespace Workbench.Server.IntegrationTests;
@@ -12,6 +14,75 @@ namespace Workbench.Server.IntegrationTests;
 [Collection(SqlServerCollection.Name)]
 public sealed class ItemEditingTests(SqlServerFixture sqlServer)
 {
+    [Fact]
+    public async Task FailedSnapshotCaptureRollsBackTheEditAndKeepsCreationReplayValid()
+    {
+        // GIVEN an original creation and a database failure while capturing its first edit.
+        await using var application = await AuthTestApplication.CreateAsync(sqlServer);
+        using var client = application.CreateClient();
+        await LoginAsync(client, "member@example.com");
+        var request = new { creationRequestId = Guid.NewGuid(), name = "Original" };
+        var created = await SendAsync(client, HttpMethod.Post, "/api/items", request);
+        var item = (await created.Content.ReadFromJsonAsync<ItemDetailResponse>())!;
+        await using var sql = new SqlConnection(application.AdminConnectionString);
+        await sql.OpenAsync();
+        await using var failure = new SqlCommand("""
+            CREATE TRIGGER [Inventory].[FailCreationSnapshot] ON [Inventory].[ItemCreationSnapshots]
+                INSTEAD OF INSERT AS THROW 50099, 'Injected snapshot failure.', 1;
+            """, sql);
+        await failure.ExecuteNonQueryAsync();
+        // WHEN saving THEN the failed snapshot and descriptive update both roll back.
+        var edited = await SendAsync(client, HttpMethod.Put, $"/api/items/{item.Id}",
+            new { expectedVersion = item.Version, name = "Changed" });
+        Assert.Equal(HttpStatusCode.InternalServerError, edited.StatusCode);
+        Assert.Equal(item, await client.GetFromJsonAsync<ItemDetailResponse>($"/api/items/{item.Id}"));
+        Assert.Equal(HttpStatusCode.OK, (await SendAsync(client, HttpMethod.Post, "/api/items", request)).StatusCode);
+        // AND a retry after recovery still preserves the original creation identity.
+        await using var recover = new SqlCommand("DROP TRIGGER [Inventory].[FailCreationSnapshot]", sql);
+        await recover.ExecuteNonQueryAsync();
+        Assert.Equal(HttpStatusCode.OK, (await SendAsync(client, HttpMethod.Put, $"/api/items/{item.Id}",
+            new { expectedVersion = item.Version, name = "Changed" })).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await SendAsync(client, HttpMethod.Post, "/api/items", request)).StatusCode);
+    }
+
+    [Theory]
+    [InlineData(null, null, false)]
+    [InlineData("Original notes\nwith spaces  ", " Tray A ", true)]
+    public async Task CreationReplayKeepsOriginalIdentityAcrossEdits(string? notes, string? location, bool upgrade)
+    {
+        // GIVEN a creation request whose response may have been lost.
+        await using var application = await AuthTestApplication.CreateAsync(sqlServer,
+            priorMigration: upgrade ? "AddItemPhotographs" : null);
+        using var client = application.CreateClient();
+        await LoginAsync(client, "member@example.com");
+        var request = new { creationRequestId = Guid.NewGuid(), name = " Original ", notes, location };
+        var created = await SendAsync(client, HttpMethod.Post, "/api/items", request);
+        Assert.Equal(HttpStatusCode.Created, created.StatusCode);
+        var item = (await created.Content.ReadFromJsonAsync<ItemDetailResponse>())!;
+        // AND an item from the PR base schema can be upgraded before its first edit.
+        if (upgrade)
+            await DatabaseMigrator.MigrateAsync(application.AdminConnectionString, CancellationToken.None);
+        // WHEN two later edits replace every descriptive field.
+        foreach (var name in new[] { "Revised", "Final" })
+        {
+            var edited = await SendAsync(client, HttpMethod.Put, $"/api/items/{item.Id}",
+                new { expectedVersion = item.Version, name, notes = "New notes", location = "Display box" });
+            Assert.Equal(HttpStatusCode.OK, edited.StatusCode);
+            item = (await edited.Content.ReadFromJsonAsync<ItemDetailResponse>())!;
+        }
+        // THEN only the original normalized creation payload replays, returning the current record.
+        var replay = await SendAsync(client, HttpMethod.Post, "/api/items", request);
+        Assert.Equal(HttpStatusCode.OK, replay.StatusCode);
+        Assert.Equal(item, await replay.Content.ReadFromJsonAsync<ItemDetailResponse>());
+        foreach (var changed in new object[] {
+            new { request.creationRequestId, name = item.Name, notes = item.Notes, location = item.Location },
+            new { request.creationRequestId, request.name, notes = "Changed", request.location },
+            new { request.creationRequestId, request.name, request.notes, location = "Changed" },
+        })
+            Assert.Equal(HttpStatusCode.Conflict, (await SendAsync(client, HttpMethod.Post, "/api/items", changed)).StatusCode);
+        Assert.Single((await client.GetFromJsonAsync<ItemPageResponse>("/api/items"))!.Items);
+    }
+
     [Fact]
     public async Task SaveNormalizesFieldsPreservesIdentityAndRejectsStaleIdenticalRetries()
     {

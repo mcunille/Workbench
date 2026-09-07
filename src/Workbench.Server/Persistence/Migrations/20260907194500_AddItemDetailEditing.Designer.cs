@@ -490,6 +490,32 @@ namespace Workbench.Server.Persistence.Migrations
                         });
                 });
 
+            modelBuilder.Entity("Workbench.Server.Inventory.ItemCreationSnapshot", b =>
+                {
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("ItemId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(4000)
+                        .HasColumnType("nvarchar(4000)");
+
+                    b.Property<string>("StorageLocation")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.HasKey("TenantId", "ItemId");
+
+                    b.ToTable("ItemCreationSnapshots", "Inventory");
+                });
+
             modelBuilder.Entity("Workbench.Server.Inventory.ItemPhoto", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1091,6 +1117,16 @@ namespace Workbench.Server.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Restrict);
 
                     b.Navigation("CurrentPhoto");
+                });
+
+            modelBuilder.Entity("Workbench.Server.Inventory.ItemCreationSnapshot", b =>
+                {
+                    b.HasOne("Workbench.Server.Inventory.InventoryItem", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId", "ItemId")
+                        .HasPrincipalKey("TenantId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("Workbench.Server.Inventory.ItemPhoto", b =>

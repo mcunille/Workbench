@@ -39,6 +39,7 @@ public class WorkbenchDbContext : IdentityDbContext<
     public TenantContext TenantContext { get; }
 
     public DbSet<InventoryItem> Items => Set<InventoryItem>();
+    public DbSet<ItemCreationSnapshot> ItemCreationSnapshots => Set<ItemCreationSnapshot>();
     public DbSet<ItemPhoto> ItemPhotos => Set<ItemPhoto>();
     public DbSet<ItemPhotoOperation> ItemPhotoOperations => Set<ItemPhotoOperation>();
 
@@ -93,6 +94,7 @@ public class WorkbenchDbContext : IdentityDbContext<
             .OnDelete(DeleteBehavior.Restrict);
 
         ConfigureInventory(modelBuilder);
+        ConfigureItemCreationSnapshots(modelBuilder);
         ConfigureItemPhotos(modelBuilder);
         ConfigureIdentity(modelBuilder);
         ConfigureSessions(modelBuilder);
@@ -121,6 +123,19 @@ public class WorkbenchDbContext : IdentityDbContext<
         item.HasIndex(row => new { row.TenantId, row.CreationRequestId }).IsUnique();
         item.HasIndex(row => new { row.TenantId, row.CreatedAtUtc, row.Id });
         item.HasOne<Tenant>().WithMany().HasForeignKey(row => row.TenantId).OnDelete(DeleteBehavior.Restrict);
+    }
+
+    private void ConfigureItemCreationSnapshots(ModelBuilder modelBuilder)
+    {
+        var snapshot = modelBuilder.Entity<ItemCreationSnapshot>();
+        snapshot.ToTable("ItemCreationSnapshots", "Inventory");
+        snapshot.HasKey(row => new { row.TenantId, row.ItemId });
+        snapshot.HasQueryFilter(row => (Guid?)row.TenantId == TenantContext.TenantId);
+        snapshot.Property(row => row.Name).HasMaxLength(200).IsRequired();
+        snapshot.Property(row => row.Notes).HasMaxLength(4000);
+        snapshot.Property(row => row.StorageLocation).HasMaxLength(200);
+        snapshot.HasOne<InventoryItem>().WithMany().HasForeignKey(row => new { row.TenantId, row.ItemId })
+            .HasPrincipalKey(row => new { row.TenantId, row.Id }).OnDelete(DeleteBehavior.Restrict);
     }
 
     private void ConfigureItemPhotos(ModelBuilder modelBuilder)

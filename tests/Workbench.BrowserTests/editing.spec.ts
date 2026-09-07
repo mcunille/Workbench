@@ -164,3 +164,65 @@ test('H4 a lost success response cannot overwrite a later save on retry', async 
   await page.reload();
   await expect(page.getByRole('heading', { name: 'Later correction', exact: true })).toBeVisible();
 });
+
+test('H4 a lost creation response retries successfully after another session edits the item', async ({ page, browser }) => {
+  // GIVEN creation commits but its response is lost before the original browser receives it.
+  await photoSignIn(page);
+  const name = `Unconfirmed creation ${crypto.randomUUID()}`;
+  const editedName = `Identified sapphire ${crypto.randomUUID()}`;
+  const payloads: unknown[] = [];
+  await page.route('**/api/items', async route => {
+    if (route.request().method() !== 'POST') return route.continue();
+    payloads.push(route.request().postDataJSON());
+    if (payloads.length === 1) {
+      const response = await route.fetch();
+      expect(response.status()).toBe(201);
+      await route.abort('failed');
+    } else {
+      await route.continue();
+    }
+  });
+  await page.getByRole('link', { name: 'Add item', exact: true }).click();
+  await page.getByLabel('Name', { exact: true }).fill(name);
+  await page.getByLabel('Notes (optional)', { exact: true }).fill('Original identification');
+  await page.getByLabel('Storage location (optional)', { exact: true }).fill('Tray A');
+  await page.getByRole('button', { name: 'Save item', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Retry save', exact: true })).toBeEnabled();
+  await expect(page.getByLabel('Name', { exact: true })).toBeDisabled();
+
+  // AND another independently authenticated session discovers and corrects the saved item.
+  const otherContext = await browser.newContext({ baseURL: 'http://127.0.0.1:4179' });
+  const other = await otherContext.newPage();
+  try {
+    await photoSignIn(other);
+    await other.getByRole('searchbox', { name: 'Search collection', exact: true }).fill(name);
+    await other.getByRole('button', { name: 'Search', exact: true }).click();
+    await other.getByRole('link').filter({ has: other.getByText(name, { exact: true }) }).click();
+    const detailUrl = other.url();
+    await other.getByRole('button', { name: 'Edit details', exact: true }).click();
+    await other.getByLabel('Name', { exact: true }).fill(editedName);
+    await other.getByLabel('Notes (optional)', { exact: true }).fill('Corrected identification');
+    await other.getByLabel('Storage location (optional)', { exact: true }).fill('Display box');
+    await other.getByRole('button', { name: 'Save changes', exact: true }).click();
+    await expect(other.getByRole('heading', { name: editedName, exact: true })).toBeVisible();
+
+    // WHEN the original browser retries its unchanged creation request.
+    const replayResponse = page.waitForResponse(response => response.url().endsWith('/api/items') && response.request().method() === 'POST');
+    await page.getByRole('button', { name: 'Retry save', exact: true }).click();
+
+    // THEN the retry resolves to the same item with all current details and no duplicate.
+    expect((await replayResponse).status()).toBe(200);
+    expect(payloads).toHaveLength(2);
+    expect(payloads[1]).toEqual(payloads[0]);
+    await expect(page).toHaveURL(detailUrl);
+    await expect(page.getByRole('heading', { name: editedName, exact: true })).toBeVisible();
+    await expect(page.getByText('Corrected identification', { exact: true })).toBeVisible();
+    await expect(page.getByText('Display box', { exact: true })).toBeVisible();
+    await page.reload();
+    await expect(page.getByRole('heading', { name: editedName, exact: true })).toBeVisible();
+    await page.getByRole('link', { name: 'Back to collection', exact: true }).click();
+    await page.getByRole('searchbox', { name: 'Search collection', exact: true }).fill(editedName);
+    await page.getByRole('button', { name: 'Search', exact: true }).click();
+    await expect(page.getByRole('link').filter({ has: page.getByText(editedName, { exact: true }) })).toHaveCount(1);
+  } finally { await otherContext.close(); }
+});
