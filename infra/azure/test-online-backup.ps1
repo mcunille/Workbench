@@ -20,4 +20,7 @@ if ($policies.Count -ne 1 -or $policies[0].properties.immutabilityPeriodSinceCre
 if ($template.parameters.enableSchedule.defaultValue -ne $false) { throw 'Schedule must require deliberate activation after protection verification.' }
 $alert = @($template.resources | Where-Object type -eq 'Microsoft.Insights/scheduledQueryRules')
 if ($alert.Count -ne 1 -or $alert[0].properties.criteria.allOf[0].query.Contains('${prefix}')) { throw 'Backup alert must bind the actual job name.' }
+if ($alert[0].properties.windowSize -ne 'P2D' -or -not $alert[0].properties.criteria.allOf[0].query.Contains('ago(26h)')) {
+    throw 'Daily capture freshness must allow runtime and ingestion margin.'
+}
 'ONLINE_BACKUP_TEMPLATE_CHECKS_PASSED'

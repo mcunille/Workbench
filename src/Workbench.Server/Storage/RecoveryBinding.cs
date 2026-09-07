@@ -10,7 +10,7 @@ public static class RecoveryBinding
     {
         var source = configuration.GetSection("Recovery:Source");
         var alias = OperationalConfiguration.ProviderAlias(source);
-        if (inventory.Rows.Any(row => row.ProviderAlias != alias))
+        if (inventory.Rows.Any(row => row.State == 1 && row.ProviderAlias != alias))
             throw new InvalidOperationException("Original storage configuration does not match the SQL inventory.");
         var original = PhysicalLocation(source);
         var target = PhysicalLocation(configuration);

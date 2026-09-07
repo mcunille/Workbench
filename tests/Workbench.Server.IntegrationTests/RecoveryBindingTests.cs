@@ -62,6 +62,17 @@ public sealed class RecoveryBindingTests
         // WHEN validating isolation, THEN a physically different but unverified source is rejected.
         Assert.Throws<InvalidOperationException>(() => RecoveryBinding.Validate(config, inventory));
     }
+    [Fact]
+    public void PurgedHistoryFromEarlierProviderDoesNotBlockAnotherRecovery()
+    {
+        // GIVEN retained content in the current store and purged history from a previous relocation.
+        var config = Config(Guid.NewGuid().ToString(), Guid.NewGuid().ToString(), "https://recovered.blob.core.windows.net/files");
+        var inventory = Inventory(config);
+        inventory = inventory with { Rows = [inventory.Rows[0], inventory.Rows[0] with { RevisionId = Guid.NewGuid(), ProviderAlias = "previous", State = 3 }] };
+        // WHEN a new isolated recovery is planned, THEN only content-bearing bindings require the current source.
+        Assert.Equal(inventory.Rows[0].ProviderAlias, RecoveryBinding.Validate(config, inventory));
+    }
+
     private static IConfiguration Config(string sourceId, string targetId, string target) => new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
     {
         ["Storage:Provider"] = "Azure",

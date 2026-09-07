@@ -66,13 +66,13 @@ Check all of:
 - the protected catalog and verified sample bytes through the private endpoint;
 - the collector cannot delete production/destination data or overwrite a protected backup blob;
 - current web readiness, a real write and scheduled worker execution remain operational during capture;
-- the backup failure and 24-hour missing-success alerts deliver to the operations action group.
+- the backup failure and 26-hour missing-success alerts deliver to the operations action group.
 
 Then approve activation and deploy the same template with `enableSchedule=true`. The default schedule
 is daily at 03:00 UTC; configure it explicitly for the installation. No restore is scheduled. Monitor
 source protection/retention drift, catalog/object failures and stale collection. An execution failure
 metric catches failures that cannot emit a final log. The log rule intentionally retains failure
-evidence for its 24-hour window; inspect later successful executions before closing an incident.
+evidence for its 26-hour window; inspect later successful executions before closing an incident.
 
 ## Manual recovery
 

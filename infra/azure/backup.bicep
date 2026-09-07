@@ -172,17 +172,17 @@ resource stale 'Microsoft.Insights/scheduledQueryRules@2023-12-01' = {
   location: location
   properties: {
     displayName: '${prefix}: online backup missing or failed'
-    description: 'No integrity-checked capture in 24 hours, or a capture failed. Investigate; do not restore automatically.'
+    description: 'No integrity-checked capture in 26 hours, or a capture failed. Investigate; do not restore automatically.'
     enabled: enableSchedule
     severity: 2
     scopes: [logs.id]
     evaluationFrequency: 'PT5M'
-    windowSize: 'P1D'
+    windowSize: 'P2D'
     skipQueryValidation: true
     criteria: { allOf: [{
       query: replace('''
 ContainerAppConsoleLogs_CL
-| where TimeGenerated > ago(24h)
+| where TimeGenerated > ago(26h)
 | where ContainerGroupName_s startswith "__BACKUP_JOB__-"
 | extend s = parse_json(Log_s)
 | where tostring(s.Event) == 'OnlineBackupStatus'
