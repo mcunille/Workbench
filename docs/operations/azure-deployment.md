@@ -27,6 +27,10 @@ SMTP endpoint/sender, alert recipients, billing-currency budget and budget start
 of the deployment month for the budget start date. The example's 200-unit budget is an illustration,
 not a price estimate. Keep `activate`, `grantAccess`, `workerEnabled`, `publishIngress` and public recovery
 false initially. There is deliberately no guessed trusted proxy address or CIDR in the example.
+The default `proxyTrustMode=KnownProxies` preserves explicit peer restrictions. An operator may
+instead explicitly select `AzureContainerApps` with both proxy arrays empty after accepting the
+[environment metadata trust boundary](../specs/azure-forwarded-metadata-trust.md). This is not
+automatic Azure detection or permission to trust internal callers for application operations.
 
 ```powershell
 ./infra/azure/test-parameters.ps1
@@ -73,8 +77,9 @@ to avoid circular secret-resolution dependencies:
    only on their three shared secret resources (four in SMTP mode). Migration gets only its connection secret. Allow RBAC
    propagation and verify grants before activating. Recreating a system identity requires repeating
    grants and SQL mapping; matching a display name is insufficient.
-5. Observe legitimate ACA socket peers in the isolated environment and fill the exact proxy list or
-   narrow CIDRs. For a custom canonical hostname, first obtain a bootstrap certificate using DNS
+5. Select and record the proxy metadata boundary described below. For explicit peer mode, establish
+   stable, exclusive proxy addresses; for accepted environment mode, leave both arrays empty and set
+   `proxyTrustMode=AzureContainerApps`. For a custom canonical hostname, first obtain a bootstrap certificate using DNS
    validation (which does not require public app ingress), upload it to the Container Apps environment
    through the operator's secure certificate workflow, and set `customDomainCertificateId` to its
    resource ID. Keep its private key/password out of parameters and command arguments. The operator's
@@ -151,12 +156,27 @@ that ceiling. Idle minimum zero is separate from `Deployment:Replicas=3`, which 
 
 ## Trust, TLS and readiness acceptance
 
-Do not equate the environment subnet with the immediate proxy peer. Record socket peer, appended
-forwarded chain, revision and replica under protected diagnostic controls without logging cookies,
-tokens or payloads. Repeat after replacing replicas. Configure only peers established by that evidence.
-Direct/untrusted requests and attacker-supplied leftmost `X-Forwarded-For` prefixes must not change
-the effective client, rate-limit bucket or secure cookie behavior. Forwarded host is ignored. If
-stable narrow trust cannot be established, leave public ingress disabled and return to design review.
+In `KnownProxies` mode, do not equate the environment subnet with the immediate proxy peer. Record
+socket peer, forwarded chain, revision and replica without logging cookies, tokens or payloads.
+Repeat after replacing replicas; observations alone do not guarantee stable or exclusive peers.
+Unknown immediate peers must not supply effective client metadata.
+
+The explicitly approved alternative is `proxyTrustMode=AzureContainerApps`, mapped to
+`ReverseProxy:Mode=AzureContainerApps`. It trusts all environment workloads for client IP and
+protocol metadata ONLY, with exactly one rightmost hop. No address lists are permitted. The
+full-hostname route was observed appending an address, but the short-name route retained a forged
+chain even with a full hostname in `Host`. A compromised internal workload can therefore spoof
+its IP and evade the IP component of rate limits. Account/subject limits remain unchanged and
+shared through SQL; this mode introduces no global rate-limit bucket. Never use it on a directly
+reachable self-hosted app. Keep the environment dedicated to controlled Workbench workloads and
+restrict deployment authority. The application cannot independently prove this hosting boundary.
+
+In both modes, forwarded host is ignored and all authentication, authorization, tenant isolation,
+antiforgery, scoped identities, private endpoints and secret restrictions remain required. Verify
+that external forged leftmost values cannot change the effective client, and record the internal
+spoofing limitation as an accepted exception rather than a passing anti-spoof test. Public HTTPS,
+canonical links and secure cookies remain acceptance requirements. See the
+[approved design](../specs/azure-forwarded-metadata-trust.md) for rollback and verification criteria.
 
 The app's allowlist is exactly `publicHost`; every HTTP probe explicitly supplies it. Startup allows
 120 seconds, liveness checks every 10 seconds without remote dependencies, and readiness uses a

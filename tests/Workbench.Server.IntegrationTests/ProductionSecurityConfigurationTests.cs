@@ -10,6 +10,34 @@ namespace Workbench.Server.IntegrationTests;
 
 public sealed class ProductionSecurityConfigurationTests
 {
+    [Fact]
+    public async Task ExplicitAzureMetadataTrustIsAcceptedWithoutProxyAddresses()
+    {
+        // GIVEN an approved Azure metadata boundary and otherwise complete production configuration.
+        var settings = ValidSettings();
+        settings.Remove("ReverseProxy:KnownProxy");
+        settings["ReverseProxy:Mode"] = "AzureContainerApps";
+        // WHEN production starts, THEN changing platform addresses do not require an allowlist.
+        await Validator(settings).StartAsync(CancellationToken.None);
+    }
+
+    [Theory]
+    [InlineData("DataProtection:CertificatePath")]
+    [InlineData("ConnectionStrings:Workbench")]
+    [InlineData("TenantContext:ProofKey")]
+    [InlineData("PublicOrigin")]
+    [InlineData("AllowedHosts")]
+    public async Task AzureMetadataTrustDoesNotWaiveOtherProductionRequirements(string missingKey)
+    {
+        // GIVEN Azure metadata trust with a missing independent production security requirement.
+        var settings = ValidSettings();
+        settings.Remove("ReverseProxy:KnownProxy");
+        settings["ReverseProxy:Mode"] = "AzureContainerApps";
+        settings.Remove(missingKey);
+        // WHEN production starts, THEN the narrow exception cannot bypass that requirement.
+        await Assert.ThrowsAsync<InvalidOperationException>(() => Validator(settings).StartAsync(CancellationToken.None));
+    }
+
     [Theory]
     [InlineData(null, "workbench.example")]
     [InlineData("http://workbench.example", "workbench.example")]

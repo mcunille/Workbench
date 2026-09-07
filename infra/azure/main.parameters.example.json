@@ -22,6 +22,7 @@
     "endpointsSubnetPrefix": { "value": "10.42.2.0/24" },
     "trustedProxyAddresses": { "value": [] },
     "trustedProxyNetworks": { "value": [] },
+    "proxyTrustMode": { "value": "KnownProxies" },
     "installationId": { "value": "00000000-0000-0000-0000-000000000000" },
     "maxReplicas": { "value": 3 },
     "workerSchedule": { "value": "* * * * *" },

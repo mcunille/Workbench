@@ -13,6 +13,8 @@ param publicHost string
 param customDomainCertificateId string
 param trustedProxyAddresses array
 param trustedProxyNetworks array
+@allowed(['KnownProxies', 'AzureContainerApps'])
+param proxyTrustMode string = 'KnownProxies'
 param installationId string
 param sqlHost string
 param databaseName string
@@ -81,7 +83,7 @@ var sharedEnv = concat(baseEnv, deliveryProvider == 'Graph' ? graphEnv : smtpEnv
 var proxyAddresses = [for (address, i) in trustedProxyAddresses: { name: 'ReverseProxy__KnownProxies__${i}', value: address }]
 var proxyNetworks = [for (network, i) in trustedProxyNetworks: { name: 'ReverseProxy__KnownNetworks__${i}', value: network }]
 var proxyEnv = concat(
-  [{ name: 'ReverseProxy__ForwardLimit', value: '1' }],
+  [{ name: 'ReverseProxy__ForwardLimit', value: '1' }, { name: 'ReverseProxy__Mode', value: proxyTrustMode }],
   proxyAddresses,
   proxyNetworks
 )

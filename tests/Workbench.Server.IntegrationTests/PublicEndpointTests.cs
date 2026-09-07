@@ -17,6 +17,61 @@ namespace Workbench.Server.IntegrationTests;
 public sealed class PublicEndpointTests
 {
     [Theory]
+    [InlineData("100.100.0.56")]
+    [InlineData("100.100.0.187")]
+    public async Task AzureEnvironmentTrustAcceptsOnlyOneMetadataHop(string peer)
+    {
+        // GIVEN explicit acceptance of the Azure environment metadata trust boundary.
+        var configuration = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
+        {
+            ["ReverseProxy:Mode"] = "AzureContainerApps",
+        }).Build();
+        using var host = await new HostBuilder().ConfigureWebHost(builder => builder.UseTestServer().ConfigureServices(services =>
+            services.Configure<ForwardedHeadersOptions>(options => PublicEndpointConfiguration.ConfigureProxy(configuration, options, true)))
+            .Configure(app => { app.UseForwardedHeaders(); app.Run(_ => Task.CompletedTask); })).StartAsync();
+        // WHEN a changing platform peer supplies multiple values and an untrusted forwarded hostname.
+        var context = await host.GetTestServer().SendAsync(request =>
+        {
+            request.Connection.RemoteIpAddress = IPAddress.Parse(peer);
+            request.Request.Host = new HostString("workbench.example");
+            request.Request.Headers["X-Forwarded-For"] = "203.0.113.99, 198.51.100.8";
+            request.Request.Headers["X-Forwarded-Proto"] = "http, https";
+            request.Request.Headers["X-Forwarded-Host"] = "attacker.example";
+        });
+        // THEN only the last address/protocol is consumed and host remains independently constrained.
+        Assert.Equal("198.51.100.8", context.Connection.RemoteIpAddress!.ToString());
+        Assert.Equal("https", context.Request.Scheme);
+        Assert.Equal("workbench.example", context.Request.Host.Value);
+    }
+
+    [Theory]
+    [InlineData("ReverseProxy:ForwardLimit", "2")]
+    [InlineData("ReverseProxy:KnownProxies:0", "10.42.0.2")]
+    [InlineData("ReverseProxy:KnownNetworks:0", "10.42.0.0/24")]
+    public void AzureTrustRejectsMixedOrExpandedConfiguration(string key, string value)
+    {
+        // GIVEN Azure metadata trust with conflicting settings, WHEN configured, THEN startup fails closed.
+        var configuration = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
+        {
+            ["ReverseProxy:Mode"] = "AzureContainerApps",
+            [key] = value,
+        }).Build();
+        Assert.Throws<InvalidOperationException>(() => PublicEndpointConfiguration.ConfigureProxy(configuration, new(), true));
+    }
+
+    [Fact]
+    public void UnknownProxyModeIsRejected()
+    {
+        // GIVEN a misspelled mode, WHEN configured, THEN it cannot silently select another boundary.
+        var configuration = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
+        {
+            ["ReverseProxy:Mode"] = "Azure",
+            ["ReverseProxy:KnownProxies:0"] = "10.42.0.2",
+        }).Build();
+        Assert.Throws<InvalidOperationException>(() => PublicEndpointConfiguration.ConfigureProxy(configuration, new(), true));
+    }
+
+    [Theory]
     [InlineData("10.42.0.0/24", "::ffff:10.42.0.2")]
     [InlineData("fd00:42::/64", "fd00:42::2")]
     public async Task NarrowNativeNetworksAcceptTheirObservedPeers(string network, string peer)

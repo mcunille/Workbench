@@ -41,6 +41,19 @@ Test-WorkbenchAzureParameters $document
 $document.parameters.trustedProxyNetworks.value = @()
 # GIVEN activation without an observed proxy WHEN checked THEN configuration fails
 Assert-Rejected $document 'Empty proxy trust was accepted.'
+# GIVEN an explicit Azure environment metadata boundary WHEN activated THEN address discovery is unnecessary.
+$document.parameters.proxyTrustMode = @{ value = 'AzureContainerApps' }
+Test-WorkbenchAzureParameters $document
+# GIVEN the same boundary without scoped grants WHEN activated THEN data access prerequisites still apply.
+$document.parameters.grantAccess.value = $false
+Assert-Rejected $document 'Azure metadata trust bypassed scoped access prerequisites.'
+$document.parameters.grantAccess.value = $true
+$document.parameters.trustedProxyAddresses.value = @('10.42.0.2')
+Assert-Rejected $document 'Mixed Azure and explicit proxy trust was accepted.'
+$document.parameters.trustedProxyAddresses.value = @()
+$document.parameters.proxyTrustMode.value = 'Azure'
+Assert-Rejected $document 'Unknown proxy trust mode was accepted.'
+$document.parameters.proxyTrustMode.value = 'KnownProxies'
 $document.parameters.trustedProxyNetworks.value = @('0.0.0.0/0')
 Assert-Rejected $document 'Universal proxy trust was accepted.'
 $document.parameters.trustedProxyNetworks.value = @('10.0.0.0/8')

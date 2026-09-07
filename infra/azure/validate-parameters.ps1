@@ -55,9 +55,15 @@ function Test-WorkbenchAzureParameters([hashtable] $Document) {
         $p.publicHost.value.Contains('*') -or $p.publicHost.value.Contains(';')) {
         throw 'Use one canonical HTTPS origin and its explicit allowed hostname.'
     }
+    $proxyMode = if ($p.proxyTrustMode) { $p.proxyTrustMode.value } else { 'KnownProxies' }
+    if ($proxyMode -cnotin @('KnownProxies', 'AzureContainerApps')) { throw 'Invalid proxy trust mode.' }
+    $proxyCount = @($p.trustedProxyAddresses.value).Count + @($p.trustedProxyNetworks.value).Count
+    if ($proxyMode -ceq 'AzureContainerApps' -and $proxyCount -ne 0) {
+        throw 'Azure environment metadata trust must not include proxy address lists.'
+    }
     if ($p.activate.value -and (-not $p.grantAccess.value -or
-        (@($p.trustedProxyAddresses.value).Count + @($p.trustedProxyNetworks.value).Count) -eq 0)) {
-        throw 'Activation requires pre-provisioned scoped access and observed proxy trust.'
+        ($proxyMode -ceq 'KnownProxies' -and $proxyCount -eq 0))) {
+        throw 'Activation requires pre-provisioned scoped access and explicit proxy trust.'
     }
     foreach ($address in $p.trustedProxyAddresses.value) {
         $ip = $null

@@ -41,6 +41,23 @@ public static class PublicEndpointConfiguration
         {
             proxies = [.. proxies, legacy];
         }
+        var mode = configuration["ReverseProxy:Mode"] ?? "KnownProxies";
+        if (mode == "AzureContainerApps")
+        {
+            if (proxies.Length != 0 || configuration.GetSection("ReverseProxy:KnownNetworks").GetChildren().Any() ||
+                configuration.GetValue("ReverseProxy:ForwardLimit", 1) != 1)
+            {
+                throw new InvalidOperationException("Azure environment metadata trust requires exactly one hop and no proxy address lists.");
+            }
+            // Explicit deployment opt-in: all environment workloads are trusted ONLY for forwarded metadata.
+            // Empty lists accept changing platform peers; this does not authenticate callers or grant data access.
+            options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+            return;
+        }
+        if (mode != "KnownProxies")
+        {
+            throw new InvalidOperationException("Reverse proxy mode must be KnownProxies or AzureContainerApps.");
+        }
         foreach (var value in proxies)
         {
             if (!IPAddress.TryParse(value, out var address) || address.Equals(IPAddress.Any) || address.Equals(IPAddress.IPv6Any))
