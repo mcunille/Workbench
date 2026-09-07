@@ -182,17 +182,33 @@ public sealed class PublicEndpointTests
     }
 
     [Theory]
-    [InlineData("workbench.example", HttpStatusCode.OK)]
-    [InlineData("attacker.example", HttpStatusCode.BadRequest)]
-    public async Task HostAllowlistIsEnforcedBeforeApplicationHandlers(string host, HttpStatusCode expected)
+    [InlineData("workbench.example", "KnownProxies", HttpStatusCode.OK)]
+    [InlineData("attacker.example", "KnownProxies", HttpStatusCode.BadRequest)]
+    [InlineData("workbench.example", "AzureContainerApps", HttpStatusCode.OK)]
+    [InlineData("attacker.example", "AzureContainerApps", HttpStatusCode.BadRequest)]
+    public async Task HostAllowlistIsEnforcedBeforeApplicationHandlers(string host, string mode, HttpStatusCode expected)
     {
         // GIVEN a deployed host allowlist, WHEN an API request supplies a host,
         await using var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
-            builder.UseSetting("AllowedHosts", "workbench.example"));
+            builder.UseSetting("AllowedHosts", "workbench.example").UseSetting("ReverseProxy:Mode", mode));
         using var client = factory.CreateClient();
         using var request = new HttpRequestMessage(HttpMethod.Get, "/api/system");
         request.Headers.Host = host;
         // THEN an unrecognized host never reaches application handlers.
         Assert.Equal(expected, (await client.SendAsync(request)).StatusCode);
+    }
+
+    [Fact]
+    public async Task AzureForwardedMetadataDoesNotAuthenticateAnInternalCaller()
+    {
+        // GIVEN Azure metadata trust without a session credential.
+        await using var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
+            builder.UseSetting("ReverseProxy:Mode", "AzureContainerApps"));
+        using var client = factory.CreateClient();
+        using var request = new HttpRequestMessage(HttpMethod.Get, "/api/auth/me");
+        request.Headers.Add("X-Forwarded-For", "127.0.0.1");
+        request.Headers.Add("X-Forwarded-Proto", "https");
+        // WHEN a caller claims internal metadata, THEN authentication is still required.
+        Assert.Equal(HttpStatusCode.Unauthorized, (await client.SendAsync(request)).StatusCode);
     }
 }
