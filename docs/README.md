@@ -63,6 +63,11 @@ defines immutable blob storage, SMTP delivery, shared abuse controls, and durabl
 [provider runbook](operations/blob-and-service-providers.md) covers configuration, retention,
 reconciliation, paired backups, restore verification, and provider migration.
 
+The accepted [online backup and manual recovery direction](specs/2026-09-07-online-backup-and-manual-recovery.md)
+requires uninterrupted backup collection and SQL-authoritative reconciliation, with explicit
+missing-file acceptance and tenant notices after manual recovery. Implementation is pending;
+the current offline maintenance commands retain their documented requirements.
+
 The accepted [Azure deployment specification](specs/2026-09-05-azure-deployment.md) defines
 scale-to-zero hosting and portable self-hosting. The [Azure runbook](operations/azure-deployment.md)
 and [Compose runbook](operations/self-hosted-deployment.md) describe the release configuration and
