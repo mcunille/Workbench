@@ -11,3 +11,5 @@ src/Workbench.Server/openapi/
 .idea/
 artifacts/
 .env.dev
+# Generated verification and walkthrough videos stay local.
+*.[mM][pP]4
