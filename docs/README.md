@@ -28,6 +28,17 @@ The [specs](specs/README.md) directory contains one dated document for each mean
 needs durable requirements or design reasoning. Specs preserve context and rejected alternatives;
 they do not replace the living documentation above.
 
+The accepted [UI design guidance](specs/2026-09-06-ui-design-guidance.md) applies UI Skills research
+to Workbench's visual system, progressive capability, desktop/mobile layouts, accessibility, and
+light/dark themes, with bronze accents aligned to The White Stag Collection. The
+[reviewed mockup](design/README.md) preserves the visual reference and verification limits.
+Design acceptance does not imply an implemented application UI or accepted domain workflows.
+
+The proposed [first hobbyist scenario](specs/2026-09-06-first-hobbyist-scenario.md) applies that
+guidance to a complete collection journey: save an item, recognize it by photograph, find it,
+and keep it accurate. It defines four value-delivering stories and shared completion criteria;
+the scenario awaits design acceptance and sprint capacity assessment.
+
 The accepted [base-architecture specification](specs/2026-08-31-base-application-architecture.md) is
 the decision record behind `ARCHITECTURE.md`.
 
