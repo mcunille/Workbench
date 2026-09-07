@@ -1,16 +1,25 @@
-import { useCallback, useEffect, useState } from 'react';
-import { getSystem, type SystemInformation } from './api/system';
-import { TenantUsers } from './features/admin/TenantUsers';
-import { AuthProvider } from './features/auth/AuthContext';
-import { Recovery } from './features/auth/Recovery';
-import { Sessions } from './features/auth/Sessions';
-import { SignIn } from './features/auth/SignIn';
-import { useAuth } from './features/auth/useAuth';
-import { AddItem } from './features/inventory/AddItem';
-import { Collection, ItemDetails } from './features/inventory/Collection';
-import { AppearanceControl } from './AppearanceControl';
-import { useNavigation } from './useNavigation';
-import { DiscardDialog } from './DiscardDialog';
+import { useCallback, useEffect, useState } from "react";
+import { getSystem, type SystemInformation } from "./api/system";
+import { TenantUsers } from "./features/admin/TenantUsers";
+import { AuthProvider } from "./features/auth/AuthContext";
+import { Recovery } from "./features/auth/Recovery";
+import { Sessions } from "./features/auth/Sessions";
+import { SignIn } from "./features/auth/SignIn";
+import { useAuth } from "./features/auth/useAuth";
+import { AddItem } from "./features/inventory/AddItem";
+import { Collection, ItemDetails } from "./features/inventory/Collection";
+import { AppearanceControl } from "./AppearanceControl";
+import { useNavigation } from "./useNavigation";
+import { DiscardDialog } from "./DiscardDialog";
+import { Icon } from "./Icon";
+
+function PublicAppearance() {
+  return (
+    <div className="appearance-bar">
+      <AppearanceControl />
+    </div>
+  );
+}
 function Brand() {
   return (
     <div className="brand">
@@ -29,9 +38,9 @@ function SignedInApplication({ system }: { system: SystemInformation }) {
     void refresh();
   }, [refresh]);
   if (!identity) return null;
-  const canManageUsers = identity.permissions.includes('TenantUsersManage');
+  const canManageUsers = identity.permissions.includes("TenantUsersManage");
   const path = navigation.path;
-  const collectionPath = path === '/' || path === '/inventory';
+  const collectionPath = path === "/" || path === "/inventory";
   return (
     <div className="app-shell">
       <a className="skip-link" href="#main">
@@ -41,8 +50,9 @@ function SignedInApplication({ system }: { system: SystemInformation }) {
         <Brand />
         <div className="identity-summary">
           <strong>{identity.tenantName}</strong>
+          <AppearanceControl />
           <button
-            className="secondary"
+            className="quiet"
             type="button"
             onClick={() =>
               navigation.request(() => {
@@ -59,25 +69,28 @@ function SignedInApplication({ system }: { system: SystemInformation }) {
           <a
             href="/inventory"
             aria-current={
-              path.startsWith('/inventory') || path === '/' ? 'page' : undefined
+              path.startsWith("/inventory") || path === "/" ? "page" : undefined
             }
             onClick={navigation.follow}
           >
+            <Icon name="inventory" />
             Inventory
           </a>
           <a
             href="/account"
-            aria-current={path === '/account' ? 'page' : undefined}
+            aria-current={path === "/account" ? "page" : undefined}
             onClick={navigation.follow}
           >
+            <Icon name="account" />
             Account
           </a>
           {canManageUsers ? (
             <a
               href="/administration"
-              aria-current={path === '/administration' ? 'page' : undefined}
+              aria-current={path === "/administration" ? "page" : undefined}
               onClick={navigation.follow}
             >
+              <Icon name="administration" />
               Administration
             </a>
           ) : null}
@@ -92,27 +105,27 @@ function SignedInApplication({ system }: { system: SystemInformation }) {
               follow={navigation.follow}
               onAuthLost={authLost}
             />
-          ) : path === '/inventory/new' ? (
+          ) : path === "/inventory/new" ? (
             <AddItem
               onDirtyChange={navigation.setDirty}
-              onCancel={() => navigation.navigate('/inventory')}
+              onCancel={() => navigation.navigate("/inventory")}
               onAuthLost={authLost}
               onSaved={(item) => navigation.navigate(`/inventory/${item.id}`)}
             />
-          ) : path.startsWith('/inventory/') ? (
+          ) : path.startsWith("/inventory/") ? (
             <ItemDetails
               key={path}
-              id={path.slice('/inventory/'.length)}
+              id={path.slice("/inventory/".length)}
               follow={navigation.follow}
               onAuthLost={authLost}
             />
-          ) : path === '/account' ? (
+          ) : path === "/account" ? (
             <>
               <h1>Account</h1>
               <p className="lede">{identity.email}</p>
               <Sessions />
             </>
-          ) : path === '/administration' && canManageUsers ? (
+          ) : path === "/administration" && canManageUsers ? (
             <>
               <h1>Administration</h1>
               <TenantUsers />
@@ -127,7 +140,9 @@ function SignedInApplication({ system }: { system: SystemInformation }) {
           )}
         </main>
       </div>
-      <footer>Workbench {system.version}</footer>
+      <footer title={system.version}>
+        Workbench {system.version.split("+")[0]}
+      </footer>
       {navigation.confirmation ? (
         <DiscardDialog
           uncertain={navigation.uncertain}
@@ -156,33 +171,45 @@ function WorkbenchApplication() {
       current = false;
     };
   }, []);
-  if (systemFailed || status === 'unavailable')
+  if (systemFailed || status === "unavailable")
     return (
-      <main className="public-shell">
-        <p role="alert">Workbench is temporarily unavailable.</p>
-      </main>
+      <>
+        <PublicAppearance />
+        <main className="public-shell">
+          <p role="alert">Workbench is temporarily unavailable.</p>
+        </main>
+      </>
     );
-  if (status === 'forbidden')
+  if (status === "forbidden")
     return (
-      <main className="public-shell">
-        <section className="auth-card">
-          <h1>Access denied</h1>
-          <p>Your account does not have access to this Workbench.</p>
-        </section>
-      </main>
+      <>
+        <PublicAppearance />
+        <main className="public-shell">
+          <section className="auth-card">
+            <h1>Access denied</h1>
+            <p>Your account does not have access to this Workbench.</p>
+          </section>
+        </main>
+      </>
     );
-  if (status === 'signed-out')
+  if (status === "signed-out")
     return (
-      <main className="public-shell">
-        <Brand />
-        <SignIn />
-      </main>
+      <>
+        <PublicAppearance />
+        <main className="public-shell">
+          <Brand />
+          <SignIn />
+        </main>
+      </>
     );
-  if (status === 'loading' || !system || !identity)
+  if (status === "loading" || !system || !identity)
     return (
-      <main className="public-shell">
-        <p role="status">Loading Workbench…</p>
-      </main>
+      <>
+        <PublicAppearance />
+        <main className="public-shell">
+          <p role="status">Loading Workbench…</p>
+        </main>
+      </>
     );
   return <SignedInApplication key={identity.userId} system={system} />;
 }
@@ -193,13 +220,16 @@ export function App({
 }) {
   return (
     <>
-      <div className="appearance-bar">
-        <AppearanceControl />
-      </div>
-      {window.location.pathname === '/recover' ? (
-        <Recovery token={recoveryToken} />
-      ) : window.location.pathname === '/invite' ? (
-        <Recovery invitation token={recoveryToken} />
+      {window.location.pathname === "/recover" ? (
+        <>
+          <PublicAppearance />
+          <Recovery token={recoveryToken} />
+        </>
+      ) : window.location.pathname === "/invite" ? (
+        <>
+          <PublicAppearance />
+          <Recovery invitation token={recoveryToken} />
+        </>
       ) : (
         <AuthProvider>
           <WorkbenchApplication />

@@ -15,7 +15,7 @@ async function inspectLayout(page: Page) {
     .filter(element => element.getBoundingClientRect().right > window.innerWidth + 1 || element.scrollWidth > element.clientWidth + 1)
     .map(element => ({ tag: element.tagName, className: element.className, width: element.getBoundingClientRect().width, scrollWidth: element.scrollWidth })));
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), JSON.stringify(overflow)).toBe(true);
-  for (const title of await page.locator('h1, .item-title').all()) {
+  for (const title of await page.locator('h1, .item-title, .lede, small, dt, label, .workspace-nav a').all()) {
     const titleContrast = await title.evaluate(title => {
       const channels = (value: string) => value.match(/[\d.]+/g)!.slice(0, 3).map(Number);
       const luminance = (color: string) => channels(color).map(channel => {
@@ -36,13 +36,44 @@ async function inspectLayout(page: Page) {
       const backgroundLight = luminance(background);
       return (Math.max(foregroundLight, backgroundLight) + 0.05) / (Math.min(foregroundLight, backgroundLight) + 0.05);
     });
-    expect(titleContrast).toBeGreaterThanOrEqual(4.5);
+    expect(titleContrast, `Text contrast: ${await title.textContent()}`).toBeGreaterThanOrEqual(4.5);
   }
   for (const target of await page.locator('button:visible, a:visible, select:visible, input:visible').all()) {
     const bounds = await target.boundingBox();
     expect(bounds?.height, `Touch target: ${await target.textContent()}`).toBeGreaterThanOrEqual(44);
   }
 }
+
+test('the studio shell reflows with enlarged text and respects reduced motion', async ({ page }) => {
+  // GIVEN a collector entering a draft with the refined header and form surfaces.
+  await signIn(page);
+  await startItem(page, 'A sapphire to remember');
+  await mkdir(screenshotDirectory, { recursive: true });
+  for (const width of [390, 768, 1024, 1440]) {
+    await page.setViewportSize({ width, height: 1000 });
+    for (const appearance of ['light', 'dark']) {
+      // WHEN viewport and appearance change, the draft and accessible controls remain intact.
+      await page.getByRole('combobox', { name: 'Appearance' }).selectOption(appearance);
+      await expect(page.getByLabel('Name', { exact: true })).toHaveValue('A sapphire to remember');
+      await inspectLayout(page);
+      await page.screenshot({ path: `${screenshotDirectory}/form-${width}-${appearance}.png`, fullPage: true });
+    }
+  }
+  // THEN enlarged text reflows, and reduced motion removes pressed-control travel.
+  await page.setViewportSize({ width: 640, height: 1000 });
+  await page.addStyleTag({ content: 'html { font-size: 200%; }' });
+  await inspectLayout(page);
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  const save = page.getByRole('button', { name: 'Save item', exact: true });
+  await save.focus();
+  await page.keyboard.press('Tab');
+  await page.keyboard.press('Shift+Tab');
+  await expect(save).toBeFocused();
+  expect(await save.evaluate(element => getComputedStyle(element).outlineStyle)).not.toBe('none');
+  expect(await save.evaluate(element => getComputedStyle(element).transitionDuration)).toBe('0s');
+  await page.emulateMedia({ forcedColors: 'active' });
+  expect(await save.evaluate(element => getComputedStyle(element).borderTopStyle)).toBe('solid');
+});
 
 async function signIn(page: Page) {
   await page.goto('/');

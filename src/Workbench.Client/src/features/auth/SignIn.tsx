@@ -1,5 +1,5 @@
-import { useState, type FormEvent } from 'react';
-import { useAuth } from './useAuth';
+import { useState, type FormEvent } from "react";
+import { useAuth } from "./useAuth";
 
 export function SignIn() {
   const { identity, signIn } = useAuth();
@@ -12,7 +12,10 @@ export function SignIn() {
     setFailed(false);
     const form = new FormData(event.currentTarget);
     try {
-      await signIn(String(form.get('email') ?? ''), String(form.get('password') ?? ''));
+      await signIn(
+        String(form.get("email") ?? ""),
+        String(form.get("password") ?? ""),
+      );
     } catch {
       setFailed(true);
     } finally {
@@ -26,9 +29,10 @@ export function SignIn() {
 
   return (
     <section className="auth-card" aria-labelledby="sign-in-title">
-      <p className="eyebrow">Secure tenant access</p>
       <h1 id="sign-in-title">Sign in</h1>
-      <p className="lede">Use the Workbench account assigned to your organization.</p>
+      <p className="lede">
+        Use the Workbench account assigned to your organization.
+      </p>
       <form className="form-stack" onSubmit={(event) => void submit(event)}>
         <label>
           Email
@@ -36,7 +40,12 @@ export function SignIn() {
         </label>
         <label>
           Password
-          <input name="password" type="password" autoComplete="current-password" required />
+          <input
+            name="password"
+            type="password"
+            autoComplete="current-password"
+            required
+          />
         </label>
         {failed ? (
           <p className="form-message error" role="alert">
@@ -44,10 +53,12 @@ export function SignIn() {
           </p>
         ) : null}
         <button className="primary" type="submit" disabled={pending}>
-          {pending ? 'Signing in…' : 'Sign in'}
+          {pending ? "Signing in…" : "Sign in"}
         </button>
       </form>
-      <a className="text-link" href="/recover">Forgot your password?</a>
+      <a className="text-link" href="/recover">
+        Forgot your password?
+      </a>
     </section>
   );
 }

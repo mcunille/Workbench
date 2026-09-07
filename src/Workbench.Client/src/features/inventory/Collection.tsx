@@ -1,11 +1,12 @@
-import { useEffect, useState, type MouseEvent } from 'react';
-import { ApiError } from '../../api/auth';
+import { useEffect, useState, type MouseEvent } from "react";
+import { ApiError } from "../../api/auth";
+import { Icon } from "../../Icon";
 import {
   getItem,
   getItems,
   type ItemDetail,
   type ItemPage,
-} from '../../api/items';
+} from "../../api/items";
 type Props = {
   follow(event: MouseEvent<HTMLAnchorElement>): void;
   onAuthLost(): void;
@@ -65,11 +66,11 @@ export function Collection({ follow, onAuthLost }: Props) {
     <section>
       <div className="page-heading">
         <div>
-          <p className="eyebrow">Inventory</p>
           <h1>Collection</h1>
           <p className="lede">A place for the pieces you want to remember.</p>
         </div>
         <a className="primary button" href="/inventory/new" onClick={follow}>
+          <Icon name="plus" />
           Add item
         </a>
       </div>
@@ -77,10 +78,10 @@ export function Collection({ follow, onAuthLost }: Props) {
       {failed ? (
         <div role="alert">
           <p>
-            We could not load the collection.{' '}
+            We could not load the collection.{" "}
             {page
-              ? 'The items below are still available.'
-              : 'Please try again.'}
+              ? "The items below are still available."
+              : "Please try again."}
           </p>
           <button
             className="secondary"
@@ -99,7 +100,7 @@ export function Collection({ follow, onAuthLost }: Props) {
       {page?.items.length === 0 && !loading && !failed ? (
         <div className="empty-state">
           <span className="photo-placeholder" aria-hidden="true">
-            ◇
+            <Icon name="image" />
           </span>
           <h2>Your collection starts here</h2>
           <p>
@@ -114,13 +115,16 @@ export function Collection({ follow, onAuthLost }: Props) {
             <li key={item.id}>
               <a href={`/inventory/${item.id}`} onClick={follow}>
                 <span className="photo-placeholder" aria-hidden="true">
-                  ◇
+                  <Icon name="image" />
                 </span>
                 <span>
                   <strong className="item-title">{item.name}</strong>
-                  <small>{item.location ?? 'No location recorded'}</small>
+                  <small className="item-location">
+                    <Icon name="location" />
+                    {item.location ?? "No location recorded"}
+                  </small>
                 </span>
-                <span aria-hidden="true">→</span>
+                <Icon name="chevron" />
               </a>
             </li>
           ))}
@@ -172,15 +176,16 @@ export function ItemDetails({
   return (
     <section className="editor">
       <a className="text-link back-link" href="/inventory" onClick={follow}>
+        <Icon name="back" />
         Back to collection
       </a>
       {failed ? (
         <div role="alert">
-          <h1>{failed === 404 ? 'Item not found' : 'Item unavailable'}</h1>
+          <h1>{failed === 404 ? "Item not found" : "Item unavailable"}</h1>
           <p>
             {failed === 404
-              ? 'This item is not available in your collection.'
-              : 'We could not load this item.'}
+              ? "This item is not available in your collection."
+              : "We could not load this item."}
           </p>
           {failed !== 404 ? (
             <button
@@ -192,23 +197,36 @@ export function ItemDetails({
           ) : null}
         </div>
       ) : item ? (
-        <>
-          <h1 className="item-title">{item.name}</h1>
+        <div className="detail-surface">
+          <div className="item-identity">
+            <span className="photo-placeholder" aria-hidden="true">
+              <Icon name="image" />
+            </span>
+            <h1 className="item-title">{item.name}</h1>
+          </div>
           <dl className="item-details">
-            <dt>Storage location</dt>
-            <dd>{item.location ?? 'No location recorded'}</dd>
-            <dt>Notes</dt>
-            <dd className="notes">{item.notes ?? 'No notes recorded'}</dd>
-            <dt>Item identifier</dt>
-            <dd className="identifier">{item.id}</dd>
-            <dt>Added</dt>
-            <dd>
-              <time dateTime={item.createdAtUtc}>
-                {new Date(item.createdAtUtc).toLocaleString()}
-              </time>
-            </dd>
+            <div className="detail-field">
+              <dt>Storage location</dt>
+              <dd>{item.location ?? "No location recorded"}</dd>
+            </div>
+            <div className="detail-field">
+              <dt>Notes</dt>
+              <dd className="notes">{item.notes ?? "No notes recorded"}</dd>
+            </div>
+            <div className="detail-field record-metadata">
+              <dt>Item identifier</dt>
+              <dd className="identifier">{item.id}</dd>
+            </div>
+            <div className="detail-field">
+              <dt>Added</dt>
+              <dd>
+                <time dateTime={item.createdAtUtc}>
+                  {new Date(item.createdAtUtc).toLocaleString()}
+                </time>
+              </dd>
+            </div>
           </dl>
-        </>
+        </div>
       ) : (
         <p role="status">Loading item…</p>
       )}
