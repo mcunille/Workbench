@@ -2,6 +2,51 @@ import { act, renderHook } from '@testing-library/react';
 import { vi } from 'vitest';
 import { useNavigation } from './useNavigation';
 describe('Draft navigation', () => {
+  afterEach(() => vi.restoreAllMocks());
+  it.each([0, 3])(
+    'preserves a dirty draft across native fragment entries at history index %i',
+    (startingIndex) => {
+      // GIVEN a dirty add form at an existing application history position
+      window.history.replaceState(
+        { workbenchIndex: startingIndex },
+        '',
+        '/inventory/new',
+      );
+      const { result } = renderHook(useNavigation);
+      const go = vi.spyOn(window.history, 'go').mockImplementation(() => {});
+      act(() => result.current.setDirty(true, false));
+      // WHEN a native skip link creates an untagged same-document fragment entry
+      act(() => {
+        window.history.pushState(null, '', '/inventory/new#main');
+        window.dispatchEvent(new PopStateEvent('popstate', { state: null }));
+      });
+      // THEN it does not ask to discard or move history, and the draft remains guarded
+      expect(result.current.confirmation).toBe(false);
+      expect(go).not.toHaveBeenCalled();
+      act(() => result.current.navigate('/account'));
+      expect(result.current.confirmation).toBe(true);
+      expect(result.current.path).toBe('/inventory/new');
+      act(() => result.current.keep());
+      // WHEN Back removes only the fragment THEN the draft stays guarded
+      act(() => {
+        window.history.replaceState(
+          { workbenchIndex: startingIndex },
+          '',
+          '/inventory/new',
+        );
+        window.dispatchEvent(
+          new PopStateEvent('popstate', {
+            state: { workbenchIndex: startingIndex },
+          }),
+        );
+      });
+      expect(result.current.confirmation).toBe(false);
+      expect(go).not.toHaveBeenCalled();
+      act(() => result.current.navigate('/inventory'));
+      expect(result.current.confirmation).toBe(true);
+      go.mockRestore();
+    },
+  );
   it('clears the guard after leaving a discarded draft', () => {
     // GIVEN a dirty draft WHEN discarding to another page
     const { result } = renderHook(useNavigation);

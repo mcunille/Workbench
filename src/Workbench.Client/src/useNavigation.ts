@@ -7,6 +7,7 @@ import {
 } from 'react';
 export function useNavigation() {
   const [path, setPath] = useState(window.location.pathname);
+  const currentPath = useRef(window.location.pathname);
   const [confirmation, setConfirmation] = useState(false);
   const dirty = useRef(false);
   const uncertain = useRef(false);
@@ -29,6 +30,7 @@ export function useNavigation() {
         uncertain.current = false;
         index.current += 1;
         window.history.pushState({ workbenchIndex: index.current }, '', next);
+        currentPath.current = next;
         setPath(next);
       });
     },
@@ -48,6 +50,18 @@ export function useNavigation() {
         ignorePop.current = false;
         return;
       }
+      // Fragment navigation stays on the same form. Tag native entries so later
+      // Back/Forward distances include them without clearing the draft guard.
+      if (window.location.pathname === currentPath.current) {
+        index.current = event.state?.workbenchIndex ?? index.current + 1;
+        if (event.state?.workbenchIndex === undefined) {
+          window.history.replaceState(
+            { ...event.state, workbenchIndex: index.current },
+            '',
+          );
+        }
+        return;
+      }
       const targetIndex = event.state?.workbenchIndex ?? 0;
       const delta = targetIndex - index.current;
       if (dirty.current && !allowPop.current && delta) {
@@ -64,6 +78,7 @@ export function useNavigation() {
         dirty.current = false;
         uncertain.current = false;
         index.current = targetIndex;
+        currentPath.current = window.location.pathname;
         setPath(window.location.pathname);
       }
     };

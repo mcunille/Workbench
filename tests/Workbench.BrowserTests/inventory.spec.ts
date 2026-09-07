@@ -4,6 +4,8 @@ import { fileURLToPath } from 'node:url';
 
 const screenshotDirectory = fileURLToPath(new URL('../../artifacts/h1/', import.meta.url));
 
+test.setTimeout(120_000);
+
 function itemLink(page: Page, name: string) {
   return page.getByRole('link').filter({ has: page.getByText(name, { exact: true }) });
 }
@@ -39,9 +41,18 @@ async function inspectLayout(page: Page) {
 
 async function signIn(page: Page) {
   await page.goto('/');
-  await page.getByLabel('Email', { exact: true }).fill('browser-admin@example.test');
-  await page.getByLabel('Password', { exact: true }).fill('Browser Correct Horse 9!');
-  await page.getByRole('button', { name: 'Sign in', exact: true }).click();
+  let status: number | undefined;
+  // The disposable fixture shares the real per-network login budget. Retry only its
+  // generic 401 rejection, bounded by the server's one-minute limiter window.
+  await expect(async () => {
+    await page.getByLabel('Email', { exact: true }).fill('browser-admin@example.test');
+    await page.getByLabel('Password', { exact: true }).fill('Browser Correct Horse 9!');
+    const loginResponse = page.waitForResponse(response => response.url().endsWith('/api/auth/login'));
+    await page.getByRole('button', { name: 'Sign in', exact: true }).click();
+    status = (await loginResponse).status();
+    if (status === 401) expect(status).toBe(204);
+  }).toPass({ timeout: 70_000, intervals: [1_000, 5_000, 10_000] });
+  expect(status).toBe(204);
   await expect(page.getByRole('heading', { name: 'Collection', exact: true })).toBeVisible();
 }
 
@@ -160,6 +171,32 @@ test('dirty cancel, app navigation, history and sign-out require an explicit cho
   await page.getByRole('button', { name: 'Cancel', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Collection', exact: true })).toBeVisible();
   expect(creates).toBe(0);
+});
+
+test('skip-link fragment navigation preserves the dirty draft guard across browser back', async ({ page }) => {
+  // GIVEN a dirty draft reached through app navigation.
+  await signIn(page);
+  await startItem(page, 'Draft after skip navigation');
+
+  // WHEN keyboard skip navigation adds a fragment, account navigation still requires consent.
+  await page.getByRole('link', { name: 'Skip to content', exact: true }).focus();
+  await page.keyboard.press('Enter');
+  await expect(page).toHaveURL(/\/inventory\/new#main$/);
+  await page.getByRole('link', { name: 'Account', exact: true }).click();
+  await expect(page.getByRole('dialog')).toBeVisible();
+  await page.getByRole('dialog').getByRole('button', { name: 'Keep editing', exact: true }).click();
+  await expect(page.getByLabel('Name', { exact: true })).toHaveValue('Draft after skip navigation');
+
+  // AND browser back removes only the fragment, keeping the same protected draft.
+  await page.goBack();
+  await expect(page).toHaveURL(/\/inventory\/new$/);
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await page.getByRole('button', { name: 'Cancel', exact: true }).click();
+
+  // THEN cancel still prompts instead of silently dropping the draft.
+  await expect(page.getByRole('dialog')).toBeVisible();
+  await page.getByRole('dialog').getByRole('button', { name: 'Keep editing', exact: true }).click();
+  await expect(page.getByLabel('Name', { exact: true })).toHaveValue('Draft after skip navigation');
 });
 
 test('collection failure has a retry state distinct from an empty collection', async ({ page }) => {
