@@ -9,7 +9,7 @@ test('a removal finishing after confirmed navigation updates the restored collec
   await savedPhotoItem(page, name);
   await page.getByLabel('Choose photograph', { exact: true }).setInputFiles(await cameraImage(page));
   await page.getByRole('button', { name: 'Upload photograph', exact: true }).click();
-  await expect(page.getByText('Photograph updated.', { exact: true })).toBeVisible();
+  await expect(page.getByText('Current saved photograph loaded.', { exact: true })).toBeVisible();
   await page.getByRole('link', { name: 'Back to collection', exact: true }).click();
   const photograph = page.getByAltText(`Photograph of ${name}`, { exact: true });
   await expect(photograph).toBeVisible();

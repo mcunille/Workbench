@@ -74,6 +74,8 @@ public sealed class ItemPhotoService(WorkbenchDbContext database, IBlobStore sto
                     throw Conflict();
             }
             var item = await RequireItemAsync(id, cancellationToken);
+            if (item.ArchivedAtUtc is not null)
+                throw Archived();
             if (!item.RowVersion.SequenceEqual(expectedVersion))
                 throw Conflict();
             var images = content is null ? null : processor.Process(content);
@@ -142,6 +144,8 @@ public sealed class ItemPhotoService(WorkbenchDbContext database, IBlobStore sto
                     await transaction.RollbackAsync(cancellationToken);
                     await transaction.DisposeAsync();
                     await RetainConflictAsync(operation.Id, detailIdentity, thumbnailIdentity, cancellationToken);
+                    if ((await RequireItemAsync(id, cancellationToken)).ArchivedAtUtc is not null)
+                        throw Archived();
                     throw Conflict();
                 }
                 if (item.CurrentPhoto is { } previous)
@@ -235,6 +239,7 @@ public sealed class ItemPhotoService(WorkbenchDbContext database, IBlobStore sto
     }
 
     private static PhotoInputException Conflict() => new(409, "The item changed in another session. Reload it before changing its photo.");
+    private static PhotoInputException Archived() => new(409, "This record is archived and cannot be changed.", "item_archived");
     private static ItemPhotoMutationResponse Result(ItemPhotoOperation operation) => new(operation.RequestId,
         Convert.ToBase64String(operation.ResultVersion!), operation.Kind == PhotoOperationKind.Upload ? operation.Id : null);
 }

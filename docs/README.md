@@ -46,6 +46,10 @@ bounded pagination, and private in-memory navigation state. H4 follows the accep
 [editing design](specs/2026-09-07-h4-item-editing.md), with checked saves and explicit conflict recovery;
 these increments do not complete the entire scenario.
 
+The accepted [H5 archiving design](specs/2026-09-07-h5-item-archiving.md) extends the collection with
+confirmed, version-checked archiving, active-only browsing/search, and read-only access to retained
+records and photographs through their existing links. H5 does not provide unarchive or deletion.
+
 The accepted [base-architecture specification](specs/2026-08-31-base-application-architecture.md) is
 the decision record behind `ARCHITECTURE.md`.
 

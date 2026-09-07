@@ -26,7 +26,7 @@ test('record H3 search and return against the real database', async ({ browser }
   await setup.goto(`/inventory/${sapphire}`);
   await setup.getByLabel('Choose photograph', { exact: true }).setInputFiles(await cameraImage(setup));
   await setup.getByRole('button', { name: 'Upload photograph', exact: true }).click();
-  await expect(setup.getByText('Photograph updated.', { exact: true })).toBeVisible();
+  await expect(setup.getByText('Current saved photograph loaded.', { exact: true })).toBeVisible();
   const context = await browser.newContext({ baseURL: 'http://127.0.0.1:4179', storageState: await login.storageState(), viewport: { width: 1280, height: 900 }, recordVideo: { dir: `${output}/raw`, size: { width: 1280, height: 900 } } });
   await login.close();
   const start = Date.now();

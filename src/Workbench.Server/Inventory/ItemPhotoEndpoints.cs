@@ -89,7 +89,8 @@ public static class ItemPhotoEndpoints
         or SqlException or DbUpdateException or OperationCanceledException;
     private static IResult Failure(Exception error) => error switch
     {
-        PhotoInputException photo => Results.Problem(statusCode: photo.StatusCode, title: photo.Message),
+        PhotoInputException photo => Results.Problem(statusCode: photo.StatusCode, title: photo.Message,
+            extensions: photo.Code is null ? null : new Dictionary<string, object?> { ["code"] = photo.Code }),
         UnauthorizedAccessException => Results.Problem(statusCode: 403, title: "Photo access is denied."),
         _ => Results.Problem(statusCode: 503, title: "The photo operation could not be confirmed. Retry the same operation shortly."),
     };

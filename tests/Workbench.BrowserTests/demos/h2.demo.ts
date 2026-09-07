@@ -92,7 +92,7 @@ test('record the narrated H2 photograph workflow against the real database', asy
       .getByRole('button', { name: 'Upload photograph', exact: true })
       .click();
     await expect(
-      page.getByText('Photograph updated.', { exact: true }),
+      page.getByText('Current saved photograph loaded.', { exact: true }),
     ).toBeVisible();
     await page
       .getByRole('heading', { name: 'Blue sapphire', exact: true })
@@ -158,7 +158,7 @@ test('record the narrated H2 photograph workflow against the real database', asy
       .getByRole('button', { name: 'Retry upload', exact: true })
       .click();
     await expect(
-      page.getByText('Photograph updated.', { exact: true }),
+      page.getByText('Current saved photograph loaded.', { exact: true }),
     ).toBeVisible();
     await page.unroute('**/api/items/*/photo');
   });

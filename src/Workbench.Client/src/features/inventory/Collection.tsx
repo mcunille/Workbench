@@ -12,6 +12,7 @@ import { Icon } from '../../Icon';
 import { ItemPhoto } from './ItemPhoto';
 import { PhotoEditor } from './PhotoEditor';
 import { DetailEditor } from './DetailEditor';
+import { ArchiveItem } from './ArchiveItem';
 import {
   getItem,
   getItems,
@@ -35,8 +36,8 @@ export function Collection({
   const [page, setPage] = useState<ItemPage | undefined>(
     () => memory.snapshot?.page,
   );
-  const [request, setRequest] = useState<{ cursor?: string } | undefined>(() =>
-    memory.snapshot?.page ? undefined : {},
+  const [request, setRequest] = useState<{ cursor?: string } | undefined>(
+    () => (memory.snapshot?.page ? undefined : {}),
   );
   const [failed, setFailed] = useState<number>();
   const heading = useRef<HTMLHeadingElement>(null);
@@ -303,6 +304,8 @@ export function ItemDetails({
 }) {
   const [item, setItem] = useState<ItemDetail>();
   const [editing, setEditing] = useState(false);
+  const [archiving, setArchiving] = useState(false);
+  const archiveButton = useRef<HTMLButtonElement>(null);
   const [photoDirty, setPhotoDirty] = useState(false);
   const [savedMessage, setSavedMessage] = useState(false);
   const editButton = useRef<HTMLButtonElement>(null);
@@ -323,6 +326,7 @@ export function ItemDetails({
       (result) => {
         if (current) {
           setItem(result);
+          if (result.archivedAtUtc) memory?.invalidate();
           memory?.updatePhoto(id, result.photo);
           setFailed(undefined);
         }
@@ -378,6 +382,38 @@ export function ItemDetails({
           {savedMessage ? (
             <p role="status">Current saved record loaded.</p>
           ) : null}
+          {item.archivedAtUtc ? (
+            <p role="status">
+              <strong>Archived</strong> —{' '}
+              <time dateTime={item.archivedAtUtc}>
+                {new Date(item.archivedAtUtc).toLocaleString()}
+              </time>
+              . This record is read-only.
+            </p>
+          ) : null}
+          {archiving ? (
+            <ArchiveItem
+              item={item}
+              onDirtyChange={onDirtyChange}
+              onAuthLost={onAuthLost}
+              invalidate={() => memory?.invalidate()}
+              onUnavailable={() => {
+                memory?.removeUnavailable(id);
+                setFailed(404);
+                setArchiving(false);
+              }}
+              onCancel={() => {
+                setArchiving(false);
+                requestAnimationFrame(() => archiveButton.current?.focus());
+              }}
+              onCurrent={(current) => {
+                setItem(current);
+                setArchiving(false);
+                setSavedMessage(true);
+                onDirtyChange(false, false);
+              }}
+            />
+          ) : null}
           {editing ? (
             <DetailEditor
               key={item.id}
@@ -405,20 +441,36 @@ export function ItemDetails({
             />
           ) : (
             <>
-              <button
-                ref={editButton}
-                className="secondary"
-                disabled={photoDirty}
-                onClick={() => {
-                  setEditing(true);
-                  setSavedMessage(false);
-                }}
-              >
-                Edit details
-              </button>
+              {!item.archivedAtUtc ? (
+                <>
+                  <button
+                    ref={editButton}
+                    className="secondary"
+                    disabled={photoDirty || archiving}
+                    onClick={() => {
+                      setEditing(true);
+                      setSavedMessage(false);
+                    }}
+                  >
+                    Edit details
+                  </button>
+                  <button
+                    ref={archiveButton}
+                    className="secondary danger"
+                    disabled={photoDirty || archiving}
+                    onClick={() => {
+                      setArchiving(true);
+                      setSavedMessage(false);
+                    }}
+                  >
+                    Archive record
+                  </button>
+                </>
+              ) : null}
               <PhotoEditor
                 key={item.id}
                 item={item}
+                disabled={archiving}
                 onAuthLost={onAuthLost}
                 onDirtyChange={photoDirtyChange}
                 onPhotoChanged={() => {
@@ -428,6 +480,7 @@ export function ItemDetails({
                   const result = await getItem(id);
                   if (currentId.current === id) {
                     setItem(result);
+                    if (result.archivedAtUtc) memory?.invalidate();
                     memory?.updatePhoto(id, result.photo);
                   }
                 }}

@@ -18,7 +18,7 @@ def timestamp(seconds: float) -> str:
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--ffmpeg", required=True, type=Path)
-    parser.add_argument("--scenario", choices=["h1", "h2", "h3", "h4"], default="h1")
+    parser.add_argument("--scenario", choices=["h1", "h2", "h3", "h4", "h5"], default="h1")
     args = parser.parse_args()
     root = Path(__file__).resolve().parents[2]
     source = root / f"artifacts/{args.scenario}-video"

@@ -14,12 +14,14 @@ export function PhotoEditor({
   onDirtyChange,
   reload,
   onPhotoChanged,
+  disabled = false,
 }: {
   item: ItemDetail;
   onAuthLost(): void;
   onDirtyChange(value: boolean, uncertain: boolean): void;
   reload(): Promise<void>;
   onPhotoChanged?(): void;
+  disabled?: boolean;
 }) {
   const [prepared, setPrepared] = useState<{ blob: Blob; url: string }>();
   const [busy, setBusy] = useState<'prepare' | 'save'>();
@@ -37,9 +39,12 @@ export function PhotoEditor({
     };
   }, []);
   useEffect(() => {
-    onDirtyChange(Boolean(prepared || busy || command), Boolean(command));
+    onDirtyChange(
+      Boolean(prepared || busy || command || confirmRemove || conflict),
+      Boolean(command),
+    );
     return () => onDirtyChange(false, false);
-  }, [prepared, busy, command, onDirtyChange]);
+  }, [prepared, busy, command, confirmRemove, conflict, onDirtyChange]);
   useEffect(
     () => () => {
       if (prepared) URL.revokeObjectURL(prepared.url);
@@ -59,7 +64,8 @@ export function PhotoEditor({
     setSaved(false);
     try {
       const blob = await preparePhoto(file);
-      if (active.current) setPrepared({ blob, url: URL.createObjectURL(blob) });
+      if (active.current)
+        setPrepared({ blob, url: URL.createObjectURL(blob) });
     } catch (failure) {
       if (active.current)
         setError(
@@ -78,7 +84,7 @@ export function PhotoEditor({
       if (active.current) {
         setConflict(false);
         setError(
-          'The current item has been loaded. Review it before uploading or removing a photograph again.',
+          'The current item has been loaded. Review its saved state before deciding what to do.',
         );
       }
     } catch (failure) {
@@ -152,24 +158,32 @@ export function PhotoEditor({
         name={item.name}
         onAuthLost={onAuthLost}
       />
-      <p className="hint" id="photo-help">
-        Choose a JPEG, PNG, or WebP up to 20 MiB and 40 megapixels. Your browser
-        resizes the image to at most 2,048 pixels and removes embedded metadata
-        before uploading. Only the prepared image is sent. Visible details in
-        the photograph remain visible.
-      </p>
-      <label htmlFor="photo-file">Choose photograph</label>
-      <input
-        id="photo-file"
-        type="file"
-        accept="image/jpeg,image/png,image/webp"
-        aria-describedby="photo-help"
-        disabled={Boolean(busy || command || conflict)}
-        onChange={(event) => {
-          void choose(event.target.files?.[0]);
-          event.target.value = '';
-        }}
-      />
+      {item.archivedAtUtc ? (
+        <p role="status">
+          This record is archived. Photograph changes are unavailable.
+        </p>
+      ) : (
+        <fieldset disabled={disabled} className="photo-controls">
+          <p className="hint" id="photo-help">
+            Choose a JPEG, PNG, or WebP up to 20 MiB and 40 megapixels. Your
+            browser resizes the image to at most 2,048 pixels and removes
+            embedded metadata before uploading. Only the prepared image is
+            sent. Visible details in the photograph remain visible.
+          </p>
+          <label htmlFor="photo-file">Choose photograph</label>
+          <input
+            id="photo-file"
+            type="file"
+            accept="image/jpeg,image/png,image/webp"
+            aria-describedby="photo-help"
+            disabled={Boolean(busy || command || conflict)}
+            onChange={(event) => {
+              void choose(event.target.files?.[0]);
+              event.target.value = '';
+            }}
+          />
+        </fieldset>
+      )}
       {busy ? (
         <p role="status">
           {busy === 'prepare'
@@ -185,9 +199,30 @@ export function PhotoEditor({
         </div>
       ) : null}
       {error ? <p role="alert">{error}</p> : null}
-      {saved ? <p role="status">Photograph updated.</p> : null}
+      {saved ? (
+        <p role="status">
+          {item.photo
+            ? 'Current saved photograph loaded.'
+            : 'Current saved record has no photograph.'}
+        </p>
+      ) : null}
       <div className="button-row">
-        {conflict ? (
+        {item.archivedAtUtc ? (
+          prepared || command || conflict ? (
+            <button
+              className="secondary"
+              disabled={Boolean(busy)}
+              onClick={() => {
+                setPrepared(undefined);
+                setCommand(undefined);
+                setConflict(false);
+                setError('');
+              }}
+            >
+              Discard draft and view archived record
+            </button>
+          ) : null
+        ) : conflict ? (
           <button
             className="primary"
             disabled={Boolean(busy)}
@@ -230,10 +265,12 @@ export function PhotoEditor({
             </button>
           </>
         ) : null}
-        {item.photo ? (
+        {item.photo && !item.archivedAtUtc ? (
           <button
             className="secondary danger"
-            disabled={Boolean(busy || command || conflict || prepared)}
+            disabled={Boolean(
+              disabled || busy || command || conflict || prepared,
+            )}
             onClick={() => setConfirmRemove(true)}
           >
             Remove photograph

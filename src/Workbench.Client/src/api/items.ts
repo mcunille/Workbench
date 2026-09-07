@@ -32,13 +32,33 @@ export async function updateItem(
     response.status === 409 &&
     error &&
     'code' in error &&
-    error.code === 'item_version_conflict'
+    (error.code === 'item_version_conflict' || error.code === 'item_archived')
   )
     throw new ItemConflictError();
   if (!response.ok || !data) throw new ApiError(response.status);
   return data;
 }
-export async function createItem(body: CreateItemRequest): Promise<ItemDetail> {
+export async function archiveItem(
+  id: string,
+  body: components['schemas']['ArchiveItemRequest'],
+): Promise<ItemDetail> {
+  const { data, response, error } = await api.POST(
+    '/api/items/{id}/archive',
+    {
+      params: { path: { id } },
+      body,
+      headers: await mutationHeaders(),
+    },
+  );
+  if (response.status === 400 && error && 'errors' in error && error.errors)
+    throw new ItemValidationError(error.errors);
+  if (response.status === 409) throw new ItemConflictError();
+  if (!response.ok || !data) throw new ApiError(response.status);
+  return data;
+}
+export async function createItem(
+  body: CreateItemRequest,
+): Promise<ItemDetail> {
   const { data, response, error } = await api.POST('/api/items', {
     body,
     headers: await mutationHeaders(),
@@ -48,7 +68,10 @@ export async function createItem(body: CreateItemRequest): Promise<ItemDetail> {
   if (!response.ok || !data) throw new ApiError(response.status);
   return data;
 }
-export async function getItems(cursor?: string, q?: string): Promise<ItemPage> {
+export async function getItems(
+  cursor?: string,
+  q?: string,
+): Promise<ItemPage> {
   const { data, response } = await api.GET('/api/items', {
     params: { query: { cursor, q } },
   });

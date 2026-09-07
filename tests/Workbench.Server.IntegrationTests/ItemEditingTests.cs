@@ -56,12 +56,37 @@ public sealed class ItemEditingTests(SqlServerFixture sqlServer)
         using var client = application.CreateClient();
         await LoginAsync(client, "member@example.com");
         var request = new { creationRequestId = Guid.NewGuid(), name = " Original ", notes, location };
-        var created = await SendAsync(client, HttpMethod.Post, "/api/items", request);
-        Assert.Equal(HttpStatusCode.Created, created.StatusCode);
-        var item = (await created.Content.ReadFromJsonAsync<ItemDetailResponse>())!;
-        // AND an item from the PR base schema can be upgraded before its first edit.
+        ItemDetailResponse item;
         if (upgrade)
+        {
+            // AND the original record is persisted with the base schema, independently of the current EF model.
+            var id = Guid.NewGuid();
+            await using var sql = new SqlConnection(application.AdminConnectionString);
+            await sql.OpenAsync();
+            await using var seed = new SqlCommand("""
+                INSERT [Inventory].[Items]
+                    ([Id],[TenantId],[TrackingKind],[Name],[Notes],[StorageLocation],[CreatedAtUtc],[CreationRequestId])
+                VALUES (@id,@tenant,'Individual',@name,@notes,@location,SYSUTCDATETIME(),@request);
+                """, sql);
+            seed.Parameters.AddWithValue("@id", id);
+            seed.Parameters.AddWithValue("@tenant", AuthTestApplication.TenantId);
+            seed.Parameters.AddWithValue("@name", request.name.Trim());
+            seed.Parameters.AddWithValue("@notes", (object?)notes ?? DBNull.Value);
+            seed.Parameters.AddWithValue("@location", (object?)location?.Trim() ?? DBNull.Value);
+            seed.Parameters.AddWithValue("@request", request.creationRequestId);
+            await seed.ExecuteNonQueryAsync();
             await DatabaseMigrator.MigrateAsync(application.AdminConnectionString, CancellationToken.None);
+            item = (await client.GetFromJsonAsync<ItemDetailResponse>($"/api/items/{id}"))!;
+            Assert.Equal("Original", item.Name);
+            Assert.Equal(notes, item.Notes);
+            Assert.Equal(location?.Trim(), item.Location);
+        }
+        else
+        {
+            var created = await SendAsync(client, HttpMethod.Post, "/api/items", request);
+            Assert.Equal(HttpStatusCode.Created, created.StatusCode);
+            item = (await created.Content.ReadFromJsonAsync<ItemDetailResponse>())!;
+        }
         // WHEN two later edits replace every descriptive field.
         foreach (var name in new[] { "Revised", "Final" })
         {

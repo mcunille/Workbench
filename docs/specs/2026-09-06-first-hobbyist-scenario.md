@@ -117,8 +117,9 @@ recording completion and hesitation points. Automated tests alone do not establi
 
 No dashboards, public sharing, bulk import/edit, saved views, configurable columns, multiple photos,
 formal gem taxonomy, valuations, purchase orders, bookkeeping, work orders or commerce in this scenario.
-Record archival/deletion and collection export need subsequent explicit scenarios. Evaluate the
-initial release as a limited collection pilot, not a complete professional inventory system.
+The subsequent [H5 design](2026-09-07-h5-item-archiving.md) adds safe record archiving with retained
+read-only links. Deletion and collection export remain separate increments. Evaluate the initial
+release as a limited collection pilot, not a complete professional inventory system.
 
 Choose subsequent complete scenarios from observed needs:
 

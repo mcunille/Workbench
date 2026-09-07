@@ -8,8 +8,10 @@ namespace Workbench.Server.Inventory;
 public sealed record CreateItemRequest(Guid CreationRequestId, string? Name, string? Notes, string? Location);
 [JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
 public sealed record UpdateItemDetailsRequest(string? ExpectedVersion, string? Name, string? Notes, string? Location);
+[JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
+public sealed record ArchiveItemRequest(string? ExpectedVersion);
 public sealed record ItemDetailResponse(Guid Id, string Name, string? Notes, string? Location, DateTimeOffset CreatedAtUtc,
-    string Version, ItemPhotoResponse? Photo);
+    string Version, ItemPhotoResponse? Photo, DateTimeOffset? ArchivedAtUtc = null);
 public sealed record ItemSummaryResponse(Guid Id, string Name, string? Location, DateTimeOffset CreatedAtUtc, ItemPhotoResponse? Photo);
 public sealed record ItemPageResponse(IReadOnlyList<ItemSummaryResponse> Items, string? NextCursor);
 public sealed record ItemPhotoResponse(Guid Id, string ThumbnailUrl, string DetailUrl, int Width, int Height);

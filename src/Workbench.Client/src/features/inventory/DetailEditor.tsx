@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { ApiError } from '../../api/auth';
+import { ItemPhoto } from './ItemPhoto';
 import {
   getItem,
   updateItem,
@@ -162,35 +163,51 @@ export function DetailEditor({
       {review ? (
         <>
           <p>
-            This record may have changed in another session. Compare the current
-            saved record with your draft before deciding what to keep.
+            This record may have changed in another session. Compare the
+            current saved record with your draft before deciding what to keep.
           </p>
           <div className="edit-comparison">
             <SavedText title="Your draft" value={draft} />
             {current ? (
-              <SavedText title="Current saved record" value={fields(current)} />
+              <SavedText
+                title="Current saved record"
+                value={fields(current)}
+              />
             ) : null}
           </div>
           <div className="button-row">
             {current ? (
               <>
-                <button className="secondary" onClick={() => onSaved(current)}>
-                  Use saved record
-                </button>
+                {current.archivedAtUtc ? (
+                  <p role="status">
+                    The current record is archived and read-only. Your draft
+                    is kept for reference.
+                  </p>
+                ) : null}
                 <button
-                  className="primary"
-                  onClick={() => {
-                    setPreviousDraft(draft);
-                    setDraft(fields(current));
-                    setVersion(current.version);
-                    setSubmitted(undefined);
-                    setErrors({});
-                    setMessage('');
-                    setReview(false);
-                  }}
+                  className="secondary"
+                  onClick={() => onSaved(current)}
                 >
-                  Review my edits
+                  {current.archivedAtUtc
+                    ? 'Discard draft and view archived record'
+                    : 'Use saved record'}
                 </button>
+                {!current.archivedAtUtc ? (
+                  <button
+                    className="primary"
+                    onClick={() => {
+                      setPreviousDraft(draft);
+                      setDraft(fields(current));
+                      setVersion(current.version);
+                      setSubmitted(undefined);
+                      setErrors({});
+                      setMessage('');
+                      setReview(false);
+                    }}
+                  >
+                    Review my edits
+                  </button>
+                ) : null}
               </>
             ) : (
               <button
@@ -202,6 +219,14 @@ export function DetailEditor({
               </button>
             )}
           </div>
+          {current?.archivedAtUtc ? (
+            <ItemPhoto
+              interactive
+              url={current.photo?.detailUrl}
+              name={current.name}
+              onAuthLost={onAuthLost}
+            />
+          ) : null}
         </>
       ) : (
         <>
@@ -263,7 +288,10 @@ export function DetailEditor({
                   />
                 )}
                 {errorFor(field) ? (
-                  <p id={'edit-error-' + field} className="form-message error">
+                  <p
+                    id={'edit-error-' + field}
+                    className="form-message error"
+                  >
                     {errorFor(field)}
                   </p>
                 ) : null}
