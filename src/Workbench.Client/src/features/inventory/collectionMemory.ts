@@ -8,6 +8,7 @@ type Snapshot = {
 
 // One private traversal lives only as long as its authenticated application owner.
 export class CollectionMemory {
+  private readonly invalidationListeners = new Set<() => void>();
   private readonly photoListeners = new Set<
     (id: string, photo: ItemDetail['photo']) => void
   >();
@@ -25,6 +26,15 @@ export class CollectionMemory {
   }
   invalidate() {
     if (this.snapshot) this.snapshot = { ...this.snapshot, page: undefined };
+    this.selectedId = undefined;
+    this.scrollY = 0;
+    for (const listener of this.invalidationListeners) listener();
+  }
+  subscribeInvalidation(listener: () => void) {
+    this.invalidationListeners.add(listener);
+    return () => {
+      this.invalidationListeners.delete(listener);
+    };
   }
   subscribePhotos(listener: (id: string, photo: ItemDetail['photo']) => void) {
     this.photoListeners.add(listener);

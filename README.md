@@ -16,10 +16,12 @@ It supports mobile and desktop layouts with System/Light/Dark appearance. Saved 
 one private photograph, prepared in the browser before upload, with replacement and removal.
 Search finds literal phrases in names, notes, and locations across all collection pages, and
 returning from details preserves the query, Grid/List view, and position within the signed-in app.
-Descriptive editing, deletion, bulk stock, and financial workflows remain later increments.
+Descriptive edits check the saved version and preserve drafts for explicit conflict recovery.
+Saved edits refresh search results. Deletion, bulk stock, and financial workflows remain later increments.
 See the [H1 specification](docs/specs/2026-09-06-h1-collection-notebook.md),
 [H2 photograph specification](docs/specs/2026-09-07-h2-item-photographs.md), and
-[H3 search specification](docs/specs/2026-09-07-h3-collection-search.md).
+[H3 search specification](docs/specs/2026-09-07-h3-collection-search.md), and
+[H4 editing specification](docs/specs/2026-09-07-h4-item-editing.md).
 
 ## Setup and installation
 

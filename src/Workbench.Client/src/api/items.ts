@@ -4,12 +4,40 @@ import { ApiError, mutationHeaders } from './auth';
 export type CreateItemRequest = components['schemas']['CreateItemRequest'];
 export type ItemDetail = components['schemas']['ItemDetailResponse'];
 export type ItemPage = components['schemas']['ItemPageResponse'];
+export type UpdateItemRequest =
+  components['schemas']['UpdateItemDetailsRequest'];
+export class ItemConflictError extends ApiError {
+  constructor() {
+    super(409);
+  }
+}
 export class ItemValidationError extends ApiError {
   constructor(public readonly errors: Record<string, string[]>) {
     super(400);
   }
 }
 const api = createClient<paths>({ baseUrl: window.location.origin });
+export async function updateItem(
+  id: string,
+  body: UpdateItemRequest,
+): Promise<ItemDetail> {
+  const { data, response, error } = await api.PUT('/api/items/{id}', {
+    params: { path: { id } },
+    body,
+    headers: await mutationHeaders(),
+  });
+  if (response.status === 400 && error && 'errors' in error && error.errors)
+    throw new ItemValidationError(error.errors);
+  if (
+    response.status === 409 &&
+    error &&
+    'code' in error &&
+    error.code === 'item_version_conflict'
+  )
+    throw new ItemConflictError();
+  if (!response.ok || !data) throw new ApiError(response.status);
+  return data;
+}
 export async function createItem(body: CreateItemRequest): Promise<ItemDetail> {
   const { data, response, error } = await api.POST('/api/items', {
     body,

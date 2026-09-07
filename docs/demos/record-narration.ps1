@@ -1,5 +1,5 @@
 [CmdletBinding()]
-param([ValidateSet('h1', 'h2', 'h3')][string]$Scenario = 'h1')
+param([ValidateSet('h1', 'h2', 'h3', 'h4')][string]$Scenario = 'h1')
 
 $ErrorActionPreference = 'Stop'
 if (-not $IsWindows) { throw 'Narration generation requires Windows SAPI desktop voices.' }

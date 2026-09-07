@@ -96,3 +96,33 @@ it('invalidates loaded records after creation while retaining the query and view
     page: undefined,
   });
 });
+
+it('invalidates all page boundaries and position while preserving query and view', () => {
+  // GIVEN cached search pages, a selection and an old scroll position.
+  const memory = new CollectionMemory();
+  memory.save({
+    view: 'list',
+    query: 'stone',
+    draft: 'unfinished',
+    page: { items: [], nextCursor: 'old-boundary' },
+  });
+  memory.select('old');
+  memory.savePosition(900);
+  const listener = vi.fn();
+  const unsubscribe = memory.subscribeInvalidation(listener);
+  // WHEN details may have changed THEN traversal restarts with the same search and view.
+  memory.invalidate();
+  expect(memory.snapshot).toEqual({
+    view: 'list',
+    query: 'stone',
+    draft: 'unfinished',
+    page: undefined,
+  });
+  expect(memory.selectedId).toBeUndefined();
+  expect(memory.scrollY).toBe(0);
+  expect(listener).toHaveBeenCalledOnce();
+  // AND an unmounted collection is no longer notified.
+  unsubscribe();
+  memory.invalidate();
+  expect(listener).toHaveBeenCalledOnce();
+});

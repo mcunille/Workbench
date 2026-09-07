@@ -75,3 +75,46 @@ describe('Inventory API', () => {
     });
   });
 });
+
+it('sends a checked update with antiforgery and preserves validation and conflict codes', async () => {
+  // GIVEN a checked command and authoritative responses.
+  const { updateItem, ItemConflictError } = await import('./items');
+  const body = {
+    expectedVersion: 'AAAAAAAAAAA=',
+    name: 'Edited',
+    notes: null,
+    location: 'Tray',
+  };
+  let status = 200;
+  server.use(
+    http.get('*/api/auth/antiforgery', () =>
+      HttpResponse.json({ requestToken: 'csrf-test' }),
+    ),
+    http.put('*/api/items/item', async ({ request }) => {
+      expect(await request.json()).toEqual(body);
+      expect(request.headers.get('X-CSRF-TOKEN')).toBe('csrf-test');
+      return HttpResponse.json(
+        status === 200
+          ? { id: 'item', name: 'Edited', version: 'new' }
+          : status === 400
+            ? { errors: { Name: ['Required'] } }
+            : { code: 'item_version_conflict' },
+        { status },
+      );
+    }),
+  );
+  // WHEN saving THEN return server details and distinguish recoverable failures.
+  expect(await updateItem('item', body)).toMatchObject({
+    id: 'item',
+    name: 'Edited',
+    version: 'new',
+  });
+  status = 400;
+  await expect(updateItem('item', body)).rejects.toBeInstanceOf(
+    ItemValidationError,
+  );
+  status = 409;
+  await expect(updateItem('item', body)).rejects.toBeInstanceOf(
+    ItemConflictError,
+  );
+});

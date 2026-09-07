@@ -3,6 +3,28 @@
 Database migrations are an explicit, human-controlled deployment operation. A Workbench web
 replica never migrates its database and never receives the setup, operator, or migrator credential.
 
+## Item detail editing release
+
+`20260907194500_AddItemDetailEditing` adds `Inventory.UpdateItemDetails` after the photograph
+release. Its conditional update changes only name, notes, and descriptive location using the
+expected rowversion under caller tenant isolation. Runtime principals receive EXECUTE permission;
+direct item UPDATE/DELETE remains denied. Existing item identity, text, and photographs are retained.
+It also adds tenant-qualified `Inventory.ItemCreationSnapshots`, captured once by the first edit
+in the same transaction. Creation retries compare these immutable original fields and return the
+current item. Runtime snapshot access is SELECT-only; direct writes are denied. Existing items
+need no backfill. Down migration is deliberately disabled to preserve creation evidence;
+an empty tenant-filtered view from the migrator is never treated as proof that deletion is safe.
+The new application requires the new schema marker and command permission before reporting ready.
+
+Apply this additive migration through the explicit migrator before releasing H4. Verify fresh
+creation and upgrade from the previous schema with retained items and photos. Keep previous
+migrations unchanged. Use a forward correction for recovery; an application rollback must account
+for schema-readiness compatibility. Existing paired SQL/blob backup and restore procedures remain
+authoritative; reverting binaries is not authorization to discard saved edits or collection data.
+The snapshot addition is consolidated into this PR's development-only H4 migration; the base
+schema migrations are unchanged. Disposable test databases are recreated. A retained installation
+that applied an earlier development version needs a forward correction, not a rewritten history entry.
+
 ## Item photograph release
 
 `20260907082353_AddItemPhotographs` follows the shipped collection notebook migration. It adds

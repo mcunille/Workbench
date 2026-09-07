@@ -24,6 +24,30 @@ namespace Workbench.Server.IntegrationTests;
 public sealed class ItemPhotoDatabaseTests(SqlServerFixture sqlServer)
 {
     [Fact]
+    public async Task EditingUpgradePreservesRetainedPhotoAndTextThenAllowsCheckedEditing()
+    {
+        // GIVEN a persisted item and complete photo on the PR base schema.
+        await using var context = await PhotoDatabaseContext.CreateAsync(sqlServer, "AddItemPhotographs");
+        var (path, item) = await context.CreatePhotoAsync();
+        var photo = item.GetProperty("photo").GetRawText();
+        // WHEN the additive editing migration is applied.
+        await DatabaseMigrator.MigrateAsync(context.Application.AdminConnectionString, CancellationToken.None);
+        // THEN its text, version, photo metadata, and photo bytes remain intact.
+        var retained = await context.Client.GetFromJsonAsync<JsonElement>(path);
+        Assert.Equal(item.GetProperty("name").GetString(), retained.GetProperty("name").GetString());
+        Assert.Equal(item.GetProperty("version").GetString(), retained.GetProperty("version").GetString());
+        Assert.Equal(photo, retained.GetProperty("photo").GetRawText());
+        Assert.Equal(HttpStatusCode.OK, (await context.Client.GetAsync(retained.GetProperty("photo").GetProperty("detailUrl").GetString())).StatusCode);
+        // AND a text edit preserves the photo while advancing the shared version.
+        var response = await SendJsonAsync(context.Client, HttpMethod.Put, path,
+            new { expectedVersion = retained.GetProperty("version").GetString(), name = "Updated sapphire" });
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var saved = await response.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal(photo, saved.GetProperty("photo").GetRawText());
+        Assert.NotEqual(retained.GetProperty("version").GetString(), saved.GetProperty("version").GetString());
+    }
+
+    [Fact]
     public async Task UpgradePreservesExistingItemAndAddsAnEmptyPhotoHistory()
     {
         // GIVEN the immediately preceding schema with a saved item and descriptive content.
@@ -255,9 +279,9 @@ public sealed class ItemPhotoDatabaseTests(SqlServerFixture sqlServer)
         public WebApplicationFactory<Program> Factory { get; } = factory;
         public HttpClient Client { get; } = client;
 
-        public static async Task<PhotoDatabaseContext> CreateAsync(SqlServerFixture sqlServer)
+        public static async Task<PhotoDatabaseContext> CreateAsync(SqlServerFixture sqlServer, string? priorMigration = null)
         {
-            var application = await AuthTestApplication.CreateAsync(sqlServer);
+            var application = await AuthTestApplication.CreateAsync(sqlServer, priorMigration: priorMigration);
             var root = Path.Combine(Path.GetTempPath(), "workbench-photo-database-" + Guid.NewGuid().ToString("N"));
             var live = Directory.CreateDirectory(Path.Combine(root, "live")).FullName;
             var configPath = Path.Combine(root, "maintenance.json");
