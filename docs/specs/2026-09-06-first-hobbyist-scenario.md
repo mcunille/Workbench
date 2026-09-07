@@ -2,7 +2,8 @@
 
 **Status:** Partially delivered. H1 was merged in [PR #37](https://github.com/mcunille/Workbench/pull/37)
 on 2026-09-07. H2 is implemented according to its accepted [design](2026-09-07-h2-item-photographs.md)
-with browser-side preparation. H3 has an accepted [search design](2026-09-07-h3-collection-search.md).
+with browser-side preparation. H3 is implemented according to its accepted
+[search design](2026-09-07-h3-collection-search.md).
 H4 still needs design approval. This is not a committed sprint forecast.
 
 **Delivery tracking:** [Scenario issue #43](https://github.com/mcunille/Workbench/issues/43).
@@ -66,7 +67,7 @@ Issue status is authoritative; H1's merged delivery is recorded here as a histor
 | H3 — Find an item when I need it | Search names, notes and locations across the entire authorized collection, including pagination. Preserve query, view and position when returning from details. | [#41](https://github.com/mcunille/Workbench/issues/41) |
 | H4 — Keep the record accurate | Edit name, notes and location without changing identity. Preserve recoverable edits and detect concurrent changes rather than silently overwriting them. | [#42](https://github.com/mcunille/Workbench/issues/42) |
 
-**H3 is the next recommended increment after H2 integration.** All remaining stories depend on H1. H3 does not require
+**H4 is the next recommended increment after H3 integration.** All remaining stories depend on H1. H3 does not require
 photos to search text, but includes thumbnails when H2 is available. H4 verifies that H3 search
 reflects saved edits. The [scenario issue](https://github.com/mcunille/Workbench/issues/43) tracks
 the integrated journey and collector usability validation beyond completion of the individual stories.

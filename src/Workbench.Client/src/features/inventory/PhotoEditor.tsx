@@ -105,8 +105,8 @@ export function PhotoEditor({
       if (next.file)
         await putItemPhoto(item.id, next.file, next.requestId, next.version);
       else await removeItemPhoto(item.id, next.requestId, next.version);
-      if (!active.current) return;
       onPhotoChanged?.();
+      if (!active.current) return;
       await reload();
       if (active.current) {
         setCommand(undefined);

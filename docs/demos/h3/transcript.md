@@ -18,6 +18,6 @@ On a phone, choose the compact list and open the sapphire. Its location is right
 
 A simulated connection failure shows an error, not an empty collection. Retry repeats the submitted query and retrieves the matching piece.
 
-## 00:00:55 — Clear without changing records
+## 00:00:54 — Clear without changing records
 
 A phrase with no matches has its own message. Clear returns to the collection without changing any records. Search state stays in this signed-in app and resets on a full reload or sign-out.

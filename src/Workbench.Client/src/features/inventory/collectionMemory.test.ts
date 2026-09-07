@@ -1,5 +1,23 @@
 import { CollectionMemory } from './collectionMemory';
 
+it('notifies only current photo subscribers belonging to this memory owner', () => {
+  // GIVEN two authenticated memory owners and a collection listener on the first.
+  const first = new CollectionMemory();
+  const second = new CollectionMemory();
+  const listener = vi.fn();
+  const otherListener = vi.fn();
+  const unsubscribe = first.subscribePhotos(listener);
+  second.subscribePhotos(otherListener);
+  // WHEN a photo changes THEN only this owner's current collection receives it.
+  first.updatePhoto('stone', null);
+  expect(listener).toHaveBeenCalledExactlyOnceWith('stone', null);
+  expect(otherListener).not.toHaveBeenCalled();
+  // WHEN collection unmounts THEN a later completion no longer notifies that listener.
+  unsubscribe();
+  first.updatePhoto('stone', null);
+  expect(listener).toHaveBeenCalledOnce();
+});
+
 it('reconciles a changed photograph while preserving the complete traversal', () => {
   // GIVEN two loaded summaries and private search/navigation context.
   const memory = new CollectionMemory();

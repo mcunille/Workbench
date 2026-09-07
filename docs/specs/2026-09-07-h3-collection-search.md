@@ -158,3 +158,19 @@ was visually inspected and fully decoded. MP4s remain untracked under the curren
 
 Human collector usability, production deployment, public CA issuance, and SMTP delivery were not
 verified by this increment. Reload deliberately clears the in-memory search traversal.
+
+### Internal review correction
+
+Independent review found a delayed-completion case: after confirming navigation away from a
+pending photo removal, a successful response could leave the restored collection advertising the
+old image. A real-browser regression reproduced a successful DELETE with the old image still
+visible. The corrected authenticated memory owner notifies mounted collection subscribers on
+photo changes, including completion after details unmounts. Subscriptions are removed on unmount;
+late failures and completions for an old identity cannot alter the new identity's traversal.
+
+After this client-only correction, all 62 client tests and all 22 browser tests passed, including
+the reproduced sequence and the original photo workflows. Lint/typecheck/build, the published
+probe (`http://127.0.0.1:52809`), and hardened container/Compose probe
+(`http://127.0.0.1:53025`) were rerun successfully. The earlier 416-server-test and four-migration
+evidence applies to unchanged server/schema code; that broader suite was not repeated for the
+client-only fix. The walkthrough was refreshed from the corrected build.

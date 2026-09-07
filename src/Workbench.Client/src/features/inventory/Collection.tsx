@@ -40,6 +40,22 @@ export function Collection({
   const heading = useRef<HTMLHeadingElement>(null);
   const links = useRef(new Map<string, HTMLAnchorElement>());
   const loading = Boolean(request);
+  useLayoutEffect(
+    () =>
+      memory.subscribePhotos((id, photo) => {
+        setPage((previous) =>
+          previous
+            ? {
+                ...previous,
+                items: previous.items.map((item) =>
+                  item.id === id ? { ...item, photo } : item,
+                ),
+              }
+            : previous,
+        );
+      }),
+    [memory],
+  );
   useEffect(() => {
     memory.save({ view, draft, query, page });
   }, [memory, view, draft, query, page]);
