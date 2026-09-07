@@ -971,3 +971,13 @@ html { scroll-padding-top: 8rem; }
 @media (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
   .collection-list[data-view="grid"] a:hover { transform: translateY(-2px); }
 }
+
+.item-photo img, .photo-preview img { width: 100%; height: 100%; object-fit: contain; }
+.photo-editor { margin-block: 1.5rem; }
+.photo-editor > .item-photo { display: flex; width: 100%; height: min(50vh, 26rem); border-radius: var(--radius, 12px); }
+.photo-preview { margin-block: 1rem; }
+.photo-preview img { display: block; max-height: 24rem; background: var(--placeholder); border-radius: 12px; }
+.photo-editor input[type="file"] { max-width: 100%; }
+.item-photo > [role="status"] { padding: .5rem; font-size: .8rem; }
+
+.item-photo { overflow: hidden; }

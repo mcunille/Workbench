@@ -1,8 +1,51 @@
 # Blob storage and operational services
 
 The web application, database tool, and explicit worker share the same release. Blob APIs are internal
-application services for generated content; this phase does not expose a general upload endpoint.
-Future user uploads require a workflow-specific type allowlist and malware policy before publication.
+application services for generated content; there is no general upload endpoint. Item photographs
+use the bounded workflow below. Other user uploads require their own type allowlist and malware
+policy before publication.
+
+## Item photograph ingestion
+
+Saved items accept one optional photograph. The browser allows JPEG, PNG, and WebP sources up to
+20 MiB and 40 megapixels (16,384 pixels per axis), prepares orientation/color and resizes locally,
+then shows a preview. The original never uploads as a fallback. Browsers that cannot prepare the
+file show an actionable error. HEIC/HEIF, RAW, animated, and multi-picture images require conversion.
+
+The API independently limits the prepared file to 4 MiB and 2,048 pixels per axis. Multipart
+overhead is bounded to an additional 64 KiB, including requests without Content-Length. The
+server reconstructs a WebP detail image and a thumbnail within 384 pixels; the combined encoded
+output is bounded to 10 MiB. It removes EXIF/GPS, input ICC, XMP, comments, and embedded previews
+after orientation/sRGB conversion. No original bytes or client filename are persisted.
+
+Magick.NET Q8 is pinned in the release; bundled licenses ship in
+`third-party-notices/Magick.NET.txt`. Only JPEG/PNG/WebP coders/modules are enabled, and delegates,
+external paths, filters, and disk pixel-cache spill are disabled. One processor job per web
+process uses at most two native threads. The 256 MiB native pixel-cache allocation budget is
+not a hard process-RSS limit; codec allocations and the .NET process add memory. Processing has
+cooperative ten-second progress cancellation and elapsed-time checks, while upload/storage uses
+a two-minute cancellation deadline. Native code cannot be forcibly interrupted in-process.
+These are bounded raster-reconstruction controls, not antivirus certification or process isolation.
+
+Replacement first creates durable pending revisions and publishes immutable provider bytes. A
+single SQL transaction then makes both images current and retires the previous pair. Removal
+clears the item pointer and retires both attachments in the same transaction. The saved item is
+never removed. Tenant-scoped request IDs, input digests, and item versions support exact retry;
+competing commands return 409 instead of overwriting another session's result.
+
+Unconfirmed outcomes return 503 and the client retains the exact operation for retry. The
+server serializes identical retries across replicas and verifies staged/published bytes against
+the regenerated output digest before finalization. A completely published concurrency loser is
+retired under the normal grace period. Partial writes, a stale pending retry after a later item
+change, or a different encoder output after a release change may require offline reconciliation.
+Provider failures never authorize deletion of ambiguous bytes. Preserve pending revisions and
+use the offline procedure below; do not mark them failed merely to unblock migration.
+
+Logical replacement/removal hides earlier URLs immediately, while seven-day retention and holds
+still apply. Include both retained variants in paired SQL/blob backups. Recovery remains blocked
+if either required image is absent or has a mismatched digest. Do not advertise immediate physical
+erasure or preservation of the original photo. Browser color conversion varies across devices;
+these images support identification, not gemological color measurement.
 
 ## Deployment configuration
 
@@ -41,7 +84,9 @@ Uploads are bounded to 25 MiB and two minutes. The SHA-256 and length describe e
 Filesystem uploads write `.c`, flush, rename to staged `.a`, then publish create-only `.b`. On Linux,
 each rename and physical deletion synchronizes the pinned directory before acknowledging completion;
 sync failures propagate, and publication/deletion retries synchronize even when the rename/unlink
-already happened. The filesystem must support directory `fsync`. Azure commits
+already happened. The filesystem must support directory `fsync` and atomic no-replace rename.
+Use a native Linux named volume for Linux containers; Windows host bind mounts do not support
+the required `renameat2(RENAME_NOREPLACE)` operation. Azure commits
 an exclusive block list before publication; uncommitted blocks expire under Azure's lifecycle. Streaming
 downloads verify identity at EOF: callers must observe successful completion before accepting a file.
 No filename supplied by a client enters a physical path. Replacements retain earlier immutable bytes.

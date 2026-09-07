@@ -3,6 +3,24 @@
 Database migrations are an explicit, human-controlled deployment operation. A Workbench web
 replica never migrates its database and never receives the setup, operator, or migrator credential.
 
+## Item photograph release
+
+`20260907082353_AddItemPhotographs` follows the shipped collection notebook migration. It adds
+the nullable current-photo pointer, tenant-qualified photo and operation history tables, RLS,
+and `Inventory.SetItemPhoto`. Existing items retain all text and start without photographs.
+The procedure changes only the photo pointer under caller tenant isolation and an expected
+rowversion; ordinary runtime SQL remains denied direct UPDATE/DELETE on `Inventory.Items`.
+New photo/history grants are included in principal provisioning and readiness checks.
+
+Apply this one additive migration through the explicit migrator before releasing H2. The current
+application refuses readiness on the H1 schema. Migration history and the paired-backup manifest
+advance together. Upgrade verification includes H1 items with saved text, and fresh schema
+verification includes cross-tenant restrictions and the item-qualified current-photo FK.
+
+The down migration rejects destructive rollback. Preserve photos and operation history through a
+forward correction or the paired SQL/blob restore process. An old application's schema-readiness
+contract may refuse the new schema; reverting binaries alone is not an established rollback path.
+
 ## Collection notebook release
 
 `20260907060000_AddCollectionNotebook` adds tenant-owned `Inventory.Items`, individual-object

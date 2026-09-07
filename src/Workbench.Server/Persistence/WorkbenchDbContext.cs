@@ -39,6 +39,8 @@ public class WorkbenchDbContext : IdentityDbContext<
     public TenantContext TenantContext { get; }
 
     public DbSet<InventoryItem> Items => Set<InventoryItem>();
+    public DbSet<ItemPhoto> ItemPhotos => Set<ItemPhoto>();
+    public DbSet<ItemPhotoOperation> ItemPhotoOperations => Set<ItemPhotoOperation>();
 
     public DbSet<Attachment> Attachments => Set<Attachment>();
     public DbSet<AttachmentRevision> AttachmentRevisions => Set<AttachmentRevision>();
@@ -91,6 +93,7 @@ public class WorkbenchDbContext : IdentityDbContext<
             .OnDelete(DeleteBehavior.Restrict);
 
         ConfigureInventory(modelBuilder);
+        ConfigureItemPhotos(modelBuilder);
         ConfigureIdentity(modelBuilder);
         ConfigureSessions(modelBuilder);
         ConfigureIdentityOperations(modelBuilder);
@@ -118,6 +121,52 @@ public class WorkbenchDbContext : IdentityDbContext<
         item.HasIndex(row => new { row.TenantId, row.CreationRequestId }).IsUnique();
         item.HasIndex(row => new { row.TenantId, row.CreatedAtUtc, row.Id });
         item.HasOne<Tenant>().WithMany().HasForeignKey(row => row.TenantId).OnDelete(DeleteBehavior.Restrict);
+    }
+
+    private void ConfigureItemPhotos(ModelBuilder modelBuilder)
+    {
+        var photo = modelBuilder.Entity<ItemPhoto>();
+        photo.ToTable("ItemPhotos", "Inventory", table =>
+            table.HasCheckConstraint("CK_ItemPhotos_Dimensions", "[Width] BETWEEN 1 AND 2048 AND [Height] BETWEEN 1 AND 2048 AND [DetailAttachmentId] <> [ThumbnailAttachmentId]"));
+        photo.HasKey(row => row.Id);
+        photo.IsTenantOwned(row => (Guid?)row.TenantId == TenantContext.TenantId);
+        photo.HasAlternateKey(row => new { row.TenantId, row.ItemId, row.Id });
+        photo.HasIndex(row => new { row.TenantId, row.OperationId }).IsUnique();
+        photo.HasIndex(row => new { row.TenantId, row.DetailAttachmentId }).IsUnique();
+        photo.HasIndex(row => new { row.TenantId, row.ThumbnailAttachmentId }).IsUnique();
+        photo.HasOne<InventoryItem>().WithMany().HasForeignKey(row => new { row.TenantId, row.ItemId })
+            .HasPrincipalKey(row => new { row.TenantId, row.Id }).OnDelete(DeleteBehavior.Restrict);
+        photo.HasOne<ItemPhotoOperation>().WithMany().HasForeignKey(row => new { row.TenantId, row.ItemId, row.OperationId })
+            .HasPrincipalKey(row => new { row.TenantId, row.ItemId, row.Id }).OnDelete(DeleteBehavior.Restrict);
+        photo.HasOne<Attachment>().WithMany().HasForeignKey(row => new { row.TenantId, row.DetailAttachmentId })
+            .HasPrincipalKey(row => new { row.TenantId, row.Id }).OnDelete(DeleteBehavior.Restrict);
+        photo.HasOne<Attachment>().WithMany().HasForeignKey(row => new { row.TenantId, row.ThumbnailAttachmentId })
+            .HasPrincipalKey(row => new { row.TenantId, row.Id }).OnDelete(DeleteBehavior.Restrict);
+        modelBuilder.Entity<InventoryItem>().HasOne(row => row.CurrentPhoto).WithMany()
+            .HasForeignKey(row => new { row.TenantId, row.Id, row.CurrentPhotoId })
+            .HasPrincipalKey(row => new { row.TenantId, row.ItemId, row.Id }).OnDelete(DeleteBehavior.Restrict);
+
+        var operation = modelBuilder.Entity<ItemPhotoOperation>();
+        operation.ToTable("ItemPhotoOperations", "Inventory", table =>
+        {
+            table.UseSqlOutputClause(false);
+            table.HasCheckConstraint("CK_ItemPhotoOperations_State", "[State] BETWEEN 0 AND 2 AND (([State] = 1 AND [ResultVersion] IS NOT NULL) OR ([State] <> 1 AND [ResultVersion] IS NULL))");
+            table.HasCheckConstraint("CK_ItemPhotoOperations_Command", "[RequestId] <> '00000000-0000-0000-0000-000000000000' AND DATALENGTH([ExpectedVersion]) = 8 AND LEN([PayloadSha256]) = 64 AND (([Kind] = 0 AND [DetailAttachmentId] IS NOT NULL AND [ThumbnailAttachmentId] IS NOT NULL AND [DetailAttachmentId] <> [ThumbnailAttachmentId]) OR ([Kind] = 1 AND [DetailAttachmentId] IS NULL AND [ThumbnailAttachmentId] IS NULL))");
+        });
+        operation.HasKey(row => row.Id);
+        operation.IsTenantOwned(row => (Guid?)row.TenantId == TenantContext.TenantId);
+        operation.HasAlternateKey(row => new { row.TenantId, row.ItemId, row.Id });
+        operation.HasIndex(row => new { row.TenantId, row.ItemId, row.RequestId }).IsUnique();
+        operation.Property(row => row.ExpectedVersion).HasMaxLength(8).IsRequired();
+        operation.Property(row => row.ResultVersion).HasMaxLength(8);
+        operation.Property(row => row.PayloadSha256).HasMaxLength(64).IsUnicode(false).IsFixedLength();
+        operation.Property(row => row.RowVersion).IsRowVersion();
+        operation.HasOne<InventoryItem>().WithMany().HasForeignKey(row => new { row.TenantId, row.ItemId })
+            .HasPrincipalKey(row => new { row.TenantId, row.Id }).OnDelete(DeleteBehavior.Restrict);
+        operation.HasOne<Attachment>().WithMany().HasForeignKey(row => new { row.TenantId, row.DetailAttachmentId })
+            .HasPrincipalKey(row => new { row.TenantId, row.Id }).OnDelete(DeleteBehavior.Restrict);
+        operation.HasOne<Attachment>().WithMany().HasForeignKey(row => new { row.TenantId, row.ThumbnailAttachmentId })
+            .HasPrincipalKey(row => new { row.TenantId, row.Id }).OnDelete(DeleteBehavior.Restrict);
     }
 
     private void ConfigureWork(ModelBuilder modelBuilder)

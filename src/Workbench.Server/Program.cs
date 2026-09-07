@@ -86,6 +86,8 @@ builder.Services.AddHealthChecks().AddCheck<BlobReadinessCheck>("blob", tags: ["
 builder.Services.AddSingleton<IBlobStore>(services => OperationalConfiguration.CreateStore(
     services.GetRequiredService<IConfiguration>()) ?? throw new InvalidOperationException("Blob storage is not configured."));
 builder.Services.AddScoped<AttachmentService>();
+builder.Services.AddSingleton<PhotoProcessor>();
+builder.Services.AddScoped<ItemPhotoService>();
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddSingleton(new DurableSessionOptions());
 builder.Services.AddSingleton(services => configuredTenantContextProof ?? TenantContextProof.Parse(
@@ -248,6 +250,7 @@ app.UseStaticFiles();
 app.UseRouting();
 app.UseAuthentication();
 app.UseAuthorization();
+app.UseMiddleware<PhotoUploadLimitsMiddleware>();
 app.UseMiddleware<WorkbenchAntiforgeryMiddleware>();
 
 app.MapGet(

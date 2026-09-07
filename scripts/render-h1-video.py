@@ -18,17 +18,18 @@ def timestamp(seconds: float) -> str:
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--ffmpeg", required=True, type=Path)
+    parser.add_argument("--scenario", choices=["h1", "h2"], default="h1")
     args = parser.parse_args()
     root = Path(__file__).resolve().parent.parent
-    source = root / "artifacts/h1-video"
-    destination = root / "docs/demos/h1"
+    source = root / f"artifacts/{args.scenario}-video"
+    destination = root / f"docs/demos/{args.scenario}"
     destination.mkdir(parents=True, exist_ok=True)
     timeline = json.loads((source / "timeline.json").read_text(encoding="utf-8"))
     durations = json.loads((source / "durations.json").read_text(encoding="utf-8-sig"))
     command = [str(args.ffmpeg.resolve()), "-y", "-i", str(source / "walkthrough.webm")]
     filters = []
     subtitles = []
-    transcript = ["# H1 narrated walkthrough", "", "Narration: Microsoft Zira (synthetic voice).", ""]
+    transcript = [f"# {args.scenario.upper()} narrated walkthrough", "", "Narration: Microsoft Zira (synthetic voice).", ""]
     for index, scene in enumerate(timeline, 1):
         command += ["-i", str(source / f"{scene['id']}.wav")]
         delay = round((scene["start"] + 0.3) * 1000)
@@ -56,11 +57,11 @@ def main() -> None:
     command += ["-filter_complex", ";".join(filters), "-map", "[video]", "-map", "[audio]",
                 "-t", str(timeline[-1]["end"]), "-c:v", "libx264", "-preset", "medium",
                 "-crf", "27", "-pix_fmt", "yuv420p", "-c:a", "aac", "-b:a", "128k",
-                "-movflags", "+faststart", str(destination / "h1-walkthrough.mp4")]
+                "-movflags", "+faststart", str(destination / f"{args.scenario}-walkthrough.mp4")]
     subprocess.run(command, cwd=destination, check=True)
     # Decode the complete result to detect corrupt frames or an invalid audio stream.
     subprocess.run([str(args.ffmpeg.resolve()), "-v", "error", "-i",
-                    str(destination / "h1-walkthrough.mp4"), "-f", "null", "-"], check=True)
+                    str(destination / f"{args.scenario}-walkthrough.mp4"), "-f", "null", "-"], check=True)
 
 
 if __name__ == "__main__":

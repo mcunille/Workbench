@@ -86,6 +86,13 @@ public sealed class DatabaseReadinessCheck(
                     AND HAS_PERMS_BY_NAME(N'[Inventory].[Items]', N'OBJECT', N'INSERT') = 1
                     AND HAS_PERMS_BY_NAME(N'[Inventory].[Items]', N'OBJECT', N'UPDATE') = 0
                     AND HAS_PERMS_BY_NAME(N'[Inventory].[Items]', N'OBJECT', N'DELETE') = 0
+                    AND COL_LENGTH(N'Inventory.Items', N'CurrentPhotoId') IS NOT NULL
+                    AND HAS_PERMS_BY_NAME(N'[Inventory].[ItemPhotos]', N'OBJECT', N'SELECT') = 1
+                    AND HAS_PERMS_BY_NAME(N'[Inventory].[ItemPhotos]', N'OBJECT', N'INSERT') = 1
+                    AND HAS_PERMS_BY_NAME(N'[Inventory].[ItemPhotoOperations]', N'OBJECT', N'SELECT') = 1
+                    AND HAS_PERMS_BY_NAME(N'[Inventory].[ItemPhotoOperations]', N'OBJECT', N'INSERT') = 1
+                    AND HAS_PERMS_BY_NAME(N'[Inventory].[ItemPhotoOperations]', N'OBJECT', N'UPDATE') = 1
+                    AND HAS_PERMS_BY_NAME(N'[Inventory].[SetItemPhoto]', N'OBJECT', N'EXECUTE') = 1
                     THEN 1 ELSE 0 END);
                 """, connection);
             var inventoryReady = Convert.ToBoolean(await inventory.ExecuteScalarAsync(cancellationToken));

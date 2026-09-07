@@ -1,0 +1,84 @@
+1
+00:00:00,444 --> 00:00:07,281
+H two adds a photograph to a saved item. This walkthrough uses a synthetic gemstone
+illustration,
+
+2
+00:00:07,281 --> 00:00:14,119
+so no personal photograph or embedded location information is involved. The item is
+already saved with
+
+3
+00:00:14,119 --> 00:00:16,256
+its name and storage location.
+
+4
+00:00:17,675 --> 00:00:24,460
+Choose an image using the native picker. The browser resizes this camera sized image
+before anything
+
+5
+00:00:24,460 --> 00:00:31,244
+is uploaded. You can inspect the preview and the prepared file size. Embedded
+metadata is removed,
+
+6
+00:00:31,244 --> 00:00:37,181
+but anything visible in the photograph remains visible. Upload only when you are
+ready.
+
+7
+00:00:38,600 --> 00:00:45,279
+The photograph is now saved. Reloading the page brings it back from private storage.
+The gallery
+
+8
+00:00:45,279 --> 00:00:51,957
+and compact list show the whole image without cropping. Another signed in browser
+session can open
+
+9
+00:00:51,957 --> 00:00:53,627
+the same saved photograph.
+
+10
+00:00:55,046 --> 00:01:01,848
+Choose a replacement and review it beside the saved photograph. The current image
+stays available while
+
+11
+00:01:01,848 --> 00:01:08,651
+the replacement is prepared. Here we deliberately lose the response after the server
+saves. Retry upload
+
+12
+00:01:08,651 --> 00:01:12,477
+safely resolves the same request and confirms the replacement.
+
+13
+00:01:13,900 --> 00:01:20,149
+On a phone, the same photograph and actions remain available. Light and Dark
+appearances use a
+
+14
+00:01:20,149 --> 00:01:26,399
+neutral background around the whole image. You can recognize the piece and read its
+storage location
+
+15
+00:01:26,399 --> 00:01:28,352
+without returning to a desktop.
+
+16
+00:01:29,769 --> 00:01:37,567
+Removing a photograph asks for confirmation. You can keep it, or confirm removal. The
+item, its
+
+17
+00:01:37,567 --> 00:01:45,366
+name, notes, and storage location remain in the collection. H two supports one
+photograph per saved
+
+18
+00:01:45,366 --> 00:01:48,290
+item, with explicit replacement and removal.

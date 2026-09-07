@@ -16,6 +16,7 @@ $image = "workbench-smoke:$token"
 $appContainer = "workbench-smoke-$token"
 $sqlContainer = "workbench-smoke-sql-$token"
 $network = "workbench-smoke-$token"
+$blobVolume = "workbench-smoke-blobs-$token"
 $database = "workbench_smoke_$safeToken"
 $temporaryBase = [IO.Path]::GetFullPath([IO.Path]::GetTempPath())
 $temporaryRoot = Join-Path $temporaryBase "workbench-smoke-$token"
@@ -123,14 +124,15 @@ Storage__InstallationId=$([Guid]::NewGuid())
 Storage__Root=/var/lib/workbench/blobs
 Storage__DurableVolume=true
 "@
-    $blobRoot = Join-Path $temporaryRoot 'blobs'
-    New-Item -ItemType Directory -Path $blobRoot | Out-Null
+    # Native Linux volume: Windows bind mounts do not support renameat2(RENAME_NOREPLACE).
+    & $docker.Source volume create $blobVolume | Out-Null
+    Assert-NativeCommandSucceeded 'blob volume creation'
     $listener = [Net.Sockets.TcpListener]::new([Net.IPAddress]::Loopback, 0)
     $listener.Start(); $hostPort = ([Net.IPEndPoint]$listener.LocalEndpoint).Port; $listener.Stop()
     & $docker.Source run --detach --name $appContainer --network $network --env-file $appEnvironment `
         --read-only --tmpfs '/tmp:rw,noexec,nosuid,size=64m,uid=1654,gid=1654' `
         --cap-drop ALL --security-opt 'no-new-privileges:true' `
-        --volume "${blobRoot}:/var/lib/workbench/blobs" `
+        --volume "${blobVolume}:/var/lib/workbench/blobs" `
         --volume "${certificatePath}:/run/secrets/data-protection.pfx:ro" `
         --volume "${tenantContextProofKeyFile}:/run/secrets/tenant-context-proof-key:ro" `
         --publish "127.0.0.1:${hostPort}:8080" $image | Out-Null
@@ -216,6 +218,28 @@ Storage__DurableVolume=true
         throw 'Container collection persistence failed.'
     }
 
+    # GIVEN a browser-prepared PNG, WHEN the restricted Linux runtime sanitizes and stores it.
+    $photoFile = Join-Path $temporaryRoot 'prepared-photo.png'
+    [IO.File]::WriteAllBytes($photoFile, [Convert]::FromBase64String('iVBORw0KGgoAAAANSUhEUgAAAAwAAAAICAYAAADN5B7xAAAAFElEQVR4nGPQCDjxnxTMMKqBFhoAkjTXoQ3awywAAAAASUVORK5CYII='))
+    $photoOperation = [Guid]::NewGuid().ToString()
+    $photoUpload = Invoke-WebRequest -Uri "$baseUrl/api/items/$itemId/photo" -Method Put -Headers $itemHeaders `
+        -Form @{ file = Get-Item -LiteralPath $photoFile; requestId = $photoOperation; expectedVersion = $itemDetail.version } -SkipHttpErrorCheck
+    if ($photoUpload.StatusCode -ne 200) { throw "Container photo processing failed with status $($photoUpload.StatusCode)." }
+    $photographedItem = Invoke-RestMethod -Uri "$baseUrl/api/items/$itemId" -Headers $identityHeaders
+    # THEN the native codec works without root privileges or writable application files,
+    # and both private images can be read before logical removal preserves the item.
+    foreach ($photoUrl in @($photographedItem.photo.detailUrl, $photographedItem.photo.thumbnailUrl)) {
+        $photoResponse = Invoke-WebRequest -Uri "$baseUrl$photoUrl" -Headers $identityHeaders -SkipHttpErrorCheck
+        if ($photoResponse.StatusCode -ne 200 -or $photoResponse.Headers.'Content-Type' -notmatch 'image/webp' -or
+            $photoResponse.Headers.'X-Content-Type-Options' -notcontains 'nosniff') { throw 'Container photo delivery failed.' }
+    }
+    $photoRemoved = Invoke-WebRequest -Uri "$baseUrl/api/items/$itemId/photo" -Method Delete -Headers $itemHeaders `
+        -ContentType 'application/json' -Body (@{ requestId = [Guid]::NewGuid(); expectedVersion = $photographedItem.version } | ConvertTo-Json) -SkipHttpErrorCheck
+    if ($photoRemoved.StatusCode -ne 200 -or
+        (Invoke-WebRequest -Uri "$baseUrl$($photographedItem.photo.detailUrl)" -Headers $identityHeaders -SkipHttpErrorCheck).StatusCode -ne 404) {
+        throw 'Container photo removal failed.'
+    }
+
     # GIVEN the current release and separate runtime principals, WHEN the documented Compose
     # topology starts with local test TLS, THEN sessions survive app replacement through the proxy.
     $workerSql = Write-SecretFile 'worker-provision.sql' @"
@@ -263,6 +287,8 @@ finally {
         $existing = & $docker.Source ps --all --quiet --filter "name=^/${container}$" 2>$null
         if ($existing) { & $docker.Source rm --force $container | Out-Null }
     }
+    $existingVolume = & $docker.Source volume ls --quiet --filter "name=^${blobVolume}$" 2>$null
+    if ($existingVolume) { & $docker.Source volume rm $blobVolume | Out-Null }
     $existingNetwork = & $docker.Source network ls --quiet --filter "name=^${network}$" 2>$null
     if ($existingNetwork) { & $docker.Source network rm $network | Out-Null }
     $existingImage = & $docker.Source image ls --quiet $image 2>$null

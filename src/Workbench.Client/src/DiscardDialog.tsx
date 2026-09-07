@@ -26,8 +26,8 @@ export function DiscardDialog({
       <h2 id="discard-title">Discard changes?</h2>
       <p>
         {uncertain
-          ? 'Your save may already have completed. Leaving cannot undo it. Check the collection before adding this piece again.'
-          : 'Your unsaved item will be discarded.'}
+          ? 'Your save may already have completed. Leaving cannot undo it. Check the item before making another change.'
+          : 'Your unsaved changes will be discarded.'}
       </p>
       <div className="button-row">
         <button className="primary" autoFocus onClick={keep}>

@@ -12,9 +12,11 @@ implemented; hosted acceptance remains pending.
 
 The first collection workflow lets an authenticated tenant member save an individually tracked
 piece with a name, optional notes, and storage location, then browse and reopen it across sessions.
-It supports mobile and desktop layouts with System/Light/Dark appearance. Photos, search, editing,
-deletion, bulk stock, and financial workflows are not part of this first notebook slice. See the
-[H1 specification](docs/specs/2026-09-06-h1-collection-notebook.md) for its scope and guarantees.
+It supports mobile and desktop layouts with System/Light/Dark appearance. Saved items can have
+one private photograph, prepared in the browser before upload, with replacement and removal.
+Search, descriptive editing, deletion, bulk stock, and financial workflows remain later increments.
+See the [H1 specification](docs/specs/2026-09-06-h1-collection-notebook.md) and
+[H2 photograph specification](docs/specs/2026-09-07-h2-item-photographs.md).
 
 ## Setup and installation
 
