@@ -28,6 +28,9 @@ param appsSubnetPrefix string = '10.42.0.0/23'
 param endpointsSubnetPrefix string = '10.42.2.0/24'
 param trustedProxyAddresses array = []
 param trustedProxyNetworks array = []
+@description('AzureContainerApps explicitly trusts every environment workload for one hop of address/protocol metadata only.')
+@allowed(['KnownProxies', 'AzureContainerApps'])
+param proxyTrustMode string = 'KnownProxies'
 param installationId string
 @minValue(1)
 @maxValue(10)
@@ -106,6 +109,7 @@ module workloads 'modules/workloads.bicep' = {
     customDomainCertificateId: customDomainCertificateId
     trustedProxyAddresses: trustedProxyAddresses
     trustedProxyNetworks: trustedProxyNetworks
+    proxyTrustMode: proxyTrustMode
     installationId: installationId
     maxReplicas: maxReplicas
     workerSchedule: workerSchedule

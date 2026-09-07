@@ -17,6 +17,61 @@ namespace Workbench.Server.IntegrationTests;
 public sealed class PublicEndpointTests
 {
     [Theory]
+    [InlineData("100.100.0.56")]
+    [InlineData("100.100.0.187")]
+    public async Task AzureEnvironmentTrustAcceptsOnlyOneMetadataHop(string peer)
+    {
+        // GIVEN explicit acceptance of the Azure environment metadata trust boundary.
+        var configuration = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
+        {
+            ["ReverseProxy:Mode"] = "AzureContainerApps",
+        }).Build();
+        using var host = await new HostBuilder().ConfigureWebHost(builder => builder.UseTestServer().ConfigureServices(services =>
+            services.Configure<ForwardedHeadersOptions>(options => PublicEndpointConfiguration.ConfigureProxy(configuration, options, true)))
+            .Configure(app => { app.UseForwardedHeaders(); app.Run(_ => Task.CompletedTask); })).StartAsync();
+        // WHEN a changing platform peer supplies multiple values and an untrusted forwarded hostname.
+        var context = await host.GetTestServer().SendAsync(request =>
+        {
+            request.Connection.RemoteIpAddress = IPAddress.Parse(peer);
+            request.Request.Host = new HostString("workbench.example");
+            request.Request.Headers["X-Forwarded-For"] = "203.0.113.99, 198.51.100.8";
+            request.Request.Headers["X-Forwarded-Proto"] = "http, https";
+            request.Request.Headers["X-Forwarded-Host"] = "attacker.example";
+        });
+        // THEN only the last address/protocol is consumed and host remains independently constrained.
+        Assert.Equal("198.51.100.8", context.Connection.RemoteIpAddress!.ToString());
+        Assert.Equal("https", context.Request.Scheme);
+        Assert.Equal("workbench.example", context.Request.Host.Value);
+    }
+
+    [Theory]
+    [InlineData("ReverseProxy:ForwardLimit", "2")]
+    [InlineData("ReverseProxy:KnownProxies:0", "10.42.0.2")]
+    [InlineData("ReverseProxy:KnownNetworks:0", "10.42.0.0/24")]
+    public void AzureTrustRejectsMixedOrExpandedConfiguration(string key, string value)
+    {
+        // GIVEN Azure metadata trust with conflicting settings, WHEN configured, THEN startup fails closed.
+        var configuration = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
+        {
+            ["ReverseProxy:Mode"] = "AzureContainerApps",
+            [key] = value,
+        }).Build();
+        Assert.Throws<InvalidOperationException>(() => PublicEndpointConfiguration.ConfigureProxy(configuration, new(), true));
+    }
+
+    [Fact]
+    public void UnknownProxyModeIsRejected()
+    {
+        // GIVEN a misspelled mode, WHEN configured, THEN it cannot silently select another boundary.
+        var configuration = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
+        {
+            ["ReverseProxy:Mode"] = "Azure",
+            ["ReverseProxy:KnownProxies:0"] = "10.42.0.2",
+        }).Build();
+        Assert.Throws<InvalidOperationException>(() => PublicEndpointConfiguration.ConfigureProxy(configuration, new(), true));
+    }
+
+    [Theory]
     [InlineData("10.42.0.0/24", "::ffff:10.42.0.2")]
     [InlineData("fd00:42::/64", "fd00:42::2")]
     public async Task NarrowNativeNetworksAcceptTheirObservedPeers(string network, string peer)
@@ -127,17 +182,33 @@ public sealed class PublicEndpointTests
     }
 
     [Theory]
-    [InlineData("workbench.example", HttpStatusCode.OK)]
-    [InlineData("attacker.example", HttpStatusCode.BadRequest)]
-    public async Task HostAllowlistIsEnforcedBeforeApplicationHandlers(string host, HttpStatusCode expected)
+    [InlineData("workbench.example", "KnownProxies", HttpStatusCode.OK)]
+    [InlineData("attacker.example", "KnownProxies", HttpStatusCode.BadRequest)]
+    [InlineData("workbench.example", "AzureContainerApps", HttpStatusCode.OK)]
+    [InlineData("attacker.example", "AzureContainerApps", HttpStatusCode.BadRequest)]
+    public async Task HostAllowlistIsEnforcedBeforeApplicationHandlers(string host, string mode, HttpStatusCode expected)
     {
         // GIVEN a deployed host allowlist, WHEN an API request supplies a host,
         await using var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
-            builder.UseSetting("AllowedHosts", "workbench.example"));
+            builder.UseSetting("AllowedHosts", "workbench.example").UseSetting("ReverseProxy:Mode", mode));
         using var client = factory.CreateClient();
         using var request = new HttpRequestMessage(HttpMethod.Get, "/api/system");
         request.Headers.Host = host;
         // THEN an unrecognized host never reaches application handlers.
         Assert.Equal(expected, (await client.SendAsync(request)).StatusCode);
+    }
+
+    [Fact]
+    public async Task AzureForwardedMetadataDoesNotAuthenticateAnInternalCaller()
+    {
+        // GIVEN Azure metadata trust without a session credential.
+        await using var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
+            builder.UseSetting("ReverseProxy:Mode", "AzureContainerApps"));
+        using var client = factory.CreateClient();
+        using var request = new HttpRequestMessage(HttpMethod.Get, "/api/auth/me");
+        request.Headers.Add("X-Forwarded-For", "127.0.0.1");
+        request.Headers.Add("X-Forwarded-Proto", "https");
+        // WHEN a caller claims internal metadata, THEN authentication is still required.
+        Assert.Equal(HttpStatusCode.Unauthorized, (await client.SendAsync(request)).StatusCode);
     }
 }

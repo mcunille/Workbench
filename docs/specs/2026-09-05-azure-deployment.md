@@ -73,6 +73,10 @@ scoped to workloads that require them; migrator, operator, and maintenance acces
 
 ## Public origin and proxy trust
 
+The later approved [Azure forwarded metadata trust decision](azure-forwarded-metadata-trust.md)
+adds an explicit environment-boundary alternative to the exact peer configuration below. It is
+limited to address/protocol metadata and does not relax application or resource authorization.
+
 Require one canonical HTTPS origin in every production profile, with no user information, query,
 fragment, or non-root path. Validate its host against an explicit allowlist and use it for generated
 external links and redirects. Reject conflicting SMTP-specific origins. Keep production cookies

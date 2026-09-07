@@ -102,7 +102,11 @@ Current sources establishing the implementation limits:
 Finish and review the missing operational implementation/procedures before an installation drill.
 Retain the accepted application architecture; design decisions still needed include the protected
 administrative/diagnostic environment, monitoring integration, and concrete backup/restore automation.
-Do not broaden proxy trust, grant runtime setup authority, disable certificate validation, or silently
+The explicitly approved [Azure metadata boundary](../specs/azure-forwarded-metadata-trust.md) permits
+environment-wide trust for one hop of client IP/protocol only, with internal spoofing recorded as a
+residual risk. It does not waive the remaining production checks or apply to self-hosted deployments.
+
+Do not otherwise broaden proxy trust, grant runtime setup authority, disable certificate validation, or silently
 omit recovery/alerts to complete a walkthrough.
 
 Use separately authorized isolated Linux and Azure installations with controlled DNS, SQL trust,
