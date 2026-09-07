@@ -1,6 +1,6 @@
 # Azure release verification fixes
 
-Status: approved; implementation verification in progress.
+Status: implemented and locally verified; hosted acceptance remains pending.
 
 ## Problem and scope
 

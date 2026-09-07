@@ -96,7 +96,38 @@ directory visible to Docker. Setup now checks host-file sharing before generatin
 The prior user-operated retained installation was not changed. These automated checks do not extend
 the recovery or production claims of the manual drill.
 
-## Pending hosted and installation acceptance
+## Azure release correction evidence (2026-09-07 UTC)
+
+The [release correction](../specs/azure-release-verification-fixes.md) was verified locally against
+current main, including its invitation-claim and password-principal security fixes. The final
+`scripts/verify.ps1 -SkipDependencyInstall` run passed locked restore, formatting, generated API
+drift checks, release builds, 327 server tests, 18 client tests, six browser tests, all four migration
+scenarios, and the published release check at temporary URL `http://127.0.0.1:60701`.
+Dependencies had been installed with the locked commands in the preceding full run.
+
+`scripts/smoke-container.ps1` rebuilt the corrected image and passed fresh SQL provisioning,
+validated internal HTTPS, Secure-cookie login, session continuity after application replacement,
+forwarding-header checks, a private application listener, and worker telemetry as UID 1654.
+Its temporary application URL was `http://127.0.0.1:56137`; disposable resources were cleaned up.
+The first smoke/source run exposed a missing entry in the strict password-provisioning grant
+allowlist for the new readiness procedure. The specific grant and its authority assertions were
+added before the final passing runs.
+
+Focused failing tests preceded Graph delivery, durable retries, SQL manifest changes, bootstrap
+cleanup, and the immediate-prior-schema readiness guard. Four selected manual Graph mutations
+were killed: incorrect response acceptance, missing expiry validation, permanent classification
+of token-service outages, and accepting an origin query. This was bounded manual mutation testing,
+not a broad Stryker or SQL mutation run. Azure parameter/bootstrap tests, Compose configuration,
+workflow command-boundary checks, and Bicep build/lint passed. Independent implementation review
+findings were corrected, including explicit removal/readback of retained SMTP secret grants when
+switching an existing installation to Graph.
+
+These checks did not deploy Azure resources or submit live mail. The operator previously verified
+Graph send acceptance and receipt, denial of personal-mailbox sending, and incoming no-reply
+rejection using a bootstrap VM. Released Workbench worker delivery and the hosted gates below
+remain unverified by this change.
+
+## Remaining hosted acceptance
 
 Compilation and local tests do not establish Azure resource deployability or hosted security.
 Separately authorized validation must demonstrate real Entra SQL provisioning and RBAC, private

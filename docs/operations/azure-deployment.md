@@ -296,6 +296,17 @@ to its Azure resource ID. SMTP input fields may be empty. The templates attach t
 to the worker; web receives configuration for enqueue validation and migration receives neither.
 Self-hosted and Azure SMTP configurations continue to use `deliveryProvider=Smtp`.
 
+When changing an existing Azure SMTP installation to Graph, stop web revisions and scheduled
+workers first. Incremental deployments do not delete old role assignments omitted by a template.
+List role assignments at the `smtp-password` secret scope, identify the exact assignments for
+the web and worker principal IDs, and explicitly remove those two assignments by their resource
+IDs as part of the reviewed provider switch. Do not delete the secret or unrelated assignments.
+Read back both principals' effective assignments, including inherited vault/resource-group grants,
+and verify neither can read `smtp-password` before resuming. If broader inherited authority grants
+access, narrow it through a separately reviewed permissions change. Verify the deployed web/worker
+have no SMTP secret reference or mount and only the worker carries the mail identity. Merely
+redeploying with `deliveryProvider=Graph` does not prove old SMTP access was revoked.
+
 Create an Exchange application RBAC `Application Mail.Send` assignment restricted to the
 single no-reply shared mailbox. Verify `Test-ServicePrincipalAuthorization` returns InScope=True
 for that mailbox and False for a personal mailbox. Inspect the mail principal's Entra
