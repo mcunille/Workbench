@@ -90,7 +90,7 @@ evidence for its 26-hour window; inspect later successful executions before clos
 4. Create the configuration below outside Git, using the installation's original UUID. `Storage` is
    the recovered target, not the original source. Provide the original SQL resource ID from the backup
    catalog; it will differ from the isolated SQL connection. A filesystem target can use the existing
-   `FileSystem` provider settings instead. `Recovery:Source:Storage` must reproduce the original configuration exactly, including UUID spelling; its alias is verified against SQL. The destination must be a separate container or a nonoverlapping filesystem root. Original storage is never read or written by this validation.
+   `FileSystem` provider settings instead. `Recovery:Source:Storage` must reproduce the original configuration exactly, including UUID spelling; its alias is verified against SQL. The destination must be a separate container or a nonoverlapping filesystem root. Azure bindings use canonical account endpoints (`ACCOUNT.blob.core.windows.net`); custom DNS aliases and explicit private-link hostnames are rejected so they cannot conceal reuse of the source account/container. Original storage is never read or written by this validation.
 
 ```json
 {

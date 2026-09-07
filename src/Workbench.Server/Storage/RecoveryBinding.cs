@@ -25,7 +25,9 @@ public static class RecoveryBinding
         {
             case "Azure":
                 var uri = new Uri(configuration["Storage:ContainerUri"] ?? throw new InvalidOperationException("Original container is required."));
-                if (uri.Scheme != "https" || uri.Query.Length != 0 || uri.Fragment.Length != 0 || uri.UserInfo.Length != 0)
+                if (uri.Scheme != "https" || uri.Port != 443 || uri.Query.Length != 0 || uri.Fragment.Length != 0 || uri.UserInfo.Length != 0 ||
+                    !System.Text.RegularExpressions.Regex.IsMatch(uri.Host, @"^[a-z0-9]{3,24}\.blob\.core\.windows\.net$") ||
+                    !System.Text.RegularExpressions.Regex.IsMatch(uri.AbsolutePath, @"^/[a-z0-9][a-z0-9-]{1,61}[a-z0-9]/?$"))
                     throw new InvalidOperationException("Invalid container binding.");
                 // Require another container even when installation namespaces differ.
                 return "Azure:" + uri.AbsoluteUri.TrimEnd('/');

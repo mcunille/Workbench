@@ -73,6 +73,17 @@ public sealed class RecoveryBindingTests
         Assert.Equal(inventory.Rows[0].ProviderAlias, RecoveryBinding.Validate(config, inventory));
     }
 
+    [Theory]
+    [InlineData("https://files.example.com/workbench")]
+    [InlineData("https://source.privatelink.blob.core.windows.net/workbench")]
+    public void AlternateAzureEndpointCannotConcealPhysicalReuse(string target)
+    {
+        // GIVEN an endpoint alias that could route to the original account.
+        var config = Config(Guid.NewGuid().ToString(), Guid.NewGuid().ToString(), target);
+        // WHEN validating isolation, THEN only canonical account/container endpoints are accepted.
+        Assert.Throws<InvalidOperationException>(() => RecoveryBinding.Validate(config, Inventory(config)));
+    }
+
     private static IConfiguration Config(string sourceId, string targetId, string target) => new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
     {
         ["Storage:Provider"] = "Azure",
