@@ -114,3 +114,28 @@ Workbench.Database tenant create --connection-file <operator-path> --expected-da
 
 The operator interface grants no general tenant-data browsing authority. Tenant administrators own
 user management inside their tenant after provisioning.
+
+## Invitation identity claims
+
+`20260906092000_DeferInvitationIdentityClaim` releases global login claims held by
+pending or cancelled credentialless users. Tenant user rows, roles, invitation tokens,
+and delivery work remain intact. Accepted accounts, including disabled accounts with
+passwords, retain their identities. Stop old web replicas before applying this migration:
+only the matching application version claims identity during invitation consumption.
+The application reports unready until its web principal can execute the required invitation
+claim procedure. Missing procedure or revoked/denied execution authority keeps readiness
+unhealthy while liveness remains available.
+Rollback is blocked because restoring pre-acceptance claims could collide with identities
+accepted since migration. Use a reviewed forward migration or the established offline
+restore and sanitation procedure.
+
+## Provider retry scheduling
+
+`20260907054000_AddProviderRetryDelay` adds an optional bounded provider delay to
+`Operations.RetryWork` without rewriting shipped migrations or pending work. Apply it before
+starting the matching web and worker release. Web readiness remains unhealthy on the immediate
+prior invitation schema until the new retry capability is available.
+
+Graph `Retry-After` cannot shorten exponential backoff and is capped at one hour. Scheduling
+remains in SQL, with the existing five-attempt limit, lease fencing, and terminal payload cleanup.
+Down migration is blocked; use a reviewed forward correction or the offline restore procedure.

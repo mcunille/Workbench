@@ -65,12 +65,21 @@ public sealed class DatabaseReadinessCheck(
                 CommandType = CommandType.StoredProcedure,
             };
             var deploymentReady = Convert.ToBoolean(await deployment.ExecuteScalarAsync(cancellationToken));
+
             await using var providerRetry = new SqlCommand("[Security].[ReadProviderRetryReadiness]", connection)
             {
                 CommandType = CommandType.StoredProcedure,
             };
             var providerRetryReady = Convert.ToBoolean(await providerRetry.ExecuteScalarAsync(cancellationToken));
-            return state.IsReady && operationalReady && deploymentReady && providerRetryReady
+
+            // Require this application's invitation contract, even when an older schema reports itself compatible.
+            await using var invitation = new SqlCommand("""
+                SELECT CONVERT(bit, CASE WHEN OBJECT_ID(N'[Identity].[ClaimInvitationIdentity]', N'P') IS NOT NULL
+                    AND HAS_PERMS_BY_NAME(N'[Identity].[ClaimInvitationIdentity]', N'OBJECT', N'EXECUTE') = 1
+                    THEN 1 ELSE 0 END);
+                """, connection);
+            var invitationReady = Convert.ToBoolean(await invitation.ExecuteScalarAsync(cancellationToken));
+            return state.IsReady && operationalReady && deploymentReady && invitationReady && providerRetryReady
                 ? HealthCheckResult.Healthy()
                 : HealthCheckResult.Unhealthy("Database security state is not ready.");
         }

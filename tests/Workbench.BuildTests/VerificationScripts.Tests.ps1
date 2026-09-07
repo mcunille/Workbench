@@ -52,7 +52,7 @@ function global:sqlcmd {
     $arguments = $args -join ' '
     $global:workbenchSqlcmdCalls.Add($arguments)
     $global:LASTEXITCODE = if (($global:workbenchForceRestoreFailure -and $arguments -match 'RESTORE DATABASE') -or
-        $global:workbenchForceCleanupFailure) { 1 } else { 0 }
+        ($global:workbenchForceCleanupFailure -and $arguments -match 'SET MULTI_USER')) { 1 } else { 0 }
 }
 
 try {
@@ -125,8 +125,8 @@ try {
         $global:workbenchSqlcmdCalls.Clear()
 
         # GIVEN a restore that fails in SQL
-        # WHEN recovery attempts MULTI_USER cleanup
-        # THEN both connections use the same authenticated TLS policy.
+        # WHEN the restore command fails before a pending marker is established
+        # THEN no release connection can expose the restored credentials.
         try {
             & $restoreScript `
                 -ConnectionFile $connectionFile `
@@ -139,26 +139,25 @@ try {
             if ($_.Exception.Message -notmatch 'Database restore failed') { throw }
         }
 
-        if ($global:workbenchSqlcmdCalls.Count -ne 2 -or
-            $global:workbenchSqlcmdCalls[1] -notmatch 'SET MULTI_USER' -or
-            $global:workbenchSqlcmdCalls[1] -match 'RESTORE DATABASE') {
-            throw 'restore-database.ps1 did not issue a separate MULTI_USER cleanup after failure.'
+        if ($global:workbenchSqlcmdCalls.Count -ne 1 -or
+            $global:workbenchSqlcmdCalls[0] -match 'SET MULTI_USER') {
+            throw 'A failed restore must not issue MULTI_USER release.'
         }
 
+        # GIVEN a successful restore followed by a failed marker verification or access transition
         $global:workbenchSqlcmdCalls.Clear()
+        $global:workbenchForceRestoreFailure = $false
         $global:workbenchForceCleanupFailure = $true
+        # WHEN the release fails
         try {
-            & $restoreScript `
-                -ConnectionFile $connectionFile `
-                -Database WorkbenchRestoreTest `
-                -Source '/fake/backup.bak' `
-                -Confirmation 'RESTORE WorkbenchRestoreTest'
-            throw 'restore-database.ps1 unexpectedly hid a restore and cleanup failure.'
+            & $restoreScript -ConnectionFile $connectionFile -Database WorkbenchRestoreTest `
+                -Source '/fake/backup.bak' -Confirmation 'RESTORE WorkbenchRestoreTest'
+            throw 'restore-database.ps1 unexpectedly hid a release failure.'
         }
         catch {
-            if ($_.Exception.Message -notmatch 'restore failed, and MULTI_USER cleanup also failed') {
-                throw
-            }
+            # THEN the failure is surfaced without another access transition.
+            if ($_.Exception.Message -notmatch 'Database restore release failed' -or
+                $global:workbenchSqlcmdCalls.Count -ne 2) { throw }
         }
     }
     finally {

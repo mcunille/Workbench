@@ -54,7 +54,7 @@ public partial class AddProviderRetryDelay : Migration
         migrationBuilder.Sql("""
             DECLARE @Readiness nvarchar(max) = OBJECT_DEFINITION(OBJECT_ID(N'[Security].[ReadDatabaseReadiness]'));
             SET @Readiness = REPLACE(@Readiness, N'CREATE PROCEDURE', N'ALTER PROCEDURE');
-            SET @Readiness = REPLACE(@Readiness, N'20260906031109_AddDeploymentQueueTelemetry', N'20260907054000_AddProviderRetryDelay');
+            SET @Readiness = REPLACE(@Readiness, N'20260906092000_DeferInvitationIdentityClaim', N'20260907054000_AddProviderRetryDelay');
             EXEC sys.sp_executesql @Readiness;
             """);
     }

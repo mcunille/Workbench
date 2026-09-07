@@ -254,7 +254,13 @@ security version; changes the password; advances security state; revokes all ses
 operation; and appends the audit event. Exactly one concurrent consumption can succeed.
 
 Tenant administrators may invite and manage only users whose `TenantId` equals their request tenant.
-Invitations use the same single-use machinery and provider-neutral delivery boundary. The production
+Invitations use the same single-use machinery and provider-neutral delivery boundary. Pending
+users retain tenant-scoped administration and cancellation state, but acquire neither a global
+username nor a login-directory entry until valid token consumption. Invitation requests expose
+the same accepted response and pending-user representation for occupied and unused addresses.
+The first successful recipient acceptance atomically claims the globally unique identity; a
+conflicting acceptance fails generically without changing the existing account. Cancelled and
+expired invitations hold no global claim. The production
 delivery and request endpoints remain startup-disabled until issue #11 supplies a real message
 provider and their complete shared abuse controls. Login already uses normalized-account and
 trusted-network partitions in a multi-replica-safe SQL limiter. Integration tests use an in-memory

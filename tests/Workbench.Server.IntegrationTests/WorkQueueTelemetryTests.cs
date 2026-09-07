@@ -97,7 +97,7 @@ public sealed class WorkQueueTelemetryTests(SqlServerFixture sqlServer)
     {
         // GIVEN queued work under the telemetry release schema.
         await using var database = await sqlServer.CreateDatabaseAsync();
-        await DatabaseMigrator.MigrateAsync(database.AdminConnectionString, CancellationToken.None);
+        await DatabaseMigrator.MigrateToAsync(database.AdminConnectionString, "AddDeploymentQueueTelemetry", CancellationToken.None);
         var tenant = Guid.NewGuid();
         await database.SeedTenantAuditRowsAsync(tenant, Guid.NewGuid());
         await SeedAsync(database.AdminConnectionString, tenant, WorkState.Ready, 3600);
@@ -107,7 +107,7 @@ public sealed class WorkQueueTelemetryTests(SqlServerFixture sqlServer)
         var missing = await Assert.ThrowsAsync<SqlException>(() => WorkQueueTelemetry.ReadAsync(worker, CancellationToken.None));
         Assert.Equal(2812, missing.Number);
         // THEN reapplying restores the procedure and its grant while retaining the queued work.
-        await DatabaseMigrator.MigrateAsync(database.AdminConnectionString, CancellationToken.None);
+        await DatabaseMigrator.MigrateToAsync(database.AdminConnectionString, "AddDeploymentQueueTelemetry", CancellationToken.None);
         Assert.Equal(new WorkQueueStatus(1, 0), await WorkQueueTelemetry.ReadAsync(worker, CancellationToken.None));
     }
 

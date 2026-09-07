@@ -261,6 +261,24 @@ public sealed class IdentityOperationService(
         }
 
         var newHash = userManager.PasswordHasher.HashPassword(user, newPassword);
+        if (purpose == IdentityOperationPurpose.Invitation)
+        {
+            await using var claim = new SqlCommand("[Identity].[ClaimInvitationIdentity]", connection,
+                (SqlTransaction)transaction)
+            { CommandType = CommandType.StoredProcedure };
+            claim.Parameters.AddWithValue("@TenantId", authority.Value.TenantId);
+            claim.Parameters.AddWithValue("@UserId", userId);
+            claim.Parameters.Add(new SqlParameter("@TokenHash", SqlDbType.Binary, 32) { Value = tokenHash });
+            claim.Parameters.AddWithValue("@Now", now);
+            try
+            {
+                await claim.ExecuteNonQueryAsync(cancellationToken);
+            }
+            catch (SqlException error) when (error.Number is 2601 or 2627 or 50004)
+            {
+                return false;
+            }
+        }
         await using var update = new SqlCommand("""
             UPDATE [Identity].[Users]
             SET [PasswordHash] = @passwordHash,

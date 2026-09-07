@@ -13,6 +13,41 @@ namespace Workbench.Server.IntegrationTests;
 public sealed class GraphDeliveryTests
 {
     [Fact]
+    public async Task InvitationUsesInvitationPathAndSingleRecipient()
+    {
+        // GIVEN a valid tenant invitation.
+        var token = SessionToken.Create();
+        var handler = new Handler(HttpStatusCode.Accepted);
+        using var client = new HttpClient(handler);
+        // WHEN submitted, THEN the invitation path retains the token only in its fragment.
+        await new GraphIdentityMessageDelivery(Options(), client, new TestCredential()).DeliverAsync(
+            Message(token) with { Purpose = IdentityOperationPurpose.Invitation }, CancellationToken.None);
+        using var json = JsonDocument.Parse(handler.Body!);
+        var message = json.RootElement.GetProperty("message");
+        Assert.Equal("Workbench invitation", message.GetProperty("subject").GetString());
+        Assert.Contains("https://workbench.example/invite#token=" + token, message.GetProperty("body").GetProperty("content").GetString());
+        Assert.Equal(1, message.GetProperty("toRecipients").GetArrayLength());
+        Assert.False(json.RootElement.GetProperty("saveToSentItems").GetBoolean());
+    }
+
+    [Fact]
+    public async Task CancellationDuringTokenAcquisitionPropagatesWithoutSending()
+    {
+        // GIVEN token acquisition is waiting when the caller cancels.
+        using var cancellation = new CancellationTokenSource();
+        var credential = new WaitingCredential();
+        var handler = new Handler(HttpStatusCode.Accepted);
+        using var client = new HttpClient(handler);
+        var task = new GraphIdentityMessageDelivery(Options(), client, credential)
+            .DeliverAsync(Message(SessionToken.Create()), cancellation.Token);
+        await credential.Started.Task;
+        // WHEN cancelled, THEN cancellation propagates and no submission occurs.
+        cancellation.Cancel();
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => task);
+        Assert.Equal(0, handler.Calls);
+    }
+
+    [Fact]
     public async Task TokenServiceFailureUsesBoundedQueueRetriesWithoutExposingDiagnostics()
     {
         // GIVEN a managed identity endpoint outage wrapped by the credential SDK.
@@ -182,6 +217,17 @@ public sealed class GraphDeliveryTests
             Scopes = context.Scopes;
             if (Failure is not null) { throw Failure; }
             return ValueTask.FromResult(new AccessToken("test-access-token", DateTimeOffset.UtcNow.AddMinutes(5)));
+        }
+    }
+    private sealed class WaitingCredential : TokenCredential
+    {
+        public TaskCompletionSource Started { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public override AccessToken GetToken(TokenRequestContext context, CancellationToken cancellationToken) => throw new NotSupportedException();
+        public override async ValueTask<AccessToken> GetTokenAsync(TokenRequestContext context, CancellationToken cancellationToken)
+        {
+            Started.SetResult();
+            await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
+            throw new InvalidOperationException("Cancellation was expected.");
         }
     }
     private sealed class Handler(HttpStatusCode status) : HttpMessageHandler
