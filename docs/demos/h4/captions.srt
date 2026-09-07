@@ -1,0 +1,51 @@
+1
+00:00:00,418 --> 00:00:07,536
+Workbench lets you correct an item's name, notes, and location while keeping its
+permanent identity. This
+
+2
+00:00:07,536 --> 00:00:11,540
+walkthrough uses a synthetic item and a disposable database.
+
+3
+00:00:12,945 --> 00:00:19,628
+Open Edit details and change the name. Cancel returns to the saved record without
+changing it.
+
+4
+00:00:21,042 --> 00:00:29,146
+On a phone, change the location. This save encounters a simulated server failure.
+Your text remains
+
+5
+00:00:29,146 --> 00:00:35,224
+available, even when appearance changes. Retry safely submits the same checked
+request.
+
+6
+00:00:36,636 --> 00:00:43,324
+Two independently signed-in sessions opened the same record. The other session now
+saves a new name.
+
+7
+00:00:43,324 --> 00:00:48,758
+Saving this older draft reports a conflict and preserves the draft for comparison.
+
+8
+00:00:50,163 --> 00:00:57,017
+Review my edits starts from the latest saved values. Keep the new name, copy the
+intended
+
+9
+00:00:57,017 --> 00:01:03,015
+notes from the preserved draft, and save. The newer record is never silently
+overwritten.
+
+10
+00:01:04,425 --> 00:01:11,163
+Return to the collection and search the updated notes. The same item appears with its
+corrected
+
+11
+00:01:11,163 --> 00:01:14,953
+name and location. Reloading confirms the changes are stored.

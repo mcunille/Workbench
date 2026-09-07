@@ -3,6 +3,20 @@
 Database migrations are an explicit, human-controlled deployment operation. A Workbench web
 replica never migrates its database and never receives the setup, operator, or migrator credential.
 
+## Item detail editing release
+
+`20260907194500_AddItemDetailEditing` adds `Inventory.UpdateItemDetails` after the photograph
+release. Its conditional update changes only name, notes, and descriptive location using the
+expected rowversion under caller tenant isolation. Runtime principals receive EXECUTE permission;
+direct item UPDATE/DELETE remains denied. Existing item identity, text, and photographs are retained.
+The new application requires the new schema marker and command permission before reporting ready.
+
+Apply this additive migration through the explicit migrator before releasing H4. Verify fresh
+creation and upgrade from the previous schema with retained items and photos. Keep previous
+migrations unchanged. Use a forward correction for recovery; an application rollback must account
+for schema-readiness compatibility. Existing paired SQL/blob backup and restore procedures remain
+authoritative; reverting binaries is not authorization to discard saved edits or collection data.
+
 ## Item photograph release
 
 `20260907082353_AddItemPhotographs` follows the shipped collection notebook migration. It adds

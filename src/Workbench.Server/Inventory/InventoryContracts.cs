@@ -6,6 +6,8 @@ namespace Workbench.Server.Inventory;
 
 [JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
 public sealed record CreateItemRequest(Guid CreationRequestId, string? Name, string? Notes, string? Location);
+[JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
+public sealed record UpdateItemDetailsRequest(string? ExpectedVersion, string? Name, string? Notes, string? Location);
 public sealed record ItemDetailResponse(Guid Id, string Name, string? Notes, string? Location, DateTimeOffset CreatedAtUtc,
     string Version, ItemPhotoResponse? Photo);
 public sealed record ItemSummaryResponse(Guid Id, string Name, string? Location, DateTimeOffset CreatedAtUtc, ItemPhotoResponse? Photo);

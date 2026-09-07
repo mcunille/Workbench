@@ -1,8 +1,10 @@
 // Copyright (c) 2026 The White Stag Collection.
 
 using System.Globalization;
+using System.Data;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
 using Workbench.Server.Http;
 using Workbench.Server.Persistence;
 
@@ -26,6 +28,12 @@ public static class InventoryEndpoints
             .ProducesProblem(StatusCodes.Status409Conflict);
         group.MapGet("", ListAsync).Produces<ItemPageResponse>().ProducesProblem(StatusCodes.Status400BadRequest);
         group.MapGet("/{id:guid}", DetailAsync).Produces<ItemDetailResponse>().ProducesProblem(StatusCodes.Status404NotFound);
+        group.MapPut("/{id:guid}", UpdateAsync)
+            .WithMetadata(WorkbenchAntiforgeryMetadata.Instance)
+            .Produces<ItemDetailResponse>()
+            .ProducesValidationProblem()
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status409Conflict);
         group.MapItemPhotos();
         return endpoints;
     }
@@ -77,6 +85,41 @@ public static class InventoryEndpoints
             ? Results.Ok(Detail(item))
             : Results.Problem(statusCode: StatusCodes.Status409Conflict,
                 title: "This save identifier was already used for different item details.");
+
+    private static async Task<IResult> UpdateAsync(Guid id, UpdateItemDetailsRequest request,
+        WorkbenchDbContext database, CancellationToken cancellationToken)
+    {
+        var fields = ItemInput.Normalize(new CreateItemRequest(Guid.NewGuid(), request.Name, request.Notes, request.Location));
+        var errors = ItemInput.Validate(fields);
+        var version = new byte[8];
+        if (request.ExpectedVersion is null ||
+            !Convert.TryFromBase64String(request.ExpectedVersion, version, out var written) || written != version.Length)
+            errors["expectedVersion"] = ["A valid item version is required."];
+        if (errors.Count != 0)
+            return Results.ValidationProblem(errors);
+
+        await using var transaction = await database.Database.BeginTransactionAsync(cancellationToken);
+        await using var command = new SqlCommand("[Inventory].[UpdateItemDetails]", (SqlConnection)database.Database.GetDbConnection(),
+            (SqlTransaction)transaction.GetDbTransaction())
+        { CommandType = CommandType.StoredProcedure };
+        command.Parameters.AddWithValue("@Id", id);
+        command.Parameters.Add(new SqlParameter("@ExpectedVersion", SqlDbType.Binary, 8) { Value = version });
+        command.Parameters.Add(new SqlParameter("@Name", SqlDbType.NVarChar, -1) { Value = fields.Name! });
+        command.Parameters.Add(new SqlParameter("@Notes", SqlDbType.NVarChar, -1) { Value = (object?)fields.Notes ?? DBNull.Value });
+        command.Parameters.Add(new SqlParameter("@Location", SqlDbType.NVarChar, -1) { Value = (object?)fields.Location ?? DBNull.Value });
+        var status = (int)(await command.ExecuteScalarAsync(cancellationToken))!;
+        if (status == 0)
+            return Results.Problem(statusCode: StatusCodes.Status404NotFound, title: "Item not found.");
+        if (status == 2)
+            return Results.Problem(statusCode: StatusCodes.Status409Conflict, title: "The item changed. Review the current record before saving again.",
+                extensions: new Dictionary<string, object?> { ["code"] = "item_version_conflict" });
+
+        // The UPDATE holds its exclusive row lock until this detail has been read and committed.
+        var saved = await database.Items.AsNoTracking().Include(row => row.CurrentPhoto).SingleAsync(row => row.Id == id, cancellationToken);
+        var response = Detail(saved);
+        await transaction.CommitAsync(cancellationToken);
+        return Results.Ok(response);
+    }
 
     private static async Task<IResult> DetailAsync(Guid id, WorkbenchDbContext database, CancellationToken cancellationToken)
     {

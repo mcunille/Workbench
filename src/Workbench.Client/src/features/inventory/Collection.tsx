@@ -1,4 +1,5 @@
 import {
+  useCallback,
   useEffect,
   useLayoutEffect,
   useRef,
@@ -10,6 +11,7 @@ import { ApiError } from '../../api/auth';
 import { Icon } from '../../Icon';
 import { ItemPhoto } from './ItemPhoto';
 import { PhotoEditor } from './PhotoEditor';
+import { DetailEditor } from './DetailEditor';
 import {
   getItem,
   getItems,
@@ -40,6 +42,15 @@ export function Collection({
   const heading = useRef<HTMLHeadingElement>(null);
   const links = useRef(new Map<string, HTMLAnchorElement>());
   const loading = Boolean(request);
+  useLayoutEffect(
+    () =>
+      memory.subscribeInvalidation(() => {
+        setPage(undefined);
+        setFailed(undefined);
+        setRequest({});
+      }),
+    [memory],
+  );
   useLayoutEffect(
     () =>
       memory.subscribePhotos((id, photo) => {
@@ -291,6 +302,17 @@ export function ItemDetails({
   onDirtyChange(value: boolean, uncertain: boolean): void;
 }) {
   const [item, setItem] = useState<ItemDetail>();
+  const [editing, setEditing] = useState(false);
+  const [photoDirty, setPhotoDirty] = useState(false);
+  const [savedMessage, setSavedMessage] = useState(false);
+  const editButton = useRef<HTMLButtonElement>(null);
+  const photoDirtyChange = useCallback(
+    (dirty: boolean, uncertain: boolean) => {
+      setPhotoDirty(dirty);
+      onDirtyChange(dirty, uncertain);
+    },
+    [onDirtyChange],
+  );
   const currentId = useRef(id);
   const [failed, setFailed] = useState<number>();
   const [retry, setRetry] = useState(0);
@@ -353,22 +375,65 @@ export function ItemDetails({
             </span>
             <h1 className="item-title">{item.name}</h1>
           </div>
-          <PhotoEditor
-            key={item.id}
-            item={item}
-            onAuthLost={onAuthLost}
-            onDirtyChange={onDirtyChange}
-            onPhotoChanged={() => {
-              memory?.updatePhoto(id, null);
-            }}
-            reload={async () => {
-              const result = await getItem(id);
-              if (currentId.current === id) {
-                setItem(result);
-                memory?.updatePhoto(id, result.photo);
-              }
-            }}
-          />
+          {savedMessage ? (
+            <p role="status">Current saved record loaded.</p>
+          ) : null}
+          {editing ? (
+            <DetailEditor
+              key={item.id}
+              item={item}
+              onAuthLost={onAuthLost}
+              onDirtyChange={onDirtyChange}
+              onRecordMayHaveChanged={() => memory?.invalidate()}
+              onCancel={(current) => {
+                if (current) {
+                  setItem(current);
+                  memory?.invalidate();
+                }
+                setEditing(false);
+                onDirtyChange(false, false);
+                requestAnimationFrame(() => editButton.current?.focus());
+              }}
+              onSaved={(saved) => {
+                setItem(saved);
+                setEditing(false);
+                setSavedMessage(true);
+                memory?.invalidate();
+                onDirtyChange(false, false);
+                requestAnimationFrame(() => editButton.current?.focus());
+              }}
+            />
+          ) : (
+            <>
+              <button
+                ref={editButton}
+                className="secondary"
+                disabled={photoDirty}
+                onClick={() => {
+                  setEditing(true);
+                  setSavedMessage(false);
+                }}
+              >
+                Edit details
+              </button>
+              <PhotoEditor
+                key={item.id}
+                item={item}
+                onAuthLost={onAuthLost}
+                onDirtyChange={photoDirtyChange}
+                onPhotoChanged={() => {
+                  memory?.updatePhoto(id, null);
+                }}
+                reload={async () => {
+                  const result = await getItem(id);
+                  if (currentId.current === id) {
+                    setItem(result);
+                    memory?.updatePhoto(id, result.photo);
+                  }
+                }}
+              />
+            </>
+          )}
           <dl className="item-details">
             <div className="detail-field">
               <dt>Storage location</dt>

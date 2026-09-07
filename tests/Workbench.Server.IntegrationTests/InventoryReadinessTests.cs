@@ -14,8 +14,8 @@ public sealed class InventoryReadinessTests(SqlServerFixture sqlServer)
     [Fact]
     public async Task ImmediatePriorSchemaMustBeUpgradedBeforeServingInventory()
     {
-        // GIVEN the immediate prior release with valid authentication but no inventory schema.
-        await using var application = await AuthTestApplication.CreateAsync(sqlServer, priorMigration: "AddProviderRetryDelay");
+        // GIVEN the immediate prior release with valid authentication but no edit command.
+        await using var application = await AuthTestApplication.CreateAsync(sqlServer, priorMigration: "AddItemPhotographs");
         using var client = application.CreateClient();
         // WHEN this release probes readiness.
         var response = await client.GetAsync("/health/ready");
@@ -28,6 +28,7 @@ public sealed class InventoryReadinessTests(SqlServerFixture sqlServer)
     [Theory]
     [InlineData("REVOKE INSERT ON [Inventory].[Items] FROM [workbench_web]")]
     [InlineData("DENY SELECT ON [Inventory].[Items] TO [workbench_web]")]
+    [InlineData("DENY EXECUTE ON [Inventory].[UpdateItemDetails] TO [workbench_web]")]
     public async Task MissingInventoryAuthorityPreventsReadiness(string sql)
     {
         // GIVEN the runtime principal loses a required inventory operation.

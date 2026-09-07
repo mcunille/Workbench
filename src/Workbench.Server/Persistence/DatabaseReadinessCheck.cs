@@ -93,6 +93,7 @@ public sealed class DatabaseReadinessCheck(
                     AND HAS_PERMS_BY_NAME(N'[Inventory].[ItemPhotoOperations]', N'OBJECT', N'INSERT') = 1
                     AND HAS_PERMS_BY_NAME(N'[Inventory].[ItemPhotoOperations]', N'OBJECT', N'UPDATE') = 1
                     AND HAS_PERMS_BY_NAME(N'[Inventory].[SetItemPhoto]', N'OBJECT', N'EXECUTE') = 1
+                    AND HAS_PERMS_BY_NAME(N'[Inventory].[UpdateItemDetails]', N'OBJECT', N'EXECUTE') = 1
                     THEN 1 ELSE 0 END);
                 """, connection);
             var inventoryReady = Convert.ToBoolean(await inventory.ExecuteScalarAsync(cancellationToken));

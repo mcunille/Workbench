@@ -997,3 +997,8 @@ html { scroll-padding-top: 8rem; }
 .item-photo > [role="status"] { padding: .5rem; font-size: .8rem; }
 
 .item-photo { overflow: hidden; }
+/* Saved values and a private draft remain readable at narrow viewport widths. */
+.edit-comparison { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1.5rem; }
+.edit-comparison-record { min-width: 0; overflow-wrap: anywhere; }
+.edit-field { display: grid; gap: .5rem; }
+@media (max-width: 40rem) { .edit-comparison { grid-template-columns: minmax(0, 1fr); } }
