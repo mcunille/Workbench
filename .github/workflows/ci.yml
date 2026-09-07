@@ -41,6 +41,7 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Bicep installation failed.' }
           az bicep build --file infra/azure/main.bicep --outfile /tmp/workbench-infra.json
           if ($LASTEXITCODE -ne 0) { throw 'Infrastructure compilation failed.' }
+          ./infra/azure/test-backup-redundancy.ps1 -TemplateFile /tmp/workbench-infra.json
           az bicep lint --file infra/azure/main.bicep
           if ($LASTEXITCODE -ne 0) { throw 'Infrastructure lint failed.' }
 

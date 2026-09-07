@@ -44,7 +44,9 @@ injects sync errors and interruptions. This tests syscall behavior, not physical
 
 Deployment changes also run `./infra/azure/test-parameters.ps1` and
 `./scripts/test-compose-proxy.ps1`. CI compiles and lints `infra/azure/main.bicep` with Bicep
-`0.46.1`. These checks do not create Azure resources. The container smoke gate exercises the
+`0.46.1`. CI verifies the compiled template's geographic backup settings with
+`./infra/azure/test-backup-redundancy.ps1 -TemplateFile <compiled-main.json>`.
+These checks do not create Azure resources. The container smoke gate exercises the
 production Compose topology using disposable SQL and local test TLS; public DNS/certificates,
 real SMTP delivery, and hosted recovery still require their documented operational drills.
 
