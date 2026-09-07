@@ -63,11 +63,13 @@ does not expose cross-tenant rows. Delayed future work is counted but does not a
 
 Public recovery and invitations default to disabled outside Development. Enable each separately with
 `Identity:PublicRecoveryEnabled` and `Identity:PublicInvitationEnabled` only after configuring
-`Identity:DeliveryProvider=Smtp`, the shared SQL limiter, and a running worker. SMTP settings are
+`Identity:DeliveryProvider=Smtp` or `Graph`, the shared SQL limiter, and a running worker. SMTP settings are
 `Smtp:Host`, `Port`, `Security` (`StartTls` or `SslOnConnect`), `Username`, `PasswordFile` (or deployment
 secret `Password`), `Sender`, and canonical HTTPS `PublicOrigin`. Opportunistic TLS, invalid certificates,
 plaintext authentication, and origins with paths/query/userinfo are refused. Use the operating system
 trust store for an organizational CA. Never disable certificate validation.
+
+For Graph, configure `Graph:MailboxId` with the shared mailbox object ID, `Graph:ManagedIdentityClientId` with the dedicated mail identity client ID, and `Graph:PublicOrigin` matching the application HTTPS `PublicOrigin`. Attach the mail identity only to the worker and grant Exchange application RBAC `Application Mail.Send` only for that mailbox. Do not grant tenant-wide Graph mail application permissions. The web process validates settings and queues messages without acquiring a mail token. Verify a real send and an out-of-scope mailbox denial before enabling public operations. Graph configuration validation is not a live authorization check.
 
 Requests commit the identity operation and a purpose-bound encrypted outbox payload in the same SQL
 transaction. The delivery worker decrypts the persisted payload during normal execution; web and worker
@@ -80,7 +82,7 @@ Provision a separate contained SQL user in `workbench_worker` using a protected 
 Do not add it to web, operator, migrator, or owner roles. Its only cross-tenant action is the bounded
 claim procedure, which returns references without protected payloads. Supply its connection as
 `ConnectionStrings:Worker` or `WORKBENCH_WORKER_CONNECTION`, plus the same proof key, certificate,
-storage binding, and SMTP configuration as the web process. Do not pass the web or migration credential.
+storage binding, and selected delivery-provider configuration. Graph additionally requires the worker mail identity. Do not pass the web or migration credential.
 
 ```powershell
 dotnet Workbench.Server.dll --worker
@@ -91,12 +93,12 @@ dotnet Workbench.Server.dll --worker --once
 Run continuously as a supervised process or invoke `--once` with a durable scheduler. An HTTP service
 scaled to zero does not run work. Claims have 120-second leases and generation fencing; each execution
 has a 60-second deadline. Failed transient operations use exponential delay plus jitter, up to five
-attempts. Permanent failures and exhausted attempts become dead letters. Queue state is authoritative
+attempts. Graph throttling delays are persisted with the queue item: `Retry-After` is clamped to one hour and cannot shorten the existing backoff. Token-acquisition failures also use bounded retries; Graph authorization rejections are permanent. Permanent failures and exhausted attempts become dead letters. Queue state is authoritative
 in `Operations.WorkItems`; inspect it through an authorized tenant SQL session or a protected operator
 session. Alert on dead letters and oldest due work age. A successful `--once` process exit indicates a
 completed iteration, not necessarily successful delivery; inspect the work outcome.
 
-SMTP cannot atomically acknowledge delivery with SQL. A crash after SMTP acceptance can produce a
+Email submission cannot atomically acknowledge delivery with SQL. A crash after provider acceptance can produce a
 duplicate email, but both messages carry the same single-use operation. Never replay a dead identity
 payload: request a fresh recovery or invitation. After correcting a deletion failure or releasing a
 hold, a maintenance principal may execute `Storage.ReplayDeletion @Id=<work UUID>`. Replay is audited,

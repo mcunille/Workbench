@@ -65,7 +65,12 @@ public sealed class DatabaseReadinessCheck(
                 CommandType = CommandType.StoredProcedure,
             };
             var deploymentReady = Convert.ToBoolean(await deployment.ExecuteScalarAsync(cancellationToken));
-            return state.IsReady && operationalReady && deploymentReady
+            await using var providerRetry = new SqlCommand("[Security].[ReadProviderRetryReadiness]", connection)
+            {
+                CommandType = CommandType.StoredProcedure,
+            };
+            var providerRetryReady = Convert.ToBoolean(await providerRetry.ExecuteScalarAsync(cancellationToken));
+            return state.IsReady && operationalReady && deploymentReady && providerRetryReady
                 ? HealthCheckResult.Healthy()
                 : HealthCheckResult.Unhealthy("Database security state is not ready.");
         }

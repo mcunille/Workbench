@@ -50,27 +50,27 @@ Azure public cloud; sovereign-cloud vault DNS and available SKUs need separate r
 System identities cannot be granted access before their resources exist. Use these explicit phases
 to avoid circular secret-resolution dependencies:
 
-1. After authorization, run deployment `what-if`, inspect changes, then deploy with all activation
-   switches false. This creates the network, private SQL/blob/vault endpoints and DNS, logs, inactive
-   web resource, manual jobs and their identities. The web has no ingress; do not start either job.
+1. After authorization, run deployment `what-if`, inspect changes, then run `infra/azure/bootstrap.ps1 -Subscription <id> -ResourceGroup <name> -ParametersFile <file>` with all activation
+   switches false. This creates the network, private SQL/blob/vault endpoints and DNS, logs, a bootstrap
+   web resource, manual jobs and their identities. Deployment can briefly start an unconfigured web revision; the production validator fails closed. The bootstrap script deactivates every revision and waits for zero replicas, including after deployment failure. `activate=false` alone does not stop compute. The web has no ingress; do not start either job.
    Record the resource IDs and system principal IDs from outputs. Resource outputs contain no secrets.
 2. From a protected administrative host with private DNS/network access, populate the vault using
    secret **files**, not `--value` arguments. Required names are `tenant-proof`, `protection-pfx`,
-   `protection-password`, `smtp-password`, and `migration-connection`. The PFX secret is Base64-encoded
+   `protection-password`, and `migration-connection`; SMTP mode additionally requires `smtp-password`. Graph mode must not create or grant that secret. The PFX secret is Base64-encoded
    PKCS#12 text. Its password is a separate secret. `migration-connection` contains an encrypted SQL
    connection string using `Authentication=Active Directory Managed Identity`, the output SQL host,
    database `Workbench`, `TrustServerCertificate=False`, and bounded pool size; it contains no SQL
    password. The tenant proof must match the bootstrap SQL proof. Restrict bootstrap identity access
    and retain encrypted certificate/proof recovery copies outside the vault's failure domain.
 3. Bootstrap schema using the explicit database CLI and setup authority from the private operator
-   host. Provision Entra users with the exact system principal object IDs, plus separately selected
+   host. Provision Entra users with the exact principal and client IDs, plus separately selected
    operator and maintenance identities. Use a protected setup connection file and the CLI below.
    Never grant runtime users `db_owner`, schema authority or another workload's role. Runtime
    identities cannot grant their own permissions. The one-time setup group is the SQL Entra admin;
    remove unnecessary membership after bootstrap. Preserve a controlled break-glass procedure.
-4. Set `grantAccess=true`, retaining `activate=false`, and deploy again. The access module grants
+4. Set `grantAccess=true`, retaining `activate=false`, and run the bootstrap orchestration again after removing temporary subnets. The access module grants
    web/worker Blob Data Contributor only on the installation container and Key Vault Secrets User
-   only on their four secret resources. Migration gets only its connection secret. Allow RBAC
+   only on their three shared secret resources (four in SMTP mode). Migration gets only its connection secret. Allow RBAC
    propagation and verify grants before activating. Recreating a system identity requires repeating
    grants and SQL mapping; matching a display name is insufficient.
 5. Observe legitimate ACA socket peers in the isolated environment and fill the exact proxy list or
@@ -79,9 +79,9 @@ to avoid circular secret-resolution dependencies:
    through the operator's secure certificate workflow, and set `customDomainCertificateId` to its
    resource ID. Keep its private key/password out of parameters and command arguments. The operator's
    diagnostic client must trust its issuer. Set `activate=true`, keeping `publishIngress=false`, `workerEnabled=false`, and
-   public recovery disabled. Run the migration job manually and inspect its terminal result/schema.
+   public recovery disabled. The migration job can be configured earlier with `migrationConfigured=true` independently of `activate`; keep its trigger manual. Run it once and inspect terminal status, exit code, console success message and schema. Job start acceptance alone is not success.
    Exercise private ingress from a protected diagnostic workload in the same Container Apps
-   environment, manual worker execution, SQL authorization, blob access and SMTP. Internal app
+   environment, manual worker execution, SQL authorization, blob access and the selected email provider. Internal app
    ingress is environment-only; an arbitrary host elsewhere in the VNet cannot reach it.
 6. Enable the minute worker schedule only after successful bounded delivery and lease-overlap tests.
    After the private checks pass, separately authorize public DNS and ingress using the already-bound
@@ -120,12 +120,15 @@ administrator account. Bootstrap is one-time. The later migration-job run proves
 authority and cannot substitute for this initial setup. Verify the administrator can log in through
 the runtime web identity during private acceptance; do not make SQL setup authority available to it.
 
-The identity file is a JSON array of `{ "role": "workbench_web", "name": "<database-user-name>",
-"objectId": "<actual-system-principal-id>" }` entries for `workbench_web`, `workbench_worker`,
-`workbench_migrator`, `workbench_operator` and `workbench_storage_maintenance`. Select non-workload
-operator/maintenance identities explicitly. Do not substitute application/client IDs for object IDs.
-The CLI and SQL role checks are the authority; verify the actual installed CLI help before execution.
-
+The identity file is `{ "version": 1, "identities": [...] }`, with five entries containing
+`role`, `name`, `principalId`, and `clientId`, for `workbench_web`, `workbench_worker`,
+`workbench_migrator`, `workbench_operator`, and `workbench_storage_maintenance`.
+Obtain both IDs from the actual managed identity. SQL external-user SIDs use **clientId**;
+Azure RBAC and Exchange service-principal registration use **principalId**. Offline provisioning
+cannot verify that the two IDs belong to the same Entra identity. Legacy objectId-only files
+are rejected. Do not rerun an older CLI against repaired users. Mismatches fail without rotating
+the tenant proof: inspect unexpected permissions and ownership before a separately reviewed,
+transactional user repair preserving the intended role and CONNECT grant.
 Certificate rotation uses `previousCertificates`, an array such as
 `[{ "secretName": "protection-2026-pfx", "passwordSecretName": "protection-2026-password" }]`.
 Each referenced PFX is Base64 text and its password is separately mounted. Before replacing the current
@@ -137,7 +140,10 @@ Do not remove retained entries until the corresponding keys, outstanding work an
 no longer require them. Secret refresh alone does not reload an already-started application's
 certificate objects; explicitly replace and verify all runtime replicas/jobs during rotation.
 
-Web and worker share the certificate, proof, blob binding and SMTP settings. The web connection pool
+Web and worker share the certificate, proof, blob binding and selected delivery configuration.
+In Graph mode only the worker attaches the dedicated mail identity and acquires its token; web
+validates configuration and queues messages. SMTP remains available for self-hosted and Azure
+installations. Readiness never sends an email or proves delivery authorization. The web connection pool
 is 20 per replica, worker 20 and migration file should be bounded to 5. With three replicas and two
 overlapping revisions, budget at least `2 * 3 * 20 + 20 + 5 = 145` potential pooled connections plus
 operator/check traffic. Reduce the pools or replica ceiling if the selected SQL SKU cannot sustain
@@ -281,3 +287,53 @@ latency, image size, SQL state and concurrent load. Local startup is not an Azur
 Review the design if cold p95 exceeds 15 seconds, warm errors exceed 1%, SQL CPU exceeds 70%, queue age
 exceeds five minutes, or 30-day projected cost exceeds equivalent App Service by 20%. No automatic
 topology change is authorized by a threshold breach.
+
+## Microsoft 365 Graph delivery
+
+Set `deliveryProvider=Graph`, `graphMailboxId` to the no-reply mailbox object UUID,
+`graphManagedIdentityClientId` to the dedicated mail identity client UUID, and `mailIdentityId`
+to its Azure resource ID. SMTP input fields may be empty. The templates attach this identity only
+to the worker; web receives configuration for enqueue validation and migration receives neither.
+Self-hosted and Azure SMTP configurations continue to use `deliveryProvider=Smtp`.
+
+Create an Exchange application RBAC `Application Mail.Send` assignment restricted to the
+single no-reply shared mailbox. Verify `Test-ServicePrincipalAuthorization` returns InScope=True
+for that mailbox and False for a personal mailbox. Inspect the mail principal's Entra
+`appRoleAssignments` and remove separately authorized broad grants through a reviewed operation;
+Exchange scope does not constrain independent Entra grants. From the actual mail identity, verify
+Graph accepts the intended sender, the message is received, personal-mailbox sending returns
+403/ErrorAccessDenied, and replies trigger the configured incoming rejection rule. Do not grant
+mailbox-read permission for health checks. A bootstrap VM test is supporting evidence only: repeat
+with Workbench's released worker and durable queue before public recovery/invitations are enabled.
+Graph 202 means accepted, not delivered. Queue retries are bounded; an ambiguous timeout can produce
+a duplicate email, so operators must not blindly replay uncertain requests.
+
+## Temporary administrative host cleanup
+
+Before a main-template redeployment, remove temporary subnet dependencies: the template declares
+only `apps` and `endpoints`. The bootstrap script refuses other retained subnets. A scoped access
+module or migration-job-only configuration update can be used while the administrative subnet exists;
+do not redeploy foundation during that period.
+
+Verify an encrypted recovery bundle can actually be decrypted locally, including initial credentials,
+tenant proof, the certificate private key and password, plus retained configuration/installation ID.
+A Windows DPAPI transfer key depends on that Windows account: arrange a separately protected,
+recoverable backup outside the VM/vault failure domain before calling disaster recovery complete.
+When generating PKCS#12 with OpenSSL, use separate input/output passphrase files; referencing one
+single-line file twice can fail because OpenSSL expects two lines. Keep secrets out of arguments,
+Run Command output and shell tracing. Normalize generated Linux scripts to LF and check explicit
+guest success markers: Azure Run Command completion is not proof of a successful guest command.
+
+After all private-host work is complete, remove the temporary VM principal's SQL administrator-group
+membership, registry pull role, vault secret-officer role and other temporary assignments. Detach
+retained operator/mail identities, remove any temporary direct Exchange Organization Management
+membership added for troubleshooting (preserve original administrator access), and remove the VM,
+its NIC and OS disk. Detach the NAT gateway and NSG from the temporary subnet, delete that subnet,
+then delete the temporary NAT gateway, public IP and NSG/resource group after checking its inventory.
+Verify each deletion; deallocating a VM alone leaves NAT, IP and disk charges. Keep retained production
+identities and recovery secrets. Retire local transfer keys only after an independently recoverable
+replacement has been verified. No cleanup command is implicitly authorized to delete production data.
+
+The queue-age and missing-worker-status alerts evaluate every five minutes; worker execution remains
+once per minute. Readiness and other alert frequencies are unchanged. Validate alert query execution
+and delivery on hosted data before closing production monitoring acceptance.

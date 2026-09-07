@@ -52,22 +52,36 @@ public sealed class DatabaseReadinessTests(SqlServerFixture sqlServer) : IAsyncL
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
     }
 
-    [Fact]
-    public async Task PriorReleaseSchemaIsUnreadyUntilDeploymentMigrationIsApplied()
+    [Theory]
+    [InlineData("AddBlobAndOperationalProviders")]
+    [InlineData("AddDeploymentQueueTelemetry")]
+    public async Task PriorReleaseSchemaIsUnreadyUntilDeploymentMigrationIsApplied(string priorMigration)
     {
-        // GIVEN the previous release schema remains valid but lacks deployment telemetry.
-        await DatabaseMigrator.MigrateToAsync(_application.AdminConnectionString, "AddBlobAndOperationalProviders", CancellationToken.None);
+        // GIVEN an independent prior-release database lacking a required worker capability.
+        await using var database = await sqlServer.CreateDatabaseAsync();
+        await DatabaseMigrator.MigrateToAsync(database.AdminConnectionString, priorMigration, CancellationToken.None);
+        var webConnection = await database.CreateWebUserAsync();
+        var proofKey = await database.GetTenantContextProofKeyAsync();
+        await using var factory = _application.Factory.WithWebHostBuilder(builder =>
+        {
+            builder.UseSetting("ConnectionStrings:Workbench", webConnection);
+            builder.UseSetting("TenantContext:ProofKey", Convert.ToBase64String(proofKey));
+        });
+        using var client = factory.CreateClient();
         // WHEN the current application probes that older schema.
-        Assert.Equal(HttpStatusCode.ServiceUnavailable, (await _client.GetAsync("/health/ready")).StatusCode);
-        Assert.Equal(HttpStatusCode.OK, (await _client.GetAsync("/health/live")).StatusCode);
+        Assert.Equal(HttpStatusCode.ServiceUnavailable, (await client.GetAsync("/health/ready")).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await client.GetAsync("/health/live")).StatusCode);
         // THEN applying the required deployment migration makes this release ready.
-        await DatabaseMigrator.MigrateAsync(_application.AdminConnectionString, CancellationToken.None);
-        Assert.Equal(HttpStatusCode.OK, (await _client.GetAsync("/health/ready")).StatusCode);
+        await DatabaseMigrator.MigrateAsync(database.AdminConnectionString, CancellationToken.None);
+        Assert.Equal(HttpStatusCode.OK, (await client.GetAsync("/health/ready")).StatusCode);
     }
 
     [Theory]
     [InlineData("DROP PROCEDURE [Operations].[ReadWorkQueueStatus]")]
     [InlineData("REVOKE EXECUTE ON [Operations].[ReadWorkQueueStatus] FROM [workbench_worker]")]
+    [InlineData("DROP PROCEDURE [Security].[ReadProviderRetryReadiness]")]
+    [InlineData("REVOKE EXECUTE ON [Operations].[RetryWork] FROM [workbench_worker]")]
+    [InlineData("ALTER PROCEDURE [Operations].[RetryWork] AS SELECT 0;")]
     public async Task MissingQueueTelemetryAuthorityMakesReadinessUnhealthy(string breakTelemetry)
     {
         // GIVEN the required worker telemetry procedure or its execution authority is missing.

@@ -60,3 +60,20 @@ Assert-Rejected $document 'A public custom hostname was accepted without a certi
 $document.parameters.customDomainCertificateId.value = '/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/example/providers/Microsoft.App/managedEnvironments/wb-example-environment/managedCertificates/verified-domain'
 Test-WorkbenchAzureParameters $document
 Write-Host 'Azure parameter contract checks passed.'
+# GIVEN Graph delivery without a mailbox WHEN checked THEN incomplete configuration is rejected
+$document.parameters.deliveryProvider = @{ value = 'Graph' }
+$document.parameters.graphMailboxId = @{ value = '' }
+$document.parameters.graphManagedIdentityClientId = @{ value = '' }
+$document.parameters.mailIdentityId = @{ value = '' }
+Assert-Rejected $document 'Graph without an explicit mailbox and identity was accepted.'
+$document.parameters.graphMailboxId.value = '090663bf-f1ad-4192-8e96-e4fa5bf98414'
+$document.parameters.graphManagedIdentityClientId.value = 'c7a39d21-9559-413f-a615-fbd86f1d39da'
+$document.parameters.mailIdentityId.value = '/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/example/providers/Microsoft.ManagedIdentity/userAssignedIdentities/mail'
+# WHEN Graph has a dedicated identity THEN SMTP fields may be empty
+$document.parameters.smtpHost.value = ''
+$document.parameters.smtpUsername.value = ''
+$document.parameters.smtpSender.value = ''
+Test-WorkbenchAzureParameters $document
+# GIVEN the pull identity reused for mail WHEN checked THEN identity separation is enforced
+$document.parameters.mailIdentityId.value = $document.parameters.registryPullIdentityId.value
+Assert-Rejected $document 'Registry pull identity was accepted as mail identity.'

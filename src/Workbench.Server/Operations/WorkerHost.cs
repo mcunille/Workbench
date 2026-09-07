@@ -12,6 +12,12 @@ namespace Workbench.Server.Operations;
 
 public static class WorkerHost
 {
+    private static GraphIdentityMessageDelivery CreateGraphDelivery(IConfiguration configuration, HttpClient client)
+    {
+        var options = OperationalConfiguration.ReadGraph(configuration);
+        return new GraphIdentityMessageDelivery(options, client, new Azure.Identity.ManagedIdentityCredential(
+            Azure.Identity.ManagedIdentityId.FromUserAssignedClientId(options.ManagedIdentityClientId)));
+    }
     public static async Task RunAsync(bool once, bool drain = false)
     {
         var builder = Host.CreateApplicationBuilder();
@@ -29,9 +35,16 @@ public static class WorkerHost
         {
             DeploymentSecrets.ConfigureProtection(protection, configuration);
         }
-        IIdentityMessageDelivery delivery = configuration["Identity:DeliveryProvider"] == "Smtp"
-            ? new SmtpIdentityMessageDelivery(OperationalConfiguration.ReadSmtp(configuration))
-            : new DisabledIdentityMessageDelivery();
+        using var graphClient = new HttpClient(new SocketsHttpHandler { AllowAutoRedirect = false })
+        {
+            Timeout = TimeSpan.FromSeconds(15),
+        };
+        IIdentityMessageDelivery delivery = configuration["Identity:DeliveryProvider"] switch
+        {
+            "Smtp" => new SmtpIdentityMessageDelivery(OperationalConfiguration.ReadSmtp(configuration)),
+            "Graph" => CreateGraphDelivery(configuration, graphClient),
+            _ => new DisabledIdentityMessageDelivery(),
+        };
         if (delivery is SmtpIdentityMessageDelivery)
         {
             OperationalConfiguration.ReadSmtp(configuration).Validate();
