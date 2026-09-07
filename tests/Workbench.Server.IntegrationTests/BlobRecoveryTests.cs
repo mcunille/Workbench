@@ -150,7 +150,7 @@ public sealed class BlobRecoveryTests(SqlServerFixture sqlServer)
             // AND the paired manifest records its schema boundary as well as immutable content identity.
             using var manifest = JsonDocument.Parse(await File.ReadAllTextAsync(manifestPath));
             Assert.True(manifest.RootElement.TryGetProperty("SchemaVersion", out var schema));
-            Assert.Equal("20260907194500_AddItemDetailEditing", schema.GetString());
+            Assert.Equal("20260907225320_AddOnlineRecovery", schema.GetString());
             // WHEN the migrated attachment is deleted after its retention deadline.
             await using var contextAfterMigration = BlobPersistenceTests.CreateContext(web, proof, tenant);
             var attachmentAfterMigration = await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.SingleAsync(contextAfterMigration.Attachments);

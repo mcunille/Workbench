@@ -44,7 +44,8 @@ public sealed class DatabaseMigrationTests(SqlServerFixture sqlServer)
             migration => Assert.EndsWith("_AddProviderRetryDelay", migration, StringComparison.Ordinal),
             migration => Assert.EndsWith("_AddCollectionNotebook", migration, StringComparison.Ordinal),
             migration => Assert.EndsWith("_AddItemPhotographs", migration, StringComparison.Ordinal),
-            migration => Assert.EndsWith("_AddItemDetailEditing", migration, StringComparison.Ordinal));
+            migration => Assert.EndsWith("_AddItemDetailEditing", migration, StringComparison.Ordinal),
+            migration => Assert.EndsWith("_AddOnlineRecovery", migration, StringComparison.Ordinal));
     }
 
     [Theory]
@@ -56,6 +57,7 @@ public sealed class DatabaseMigrationTests(SqlServerFixture sqlServer)
     [InlineData("AddProviderRetryDelay")]
     [InlineData("AddCollectionNotebook")]
     [InlineData("AddItemPhotographs")]
+    [InlineData("AddItemDetailEditing")]
     public async Task MigratorUpgradesASeededPriorSchemaWithoutLosingTenantData(string priorMigration)
     {
         // GIVEN tenant data in either the initial schema or the PR base schema.
@@ -139,12 +141,12 @@ public sealed class DatabaseMigrationTests(SqlServerFixture sqlServer)
         await Task.WhenAll(first, second);
 
         // THEN both complete successfully, history appears once, and the current schema exists.
-        Assert.Equal(9, await CountAsync(database.AdminConnectionString, "[dbo].[__EFMigrationsHistory]"));
+        Assert.Equal(10, await CountAsync(database.AdminConnectionString, "[dbo].[__EFMigrationsHistory]"));
         Assert.Equal(1, await ObjectCountAsync(database.AdminConnectionString, "Storage.Revisions"));
         Assert.Equal(1, await ObjectCountAsync(database.AdminConnectionString, "Operations.WorkItems"));
         // AND another invocation observes the completed schema without applying it again.
         await DatabaseMigrator.MigrateAsync(connectionString, timeout.Token);
-        Assert.Equal(9, await CountAsync(database.AdminConnectionString, "[dbo].[__EFMigrationsHistory]"));
+        Assert.Equal(10, await CountAsync(database.AdminConnectionString, "[dbo].[__EFMigrationsHistory]"));
     }
 
     [Fact]
@@ -183,7 +185,7 @@ public sealed class DatabaseMigrationTests(SqlServerFixture sqlServer)
         await SetMigrationLockAsync(lockConnection, acquire: false);
         using var retryTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(45));
         await DatabaseMigrator.MigrateAsync(connectionString, retryTimeout.Token);
-        Assert.Equal(9, await CountAsync(database.AdminConnectionString, "[dbo].[__EFMigrationsHistory]"));
+        Assert.Equal(10, await CountAsync(database.AdminConnectionString, "[dbo].[__EFMigrationsHistory]"));
         Assert.Equal(1, await ObjectCountAsync(database.AdminConnectionString, "Storage.Revisions"));
     }
 

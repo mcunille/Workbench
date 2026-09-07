@@ -65,8 +65,10 @@ reconciliation, paired backups, restore verification, and provider migration.
 
 The accepted [online backup and manual recovery direction](specs/2026-09-07-online-backup-and-manual-recovery.md)
 requires uninterrupted backup collection and SQL-authoritative reconciliation, with explicit
-missing-file acceptance and tenant notices after manual recovery. Implementation is pending;
-the current offline maintenance commands retain their documented requirements.
+missing-file acceptance and tenant notices after manual recovery. The
+[online backup runbook](operations/online-backup-recovery.md) documents the separate collector and
+guarded recovery commands; hosted verification remains required. Existing offline maintenance
+commands retain their documented requirements.
 
 The accepted [Azure deployment specification](specs/2026-09-05-azure-deployment.md) defines
 scale-to-zero hosting and portable self-hosting. The [Azure runbook](operations/azure-deployment.md)

@@ -225,6 +225,11 @@ secrets. Measure actual shutdown against the 60-second web grace period.
 
 ## Paired checkpoint and isolated Azure restore
 
+For uninterrupted collection and SQL-authoritative manual reconciliation, use the
+[online backup and recovery runbook](online-backup-recovery.md). Its separate backup deployment
+requires explicit hosted approval and verification. The procedure below remains the strict,
+offline paired-checkpoint path; do not remove its write freeze when using those older commands.
+
 The foundation requests geo-redundant SQL backups (`Geo`) and geographically redundant application
 blob storage (`Standard_GRS`). Keep both settings in infrastructure source so subsequent deployments
 preserve geographic recovery protection. Existing SQL backup copies are not converted retroactively;

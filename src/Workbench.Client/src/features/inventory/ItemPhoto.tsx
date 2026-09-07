@@ -15,6 +15,7 @@ export function ItemPhoto({
 }) {
   const [image, setImage] = useState<{ url: string; objectUrl: string }>();
   const [failedUrl, setFailedUrl] = useState<string>();
+  const [recoveryLossUrl, setRecoveryLossUrl] = useState<string>();
   const [retry, setRetry] = useState(0);
   useEffect(() => {
     if (!url) return;
@@ -26,6 +27,7 @@ export function ItemPhoto({
         objectUrl = URL.createObjectURL(blob);
         setImage({ url, objectUrl });
         setFailedUrl(undefined);
+        setRecoveryLossUrl(undefined);
       },
       (error) => {
         if (controller.signal.aborted) return;
@@ -35,6 +37,7 @@ export function ItemPhoto({
         )
           onAuthLost();
         setFailedUrl(url);
+        setRecoveryLossUrl(error instanceof ApiError && error.status === 410 ? url : undefined);
       },
     );
     return () => {
@@ -55,8 +58,10 @@ export function ItemPhoto({
         />
       ) : failedUrl && failedUrl === url ? (
         <span role="status">
-          Photograph unavailable{' '}
-          {interactive ? (
+          {recoveryLossUrl === url
+            ? 'This photograph could not be recovered. Replace it with another copy.'
+            : 'Photograph unavailable'}{' '}
+          {interactive && recoveryLossUrl !== url ? (
             <button
               type="button"
               onClick={(event) => {
