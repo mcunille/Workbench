@@ -56,6 +56,7 @@ public sealed class DatabaseReadinessTests(SqlServerFixture sqlServer) : IAsyncL
     [InlineData("AddBlobAndOperationalProviders")]
     [InlineData("AddDeploymentQueueTelemetry")]
     [InlineData("DeferInvitationIdentityClaim")]
+    [InlineData("AddProviderRetryDelay")]
     public async Task PriorReleaseSchemaIsUnreadyUntilDeploymentMigrationIsApplied(string priorMigration)
     {
         // GIVEN a prior release schema lacks one of this release's required worker or identity capabilities.

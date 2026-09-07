@@ -72,6 +72,7 @@ public static class PasswordPrincipalProvisioning
                                     (N'workbench_web', N'[Identity].[DataProtectionKeys]', N'SELECT,INSERT,UPDATE,DELETE'),
                                     (N'workbench_web', N'[Identity].[IdentityOperations]', N'SELECT,INSERT,UPDATE'),
                                     (N'workbench_web', N'[Security].[TenantSecurityAuditEvents]', N'SELECT,INSERT'),
+                                    (N'workbench_web', N'[Inventory].[Items]', N'SELECT,INSERT'),
                                     (N'workbench_web', N'[Storage].[Attachments]', N'SELECT,INSERT,UPDATE'),
                                     (N'workbench_web', N'[Storage].[Revisions]', N'SELECT,INSERT,UPDATE'),
                                     (N'workbench_web', N'[Operations].[WorkItems]', N'SELECT,INSERT'),

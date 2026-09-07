@@ -44,14 +44,15 @@ async function signIn(page: import('@playwright/test').Page) {
   const loginResponse = page.waitForResponse((response) => response.url().endsWith('/api/auth/login'));
   await page.getByRole('button', { name: 'Sign in' }).click();
   expect((await loginResponse).status()).toBe(204);
-  await expect(page.getByRole('heading', { name: 'Welcome to Browser Tenant' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Collection', exact: true })).toBeVisible();
 }
 
 test('durable authentication survives navigation and supports revocation and sign-out', async ({ page }) => {
   await signIn(page);
   await page.reload();
-  await expect(page.getByRole('heading', { name: 'Welcome to Browser Tenant' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Collection', exact: true })).toBeVisible();
 
+  await page.getByRole('link', { name: 'Account', exact: true }).click();
   await page.getByRole('button', { name: 'Revoke', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Sign in' })).toBeVisible();
 

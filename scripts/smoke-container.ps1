@@ -191,6 +191,31 @@ Storage__DurableVolume=true
         throw 'Container durable session validation failed.'
     }
 
+    # GIVEN an authenticated collector in the restricted Linux runtime.
+    $itemAntiforgeryResponse = Invoke-WebRequest -Uri "$baseUrl/api/auth/antiforgery" -Headers $identityHeaders
+    $itemHeaders = $identityHeaders.Clone()
+    $itemHeaders['X-CSRF-TOKEN'] = ($itemAntiforgeryResponse.Content | ConvertFrom-Json).requestToken
+    $itemAntiforgeryCookie = ($itemAntiforgeryResponse.Headers.'Set-Cookie' -split ';')[0]
+    if ($itemAntiforgeryCookie) { $itemHeaders['Cookie'] = "$sessionCookie; $itemAntiforgeryCookie" }
+    $itemBody = @{ creationRequestId = [Guid]::NewGuid(); name = 'Container sapphire'; location = 'Tray A'; notes = 'Smoke notebook' } | ConvertTo-Json
+    # WHEN the same creation request is sent twice through the real HTTP boundary.
+    $createdItem = Invoke-WebRequest -Uri "$baseUrl/api/items" -Method Post -Headers $itemHeaders `
+        -ContentType 'application/json' -Body $itemBody -SkipHttpErrorCheck
+    $replayedItem = Invoke-WebRequest -Uri "$baseUrl/api/items" -Method Post -Headers $itemHeaders `
+        -ContentType 'application/json' -Body $itemBody -SkipHttpErrorCheck
+    if ($createdItem.StatusCode -ne 201 -or $replayedItem.StatusCode -ne 200) {
+        throw 'Container collection create/replay failed.'
+    }
+    $itemId = ($createdItem.Content | ConvertFrom-Json).id
+    # THEN the permanent identity, stored text, and one-row collection survive a fresh read.
+    if (($replayedItem.Content | ConvertFrom-Json).id -ne $itemId) { throw 'Container replay duplicated item identity.' }
+    $itemDetail = Invoke-RestMethod -Uri "$baseUrl/api/items/$itemId" -Headers $identityHeaders
+    $itemPage = Invoke-RestMethod -Uri "$baseUrl/api/items" -Headers $identityHeaders
+    if ($itemDetail.name -ne 'Container sapphire' -or $itemDetail.location -ne 'Tray A' -or
+        $itemDetail.notes -ne 'Smoke notebook' -or $itemPage.items.Count -ne 1) {
+        throw 'Container collection persistence failed.'
+    }
+
     # GIVEN the current release and separate runtime principals, WHEN the documented Compose
     # topology starts with local test TLS, THEN sessions survive app replacement through the proxy.
     $workerSql = Write-SecretFile 'worker-provision.sql' @"

@@ -3,6 +3,32 @@
 Database migrations are an explicit, human-controlled deployment operation. A Workbench web
 replica never migrates its database and never receives the setup, operator, or migrator credential.
 
+## Collection notebook release
+
+`20260907060000_AddCollectionNotebook` adds tenant-owned `Inventory.Items`, individual-object
+constraints, chronological browsing and creation-request uniqueness, row-level security, and
+restricted runtime access. It follows `20260907054000_AddProviderRetryDelay` without
+rewriting that or any earlier migration. The matching application requires the collection schema
+and effective SELECT/INSERT permissions before reporting ready; liveness remains independent.
+
+During integration with the provider-retry release, the unmerged, development-only notebook
+migration was reordered after that base migration. The provider-retry migration remains unchanged;
+the notebook migration advances its readiness version marker and the backup manifest schema boundary.
+
+Apply it through the explicit migrator procedure below before releasing the H1 web application.
+The runtime can create and read individual objects; it cannot update or delete saved collection
+rows. Request UUID uniqueness prevents retry or concurrent submission from duplicating an item.
+Collection text remains in SQL and is included in ordinary database backups; H1 adds no blob data.
+
+Upgrade verification must include the immediate prior provider-retry schema with retained tenant
+and identity data, followed by a persisted collection create/read. The clean drill also creates
+the new table and validates its constraints and tenant isolation using restricted principals.
+
+The down migration deliberately refuses to delete collection records. Use a reviewed forward
+correction or the established offline [restore and sanitation procedure](database-backup-restore.md).
+Reverting application binaries is not permission to drop the table: preserve new records and
+verify the older release's schema/readiness compatibility before an application-only rollback.
+
 ## Principal boundary
 
 | Principal | Intended use | Must not be available to |

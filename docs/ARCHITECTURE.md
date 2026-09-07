@@ -27,8 +27,29 @@ jobs, and a production Compose topology. Its hosted acceptance drills remain pen
 [self-hosting runbook](operations/self-hosted-deployment.md). See the [provider runbook](operations/blob-and-service-providers.md)
 for configuration, paired recovery, and migration procedures.
 
-Detailed inventory, purchasing, accounting, and commerce workflows are outside this document and
-require focused specifications.
+The first inventory slice is the [H1 collection notebook](specs/2026-09-06-h1-collection-notebook.md):
+authenticated tenant members can create, browse, and reopen individual objects with names, notes,
+and descriptive storage locations. Photos, search, editing, quantity-based stock, purchasing,
+accounting, and commerce require their own focused specifications.
+
+### Collection identity
+
+`Inventory.Items` holds tenant-owned physical identities. H1 enforces `TrackingKind = Individual`
+and has no editable quantity, financial value, category requirement, or purchase parent. Names
+remain user-entered regardless of future classification. A server UUID is permanent; a separate
+tenant-unique creation request UUID makes concurrent submissions and uncertain-save retries
+idempotent. SQL rowversion establishes a concurrency token for subsequent edit workflows.
+
+The runtime has SELECT/INSERT access with RLS and cannot update or delete collection rows.
+`/api/items` exposes create and chronological cursor-paged browsing; item details return only
+the public contract. Responses are private and not stored in HTTP caches. Drafts stay in browser
+memory; only the System/Light/Dark appearance preference is persisted locally. Authentication
+loss clears protected client state.
+
+The accepted [inventory foundation](specs/2026-09-06-inventory-domain-foundation.md) separates
+classification, individual/lot tracking, measurements, stock movements, composition, acquisition,
+and valuation. Later lot and work-order features must preserve existing identities and record
+splits, consumption, and transformations explicitly; they do not reinterpret H1 rows.
 
 ## Architectural invariants
 

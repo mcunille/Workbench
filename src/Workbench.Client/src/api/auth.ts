@@ -26,7 +26,7 @@ async function getAntiforgeryToken(): Promise<string> {
   return antiforgeryToken;
 }
 
-async function mutationHeaders(): Promise<Record<string, string>> {
+export async function mutationHeaders(): Promise<Record<string, string>> {
   return { 'X-CSRF-TOKEN': await getAntiforgeryToken() };
 }
 
