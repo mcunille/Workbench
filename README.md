@@ -14,9 +14,12 @@ The first collection workflow lets an authenticated tenant member save an indivi
 piece with a name, optional notes, and storage location, then browse and reopen it across sessions.
 It supports mobile and desktop layouts with System/Light/Dark appearance. Saved items can have
 one private photograph, prepared in the browser before upload, with replacement and removal.
-Search, descriptive editing, deletion, bulk stock, and financial workflows remain later increments.
-See the [H1 specification](docs/specs/2026-09-06-h1-collection-notebook.md) and
-[H2 photograph specification](docs/specs/2026-09-07-h2-item-photographs.md).
+Search finds literal phrases in names, notes, and locations across all collection pages, and
+returning from details preserves the query, Grid/List view, and position within the signed-in app.
+Descriptive editing, deletion, bulk stock, and financial workflows remain later increments.
+See the [H1 specification](docs/specs/2026-09-06-h1-collection-notebook.md),
+[H2 photograph specification](docs/specs/2026-09-07-h2-item-photographs.md), and
+[H3 search specification](docs/specs/2026-09-07-h3-collection-search.md).
 
 ## Setup and installation
 

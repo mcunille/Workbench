@@ -485,6 +485,7 @@ export interface paths {
             parameters: {
                 query?: {
                     cursor?: string;
+                    q?: string;
                 };
                 header?: never;
                 path?: never;

@@ -8,6 +8,7 @@ import { SignIn } from './features/auth/SignIn';
 import { useAuth } from './features/auth/useAuth';
 import { AddItem } from './features/inventory/AddItem';
 import { Collection, ItemDetails } from './features/inventory/Collection';
+import { CollectionMemory } from './features/inventory/collectionMemory';
 import { AppearanceControl } from './AppearanceControl';
 import { useNavigation } from './useNavigation';
 import { DiscardDialog } from './DiscardDialog';
@@ -37,6 +38,7 @@ function SignedInApplication({
   const { identity, signOut, refresh } = useAuth();
   const navigation = useNavigation();
   const [signOutFailed, setSignOutFailed] = useState(false);
+  const [collectionMemory] = useState(() => new CollectionMemory());
   const authLost = useCallback(() => {
     void refresh();
   }, [refresh]);
@@ -105,6 +107,7 @@ function SignedInApplication({
           {collectionPath ? (
             <Collection
               key={path}
+              memory={collectionMemory}
               follow={navigation.follow}
               onAuthLost={authLost}
             />
@@ -113,12 +116,16 @@ function SignedInApplication({
               onDirtyChange={navigation.setDirty}
               onCancel={() => navigation.navigate('/inventory')}
               onAuthLost={authLost}
-              onSaved={(item) => navigation.navigate(`/inventory/${item.id}`)}
+              onSaved={(item) => {
+                collectionMemory.invalidate();
+                navigation.navigate(`/inventory/${item.id}`);
+              }}
             />
           ) : path.startsWith('/inventory/') ? (
             <ItemDetails
               key={path}
               id={path.slice('/inventory/'.length)}
+              memory={collectionMemory}
               onDirtyChange={navigation.setDirty}
               follow={navigation.follow}
               onAuthLost={authLost}
@@ -217,7 +224,7 @@ function WorkbenchApplication({ appearance }: { appearance: ReactNode }) {
     );
   return (
     <SignedInApplication
-      key={identity.userId}
+      key={JSON.stringify([identity.userId, identity.tenantName])}
       system={system}
       appearance={appearance}
     />

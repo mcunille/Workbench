@@ -1,0 +1,47 @@
+import type { ItemDetail, ItemPage } from '../../api/items';
+type Snapshot = {
+  view: 'grid' | 'list';
+  draft: string;
+  query: string;
+  page?: ItemPage;
+};
+
+// One private traversal lives only as long as its authenticated application owner.
+export class CollectionMemory {
+  snapshot?: Snapshot;
+  selectedId?: string;
+  scrollY = 0;
+  save(snapshot: Snapshot) {
+    this.snapshot = snapshot;
+  }
+  select(id: string | undefined) {
+    this.selectedId = id;
+  }
+  savePosition(top: number) {
+    this.scrollY = top;
+  }
+  invalidate() {
+    if (this.snapshot) this.snapshot = { ...this.snapshot, page: undefined };
+  }
+  removeUnavailable(id: string) {
+    const page = this.snapshot?.page;
+    if (this.snapshot && page)
+      this.snapshot = {
+        ...this.snapshot,
+        page: { ...page, items: page.items.filter((item) => item.id !== id) },
+      };
+  }
+  updatePhoto(id: string, photo: ItemDetail['photo']) {
+    const page = this.snapshot?.page;
+    if (this.snapshot && page)
+      this.snapshot = {
+        ...this.snapshot,
+        page: {
+          ...page,
+          items: page.items.map((item) =>
+            item.id === id ? { ...item, photo } : item,
+          ),
+        },
+      };
+  }
+}

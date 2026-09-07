@@ -41,6 +41,9 @@ export function useNavigation() {
     uncertain.current = unknownSave;
   }, []);
   useEffect(() => {
+    // Collection restores its in-memory position after mounting the loaded rows.
+    const previousScrollRestoration = window.history.scrollRestoration;
+    window.history.scrollRestoration = 'manual';
     window.history.replaceState(
       { ...window.history.state, workbenchIndex: index.current },
       '',
@@ -91,6 +94,7 @@ export function useNavigation() {
     window.addEventListener('popstate', pop);
     window.addEventListener('beforeunload', unload);
     return () => {
+      window.history.scrollRestoration = previousScrollRestoration;
       window.removeEventListener('popstate', pop);
       window.removeEventListener('beforeunload', unload);
     };

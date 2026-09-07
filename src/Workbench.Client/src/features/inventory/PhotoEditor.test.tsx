@@ -9,6 +9,56 @@ vi.mock('../../api/items', () => ({
   removeItemPhoto: vi.fn(),
   getPhoto: vi.fn(),
 }));
+it('invalidates the cached photograph on success even when detail reload fails', async () => {
+  // GIVEN a prepared upload and a successful server mutation followed by a failed refresh.
+  vi.mocked(preparePhoto).mockResolvedValue(new Blob(['prepared']));
+  vi.mocked(putItemPhoto)
+    .mockReset()
+    .mockResolvedValue({
+      requestId: 'request',
+      version: 'next',
+      photoId: 'new',
+    });
+  vi.stubGlobal(
+    'URL',
+    Object.assign(URL, {
+      createObjectURL: vi.fn(() => 'blob:preview'),
+      revokeObjectURL: vi.fn(),
+    }),
+  );
+  const invalidate = vi.fn();
+  const reload = vi.fn(async () => {
+    expect(invalidate).toHaveBeenCalledOnce();
+    throw new Error('offline');
+  });
+  render(
+    <PhotoEditor
+      item={{
+        id: 'item',
+        name: 'Stone',
+        notes: null,
+        location: null,
+        photo: null,
+        version: 'old',
+        createdAtUtc: '',
+      }}
+      onAuthLost={vi.fn()}
+      onDirtyChange={vi.fn()}
+      onPhotoChanged={invalidate}
+      reload={reload}
+    />,
+  );
+  // WHEN the collector uploads THEN the cache is invalidated before attempting detail refresh.
+  fireEvent.change(screen.getByLabelText('Choose photograph'), {
+    target: { files: [new File(['image'], 'photo.jpg')] },
+  });
+  await screen.findByAltText('Prepared photograph preview');
+  fireEvent.click(screen.getByRole('button', { name: 'Upload photograph' }));
+  await screen.findByRole('button', { name: 'Retry upload' });
+  expect(invalidate).toHaveBeenCalledOnce();
+  expect(reload).toHaveBeenCalledOnce();
+  vi.mocked(putItemPhoto).mockReset();
+});
 it('previews locally and retries ambiguous uploads with the same command and bytes', async () => {
   // GIVEN a locally prepared photograph and an interrupted first upload.
   const blob = new Blob(['small'], { type: 'image/webp' });
