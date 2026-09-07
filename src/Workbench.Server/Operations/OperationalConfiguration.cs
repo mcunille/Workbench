@@ -10,6 +10,17 @@ namespace Workbench.Server.Operations;
 
 public static class OperationalConfiguration
 {
+    public static GraphOptions ReadGraph(IConfiguration configuration)
+    {
+        var options = configuration.GetSection("Graph").Get<GraphOptions>() ?? new GraphOptions();
+        options.Validate();
+        if (!Uri.TryCreate(configuration["PublicOrigin"], UriKind.Absolute, out var origin) ||
+            new Uri(options.PublicOrigin) != origin)
+        {
+            throw new InvalidOperationException("Graph public origin must match the canonical public origin.");
+        }
+        return options;
+    }
     public static void Validate(IConfiguration configuration, bool development)
     {
         var provider = configuration["Storage:Provider"];
@@ -119,6 +130,10 @@ internal sealed class OperationalConfigurationValidator(IConfiguration configura
         if (configuration["Identity:DeliveryProvider"] == "Smtp")
         {
             OperationalConfiguration.ReadSmtp(configuration).Validate();
+        }
+        if (configuration["Identity:DeliveryProvider"] == "Graph")
+        {
+            _ = OperationalConfiguration.ReadGraph(configuration);
         }
         return Task.CompletedTask;
     }

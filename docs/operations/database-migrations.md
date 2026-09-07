@@ -128,3 +128,14 @@ unhealthy while liveness remains available.
 Rollback is blocked because restoring pre-acceptance claims could collide with identities
 accepted since migration. Use a reviewed forward migration or the established offline
 restore and sanitation procedure.
+
+## Provider retry scheduling
+
+`20260907054000_AddProviderRetryDelay` adds an optional bounded provider delay to
+`Operations.RetryWork` without rewriting shipped migrations or pending work. Apply it before
+starting the matching web and worker release. Web readiness remains unhealthy on the immediate
+prior invitation schema until the new retry capability is available.
+
+Graph `Retry-After` cannot shorten exponential backoff and is capped at one hour. Scheduling
+remains in SQL, with the existing five-attempt limit, lease fencing, and terminal payload cleanup.
+Down migration is blocked; use a reviewed forward correction or the offline restore procedure.

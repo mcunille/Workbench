@@ -139,6 +139,10 @@ public sealed class PasswordPrincipalProvisioningTests(SqlServerFixture sqlServe
             await using var claimPermission = new SqlCommand(
                 "SELECT HAS_PERMS_BY_NAME('Identity.ClaimInvitationIdentity', 'OBJECT', 'EXECUTE')", connection);
             Assert.Equal(principal.Role == "workbench_operator" ? 0 : 1, Convert.ToInt32(await claimPermission.ExecuteScalarAsync()));
+            // AND the provider retry readiness probe retains the same restricted workload authority.
+            await using var retryPermission = new SqlCommand(
+                "SELECT HAS_PERMS_BY_NAME('Security.ReadProviderRetryReadiness', 'OBJECT', 'EXECUTE')", connection);
+            Assert.Equal(principal.Role == "workbench_operator" ? 0 : 1, Convert.ToInt32(await retryPermission.ExecuteScalarAsync()));
         }
     }
 

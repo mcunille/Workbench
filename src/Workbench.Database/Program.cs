@@ -46,10 +46,8 @@ static async Task<int> RunAsync(string[] arguments)
 
         if (arguments is ["principals", "provision-entra", ..])
         {
-            var identities = System.Text.Json.JsonSerializer.Deserialize<EntraPrincipal[]>(
-                await File.ReadAllTextAsync(RequireOption(options, "--identity-file")),
-                new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true })
-                ?? throw new ArgumentException("An identity manifest is required.");
+            var identities = EntraPrincipalProvisioning.ParseManifest(
+                await File.ReadAllTextAsync(RequireOption(options, "--identity-file")));
             var proofKey = Convert.FromBase64String((await File.ReadAllTextAsync(
                 RequireOption(options, "--tenant-context-proof-key-file"))).Trim());
             await EntraPrincipalProvisioning.ProvisionAsync(connectionString, identities, proofKey, CancellationToken.None);
@@ -136,6 +134,11 @@ static async Task<int> RunAsync(string[] arguments)
     {
         Console.Error.WriteLine(error.Message);
         return 3;
+    }
+    catch (InvalidEntraManifestException error)
+    {
+        Console.Error.WriteLine(error.Message);
+        return 1;
     }
     catch (Exception)
     {
