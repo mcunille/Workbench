@@ -43,6 +43,60 @@ public static class PasswordPrincipalProvisioning
             EXEC @result = sys.sp_getapplock @Resource=N'Workbench.PasswordProvisioning',
                 @LockMode=N'Exclusive', @LockOwner=N'Transaction', @LockTimeout=30000;
             IF @result < 0 THROW 50030, 'Principal provisioning lock unavailable.', 1;
+            -- Web/operator grants must match their migration-defined object access. DENY rows add no authority.
+            -- Keep this allowlist and the successful provisioning test current when adding migration grants.
+            -- Migrator intentionally retains database CONTROL and is not a restricted workload role.
+            IF EXISTS
+            (
+                SELECT 1 FROM sys.database_permissions AS permission
+                WHERE permission.grantee_principal_id IN
+                    (DATABASE_PRINCIPAL_ID(N'workbench_web'), DATABASE_PRINCIPAL_ID(N'workbench_operator'))
+                    AND permission.state IN ('G', 'W')
+                    AND NOT
+                    (
+                        permission.state='G' AND permission.minor_id=0 AND
+                        (
+                            (permission.class=0 AND permission.permission_name=N'CONNECT') OR
+                            (permission.class=1 AND EXISTS
+                            (
+                                SELECT 1 FROM (VALUES
+                                    (N'workbench_web', N'[Tenancy].[Tenants]', N'SELECT'),
+                                    (N'workbench_web', N'[Identity].[Users]', N'SELECT,INSERT,UPDATE,DELETE'),
+                                    (N'workbench_web', N'[Identity].[Roles]', N'SELECT,INSERT,UPDATE,DELETE'),
+                                    (N'workbench_web', N'[Identity].[UserClaims]', N'SELECT,INSERT,UPDATE,DELETE'),
+                                    (N'workbench_web', N'[Identity].[UserLogins]', N'SELECT,INSERT,UPDATE,DELETE'),
+                                    (N'workbench_web', N'[Identity].[UserRoles]', N'SELECT,INSERT,UPDATE,DELETE'),
+                                    (N'workbench_web', N'[Identity].[RoleClaims]', N'SELECT,INSERT,UPDATE,DELETE'),
+                                    (N'workbench_web', N'[Identity].[UserTokens]', N'SELECT,INSERT,UPDATE,DELETE'),
+                                    (N'workbench_web', N'[Identity].[Sessions]', N'SELECT,INSERT,UPDATE,DELETE'),
+                                    (N'workbench_web', N'[Identity].[DataProtectionKeys]', N'SELECT,INSERT,UPDATE,DELETE'),
+                                    (N'workbench_web', N'[Identity].[IdentityOperations]', N'SELECT,INSERT,UPDATE'),
+                                    (N'workbench_web', N'[Security].[TenantSecurityAuditEvents]', N'SELECT,INSERT'),
+                                    (N'workbench_web', N'[Storage].[Attachments]', N'SELECT,INSERT,UPDATE'),
+                                    (N'workbench_web', N'[Storage].[Revisions]', N'SELECT,INSERT,UPDATE'),
+                                    (N'workbench_web', N'[Operations].[WorkItems]', N'SELECT,INSERT'),
+                                    (N'workbench_web', N'[Identity].[ResolveCredential]', N'EXECUTE'),
+                                    (N'workbench_web', N'[Identity].[ResolveSession]', N'EXECUTE'),
+                                    (N'workbench_web', N'[Identity].[ResolveRecoveryTarget]', N'EXECUTE'),
+                                    (N'workbench_web', N'[Identity].[ResolveOperationAuthority]', N'EXECUTE'),
+                                    (N'workbench_web', N'[Identity].[CreateInvitation]', N'EXECUTE'),
+                                    (N'workbench_web', N'[Security].[TryAcquireSensitiveRequest]', N'EXECUTE'),
+                                    (N'workbench_web', N'[Security].[ReadDatabaseReadiness]', N'EXECUTE'),
+                                    (N'workbench_web', N'[Security].[ReadDeploymentReadiness]', N'EXECUTE'),
+                                    (N'workbench_web', N'[Security].[ReadOperationalReadiness]', N'EXECUTE'),
+                                    (N'workbench_web', N'[Security].[fn_tenant_access]', N'SELECT'),
+                                    (N'workbench_operator', N'[Administration].[ProvisionTenant]', N'EXECUTE'),
+                                    (N'workbench_operator', N'[Administration].[SanitizeRestore]', N'EXECUTE')
+                                ) AS allowed(RoleName, ObjectName, PermissionNames)
+                                CROSS APPLY STRING_SPLIT(allowed.PermissionNames, ',') AS allowedPermission
+                                WHERE DATABASE_PRINCIPAL_ID(allowed.RoleName)=permission.grantee_principal_id
+                                    AND OBJECT_ID(allowed.ObjectName)=permission.major_id
+                                    AND allowedPermission.value COLLATE DATABASE_DEFAULT=
+                                        permission.permission_name COLLATE DATABASE_DEFAULT
+                            ))
+                        )
+                    )
+            ) THROW 50030, 'Destination role has incompatible direct authority.', 1;
             """, connection, transaction))
         {
             await guard.ExecuteNonQueryAsync();
@@ -69,16 +123,16 @@ public static class PasswordPrincipalProvisioning
                 IF EXISTS (SELECT 1 FROM sys.database_permissions WHERE grantee_principal_id=@userId
                     AND NOT (class=0 AND permission_name=N'CONNECT' AND state='G'))
                     THROW 50030, 'Existing principal has explicit permissions.', 1;
-                IF EXISTS (SELECT 1 FROM sys.schemas WHERE principal_id=@userId)
-                    OR EXISTS (SELECT 1 FROM sys.objects WHERE principal_id=@userId)
-                    OR EXISTS (SELECT 1 FROM sys.database_principals WHERE owning_principal_id=@userId)
-                    OR EXISTS (SELECT 1 FROM sys.types WHERE principal_id=@userId)
-                    OR EXISTS (SELECT 1 FROM sys.assemblies WHERE principal_id=@userId)
-                    OR EXISTS (SELECT 1 FROM sys.certificates WHERE principal_id=@userId)
-                    OR EXISTS (SELECT 1 FROM sys.asymmetric_keys WHERE principal_id=@userId)
-                    OR EXISTS (SELECT 1 FROM sys.symmetric_keys WHERE principal_id=@userId)
-                    OR EXISTS (SELECT 1 FROM sys.xml_schema_collections WHERE principal_id=@userId)
-                    THROW 50030, 'Existing principal owns database securables.', 1;
+                IF EXISTS (SELECT 1 FROM sys.schemas WHERE principal_id IN (@userId, @roleId))
+                    OR EXISTS (SELECT 1 FROM sys.objects WHERE principal_id IN (@userId, @roleId))
+                    OR EXISTS (SELECT 1 FROM sys.database_principals WHERE owning_principal_id IN (@userId, @roleId))
+                    OR EXISTS (SELECT 1 FROM sys.types WHERE principal_id IN (@userId, @roleId))
+                    OR EXISTS (SELECT 1 FROM sys.assemblies WHERE principal_id IN (@userId, @roleId))
+                    OR EXISTS (SELECT 1 FROM sys.certificates WHERE principal_id IN (@userId, @roleId))
+                    OR EXISTS (SELECT 1 FROM sys.asymmetric_keys WHERE principal_id IN (@userId, @roleId))
+                    OR EXISTS (SELECT 1 FROM sys.symmetric_keys WHERE principal_id IN (@userId, @roleId))
+                    OR EXISTS (SELECT 1 FROM sys.xml_schema_collections WHERE principal_id IN (@userId, @roleId))
+                    THROW 50030, 'Existing principal or destination role owns database securables.', 1;
                 IF @userId IS NULL
                     CREATE USER [{definition.User}] WITH PASSWORD=N'{escapedPassword}';
                 IF NOT EXISTS (SELECT 1 FROM sys.database_role_members

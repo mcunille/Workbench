@@ -12,6 +12,36 @@ namespace Workbench.Server.IntegrationTests;
 public sealed class PasswordPrincipalProvisioningTests(SqlServerFixture sqlServer)
 {
     [Theory]
+    [InlineData("GRANT CONTROL TO [workbench_web]")]
+    [InlineData("GRANT CONTROL TO [workbench_operator]")]
+    [InlineData("GRANT IMPERSONATE ON USER::dbo TO [workbench_web]")]
+    [InlineData("GRANT IMPERSONATE ON USER::dbo TO [workbench_operator]")]
+    [InlineData("GRANT ALTER ANY ROLE TO [workbench_web]")]
+    [InlineData("GRANT CONTROL ON SCHEMA::[Identity] TO [workbench_web]")]
+    [InlineData("GRANT CONTROL ON OBJECT::[Security].[ReadDatabaseReadiness] TO [workbench_web]")]
+    [InlineData("GRANT EXECUTE ON OBJECT::[Administration].[ProvisionTenant] TO [workbench_web]")]
+    [InlineData("GRANT SELECT ON OBJECT::[Security].[TenantContextKeys] ([ProofKey]) TO [workbench_web]")]
+    [InlineData("GRANT SELECT ON OBJECT::[Identity].[Users] TO [workbench_web] WITH GRANT OPTION")]
+    public async Task DestinationRoleGrantsAreRejectedBeforeProvisioning(string unsafeGrant)
+    {
+        // GIVEN a destination role with direct authority outside its migration-defined grants.
+        await using var database = await sqlServer.CreateDatabaseAsync();
+        await DatabaseMigrator.MigrateAsync(database.AdminConnectionString, CancellationToken.None);
+        using var inputs = new Inputs();
+        await ExecuteAsync(database, unsafeGrant);
+        var originalProof = await database.GetTenantContextProofKeyAsync();
+
+        // WHEN distinct contained users are provisioned into those roles.
+        var error = await Assert.ThrowsAsync<SqlException>(() => inputs.ProvisionAsync(database));
+
+        // THEN provisioning rejects the role authority without creating users or changing the proof.
+        Assert.Equal(50030, error.Number);
+        Assert.Contains("incompatible direct authority", error.Message, StringComparison.Ordinal);
+        Assert.Equal(0, await ScalarAsync(database, "SELECT COUNT(*) FROM sys.database_principals WHERE name IN ('web_user','operator_user','migrator_user')"));
+        Assert.Equal(originalProof, await database.GetTenantContextProofKeyAsync());
+    }
+
+    [Theory]
     [InlineData("web_user")]
     [InlineData("WEB_USER")]
     public async Task DuplicateIdentitiesAreRejectedWithoutWrites(string migrator)
@@ -35,6 +65,8 @@ public sealed class PasswordPrincipalProvisioningTests(SqlServerFixture sqlServe
     [InlineData("CREATE SCHEMA [owned_schema] AUTHORIZATION [web_user]")]
     [InlineData("CREATE ROLE [owned_role] AUTHORIZATION [web_user]")]
     [InlineData("ALTER ROLE [workbench_migrator] ADD MEMBER [workbench_web]")]
+    [InlineData("CREATE SCHEMA [owned_role_schema] AUTHORIZATION [workbench_web]")]
+    [InlineData("ALTER AUTHORIZATION ON OBJECT::[Security].[ReadDatabaseReadiness] TO [workbench_operator]")]
     public async Task ExistingAuthorityIsRejected(string unsafeSetup)
     {
         // GIVEN an existing contained user with authority outside its intended role.
