@@ -114,3 +114,17 @@ Workbench.Database tenant create --connection-file <operator-path> --expected-da
 
 The operator interface grants no general tenant-data browsing authority. Tenant administrators own
 user management inside their tenant after provisioning.
+
+## Invitation identity claims
+
+`20260906092000_DeferInvitationIdentityClaim` releases global login claims held by
+pending or cancelled credentialless users. Tenant user rows, roles, invitation tokens,
+and delivery work remain intact. Accepted accounts, including disabled accounts with
+passwords, retain their identities. Stop old web replicas before applying this migration:
+only the matching application version claims identity during invitation consumption.
+The application reports unready until its web principal can execute the required invitation
+claim procedure. Missing procedure or revoked/denied execution authority keeps readiness
+unhealthy while liveness remains available.
+Rollback is blocked because restoring pre-acceptance claims could collide with identities
+accepted since migration. Use a reviewed forward migration or the established offline
+restore and sanitation procedure.
