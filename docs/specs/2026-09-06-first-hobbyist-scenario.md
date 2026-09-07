@@ -1,13 +1,15 @@
 # First hobbyist scenario: remember and find my collection
 
-**Status: Proposed** — a product scenario and story proposal, not approval to implement or a
-committed sprint forecast.
+**Status:** Partially delivered. H1 was merged in [PR #37](https://github.com/mcunille/Workbench/pull/37)
+on 2026-09-07. H2–H4 are planned issues; their unresolved technical designs still need approval
+before implementation. This is not a committed sprint forecast.
 
-**H1 exception:** The owner approved the [H1 collection notebook](2026-09-06-h1-collection-notebook.md)
-and [inventory domain foundation](2026-09-06-inventory-domain-foundation.md). Those specifications
-settle H1's API/schema boundaries. H2–H4 and the complete scenario remain proposed.
+**Delivery tracking:** [Scenario issue #43](https://github.com/mcunille/Workbench/issues/43).
+GitHub issues own story acceptance criteria, implementation progress, dependencies and completion
+status. This document retains the scenario, product boundaries and links to accepted specifications.
+Update both when an approved decision changes scope; do not maintain a second task checklist here.
 
-## Direction and evidence
+## Direction and current experience
 
 Start with a hobbyist who owns individually identifiable gemstones or jewelry and currently
 remembers them through boxes, photographs, or informal notes. Their immediate question is:
@@ -19,17 +21,22 @@ Hobbyist-first follows the [product vision](../VISION.md) and
 durable records and room to grow; do not require accounting, a business profile, or a permanent
 “hobbyist mode.” Professionals should eventually extend the same records and workflows.
 
-Apply the accepted [UI guidance](2026-09-06-ui-design-guidance.md): bronze branding, warm neutral
-surfaces, readable item identity, short forms, responsive navigation, accessible controls, and
-System/Light/Dark appearance. The [mockup](../design/README.md) is a visual reference; its filters,
-metrics, financial examples, and other navigation destinations are not sprint requirements.
+H1 now provides a durable collection notebook: create an individual item with a name, optional
+notes and storage location, browse it in the responsive gallery or compact List view, and reopen
+its details after reload or another authenticated session. Saves are duplicate-safe and unsaved
+work is protected. Photographs, search and editing are not yet delivered.
 
-The current application has account/session administration and infrastructure foundations, but
-the collection experience is not implemented. A tenant and authorized account must already be
-available through existing setup or invitation flows. Public registration, tenant provisioning,
-and production deployment are separate scenarios.
+Apply the accepted [UI guidance](2026-09-06-ui-design-guidance.md) and
+[implemented refinement](../design/h1-refinement/README.md): original stag branding, bronze accents,
+warm neutral and charcoal surfaces, responsive cards with Grid/List switching, selective header
+translucency, opaque reading surfaces and accessibility fallbacks. System/Light/Dark appearance
+must preserve task state. Extend these views rather than reverting to the earlier list-only proposal.
+The older [mockup](../design/README.md) does not authorize its additional filters or financial widgets.
 
-## Sprint outcome
+A tenant and authorized account must already be available through existing setup or invitation
+flows. Public registration, tenant provisioning and production deployment are separate scenarios.
+
+## Scenario outcome
 
 **A hobbyist can record a real item on their phone, recognize it by its photograph, return later
 on desktop or mobile, find it, and keep its description and storage location accurate.**
@@ -40,171 +47,80 @@ matching item, and checks the photograph and location. After moving it, Alex cha
 to “Display box” and can retrieve that updated record after signing in again.
 
 Success means completing that loop with persisted user data, without developer intervention or
-configuring purchasing, bookkeeping, commerce, or a taxonomy. A static demonstration or separate
-unconnected screens does not complete the scenario.
+configuring purchasing, bookkeeping, commerce, or a taxonomy. H1 alone does not complete the loop.
+A photo-free subset must not be described as completion of the photo-based scenario.
 
-## Minimum product decisions
+## Deliverables and issue ownership
 
-- One record represents one individually tracked collectible. Bulk stock, parcels, quantities,
-  sets, and component relationships are deferred; this is not a final model for those concepts.
-- A descriptive name is the only required user-entered field. Notes and storage location are
-  optional plain text. Users can record uncertainty in their own words.
-- The system assigns a stable item identifier. Names need not be unique; similar pieces are normal.
-- Offer one optional photograph per item. A missing photograph has an honest placeholder.
-- Location describes where the item is stored; it does not create a location-management subsystem.
-- Do not collect price, currency, valuation, measurements, or formal classification in this slice.
-  Acquisition and domain-specific attributes need their own requirements, including financial rules.
-- Collection records and photographs remain private to the authorized tenant. No public sharing.
+Deliver in the following sequence, with each increment usable in the running application. Technical
+tasks belong to their story; a database, endpoint or component alone is not a delivered user story.
+Issue status is authoritative; H1's merged delivery is recorded here as a historical milestone.
 
-These decisions are proposed boundaries for the first scenario. API/schema details, input limits,
-photo formats/size limits, and migration design must be settled before implementation. Existing
-identity, tenancy, blob-provider, and API-contract conventions remain authoritative.
+| Story | User value and scope | Tracking |
+| --- | --- | --- |
+| H1 — Keep a record of an item | Save a name, notes and location; browse Grid/List and reopen the durable record. Delivered in PR #37. | [#39](https://github.com/mcunille/Workbench/issues/39) |
+| H2 — Recognize a piece from its photograph | Add, replace or remove one photo on a saved item; show it in gallery, compact list and details. Preserve the existing photo on failure. | [#40](https://github.com/mcunille/Workbench/issues/40) |
+| H3 — Find an item when I need it | Search names, notes and locations across the entire authorized collection, including pagination. Preserve query, view and position when returning from details. | [#41](https://github.com/mcunille/Workbench/issues/41) |
+| H4 — Keep the record accurate | Edit name, notes and location without changing identity. Preserve recoverable edits and detect concurrent changes rather than silently overwriting them. | [#42](https://github.com/mcunille/Workbench/issues/42) |
 
-## Value-delivering stories
+**H2 is the next recommended increment.** All remaining stories depend on H1. H3 does not require
+photos to search text, but includes thumbnails when H2 is available. H4 verifies that H3 search
+reflects saved edits. The [scenario issue](https://github.com/mcunille/Workbench/issues/43) tracks
+the integrated journey and collector usability validation beyond completion of the individual stories.
 
-Each story includes its UI, API, persistence, authorization, and verification as needed. Technical
-tasks belong under the story; a database, endpoint, or component library alone is not a delivered
-user story. Deliver in this order, with each increment usable in the running application.
+## Product and design boundaries
 
-### H1 — Keep a record of an item
+The accepted [H1 specification](2026-09-06-h1-collection-notebook.md) and
+[inventory domain foundation](2026-09-06-inventory-domain-foundation.md) settle the existing
+identity, API and schema boundaries. Remaining stories extend those records and contracts.
 
-**As a hobbyist, I want to save a name, notes, and location for a piece so that I do not have to
-remember its identity and whereabouts.**
+- One record in this scenario represents one individually tracked holding. Bulk stock, parcels,
+  quantities, sets and component relationships remain later workflows under the domain foundation.
+- A descriptive owner name is the only required user-entered field. Notes and storage location are
+  optional plain text. Names need not be unique; item identifiers remain stable.
+- H2 proposes one optional private photograph per saved item. Missing photos retain neutral
+  placeholders. Photo removal does not remove the item or promise immediate physical erasure;
+  existing blob retention and recovery rules apply.
+- Location describes the whereabouts of an individual object; it does not create a structured
+  location-management or stock-balance subsystem.
+- Do not collect price, currency, valuation, measurements or formal classification in this scenario.
+  Acquisition, stock and domain-specific attributes need their own requirements.
+- Collection records and photographs remain private to the authorized tenant, including direct
+  identifier and image requests. Authorization is enforced by the server.
 
-Deliver a collection entry point, an inviting empty state, a short add form, a basic collection
-list, and readable item details. The list is sufficient to reopen an item before search exists.
+H2's design must settle file formats/limits, orientation and color handling, thumbnail generation,
+metadata privacy, validation and safe replacement/removal using the existing blob-provider boundary.
+H3 must settle text matching, pagination, query limits, indexing and navigation-state handling.
+H4 must settle concurrency-token contracts, retry and conflict recovery. The issues record these
+open decisions without approving a schema or expanding scope merely by creating a tracking ticket.
 
-- **Given** an empty collection, **when** I save a name with optional notes and location,
-  **then** I see the saved item and can reopen it after reload or a new authenticated session.
-- **Given** only a name, **when** I save, **then** the item is accepted without extra setup.
-- **Given** an empty or whitespace-only name, **when** I submit, **then** an associated error
-  explains what to fix and preserves the other entered values.
-- **Given** a failed save, **when** the form reports the failure, **then** recoverable input
-  remains available and success is not shown. A duplicate click must not create two records.
-- **Given** unsaved changes, **when** I cancel or navigate away within the app, **then** I can
-  choose to keep editing or discard them; no item is created by canceling.
+## Completion and validation
 
-**Value at completion:** a durable, browsable collection notebook.
+Each story issue carries its acceptance criteria and shared quality requirements: desktop/mobile
+usability, keyboard and accessible feedback, both themes, tenant isolation, truthful save/upload
+outcomes, failure recovery, focused tests and relevant concurrency/storage verification. Follow
+[CONTRIBUTING](../../CONTRIBUTING.md) for application gates and generated contracts, and the existing
+migration and recovery runbooks. Include an updated narrated Playwright walkthrough in delivery PRs.
 
-### H2 — Recognize a piece from its photograph
-
-**As a hobbyist, I want to attach a photograph to a saved item so that I can distinguish it from
-similar pieces.**
-
-Add a photograph from the device's file/photo picker on item details; the native picker may offer
-camera capture where supported. Display it in the list and details without altering its colors.
-Permit replacement and removal of the attachment without removing the item.
-
-- **Given** a saved item, **when** I upload a supported photograph, **then** its thumbnail and
-  detail image remain available after reload and in another authorized session.
-- **Given** a missing photo, **when** I view the item, **then** its name and location remain
-  fully useful alongside a neutral placeholder.
-- **Given** an unsupported/oversized file or failed upload, **when** it is rejected,
-  **then** I receive an actionable error and the item and any previous photo remain intact.
-- **Given** an existing photo, **when** replacement succeeds or I explicitly remove it,
-  **then** the displayed attachment changes accordingly and the item remains saved.
-
-**Value at completion:** visual identification of similar items. Depends on H1.
-
-### H3 — Find an item when I need it
-
-**As a hobbyist, I want to search my collection by words I remember so that I can quickly find
-the right piece and its location.**
-
-Add simple, case-insensitive text search across name, notes, and location. Use one ordinary text
-query without advanced syntax; show all items when it is empty. Start with one responsive list
-with thumbnails, not simultaneous gallery, table, and configurable-view systems.
-
-- **Given** several saved items, **when** I search for a phrase in a name, note, or location,
-  **then** matching items appear and I can open their details.
-- **Given** no matches, **when** I clear the search, **then** the collection returns without
-  changing or deleting records.
-- **Given** a selected search result on mobile, **when** I return from its details,
-  **then** my query and list position are preserved.
-- **Given** a collection loading failure, **when** the page renders, **then** it distinguishes
-  failure from an empty collection and offers retry.
-
-**Value at completion:** reliable retrieval as the collection grows. Depends on H1; includes
-thumbnails when H2 is available.
-
-### H4 — Keep the record accurate
-
-**As a hobbyist, I want to correct an item's name or notes and update its location so that my
-collection remains useful after I learn more or move a piece.**
-
-- **Given** a saved item, **when** I edit and save its fields, **then** the same item identifier
-  remains and the new values appear in details and subsequent searches after reload.
-- **Given** an edit, **when** I cancel, **then** the previously saved record remains unchanged.
-- **Given** a save failure, **when** I return to editing, **then** my recoverable edits remain
-  available with a clear retry path.
-- **Given** the item changed in another session after I opened it, **when** I save stale edits,
-  **then** I am told about the conflict and can recover my edits without silently overwriting
-  the newer record. Real concurrent-session verification is required.
-
-**Value at completion:** records stay trustworthy through ordinary use. Depends on H1; verify
-search reflects edits with H3.
-
-## Shared completion criteria
-
-Apply these to every story, rather than leaving quality and integration to a final sprint story:
-
-- Desktop and mobile layouts support the actual task, including keyboard operation, visible focus,
-  labeled inputs, accessible status/errors, and touch targets of at least 44 CSS pixels.
-- System/Light/Dark appearance follows the UI spec, preserves task state when switched, and persists
-  the preference as specified. Normal text meets 4.5:1 contrast; item titles remain legible on white,
-  pale bronze selection, hover, and dark surfaces. Verify at 320 CSS pixels without page overflow.
-- Another tenant cannot list, search, read, change, or retrieve photographs of these items, including
-  direct identifier requests. Authorization is server-enforced; hidden navigation is not a control.
-- Save and upload outcomes are truthful. Loading, empty, error, validation, and retry states are
-  exercised. Use existing session behavior when authentication expires.
-- New behavior has focused tests written first, including negative and cross-tenant cases. Verify
-  meaningful concurrency and storage failures where affected. Apply repository mutation guidance
-  and report coverage limits; run the application gates in [CONTRIBUTING](../../CONTRIBUTING.md).
-- Required schema/API changes include generated client contracts, migration/upgrade evidence, and
-  documented recovery consistent with existing runbooks. Photo delivery uses the accepted provider
-  boundary; removal follows its retention rules rather than promising immediate physical erasure.
-
-## Sprint demonstration and planning boundary
-
-Demonstrate H1 through H4 as one journey with a real saved item and several distinguishable fixtures.
-Start on a narrow-screen device, save the item, and attach its photo. Reload or sign in on desktop,
-search, open the record, update its location, then verify the new value from mobile. Repeat relevant
-states in both themes. Separately demonstrate failed saves/uploads, an edit conflict, and cross-tenant
-denial through the appropriate UI or integration evidence.
-
-Try the journey with a hobbyist without coaching. Record whether they can complete it, where they
-hesitate, and whether the returned record helps them locate the physical piece. This validates the
-persona hypothesis; a passing automated test alone does not establish usability.
-
-The four stories are the proposed scenario scope, not a promise that they fit an unknown sprint.
-Estimate against team capacity and the existing authentication/blob integration before committing.
-H1 includes the first production collection screen and theme/shell work, so it is likely the largest
-slice. Execute sequentially with integrated demonstrations instead of postponing integration.
-
-If capacity is insufficient, explicitly reframe the sprint goal before commitment to a **text-only
-collection notebook**, retaining save, browse/search, and update while deferring H2. Do not count
-the photo-based scenario as complete with its photograph story unfinished. Cut secondary presentation
-options before cutting persistence, authorization, accessibility, or recovery.
+The [scenario issue](https://github.com/mcunille/Workbench/issues/43) owns the final demonstration:
+phone creation and photo upload, desktop search and editing, then verification from mobile, including
+failure and conflict cases. It also tracks trying the journey with a hobbyist without coaching and
+recording completion and hesitation points. Automated tests alone do not establish usability.
 
 ## Deliberately later
 
 No dashboards, public sharing, bulk import/edit, saved views, configurable columns, multiple photos,
-formal gem taxonomy, valuations, purchase orders, bookkeeping, work orders, or commerce in this sprint.
-Record archival/deletion and collection export also need subsequent explicit scenarios; photo removal
-does not imply item deletion. The initial release should be evaluated as a limited collection pilot.
+formal gem taxonomy, valuations, purchase orders, bookkeeping, work orders or commerce in this scenario.
+Record archival/deletion and collection export need subsequent explicit scenarios. Evaluate the
+initial release as a limited collection pilot, not a complete professional inventory system.
 
-Grow through further complete scenarios, selected from observed needs rather than a fixed roadmap:
+Choose subsequent complete scenarios from observed needs:
 
 1. **Care for my growing collection:** safely archive mistakes and export records, then add grouping
    or richer identification where collectors need it. Portability should not be reserved for experts.
-2. **Remember an acquisition:** connect items to seller, date, provenance, and supporting documents;
+2. **Remember an acquisition:** connect items to seller, date, provenance and supporting documents;
    define financial semantics before adding amounts or accounting effects.
-3. **Manage many items efficiently:** import, batch operations, denser views, and saved searches with
-   validation, partial-failure recovery, and the same underlying records.
-4. **Operate a business:** add roles, work orders, financial controls, and commerce as separately
+3. **Manage many items efficiently:** import, batch operations, denser views and saved searches with
+   validation, partial-failure recovery and the same underlying records.
+4. **Operate a business:** add roles, work orders, financial controls and commerce as separately
    accepted end-to-end scenarios. Do not expose empty destinations in the hobbyist experience.
-
-The alternative of beginning with a broad inventory dashboard or a fully classified gem form would
-make the initial interaction heavier without completing this collector's immediate task. Conversely,
-a disposable local-only notebook would fail the durability and growth requirements. This proposal
-keeps the interaction small while using the established application foundations.
