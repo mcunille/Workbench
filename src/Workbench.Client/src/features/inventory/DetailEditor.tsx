@@ -252,6 +252,7 @@ export function DetailEditor({
             {(['name', 'notes', 'location'] as const).map((field) => (
               <div className="edit-field" key={field}>
                 <FloatingField
+                  htmlFor={'edit-' + field}
                   label={field === 'name'
                     ? 'Name'
                     : field === 'notes'

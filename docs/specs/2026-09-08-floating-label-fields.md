@@ -9,7 +9,7 @@ autofilled value keeps it raised after blur. Clearing and blurring restores the 
 label. Focus uses one 2px Tanzanite-colored border, with padding compensation to avoid
 layout movement, rather than an additional outside ring. Corners remain 6px.
 
-Use the existing native controls inside a shared accessible label wrapper. Preserve
+Use native controls and explicitly associated sibling labels in a shared wrapper. Preserve
 names, IDs, validation descriptions, autocomplete, controlled/uncontrolled values,
 disabled states, and submission behavior. Placeholder examples appear on focus.
 Keep file upload and appearance labels external; appearance focus also uses a single

@@ -67,12 +67,12 @@ export function Recovery({ invitation = false, token = null }: {
         ) : (
           <form className="form-stack" onSubmit={(event) => void submit(event)}>
             {token ? (
-              <FloatingField label="New password">
-                <input placeholder=" " name="password" type="password" autoComplete="new-password" required />
+              <FloatingField label="New password" htmlFor="recovery-password">
+                <input id="recovery-password" placeholder=" " name="password" type="password" autoComplete="new-password" required />
               </FloatingField>
             ) : (
-              <FloatingField label="Email">
-                <input placeholder=" " name="email" type="email" autoComplete="email" required />
+              <FloatingField label="Email" htmlFor="recovery-email">
+                <input id="recovery-email" placeholder=" " name="email" type="email" autoComplete="email" required />
               </FloatingField>
             )}
             {failed ? (

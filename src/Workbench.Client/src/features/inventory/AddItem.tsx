@@ -105,7 +105,7 @@ export function AddItem({
           void save();
         }}
       >
-        <FloatingField label="Name">
+        <FloatingField label="Name" htmlFor="item-name">
           <input
             id="item-name"
             name="name"
@@ -122,7 +122,7 @@ export function AddItem({
             {errorFor('name')}
           </p>
         ) : null}
-        <FloatingField label="Notes (optional)">
+        <FloatingField label="Notes (optional)" htmlFor="item-notes">
           <textarea
             id="item-notes"
             name="notes"
@@ -140,7 +140,7 @@ export function AddItem({
             {errorFor('notes')}
           </p>
         ) : null}
-        <FloatingField label="Storage location (optional)">
+        <FloatingField label="Storage location (optional)" htmlFor="item-location">
           <input
             id="item-location"
             name="location"

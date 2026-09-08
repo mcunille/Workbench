@@ -101,8 +101,8 @@ export function TenantUsers() {
         </div>
       </div>
       <form className="inline-form" onSubmit={(event) => void invite(event)}>
-        <FloatingField label="Invite email">
-          <input placeholder=" " name="email" type="email" autoComplete="email" required />
+        <FloatingField label="Invite email" htmlFor="invite-email">
+          <input id="invite-email" placeholder=" " name="email" type="email" autoComplete="email" required />
         </FloatingField>
         <button className="primary" type="submit">Send invitation</button>
       </form>

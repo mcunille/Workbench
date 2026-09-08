@@ -146,7 +146,7 @@ export function Collection({
         }}
       >
         <div className="collection-search-controls">
-          <FloatingField label="Search collection">
+          <FloatingField label="Search collection" htmlFor="collection-query">
             <input
               placeholder=" "
               id="collection-query"

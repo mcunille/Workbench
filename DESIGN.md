@@ -200,7 +200,8 @@ spans the form width. During submission, keep the existing disabled state and th
 
 **Role:** a readable neutral surface with a floating label.
 
-Use `FloatingField` around one native input or textarea. The label rests inside an empty
+Use `FloatingField` around one native input or textarea, with `htmlFor` matching the
+control's `id`. A sibling label keeps textarea content out of its accessible name. The label rests inside an empty
 field and rises into the top border on focus, autofill, or a nonempty value. A focused
 field has a single 2px `--focus` border with compensated padding, no outer outline or
 shadow ring, and 6px corners. Invalid fields keep `--danger`. Preserve email/password
@@ -315,6 +316,7 @@ The application already imports these styles in this order:
 ```tsx
 import './styles.css';
 import './sign-in.css';
+import './floating-field.css';
 ```
 
 The imports above are relative to

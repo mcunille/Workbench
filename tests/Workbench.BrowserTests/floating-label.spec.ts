@@ -38,5 +38,17 @@ for (const appearance of ['light', 'dark']) {
     await input.fill('');
     await page.getByLabel('Password', { exact: true }).focus();
     await expect.poll(async () => (await label.boundingBox())!.y > (await input.boundingBox())!.y).toBe(true);
+
+    // WHEN the browser restores a value without an input event THEN the label still clears the value.
+    await input.evaluate(el => { (el as HTMLInputElement).value = 'restored@example.test'; });
+    await expect.poll(labelIsRaised).toBe(true);
+
+    // AND reduced motion disables label animation while forced colors keeps a visible focus boundary.
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    expect(await label.evaluate(el => getComputedStyle(el).transitionDuration)).toBe('0s');
+    await page.emulateMedia({ forcedColors: 'active' });
+    await input.focus();
+    expect(await input.evaluate(el => getComputedStyle(el).borderTopWidth)).toBe('2px');
+    expect(await input.evaluate(el => getComputedStyle(el).borderTopStyle)).toBe('solid');
   });
 }

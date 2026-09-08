@@ -40,11 +40,11 @@ export function SignIn() {
         Use the Workbench account assigned to your organization.
       </p>
       <form className="form-stack" onSubmit={(event) => void submit(event)}>
-        <FloatingField label="Email">
-          <input placeholder=" " name="email" type="email" autoComplete="username" required />
+        <FloatingField label="Email" htmlFor="sign-in-email">
+          <input id="sign-in-email" placeholder=" " name="email" type="email" autoComplete="username" required />
         </FloatingField>
-        <FloatingField label="Password">
-          <input placeholder=" "
+        <FloatingField label="Password" htmlFor="sign-in-password">
+          <input id="sign-in-password" placeholder=" "
             name="password"
             type="password"
             autoComplete="current-password"

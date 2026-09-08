@@ -516,7 +516,7 @@ footer {
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-card);
 }
-.editor .form-stack label:not(:first-child) {
+.editor .form-stack > .floating-field:not(:first-child) {
   margin-top: 1rem;
 }
 .editor .button-row {

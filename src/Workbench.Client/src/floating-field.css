@@ -17,6 +17,8 @@
   font-weight: 400;
 }
 .floating-field > .field-label {
+  display: block;
+  margin: 0;
   position: absolute;
   top: 0.875rem;
   left: 0.625rem;
@@ -47,6 +49,7 @@
 .floating-field:has([aria-invalid="true"]) > .field-label { color: var(--danger); }
 .floating-field:has(:disabled) { opacity: 0.7; }
 .collection-search-controls > .floating-field { flex: 1 1 16rem; margin-top: 0; }
+.inline-form > .floating-field { flex: 1; }
 .sign-in-card .floating-field > input { background: var(--field-fill); box-shadow: none; }
 .sign-in-card .floating-field > .field-label { top: 1.25rem; }
 .sign-in-card .floating-field:has(:focus, :autofill, input:not(:placeholder-shown)) > .field-label { top: 0; }
