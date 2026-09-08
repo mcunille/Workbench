@@ -1,3 +1,4 @@
+import { browserBaseUrl } from './browser-environment';
 import { expect, test } from '@playwright/test';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { photoSignIn, cameraImage } from './photo-fixture';
@@ -5,7 +6,7 @@ import { createArchived, lifecycle, restore, confirmRestore, searchArchive } fro
 test('H6 narrated archive recovery walkthrough', async ({ browser }) => {
   test.setTimeout(240_000);
   const root = '../../artifacts/h6/walkthrough'; await mkdir(root, { recursive: true });
-  const setup = await browser.newContext({ baseURL: 'http://127.0.0.1:4179' });
+  const setup = await browser.newContext({ baseURL: browserBaseUrl });
   const seed = await setup.newPage(); await photoSignIn(seed);
   let item = await createArchived(seed, 'Blue stone from the September fair');
   item = await lifecycle(seed, item.id, 'restore', item.version);
@@ -15,7 +16,7 @@ test('H6 narrated archive recovery walkthrough', async ({ browser }) => {
   await expect(seed.getByAltText(`Photograph of ${item.name}`)).toBeVisible();
   item = await (await seed.request.get(`/api/items/${item.id}`)).json();
   item = await lifecycle(seed, item.id, 'archive', item.version);
-  const context = await browser.newContext({ baseURL: 'http://127.0.0.1:4179', storageState: await setup.storageState(), viewport: { width: 1280, height: 900 }, recordVideo: { dir: root, size: { width: 1280, height: 900 } } });
+  const context = await browser.newContext({ baseURL: browserBaseUrl, storageState: await setup.storageState(), viewport: { width: 1280, height: 900 }, recordVideo: { dir: root, size: { width: 1280, height: 900 } } });
   const page = await context.newPage();
   const start = Date.now(); const segments: { start: number; end: number; text: string }[] = [];
   async function narrate(text: string, seconds: number) {

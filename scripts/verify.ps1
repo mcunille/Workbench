@@ -97,7 +97,9 @@ try {
     dotnet build Workbench.slnx --configuration Release --no-restore
     Assert-NativeCommandSucceeded 'dotnet build'
 
-    dotnet test Workbench.slnx --configuration Release --no-build --no-restore
+    # Migration drills are included in this unfiltered suite; retain their results without rerunning them.
+    dotnet test Workbench.slnx --configuration Release --no-build --no-restore `
+        --logger trx --results-directory (Join-Path $repositoryRoot 'artifacts/test-results')
     Assert-NativeCommandSucceeded 'dotnet test'
 
     npm run lint --prefix $clientRoot
@@ -111,11 +113,6 @@ try {
 
     npm run build --prefix $clientRoot
     Assert-NativeCommandSucceeded 'client build'
-
-    foreach ($scenario in @('Clean', 'Upgrade', 'ReversibleRollback', 'RestoreRollback')) {
-        & (Join-Path $PSScriptRoot 'verify-migrations.ps1') -Scenario $scenario
-        if (-not $?) { throw "Migration scenario '$scenario' failed." }
-    }
 
     npm test --prefix $browserRoot
     Assert-NativeCommandSucceeded 'browser tests'

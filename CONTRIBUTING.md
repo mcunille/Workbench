@@ -22,8 +22,9 @@ Before submitting application changes, run:
 ```
 
 The first command performs locked restores, documentation checks, formatting, OpenAPI client drift
-detection, builds, tests, migration drills, browser checks, and published-output probes. The second
-requires Docker and verifies a SQL-backed runtime image as non-root and read-only with no Node.js,
+detection, builds, tests (including migration drills in the server suite), browser checks, and
+published-output probes. Server test outcomes and timings are retained in `artifacts/test-results/`.
+The second requires Docker and verifies a SQL-backed runtime image as non-root and read-only with no Node.js,
 source files, setup credential, operator credential, or migrator credential. If Docker is
 unavailable, state that limit explicitly; do not report the container gate as passed.
 
@@ -39,6 +40,12 @@ destructive down-migration; the rollback gate verifies that guard and the restor
 For filesystem durability changes, run `bash scripts/test-storage-durability.sh` on Linux with .NET 10
 and `strace`. It builds a probe from the current storage source, checks directory sync ordering, and
 injects sync errors and interruptions. This tests syscall behavior, not physical power-loss recovery.
+
+Browser checks reuse two distinct authenticated sessions for ordinary scenarios; authentication,
+sign-out, and revocation scenarios create their own sessions. Cookies live only in the disposable
+browser-run directory and are removed by the parent test command. Tests still run with one worker.
+If another checkout is using the default browser port, set `WORKBENCH_BROWSER_PORT` to a free port
+before running `npm test --prefix tests/Workbench.BrowserTests` or `./scripts/verify.ps1`.
 
 ## Before proposing a change
 

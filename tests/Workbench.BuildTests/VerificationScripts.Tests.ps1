@@ -10,6 +10,7 @@ $global:workbenchDotnetCalls = [Collections.Generic.List[string]]::new()
 $global:workbenchSqlcmdCalls = [Collections.Generic.List[string]]::new()
 $global:workbenchForceCleanupFailure = $false
 $global:workbenchForceRestoreFailure = $true
+$global:workbenchForceTestFailure = $false
 
 function global:node {
     if ($args.Count -eq 1 -and $args[0] -eq '--version') { 'v26.7.0' }
@@ -35,7 +36,7 @@ function global:dotnet {
         return
     }
 
-    $global:LASTEXITCODE = 0
+    $global:LASTEXITCODE = if ($global:workbenchForceTestFailure -and $args[0] -eq 'test') { 1 } else { 0 }
 }
 
 function global:git {
@@ -62,6 +63,8 @@ try {
         throw 'Command shims did not return the expected tool versions.'
     }
 
+    # GIVEN the full verification pipeline with all migration tests in the server suite
+    # WHEN verification runs with native command shims
     try {
         & $verifyScript -SkipDependencyInstall
         throw 'verify.ps1 unexpectedly completed in the command-shim test.'
@@ -70,6 +73,14 @@ try {
         if ($_.Exception.Message -notmatch 'Published server assembly is missing') {
             throw
         }
+    }
+
+    # THEN the unfiltered Release suite runs once and retains machine-readable test evidence.
+    $testCalls = @($global:workbenchDotnetCalls | Where-Object { $_ -match '^test(?: |$)' })
+    if ($testCalls.Count -ne 1 -or $testCalls[0] -notmatch '^test Workbench\.slnx --configuration Release ' -or
+        $testCalls[0] -match '--filter' -or $testCalls[0] -notmatch '--logger trx' -or
+        $testCalls[0] -notmatch '--results-directory .*artifacts[/\\]test-results') {
+        throw 'Full verification must run the unfiltered Release suite once and retain TRX evidence without rerunning migration scenarios.'
     }
 
     $installCalls = $global:workbenchNpmCalls | Where-Object { $_ -match '^ci(?: |$)' }
@@ -82,6 +93,33 @@ try {
     } | Select-Object -First 1
     if (-not $serverPublish -or $serverPublish -notmatch '(?:^| )-p:BuildClient=false(?: |$)') {
         throw 'test-publish.ps1 did not disable the client rebuild for -SkipClientBuild.'
+    }
+
+    # GIVEN a failing test in the full suite, which includes migration failures
+    $global:workbenchForceTestFailure = $true
+    $npmCallCount = $global:workbenchNpmCalls.Count
+    # WHEN verification encounters the failure
+    try {
+        & $verifyScript -SkipDependencyInstall
+        throw 'verify.ps1 unexpectedly continued after the suite failed.'
+    }
+    catch {
+        # THEN the gate fails immediately, before later client and browser checks.
+        if ($_.Exception.Message -notmatch 'dotnet test failed with exit code 1' -or
+            $global:workbenchNpmCalls.Count -ne $npmCallCount + 1) { throw }
+    }
+    finally { $global:workbenchForceTestFailure = $false }
+
+    # GIVEN an operator requesting an individual migration drill
+    foreach ($scenario in @('Clean', 'Upgrade', 'ReversibleRollback', 'RestoreRollback')) {
+        $global:workbenchDotnetCalls.Clear()
+        # WHEN the standalone scenario is invoked
+        & (Join-Path $repositoryRoot 'scripts/verify-migrations.ps1') -Scenario $scenario
+        # THEN it still runs a filtered integration test command.
+        if ($global:workbenchDotnetCalls.Count -ne 1 -or
+            $global:workbenchDotnetCalls[0] -notmatch '^test .*Workbench\.Server\.IntegrationTests\.csproj .*--filter FullyQualifiedName~') {
+            throw "Standalone migration scenario '$scenario' did not run its filtered integration tests."
+        }
     }
 
     $restoreTestRoot = Join-Path ([IO.Path]::GetTempPath()) "workbench-restore-$([Guid]::NewGuid().ToString('N'))"
@@ -180,4 +218,5 @@ finally {
     Remove-Variable workbenchSqlcmdCalls -Scope Global -ErrorAction SilentlyContinue
     Remove-Variable workbenchForceCleanupFailure -Scope Global -ErrorAction SilentlyContinue
     Remove-Variable workbenchForceRestoreFailure -Scope Global -ErrorAction SilentlyContinue
+    Remove-Variable workbenchForceTestFailure -Scope Global -ErrorAction SilentlyContinue
 }

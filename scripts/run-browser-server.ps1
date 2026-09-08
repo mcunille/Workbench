@@ -2,6 +2,8 @@
 param()
 
 $ErrorActionPreference = 'Stop'
+$browserPort = if ($env:WORKBENCH_BROWSER_PORT) { [int]$env:WORKBENCH_BROWSER_PORT } else { 4179 }
+if ($browserPort -lt 1024 -or $browserPort -gt 65535) { throw 'Invalid browser test port.' }
 $repositoryRoot = Split-Path -Parent $PSScriptRoot
 $docker = Get-Command docker -ErrorAction SilentlyContinue
 if (-not $docker -and $IsWindows) {
@@ -104,7 +106,7 @@ try {
     $env:Storage__Root = $photoStorageRoot
     $env:Storage__InstallationId = [Guid]::NewGuid().ToString()
     $env:ASPNETCORE_ENVIRONMENT = 'Development'
-    $env:ASPNETCORE_URLS = 'http://127.0.0.1:4179'
+    $env:ASPNETCORE_URLS = "http://127.0.0.1:$browserPort"
     $env:ASPNETCORE_CONTENTROOT = $publishRoot
     $env:WORKBENCH_WEB_CONNECTION = "Server=127.0.0.1,$sqlPort;Database=$database;User Id=$webUser;Password=$webPassword;Encrypt=True;TrustServerCertificate=True"
     $env:WORKBENCH_TENANT_CONTEXT_PROOF_KEY = $tenantContextProofKey

@@ -1,3 +1,4 @@
+import { browserBaseUrl } from './browser-environment';
 import { expect, test, type Page } from '@playwright/test';
 import { mkdir } from 'node:fs/promises';
 import { cameraImage, photoSignIn } from './photo-fixture';
@@ -107,10 +108,10 @@ test('H5 another session edit requires a fresh confirmation after conflict and f
   await photoSignIn(page);
   const item = await create(page);
   await page.goto(`/inventory/${item.id}`);
-  const context = await browser.newContext({ baseURL: 'http://127.0.0.1:4179' });
+  const context = await browser.newContext({ baseURL: browserBaseUrl });
   const other = await context.newPage();
   try {
-    await photoSignIn(other);
+    await photoSignIn(other, 'secondary');
     await other.goto(`/inventory/${item.id}`);
     await archive(page).click();
     await other.getByRole('button', { name: 'Edit details', exact: true }).click();
@@ -141,10 +142,10 @@ test('H5 an open text draft survives another session archive without offering a 
   await page.goto(`/inventory/${item.id}`);
   await page.getByRole('button', { name: 'Edit details', exact: true }).click();
   await page.getByLabel('Name', { exact: true }).fill('Recoverable unsaved name');
-  const context = await browser.newContext({ baseURL: 'http://127.0.0.1:4179' });
+  const context = await browser.newContext({ baseURL: browserBaseUrl });
   try {
     const other = await context.newPage();
-    await photoSignIn(other);
+    await photoSignIn(other, 'secondary');
     await other.goto(`/inventory/${item.id}`);
     await archive(other).click();
     await confirm(other).click();
