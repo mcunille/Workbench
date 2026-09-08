@@ -56,8 +56,10 @@ describe('App', () => {
     vi.spyOn(window, 'scrollTo').mockImplementation(() => {});
     render(<App />);
     await screen.findByRole('link', { name: /Stone/ });
-    // THEN the workspace carries the same maker attribution as sign-in.
-    expect(screen.getByText('by The White Stag Collection')).toBeVisible();
+    // THEN the application header exposes the complete product name as one wordmark.
+    expect(screen.getByRole('img', { name: 'Workbench' })).toBeVisible();
+    // AND the collection attribution is reserved for sign-in.
+    expect(screen.queryByText(/The White Stag Collection/)).not.toBeInTheDocument();
     fireEvent.change(screen.getByRole('searchbox'), {
       target: { value: 'private draft' },
     });

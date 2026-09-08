@@ -11,6 +11,13 @@ vi.mock('../../api/auth', () => ({
 }));
 
 describe('Recovery', () => {
+  it.each([false, true])('identifies the product on public account pages (invitation=%s)', (invitation) => {
+    // GIVEN a visitor opening recovery or an invitation without a token.
+    // WHEN the public account page is rendered.
+    render(<Recovery invitation={invitation} />);
+    // THEN its wordmark exposes the full product name, including the graphical W.
+    expect(screen.getByRole('img', { name: 'Workbench' })).toBeVisible();
+  });
   it.each([false, true])('retains the in-memory capability through failure and retry (invitation=%s)', async (invitation) => {
     // GIVEN a scrubbed URL and a transient capability under StrictMode
     window.history.replaceState(null, '', invitation ? '/invite' : '/recover');
@@ -37,7 +44,8 @@ describe('Recovery', () => {
     render(<Recovery invitation />);
 
     // THEN even an invalid invitation retains the shared Workbench identity.
-    expect(screen.getByText('by The White Stag Collection')).toBeVisible();
+    expect(screen.getByRole('img', { name: 'Workbench' })).toBeVisible();
+    expect(screen.queryByText('by The White Stag Collection')).not.toBeInTheDocument();
     expect(screen.getByRole('alert')).toHaveTextContent(
       'This invitation link is missing its token.',
     );

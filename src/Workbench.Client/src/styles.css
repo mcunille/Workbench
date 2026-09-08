@@ -285,23 +285,30 @@ textarea[aria-invalid="true"] {
   text-align: left;
   min-width: 0;
 }
-.brand img {
-  object-fit: contain;
-  width: 48px;
-  height: 64px;
-}
 .wordmark {
-  font-family: inherit;
-  font-size: 1.5rem;
-  font-weight: 500;
-  letter-spacing: -0.04em;
-  line-height: 1.1;
+  font-size: 1.25rem;
+  line-height: 1.15;
 }
-.wordmark small {
+.workbench-wordmark {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.025em;
+  font-family:
+    ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+    "Segoe UI", sans-serif;
+  font-weight: 600;
+  letter-spacing: -0.035em;
+  line-height: 1.15;
+  white-space: nowrap;
+}
+.workbench-wordmark svg {
+  height: 0.715em;
+  width: 0.91em;
+  overflow: visible;
+  flex: none;
+}
+.workbench-wordmark > span {
   display: block;
-  margin-top: 0.25rem;
-  font-size: 0.6875rem;
-  letter-spacing: 0.025em;
 }
 .identity-summary {
   display: flex;
@@ -755,15 +762,8 @@ dialog::backdrop {
     grid-row: 1;
     gap: 0.5rem;
   }
-  .topbar .brand img {
-    width: 40px;
-    height: 54px;
-  }
   .topbar .wordmark {
     font-size: 1.25rem;
-  }
-  .topbar .wordmark small {
-    font-size: 0.6875rem;
   }
   .workspace-layout {
     grid-template-columns: minmax(0, 1fr);
@@ -1029,9 +1029,6 @@ html { scroll-padding-top: 8rem; }
 }
 
 /* Quiet elevation separates surfaces without tinting inventory photographs. */
-.brand img { flex-shrink: 0; }
-:root[data-theme="dark"] .brand img { filter: invert(1); }
-.wordmark small { font-weight: 400; letter-spacing: 0; line-height: 1.4; }
 .auth-card > .brand { margin-bottom: 2rem; }
 .collection-list:not([data-view="grid"]),
 .editor .form-stack, .detail-surface, .empty-state, .panel, .auth-card {
@@ -1049,5 +1046,4 @@ html { scroll-padding-top: 8rem; }
 }
 @media print {
   body { background: white; }
-  .brand img { filter: none !important; }
 }

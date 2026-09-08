@@ -24,7 +24,7 @@ describe('SignIn', () => {
     );
 
     // THEN the product and understated maker attribution identify the form.
-    expect(screen.getByText('Workbench')).toBeVisible();
+    expect(screen.getByRole('img', { name: 'Workbench' })).toBeVisible();
     expect(screen.getByText('by The White Stag Collection')).toBeVisible();
     expect(screen.getByRole('heading', { name: 'Sign in' })).toBeVisible();
     expect(screen.getByLabelText('Email')).toHaveAttribute(

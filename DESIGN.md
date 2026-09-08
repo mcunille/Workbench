@@ -9,7 +9,7 @@ edge, and soft shadows. In dark appearance, faint blue and violet light enter fr
 top of an almost black canvas. In light appearance, the same composition becomes white
 glass with charcoal typography. Color supplies atmosphere; the form, brand, and primary
 action stay neutral. A prominent geometric stag anchors the page above a clean Workbench
-wordmark and the quiet attribution, “by The White Stag Collection.”
+bench-pin wordmark and the quiet attribution, “by The White Stag Collection.”
 
 This guide covers Tanzanite across sign-in, collection, editors, account and administration,
 recovery, invitations, and shared dialogs. The existing appearance choices remain System, Light, and Dark;
@@ -60,9 +60,10 @@ font-family:
   ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 ```
 
-- **Weights:** 400 for the wordmark, byline, and body; 500 for the heading, labels,
+- **Weights:** 600 for the wordmark; 400 for the byline and body; 500 for the heading, labels,
   and primary button.
-- **Character:** clean, restrained, readable. The stag carries the distinctive brand detail.
+- **Character:** clean, restrained, readable. The bench-pin W identifies Workbench;
+  the stag identifies The White Stag Collection.
 - **Font delivery:** native system stack; no downloaded font or named custom font is required.
 - **Rendering:** `font-synthesis: none` and `text-rendering: optimizeLegibility` are inherited.
 - **Variation:** glyph shapes and perceived weight vary slightly by platform.
@@ -73,7 +74,7 @@ Pixel equivalents below assume a 16px root size. The implementation uses rem uni
 
 | Role | Desktop | At 600px and below | Weight | Line height | Tracking |
 |------|---------|--------------------|--------|-------------|----------|
-| Workbench wordmark | 40px / `2.5rem` | 34px / `2.125rem` | 400 | 1.25 | `-0.045em` |
+| Sign-in wordmark | 44px / `2.75rem` | 38px / `2.375rem` | 600 | 1.15 | `-0.035em` |
 | Maker byline | 13px / `0.8125rem` | Same | 400 | 1.5 | Normal |
 | Sign-in heading | 36px / `2.25rem` | 30px / `1.875rem` | 500 | 1.25 | `-0.035em` |
 | Supporting copy | 16px / `1rem` | Same | 400 | 1.6 | Normal |
@@ -165,6 +166,40 @@ outer shadows. It must still read as a complete panel when backdrop blur is unav
 
 ## Components
 
+### Workbench lettering and favicon
+
+The approved product mark is the solid bench-pin **W** replacing the first letter of
+**Workbench**, followed by live text `orkbench`. Use the shared
+[Wordmark component](src/Workbench.Client/src/Wordmark.tsx) for sign-in, authenticated
+headers, and public/recovery headers. Do not put a second W or a separate bench-pin icon
+beside the wordmark. The collection stag remains above the sign-in wordmark; the maker
+attribution appears only on sign-in, separate and understated. Other application and
+public account pages display only Workbench branding.
+
+Use the system sans-serif stack above at **600 (semibold)**. Keep `-0.035em` tracking,
+`1.15` line height, and a `0.025em` gap between the mark and `orkbench`. The mark uses the
+approved path, tightly framed by `viewBox="2 5 28 22"`, at `0.715em` high and `0.91em`
+wide. Align its bottom to the text baseline. Do not stretch, redraw, outline, or add
+internal facets to the W. Native font metrics vary slightly across platforms.
+
+| Placement | Font size | Treatment |
+| --- | --- | --- |
+| App and public/recovery header | 20px / `1.25rem` | Same size on mobile |
+| Sign-in | 44px / `2.75rem` | 38px / `2.375rem` at 600px and below |
+| Standalone branding preview | 52px / `3.25rem` | Display reference, not an app heading token |
+
+The sign-in wordmark is larger than its 36px desktop / 30px mobile form heading,
+so the product name remains the primary brand anchor. Render the complete wordmark as
+one image role named `Workbench`; hide the decorative
+SVG and partial visible lettering from assistive technology. Its color inherits the
+surface's foreground via `currentColor`. Use one flat color without a gradient.
+
+The [favicon](src/Workbench.Client/public/favicon.svg) uses the identical W path in a
+`0 0 32 32` viewBox, preserving breathing room around the silhouette. It uses dark ink
+`#292720` on light browser chrome and ivory `#f6f5f2` for `prefers-color-scheme: dark`.
+Browser chrome follows the browser/system preference independently of the app's theme
+selector. Check the icon at 16, 24, and 32px on both backgrounds.
+
 ### Stag and wordmark
 
 **Role:** recognizable brand anchor inside the panel.
@@ -254,8 +289,8 @@ Do not fix the card height or clip overflowing content to preserve a screenshot 
 
 ## Imagery
 
-The sign-in page needs only the original vector stag. Its atmosphere is CSS, so there
-is no raster background to load, crop, or scale. The implementation must remain live
+The sign-in page uses the original vector stag and the inline bench-pin wordmark.
+Its atmosphere is CSS, so there is no raster background to load, crop, or scale. The implementation must remain live
 HTML controls rather than a flattened image of the approved concept.
 
 If this language is later extended to the collection, preserve accurate item photography
@@ -301,13 +336,14 @@ or jewelry photograph represents the item. That extension requires its own scope
 
 1. **Sign-in panel:** Center a 580px maximum-width glass panel with a 12px radius,
    40px vertical and 48px horizontal padding. Place a 112 × 150px stag image box above
-   the 40px Workbench wordmark and 13px gray byline. Left-align the form beneath it.
+   the 44px semibold bench-pin Workbench wordmark and 13px gray byline.
+   Left-align the form beneath it.
 2. **Dark atmosphere:** Use `#08090c` as the canvas. Add the documented blue and violet
    radial layers above the viewport. Keep the lower page virtually black and the card neutral.
 3. **Primary action:** Create a full-width, minimum 60px-high button with a 6px radius,
    18px/500 text, neutral inverse colors, and subtle 1px hover lift. Respect reduced motion.
 4. **Mobile adaptation:** At 600px and below, use 16px outer horizontal padding and
-   32px/24px panel padding. Reduce the mark to 96 × 128px and wordmark to 34px. Keep
+   32px/24px panel padding. Reduce the mark to 96 × 128px and reduce the wordmark to 38px. Keep
    the original labels, control heights, and recovery route; allow vertical scrolling.
 
 ## Quick Start
@@ -359,6 +395,9 @@ library, or separate font installation is needed to reproduce this reference.
 
 ## Source of Truth
 
+- [Wordmark component](src/Workbench.Client/src/Wordmark.tsx) and
+  [favicon](src/Workbench.Client/public/favicon.svg): shared bench-pin geometry and
+  accessible product lettering.
 - [Sign-in styles](src/Workbench.Client/src/sign-in.css): scoped colors, materials,
   dimensions, responsive rules, and motion.
 - [Base styles](src/Workbench.Client/src/styles.css): inherited typography, controls,
@@ -396,9 +435,9 @@ Small and badge tokens are reserved for future components. Existing card, list, 
 editor, and dialog corners use 12px; controls and navigation links use 6px. Grid photo
 corners are inset by their 1px container border.
 
-The compact brand uses the original stag at 48 × 64px (40 × 54px on mobile), a 24px
-system sans wordmark (20px on mobile), and an 11px muted maker byline. The sign-in
-lockup retains its larger approved geometry. Standard workspace controls retain their
+The compact shared `Brand` uses the bench-pin Workbench wordmark at 20px in both
+desktop and mobile layouts. The stag and maker attribution appear only in the larger
+sign-in lockup described above. Standard workspace controls retain their
 44px minimum target; the 60px/62px sign-in dimensions above are specific to that form.
 
 Card elevation uses subtle neutral shadows in both appearances. Never tint photographs

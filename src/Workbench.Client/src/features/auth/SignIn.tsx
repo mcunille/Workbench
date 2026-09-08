@@ -1,6 +1,7 @@
 import { FloatingField } from '../../FloatingField';
 import { useState, type FormEvent } from 'react';
 import { useAuth } from './useAuth';
+import { Wordmark } from '../../Wordmark';
 
 export function SignIn() {
   const { identity, signIn } = useAuth();
@@ -32,7 +33,9 @@ export function SignIn() {
     <section className="auth-card sign-in-card" aria-labelledby="sign-in-title">
       <div className="sign-in-brand">
         <img src="/stag-mark.svg" width="112" height="150" alt="" />
-        <p className="sign-in-wordmark">Workbench</p>
+        <p className="sign-in-wordmark">
+          <Wordmark />
+        </p>
         <p className="sign-in-byline">by The White Stag Collection</p>
       </div>
       <h1 id="sign-in-title">Sign in</h1>
