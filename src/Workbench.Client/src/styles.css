@@ -1033,7 +1033,7 @@ html { scroll-padding-top: 8rem; }
 .editor .form-stack, .detail-surface, .empty-state, .panel, .auth-card {
   box-shadow: var(--card-shadow), inset 0 1px 0 #ffffff08;
 }
-.record-actions { margin-top: 1.5rem; }
+.editor .record-actions { margin-top: 1.5rem; padding-top: 0; border-top: 0; }
 @supports (backdrop-filter: blur(16px)) {
   .auth-card:not(.sign-in-card) {
     background: var(--header-material);
