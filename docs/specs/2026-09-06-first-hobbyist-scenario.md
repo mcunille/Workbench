@@ -118,7 +118,9 @@ recording completion and hesitation points. Automated tests alone do not establi
 No dashboards, public sharing, bulk import/edit, saved views, configurable columns, multiple photos,
 formal gem taxonomy, valuations, purchase orders, bookkeeping, work orders or commerce in this scenario.
 The subsequent [H5 design](2026-09-07-h5-item-archiving.md) adds safe record archiving with retained
-read-only links. Deletion and collection export remain separate increments. Evaluate the initial
+read-only links. The [H6 design](2026-09-07-h6-archive-recovery.md) extends it with a separate
+searchable archive and checked restoration of the same record and photograph. Archived records
+remain read-only until restored. Deletion and collection export remain separate increments. Evaluate the initial
 release as a limited collection pilot, not a complete professional inventory system.
 
 Choose subsequent complete scenarios from observed needs:

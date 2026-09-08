@@ -92,3 +92,8 @@ The accepted base architecture deliberately does not yet define:
 
 Those choices should be made through focused specs when evidence and concrete requirements make the
 decision necessary.
+
+Archive recovery follows the [H6 design](specs/2026-09-07-h6-archive-recovery.md): a separate
+searchable Archive, retained read-only details/photos, and version-checked restoration to the
+active collection. See the [walkthrough](demos/h6/README.md) and migration runbook for evidence
+and release compatibility.

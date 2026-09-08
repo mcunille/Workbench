@@ -78,6 +78,7 @@ public static class PasswordPrincipalProvisioning
                                     (N'workbench_web', N'[Inventory].[SetItemPhoto]', N'EXECUTE'),
                                     (N'workbench_web', N'[Inventory].[UpdateItemDetails]', N'EXECUTE'),
                                     (N'workbench_web', N'[Inventory].[ArchiveItem]', N'EXECUTE'),
+                                    (N'workbench_web', N'[Inventory].[RestoreItem]', N'EXECUTE'),
                                     (N'workbench_web', N'[Inventory].[ItemCreationSnapshots]', N'SELECT'),
                                     (N'workbench_web', N'[Storage].[Attachments]', N'SELECT,INSERT,UPDATE'),
                                     (N'workbench_web', N'[Storage].[Revisions]', N'SELECT,INSERT,UPDATE'),

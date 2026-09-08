@@ -16,8 +16,10 @@ H5 provides confirmed single-record archiving and read-only access to archived r
 existing links. It does not add an archive browser, unarchive command, permanent deletion, bulk
 operations, or export. Recovery here means determining the saved outcome and safely retrying an
 unconfirmed operation; it does not reverse a confirmed archive. The confirmation must disclose
-that restoring a record to ordinary browsing is not available in this increment. H6 will settle
+that restoring a record to ordinary browsing is not available in this increment. H7/H8 will settle
 export inclusion separately without changing archived identity or tenant ownership.
+The subsequent [H6 design](2026-09-07-h6-archive-recovery.md) adds archive browsing and restoration;
+H5-only limitations below describe that original increment.
 
 ## Existing implementation evidence
 

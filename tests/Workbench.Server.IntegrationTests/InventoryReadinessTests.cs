@@ -14,8 +14,8 @@ public sealed class InventoryReadinessTests(SqlServerFixture sqlServer)
     [Fact]
     public async Task ImmediatePriorSchemaMustBeUpgradedBeforeServingInventory()
     {
-        // GIVEN the immediate prior release with valid authentication but no archive command.
-        await using var application = await AuthTestApplication.CreateAsync(sqlServer, priorMigration: "AddItemDetailEditing");
+        // GIVEN the immediate prior release with valid authentication but no restore command.
+        await using var application = await AuthTestApplication.CreateAsync(sqlServer, priorMigration: "AddItemArchiving");
         using var client = application.CreateClient();
         // WHEN this release probes readiness.
         var response = await client.GetAsync("/health/ready");
@@ -30,6 +30,7 @@ public sealed class InventoryReadinessTests(SqlServerFixture sqlServer)
     [InlineData("DENY SELECT ON [Inventory].[Items] TO [workbench_web]")]
     [InlineData("DENY EXECUTE ON [Inventory].[UpdateItemDetails] TO [workbench_web]")]
     [InlineData("DENY EXECUTE ON [Inventory].[ArchiveItem] TO [workbench_web]")]
+    [InlineData("DENY EXECUTE ON [Inventory].[RestoreItem] TO [workbench_web]")]
     [InlineData("DENY SELECT ON [Inventory].[ItemCreationSnapshots] TO [workbench_web]")]
     public async Task MissingInventoryAuthorityPreventsReadiness(string sql)
     {

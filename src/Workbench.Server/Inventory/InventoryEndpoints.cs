@@ -27,6 +27,7 @@ public static class InventoryEndpoints
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status409Conflict);
         group.MapGet("", ListAsync).Produces<ItemPageResponse>().ProducesProblem(StatusCodes.Status400BadRequest);
+        group.MapGet("/archived", ListArchivedAsync).Produces<ItemPageResponse>().ProducesProblem(StatusCodes.Status400BadRequest);
         group.MapGet("/{id:guid}", DetailAsync).Produces<ItemDetailResponse>().ProducesProblem(StatusCodes.Status404NotFound);
         group.MapPut("/{id:guid}", UpdateAsync)
             .WithMetadata(WorkbenchAntiforgeryMetadata.Instance)
@@ -36,6 +37,12 @@ public static class InventoryEndpoints
             .ProducesProblem(StatusCodes.Status409Conflict);
         group.MapItemPhotos();
         group.MapPost("/{id:guid}/archive", ArchiveAsync)
+            .WithMetadata(WorkbenchAntiforgeryMetadata.Instance)
+            .Produces<ItemDetailResponse>()
+            .ProducesValidationProblem()
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status409Conflict);
+        group.MapPost("/{id:guid}/restore", RestoreAsync)
             .WithMetadata(WorkbenchAntiforgeryMetadata.Instance)
             .Produces<ItemDetailResponse>()
             .ProducesValidationProblem()
@@ -145,13 +152,20 @@ public static class InventoryEndpoints
         return item is null ? Results.Problem(statusCode: StatusCodes.Status404NotFound, title: "Item not found.") : Results.Ok(Detail(item));
     }
 
-    private static async Task<IResult> ListAsync(string? cursor, string? q, WorkbenchDbContext database, CancellationToken cancellationToken)
+    private static Task<IResult> ListAsync(string? cursor, string? q, WorkbenchDbContext database, CancellationToken cancellationToken) =>
+        ListScopeAsync(cursor, q, false, database, cancellationToken);
+
+    private static Task<IResult> ListArchivedAsync(string? cursor, string? q, WorkbenchDbContext database, CancellationToken cancellationToken) =>
+        ListScopeAsync(cursor, q, true, database, cancellationToken);
+
+    private static async Task<IResult> ListScopeAsync(string? cursor, string? q, bool archived, WorkbenchDbContext database, CancellationToken cancellationToken)
     {
         q = q?.Trim();
         if (q is { Length: > 200 } || q?.Contains('\0') == true)
             return ApiProblemResults.InvalidRequest("Search must be at most 200 characters and must not contain NUL.");
 
-        var query = database.Items.AsNoTracking().Where(row => row.ArchivedAtUtc == null);
+        var query = database.Items.AsNoTracking();
+        query = archived ? query.Where(row => row.ArchivedAtUtc != null) : query.Where(row => row.ArchivedAtUtc == null);
         if (!string.IsNullOrEmpty(q))
         {
             // Explicit collation keeps case/accent behavior independent of database defaults.
@@ -212,6 +226,34 @@ public static class InventoryEndpoints
         if (status == 2)
             return Results.Problem(statusCode: StatusCodes.Status409Conflict,
                 title: "The item changed. Review the current record before archiving again.",
+                extensions: new Dictionary<string, object?> { ["code"] = "item_version_conflict" });
+        var saved = await database.Items.AsNoTracking().Include(row => row.CurrentPhoto).SingleAsync(row => row.Id == id, cancellationToken);
+        var response = Detail(saved);
+        await transaction.CommitAsync(cancellationToken);
+        return Results.Ok(response);
+    }
+
+    private static async Task<IResult> RestoreAsync(Guid id, RestoreItemRequest request,
+        WorkbenchDbContext database, CancellationToken cancellationToken)
+    {
+        var version = new byte[8];
+        if (request.ExpectedVersion is null || !Convert.TryFromBase64String(request.ExpectedVersion, version, out var written) || written != 8)
+            return Results.ValidationProblem(new Dictionary<string, string[]> { ["expectedVersion"] = ["A valid item version is required."] });
+        await using var transaction = await database.Database.BeginTransactionAsync(cancellationToken);
+        await using var command = new SqlCommand("[Inventory].[RestoreItem]", (SqlConnection)database.Database.GetDbConnection(),
+            (SqlTransaction)transaction.GetDbTransaction())
+        { CommandType = CommandType.StoredProcedure };
+        command.Parameters.AddWithValue("@Id", id);
+        command.Parameters.Add(new SqlParameter("@ExpectedVersion", SqlDbType.VarBinary, -1) { Value = version });
+        var status = (int)(await command.ExecuteScalarAsync(cancellationToken))!;
+        if (status == 0)
+            return Results.Problem(statusCode: StatusCodes.Status404NotFound, title: "Item not found.");
+        if (status == 3)
+            return Results.Problem(statusCode: StatusCodes.Status409Conflict, title: "This record is already in the collection.",
+                extensions: new Dictionary<string, object?> { ["code"] = "item_active" });
+        if (status == 2)
+            return Results.Problem(statusCode: StatusCodes.Status409Conflict,
+                title: "The item changed. Review the current record before restoring again.",
                 extensions: new Dictionary<string, object?> { ["code"] = "item_version_conflict" });
         var saved = await database.Items.AsNoTracking().Include(row => row.CurrentPhoto).SingleAsync(row => row.Id == id, cancellationToken);
         var response = Detail(saved);

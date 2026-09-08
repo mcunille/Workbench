@@ -10,6 +10,8 @@ public sealed record CreateItemRequest(Guid CreationRequestId, string? Name, str
 public sealed record UpdateItemDetailsRequest(string? ExpectedVersion, string? Name, string? Notes, string? Location);
 [JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
 public sealed record ArchiveItemRequest(string? ExpectedVersion);
+[JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
+public sealed record RestoreItemRequest(string? ExpectedVersion);
 public sealed record ItemDetailResponse(Guid Id, string Name, string? Notes, string? Location, DateTimeOffset CreatedAtUtc,
     string Version, ItemPhotoResponse? Photo, DateTimeOffset? ArchivedAtUtc = null);
 public sealed record ItemSummaryResponse(Guid Id, string Name, string? Location, DateTimeOffset CreatedAtUtc, ItemPhotoResponse? Photo);

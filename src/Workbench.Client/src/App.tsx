@@ -1,4 +1,10 @@
-import { useCallback, useEffect, useState, type ReactNode } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useState,
+  type MouseEvent,
+  type ReactNode,
+} from 'react';
 import { getSystem, type SystemInformation } from './api/system';
 import { TenantUsers } from './features/admin/TenantUsers';
 import { AuthProvider } from './features/auth/AuthContext';
@@ -39,13 +45,41 @@ function SignedInApplication({
   const navigation = useNavigation();
   const [signOutFailed, setSignOutFailed] = useState(false);
   const [collectionMemory] = useState(() => new CollectionMemory());
+  const [archiveMemory] = useState(() => new CollectionMemory());
+  const [origins] = useState(
+    () => new Map<number, 'active' | 'archived'>(),
+  );
+  function followFromCollection(event: MouseEvent<HTMLAnchorElement>) {
+    const normalClick =
+      event.button === 0 &&
+      !event.metaKey &&
+      !event.ctrlKey &&
+      !event.shiftKey &&
+      !event.altKey;
+    const destination = event.currentTarget.pathname;
+    navigation.follow(event);
+    if (
+      normalClick &&
+      /^\/inventory\/[^/]+$/.test(destination) &&
+      destination !== '/inventory/archive' &&
+      destination !== '/inventory/new'
+    )
+      origins.set(
+        window.history.state.workbenchIndex,
+        navigation.path === '/inventory/archive' ? 'archived' : 'active',
+      );
+  }
   const authLost = useCallback(() => {
     void refresh();
   }, [refresh]);
   if (!identity) return null;
-  const canManageUsers = identity.permissions.includes('TenantUsersManage');
+  const canManageUsers = identity.permissions.includes(
+    'TenantUsersManage',
+  );
   const path = navigation.path;
-  const collectionPath = path === '/' || path === '/inventory';
+  const archivePath = path === '/inventory/archive';
+  const collectionPath =
+    path === '/' || path === '/inventory' || archivePath;
   return (
     <div className="app-shell">
       <a className="skip-link" href="#main">
@@ -74,7 +108,9 @@ function SignedInApplication({
           <a
             href="/inventory"
             aria-current={
-              path.startsWith('/inventory') || path === '/' ? 'page' : undefined
+              path.startsWith('/inventory') || path === '/'
+                ? 'page'
+                : undefined
             }
             onClick={navigation.follow}
           >
@@ -92,7 +128,9 @@ function SignedInApplication({
           {canManageUsers ? (
             <a
               href="/administration"
-              aria-current={path === '/administration' ? 'page' : undefined}
+              aria-current={
+                path === '/administration' ? 'page' : undefined
+              }
               onClick={navigation.follow}
             >
               <Icon name="administration" />
@@ -102,13 +140,16 @@ function SignedInApplication({
         </nav>
         <main id="main" className="workspace">
           {signOutFailed ? (
-            <p role="alert">We could not sign you out. Please try again.</p>
+            <p role="alert">
+              We could not sign you out. Please try again.
+            </p>
           ) : null}
           {collectionPath ? (
             <Collection
               key={path}
-              memory={collectionMemory}
-              follow={navigation.follow}
+              memory={archivePath ? archiveMemory : collectionMemory}
+              archived={archivePath}
+              follow={followFromCollection}
               onAuthLost={authLost}
             />
           ) : path === '/inventory/new' ? (
@@ -126,6 +167,8 @@ function SignedInApplication({
               key={path}
               id={path.slice('/inventory/'.length)}
               memory={collectionMemory}
+              archiveMemory={archiveMemory}
+              origin={origins.get(window.history.state?.workbenchIndex)}
               onDirtyChange={navigation.setDirty}
               follow={navigation.follow}
               onAuthLost={authLost}
@@ -237,7 +280,10 @@ export function App({
 }) {
   const [preference, setPreference] = useState(readAppearance);
   const appearance = (
-    <AppearanceControl preference={preference} setPreference={setPreference} />
+    <AppearanceControl
+      preference={preference}
+      setPreference={setPreference}
+    />
   );
   return (
     <>
