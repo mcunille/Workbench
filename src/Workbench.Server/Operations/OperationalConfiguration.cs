@@ -71,7 +71,7 @@ public static class OperationalConfiguration
         _ => null,
     };
 
-    private static string ProviderAlias(IConfiguration configuration)
+    public static string ProviderAlias(IConfiguration configuration)
     {
         RequireInstallationId(configuration);
         var location = configuration["Storage:Provider"] == "FileSystem"

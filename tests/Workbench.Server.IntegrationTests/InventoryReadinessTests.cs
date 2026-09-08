@@ -15,7 +15,7 @@ public sealed class InventoryReadinessTests(SqlServerFixture sqlServer)
     public async Task ImmediatePriorSchemaMustBeUpgradedBeforeServingInventory()
     {
         // GIVEN the immediate prior release with valid authentication but no restore command.
-        await using var application = await AuthTestApplication.CreateAsync(sqlServer, priorMigration: "AddItemArchiving");
+        await using var application = await AuthTestApplication.CreateAsync(sqlServer, priorMigration: "AddOnlineRecovery");
         using var client = application.CreateClient();
         // WHEN this release probes readiness.
         var response = await client.GetAsync("/health/ready");

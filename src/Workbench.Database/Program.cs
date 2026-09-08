@@ -6,6 +6,7 @@ using Workbench.Server.Administration;
 using Workbench.Server.Identity;
 using Workbench.Server.Persistence;
 using Workbench.Server.Storage;
+using Microsoft.Extensions.Configuration;
 
 return await RunAsync(args);
 
@@ -13,6 +14,10 @@ static async Task<int> RunAsync(string[] arguments)
 {
     try
     {
+        if (arguments is ["backup", "capture"])
+            return await OnlineBackupCommand.RunAsync(new ConfigurationBuilder().AddEnvironmentVariables().Build(), CancellationToken.None);
+        if (arguments is ["backup", "expire"])
+            return await BackupRetentionCommand.RunAsync(new ConfigurationBuilder().AddEnvironmentVariables().Build(), CancellationToken.None);
         var hasSubcommand = arguments.Length > 1 &&
             arguments[0] is "tenant" or "principals" or "restore" or "development" or "storage";
         var options = ParseOptions(arguments.Skip(hasSubcommand ? 2 : 1));
@@ -180,6 +185,9 @@ static int Usage()
 {
     Console.Error.WriteLine("""
         Usage:
+          Workbench.Database backup capture
+          Workbench.Database storage recovery-plan --connection-file <maintenance-path> --expected-database <name> --config-file <isolated-config> --offline-confirmation "OFFLINE <name>" --report-file <new-path> [--catalog-directory <catalogs>]
+          Workbench.Database storage recovery-apply --connection-file <maintenance-path> --expected-database <name> --config-file <isolated-config> --offline-confirmation "OFFLINE <name>" --report-file <path> --accept-report-sha256 <digest>
           Workbench.Database migrate --connection-file <path> --expected-database <name>
           Workbench.Database bootstrap --connection-file <path> --expected-database <name> --tenant-name <name> --admin-email <email> --password-file <path>
           Workbench.Database tenant create --connection-file <path> --expected-database <name> --tenant-name <name> --admin-email <email> --password-file <path>

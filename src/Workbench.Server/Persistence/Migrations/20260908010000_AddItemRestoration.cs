@@ -35,7 +35,7 @@ public partial class AddItemRestoration : Migration
             GRANT EXECUTE ON [Inventory].[RestoreItem] TO [workbench_web];
             DECLARE @Readiness nvarchar(max) = OBJECT_DEFINITION(OBJECT_ID(N'[Security].[ReadDatabaseReadiness]'));
             SET @Readiness = REPLACE(@Readiness, N'CREATE PROCEDURE', N'ALTER PROCEDURE');
-            SET @Readiness = REPLACE(@Readiness, N'20260907224158_AddItemArchiving', N'20260908010000_AddItemRestoration');
+            SET @Readiness = REPLACE(@Readiness, N'20260907225320_AddOnlineRecovery', N'20260908010000_AddItemRestoration');
             EXEC sys.sp_executesql @Readiness;
             """);
     }
@@ -46,7 +46,7 @@ public partial class AddItemRestoration : Migration
             DROP PROCEDURE [Inventory].[RestoreItem];
             DECLARE @Readiness nvarchar(max) = OBJECT_DEFINITION(OBJECT_ID(N'[Security].[ReadDatabaseReadiness]'));
             SET @Readiness = REPLACE(@Readiness, N'CREATE PROCEDURE', N'ALTER PROCEDURE');
-            SET @Readiness = REPLACE(@Readiness, N'20260908010000_AddItemRestoration', N'20260907224158_AddItemArchiving');
+            SET @Readiness = REPLACE(@Readiness, N'20260908010000_AddItemRestoration', N'20260907225320_AddOnlineRecovery');
             EXEC sys.sp_executesql @Readiness;
             """);
     }

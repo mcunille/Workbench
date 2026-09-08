@@ -19,12 +19,15 @@ saved details. An already-active conflict reports saved state without proving wh
 a re-archived record requires a new explicit confirmation. Never replay a stale restore token
 against a freshly loaded version automatically.
 
-Verify fresh creation and upgrade from `AddItemArchiving`, including edited creation snapshots,
+Verify fresh creation and upgrade from `AddOnlineRecovery`, including edited creation snapshots,
 archived records, retained photos and completed/pending photo operations. H6 Down removes only
-the restore procedure and restores the H5 readiness marker; it does not reverse item restorations
-or discard data. Drain H6 writers before using this supported schema/binary rollback together.
-The H5 application can read the same records but lacks archive recovery controls. Returning only
-to an older binary without checking readiness/schema compatibility is not a verified rollback.
+the restore procedure and restores the preceding online-recovery readiness marker; it preserves
+recovery reports, missing-file dispositions, procedures, permissions and tenant isolation. It does
+not reverse item restorations or discard data. Drain H6 writers before using this supported schema/binary rollback together.
+The preceding online-recovery application can read the same records but lacks archive recovery
+controls. The supported target is `20260907225320_AddOnlineRecovery`; its own destructive Down
+remains blocked. Returning only to an older binary without checking readiness/schema compatibility
+is not a verified rollback.
 For data recovery use a forward correction or the documented paired SQL/blob restore procedure.
 Development verification does not authorize a production migration or cutover.
 

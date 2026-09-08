@@ -124,7 +124,7 @@ public sealed class ItemRestorationDatabaseTests(SqlServerFixture sqlServer)
     {
         // GIVEN SQL-seeded data on the actual PR base schema, without using a newer EF model.
         await using var database = await sqlServer.CreateDatabaseAsync();
-        await DatabaseMigrator.MigrateToAsync(database.AdminConnectionString, "AddItemArchiving", CancellationToken.None);
+        await DatabaseMigrator.MigrateToAsync(database.AdminConnectionString, "AddOnlineRecovery", CancellationToken.None);
         var tenant = Guid.NewGuid();
         var otherTenant = Guid.NewGuid();
         await database.SeedTenantAuditRowsAsync(tenant, otherTenant);
@@ -143,6 +143,9 @@ public sealed class ItemRestorationDatabaseTests(SqlServerFixture sqlServer)
                 ([Id],[TenantId],[AttachmentId],[OperationId],[ActorUserId],[ProviderAlias],[Source],[MediaType],[Length],[Sha256],[State],[CreatedAtUtc])
                 VALUES (@detailRevision,@tenant,@detail,NEWID(),NEWID(),N'local',N'ItemPhoto',N'image/webp',12,REPLICATE('A',64),1,SYSUTCDATETIME()),
                     (@thumbRevision,@tenant,@thumb,NEWID(),NEWID(),N'local',N'ItemPhoto',N'image/webp',6,REPLICATE('B',64),1,SYSUTCDATETIME());
+            DECLARE @report uniqueidentifier=NEWID();
+            INSERT [Security].[FileRecoveryReports] VALUES (@report,1,REPLICATE('C',64),N'local',SYSUTCDATETIME());
+            INSERT [Storage].[RecoveryFiles] VALUES (@tenant,@detailRevision,@report,1,'Missing',SYSUTCDATETIME());
             UPDATE [Storage].[Attachments] SET [CurrentRevisionId]=@detailRevision WHERE [Id]=@detail;
             UPDATE [Storage].[Attachments] SET [CurrentRevisionId]=@thumbRevision WHERE [Id]=@thumb;
             DECLARE @version varbinary(8)=(SELECT [RowVersion] FROM [Inventory].[Items] WHERE [Id]=@id);
@@ -166,9 +169,13 @@ public sealed class ItemRestorationDatabaseTests(SqlServerFixture sqlServer)
         Assert.Equal(1, await ArchiveAsync(owner, id, before.Version));
         var archived = await RecordAsync(admin, id);
         var retained = await RetainedEvidenceAsync(admin);
-        // WHEN the additive restoration migration upgrades actual H5 data.
+        var recoverySchema = await RecoverySchemaAsync(admin);
+        // WHEN the additive restoration migration upgrades the online-recovery base data.
         await DatabaseMigrator.MigrateAsync(database.AdminConnectionString, CancellationToken.None);
-        // THEN all retained data and archive membership survive unchanged.
+        // THEN current readiness advances while recovery commands, grants and tenant isolation survive.
+        await AssertMigrationMarkerAsync(admin, "20260908010000_AddItemRestoration");
+        Assert.Equal(recoverySchema, await RecoverySchemaAsync(admin));
+        // AND all retained data and archive membership survive unchanged.
         Assert.Equal(retained, await RetainedEvidenceAsync(admin));
         Assert.Equal(archived.Version, (await RecordAsync(admin, id)).Version);
         Assert.Equal(1, await RestoreAsync(owner, id, archived.Version));
@@ -177,8 +184,10 @@ public sealed class ItemRestorationDatabaseTests(SqlServerFixture sqlServer)
         Assert.Null(restored.ArchivedAtUtc);
         Assert.Equal(retained, await RetainedEvidenceAsync(admin));
         // WHEN the supported down migration removes only the additive command.
-        await DatabaseMigrator.MigrateToAsync(database.AdminConnectionString, "AddItemArchiving", CancellationToken.None);
-        // THEN it preserves restoration, versions and history and restores the prior schema marker.
+        await DatabaseMigrator.MigrateToAsync(database.AdminConnectionString, "AddOnlineRecovery", CancellationToken.None);
+        // THEN it preserves recovery commands, restoration, versions and history and restores the prior schema marker.
+        Assert.Equal(recoverySchema, await RecoverySchemaAsync(admin));
+        await AssertMigrationMarkerAsync(admin, "20260907225320_AddOnlineRecovery");
         Assert.Equal(restored.Version, (await RecordAsync(admin, id)).Version);
         Assert.Null((await RecordAsync(admin, id)).ArchivedAtUtc);
         Assert.Equal(retained, await RetainedEvidenceAsync(admin));
@@ -187,12 +196,42 @@ public sealed class ItemRestorationDatabaseTests(SqlServerFixture sqlServer)
         {
             Assert.True(await reader.ReadAsync());
             Assert.True(reader.IsDBNull(0));
-            Assert.Contains("20260907224158_AddItemArchiving", reader.GetString(1));
+            Assert.Contains("20260907225320_AddOnlineRecovery", reader.GetString(1));
             Assert.DoesNotContain("AddItemRestoration", reader.GetString(1));
         }
         await DatabaseMigrator.MigrateAsync(database.AdminConnectionString, CancellationToken.None);
         Assert.Equal(3, await RestoreAsync(owner, id, archived.Version));
     }
+    private static async Task AssertMigrationMarkerAsync(SqlConnection connection, string migration)
+    {
+        await using var command = new SqlCommand("SELECT OBJECT_DEFINITION(OBJECT_ID(N'[Security].[ReadDatabaseReadiness]'))", connection);
+        Assert.Contains(migration, (string)(await command.ExecuteScalarAsync())!);
+    }
+
+    private static async Task<string> RecoverySchemaAsync(SqlConnection connection)
+    {
+        await using var command = new SqlCommand("""
+            SELECT (SELECT name, OBJECT_DEFINITION(object_id) AS definition FROM sys.procedures
+                WHERE name IN ('ReadRecoveryInventory','AcceptFileRecovery','ReadFileRecoveryCompletion','ReadFileRecoveryReadiness')
+                ORDER BY name FOR JSON PATH) AS commands,
+                (SELECT principal.name, permission.permission_name, permission.state_desc, OBJECT_NAME(permission.major_id) AS object_name
+                FROM sys.database_permissions permission JOIN sys.database_principals principal ON principal.principal_id=permission.grantee_principal_id
+                WHERE permission.major_id IN (OBJECT_ID('Storage.RecoveryFiles'),OBJECT_ID('Storage.ReadRecoveryInventory'),
+                    OBJECT_ID('Storage.AcceptFileRecovery'),OBJECT_ID('Storage.ReadFileRecoveryCompletion'),OBJECT_ID('Security.ReadFileRecoveryReadiness'))
+                ORDER BY principal.name, object_name, permission.permission_name FOR JSON PATH) AS grants,
+                (SELECT predicate_definition, predicate_type_desc, operation_desc FROM sys.security_predicates
+                WHERE target_object_id=OBJECT_ID('Storage.RecoveryFiles') ORDER BY predicate_type, operation FOR JSON PATH) AS predicates
+            FOR JSON PATH;
+            """, connection);
+        await using var reader = await command.ExecuteReaderAsync();
+        var json = new System.Text.StringBuilder();
+        while (await reader.ReadAsync())
+        {
+            json.Append(reader.GetString(0));
+        }
+        return json.ToString();
+    }
+
     private static async Task<string> RetainedEvidenceAsync(SqlConnection connection)
     {
         await using var command = new SqlCommand("""
@@ -200,7 +239,9 @@ public sealed class ItemRestorationDatabaseTests(SqlServerFixture sqlServer)
                 (SELECT * FROM [Inventory].[ItemPhotos] ORDER BY [Id] FOR JSON PATH, INCLUDE_NULL_VALUES) AS [photos],
                 (SELECT * FROM [Inventory].[ItemPhotoOperations] ORDER BY [Id] FOR JSON PATH, INCLUDE_NULL_VALUES) AS [operations],
                 (SELECT * FROM [Storage].[Attachments] ORDER BY [Id] FOR JSON PATH, INCLUDE_NULL_VALUES) AS [attachments],
-                (SELECT * FROM [Storage].[Revisions] ORDER BY [Id] FOR JSON PATH, INCLUDE_NULL_VALUES) AS [revisions]
+                (SELECT * FROM [Storage].[Revisions] ORDER BY [Id] FOR JSON PATH, INCLUDE_NULL_VALUES) AS [revisions],
+                (SELECT * FROM [Storage].[RecoveryFiles] ORDER BY [RevisionId] FOR JSON PATH, INCLUDE_NULL_VALUES) AS [recoveryFiles],
+                (SELECT * FROM [Security].[FileRecoveryReports] ORDER BY [ReportId] FOR JSON PATH, INCLUDE_NULL_VALUES) AS [recoveryReports]
             FOR JSON PATH;
             """, connection);
         await using var reader = await command.ExecuteReaderAsync();

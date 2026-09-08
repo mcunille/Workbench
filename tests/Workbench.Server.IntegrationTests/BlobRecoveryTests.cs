@@ -16,8 +16,12 @@ namespace Workbench.Server.IntegrationTests;
 [Collection(SqlServerCollection.Name)]
 public sealed class BlobRecoveryTests(SqlServerFixture sqlServer)
 {
-    [Fact]
-    public async Task PairedBackupRestoresContentAndMigrationPreservesIdentity()
+    [Theory]
+    [InlineData("20260907194500_AddItemDetailEditing")]
+    [InlineData("20260907224158_AddItemArchiving")]
+    [InlineData("20260907225320_AddOnlineRecovery")]
+    [InlineData("20260908010000_AddItemRestoration")]
+    public async Task PairedBackupRestoresContentAndMigrationPreservesIdentity(string priorSchema)
     {
         // GIVEN an offline installation with one retained attachment and dedicated maintenance authority.
         await using var database = await sqlServer.CreateDatabaseAsync();
@@ -93,6 +97,10 @@ public sealed class BlobRecoveryTests(SqlServerFixture sqlServer)
                 command.Parameters.AddWithValue("@now", DateTimeOffset.UtcNow);
                 await command.ExecuteNonQueryAsync();
             }
+            // GIVEN a compatible exact-pair manifest produced by a supported release.
+            var priorManifest = JsonSerializer.Deserialize<BlobManifest>(await File.ReadAllTextAsync(manifestPath))!;
+            Assert.Equal("20260908010000_AddItemRestoration", priorManifest.SchemaVersion);
+            await File.WriteAllTextAsync(manifestPath, JsonSerializer.Serialize(priorManifest with { SchemaVersion = priorSchema }));
             // THEN verification blocks reopening until every referenced object is restored.
             await Assert.ThrowsAsync<FileNotFoundException>(() => StorageMaintenanceCommand.RunAsync("verify", maintenance, databaseName, options, CancellationToken.None));
             await using (var connection = new SqlConnection(database.AdminConnectionString))
@@ -150,7 +158,7 @@ public sealed class BlobRecoveryTests(SqlServerFixture sqlServer)
             // AND the paired manifest records its schema boundary as well as immutable content identity.
             using var manifest = JsonDocument.Parse(await File.ReadAllTextAsync(manifestPath));
             Assert.True(manifest.RootElement.TryGetProperty("SchemaVersion", out var schema));
-            Assert.Equal("20260908010000_AddItemRestoration", schema.GetString());
+            Assert.Equal(priorSchema, schema.GetString());
             // WHEN the migrated attachment is deleted after its retention deadline.
             await using var contextAfterMigration = BlobPersistenceTests.CreateContext(web, proof, tenant);
             var attachmentAfterMigration = await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.SingleAsync(contextAfterMigration.Attachments);

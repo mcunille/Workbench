@@ -4,6 +4,17 @@ import { ItemPhoto } from './ItemPhoto';
 import { getPhoto } from '../../api/items';
 import { ApiError } from '../../api/auth';
 vi.mock('../../api/items', () => ({ getPhoto: vi.fn() }));
+it('explains accepted recovery loss without retrying or ending the session', async () => {
+  // GIVEN SQL records that this photo was unavailable after recovery.
+  vi.mocked(getPhoto).mockRejectedValue(new ApiError(410));
+  const lost = vi.fn();
+  // WHEN its authorized owner views the recovered item.
+  render(<ItemPhoto interactive url="/recovered-photo" name="Stone" onAuthLost={lost} />);
+  // THEN the notice distinguishes data loss from a temporary provider outage.
+  expect(await screen.findByRole('status')).toHaveTextContent('This photograph could not be recovered');
+  expect(screen.queryByRole('button', { name: 'Retry photograph' })).not.toBeInTheDocument();
+  expect(lost).not.toHaveBeenCalled();
+});
 it('ends the session when image delivery loses authorization', async () => {
   // GIVEN an expired session on the authenticated image endpoint.
   vi.mocked(getPhoto).mockRejectedValue(new ApiError(401));

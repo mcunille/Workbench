@@ -131,9 +131,12 @@ on cancellation, announced pending/error/outcome states, visible focus, 44 CSS-p
 Deliver one forward migration adding the restore command and its permission. Update schema/readiness
 markers, provisioning checks, and generated API declarations. Preserve every base migration and
 the existing column/index/model shape. Require migration before deploying the new application.
-Document rollback compatibility: the previous H5 application can read the same active/archived
+After integration with main, `20260907225320_AddOnlineRecovery` is the preceding schema.
+H6 keeps its recovery model, reports, missing-file dispositions, commands, permissions and tenant isolation.
+Document rollback compatibility: that preceding application can read the same active/archived
 data after restoration, but lacks archive browsing/restore UI. If the new procedure is removed in
-a supported down migration, restore prior permission/schema markers without altering item data.
+a supported down migration, restore the online-recovery schema marker without altering item data.
+Do not migrate below that base: online recovery intentionally refuses destructive downgrade.
 Never reverse restoration by guessing earlier archive timestamps. Use forward correction or the
 documented paired SQL/blob recovery procedure when data recovery is needed; no production action
 is authorized by this implementation.
@@ -197,9 +200,9 @@ explicit transactions, and rollback retaining the original archived version. Ind
 SQL connections race restore/restore and restore against archived-version text/photo commands.
 Delayed restore after re-archive remains a conflict and leaves the current row unchanged.
 
-Fresh creation, upgrade from the actual H5 base (with edited snapshots, archived items and retained
-photo-operation history), data-preserving H6 downgrade, and restored-authentication sanitation
-passed the four migration drills. The new migration has no item-table/model-shape change; all base
+The original implementation passed four migration drills: fresh creation, upgrade from the
+then-current H5 base (with edited snapshots, archived items and retained photo-operation history),
+data-preserving H6 downgrade, and restored-authentication sanitation. The new migration has no item-table/model-shape change; all base
 migrations remain unchanged. API declarations were regenerated and the drift check passed.
 
 Five targeted manual mutation probes were detected: removing stale-version classification in SQL,
@@ -223,3 +226,23 @@ reviewer rechecked the complete base/head range and reported no remaining action
 The [narrated walkthrough](../demos/h6/README.md) records synthetic data against the real API and
 SQL. Generated MP4s remain untracked. Local automated verification does not establish collector
 usability, production deployment, hosted backup acceptance, public CA issuance, or SMTP delivery.
+
+
+### Integration with the online-recovery base
+
+The merge of `13e05c7` advances H6's immediate predecessor to
+`20260907225320_AddOnlineRecovery`. The H6 migration and supported Down preserve recovery
+reports, missing-file dispositions, procedure definitions, permissions and tenant predicates.
+Offline manifests from that release remain accepted alongside the previously supported schemas.
+Two focused regressions were observed failing before the compatibility corrections; all 26
+migration, restoration-database and blob-recovery checks passed afterward. The H6 migration
+Designer matches the current model snapshot; no migration from the base branch was rewritten.
+
+The combined application passed `scripts/verify.ps1 -SkipDependencyInstall`: 500 server tests,
+94 client tests, all 35 browser scenarios, formatting, generated API drift, builds, all four
+migration drills and the published-output probe at `http://127.0.0.1:60048`.
+`scripts/smoke-container.ps1` passed at `http://127.0.0.1:62912`. Disposable instances were removed.
+After the independent integration review corrected the immediate-prior-schema test fixture,
+all seven inventory-readiness checks passed against a fresh build. The review identified no
+runtime conflict. These checks add integration evidence to the earlier walkthrough and mutation
+records; the narrated video and mutation probes were not rerun for this merge.
