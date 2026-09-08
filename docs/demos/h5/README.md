@@ -8,22 +8,6 @@ details, and exclusion from Grid/List search. All data is synthetic; requests us
 and a disposable SQL database. Authentication happens off camera. Narration uses Microsoft
 Zira's synthetic voice. The interrupted response is deliberately injected after server commit.
 
-## Reproduce on Windows
-
-Use the pinned repository prerequisites, Playwright Chromium, Docker, and FFmpeg with H.264,
-AAC, and subtitle support. From the repository root:
-
-```powershell
-npm run build --prefix src/Workbench.Client
-./docs/demos/record-narration.ps1 -Scenario h5
-npm test --prefix tests/Workbench.BrowserTests -- --config demos/h5.config.ts
-python ./docs/demos/render-video.py --scenario h5 --ffmpeg /absolute/path/to/ffmpeg.exe
-```
-
-Recording is opt-in. Raw footage, audio, and timings go to ignored `artifacts/h5-video`;
-the generated MP4 remains outside Git and can be shared separately. The harness uses
-`http://127.0.0.1:4179` and removes its disposable SQL container and storage on exit.
-
 ## Verification
 
 The separate `archiving.spec.ts` browser regressions cover retained photographs at 320px and
