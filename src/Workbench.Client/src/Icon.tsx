@@ -1,4 +1,6 @@
 type IconName =
+  | 'sun'
+  | 'moon'
   | 'grid'
   | 'list'
   | 'inventory'
@@ -11,6 +13,8 @@ type IconName =
   | 'back';
 
 const paths: Record<IconName, string> = {
+  sun: 'M16 12a4 4 0 1 1-8 0 4 4 0 0 1 8 0 M12 2v2 M12 20v2 M2 12h2 M20 12h2 M5 5l1.5 1.5 M17.5 17.5 19 19 M5 19l1.5-1.5 M17.5 6.5 19 5',
+  moon: 'M20.5 13a8.5 8.5 0 0 1-9.5-9.5A8.5 8.5 0 1 0 20.5 13z',
   grid: 'M3 3h7v7H3z M14 3h7v7h-7z M3 14h7v7H3z M14 14h7v7h-7z',
   list: 'M8 5h13 M8 12h13 M8 19h13 M3 5h.01 M3 12h.01 M3 19h.01',
   inventory: 'M4 8h16v12H4z M3 4h18v4H3z M9 12h6',

@@ -72,7 +72,7 @@ test('collection grid and list preserve saved links across responsive layouts an
   for (const width of [320, 390, 768, 1440]) {
     await page.setViewportSize({ width, height: 1000 });
     for (const appearance of ['light', 'dark']) {
-      await page.getByRole('combobox', { name: 'Appearance', exact: true }).selectOption(appearance);
+      await page.getByRole('switch', { name: 'Dark theme' }).setChecked(appearance === 'dark');
       for (const [view, button] of [['grid', grid], ['list', list]] as const) {
         await button.focus();
         await page.keyboard.press('Enter');
@@ -108,7 +108,7 @@ test('collection grid and list preserve saved links across responsive layouts an
     await cdp.send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-reduced-transparency', value: 'reduce' }] });
     expect(await page.evaluate(() => matchMedia('(prefers-reduced-transparency: reduce)').matches)).toBe(true);
     for (const appearance of ['light', 'dark']) {
-      await page.getByRole('combobox', { name: 'Appearance', exact: true }).selectOption(appearance);
+      await page.getByRole('switch', { name: 'Dark theme' }).setChecked(appearance === 'dark');
       const header = page.locator('header.topbar');
       await expect.poll(() => header.evaluate(element => getComputedStyle(element).backdropFilter)).toBe('none');
       const background = await header.evaluate(element => getComputedStyle(element).backgroundColor);
@@ -133,7 +133,7 @@ test('the studio shell reflows with enlarged text and respects reduced motion', 
     await page.setViewportSize({ width, height: 1000 });
     for (const appearance of ['light', 'dark']) {
       // WHEN viewport and appearance change, the draft and accessible controls remain intact.
-      await page.getByRole('combobox', { name: 'Appearance' }).selectOption(appearance);
+      await page.getByRole('switch', { name: 'Dark theme' }).setChecked(appearance === 'dark');
       await expect(page.getByLabel('Name', { exact: true })).toHaveValue('A sapphire to remember');
       await inspectLayout(page);
       await page.screenshot({ path: `${screenshotDirectory}/form-${width}-${appearance}.png`, fullPage: true });
@@ -180,14 +180,14 @@ test('appearance survives authentication transitions when browser storage is blo
     Storage.prototype.setItem = () => { throw new Error('Storage blocked for this test'); };
   });
   await page.goto('/');
-  await page.getByRole('combobox', { name: 'Appearance' }).selectOption('dark');
+  await page.getByRole('switch', { name: 'Dark theme' }).setChecked(true);
   // WHEN signing in and then out without reloading the document.
   await signInThroughUi(page, false);
   // THEN the in-memory choice remains intact in both control locations.
-  await expect(page.getByRole('combobox', { name: 'Appearance' })).toHaveValue('dark');
+  await expect(page.getByRole('switch', { name: 'Dark theme' })).toBeChecked();
   await page.getByRole('button', { name: 'Sign out', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Sign in', exact: true })).toBeVisible();
-  await expect(page.getByRole('combobox', { name: 'Appearance' })).toHaveValue('dark');
+  await expect(page.getByRole('switch', { name: 'Dark theme' })).toBeChecked();
   expect(await page.evaluate(() => document.documentElement.dataset.theme)).toBe('dark');
 });
 
@@ -369,7 +369,7 @@ for (const width of [320, 1280]) {
 
     // WHEN appearance changes on a dirty form, entered content remains available.
     for (const appearance of ['Dark', 'Light']) {
-      await page.getByRole('combobox', { name: 'Appearance', exact: true }).selectOption({ label: appearance });
+      await page.getByRole('switch', { name: 'Dark theme' }).setChecked(appearance.toLowerCase() === 'dark');
       await expect(page.getByLabel('Name', { exact: true })).toHaveValue(name);
       await expect(page.getByLabel('Notes (optional)', { exact: true })).toHaveValue(notes);
       await expect.poll(() => page.evaluate(() => getComputedStyle(document.documentElement).colorScheme)).toBe(appearance.toLowerCase());
@@ -381,7 +381,7 @@ for (const width of [320, 1280]) {
     await page.keyboard.press('Enter');
     await expect(page.getByRole('heading', { name, exact: true })).toBeVisible();
     for (const appearance of ['Dark', 'Light']) {
-      await page.getByRole('combobox', { name: 'Appearance', exact: true }).selectOption({ label: appearance });
+      await page.getByRole('switch', { name: 'Dark theme' }).setChecked(appearance.toLowerCase() === 'dark');
       // THEN the entire identifier and notes fit without horizontal page overflow.
       await expect(page.getByText(notes, { exact: true })).toBeVisible();
       await inspectLayout(page);
@@ -398,7 +398,7 @@ for (const width of [320, 1280]) {
       }
     }
     await page.reload();
-    await expect(page.getByRole('combobox', { name: 'Appearance', exact: true })).toHaveValue('light');
+    await expect(page.getByRole('switch', { name: 'Dark theme' })).not.toBeChecked();
     await expect(page.getByRole('heading', { name, exact: true })).toBeVisible();
   });
 }
