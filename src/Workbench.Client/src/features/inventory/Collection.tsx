@@ -1,3 +1,4 @@
+import { FloatingField } from '../../FloatingField';
 import {
   useCallback,
   useEffect,
@@ -168,17 +169,20 @@ export function Collection({
           search(draft);
         }}
       >
-        <label htmlFor="collection-query">
-          {archived ? 'Search archive' : 'Search collection'}
-        </label>
         <div className="collection-search-controls">
-          <input
-            id="collection-query"
-            type="search"
-            value={draft}
-            aria-describedby="collection-search-help"
-            onChange={(event) => setDraft(event.target.value)}
-          />
+          <FloatingField
+            label={archived ? 'Search archive' : 'Search collection'}
+            htmlFor="collection-query"
+          >
+            <input
+              placeholder=" "
+              id="collection-query"
+              type="search"
+              value={draft}
+              aria-describedby="collection-search-help"
+              onChange={(event) => setDraft(event.target.value)}
+            />
+          </FloatingField>
           <button className="primary" type="submit">
             Search
           </button>
@@ -546,7 +550,7 @@ export function ItemDetails({
                 </button>
               ) : null}
               {!item.archivedAtUtc ? (
-                <>
+                <div className="button-row record-actions">
                   <button
                     ref={editButton}
                     className="secondary"
@@ -569,7 +573,7 @@ export function ItemDetails({
                   >
                     Archive record
                   </button>
-                </>
+                </div>
               ) : null}
               <PhotoEditor
                 key={item.id}

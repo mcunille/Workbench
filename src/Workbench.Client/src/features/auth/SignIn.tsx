@@ -1,3 +1,4 @@
+import { FloatingField } from '../../FloatingField';
 import { useState, type FormEvent } from 'react';
 import { useAuth } from './useAuth';
 
@@ -39,19 +40,17 @@ export function SignIn() {
         Use the Workbench account assigned to your organization.
       </p>
       <form className="form-stack" onSubmit={(event) => void submit(event)}>
-        <label>
-          Email
-          <input name="email" type="email" autoComplete="username" required />
-        </label>
-        <label>
-          Password
-          <input
+        <FloatingField label="Email" htmlFor="sign-in-email">
+          <input id="sign-in-email" placeholder=" " name="email" type="email" autoComplete="username" required />
+        </FloatingField>
+        <FloatingField label="Password" htmlFor="sign-in-password">
+          <input id="sign-in-password" placeholder=" "
             name="password"
             type="password"
             autoComplete="current-password"
             required
           />
-        </label>
+        </FloatingField>
         {failed ? (
           <p className="form-message error" role="alert">
             The email or password was not accepted.

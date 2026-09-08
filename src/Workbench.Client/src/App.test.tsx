@@ -56,6 +56,8 @@ describe('App', () => {
     vi.spyOn(window, 'scrollTo').mockImplementation(() => {});
     render(<App />);
     await screen.findByRole('link', { name: /Stone/ });
+    // THEN the workspace carries the same maker attribution as sign-in.
+    expect(screen.getByText('by The White Stag Collection')).toBeVisible();
     fireEvent.change(screen.getByRole('searchbox'), {
       target: { value: 'private draft' },
     });

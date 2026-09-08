@@ -2,7 +2,7 @@
 
 > Quiet glass. A whisper of color.
 
-**Appearance:** dark and light. **Reference surface:** the centered sign-in page.
+**Appearance:** dark and light. **Reference surfaces:** sign-in and the collection workspace.
 
 Tanzanite gives Workbench depth through translucent neutral surfaces, a fine highlighted
 edge, and soft shadows. In dark appearance, faint blue and violet light enter from the
@@ -11,15 +11,14 @@ glass with charcoal typography. Color supplies atmosphere; the form, brand, and 
 action stay neutral. A prominent geometric stag anchors the page above a clean Workbench
 wordmark and the quiet attribution, “by The White Stag Collection.”
 
-This guide follows the approved, implemented sign-in design. The collection workspace,
-recovery pages, and other application surfaces retain their existing styling. Use this
-reference when designing an approved extension of Tanzanite; it does not authorize a
-global restyle. The existing appearance choices remain System, Light, and Dark;
+This guide covers Tanzanite across sign-in, collection, editors, account and administration,
+recovery, invitations, and shared dialogs. The existing appearance choices remain System, Light, and Dark;
 Tanzanite is the design language, not a separate persisted theme setting.
 
 ## Tokens — Colors
 
-These are the actual custom properties scoped to `.sign-in-page`. Eight-digit hex values
+The table below describes the sign-in glass variant. Shared text, canvas, action, border,
+and focus colors match the application tokens. Eight-digit hex values
 include alpha; they describe a layer, not its final composited screen color.
 
 | Name | Dark | Light | Token | Role |
@@ -34,7 +33,7 @@ include alpha; they describe a layer, not its final composited screen color.
 | Primary action | `#fafafa` | `#222428` | `--accent` | Neutral primary button fill |
 | On primary | `#15161a` | `#ffffff` | `--on-accent` | Primary button label |
 | Hover surface | `#24252c` | `#f0f1f5` | `--hover` | Secondary control hover |
-| Focus | `#a5adeb` | `#555eb4` | `--focus` | Visible keyboard-focus outline |
+| Focus | `#a5adeb` | `#555eb4` | `--focus` | Field border or action/link focus outline |
 
 The dark card uses its own `#101114b8` base beneath its highlight gradient. It does not
 use `--surface` directly. Error text inherits `--danger` from the application:
@@ -138,11 +137,11 @@ decorative glass edges. The panel height is determined by content, including err
 |---------|----------------|-----------------|---------|
 | Canvas | Near-black with upper blue/violet atmosphere | White with faint upper cool light | Quiet page field |
 | Glass panel | `#101114b8` plus white highlight gradient | `--surface` plus white highlight gradient | One clear container for the task |
-| Inset input | `#ffffff03` over the panel | `#ffffff28` over the panel | Distinct editable region |
+| Floating-label input | `#121317` | `#ffffff` | Neutral editable region and label notch |
 | Primary action | Near-white fill | Charcoal fill | Strongest actionable contrast |
 
 Do not turn this into a stack of nested glass cards. The composition uses one primary
-panel, with depth supplied by its material and the inset fields.
+panel, with depth supplied by its material and soft shadows.
 
 ## Elevation
 
@@ -160,8 +159,7 @@ outer shadows. It must still read as a complete panel when backdrop blur is unav
 
 ### Control depth
 
-- Inputs: `inset 0 2px 5px #00000020` in dark appearance;
-  `inset 0 2px 5px #00000005` in light appearance.
+- Floating-label inputs: no inset shadow or outer focus ring.
 - Primary button: `0 4px 12px #00000015`; hover uses `0 6px 18px #00000025`.
 - Keep shadows neutral. A colored glow around the full panel is outside this direction.
 
@@ -200,11 +198,23 @@ spans the form width. During submission, keep the existing disabled state and th
 
 ### Text input
 
-**Role:** a readable, subtly inset editable surface.
+**Role:** a readable neutral surface with a floating label.
 
-Use a visible external label, neutral border, 6px radius, 62px minimum height, and
-16px entered text. Preserve email/password types, required validation, and autocomplete
-values `username` and `current-password`. Placeholder text must not replace the label.
+Use `FloatingField` around one native input or textarea, with `htmlFor` matching the
+control's `id`. A sibling label keeps textarea content out of its accessible name. The label rests inside an empty
+field and rises into the top border on focus, autofill, or a nonempty value. A focused
+field has a single 2px `--focus` border with compensated padding, no outer outline or
+shadow ring, and 6px corners. Invalid fields keep `--danger`. Preserve email/password
+types, validation, and autocomplete. Provide `placeholder=" "` when there is no hint;
+example hints appear on focus. A placeholder never replaces the accessible label.
+
+Entered text remains 16px. Sign-in keeps its 62px minimum input height; workspace
+controls retain their existing target sizes. The input and label notch share an opaque
+white or `#121317` fill. Fields at most 16rem wide use external, wrapping labels;
+the threshold scales with root text size so enlarged text cannot overlap values.
+Label motion lasts 140ms and respects reduced motion. Text color changes immediately
+with appearance to preserve contrast throughout theme changes. See the
+[field specification](docs/specs/2026-09-08-floating-label-fields.md).
 
 ### Recovery link
 
@@ -237,7 +247,8 @@ Do not fix the card height or clip overflowing content to preserve a screenshot 
 - Primary button press: move down by 1px.
 - Disabled buttons do not receive the hover or press transform.
 - With `prefers-reduced-motion: reduce`, remove the transition and both transforms.
-- Keyboard focus uses a 3px outline in `--focus`, offset by 3px.
+- Links and buttons use a 3px keyboard-focus outline in `--focus`, offset by 3px.
+  Text fields use a single 2px focus border; the appearance selector changes border color.
 - The implemented background is static. There is no ambient drift, parallax, or glow animation.
 - Preserve native validation, pending feedback, and the existing generic sign-in error.
 
@@ -257,7 +268,7 @@ or jewelry photograph represents the item. That extension requires its own scope
 
 - Keep the page overwhelmingly neutral, with atmospheric color confined to the top.
 - Use the original stag at a clearly visible size and keep the byline subordinate to Workbench.
-- Create depth through material, highlights, inset fields, and soft shadows.
+- Create depth through material, highlights, and soft shadows.
 - Maintain crisp text and visible control boundaries over translucent surfaces.
 - Preserve both appearances, keyboard operation, validation, and reduced-motion behavior.
 - Reuse the actual selectors and semantic tokens when working on the existing sign-in surface.
@@ -308,6 +319,7 @@ The application already imports these styles in this order:
 ```tsx
 import './styles.css';
 import './sign-in.css';
+import './floating-field.css';
 ```
 
 The imports above are relative to
@@ -315,6 +327,7 @@ The imports above are relative to
 [SignIn component](src/Workbench.Client/src/features/auth/SignIn.tsx) within its
 `.sign-in-page` and `.sign-in-shell` wrappers. The base stylesheet supplies shared
 typography, validation, focus, and control rules; `sign-in.css` supplies scoped overrides.
+Import `floating-field.css` last for the shared text-field interaction.
 Changing the root `data-theme` attribute remains the responsibility of the existing
 appearance control.
 
@@ -360,3 +373,37 @@ library, or separate font installation is needed to reproduce this reference.
 Keep this guide synchronized with approved implementation changes. It documents visual
 language; it does not replace product requirements, authorization rules, or the repository's
 implementation and review workflow.
+
+## Application surfaces
+
+The shared stylesheet implements Tanzanite throughout the existing workspace. Reading,
+editing, and photographic surfaces stay opaque; the sticky header and public account
+cards use restrained glass. Layout, route structure, permissions, and workflows are unchanged.
+
+| Shared token | Dark | Light |
+|---|---|---|
+| `--surface` | `#121317` | `#ffffff` |
+| `--surface-raised` | `#1b1c22` | `#ffffff` |
+| `--border-subtle` | `#34363f` | `#d9dbe3` |
+| `--selected` | `#252730` | `#edf0f6` |
+| `--hover` | `#202229` | `#f3f4f7` |
+| `--placeholder` | `#1b1c22` | `#f4f5f7` |
+| `--header-material` | `rgb(18 19 23 / 88%)` | `rgb(255 255 255 / 88%)` |
+
+Shared radius tokens are `--radius-small: 2px`, `--radius-badge: 4px`,
+`--radius-input: 6px`, `--radius-button: 6px`, and `--radius-card: 12px`.
+Small and badge tokens are reserved for future components. Existing card, list, panel,
+editor, and dialog corners use 12px; controls and navigation links use 6px. Grid photo
+corners are inset by their 1px container border.
+
+The compact brand uses the original stag at 48 × 64px (40 × 54px on mobile), a 24px
+system sans wordmark (20px on mobile), and an 11px muted maker byline. The sign-in
+lockup retains its larger approved geometry. Standard workspace controls retain their
+44px minimum target; the 60px/62px sign-in dimensions above are specific to that form.
+
+Card elevation uses subtle neutral shadows in both appearances. Never tint photographs
+or use colored fills to imply inventory state. Reduced transparency falls back to opaque
+chrome; reduced motion disables active translations. Forced colors retains native control
+boundaries and an explicit active navigation outline.
+
+See the [application extension specification](docs/specs/2026-09-08-tanzanite-app.md).

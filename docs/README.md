@@ -9,7 +9,7 @@ runbooks do not yet constitute complete, self-contained installation procedures.
 
 ## Current direction
 
-- [Tanzanite style reference](../DESIGN.md) documents the implemented sign-in visual language,
+- [Tanzanite style reference](../DESIGN.md) documents the implemented application visual language,
   including color tokens, typography, glass materials, branding, components, and reusable design briefs.
 - [VISION.md](VISION.md) defines what Workbench is for, the people it serves, and its major product
   areas.
@@ -32,7 +32,7 @@ they do not replace the living documentation above.
 
 The accepted [UI design guidance](specs/2026-09-06-ui-design-guidance.md) applies UI Skills research
 to Workbench's visual system, progressive capability, desktop/mobile layouts, accessibility, and
-light/dark themes, with bronze accents aligned to The White Stag Collection. The
+light/dark themes. The Tanzanite reference above supersedes its original bronze palette. The
 [reviewed mockup](design/README.md) preserves the visual reference and verification limits.
 Design acceptance does not imply an implemented application UI or accepted domain workflows.
 

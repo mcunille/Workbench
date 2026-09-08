@@ -1,3 +1,4 @@
+import { FloatingField } from '../../FloatingField';
 import { useEffect, useState, type FormEvent } from 'react';
 import {
   changePassword,
@@ -103,14 +104,12 @@ export function Sessions() {
       <details>
         <summary>Change password</summary>
         <form className="form-stack compact" onSubmit={(event) => void updatePassword(event)}>
-          <label>
-            Current password
-            <input name="currentPassword" type="password" autoComplete="current-password" required />
-          </label>
-          <label>
-            New password
-            <input name="newPassword" type="password" autoComplete="new-password" required />
-          </label>
+          <FloatingField label="Current password" htmlFor="current-password">
+            <input id="current-password" placeholder=" " name="currentPassword" type="password" autoComplete="current-password" required />
+          </FloatingField>
+          <FloatingField label="New password" htmlFor="new-password">
+            <input id="new-password" placeholder=" " name="newPassword" type="password" autoComplete="new-password" required />
+          </FloatingField>
           <button className="primary" type="submit">Change password</button>
         </form>
       </details>
