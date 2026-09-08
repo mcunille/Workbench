@@ -1,6 +1,23 @@
 import { expect, test } from '@playwright/test';
 import { photoSignIn } from './photo-fixture';
 
+test('enlarged navigation fits with wider platform font metrics', async ({ page }) => {
+  // GIVEN a narrow editor with 200% text and a wide fallback font in navigation.
+  await photoSignIn(page);
+  await page.goto('/inventory/new');
+  await page.setViewportSize({ width: 320, height: 900 });
+  await page.addStyleTag({ content: 'html { font-size: 200%; } .workspace-nav { font-family: monospace; }' });
+  // WHEN navigation reflows THEN every link fits its container without clipping text.
+  const navigation = page.getByRole('navigation', { name: 'Workspace' });
+  const bounds = (await navigation.boundingBox())!;
+  for (const link of await navigation.getByRole('link').all()) {
+    const box = (await link.boundingBox())!;
+    expect(box.x + box.width, await link.innerText()).toBeLessThanOrEqual(bounds.x + bounds.width);
+    expect(await link.evaluate(el => el.scrollWidth <= el.clientWidth)).toBe(true);
+  }
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+});
+
 test('enlarged editor labels remain readable without overlapping fields', async ({ page }, testInfo) => {
   // GIVEN the real item editor with 200% text in a narrow viewport.
   await photoSignIn(page);

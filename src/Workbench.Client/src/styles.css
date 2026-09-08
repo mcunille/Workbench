@@ -778,6 +778,9 @@ dialog::backdrop {
     border-bottom: 1px solid var(--border-subtle);
   }
   .workspace-nav a {
+    max-width: 100%;
+    flex-wrap: wrap;
+    overflow-wrap: anywhere;
     gap: 0.375rem;
     padding: 0.625rem;
     min-height: 44px;
