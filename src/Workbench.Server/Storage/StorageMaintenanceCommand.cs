@@ -14,7 +14,7 @@ public sealed record BlobManifest(int Version, string SchemaVersion, Guid Backup
 // exposes this authority. Stop every replica and worker before invoking it.
 public static class StorageMaintenanceCommand
 {
-    private const string SchemaVersion = "20260907224158_AddItemArchiving";
+    private const string SchemaVersion = "20260907225320_AddOnlineRecovery";
     public static async Task RunAsync(string action, string connectionString, string database,
         IReadOnlyDictionary<string, string> arguments, CancellationToken cancellationToken)
     {
@@ -32,6 +32,11 @@ public static class StorageMaintenanceCommand
         if (!Guid.TryParse(configuration["Storage:InstallationId"], out var installation) || installation == Guid.Empty)
         {
             throw new ArgumentException("A storage installation identifier is required for maintenance.");
+        }
+        if (action is "recovery-plan" or "recovery-apply")
+        {
+            await FileRecoveryCommand.RunAsync(action, connectionString, arguments, configuration, source, installation, cancellationToken);
+            return;
         }
         var entries = await ReadEntriesAsync(connectionString, cancellationToken);
         if (entries.Any(entry => entry.ProviderAlias != source.Alias))
@@ -60,7 +65,7 @@ public static class StorageMaintenanceCommand
             await using var input = File.OpenRead(Required("--manifest-file"));
             var manifest = await JsonSerializer.DeserializeAsync<BlobManifest>(input, cancellationToken: cancellationToken)
                 ?? throw new InvalidDataException("A valid blob manifest is required.");
-            if (manifest.Version != 1 || manifest.SchemaVersion != SchemaVersion || manifest.Database != database || manifest.InstallationId != installation ||
+            if (manifest.Version != 1 || manifest.SchemaVersion is not (SchemaVersion or "20260907224158_AddItemArchiving" or "20260907194500_AddItemDetailEditing") || manifest.Database != database || manifest.InstallationId != installation ||
                 manifest.Entries.Count != entries.Count || !entries.SequenceEqual(manifest.Entries))
             {
                 throw new InvalidDataException("The manifest does not match the restored database.");

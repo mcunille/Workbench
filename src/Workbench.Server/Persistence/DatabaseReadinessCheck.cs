@@ -99,10 +99,19 @@ public sealed class DatabaseReadinessCheck(
                     AND HAS_PERMS_BY_NAME(N'[Inventory].[ItemCreationSnapshots]', N'OBJECT', N'INSERT') = 0
                     AND HAS_PERMS_BY_NAME(N'[Inventory].[ItemCreationSnapshots]', N'OBJECT', N'UPDATE') = 0
                     AND HAS_PERMS_BY_NAME(N'[Inventory].[ItemCreationSnapshots]', N'OBJECT', N'DELETE') = 0
+                    AND HAS_PERMS_BY_NAME(N'[Storage].[RecoveryFiles]', N'OBJECT', N'SELECT') = 1
+                    AND HAS_PERMS_BY_NAME(N'[Storage].[RecoveryFiles]', N'OBJECT', N'UPDATE') = 0
+                    AND HAS_PERMS_BY_NAME(N'[Storage].[RecoveryFiles]', N'OBJECT', N'DELETE') = 0
+                    AND HAS_PERMS_BY_NAME(N'[Storage].[RecoveryFiles]', N'OBJECT', N'INSERT') = 0
                     THEN 1 ELSE 0 END);
                 """, connection);
             var inventoryReady = Convert.ToBoolean(await inventory.ExecuteScalarAsync(cancellationToken));
-            return state.IsReady && operationalReady && deploymentReady && invitationReady && inventoryReady && providerRetryReady
+            await using var fileRecovery = new SqlCommand("[Security].[ReadFileRecoveryReadiness]", connection)
+            {
+                CommandType = CommandType.StoredProcedure,
+            };
+            var fileRecoveryReady = Convert.ToBoolean(await fileRecovery.ExecuteScalarAsync(cancellationToken));
+            return state.IsReady && operationalReady && deploymentReady && invitationReady && inventoryReady && providerRetryReady && fileRecoveryReady
                 ? HealthCheckResult.Healthy()
                 : HealthCheckResult.Unhealthy("Database security state is not ready.");
         }

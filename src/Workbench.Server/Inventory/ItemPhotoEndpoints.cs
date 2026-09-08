@@ -27,7 +27,7 @@ public static class ItemPhotoEndpoints
                 endpoint.ProducesProblem(status);
         }
         group.MapGet("/{id:guid}/photo/{photoId:guid}/{variant}", ReadAsync)
-            .Produces<byte[]>(contentType: "image/webp").ProducesProblem(404).ProducesProblem(503);
+            .Produces<byte[]>(contentType: "image/webp").ProducesProblem(404).ProducesProblem(410).ProducesProblem(503);
     }
 
     private static async Task<IResult> UploadAsync(Guid id, HttpRequest request, ItemPhotoService service, CancellationToken cancellationToken)
@@ -89,6 +89,9 @@ public static class ItemPhotoEndpoints
         or SqlException or DbUpdateException or OperationCanceledException;
     private static IResult Failure(Exception error) => error switch
     {
+        RecoveredFileUnavailableException => Results.Problem(statusCode: 410,
+            title: "This photograph could not be recovered. Replace it with another copy.",
+            extensions: new Dictionary<string, object?> { ["code"] = "file_unavailable_after_recovery" }),
         PhotoInputException photo => Results.Problem(statusCode: photo.StatusCode, title: photo.Message,
             extensions: photo.Code is null ? null : new Dictionary<string, object?> { ["code"] = photo.Code }),
         UnauthorizedAccessException => Results.Problem(statusCode: 403, title: "Photo access is denied."),

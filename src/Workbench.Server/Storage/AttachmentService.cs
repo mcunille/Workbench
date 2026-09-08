@@ -121,6 +121,10 @@ public sealed partial class AttachmentService(WorkbenchDbContext database, IBlob
         {
             throw new IOException("The attachment provider is unavailable.");
         }
+        var unavailable = await database.Database.SqlQuery<int>($"""
+            SELECT COUNT(*) AS [Value] FROM [Storage].[RecoveryFiles] WHERE [RevisionId]={revision.Id}
+            """).SingleAsync(cancellationToken);
+        if (unavailable != 0) throw new RecoveredFileUnavailableException();
         return BlobIntegrity.Open(await store.OpenReadAsync(new BlobObjectId(actor.TenantId, revision.Id), cancellationToken),
             new BlobContentIdentity(revision.Length!.Value, revision.Sha256!));
     }

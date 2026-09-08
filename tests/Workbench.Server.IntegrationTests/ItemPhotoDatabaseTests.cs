@@ -25,6 +25,32 @@ namespace Workbench.Server.IntegrationTests;
 public sealed class ItemPhotoDatabaseTests(SqlServerFixture sqlServer)
 {
     [Fact]
+    public async Task AcceptedRecoveryLossReturnsStableAuthorizedNotice()
+    {
+        // GIVEN a photo whose unavailable disposition was persisted by recovery.
+        await using var context = await PhotoDatabaseContext.CreateAsync(sqlServer);
+        var (path, item) = await context.CreatePhotoAsync();
+        await using var sql = new SqlConnection(context.Application.AdminConnectionString);
+        await sql.OpenAsync();
+        await using var mark = new SqlCommand("""
+            INSERT [Storage].[RecoveryFiles] (TenantId,RevisionId,ReportId,Generation,Reason,AcceptedAtUtc)
+                SELECT TenantId,Id,NEWID(),1,'Missing',SYSUTCDATETIME() FROM [Storage].[Revisions] WHERE State=1;
+            """, sql);
+        await mark.ExecuteNonQueryAsync();
+        // WHEN an authorized user requests the unavailable photo.
+        var url = item.GetProperty("photo").GetProperty("detailUrl").GetString();
+        var response = await context.Client.GetAsync(url);
+        // THEN it receives a stable recovery-specific error while its item remains intact.
+        Assert.Equal(HttpStatusCode.Gone, response.StatusCode);
+        var problem = await response.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal("file_unavailable_after_recovery", problem.GetProperty("code").GetString());
+        Assert.Equal(HttpStatusCode.OK, (await context.Client.GetAsync(path)).StatusCode);
+        // AND anonymous callers cannot discover the recovery disposition.
+        using var anonymous = context.Application.CreateClient();
+        Assert.Equal(HttpStatusCode.Unauthorized, (await anonymous.GetAsync(url)).StatusCode);
+    }
+
+    [Fact]
     public async Task EditingUpgradePreservesRetainedPhotoAndTextThenAllowsCheckedEditing()
     {
         // GIVEN a persisted item and complete photo on the PR base schema.
