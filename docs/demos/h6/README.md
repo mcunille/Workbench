@@ -17,7 +17,14 @@ npm test --prefix tests/Workbench.BrowserTests -- --config h6-walkthrough.config
 The capture and timed narration segments are written under ignored
 `artifacts/h6/walkthrough/`. Render narration and captions using `scripts/render-h6-walkthrough.ps1`
 with a local full FFmpeg executable. The script requires Windows PowerShell's System.Speech and
-uses Microsoft Zira's synthetic voice. Generated MP4s remain untracked; generate locally or share
+uses Microsoft Zira's synthetic voice. Supply the actual path of your full FFmpeg installation
+(the verification used FFmpeg 7.1); the command below uses an example path:
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File ./scripts/render-h6-walkthrough.ps1 -Ffmpeg 'C:/Tools/ffmpeg.exe'
+```
+
+The execution-policy override applies only to that process. Generated MP4s remain untracked; generate locally or share
 outside Git. Review the video and decode it before treating the media as complete.
 
 The separate `restoration.spec.ts` regressions cover two authenticated sessions, 320px and desktop,
@@ -25,4 +32,12 @@ both appearances, keyboard focus and touch targets, archive traversal restoratio
 beyond 50 rows, uncertainty/navigation protection, and renewed confirmation after re-archive and
 failed recovery reads. These automated checks do not establish collector usability.
 
-Verification evidence will be recorded after the integrated gates and media inspection finish.
+The final-source capture passed on 2026-09-07. The 82-second narrated MP4 rendered and decoded
+successfully; desktop/mobile frames and caption placement were inspected, and the narration track
+was checked for non-silent, unclipped output. An earlier capture setup encountered a transient
+photo-processing busy response while another browser run occupied the shared test port; the
+isolated rerun passed without application changes.
+
+The [H6 verification record](../../specs/2026-09-07-h6-archive-recovery.md#verification-record)
+records the full gate: 451 server tests, 92 client tests, 34 browser scenarios, four migration drills,
+published-output checks, and final-source container smoke checks.

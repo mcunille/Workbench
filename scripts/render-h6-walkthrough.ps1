@@ -57,4 +57,3 @@ try {
     if ($LASTEXITCODE -ne 0) { throw 'Walkthrough decode verification failed.' }
 } finally { Pop-Location }
 Write-Host "Rendered and decoded $(Join-Path $mediaRoot 'h6-archive-recovery.mp4')"
-

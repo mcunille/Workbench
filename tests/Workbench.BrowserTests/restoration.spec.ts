@@ -63,6 +63,12 @@ test('H6 archive navigation and photographed restoration persist in another sess
   // WHEN restoring THEN identity, photo and saved details return in this and another authorized session.
   await restore(page).click(); await confirmRestore(page).click();
   await expect(page.getByText('Record restored to collection.', { exact: true })).toBeVisible();
+  // AND keyboard fragment navigation plus appearance changes preserve the archive origin.
+  await page.getByRole('link', { name: 'Skip to content', exact: true }).focus();
+  await page.keyboard.press('Enter');
+  await expect(page).toHaveURL(/#main$/);
+  await page.getByRole('combobox', { name: 'Appearance', exact: true }).selectOption('light');
+  await expect(page.getByRole('link', { name: 'Back to archive', exact: true })).toBeVisible();
   const restored = await (await page.request.get(`/api/items/${item.id}`)).json();
   expect(restored).toEqual({ ...archived, archivedAtUtc: null, version: restored.version });
   expect(restored.version).not.toBe(archived.version);

@@ -1,31 +1,31 @@
 1
-00:00:00,198 --> 00:00:09,213
+00:00:00,175 --> 00:00:09,192
 The Archive is separate from the active collection. Records set aside here keep their saved details and photographs.
 
 2
-00:00:09,403 --> 00:00:18,418
+00:00:09,382 --> 00:00:18,387
 Search finds words in names, notes, and locations throughout the archive, including records beyond the first page.
 
 3
-00:00:18,488 --> 00:00:28,495
+00:00:18,486 --> 00:00:28,495
 This is the original record and photograph. Archived details are read only. Restore to collection makes them editable again.
 
 4
-00:00:28,511 --> 00:00:37,518
+00:00:28,515 --> 00:00:37,526
 Restoration asks for explicit confirmation. Cancel makes no change and returns keyboard focus to the restore button.
 
 5
-00:00:37,748 --> 00:00:48,756
+00:00:37,836 --> 00:00:48,853
 Here we deliberately lose the response after the server saves. The screen reports uncertainty and keeps the original request across appearance changes.
 
 6
-00:00:48,896 --> 00:01:00,907
+00:00:48,998 --> 00:01:01,021
 Retry uses the same checked version. The saved record is already active, so Workbench reloads its current state without claiming this retry restored it.
 
 7
-00:01:01,020 --> 00:01:11,028
+00:01:01,178 --> 00:01:11,191
 The archive search is refreshed and no longer includes the restored record. Its search words and List preference remain available.
 
 8
-00:01:11,480 --> 00:01:23,503
+00:01:11,621 --> 00:01:23,630
 After reload, the same identifier, notes, location, and photograph are back in the active collection. These automated checks do not establish collector usability.

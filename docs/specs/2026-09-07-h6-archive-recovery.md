@@ -1,6 +1,6 @@
 # H6: recover an archived record
 
-**Status: Accepted — owner approved implementation on 2026-09-07.**
+**Status: Implemented — owner approved this design on 2026-09-07.**
 Implements [issue #54](https://github.com/mcunille/Workbench/issues/54), building on the
 implemented [H5 lifecycle](2026-09-07-h5-item-archiving.md).
 
@@ -173,3 +173,53 @@ Playwright walkthrough and inspect its rendered local video, keeping generated M
 Record local application URLs and exact evidence/coverage limits; automated checks do not establish
 collector usability. Update living documentation, review the integrated result, commit scoped
 changes, and open a ready-for-review PR. Merging remains separately authorized.
+
+## Verification record
+
+`scripts/verify.ps1 -SkipDependencyInstall` passed end to end after explicit locked npm installs:
+451 server tests, 92 client tests, all 34 browser scenarios, formatting, generated-contract drift,
+current-source builds, all four migration drills, and the published release-unit probe.
+`scripts/smoke-container.ps1` also passed with the final navigation-corrected source: hardened
+non-root/read-only runtime, SQL readiness, local Compose TLS, session persistence after app
+replacement, forwarding-header controls, and worker telemetry. The temporary browser URL was
+`http://127.0.0.1:4179`, published probe `http://127.0.0.1:50964`, and final container probe
+`http://127.0.0.1:60264`; harnesses removed their disposable instances afterward.
+
+The full browser suite includes retained photographs, separate Grid/List/search traversals,
+320px/desktop layouts, both appearances, reduced-motion/transparency preferences, keyboard focus,
+44px controls, two sessions, same-token retry after a lost committed response, failed recovery
+reads, and renewed confirmation after re-archive. Archive and detail screenshots were inspected.
+
+Focused HTTP/SQL tests cover
+archived-only literal search and pagination, preserved edited creation replay and photographs,
+authorization and foreign archived identifiers, private/no-store responses, malformed versions,
+explicit transactions, and rollback retaining the original archived version. Independent restricted
+SQL connections race restore/restore and restore against archived-version text/photo commands.
+Delayed restore after re-archive remains a conflict and leaves the current row unchanged.
+
+Fresh creation, upgrade from the actual H5 base (with edited snapshots, archived items and retained
+photo-operation history), data-preserving H6 downgrade, and restored-authentication sanitation
+passed the four migration drills. The new migration has no item-table/model-shape change; all base
+migrations remain unchanged. API declarations were regenerated and the drift check passed.
+
+Five targeted manual mutation probes were detected: removing stale-version classification in SQL,
+removing the explicit-transaction requirement, sending the wrong expected token, omitting archive
+traversal invalidation, and omitting uncertain-navigation protection. Original source was restored
+and affected tests rerun successfully. No automated mutation score or exhaustive mutation coverage
+is claimed.
+
+A bounded sparse-archive sample used 5,000 records with 100 archived. Final-shape HTTP observations
+were 227.6 ms for the first page including cold query compilation, 38.5 ms for a later page, and
+10.2 ms for an absent match. These are local synthetic observations, not load testing or an
+unbounded scale guarantee. The retained tenant/chronology index needs no migration for H6.
+
+Independent implementation review found two navigation cases: browser history replacement could
+reuse another record's archive origin, and native keyboard fragment navigation could lose the
+origin after restoration and an appearance change. Focused App tests reproduced both. Each new
+history navigation now has a unique non-private entry identity, and native fragments retain the
+logical page's identity; distance indices still govern the existing pending-work guards. The
+reviewer rechecked the complete base/head range and reported no remaining actionable findings.
+
+The [narrated walkthrough](../demos/h6/README.md) records synthetic data against the real API and
+SQL. Generated MP4s remain untracked. Local automated verification does not establish collector
+usability, production deployment, hosted backup acceptance, public CA issuance, or SMTP delivery.
