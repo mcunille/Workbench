@@ -205,13 +205,12 @@ function WorkbenchApplication({ appearance }: { appearance: ReactNode }) {
     );
   if (status === 'signed-out')
     return (
-      <>
+      <div className="sign-in-page">
         <PublicAppearance>{appearance}</PublicAppearance>
-        <main className="public-shell">
-          <Brand />
+        <main className="sign-in-shell">
           <SignIn />
         </main>
-      </>
+      </div>
     );
   if (status === 'loading' || !system || !identity)
     return (
