@@ -8,6 +8,9 @@ import {
 export function useNavigation() {
   const [path, setPath] = useState(window.location.pathname);
   const currentPath = useRef(window.location.pathname);
+  const currentEntryId = useRef<string>(
+    window.history.state?.workbenchEntryId ?? crypto.randomUUID(),
+  );
   const [confirmation, setConfirmation] = useState(false);
   const dirty = useRef(false);
   const uncertain = useRef(false);
@@ -30,10 +33,11 @@ export function useNavigation() {
         dirty.current = false;
         uncertain.current = false;
         index.current += 1;
+        currentEntryId.current = crypto.randomUUID();
         window.history.pushState(
           {
             workbenchIndex: index.current,
-            workbenchEntryId: crypto.randomUUID(),
+            workbenchEntryId: currentEntryId.current,
           },
           '',
           next,
@@ -56,8 +60,7 @@ export function useNavigation() {
       {
         ...window.history.state,
         workbenchIndex: index.current,
-        workbenchEntryId:
-          window.history.state?.workbenchEntryId ?? crypto.randomUUID(),
+        workbenchEntryId: currentEntryId.current,
       },
       '',
     );
@@ -70,9 +73,18 @@ export function useNavigation() {
       // Back/Forward distances include them without clearing the draft guard.
       if (window.location.pathname === currentPath.current) {
         index.current = event.state?.workbenchIndex ?? index.current + 1;
-        if (event.state?.workbenchIndex === undefined) {
+        currentEntryId.current =
+          event.state?.workbenchEntryId ?? currentEntryId.current;
+        if (
+          event.state?.workbenchIndex === undefined ||
+          event.state?.workbenchEntryId === undefined
+        ) {
           window.history.replaceState(
-            { ...event.state, workbenchIndex: index.current },
+            {
+              ...event.state,
+              workbenchIndex: index.current,
+              workbenchEntryId: currentEntryId.current,
+            },
             '',
           );
         }
@@ -94,6 +106,8 @@ export function useNavigation() {
         dirty.current = false;
         uncertain.current = false;
         index.current = targetIndex;
+        currentEntryId.current =
+          event.state?.workbenchEntryId ?? crypto.randomUUID();
         currentPath.current = window.location.pathname;
         setPath(window.location.pathname);
       }

@@ -1,4 +1,9 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from '@testing-library/react';
 import { http, HttpResponse } from 'msw';
 import { App } from './App';
 import { server } from './test/server';
@@ -200,5 +205,77 @@ it('does not reuse an old archive origin when browser history is truncated by cr
   expect(
     screen.queryByRole('link', { name: 'Back to archive' }),
   ).not.toBeInTheDocument();
+  window.history.replaceState(null, '', '/');
+});
+it('keeps the archive return origin through a native skip-link entry and appearance change after restore', async () => {
+  // GIVEN a record opened from the archive and then restored in place.
+  window.history.replaceState(
+    { workbenchIndex: 0 },
+    '',
+    '/inventory/archive',
+  );
+  const item = {
+    id: 'stone',
+    name: 'Archived stone',
+    notes: null,
+    location: null,
+    photo: null,
+    version: 'v',
+    archivedAtUtc: '2026-09-07T00:00:00Z',
+    createdAtUtc: '2026-09-06T00:00:00Z',
+  };
+  server.use(
+    http.get('*/api/system', () =>
+      HttpResponse.json({ name: 'Workbench', version: '1' }),
+    ),
+    http.get('*/api/auth/me', () =>
+      HttpResponse.json({
+        userId: 'person',
+        tenantName: 'Studio',
+        email: 'person@example.test',
+        permissions: ['TenantAccess'],
+      }),
+    ),
+    http.get('*/api/auth/antiforgery', () =>
+      HttpResponse.json({ requestToken: 'test' }),
+    ),
+    http.get('*/api/items/archived', () =>
+      HttpResponse.json({ items: [item], nextCursor: null }),
+    ),
+    http.get('*/api/items/stone', () => HttpResponse.json(item)),
+    http.post('*/api/items/stone/restore', () =>
+      HttpResponse.json({
+        ...item,
+        version: 'restored',
+        archivedAtUtc: null,
+      }),
+    ),
+  );
+  render(<App />);
+  fireEvent.click(
+    await screen.findByRole('link', { name: /Archived stone/ }),
+  );
+  fireEvent.click(
+    await screen.findByRole('button', { name: 'Restore to collection' }),
+  );
+  fireEvent.click(
+    screen.getByRole('button', { name: 'Confirm restore' }),
+  );
+  await screen.findByText('Record restored to collection.');
+  // WHEN a native keyboard skip link creates a fragment history entry and appearance rerenders the app.
+  fireEvent.click(screen.getByRole('link', { name: 'Skip to content' }));
+  await waitFor(() =>
+    expect(window.history.state?.workbenchIndex).toBe(2),
+  );
+  const appearance = screen.getByRole('combobox', {
+    name: 'Appearance',
+  }) as HTMLSelectElement;
+  fireEvent.change(appearance, {
+    target: { value: appearance.value === 'dark' ? 'light' : 'dark' },
+  });
+  // THEN the restored detail still returns to its original archive traversal.
+  expect(
+    screen.getByRole('link', { name: 'Back to archive' }),
+  ).toBeVisible();
   window.history.replaceState(null, '', '/');
 });
