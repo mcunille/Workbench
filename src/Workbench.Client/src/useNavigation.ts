@@ -8,10 +8,15 @@ import {
 export function useNavigation() {
   const [path, setPath] = useState(window.location.pathname);
   const currentPath = useRef(window.location.pathname);
+  const [entryId, setEntryId] = useState<string>(
+    () => window.history.state?.workbenchEntryId ?? crypto.randomUUID(),
+  );
+  const currentEntryId = useRef(entryId);
   const [confirmation, setConfirmation] = useState(false);
   const dirty = useRef(false);
   const uncertain = useRef(false);
-  const [uncertainConfirmation, setUncertainConfirmation] = useState(false);
+  const [uncertainConfirmation, setUncertainConfirmation] =
+    useState(false);
   const action = useRef<(() => void) | null>(null);
   const index = useRef<number>(window.history.state?.workbenchIndex ?? 0);
   const ignorePop = useRef(false);
@@ -29,7 +34,16 @@ export function useNavigation() {
         dirty.current = false;
         uncertain.current = false;
         index.current += 1;
-        window.history.pushState({ workbenchIndex: index.current }, '', next);
+        currentEntryId.current = crypto.randomUUID();
+        setEntryId(currentEntryId.current);
+        window.history.pushState(
+          {
+            workbenchIndex: index.current,
+            workbenchEntryId: currentEntryId.current,
+          },
+          '',
+          next,
+        );
         currentPath.current = next;
         setPath(next);
       });
@@ -45,7 +59,11 @@ export function useNavigation() {
     const previousScrollRestoration = window.history.scrollRestoration;
     window.history.scrollRestoration = 'manual';
     window.history.replaceState(
-      { ...window.history.state, workbenchIndex: index.current },
+      {
+        ...window.history.state,
+        workbenchIndex: index.current,
+        workbenchEntryId: currentEntryId.current,
+      },
       '',
     );
     const pop = (event: PopStateEvent) => {
@@ -53,13 +71,24 @@ export function useNavigation() {
         ignorePop.current = false;
         return;
       }
-      // Fragment navigation stays on the same form. Tag native entries so later
-      // Back/Forward distances include them without clearing the draft guard.
+      // Same-path entries may have different collection origins. Publish their
+      // identity without remounting the form or clearing its draft guard.
+      // Tag native fragments so later Back/Forward distances include them.
       if (window.location.pathname === currentPath.current) {
         index.current = event.state?.workbenchIndex ?? index.current + 1;
-        if (event.state?.workbenchIndex === undefined) {
+        currentEntryId.current =
+          event.state?.workbenchEntryId ?? currentEntryId.current;
+        setEntryId(currentEntryId.current);
+        if (
+          event.state?.workbenchIndex === undefined ||
+          event.state?.workbenchEntryId === undefined
+        ) {
           window.history.replaceState(
-            { ...event.state, workbenchIndex: index.current },
+            {
+              ...event.state,
+              workbenchIndex: index.current,
+              workbenchEntryId: currentEntryId.current,
+            },
             '',
           );
         }
@@ -81,6 +110,9 @@ export function useNavigation() {
         dirty.current = false;
         uncertain.current = false;
         index.current = targetIndex;
+        currentEntryId.current =
+          event.state?.workbenchEntryId ?? crypto.randomUUID();
+        setEntryId(currentEntryId.current);
         currentPath.current = window.location.pathname;
         setPath(window.location.pathname);
       }
@@ -113,6 +145,7 @@ export function useNavigation() {
   };
   return {
     path,
+    entryId,
     navigate,
     follow,
     request,

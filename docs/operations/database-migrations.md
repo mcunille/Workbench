@@ -3,6 +3,34 @@
 Database migrations are an explicit, human-controlled deployment operation. A Workbench web
 replica never migrates its database and never receives the setup, operator, or migrator credential.
 
+## Item restoration release
+
+`20260908010000_AddItemRestoration` adds the restricted `Inventory.RestoreItem` command
+without changing the item table or any previous migration. Apply it before releasing H6.
+Readiness and principal provisioning require the new schema marker and EXECUTE permission.
+The command requires an explicit transaction and the archived record's eight-byte rowversion,
+under caller tenant RLS. It clears only the archive timestamp; SQL advances the version.
+Identity, text, creation snapshots, photo references, and operation replay evidence remain intact.
+Runtime direct item UPDATE/DELETE remains denied.
+
+The Archive view searches all authorized archived records. Restore returns the same record to
+active browsing. After an unconfirmed response, retry the original version or review current
+saved details. An already-active conflict reports saved state without proving which request won;
+a re-archived record requires a new explicit confirmation. Never replay a stale restore token
+against a freshly loaded version automatically.
+
+Verify fresh creation and upgrade from `AddOnlineRecovery`, including edited creation snapshots,
+archived records, retained photos and completed/pending photo operations. H6 Down removes only
+the restore procedure and restores the preceding online-recovery readiness marker; it preserves
+recovery reports, missing-file dispositions, procedures, permissions and tenant isolation. It does
+not reverse item restorations or discard data. Drain H6 writers before using this supported schema/binary rollback together.
+The preceding online-recovery application can read the same records but lacks archive recovery
+controls. The supported target is `20260907225320_AddOnlineRecovery`; its own destructive Down
+remains blocked. Returning only to an older binary without checking readiness/schema compatibility
+is not a verified rollback.
+For data recovery use a forward correction or the documented paired SQL/blob restore procedure.
+Development verification does not authorize a production migration or cutover.
+
 ## Item archiving release
 
 `20260907224158_AddItemArchiving` adds nullable `Inventory.Items.ArchivedAtUtc`, an active-row
@@ -143,6 +171,11 @@ upgrade baseline: use a fresh disposable database for verification, and preserve
 before planning an explicit transition. No database or migration-history rows are automatically reset.
 
 ## Authoring and validating a migration
+
+The full `./scripts/verify.ps1` gate runs all migration drill tests once as part of the
+unfiltered Release server suite and retains per-test outcomes and timings in
+`artifacts/test-results/*.trx`. The standalone scenario commands below remain available
+for focused reruns and retain their console logs in `artifacts/migrations/`.
 
 The deployment phase adds `20260906031109_AddDeploymentQueueTelemetry` after the shipped provider
 schema. It adds aggregate worker telemetry and deployment readiness procedures with narrow execution

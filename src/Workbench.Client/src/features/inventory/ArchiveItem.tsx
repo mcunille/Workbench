@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { ApiError } from '../../api/auth';
 import {
   archiveItem,
+  restoreItem,
   getItem,
   ItemConflictError,
   type ItemDetail,
@@ -9,6 +10,7 @@ import {
 
 export function ArchiveItem({
   item,
+  mode = 'archive',
   onCancel,
   onCurrent,
   onDirtyChange,
@@ -17,13 +19,15 @@ export function ArchiveItem({
   invalidate,
 }: {
   item: ItemDetail;
+  mode?: 'archive' | 'restore';
   onCancel(): void;
-  onCurrent(item: ItemDetail): void;
+  onCurrent(item: ItemDetail, confirmed: boolean): void;
   onDirtyChange(dirty: boolean, uncertain: boolean): void;
   onAuthLost(): void;
   onUnavailable(): void;
   invalidate(): void;
 }) {
+  const restoring = mode === 'restore';
   const [version] = useState(item.version);
   const [submitted, setSubmitted] = useState(false);
   const [review, setReview] = useState(false);
@@ -61,7 +65,7 @@ export function ArchiveItem({
     setReview(true);
     try {
       const current = await getItem(item.id);
-      if (alive.current) onCurrent(current);
+      if (alive.current) onCurrent(current, false);
     } catch (error) {
       if (alive.current && !handled(error))
         setMessage(
@@ -78,17 +82,20 @@ export function ArchiveItem({
       if (readOnly) await load();
       else {
         setSubmitted(true);
-        const current = await archiveItem(item.id, {
-          expectedVersion: version,
-        });
-        if (alive.current) onCurrent(current);
+        const current = await (restoring ? restoreItem : archiveItem)(
+          item.id,
+          {
+            expectedVersion: version,
+          },
+        );
+        if (alive.current) onCurrent(current, true);
       }
     } catch (error) {
       if (!alive.current || handled(error)) return;
       if (error instanceof ItemConflictError) await load();
       else
         setMessage(
-          'Archiving could not be confirmed. Retry the same request or review the current record. Leaving this page does not undo a submitted request.',
+          `${restoring ? 'Restoration' : 'Archiving'} could not be confirmed. Retry the same request or review the current record. Leaving this page does not undo a submitted request.`,
         );
     } finally {
       invalidate();
@@ -99,16 +106,33 @@ export function ArchiveItem({
   return (
     <section aria-labelledby="archive-title">
       <h2 id="archive-title" tabIndex={-1} ref={heading}>
-        {review ? 'Review current record' : 'Archive record?'}
+        {review
+          ? 'Review current record'
+          : restoring
+            ? 'Restore to collection?'
+            : 'Archive record?'}
       </h2>
       <p>
-        Archive “{item.name}”? It will leave collection browsing and search.
-        Its details and photograph remain accessible through its link.
-        Restoring it to browsing is currently unavailable.
+        {restoring ? (
+          <>
+            Restore “{item.name}” to collection browsing and search? Its
+            saved details and photograph will be kept.
+          </>
+        ) : (
+          <>
+            Archive “{item.name}”? It will leave collection browsing and
+            search. Its details and photograph remain accessible through
+            its link. You can restore it from Archive.
+          </>
+        )}
       </p>
       {pending ? (
         <p role="status">
-          {review ? 'Loading current record…' : 'Archiving record…'}
+          {review
+            ? 'Loading current record…'
+            : restoring
+              ? 'Restoring record…'
+              : 'Archiving record…'}
         </p>
       ) : null}
       {message ? <p role="alert">{message}</p> : null}
@@ -124,11 +148,17 @@ export function ArchiveItem({
         ) : (
           <>
             <button
-              className="secondary danger"
+              className={restoring ? 'primary' : 'secondary danger'}
               disabled={pending}
               onClick={() => void run()}
             >
-              {submitted ? 'Retry archive' : 'Confirm archive record'}
+              {restoring
+                ? submitted
+                  ? 'Retry restore'
+                  : 'Confirm restore'
+                : submitted
+                  ? 'Retry archive'
+                  : 'Confirm archive record'}
             </button>
             {submitted ? (
               <button

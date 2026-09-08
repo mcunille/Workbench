@@ -45,7 +45,12 @@ preserving the query and view. The [H5 archive increment](specs/2026-09-07-h5-it
 uses the same checked version to set a separate archive timestamp. Ordinary browsing/search
 excludes archived records; existing tenant-authorized links retain read-only details and photos.
 SQL prevents descriptive and photo mutations of archived records, and original creation/photo
-replay evidence remains intact. H5 provides no unarchive or deletion action. Quantity-based stock,
+replay evidence remains intact. The [H6 recovery increment](specs/2026-09-07-h6-archive-recovery.md)
+adds a separate searchable Archive and a checked restore command. It clears only archive state,
+preserving identity, creation replay and the current photograph. Both transitions share the item
+rowversion and SQL tenant boundary; stale retries cannot reverse a later lifecycle change. Active
+and archive searches have independent authenticated in-memory traversal state. Archived records
+remain read-only until restored. No permanent deletion is provided. Quantity-based stock,
 purchasing, accounting, and commerce require their own focused specifications.
 
 ### Collection identity

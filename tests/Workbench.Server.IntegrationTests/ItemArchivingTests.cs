@@ -122,6 +122,19 @@ public sealed class ItemArchivingTests(SqlServerFixture sqlServer)
             Assert.Equal(HttpStatusCode.Conflict, (await SendAsync(client, HttpMethod.Delete, $"/api/items/{item.Id}/photo", new { expectedVersion = version, requestId = Guid.NewGuid() })).StatusCode);
         }
         Assert.Equal(archived, await client.GetFromJsonAsync<ItemDetailResponse>($"/api/items/{item.Id}"));
+        // WHEN the record is restored with its archived version.
+        var restoredResponse = await SendAsync(client, HttpMethod.Post, $"/api/items/{item.Id}/restore", new { expectedVersion = archived.Version });
+        Assert.Equal(HttpStatusCode.OK, restoredResponse.StatusCode);
+        var restored = (await restoredResponse.Content.ReadFromJsonAsync<ItemDetailResponse>())!;
+        // THEN the same photograph and creation replay survive, including another authenticated session.
+        Assert.Equal(archived with { Version = restored.Version, ArchivedAtUtc = null }, restored);
+        Assert.Equal(restored, await (await SendAsync(client, HttpMethod.Post, "/api/items", creation)).Content.ReadFromJsonAsync<ItemDetailResponse>());
+        var replayRestored = await ItemPhotoEndpointTests.UploadAsync(client, $"/api/items/{item.Id}", photoVersion, photoRequest);
+        Assert.Equal(await uploaded.Content.ReadAsStringAsync(), await replayRestored.Content.ReadAsStringAsync());
+        using var anotherSession = factory.CreateClient();
+        await LoginAsync(anotherSession, "member@example.com");
+        Assert.Equal(restored, await anotherSession.GetFromJsonAsync<ItemDetailResponse>($"/api/items/{item.Id}"));
+        Assert.Equal(HttpStatusCode.OK, (await anotherSession.GetAsync(restored.Photo!.DetailUrl)).StatusCode);
     }
 
     [Fact]

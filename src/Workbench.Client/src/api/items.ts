@@ -1,7 +1,8 @@
 import createClient from 'openapi-fetch';
 import type { components, paths } from './generated';
 import { ApiError, mutationHeaders } from './auth';
-export type CreateItemRequest = components['schemas']['CreateItemRequest'];
+export type CreateItemRequest =
+  components['schemas']['CreateItemRequest'];
 export type ItemDetail = components['schemas']['ItemDetailResponse'];
 export type ItemPage = components['schemas']['ItemPageResponse'];
 export type UpdateItemRequest =
@@ -26,13 +27,19 @@ export async function updateItem(
     body,
     headers: await mutationHeaders(),
   });
-  if (response.status === 400 && error && 'errors' in error && error.errors)
+  if (
+    response.status === 400 &&
+    error &&
+    'errors' in error &&
+    error.errors
+  )
     throw new ItemValidationError(error.errors);
   if (
     response.status === 409 &&
     error &&
     'code' in error &&
-    (error.code === 'item_version_conflict' || error.code === 'item_archived')
+    (error.code === 'item_version_conflict' ||
+      error.code === 'item_archived')
   )
     throw new ItemConflictError();
   if (!response.ok || !data) throw new ApiError(response.status);
@@ -50,7 +57,35 @@ export async function archiveItem(
       headers: await mutationHeaders(),
     },
   );
-  if (response.status === 400 && error && 'errors' in error && error.errors)
+  if (
+    response.status === 400 &&
+    error &&
+    'errors' in error &&
+    error.errors
+  )
+    throw new ItemValidationError(error.errors);
+  if (response.status === 409) throw new ItemConflictError();
+  if (!response.ok || !data) throw new ApiError(response.status);
+  return data;
+}
+export async function restoreItem(
+  id: string,
+  body: components['schemas']['RestoreItemRequest'],
+): Promise<ItemDetail> {
+  const { data, response, error } = await api.POST(
+    '/api/items/{id}/restore',
+    {
+      params: { path: { id } },
+      body,
+      headers: await mutationHeaders(),
+    },
+  );
+  if (
+    response.status === 400 &&
+    error &&
+    'errors' in error &&
+    error.errors
+  )
     throw new ItemValidationError(error.errors);
   if (response.status === 409) throw new ItemConflictError();
   if (!response.ok || !data) throw new ApiError(response.status);
@@ -63,7 +98,12 @@ export async function createItem(
     body,
     headers: await mutationHeaders(),
   });
-  if (response.status === 400 && error && 'errors' in error && error.errors)
+  if (
+    response.status === 400 &&
+    error &&
+    'errors' in error &&
+    error.errors
+  )
     throw new ItemValidationError(error.errors);
   if (!response.ok || !data) throw new ApiError(response.status);
   return data;
@@ -73,6 +113,16 @@ export async function getItems(
   q?: string,
 ): Promise<ItemPage> {
   const { data, response } = await api.GET('/api/items', {
+    params: { query: { cursor, q } },
+  });
+  if (!response.ok || !data) throw new ApiError(response.status);
+  return data;
+}
+export async function getArchivedItems(
+  cursor?: string,
+  q?: string,
+): Promise<ItemPage> {
+  const { data, response } = await api.GET('/api/items/archived', {
     params: { query: { cursor, q } },
   });
   if (!response.ok || !data) throw new ApiError(response.status);

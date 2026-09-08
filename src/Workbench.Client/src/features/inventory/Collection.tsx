@@ -17,6 +17,7 @@ import { ArchiveItem } from './ArchiveItem';
 import {
   getItem,
   getItems,
+  getArchivedItems,
   type ItemDetail,
   type ItemPage,
 } from '../../api/items';
@@ -28,7 +29,8 @@ export function Collection({
   follow,
   onAuthLost,
   memory: providedMemory,
-}: Props & { memory?: CollectionMemory }) {
+  archived = false,
+}: Props & { memory?: CollectionMemory; archived?: boolean }) {
   const [localMemory] = useState(() => new CollectionMemory());
   const memory = providedMemory ?? localMemory;
   const [view, setView] = useState(() => memory.snapshot?.view ?? 'grid');
@@ -89,7 +91,10 @@ export function Collection({
   useEffect(() => {
     if (!request) return;
     let current = true;
-    void getItems(request.cursor, query || undefined).then(
+    void (archived ? getArchivedItems : getItems)(
+      request.cursor,
+      query || undefined,
+    ).then(
       (result) => {
         if (!current) return;
         setPage((previous) =>
@@ -114,7 +119,7 @@ export function Collection({
     return () => {
       current = false;
     };
-  }, [request, query, onAuthLost]);
+  }, [request, query, onAuthLost, archived]);
   function search(value: string) {
     setQuery(value.trim());
     setPage(undefined);
@@ -128,14 +133,33 @@ export function Collection({
       <div className="page-heading">
         <div>
           <h1 ref={heading} tabIndex={-1}>
-            Collection
+            {archived ? 'Archive' : 'Collection'}
           </h1>
-          <p className="lede">A place for the pieces you want to remember.</p>
+          <p className="lede">
+            {archived
+              ? 'Records set aside, ready to recover when you need them.'
+              : 'A place for the pieces you want to remember.'}
+          </p>
         </div>
-        <a className="primary button" href="/inventory/new" onClick={follow}>
-          <Icon name="plus" />
-          Add item
-        </a>
+        <div className="button-row">
+          <a
+            className="secondary button"
+            href={archived ? '/inventory' : '/inventory/archive'}
+            onClick={follow}
+          >
+            {archived ? 'Collection' : 'Archive'}
+          </a>
+          {!archived ? (
+            <a
+              className="primary button"
+              href="/inventory/new"
+              onClick={follow}
+            >
+              <Icon name="plus" />
+              Add item
+            </a>
+          ) : null}
+        </div>
       </div>
       <form
         className="collection-search"
@@ -146,7 +170,10 @@ export function Collection({
         }}
       >
         <div className="collection-search-controls">
-          <FloatingField label="Search collection" htmlFor="collection-query">
+          <FloatingField
+            label={archived ? 'Search archive' : 'Search collection'}
+            htmlFor="collection-query"
+          >
             <input
               placeholder=" "
               id="collection-query"
@@ -176,7 +203,11 @@ export function Collection({
       </form>
       {loading ? (
         <p role="status">
-          {page ? 'Loading more items…' : 'Loading collection…'}
+          {page
+            ? 'Loading more items…'
+            : archived
+              ? 'Loading archive…'
+              : 'Loading collection…'}
         </p>
       ) : null}
       {failed ? (
@@ -184,7 +215,7 @@ export function Collection({
           <p>
             {failed === 400
               ? 'The search could not be accepted. Use up to 200 characters and remove unsupported characters.'
-              : 'We could not load the collection. ' +
+              : `We could not load the ${archived ? 'archive' : 'collection'}. ` +
                 (page
                   ? 'The items below are still available.'
                   : 'Please try again.')}
@@ -211,10 +242,15 @@ export function Collection({
             <span className="photo-placeholder" aria-hidden="true">
               <Icon name="image" />
             </span>
-            <h2>Your collection starts here</h2>
+            <h2>
+              {archived
+                ? 'Your archive is empty'
+                : 'Your collection starts here'}
+            </h2>
             <p>
-              Add your first item with just a name. Notes and a location can
-              help tell its story.
+              {archived
+                ? 'Records you archive will appear here. Their details and photographs are kept.'
+                : 'Add your first item with just a name. Notes and a location can help tell its story.'}
             </p>
           </div>
         )
@@ -231,7 +267,7 @@ export function Collection({
           <div
             className="collection-view"
             role="group"
-            aria-label="Collection view"
+            aria-label={archived ? 'Archive view' : 'Collection view'}
           >
             {(['grid', 'list'] as const).map((mode) => (
               <button
@@ -300,17 +336,39 @@ export function ItemDetails({
   follow,
   onAuthLost,
   memory,
+  archiveMemory,
+  origin,
 }: Props & {
   id: string;
   memory?: CollectionMemory;
+  archiveMemory?: CollectionMemory;
+  origin?: 'active' | 'archived';
   onDirtyChange(value: boolean, uncertain: boolean): void;
 }) {
   const [item, setItem] = useState<ItemDetail>();
   const [editing, setEditing] = useState(false);
   const [archiving, setArchiving] = useState(false);
+  const [restoring, setRestoring] = useState(false);
+  const restoreButton = useRef<HTMLButtonElement>(null);
+  const invalidate = useCallback(() => {
+    memory?.invalidate();
+    archiveMemory?.invalidate();
+  }, [memory, archiveMemory]);
+  const reconcile = useCallback(
+    (current: ItemDetail) => {
+      const stale = current.archivedAtUtc ? memory : archiveMemory;
+      if (
+        stale?.snapshot?.page?.items.some((row) => row.id === current.id)
+      )
+        stale.invalidate();
+      memory?.updatePhoto(current.id, current.photo);
+      archiveMemory?.updatePhoto(current.id, current.photo);
+    },
+    [memory, archiveMemory],
+  );
   const archiveButton = useRef<HTMLButtonElement>(null);
   const [photoDirty, setPhotoDirty] = useState(false);
-  const [savedMessage, setSavedMessage] = useState(false);
+  const [savedMessage, setSavedMessage] = useState('');
   const editButton = useRef<HTMLButtonElement>(null);
   const photoDirtyChange = useCallback(
     (dirty: boolean, uncertain: boolean) => {
@@ -329,8 +387,7 @@ export function ItemDetails({
       (result) => {
         if (current) {
           setItem(result);
-          if (result.archivedAtUtc) memory?.invalidate();
-          memory?.updatePhoto(id, result.photo);
+          reconcile(result);
           setFailed(undefined);
         }
       },
@@ -341,8 +398,10 @@ export function ItemDetails({
           (error.status === 401 || error.status === 403)
         )
           onAuthLost();
-        if (error instanceof ApiError && error.status === 404)
+        if (error instanceof ApiError && error.status === 404) {
           memory?.removeUnavailable(id);
+          archiveMemory?.removeUnavailable(id);
+        }
         setFailed(error instanceof ApiError ? error.status : 500);
       },
     );
@@ -350,16 +409,24 @@ export function ItemDetails({
       current = false;
       currentId.current = '';
     };
-  }, [id, retry, onAuthLost, memory]);
+  }, [id, retry, onAuthLost, memory, archiveMemory, reconcile]);
+  const backToArchive =
+    origin === 'archived' || (!origin && Boolean(item?.archivedAtUtc));
   return (
     <section className="editor">
-      <a className="text-link back-link" href="/inventory" onClick={follow}>
+      <a
+        className="text-link back-link"
+        href={backToArchive ? '/inventory/archive' : '/inventory'}
+        onClick={follow}
+      >
         <Icon name="back" />
-        Back to collection
+        {backToArchive ? 'Back to archive' : 'Back to collection'}
       </a>
       {failed ? (
         <div role="alert">
-          <h1>{failed === 404 ? 'Item not found' : 'Item unavailable'}</h1>
+          <h1>
+            {failed === 404 ? 'Item not found' : 'Item unavailable'}
+          </h1>
           <p>
             {failed === 404
               ? 'This item is not available in your collection.'
@@ -382,9 +449,7 @@ export function ItemDetails({
             </span>
             <h1 className="item-title">{item.name}</h1>
           </div>
-          {savedMessage ? (
-            <p role="status">Current saved record loaded.</p>
-          ) : null}
+          {savedMessage ? <p role="status">{savedMessage}</p> : null}
           {item.archivedAtUtc ? (
             <p role="status">
               <strong>Archived</strong> —{' '}
@@ -394,28 +459,55 @@ export function ItemDetails({
               . This record is read-only.
             </p>
           ) : null}
-          {archiving ? (
+          {archiving || restoring ? (
             <ArchiveItem
               item={item}
+              mode={restoring ? 'restore' : 'archive'}
               onDirtyChange={onDirtyChange}
               onAuthLost={onAuthLost}
-              invalidate={() => memory?.invalidate()}
+              invalidate={invalidate}
               onUnavailable={() => {
                 memory?.removeUnavailable(id);
+                archiveMemory?.removeUnavailable(id);
                 setFailed(404);
                 setArchiving(false);
+                setRestoring(false);
               }}
               onCancel={() => {
                 setArchiving(false);
-                requestAnimationFrame(() => archiveButton.current?.focus());
+                setRestoring(false);
+                requestAnimationFrame(() =>
+                  (restoring
+                    ? restoreButton
+                    : archiveButton
+                  ).current?.focus(),
+                );
               }}
-              onCurrent={(current) => {
+              onCurrent={(current, confirmed) => {
                 setItem(current);
                 setArchiving(false);
-                setSavedMessage(true);
+                setRestoring(false);
+                setSavedMessage(
+                  restoring && !current.archivedAtUtc
+                    ? confirmed
+                      ? 'Record restored to collection.'
+                      : 'This record is already in the collection. Current saved record loaded.'
+                    : 'Current saved record loaded.',
+                );
+                requestAnimationFrame(() =>
+                  (current.archivedAtUtc
+                    ? restoreButton
+                    : editButton
+                  ).current?.focus(),
+                );
                 onDirtyChange(false, false);
               }}
             />
+          ) : null}
+          {!item.archivedAtUtc && (backToArchive || savedMessage) ? (
+            <a className="text-link" href="/inventory" onClick={follow}>
+              View in collection
+            </a>
           ) : null}
           {editing ? (
             <DetailEditor
@@ -423,11 +515,11 @@ export function ItemDetails({
               item={item}
               onAuthLost={onAuthLost}
               onDirtyChange={onDirtyChange}
-              onRecordMayHaveChanged={() => memory?.invalidate()}
+              onRecordMayHaveChanged={invalidate}
               onCancel={(current) => {
                 if (current) {
                   setItem(current);
-                  memory?.invalidate();
+                  invalidate();
                 }
                 setEditing(false);
                 onDirtyChange(false, false);
@@ -436,23 +528,36 @@ export function ItemDetails({
               onSaved={(saved) => {
                 setItem(saved);
                 setEditing(false);
-                setSavedMessage(true);
-                memory?.invalidate();
+                setSavedMessage('Current saved record loaded.');
+                invalidate();
                 onDirtyChange(false, false);
                 requestAnimationFrame(() => editButton.current?.focus());
               }}
             />
           ) : (
             <>
+              {item.archivedAtUtc ? (
+                <button
+                  ref={restoreButton}
+                  className="primary"
+                  disabled={photoDirty || restoring}
+                  onClick={() => {
+                    setRestoring(true);
+                    setSavedMessage('');
+                  }}
+                >
+                  Restore to collection
+                </button>
+              ) : null}
               {!item.archivedAtUtc ? (
                 <div className="button-row record-actions">
                   <button
                     ref={editButton}
                     className="secondary"
-                    disabled={photoDirty || archiving}
+                    disabled={photoDirty || archiving || restoring}
                     onClick={() => {
                       setEditing(true);
-                      setSavedMessage(false);
+                      setSavedMessage('');
                     }}
                   >
                     Edit details
@@ -460,10 +565,10 @@ export function ItemDetails({
                   <button
                     ref={archiveButton}
                     className="secondary danger"
-                    disabled={photoDirty || archiving}
+                    disabled={photoDirty || archiving || restoring}
                     onClick={() => {
                       setArchiving(true);
-                      setSavedMessage(false);
+                      setSavedMessage('');
                     }}
                   >
                     Archive record
@@ -473,7 +578,7 @@ export function ItemDetails({
               <PhotoEditor
                 key={item.id}
                 item={item}
-                disabled={archiving}
+                disabled={archiving || restoring}
                 onAuthLost={onAuthLost}
                 onDirtyChange={photoDirtyChange}
                 onPhotoChanged={() => {
@@ -483,8 +588,7 @@ export function ItemDetails({
                   const result = await getItem(id);
                   if (currentId.current === id) {
                     setItem(result);
-                    if (result.archivedAtUtc) memory?.invalidate();
-                    memory?.updatePhoto(id, result.photo);
+                    reconcile(result);
                   }
                 }}
               />
@@ -497,7 +601,9 @@ export function ItemDetails({
             </div>
             <div className="detail-field">
               <dt>Notes</dt>
-              <dd className="notes">{item.notes ?? 'No notes recorded'}</dd>
+              <dd className="notes">
+                {item.notes ?? 'No notes recorded'}
+              </dd>
             </div>
             <div className="detail-field record-metadata">
               <dt>Item identifier</dt>

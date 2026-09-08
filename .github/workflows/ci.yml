@@ -91,7 +91,6 @@ jobs:
 
   container-smoke:
     name: Hardened container smoke
-    needs: verify
     runs-on: ubuntu-latest
     steps:
       - name: Check out source

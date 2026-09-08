@@ -95,6 +95,7 @@ public sealed class DatabaseReadinessCheck(
                     AND HAS_PERMS_BY_NAME(N'[Inventory].[SetItemPhoto]', N'OBJECT', N'EXECUTE') = 1
                     AND HAS_PERMS_BY_NAME(N'[Inventory].[UpdateItemDetails]', N'OBJECT', N'EXECUTE') = 1
                     AND HAS_PERMS_BY_NAME(N'[Inventory].[ArchiveItem]', N'OBJECT', N'EXECUTE') = 1
+                    AND HAS_PERMS_BY_NAME(N'[Inventory].[RestoreItem]', N'OBJECT', N'EXECUTE') = 1
                     AND HAS_PERMS_BY_NAME(N'[Inventory].[ItemCreationSnapshots]', N'OBJECT', N'SELECT') = 1
                     AND HAS_PERMS_BY_NAME(N'[Inventory].[ItemCreationSnapshots]', N'OBJECT', N'INSERT') = 0
                     AND HAS_PERMS_BY_NAME(N'[Inventory].[ItemCreationSnapshots]', N'OBJECT', N'UPDATE') = 0

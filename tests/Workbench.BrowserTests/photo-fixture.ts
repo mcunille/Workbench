@@ -1,24 +1,5 @@
 import { expect, type Page } from '@playwright/test';
-
-export async function photoSignIn(page: Page) {
-  await page.goto('/');
-  await expect(async () => {
-    await page
-      .getByLabel('Email', { exact: true })
-      .fill('browser-admin@example.test');
-    await page
-      .getByLabel('Password', { exact: true })
-      .fill('Browser Correct Horse 9!');
-    const response = page.waitForResponse((response) =>
-      response.url().endsWith('/api/auth/login'),
-    );
-    await page.getByRole('button', { name: 'Sign in', exact: true }).click();
-    expect((await response).status()).toBe(204);
-  }).toPass({ timeout: 70_000, intervals: [1_000, 5_000, 10_000] });
-  await expect(
-    page.getByRole('heading', { name: 'Collection', exact: true }),
-  ).toBeVisible();
-}
+export { useAuthenticatedSession as photoSignIn } from './auth-fixture';
 
 // Deliberately synthetic gemstone illustration: no outside photo rights or embedded metadata.
 export async function cameraImage(page: Page, hue = 212) {

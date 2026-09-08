@@ -1,3 +1,5 @@
+import { useAuthenticatedSession as signIn, signInThroughUi } from './auth-fixture';
+import { browserBaseUrl } from './browser-environment';
 import { expect, test, type Page } from '@playwright/test';
 import { mkdir } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
@@ -171,23 +173,6 @@ test('the studio shell reflows with enlarged text and respects reduced motion', 
   await page.screenshot({ path: `${screenshotDirectory}/administration-320-dark.png`, fullPage: true });
 });
 
-async function signIn(page: Page, navigate = true) {
-  if (navigate) await page.goto('/');
-  let status: number | undefined;
-  // The disposable fixture shares the real per-network login budget. Retry only its
-  // generic 401 rejection, bounded by the server's one-minute limiter window.
-  await expect(async () => {
-    await page.getByLabel('Email', { exact: true }).fill('browser-admin@example.test');
-    await page.getByLabel('Password', { exact: true }).fill('Browser Correct Horse 9!');
-    const loginResponse = page.waitForResponse(response => response.url().endsWith('/api/auth/login'));
-    await page.getByRole('button', { name: 'Sign in', exact: true }).click();
-    status = (await loginResponse).status();
-    if (status === 401) expect(status).toBe(204);
-  }).toPass({ timeout: 70_000, intervals: [1_000, 5_000, 10_000] });
-  expect(status).toBe(204);
-  await expect(page.getByRole('heading', { name: 'Collection', exact: true })).toBeVisible();
-}
-
 test('appearance survives authentication transitions when browser storage is blocked', async ({ page }) => {
   // GIVEN blocked storage and an explicit appearance selected on the public screen.
   await page.addInitScript(() => {
@@ -197,7 +182,7 @@ test('appearance survives authentication transitions when browser storage is blo
   await page.goto('/');
   await page.getByRole('combobox', { name: 'Appearance' }).selectOption('dark');
   // WHEN signing in and then out without reloading the document.
-  await signIn(page, false);
+  await signInThroughUi(page, false);
   // THEN the in-memory choice remains intact in both control locations.
   await expect(page.getByRole('combobox', { name: 'Appearance' })).toHaveValue('dark');
   await page.getByRole('button', { name: 'Sign out', exact: true }).click();
@@ -239,10 +224,10 @@ test('a real saved item survives reload and a separate authenticated browser ses
   await expect(page).toHaveURL(detailUrl);
 
   // AND an independent cookie jar can sign in and reopen the same persisted record.
-  const anotherSession = await browser.newContext({ baseURL: 'http://127.0.0.1:4179' });
+  const anotherSession = await browser.newContext({ baseURL: browserBaseUrl });
   try {
     const anotherPage = await anotherSession.newPage();
-    await signIn(anotherPage);
+    await signIn(anotherPage, 'secondary');
     await itemLink(anotherPage, name).click();
     await expect(anotherPage).toHaveURL(detailUrl);
     await expect(anotherPage.getByText(notes, { exact: true })).toBeVisible();
@@ -287,7 +272,7 @@ test('a committed save with a lost response is explicitly retried without duplic
 
 test('dirty cancel, app navigation, history and sign-out require an explicit choice', async ({ page }) => {
   // GIVEN a dirty draft and a counter of actual creation requests.
-  await signIn(page);
+  await signInThroughUi(page);
   let creates = 0;
   page.on('request', request => {
     if (request.url().endsWith('/api/items') && request.method() === 'POST') creates++;
@@ -315,7 +300,7 @@ test('dirty cancel, app navigation, history and sign-out require an explicit cho
   await page.getByRole('button', { name: 'Sign out', exact: true }).click();
   await page.getByRole('dialog').getByRole('button', { name: 'Discard changes', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Sign in', exact: true })).toBeVisible();
-  await signIn(page);
+  await signInThroughUi(page);
   await page.getByRole('link', { name: 'Add item', exact: true }).click();
   await expect(page.getByLabel('Name', { exact: true })).toBeEmpty();
   await page.getByRole('button', { name: 'Cancel', exact: true }).click();
