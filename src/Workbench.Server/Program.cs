@@ -88,6 +88,7 @@ builder.Services.AddSingleton<IBlobStore>(services => OperationalConfiguration.C
 builder.Services.AddScoped<AttachmentService>();
 builder.Services.AddSingleton<PhotoProcessor>();
 builder.Services.AddScoped<ItemPhotoService>();
+builder.Services.AddSingleton<ItemExportCapacity>();
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddSingleton(new DurableSessionOptions());
 builder.Services.AddSingleton(services => configuredTenantContextProof ?? TenantContextProof.Parse(

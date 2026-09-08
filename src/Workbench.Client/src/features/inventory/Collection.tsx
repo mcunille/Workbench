@@ -142,6 +142,7 @@ export function Collection({
           </p>
         </div>
         <div className="button-row">
+          <a className="secondary button" href="/inventory/export" onClick={follow}>Export records</a>
           <a
             className="secondary button"
             href={archived ? '/inventory' : '/inventory/archive'}

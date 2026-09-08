@@ -1,6 +1,7 @@
 import {
   useCallback,
   useEffect,
+  useLayoutEffect,
   useState,
   type MouseEvent,
   type ReactNode,
@@ -15,6 +16,8 @@ import { useAuth } from './features/auth/useAuth';
 import { AddItem } from './features/inventory/AddItem';
 import { Collection, ItemDetails } from './features/inventory/Collection';
 import { CollectionMemory } from './features/inventory/collectionMemory';
+import { ExportMemory } from './features/inventory/exportMemory';
+import { ExportRecords } from './features/inventory/ExportRecords';
 import { AppearanceControl } from './AppearanceControl';
 import { useNavigation } from './useNavigation';
 import { DiscardDialog } from './DiscardDialog';
@@ -37,6 +40,8 @@ function SignedInApplication({
   const [signOutFailed, setSignOutFailed] = useState(false);
   const [collectionMemory] = useState(() => new CollectionMemory());
   const [archiveMemory] = useState(() => new CollectionMemory());
+  const [exportMemory] = useState(() => new ExportMemory());
+  useLayoutEffect(() => () => exportMemory.dispose(), [exportMemory]);
   const [origins] = useState(
     () => new Map<string, 'active' | 'archived'>(),
   );
@@ -53,6 +58,7 @@ function SignedInApplication({
       normalClick &&
       /^\/inventory\/[^/]+$/.test(destination) &&
       destination !== '/inventory/archive' &&
+      destination !== '/inventory/export' &&
       destination !== '/inventory/new'
     )
       origins.set(
@@ -143,6 +149,8 @@ function SignedInApplication({
               follow={followFromCollection}
               onAuthLost={authLost}
             />
+          ) : path === '/inventory/export' ? (
+            <ExportRecords memory={exportMemory} follow={navigation.follow} onAuthLost={authLost} />
           ) : path === '/inventory/new' ? (
             <AddItem
               onDirtyChange={navigation.setDirty}
