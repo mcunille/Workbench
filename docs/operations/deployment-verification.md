@@ -1,9 +1,10 @@
 # Deployment verification record
 
-See the [production operations completeness audit](production-readiness.md) for subsequently
-identified runbook and tooling gaps. The local evidence below does not close those acceptance blockers.
+See the [production operations completeness audit](production-readiness.md) for historical
+runbook gaps and current acceptance boundaries. Evidence is dated and scoped below; later Azure
+launch evidence supersedes earlier statements that no hosted installation had been exercised.
 
-Implementation evidence for issue #12, recorded on 2026-09-06 UTC. These checks used disposable
+Initial implementation evidence for issue #12, recorded on 2026-09-06 UTC. These checks used disposable
 local resources. No Azure deployment or production operation was performed. The accepted deployment
 specification and issue remain open for hosted acceptance.
 
@@ -145,3 +146,65 @@ acceptance with representative data and restored authentication checks.
 The [cost worksheet](deployment-costs.md) uses retrieved public rates and synthetic inputs, not a
 measured bill. Hosted latency, capacity, job lifetime, recovery, alert delivery, and billing evidence
 must be attached before issue #12 or its specification can be marked complete.
+
+## Azure public launch (2026-09-08 UTC)
+
+The operator approved public access after the hosted walkthrough, security remediation in PR #66,
+and successful sign-in on the deployed candidate. This records a particular installation, not a
+blanket certification of all deployment paths or a claim that every issue #12 checkbox passed.
+
+- Serving source: `cc0e96996f8f655aa6a1c6b257b068862a8d892f`.
+- Registry image: `wbprodafd5e7ff.azurecr.io/workbench@sha256:0e17b57ae2dc0c8be02df198f9a7f92d45444e0c6d7f247ba835541cde922eb3`.
+- App `wb-prod-web`, revision `wb-prod-web--0000004`, 100% traffic; healthy readback.
+  Revision `0000003` remains available for a compatible, separately approved rollback.
+- `https://workbench.whitestagcollection.com/` and `/health/ready` returned 200 after promotion
+  and public opening. Anonymous `/api/auth/me` returned 401. The operator confirmed sign-in.
+- Live responses contained HSTS `max-age=31536000`, `X-Frame-Options: DENY`,
+  `X-Content-Type-Options: nosniff`, `Referrer-Policy: no-referrer`, and CSP `frame-ancestors 'none'`.
+- The explicit Public policy removed the 13 temporary operator/certificate-validation allow rules.
+  HTTPS-only ingress, managed certificate binding and revision traffic were preserved. SQL, Blob
+  and Key Vault readbacks continued to report public network access Disabled.
+- The candidate initially returned readiness 503: the complete release included `AddItemRestoration`
+  even though the security PR alone added no migration. Approved job `wb-prod-migration-mi0id95`
+  succeeded at 07:26:35 UTC, logged the database migration success marker, and candidate health
+  became Healthy. The serving old revision still returned 200. Future releases must compare the
+  entire deployed-to-candidate range before scheduling changes.
+- The worker retained its one-minute schedule and completed executions using the verified new
+  digest. Earlier hosted checks delivered recovery email from the durable queue, verified the
+  recovery link, rejected reuse, and invalidated the old session. Mail identity tests allowed only
+  the no-reply mailbox, denied personal-mailbox sending, and confirmed incoming-message rejection.
+- Worker-status-missing alert delivery was exercised by an approved schedule pause; the alert fired,
+  scheduled execution resumed, fresh queue status arrived, and the alert resolved. Security-change
+  notifications arrived for approved configuration changes. Multiple emails represented separate
+  administrative events, including identically named diagnostic settings on different resources.
+- All six resource audit routes read back the intended enabled categories and workspace. Activity
+  and Blob records were observed. SQL, Key Vault, ACR and native-backup audit-table ingestion were
+  not yet confirmed in the final monitoring query; configuration alone is not ingestion evidence.
+- SQL retained seven-day backup retention and seven-day logical-server soft delete. SQL and native
+  backup vault deletion locks were applied. The native vault read back GeoRedundant, immutability
+  Locked, soft delete AlwaysOn with 14 days, and a seven-day VaultStore policy. These are distinct
+  retention controls. Logical-server undelete and customer-initiated cross-region Blob recovery
+  were not tested.
+- Native backup job `85d46a43-edea-4ec9-a838-bca0ae7e5c79` completed at 05:11:13 UTC; isolated
+  restore job `e888960b-9512-46f3-af44-60fe714c3c5b` completed at 05:53:11 UTC. The operator
+  accepted the empty-data recovery drill. Earlier SQL PITR, restore sanitation and paired empty
+  storage verification passed. This does not establish nonempty attachment recovery or a full
+  cross-region application RTO. Recovery remains manual; normal backups need no application outage.
+- Downloaded password-manager recovery attachments passed hash checks and authenticated decryption,
+  including installation metadata, four recovery values and the certificate private key, without
+  the original Windows-protected key or original recovery files. No secrets are recorded here.
+- The exact candidate scan detected zero High/Critical advisories, five Medium and seven Low
+  package findings. These include Ubuntu/OpenSSL advisories remaining in the upstream runtime;
+  this is not a clean-image or complete security-audit verdict.
+- Approved cleanup deleted restore target `wbrestoreafd5e7ff0908` and its temporary backup role,
+  deleted the unbound `workbench-prod-bootstrap` certificate, and deactivated revision `0000002`.
+  Readback confirmed HTTPS 200 and production backup ProtectionConfigured. The temporary VM,
+  NAT, subnet and SQL restore infrastructure were already absent from the live inventory.
+
+Remaining evidence for the broader architecture/deployment issues: measured hosted cold-start
+samples, multi-replica session/rate-limit tests, an exercised compatible traffic rollback, complete
+monitoring ingestion/failure coverage, and measured cost/App Service comparison. The monthly
+budget is USD 100 with notifications, not a spending cap. Log Analytics retention is configured
+for 30 days; platform Activity Log retention is separate. Public Linux self-host acceptance is not
+established by the completed Windows localhost QA drill. Track those limits explicitly rather than
+checking every epic criterion because the public launch succeeded.

@@ -1,8 +1,14 @@
 # Production operations completeness audit
 
-**Result: not ready for acceptance.** Audited on 2026-09-06 for issue #17 / PR #29 against the
+**Current status (2026-09-08 UTC):** Azure public launch and the localhost setup drill have been
+completed. See [launch evidence](deployment-verification.md#azure-public-launch-2026-09-08-utc).
+Remaining broader acceptance includes measured cold starts/costs, hosted multi-replica checks,
+complete monitoring evidence, and public Linux self-host verification. The findings below are a
+historical audit, not a statement that the current Azure service is undeployed.
+
+**Historical result: not ready for acceptance.** Audited on 2026-09-06 for issue #17 / PR #29 against the
 deployment implementation introduced in `a9105b5`. Neither the self-hosted nor Azure runbook can
-currently be followed from its stated inputs to a verified secure production service without
+at that time be followed from its stated inputs to a verified secure production service without
 inventing operational steps. This is an operations/documentation audit, not a complete security
 assessment or evidence of a live production installation.
 
