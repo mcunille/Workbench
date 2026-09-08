@@ -16,5 +16,5 @@ export function applyAppearance(preference: Appearance, dark: boolean) {
   document.documentElement.style.colorScheme = theme;
   document
     .querySelector('meta[name="theme-color"]')
-    ?.setAttribute('content', theme === 'dark' ? '#191919' : '#f6f5f2');
+    ?.setAttribute('content', theme === 'dark' ? '#08090c' : '#ffffff');
 }

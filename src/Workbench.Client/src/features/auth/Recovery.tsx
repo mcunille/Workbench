@@ -1,5 +1,6 @@
+import { FloatingField } from '../../FloatingField';
 import { useState, type FormEvent } from 'react';
-import { Wordmark } from '../../Wordmark';
+import { Brand } from '../../Brand';
 import {
   consumeInvitation,
   consumeRecovery,
@@ -18,9 +19,7 @@ export function Recovery({ invitation = false, token = null }: {
     return (
       <main className="public-shell">
         <section className="auth-card" aria-labelledby="recovery-title">
-          <p className="wordmark">
-            <Wordmark />
-          </p>
+          <Brand />
           <h1 id="recovery-title">Invalid invitation</h1>
           <p className="form-message error" role="alert">
             This invitation link is missing its token.
@@ -57,9 +56,7 @@ export function Recovery({ invitation = false, token = null }: {
   return (
     <main className="public-shell">
       <section className="auth-card" aria-labelledby="recovery-title">
-        <p className="wordmark">
-          <Wordmark />
-        </p>
+        <Brand />
         <h1 id="recovery-title">{title}</h1>
         {complete ? (
           <p role="status">
@@ -70,15 +67,13 @@ export function Recovery({ invitation = false, token = null }: {
         ) : (
           <form className="form-stack" onSubmit={(event) => void submit(event)}>
             {token ? (
-              <label>
-                New password
-                <input name="password" type="password" autoComplete="new-password" required />
-              </label>
+              <FloatingField label="New password" htmlFor="recovery-password">
+                <input id="recovery-password" placeholder=" " name="password" type="password" autoComplete="new-password" required />
+              </FloatingField>
             ) : (
-              <label>
-                Email
-                <input name="email" type="email" autoComplete="email" required />
-              </label>
+              <FloatingField label="Email" htmlFor="recovery-email">
+                <input id="recovery-email" placeholder=" " name="email" type="email" autoComplete="email" required />
+              </FloatingField>
             )}
             {failed ? (
               <p className="form-message error" role="alert">

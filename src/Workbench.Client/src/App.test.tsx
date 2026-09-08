@@ -59,7 +59,7 @@ describe('App', () => {
     // THEN the application header exposes the complete product name as one wordmark.
     expect(screen.getByRole('img', { name: 'Workbench' })).toBeVisible();
     // AND the collection attribution is reserved for sign-in.
-    expect(screen.queryByText('The White Stag Collection')).not.toBeInTheDocument();
+    expect(screen.queryByText(/The White Stag Collection/)).not.toBeInTheDocument();
     fireEvent.change(screen.getByRole('searchbox'), {
       target: { value: 'private draft' },
     });

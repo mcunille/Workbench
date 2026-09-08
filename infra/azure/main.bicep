@@ -16,6 +16,22 @@ param grantAccess bool = false
 @description('Enable scheduled execution only after migrations and worker/SMTP validation; false keeps a manual job.')
 param workerEnabled bool = false
 @description('Keep false until isolated validation and explicit traffic/DNS authorization.')
+@sealed()
+type restrictedIngress = {
+  mode: 'Restricted'
+  @minLength(1)
+  allowCidrs: string[]
+}
+@sealed()
+type publicIngress = {
+  mode: 'Public'
+  allowCidrs: []
+}
+@discriminator('mode')
+type ingressAccessPolicy = restrictedIngress | publicIngress
+@description('Required explicit client access policy, independent of ingress publication and forwarded metadata trust.')
+param ingressPolicy ingressAccessPolicy
+@description('Keep false until isolated validation and explicit traffic/DNS authorization.')
 param publishIngress bool = false
 @description('Pin existing serving revision(s) on updates; a new candidate must have zero production traffic.')
 param releaseTraffic array = []
@@ -103,6 +119,7 @@ module workloads 'modules/workloads.bicep' = {
     activate: activate
     workerEnabled: workerEnabled
     publishIngress: publishIngress
+    ingressPolicy: ingressPolicy
     releaseTraffic: releaseTraffic
     publicOrigin: publicOrigin
     publicHost: publicHost

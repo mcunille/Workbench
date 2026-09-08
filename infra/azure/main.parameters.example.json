@@ -12,6 +12,7 @@
     "activate": { "value": false },
     "grantAccess": { "value": false },
     "workerEnabled": { "value": false },
+    "ingressPolicy": { "value": { "mode": "Restricted", "allowCidrs": ["127.0.0.1/32"] } },
     "publishIngress": { "value": false },
     "releaseTraffic": { "value": [] },
     "publicOrigin": { "value": "https://workbench.example.com" },

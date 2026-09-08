@@ -42,6 +42,14 @@ jobs:
           az bicep build --file infra/azure/main.bicep --outfile /tmp/workbench-infra.json
           if ($LASTEXITCODE -ne 0) { throw 'Infrastructure compilation failed.' }
           ./infra/azure/test-backup-redundancy.ps1 -TemplateFile /tmp/workbench-infra.json
+          ./infra/azure/test-ingress-policy.ps1 -TemplateFile /tmp/workbench-infra.json
+          az bicep build --file infra/azure/security-controls.bicep --outfile /tmp/workbench-security.json
+          if ($LASTEXITCODE -ne 0) { throw 'Security controls compilation failed.' }
+          az bicep build --file infra/azure/modules/foundation.bicep --outfile /tmp/workbench-foundation.json
+          if ($LASTEXITCODE -ne 0) { throw 'Foundation compilation failed.' }
+          az bicep build --file infra/azure/security-activity-log.bicep --outfile /tmp/workbench-activity.json
+          if ($LASTEXITCODE -ne 0) { throw 'Activity log compilation failed.' }
+          ./infra/azure/test-security-controls.ps1 -TemplateFile /tmp/workbench-security.json -FoundationTemplateFile /tmp/workbench-foundation.json
           az bicep lint --file infra/azure/main.bicep
           if ($LASTEXITCODE -ne 0) { throw 'Infrastructure lint failed.' }
 
