@@ -3,8 +3,40 @@ import { http, HttpResponse } from 'msw';
 import { server } from '../../test/server';
 import { AuthProvider } from './AuthContext';
 import { SignIn } from './SignIn';
+import { AuthContext } from './useAuth';
 
 describe('SignIn', () => {
+  it('identifies Workbench and its maker above the sign-in form', () => {
+    // GIVEN a visitor who needs to sign in.
+    const signedOut = {
+      identity: null,
+      status: 'signed-out' as const,
+      refresh: vi.fn(),
+      signIn: vi.fn(),
+      signOut: vi.fn(),
+    };
+
+    // WHEN the sign-in page is presented.
+    render(
+      <AuthContext.Provider value={signedOut}>
+        <SignIn />
+      </AuthContext.Provider>,
+    );
+
+    // THEN the product and understated maker attribution identify the form.
+    expect(screen.getByText('Workbench')).toBeVisible();
+    expect(screen.getByText('by The White Stag Collection')).toBeVisible();
+    expect(screen.getByRole('heading', { name: 'Sign in' })).toBeVisible();
+    expect(screen.getByLabelText('Email')).toHaveAttribute(
+      'autocomplete', 'username',
+    );
+    expect(screen.getByLabelText('Password')).toHaveAttribute(
+      'autocomplete', 'current-password',
+    );
+    expect(screen.getByRole('link', { name: 'Forgot your password?' }))
+      .toHaveAttribute('href', '/recover');
+  });
+
   it('sends the antiforgery header without accepting tenant authority', async () => {
     let antiforgeryHeader: string | null = null;
     let identityRequests = 0;

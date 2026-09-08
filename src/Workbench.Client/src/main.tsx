@@ -2,6 +2,7 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { App } from './App';
 import './styles.css';
+import './sign-in.css';
 
 // Capture outside React: StrictMode may replay component initializers.
 let recoveryToken: string | null = null;
