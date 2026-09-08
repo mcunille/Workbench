@@ -53,7 +53,7 @@ for (const width of [320, 1280]) {
     await page.goBack();
     await expect(selected).toBeFocused();
     for (const appearance of ['dark', 'light']) {
-      await page.getByRole('combobox', { name: 'Appearance', exact: true }).selectOption(appearance);
+      await page.getByRole('switch', { name: 'Dark theme' }).setChecked(appearance === 'dark');
       await expect(search).toHaveValue(phrase.toUpperCase());
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     }

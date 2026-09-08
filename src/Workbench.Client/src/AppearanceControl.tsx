@@ -1,5 +1,17 @@
-import { useEffect } from 'react';
+import { useEffect, useSyncExternalStore } from 'react';
 import { applyAppearance, type Appearance } from './appearance';
+import { Icon } from './Icon';
+
+const darkQuery = '(prefers-color-scheme: dark)';
+function subscribeToSystemTheme(update: () => void) {
+  const media = window.matchMedia?.(darkQuery);
+  media?.addEventListener('change', update);
+  return () => media?.removeEventListener('change', update);
+}
+function readSystemDark() {
+  return window.matchMedia?.(darkQuery).matches ?? false;
+}
+
 export function AppearanceControl({
   preference,
   setPreference,
@@ -7,32 +19,34 @@ export function AppearanceControl({
   preference: Appearance;
   setPreference(value: Appearance): void;
 }) {
+  const systemDark = useSyncExternalStore(
+    subscribeToSystemTheme,
+    readSystemDark,
+  );
+  const dark = preference === 'system' ? systemDark : preference === 'dark';
   useEffect(() => {
-    const media = window.matchMedia?.('(prefers-color-scheme: dark)');
-    const update = () => applyAppearance(preference, media?.matches ?? false);
-    update();
-    media?.addEventListener('change', update);
-    return () => media?.removeEventListener('change', update);
-  }, [preference]);
+    applyAppearance(preference, systemDark);
+  }, [preference, systemDark]);
   return (
-    <label className="appearance">
-      <span className="appearance-label">Appearance</span>
-      <select
-        value={preference}
-        onChange={(e) => {
-          const value = e.target.value as Appearance;
-          setPreference(value);
-          try {
-            localStorage.setItem('workbench.appearance', value);
-          } catch {
-            /* Preference remains usable for this page. */
-          }
-        }}
-      >
-        <option value="system">System</option>
-        <option value="light">Light</option>
-        <option value="dark">Dark</option>
-      </select>
-    </label>
+    <button
+      className="appearance"
+      type="button"
+      role="switch"
+      aria-label="Dark theme"
+      aria-checked={dark}
+      title={dark ? 'Switch to light theme' : 'Switch to dark theme'}
+      onClick={() => {
+        const value = dark ? 'light' : 'dark';
+        setPreference(value);
+        try {
+          localStorage.setItem('workbench.appearance', value);
+        } catch {
+          /* Preference remains usable for this page. */
+        }
+      }}
+    >
+      <Icon name="sun" />
+      <Icon name="moon" />
+    </button>
   );
 }

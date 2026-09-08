@@ -12,7 +12,7 @@ action stay neutral. A prominent geometric stag anchors the page above a clean W
 wordmark and the quiet attribution, “by The White Stag Collection.”
 
 This guide covers Tanzanite across sign-in, collection, editors, account and administration,
-recovery, invitations, and shared dialogs. The existing appearance choices remain System, Light, and Dark;
+recovery, invitations, and shared dialogs. Appearance follows the system until the user chooses Light or Dark;
 Tanzanite is the design language, not a separate persisted theme setting.
 
 ## Tokens — Colors
@@ -121,7 +121,8 @@ Small-detail and badge values guide future components; the sign-in page has neit
 | Element | Desktop | At 600px and below |
 |---------|---------|--------------------|
 | Glass panel radius | 12px | 12px |
-| Input, appearance selector, and primary button radius | 6px | 6px |
+| Input and primary button radius | 6px | 6px |
+| Appearance switch | 92 × 44px pill | 92 × 44px pill |
 | Glass panel maximum width | 580px | Available width within page padding |
 | Stag image box | 112 × 150px | 96 × 128px |
 | Input minimum height | 62px | 62px |
@@ -225,11 +226,15 @@ height. Keep the label `Forgot your password?` and the destination `/recover`.
 
 ### Appearance control
 
-**Role:** retain user control of light, dark, and system appearance.
+**Role:** provide a compact light/dark switch with an initial system default.
 
-Keep the existing labeled select in the top-right appearance bar. Reserve space above
-the panel for it. Appearance changes preserve form input and use the existing preference
-mechanism; this visual treatment introduces no additional preference setting.
+Use a sun/moon pill switch in the top-right appearance bar and workspace header, with
+no visible label or Auto option. The highlighted position shows the active theme. Expose
+the accessible name `Dark theme` and switch checked state; support keyboard activation
+and reduced motion. Follow system changes until the first toggle, then retain the explicit
+light/dark choice using the existing preference storage. Stored System values keep following
+the system until toggled. Appearance changes preserve form input, including when storage
+is unavailable. Reserve space above the sign-in panel for the control.
 
 ## Layout
 

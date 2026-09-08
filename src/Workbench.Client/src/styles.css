@@ -317,17 +317,42 @@ textarea[aria-invalid="true"] {
   overflow-wrap: anywhere;
 }
 .appearance {
-  display: flex;
-  align-items: center;
-  gap: 0.625rem;
-  font-size: 0.8125rem;
+  position: relative;
+  display: inline-flex;
+  justify-content: space-between;
+  gap: 0;
+  width: 92px;
+  height: 44px;
+  padding: 0 12px;
+  border-radius: 999px;
   color: var(--muted);
   flex-shrink: 0;
 }
-.appearance select {
-  width: auto;
-  padding: 0.5rem 0.75rem;
-  font-size: 0.875rem;
+.appearance::before {
+  content: '';
+  position: absolute;
+  inset: 4px auto 4px 4px;
+  width: 34px;
+  border-radius: 50%;
+  background: var(--accent);
+  transition: transform 160ms ease;
+}
+.appearance[aria-checked="true"]::before {
+  transform: translateX(48px);
+}
+.appearance .icon {
+  position: relative;
+  width: 18px;
+  height: 18px;
+}
+.appearance[aria-checked="false"] .icon-sun,
+.appearance[aria-checked="true"] .icon-moon {
+  color: var(--on-accent);
+}
+@media (prefers-reduced-motion: reduce) {
+  .appearance::before {
+    transition: none;
+  }
 }
 .appearance-bar {
   display: flex;
@@ -803,16 +828,6 @@ dialog::backdrop {
     grid-column: 2;
     grid-row: 1;
     justify-self: end;
-  }
-  .identity-summary .appearance-label {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    padding: 0;
-    margin: -1px;
-    overflow: hidden;
-    clip-path: inset(50%);
-    white-space: nowrap;
   }
   .identity-summary .quiet {
     grid-column: 2;

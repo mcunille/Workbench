@@ -150,9 +150,7 @@ describe('App', () => {
       render(<App />);
       await screen.findByRole('heading', { name: 'Sign in' });
       // WHEN an explicit choice is made before authenticating.
-      fireEvent.change(screen.getByRole('combobox', { name: 'Appearance' }), {
-        target: { value: 'dark' },
-      });
+      fireEvent.click(screen.getByRole('switch', { name: 'Dark theme' }));
       fireEvent.change(screen.getByLabelText('Email'), {
         target: { value: 'collector@example.test' },
       });
@@ -164,15 +162,11 @@ describe('App', () => {
       );
       await screen.findByRole('heading', { name: 'Collection' });
       // THEN the choice survives both authentication boundary changes in this page.
-      expect(screen.getByRole('combobox', { name: 'Appearance' })).toHaveValue(
-        'dark',
-      );
+      expect(screen.getByRole('switch', { name: 'Dark theme' })).toHaveAttribute('aria-checked', 'true');
       expect(document.documentElement.dataset.theme).toBe('dark');
       fireEvent.click(screen.getByRole('button', { name: 'Sign out' }));
       await screen.findByRole('heading', { name: 'Sign in' });
-      expect(screen.getByRole('combobox', { name: 'Appearance' })).toHaveValue(
-        'dark',
-      );
+      expect(screen.getByRole('switch', { name: 'Dark theme' })).toHaveAttribute('aria-checked', 'true');
     } finally {
       get.mockRestore();
       set.mockRestore();
@@ -209,10 +203,10 @@ describe('App', () => {
     ).toBeVisible();
     // THEN appearance and sign-out remain together in the workspace header.
     const header = within(screen.getByRole('banner'));
-    expect(header.getByRole('combobox', { name: 'Appearance' })).toBeVisible();
+    expect(header.getByRole('switch', { name: 'Dark theme' })).toBeVisible();
     expect(header.getByRole('button', { name: 'Sign out' })).toBeVisible();
     expect(
-      screen.getAllByRole('combobox', { name: 'Appearance' }),
+      screen.getAllByRole('switch', { name: 'Dark theme' }),
     ).toHaveLength(1);
     // AND the release label stays compact while retaining the full build as metadata.
     expect(screen.getByText('Workbench 1.2.3')).toHaveAttribute(

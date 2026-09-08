@@ -48,14 +48,14 @@ test('H6 narrated archive recovery walkthrough', async ({ browser }) => {
     await restore(page).click(); await confirmRestore(page).click();
     await expect(page.getByRole('alert')).toContainText('Restoration could not be confirmed');
     await page.setViewportSize({ width: 390, height: 844 });
-    await page.getByRole('combobox', { name: 'Appearance', exact: true }).selectOption('dark');
+    await page.getByRole('switch', { name: 'Dark theme' }).setChecked(true);
     await narrate('Here we deliberately lose the response after the server saves. The screen reports uncertainty and keeps the original request across appearance changes.', 11);
     await page.getByRole('button', { name: 'Retry restore', exact: true }).click();
     await expect(page.getByText('This record is already in the collection. Current saved record loaded.', { exact: true })).toBeVisible();
     expect(bodies[1]).toEqual(bodies[0]);
     await narrate('Retry uses the same checked version. The saved record is already active, so Workbench reloads its current state without claiming this retry restored it.', 12);
     await page.setViewportSize({ width: 1280, height: 900 });
-    await page.getByRole('combobox', { name: 'Appearance', exact: true }).selectOption('light');
+    await page.getByRole('switch', { name: 'Dark theme' }).setChecked(false);
     await page.getByRole('link', { name: 'Back to archive', exact: true }).click();
     await expect(page.getByText('No matches', { exact: true })).toBeVisible();
     await narrate('The archive search is refreshed and no longer includes the restored record. Its search words and List preference remain available.', 10);

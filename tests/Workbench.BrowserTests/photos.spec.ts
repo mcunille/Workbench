@@ -66,8 +66,8 @@ test('prepares a camera image locally and persists uncropped photos across sessi
     await page.setViewportSize({ width, height: 900 });
     for (const theme of ['light', 'dark']) {
       await page
-        .getByRole('combobox', { name: 'Appearance', exact: true })
-        .selectOption(theme);
+        .getByRole('switch', { name: 'Dark theme' })
+        .setChecked(theme === 'dark');
       expect(
         await page.evaluate(
           () => document.documentElement.scrollWidth <= innerWidth,
