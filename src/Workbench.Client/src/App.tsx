@@ -14,19 +14,10 @@ import { useNavigation } from './useNavigation';
 import { DiscardDialog } from './DiscardDialog';
 import { Icon } from './Icon';
 import { readAppearance } from './appearance';
+import { Brand } from './Brand';
 
 function PublicAppearance({ children }: { children: ReactNode }) {
   return <div className="appearance-bar">{children}</div>;
-}
-function Brand() {
-  return (
-    <div className="brand">
-      <img src="/stag.svg" width="36" height="44" alt="" />
-      <span className="wordmark">
-        Workbench<small>The White Stag Collection</small>
-      </span>
-    </div>
-  );
 }
 function SignedInApplication({
   system,
@@ -187,7 +178,10 @@ function WorkbenchApplication({ appearance }: { appearance: ReactNode }) {
       <>
         <PublicAppearance>{appearance}</PublicAppearance>
         <main className="public-shell">
-          <p role="alert">Workbench is temporarily unavailable.</p>
+          <section className="auth-card">
+            <Brand />
+            <p role="alert">Workbench is temporarily unavailable.</p>
+          </section>
         </main>
       </>
     );
@@ -197,6 +191,7 @@ function WorkbenchApplication({ appearance }: { appearance: ReactNode }) {
         <PublicAppearance>{appearance}</PublicAppearance>
         <main className="public-shell">
           <section className="auth-card">
+            <Brand />
             <h1>Access denied</h1>
             <p>Your account does not have access to this Workbench.</p>
           </section>
@@ -217,7 +212,10 @@ function WorkbenchApplication({ appearance }: { appearance: ReactNode }) {
       <>
         <PublicAppearance>{appearance}</PublicAppearance>
         <main className="public-shell">
-          <p role="status">Loading Workbench…</p>
+          <section className="auth-card">
+            <Brand />
+            <p role="status">Loading Workbench…</p>
+          </section>
         </main>
       </>
     );

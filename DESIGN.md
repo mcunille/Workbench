@@ -2,7 +2,7 @@
 
 > Quiet glass. A whisper of color.
 
-**Appearance:** dark and light. **Reference surface:** the centered sign-in page.
+**Appearance:** dark and light. **Reference surfaces:** sign-in and the collection workspace.
 
 Tanzanite gives Workbench depth through translucent neutral surfaces, a fine highlighted
 edge, and soft shadows. In dark appearance, faint blue and violet light enter from the
@@ -11,15 +11,14 @@ glass with charcoal typography. Color supplies atmosphere; the form, brand, and 
 action stay neutral. A prominent geometric stag anchors the page above a clean Workbench
 wordmark and the quiet attribution, “by The White Stag Collection.”
 
-This guide follows the approved, implemented sign-in design. The collection workspace,
-recovery pages, and other application surfaces retain their existing styling. Use this
-reference when designing an approved extension of Tanzanite; it does not authorize a
-global restyle. The existing appearance choices remain System, Light, and Dark;
+This guide covers Tanzanite across sign-in, collection, editors, account and administration,
+recovery, invitations, and shared dialogs. The existing appearance choices remain System, Light, and Dark;
 Tanzanite is the design language, not a separate persisted theme setting.
 
 ## Tokens — Colors
 
-These are the actual custom properties scoped to `.sign-in-page`. Eight-digit hex values
+The table below describes the sign-in glass variant. Shared text, canvas, action, border,
+and focus colors match the application tokens. Eight-digit hex values
 include alpha; they describe a layer, not its final composited screen color.
 
 | Name | Dark | Light | Token | Role |
@@ -360,3 +359,37 @@ library, or separate font installation is needed to reproduce this reference.
 Keep this guide synchronized with approved implementation changes. It documents visual
 language; it does not replace product requirements, authorization rules, or the repository's
 implementation and review workflow.
+
+## Application surfaces
+
+The shared stylesheet implements Tanzanite throughout the existing workspace. Reading,
+editing, and photographic surfaces stay opaque; the sticky header and public account
+cards use restrained glass. Layout, route structure, permissions, and workflows are unchanged.
+
+| Shared token | Dark | Light |
+|---|---|---|
+| `--surface` | `#121317` | `#ffffff` |
+| `--surface-raised` | `#1b1c22` | `#ffffff` |
+| `--border-subtle` | `#34363f` | `#d9dbe3` |
+| `--selected` | `#252730` | `#edf0f6` |
+| `--hover` | `#202229` | `#f3f4f7` |
+| `--placeholder` | `#1b1c22` | `#f4f5f7` |
+| `--header-material` | `rgb(18 19 23 / 88%)` | `rgb(255 255 255 / 88%)` |
+
+Shared radius tokens are `--radius-small: 2px`, `--radius-badge: 4px`,
+`--radius-input: 6px`, `--radius-button: 6px`, and `--radius-card: 12px`.
+Small and badge tokens are reserved for future components. Existing card, list, panel,
+editor, and dialog corners use 12px; controls and navigation links use 6px. Grid photo
+corners are inset by their 1px container border.
+
+The compact brand uses the original stag at 48 × 64px (40 × 54px on mobile), a 24px
+system sans wordmark (20px on mobile), and an 11px muted maker byline. The sign-in
+lockup retains its larger approved geometry. Standard workspace controls retain their
+44px minimum target; the 60px/62px sign-in dimensions above are specific to that form.
+
+Card elevation uses subtle neutral shadows in both appearances. Never tint photographs
+or use colored fills to imply inventory state. Reduced transparency falls back to opaque
+chrome; reduced motion disables active translations. Forced colors retains native control
+boundaries and an explicit active navigation outline.
+
+See the [application extension specification](docs/specs/2026-09-08-tanzanite-app.md).

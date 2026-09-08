@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from 'react';
+import { Brand } from '../../Brand';
 import {
   consumeInvitation,
   consumeRecovery,
@@ -17,7 +18,7 @@ export function Recovery({ invitation = false, token = null }: {
     return (
       <main className="public-shell">
         <section className="auth-card" aria-labelledby="recovery-title">
-          <p className="eyebrow">Workbench account</p>
+          <Brand />
           <h1 id="recovery-title">Invalid invitation</h1>
           <p className="form-message error" role="alert">
             This invitation link is missing its token.
@@ -54,7 +55,7 @@ export function Recovery({ invitation = false, token = null }: {
   return (
     <main className="public-shell">
       <section className="auth-card" aria-labelledby="recovery-title">
-        <p className="eyebrow">Workbench account</p>
+        <Brand />
         <h1 id="recovery-title">{title}</h1>
         {complete ? (
           <p role="status">

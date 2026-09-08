@@ -36,6 +36,8 @@ describe('Recovery', () => {
 
     render(<Recovery invitation />);
 
+    // THEN even an invalid invitation retains the shared Workbench identity.
+    expect(screen.getByText('by The White Stag Collection')).toBeVisible();
     expect(screen.getByRole('alert')).toHaveTextContent(
       'This invitation link is missing its token.',
     );
