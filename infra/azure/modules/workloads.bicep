@@ -6,6 +6,21 @@ param registryServer string
 param registryPullIdentityId string
 param activate bool
 param workerEnabled bool
+@sealed()
+type restrictedIngress = {
+  mode: 'Restricted'
+  @minLength(1)
+  allowCidrs: string[]
+}
+@sealed()
+type publicIngress = {
+  mode: 'Public'
+  allowCidrs: []
+}
+@discriminator('mode')
+type ingressAccessPolicy = restrictedIngress | publicIngress
+@description('Required explicit client access policy, independent of ingress publication and forwarded metadata trust.')
+param ingressPolicy ingressAccessPolicy
 param publishIngress bool
 param releaseTraffic array
 param publicOrigin string
@@ -36,6 +51,13 @@ param smtpSender string
 param enablePublicRecovery bool
 param previousCertificates array
 
+var clientIngressRules = [for (cidr, index) in ingressPolicy.allowCidrs: {
+  name: 'client-${index}'
+  // Direct ARM callers must not disguise public access as Restricted mode.
+  // Invalid entries fail ACA validation; never drop a rule and accidentally emit an empty allow list.
+  ipAddressRange: int(last(split(cidr, '/'))) == 0 ? 'invalid-restricted-cidr' : cidr
+  action: 'Allow'
+}]
 var identities = union({ '${registryPullIdentityId}': {} }, {})
 var registry = [{ server: registryServer, identity: registryPullIdentityId }]
 var previousPfxNames = [for certificate in previousCertificates: certificate.secretName]
@@ -110,6 +132,7 @@ resource web 'Microsoft.App/containerApps@2025-01-01' = {
       secrets: activate ? sharedSecrets : []
       ingress: activate ? {
         external: publishIngress
+        ipSecurityRestrictions: clientIngressRules
         targetPort: 8080
         allowInsecure: false
         transport: 'http'

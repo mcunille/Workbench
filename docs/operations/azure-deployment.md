@@ -13,6 +13,11 @@ operator authorization; none of the commands below should be run against a retai
 
 ## Inputs and offline checks
 
+Public release also requires the [explicit ingress policy](azure-ingress.md),
+[browser protections](browser-security.md), and [security audit/deletion controls](azure-security-controls.md).
+The security runbook contains the separate scoped templates and approval/readback steps; ordinary
+workload deployments must preserve the approved ingress policy and cannot substitute for those gates.
+
 Use Azure CLI with Bicep 0.46.1 or later, PowerShell 7.5 or later, an authorized subscription, and an
 existing ACR registry containing the reviewed image. Give a dedicated user-assigned pull identity only
 `AcrPull` on that registry; enable managed-identity authentication on the registry. Pass that identity
