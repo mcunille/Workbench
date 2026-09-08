@@ -1,7 +1,0 @@
-[
-  { "id": "welcome", "title": "Find a remembered piece", "text": "Workbench now searches the entire collection by name, notes, or storage location. This demonstration uses synthetic records in a disposable database." },
-  { "id": "search", "title": "Search remembered words", "text": "Type a remembered phrase and press Search. Matching ignores letter case and treats punctuation literally. Here, September fair appears in the notes, so the sapphire is found even though its name is different." },
-  { "id": "mobile", "title": "Return to the same result", "text": "On a phone, choose the compact list and open the sapphire. Its location is right here. Returning to the collection preserves the query, list view, and selected result. Changing appearance keeps the task intact." },
-  { "id": "retry", "title": "Recover from a failed search", "text": "A simulated connection failure shows an error, not an empty collection. Retry repeats the submitted query and retrieves the matching piece." },
-  { "id": "clear", "title": "Clear without changing records", "text": "A phrase with no matches has its own message. Clear returns to the collection without changing any records. Search state stays in this signed-in app and resets on a full reload or sign-out." }
-]

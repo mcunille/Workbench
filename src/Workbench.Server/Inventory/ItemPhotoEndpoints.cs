@@ -92,7 +92,8 @@ public static class ItemPhotoEndpoints
         RecoveredFileUnavailableException => Results.Problem(statusCode: 410,
             title: "This photograph could not be recovered. Replace it with another copy.",
             extensions: new Dictionary<string, object?> { ["code"] = "file_unavailable_after_recovery" }),
-        PhotoInputException photo => Results.Problem(statusCode: photo.StatusCode, title: photo.Message),
+        PhotoInputException photo => Results.Problem(statusCode: photo.StatusCode, title: photo.Message,
+            extensions: photo.Code is null ? null : new Dictionary<string, object?> { ["code"] = photo.Code }),
         UnauthorizedAccessException => Results.Problem(statusCode: 403, title: "Photo access is denied."),
         _ => Results.Problem(statusCode: 503, title: "The photo operation could not be confirmed. Retry the same operation shortly."),
     };

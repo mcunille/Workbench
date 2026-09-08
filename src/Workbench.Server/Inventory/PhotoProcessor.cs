@@ -216,7 +216,8 @@ public sealed class PhotoProcessor
 
 public sealed record ProcessedPhoto(byte[] Detail, byte[] Thumbnail, int Width, int Height);
 
-public sealed class PhotoInputException(int statusCode, string message) : Exception(message)
+public sealed class PhotoInputException(int statusCode, string message, string? code = null) : Exception(message)
 {
     public int StatusCode { get; } = statusCode;
+    public string? Code { get; } = code;
 }

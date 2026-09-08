@@ -12,8 +12,8 @@ using Workbench.Server.Persistence;
 namespace Workbench.Server.Persistence.Migrations
 {
     [DbContext(typeof(WorkbenchDbContext))]
-    [Migration("20260907225320_AddOnlineRecovery")]
-    partial class AddOnlineRecovery
+    [Migration("20260907224158_AddItemArchiving")]
+    partial class AddItemArchiving
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)

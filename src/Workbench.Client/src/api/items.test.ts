@@ -8,6 +8,56 @@ const request = {
   location: null,
 };
 describe('Inventory API', () => {
+  it('sends only the checked archive token with antiforgery and preserves authoritative errors', async () => {
+    // GIVEN the generated archive endpoint and authoritative validation/conflict responses.
+    const { archiveItem, ItemConflictError, updateItem } = await import(
+      './items'
+    );
+    let status = 200;
+    server.use(
+      http.get('*/api/auth/antiforgery', () =>
+        HttpResponse.json({ requestToken: 'csrf-test' }),
+      ),
+      http.post('*/api/items/stone/archive', async ({ request }) => {
+        expect(await request.json()).toEqual({
+          expectedVersion: 'AAAAAAAAAAA=',
+        });
+        expect(request.headers.get('X-CSRF-TOKEN')).toBe('csrf-test');
+        return HttpResponse.json(
+          status === 200
+            ? { id: 'stone', archivedAtUtc: '2026-09-07T01:00:00Z' }
+            : status === 400
+              ? { errors: { expectedVersion: ['Invalid version.'] } }
+              : { code: 'item_archived' },
+          { status },
+        );
+      }),
+      http.put('*/api/items/stone', () =>
+        HttpResponse.json({ code: 'item_archived' }, { status: 409 }),
+      ),
+    );
+    // WHEN archiving THEN the saved result, field errors and archived conflict are retained.
+    expect(
+      (await archiveItem('stone', { expectedVersion: 'AAAAAAAAAAA=' }))
+        .archivedAtUtc,
+    ).toBeTruthy();
+    status = 400;
+    await expect(
+      archiveItem('stone', { expectedVersion: 'AAAAAAAAAAA=' }),
+    ).rejects.toBeInstanceOf(ItemValidationError);
+    status = 409;
+    await expect(
+      archiveItem('stone', { expectedVersion: 'AAAAAAAAAAA=' }),
+    ).rejects.toBeInstanceOf(ItemConflictError);
+    await expect(
+      updateItem('stone', {
+        expectedVersion: 'AAAAAAAAAAA=',
+        name: 'Draft',
+        notes: null,
+        location: null,
+      }),
+    ).rejects.toBeInstanceOf(ItemConflictError);
+  });
   it('encodes literal search text and the page cursor independently', async () => {
     // GIVEN literal punctuation that would be special in a query string.
     server.use(

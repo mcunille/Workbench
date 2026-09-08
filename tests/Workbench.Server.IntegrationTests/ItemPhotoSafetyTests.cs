@@ -16,6 +16,37 @@ namespace Workbench.Server.IntegrationTests;
 [Collection(SqlServerCollection.Name)]
 public sealed class ItemPhotoSafetyTests(SqlServerFixture sqlServer)
 {
+    [Fact]
+    public async Task ArchiveDuringPublicationPreservesCurrentPhotoAndRejectsDelayedUpload()
+    {
+        // GIVEN a complete photo and an independent session, with replacement paused after blob publication.
+        await using var context = await TestContext.CreateAsync(sqlServer);
+        var (path, old) = await context.CreatePhotographedItemAsync();
+        using var second = context.Factory.CreateClient();
+        await LoginAsync(second);
+        context.Store.PauseNextPublication();
+        var requestId = Guid.NewGuid();
+        var first = UploadAsync(context.Client, path, Version(old), requestId, Photo(blue: true));
+        JsonElement archived;
+        try
+        {
+            await context.Store.Published.Task.WaitAsync(TimeSpan.FromSeconds(30));
+            // WHEN archiving commits while the prepared replacement is still pending.
+            var response = await SendJsonAsync(second, HttpMethod.Post, path + "/archive", new { expectedVersion = Version(old) });
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            archived = await response.Content.ReadFromJsonAsync<JsonElement>();
+        }
+        finally { context.Store.Release.TrySetResult(); }
+        // THEN final publication loses, preserving the archived record and its original readable pair.
+        var lost = await first;
+        Assert.Equal(HttpStatusCode.Conflict, lost.StatusCode);
+        Assert.Equal("item_archived", (await lost.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("code").GetString());
+        Assert.Equal(PhotoId(old), PhotoId(archived));
+        await AssertUnchangedAsync(second, path, archived);
+        Assert.Equal(HttpStatusCode.Conflict, (await UploadAsync(second, path, Version(old), requestId, Photo(blue: true))).StatusCode);
+        await AssertUnchangedAsync(second, path, archived);
+    }
+
     [Theory]
     [InlineData("unsupported", HttpStatusCode.UnsupportedMediaType)]
     [InlineData("corrupt", HttpStatusCode.UnprocessableEntity)]

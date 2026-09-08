@@ -12,7 +12,7 @@ test('explains a recovery loss on an otherwise usable item', async ({ page }) =>
   await page.getByLabel('Choose photograph', { exact: true }).setInputFiles(await cameraImage(page));
   await expect(page.getByAltText('Prepared photograph preview')).toBeVisible();
   await page.getByRole('button', { name: 'Upload photograph', exact: true }).click();
-  await expect(page.getByText('Photograph updated.', { exact: true })).toBeVisible();
+  await expect(page.getByAltText(`Photograph of ${name}`, { exact: true })).toBeVisible();
   await page.route('**/api/items/*/photo/*/*', route => route.fulfill({
     status: 410,
     contentType: 'application/problem+json',

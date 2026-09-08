@@ -115,7 +115,7 @@ internal static class FileRecoverySchema
             GRANT EXECUTE ON [Storage].[AcceptFileRecovery] TO [workbench_storage_maintenance];
             DECLARE @Readiness nvarchar(max)=OBJECT_DEFINITION(OBJECT_ID(N'[Security].[ReadDatabaseReadiness]'));
             SET @Readiness=REPLACE(@Readiness,N'CREATE PROCEDURE',N'ALTER PROCEDURE');
-            SET @Readiness=REPLACE(@Readiness,N'20260907194500_AddItemDetailEditing',N'20260907225320_AddOnlineRecovery');
+            SET @Readiness=REPLACE(@Readiness,N'20260907224158_AddItemArchiving',N'20260907225320_AddOnlineRecovery');
             EXEC sys.sp_executesql @Readiness;
             """);
     }

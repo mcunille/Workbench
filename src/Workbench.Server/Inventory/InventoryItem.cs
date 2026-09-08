@@ -13,6 +13,7 @@ public sealed class InventoryItem : ITenantOwned
     public string? Notes { get; init; }
     public string? StorageLocation { get; init; }
     public DateTimeOffset CreatedAtUtc { get; init; }
+    public DateTimeOffset? ArchivedAtUtc { get; init; }
     public Guid CreationRequestId { get; init; }
     public Guid? CurrentPhotoId { get; set; }
     public ItemPhoto? CurrentPhoto { get; set; }
