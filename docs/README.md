@@ -50,7 +50,12 @@ these increments do not complete the entire scenario.
 
 The accepted [H5 archiving design](specs/2026-09-07-h5-item-archiving.md) extends the collection with
 confirmed, version-checked archiving, active-only browsing/search, and read-only access to retained
-records and photographs through their existing links. H5 does not provide unarchive or deletion.
+records and photographs through their existing links.
+
+Archive recovery follows the [H6 design](specs/2026-09-07-h6-archive-recovery.md): a separate
+searchable Archive, retained read-only details/photos, and version-checked restoration to the
+active collection. See the [walkthrough](demos/h6/README.md) and migration runbook for evidence
+and release compatibility. No permanent deletion is provided.
 
 The accepted [base-architecture specification](specs/2026-08-31-base-application-architecture.md) is
 the decision record behind `ARCHITECTURE.md`.

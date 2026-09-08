@@ -32,7 +32,7 @@ test('H5 cancellation and confirmed archive preserve a photographed bookmark acr
   await archive(page).focus();
   await page.keyboard.press('Enter');
   await expect(page.getByRole('heading', { name: 'Archive record?', exact: true })).toBeFocused();
-  await expect(page.getByText(/Restoring it to browsing is currently unavailable/)).toBeVisible();
+  await expect(page.getByText(/You can restore it from Archive/)).toBeVisible();
   await page.getByRole('button', { name: 'Cancel', exact: true }).click();
   await expect(archive(page)).toBeFocused();
   expect(submissions).toBe(0);
@@ -62,7 +62,8 @@ test('H5 cancellation and confirmed archive preserve a photographed bookmark acr
     }
   }
   // AND neither Grid nor List nor a matching search exposes the archived record.
-  await page.getByRole('link', { name: 'Back to collection', exact: true }).click();
+  await page.getByRole('link', { name: 'Back to archive', exact: true }).click();
+  await page.getByRole('link', { name: 'Collection', exact: true }).click();
   for (const view of ['Grid', 'List']) {
     await page.getByRole('button', { name: view, exact: true }).click();
     await expect(page.getByRole('link').filter({ has: page.getByText(item.name, { exact: true }) })).toHaveCount(0);

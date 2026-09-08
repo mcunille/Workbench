@@ -168,3 +168,50 @@ it('sends a checked update with antiforgery and preserves validation and conflic
     ItemConflictError,
   );
 });
+it('encodes archived traversal and sends only a checked restore with antiforgery and actionable errors', async () => {
+  // GIVEN generated archive/restore contracts and authoritative server outcomes.
+  const { getArchivedItems, restoreItem, ItemConflictError } =
+    await import('./items');
+  let status = 200;
+  server.use(
+    http.get('*/api/auth/antiforgery', () =>
+      HttpResponse.json({ requestToken: 'csrf-test' }),
+    ),
+    http.get('*/api/items/archived', ({ request }) => {
+      expect(new URL(request.url).searchParams.get('cursor')).toBe(
+        'opaque+/=',
+      );
+      expect(new URL(request.url).searchParams.get('q')).toBe(
+        'stone %_[]\\ &+#',
+      );
+      return HttpResponse.json({ items: [], nextCursor: null });
+    }),
+    http.post('*/api/items/stone/restore', async ({ request }) => {
+      expect(await request.json()).toEqual({
+        expectedVersion: 'AAAAAAAAAAA=',
+      });
+      expect(request.headers.get('X-CSRF-TOKEN')).toBe('csrf-test');
+      return HttpResponse.json(
+        status === 200
+          ? { id: 'stone', archivedAtUtc: null }
+          : status === 400
+            ? { errors: { expectedVersion: ['Invalid version.'] } }
+            : { code: 'item_active' },
+        { status },
+      );
+    }),
+  );
+  // WHEN browsing and restoring THEN preserve literal values and the checked command.
+  await getArchivedItems('opaque+/=', 'stone %_[]\\ &+#');
+  expect(
+    (await restoreItem('stone', { expectedVersion: 'AAAAAAAAAAA=' })).id,
+  ).toBe('stone');
+  status = 400;
+  await expect(
+    restoreItem('stone', { expectedVersion: 'AAAAAAAAAAA=' }),
+  ).rejects.toBeInstanceOf(ItemValidationError);
+  status = 409;
+  await expect(
+    restoreItem('stone', { expectedVersion: 'AAAAAAAAAAA=' }),
+  ).rejects.toBeInstanceOf(ItemConflictError);
+});
