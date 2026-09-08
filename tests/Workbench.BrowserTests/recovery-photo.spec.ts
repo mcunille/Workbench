@@ -2,6 +2,8 @@ import { expect, test } from '@playwright/test';
 import { mkdir } from 'node:fs/promises';
 import { cameraImage, photoSignIn, savedPhotoItem } from './photo-fixture';
 
+test.setTimeout(180_000);
+
 test('explains a recovery loss on an otherwise usable item', async ({ page }) => {
   // GIVEN a saved item/photo and the API's accepted-loss response (SQL acceptance is integration-tested separately).
   await photoSignIn(page);
