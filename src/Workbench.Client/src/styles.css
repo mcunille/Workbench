@@ -271,23 +271,30 @@ textarea[aria-invalid="true"] {
   text-align: left;
   flex-shrink: 0;
 }
-.brand img {
-  object-fit: contain;
-  width: 32px;
-  height: 40px;
-}
 .wordmark {
-  font-family: Georgia, "Times New Roman", serif;
-  font-size: 1.5rem;
-  font-weight: 500;
-  letter-spacing: -0.04em;
-  line-height: 1.1;
+  font-size: 1.25rem;
+  line-height: 1.15;
 }
-.wordmark small {
+.workbench-wordmark {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.025em;
+  font-family:
+    ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+    "Segoe UI", sans-serif;
+  font-weight: 600;
+  letter-spacing: -0.035em;
+  line-height: 1.15;
+  white-space: nowrap;
+}
+.workbench-wordmark svg {
+  height: 0.715em;
+  width: 0.91em;
+  overflow: visible;
+  flex: none;
+}
+.workbench-wordmark > span {
   display: block;
-  margin-top: 0.25rem;
-  font-size: 0.625rem;
-  letter-spacing: 0.025em;
 }
 .identity-summary {
   display: flex;
@@ -740,14 +747,8 @@ dialog::backdrop {
     grid-row: 1;
     gap: 0.5rem;
   }
-  .topbar .brand img {
-    width: 26px;
-  }
   .topbar .wordmark {
     font-size: 1.25rem;
-  }
-  .topbar .wordmark small {
-    font-size: 0.5625rem;
   }
   .workspace-layout {
     grid-template-columns: minmax(0, 1fr);

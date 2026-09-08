@@ -20,6 +20,7 @@ import { useNavigation } from './useNavigation';
 import { DiscardDialog } from './DiscardDialog';
 import { Icon } from './Icon';
 import { readAppearance } from './appearance';
+import { Wordmark } from './Wordmark';
 
 function PublicAppearance({ children }: { children: ReactNode }) {
   return <div className="appearance-bar">{children}</div>;
@@ -27,9 +28,8 @@ function PublicAppearance({ children }: { children: ReactNode }) {
 function Brand() {
   return (
     <div className="brand">
-      <img src="/stag.svg" width="36" height="44" alt="" />
       <span className="wordmark">
-        Workbench<small>The White Stag Collection</small>
+        <Wordmark />
       </span>
     </div>
   );
