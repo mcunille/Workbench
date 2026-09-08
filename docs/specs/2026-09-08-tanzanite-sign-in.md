@@ -9,6 +9,8 @@ brand presence or depth. This change is scoped to the signed-out sign-in surface
 ## Accepted design
 
 - Center a translucent neutral panel with a subtle highlighted edge and layered shadow.
+- Use the approved radius scale: small details 2px, badges 4px, inputs/selects and
+  buttons 6px, cards 12px. Card and control radii remain the same on desktop and mobile.
 - In dark mode, use near-black with faint blue and violet confined to the top of the
   viewport. Avoid a colored lower background or pink glow.
 - Use the supplied geometric stag and star, preserving their vector paths. Remove

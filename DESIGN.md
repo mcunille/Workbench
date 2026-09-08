@@ -107,10 +107,22 @@ around the brand; practical and readable within the form.
 
 ### Border radius and dimensions
 
+The radius scale is consistent across desktop and mobile:
+
+| Role | Radius |
+|------|--------|
+| Small details | 2px |
+| Badges | 4px |
+| Inputs, including selects | 6px |
+| Buttons | 6px |
+| Cards | 12px |
+
+Small-detail and badge values guide future components; the sign-in page has neither.
+
 | Element | Desktop | At 600px and below |
 |---------|---------|--------------------|
-| Glass panel radius | 30px | 24px |
-| Input and primary button radius | 12px | 12px |
+| Glass panel radius | 12px | 12px |
+| Input, appearance selector, and primary button radius | 6px | 6px |
 | Glass panel maximum width | 580px | Available width within page padding |
 | Stag image box | 112 × 150px | 96 × 128px |
 | Input minimum height | 62px | 62px |
@@ -182,7 +194,7 @@ and recovery. An error appears before the primary action when needed.
 
 **Role:** the clearest action in the composition.
 
-Use neutral fill and inverse text, a 12px radius, and a 60px minimum height. The button
+Use neutral fill and inverse text, a 6px radius, and a 60px minimum height. The button
 spans the form width. During submission, keep the existing disabled state and the label
 `Signing in…`. Preserve its submit semantics.
 
@@ -190,7 +202,7 @@ spans the form width. During submission, keep the existing disabled state and th
 
 **Role:** a readable, subtly inset editable surface.
 
-Use a visible external label, neutral border, 12px radius, 62px minimum height, and
+Use a visible external label, neutral border, 6px radius, 62px minimum height, and
 16px entered text. Preserve email/password types, required validation, and autocomplete
 values `username` and `current-password`. Placeholder text must not replace the label.
 
@@ -276,12 +288,12 @@ or jewelry photograph represents the item. That extension requires its own scope
 
 ### Example component briefs
 
-1. **Sign-in panel:** Center a 580px maximum-width glass panel with a 30px radius,
+1. **Sign-in panel:** Center a 580px maximum-width glass panel with a 12px radius,
    40px vertical and 48px horizontal padding. Place a 112 × 150px stag image box above
    the 40px Workbench wordmark and 13px gray byline. Left-align the form beneath it.
 2. **Dark atmosphere:** Use `#08090c` as the canvas. Add the documented blue and violet
    radial layers above the viewport. Keep the lower page virtually black and the card neutral.
-3. **Primary action:** Create a full-width, minimum 60px-high button with a 12px radius,
+3. **Primary action:** Create a full-width, minimum 60px-high button with a 6px radius,
    18px/500 text, neutral inverse colors, and subtle 1px hover lift. Respect reduced motion.
 4. **Mobile adaptation:** At 600px and below, use 16px outer horizontal padding and
    32px/24px panel padding. Reduce the mark to 96 × 128px and wordmark to 34px. Keep
