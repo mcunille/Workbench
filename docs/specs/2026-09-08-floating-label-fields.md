@@ -15,7 +15,12 @@ disabled states, and submission behavior. Placeholder examples appear on focus.
 Keep file upload and appearance labels external; appearance focus also uses a single
 colored boundary. Links and buttons retain their keyboard focus outlines.
 
-Motion is CSS-only and disabled for reduced-motion users. Forced colors uses a system
+At field widths of 16rem or less, labels stay above controls in normal flow and may
+wrap. This text-relative fallback also applies when root text is enlarged, preserving
+the full label without overlap in empty, focused, and populated states.
+
+Motion is CSS-only and disabled for reduced-motion users. Label color changes immediately
+with the theme so text and background never animate out of contrast. Forced colors uses a system
 highlight border. Invalid fields retain their danger color. A neutral opaque field fill
 provides a clean notch against the surrounding glass.
 

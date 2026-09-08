@@ -2,7 +2,9 @@
 .floating-field {
   --field-fill: #fff;
   position: relative;
-  display: block;
+  display: flex;
+  flex-direction: column-reverse;
+  container: text-field / inline-size;
   min-width: 0;
   margin-top: 0.5rem;
 }
@@ -30,7 +32,7 @@
   line-height: 1.25;
   cursor: text;
 }
-.floating-field:has(:focus, :autofill, :not(:placeholder-shown):is(input, textarea)) > .field-label {
+.floating-field:where(:has(:focus, :autofill, :not(:placeholder-shown):is(input, textarea))) > .field-label {
   top: 0;
   transform: translateY(-50%);
   background: var(--field-fill);
@@ -51,13 +53,27 @@
 .collection-search-controls > .floating-field { flex: 1 1 16rem; margin-top: 0; }
 .inline-form > .floating-field { flex: 1; }
 .sign-in-card .floating-field > input { background: var(--field-fill); box-shadow: none; }
-.sign-in-card .floating-field > .field-label { top: 1.25rem; }
-.sign-in-card .floating-field:has(:focus, :autofill, input:not(:placeholder-shown)) > .field-label { top: 0; }
+:where(.sign-in-card) .floating-field > .field-label { top: 1.25rem; }
+:where(.sign-in-card) .floating-field:where(:has(:focus, :autofill, input:not(:placeholder-shown))) > .field-label { top: 0; }
+/* Scale the fallback with text size, not viewport size, so enlarged labels can wrap
+   in normal flow without covering values or neighboring fields. */
+@container text-field (max-width: 16rem) {
+  .floating-field > .field-label {
+    position: static;
+    transform: none;
+    max-width: 100%;
+    margin-bottom: 0.5rem;
+    padding: 0;
+    font-size: 1rem;
+    overflow-wrap: anywhere;
+    background: transparent;
+  }
+}
 /* Other native controls keep a single boundary too; links/buttons retain their focus outline. */
 select:focus-visible { border-color: var(--focus); outline: none; }
 @media (prefers-reduced-motion: no-preference) {
   .floating-field > .field-label {
-    transition: top 140ms ease, transform 140ms ease, font-size 140ms ease, color 140ms ease;
+    transition: top 140ms ease, transform 140ms ease, font-size 140ms ease;
   }
   .floating-field > :is(input, textarea) { transition: border-color 140ms ease; }
 }

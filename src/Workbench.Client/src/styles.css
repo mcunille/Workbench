@@ -505,6 +505,7 @@ footer {
 }
 .form-stack {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 1.25rem;
   margin: 1.5rem 0;
 }
@@ -525,7 +526,7 @@ footer {
   border-top: 1px solid var(--border-subtle);
 }
 .editor .button-row .primary {
-  min-width: 8rem;
+  min-width: min(8rem, 100%);
 }
 .back-link {
   display: inline-flex;

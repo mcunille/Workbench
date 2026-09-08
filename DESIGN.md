@@ -210,7 +210,10 @@ example hints appear on focus. A placeholder never replaces the accessible label
 
 Entered text remains 16px. Sign-in keeps its 62px minimum input height; workspace
 controls retain their existing target sizes. The input and label notch share an opaque
-white or `#121317` fill. Label motion lasts 140ms and respects reduced motion. See the
+white or `#121317` fill. Fields at most 16rem wide use external, wrapping labels;
+the threshold scales with root text size so enlarged text cannot overlap values.
+Label motion lasts 140ms and respects reduced motion. Text color changes immediately
+with appearance to preserve contrast throughout theme changes. See the
 [field specification](docs/specs/2026-09-08-floating-label-fields.md).
 
 ### Recovery link
