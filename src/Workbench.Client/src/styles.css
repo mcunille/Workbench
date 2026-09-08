@@ -1005,7 +1005,7 @@ html { scroll-padding-top: 8rem; }
 
 .item-photo img, .photo-preview img { width: 100%; height: 100%; object-fit: contain; }
 .photo-editor { margin-block: 1.5rem; }
-.photo-editor > .item-photo { display: flex; width: 100%; height: min(50vh, 26rem); border-radius: var(--radius-card); }
+.photo-editor > .item-photo { display: flex; justify-content: center; width: 100%; height: min(50vh, 26rem); border-radius: var(--radius-card); }
 .photo-preview { margin-block: 1rem; }
 .photo-preview img { display: block; max-height: 24rem; background: var(--placeholder); border-radius: var(--radius-card); }
 .photo-editor input[type="file"] { max-width: 100%; }
@@ -1033,6 +1033,7 @@ html { scroll-padding-top: 8rem; }
 .editor .form-stack, .detail-surface, .empty-state, .panel, .auth-card {
   box-shadow: var(--card-shadow), inset 0 1px 0 #ffffff08;
 }
+.record-actions { margin-top: 1.5rem; }
 @supports (backdrop-filter: blur(16px)) {
   .auth-card:not(.sign-in-card) {
     background: var(--header-material);

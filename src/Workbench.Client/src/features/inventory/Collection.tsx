@@ -442,7 +442,7 @@ export function ItemDetails({
           ) : (
             <>
               {!item.archivedAtUtc ? (
-                <>
+                <div className="button-row record-actions">
                   <button
                     ref={editButton}
                     className="secondary"
@@ -465,7 +465,7 @@ export function ItemDetails({
                   >
                     Archive record
                   </button>
-                </>
+                </div>
               ) : null}
               <PhotoEditor
                 key={item.id}
