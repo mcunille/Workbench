@@ -1,3 +1,4 @@
+import { FloatingField } from '../../FloatingField';
 import { useEffect, useState, type FormEvent } from 'react';
 import {
   disableTenantUser,
@@ -100,10 +101,9 @@ export function TenantUsers() {
         </div>
       </div>
       <form className="inline-form" onSubmit={(event) => void invite(event)}>
-        <label>
-          Invite email
-          <input name="email" type="email" autoComplete="email" required />
-        </label>
+        <FloatingField label="Invite email">
+          <input placeholder=" " name="email" type="email" autoComplete="email" required />
+        </FloatingField>
         <button className="primary" type="submit">Send invitation</button>
       </form>
       {users ? (

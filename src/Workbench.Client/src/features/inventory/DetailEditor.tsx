@@ -1,3 +1,4 @@
+import { FloatingField } from '../../FloatingField';
 import { useEffect, useRef, useState } from 'react';
 import { ApiError } from '../../api/auth';
 import { ItemPhoto } from './ItemPhoto';
@@ -250,43 +251,46 @@ export function DetailEditor({
           >
             {(['name', 'notes', 'location'] as const).map((field) => (
               <div className="edit-field" key={field}>
-                <label htmlFor={'edit-' + field}>
-                  {field === 'name'
+                <FloatingField
+                  label={field === 'name'
                     ? 'Name'
                     : field === 'notes'
                       ? 'Notes (optional)'
                       : 'Storage location (optional)'}
-                </label>
-                {field === 'notes' ? (
-                  <textarea
-                    id={'edit-' + field}
-                    name={field}
-                    rows={6}
-                    value={draft[field]}
-                    disabled={Boolean(submitted)}
-                    aria-invalid={Boolean(errorFor(field))}
-                    aria-describedby={
-                      errorFor(field) ? 'edit-error-' + field : undefined
-                    }
-                    onChange={(event) =>
-                      setDraft({ ...draft, [field]: event.target.value })
-                    }
-                  />
-                ) : (
-                  <input
-                    id={'edit-' + field}
-                    name={field}
-                    value={draft[field]}
-                    disabled={Boolean(submitted)}
-                    aria-invalid={Boolean(errorFor(field))}
-                    aria-describedby={
-                      errorFor(field) ? 'edit-error-' + field : undefined
-                    }
-                    onChange={(event) =>
-                      setDraft({ ...draft, [field]: event.target.value })
-                    }
-                  />
-                )}
+                >
+                  {field === 'notes' ? (
+                    <textarea
+                      placeholder=" "
+                      id={'edit-' + field}
+                      name={field}
+                      rows={6}
+                      value={draft[field]}
+                      disabled={Boolean(submitted)}
+                      aria-invalid={Boolean(errorFor(field))}
+                      aria-describedby={
+                        errorFor(field) ? 'edit-error-' + field : undefined
+                      }
+                      onChange={(event) =>
+                        setDraft({ ...draft, [field]: event.target.value })
+                      }
+                    />
+                  ) : (
+                    <input
+                      placeholder=" "
+                      id={'edit-' + field}
+                      name={field}
+                      value={draft[field]}
+                      disabled={Boolean(submitted)}
+                      aria-invalid={Boolean(errorFor(field))}
+                      aria-describedby={
+                        errorFor(field) ? 'edit-error-' + field : undefined
+                      }
+                      onChange={(event) =>
+                        setDraft({ ...draft, [field]: event.target.value })
+                      }
+                    />
+                  )}
+                </FloatingField>
                 {errorFor(field) ? (
                   <p
                     id={'edit-error-' + field}

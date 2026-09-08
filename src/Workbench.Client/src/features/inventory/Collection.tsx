@@ -1,3 +1,4 @@
+import { FloatingField } from '../../FloatingField';
 import {
   useCallback,
   useEffect,
@@ -144,15 +145,17 @@ export function Collection({
           search(draft);
         }}
       >
-        <label htmlFor="collection-query">Search collection</label>
         <div className="collection-search-controls">
-          <input
-            id="collection-query"
-            type="search"
-            value={draft}
-            aria-describedby="collection-search-help"
-            onChange={(event) => setDraft(event.target.value)}
-          />
+          <FloatingField label="Search collection">
+            <input
+              placeholder=" "
+              id="collection-query"
+              type="search"
+              value={draft}
+              aria-describedby="collection-search-help"
+              onChange={(event) => setDraft(event.target.value)}
+            />
+          </FloatingField>
           <button className="primary" type="submit">
             Search
           </button>

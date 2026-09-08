@@ -1,3 +1,4 @@
+import { FloatingField } from '../../FloatingField';
 import { useEffect, useRef, useState } from 'react';
 import { ApiError } from '../../api/auth';
 import {
@@ -104,50 +105,53 @@ export function AddItem({
           void save();
         }}
       >
-        <label htmlFor="item-name">Name</label>
-        <input
-          id="item-name"
-          name="name"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          disabled={!!submitted}
-          placeholder="For example, blue sapphire"
-          aria-invalid={!!errorFor('name')}
-          aria-describedby={errorFor('name') ? 'name-error' : undefined}
-        />
+        <FloatingField label="Name">
+          <input
+            id="item-name"
+            name="name"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            disabled={!!submitted}
+            placeholder="For example, blue sapphire"
+            aria-invalid={!!errorFor('name')}
+            aria-describedby={errorFor('name') ? 'name-error' : undefined}
+          />
+        </FloatingField>
         {errorFor('name') ? (
           <p id="name-error" className="form-message error">
             {errorFor('name')}
           </p>
         ) : null}
-        <label htmlFor="item-notes">Notes (optional)</label>
-        <textarea
-          id="item-notes"
-          name="notes"
-          rows={6}
-          value={notes}
-          onChange={(e) => setNotes(e.target.value)}
-          disabled={!!submitted}
-          placeholder="What would you like to remember?"
-          aria-invalid={!!errorFor('notes')}
-          aria-describedby={errorFor('notes') ? 'notes-error' : undefined}
-        />
+        <FloatingField label="Notes (optional)">
+          <textarea
+            id="item-notes"
+            name="notes"
+            rows={6}
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            disabled={!!submitted}
+            placeholder="What would you like to remember?"
+            aria-invalid={!!errorFor('notes')}
+            aria-describedby={errorFor('notes') ? 'notes-error' : undefined}
+          />
+        </FloatingField>
         {errorFor('notes') ? (
           <p id="notes-error" className="form-message error">
             {errorFor('notes')}
           </p>
         ) : null}
-        <label htmlFor="item-location">Storage location (optional)</label>
-        <input
-          id="item-location"
-          name="location"
-          value={location}
-          onChange={(e) => setLocation(e.target.value)}
-          disabled={!!submitted}
-          placeholder="For example, tray A, slot 3"
-          aria-invalid={!!errorFor('location')}
-          aria-describedby={errorFor('location') ? 'location-error' : undefined}
-        />
+        <FloatingField label="Storage location (optional)">
+          <input
+            id="item-location"
+            name="location"
+            value={location}
+            onChange={(e) => setLocation(e.target.value)}
+            disabled={!!submitted}
+            placeholder="For example, tray A, slot 3"
+            aria-invalid={!!errorFor('location')}
+            aria-describedby={errorFor('location') ? 'location-error' : undefined}
+          />
+        </FloatingField>
         {errorFor('location') ? (
           <p id="location-error" className="form-message error">
             {errorFor('location')}
