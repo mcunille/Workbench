@@ -22,6 +22,11 @@ public sealed class AuthTestApplication : IAsyncDisposable
     public const string AdminEmail = "admin@example.com";
     public const string AdminPassword = "Correct Horse Battery Staple 1!";
     public const string DisabledEmail = "disabled@example.com";
+    // Cache only synthetic seed hashes, retaining the real production password hasher.
+    // Users, security stamps, credentials and databases are still fresh for every test.
+    private static readonly Lazy<Dictionary<Guid, string>> SeedPasswordHashes = new(() =>
+        new[] { AdminUserId, DisabledUserId, MemberUserId, OtherTenantUserId }.ToDictionary(
+            id => id, id => new PasswordHasher<WorkbenchUser>().HashPassword(new WorkbenchUser { Id = id }, AdminPassword)));
     private readonly SqlTestDatabase _database;
 
     private AuthTestApplication(
@@ -47,8 +52,7 @@ public sealed class AuthTestApplication : IAsyncDisposable
         bool disablePublicOperations = false,
         string? priorMigration = null)
     {
-        var database = await sqlServer.CreateDatabaseAsync();
-        await DatabaseMigrator.MigrateToAsync(database.AdminConnectionString, priorMigration, CancellationToken.None);
+        var database = await sqlServer.CreateMigratedDatabaseAsync(priorMigration);
         var proofKey = await database.GetTenantContextProofKeyAsync();
         var webConnection = await database.CreateWebUserAsync();
         await SeedAsync(database.AdminConnectionString);
@@ -88,18 +92,17 @@ public sealed class AuthTestApplication : IAsyncDisposable
             .Options;
         await using var database = new WorkbenchDbContext(options, TenantContext.None);
         var now = DateTimeOffset.UtcNow;
-        var passwordHasher = new PasswordHasher<WorkbenchUser>();
         var admin = CreateUser(AdminUserId, AdminEmail, now);
-        admin.PasswordHash = passwordHasher.HashPassword(admin, AdminPassword);
+        admin.PasswordHash = SeedPasswordHashes.Value[admin.Id];
         var disabled = CreateUser(DisabledUserId, DisabledEmail, now);
         disabled.State = AccountState.Disabled;
-        disabled.PasswordHash = passwordHasher.HashPassword(disabled, AdminPassword);
+        disabled.PasswordHash = SeedPasswordHashes.Value[disabled.Id];
         var member = CreateUser(MemberUserId, "member@example.com", now);
-        member.PasswordHash = passwordHasher.HashPassword(member, AdminPassword);
+        member.PasswordHash = SeedPasswordHashes.Value[member.Id];
         var otherTenantId = Guid.Parse("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb");
         var other = CreateUser(OtherTenantUserId, "other@example.com", now);
         other.TenantId = otherTenantId;
-        other.PasswordHash = passwordHasher.HashPassword(other, AdminPassword);
+        other.PasswordHash = SeedPasswordHashes.Value[other.Id];
         var roleId = Guid.Parse("22222222-2222-2222-2222-222222222222");
         var memberRoleId = Guid.Parse("66666666-6666-6666-6666-666666666666");
 

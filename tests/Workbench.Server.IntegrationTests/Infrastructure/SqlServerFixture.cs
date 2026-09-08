@@ -3,15 +3,19 @@
 using System.Data;
 using Microsoft.Data.SqlClient;
 using Testcontainers.MsSql;
+using Workbench.Server.Persistence;
 using Xunit;
 
 namespace Workbench.Server.IntegrationTests.Infrastructure;
 
 public sealed class SqlServerFixture : IAsyncLifetime
 {
+    private readonly Lazy<Task<SchemaTemplate>> _schemaTemplate;
     private readonly MsSqlContainer _container = new MsSqlBuilder(
         "mcr.microsoft.com/mssql/server:2022-CU20-ubuntu-22.04")
         .Build();
+
+    public SqlServerFixture() => _schemaTemplate = new(CreateSchemaTemplateAsync);
 
     public async Task InitializeAsync()
     {
@@ -29,6 +33,86 @@ public sealed class SqlServerFixture : IAsyncLifetime
     }
 
     public Task DisposeAsync() => _container.DisposeAsync().AsTask();
+
+    // Only ordinary current-schema application fixtures use the template. Migration,
+    // permission and recovery drills keep CreateDatabaseAsync and their explicit migrations.
+    public async Task<SqlTestDatabase> CreateMigratedDatabaseAsync(string? priorMigration = null)
+    {
+        if (priorMigration is not null)
+        {
+            var prior = await CreateDatabaseAsync();
+            try
+            {
+                await DatabaseMigrator.MigrateToAsync(prior.AdminConnectionString, priorMigration, default);
+                return prior;
+            }
+            catch
+            {
+                await prior.DisposeAsync();
+                throw;
+            }
+        }
+
+        var template = await _schemaTemplate.Value;
+        var name = $"workbench_test_{Guid.NewGuid():N}";
+        var master = new SqlConnectionStringBuilder(_container.GetConnectionString()) { InitialCatalog = "master" };
+        var database = new SqlTestDatabase(name, master.ConnectionString,
+            new SqlConnectionStringBuilder(master.ConnectionString) { InitialCatalog = name }.ConnectionString);
+        try
+        {
+            await using var connection = new SqlConnection(master.ConnectionString);
+            await connection.OpenAsync();
+            await using var restore = new SqlCommand($"""
+                RESTORE DATABASE [{name}] FROM DISK = @backup WITH CHECKSUM,
+                    MOVE @dataName TO @dataPath, MOVE @logName TO @logPath;
+                """, connection) { CommandTimeout = 60 };
+            restore.Parameters.AddWithValue("@backup", template.BackupPath);
+            restore.Parameters.AddWithValue("@dataName", template.DataName);
+            restore.Parameters.AddWithValue("@logName", template.LogName);
+            restore.Parameters.AddWithValue("@dataPath", $"/var/opt/mssql/data/{name}.mdf");
+            restore.Parameters.AddWithValue("@logPath", $"/var/opt/mssql/data/{name}_log.ldf");
+            await restore.ExecuteNonQueryAsync();
+            // The migrated template has no users or application data. Each clone also
+            // needs its own tenant proof key before any credentials or host are created.
+            await using var rekey = new SqlCommand($"UPDATE [{name}].[Security].[TenantContextKeys] SET [ProofKey] = CRYPT_GEN_RANDOM(32) WHERE [Id] = 1", connection);
+            if (await rekey.ExecuteNonQueryAsync() != 1)
+                throw new InvalidOperationException("The restored test database has no tenant proof key.");
+            return database;
+        }
+        catch
+        {
+            await database.DisposeAsync();
+            throw;
+        }
+    }
+
+    private async Task<SchemaTemplate> CreateSchemaTemplateAsync()
+    {
+        await using var database = await CreateDatabaseAsync();
+        await DatabaseMigrator.MigrateAsync(database.AdminConnectionString, default);
+        var name = new SqlConnectionStringBuilder(database.AdminConnectionString).InitialCatalog;
+        var backupPath = $"/var/opt/mssql/data/{name}.bak";
+        await using var connection = new SqlConnection(database.AdminConnectionString);
+        await connection.OpenAsync();
+        string dataName;
+        string logName;
+        await using (var files = new SqlCommand("SELECT [name] FROM sys.database_files ORDER BY [type]", connection))
+        await using (var reader = await files.ExecuteReaderAsync())
+        {
+            if (!await reader.ReadAsync()) throw new InvalidOperationException("Missing template data file.");
+            dataName = reader.GetString(0);
+            if (!await reader.ReadAsync()) throw new InvalidOperationException("Missing template log file.");
+            logName = reader.GetString(0);
+            if (await reader.ReadAsync()) throw new InvalidOperationException("Unexpected template database file.");
+        }
+        await using var backup = new SqlCommand($"BACKUP DATABASE [{name}] TO DISK = @path WITH COPY_ONLY, INIT, CHECKSUM", connection);
+        backup.Parameters.AddWithValue("@path", backupPath);
+        await backup.ExecuteNonQueryAsync();
+        // Backup storage is inside this fixture's disposable container, never shared across runs.
+        return new SchemaTemplate(backupPath, dataName, logName);
+    }
+
+    private sealed record SchemaTemplate(string BackupPath, string DataName, string LogName);
 
     public async Task<SqlTestDatabase> CreateDatabaseAsync()
     {
@@ -147,8 +231,9 @@ public sealed class SqlTestDatabase(
         await using var connection = new SqlConnection(masterConnectionString);
         await connection.OpenAsync();
         await using var command = new SqlCommand(
-            $"ALTER DATABASE [{databaseName}] SET SINGLE_USER WITH ROLLBACK IMMEDIATE; DROP DATABASE [{databaseName}]",
+            $"IF DB_ID(@name) IS NOT NULL BEGIN ALTER DATABASE [{databaseName}] SET SINGLE_USER WITH ROLLBACK IMMEDIATE; DROP DATABASE [{databaseName}]; END",
             connection);
+        command.Parameters.AddWithValue("@name", databaseName);
         await command.ExecuteNonQueryAsync();
     }
 }
