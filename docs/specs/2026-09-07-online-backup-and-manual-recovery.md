@@ -66,7 +66,7 @@ do not base expiration only on its original upload time. Extending SQL retention
 blob/catalog/key retention together. Missing the daily collection alerts at 26 hours (24-hour cadence plus a two-hour runtime and log-ingestion margin); elapsed time
 alone does not mark an incomplete collection successful.
 
-Proposed Azure shape: one scheduled Container Apps backup job, one separate private backup storage
+Azure shape: separate Container Apps capture and expiration jobs, one separate private backup storage
 account with geographic redundancy, its private endpoint/DNS association, and monitoring through the
 existing operations action group. Use the existing environment where feasible. Provision no permanent
 VM and no scheduled SQL restore/copy database. Resource sizing, retention settings, access controls,
@@ -81,7 +81,7 @@ metadata reads necessary to record retention; do not give it SQL setup authority
 
 Retention cleanup is separately constrained to expired backup data and cannot modify retained
 catalogs or production content. Select enforceable destination permissions/protection during
-implementation; do not describe a broad data-contributor grant as append-only authority.
+implementation; do not describe a broad data-contributor grant as append-only authority. Expiration uses a distinct archive-only read/delete identity and conditional blob deletion after the 45-day safety margin. The archive WORM policy independently prevents premature deletion. Lifecycle deletion is not supported for this immutable container; expiration remains disabled until hosted aged-object and preservation checks pass.
 
 Keep cryptographic recovery material independently recoverable using the existing protected export
 and Bitwarden procedure. A catalog stores version identifiers, not secret values. Key rotation must

@@ -32,12 +32,37 @@ public sealed class AzureBackupAdapterTests
         Assert.Equal("\"etag-one\"", handler.IfMatch);
     }
 
+    [Theory]
+    [InlineData(202, "", false)]
+    [InlineData(404, "BlobNotFound", false)]
+    [InlineData(404, "ContainerNotFound", true)]
+    [InlineData(412, "ConditionNotMet", true)]
+    [InlineData(409, "BlobImmutableDueToPolicy", true)]
+    [InlineData(403, "AuthorizationPermissionMismatch", true)]
+    public async Task ExpirationUsesConditionalDeleteAndPreservesServiceProtectionErrors(int status, string code, bool fails)
+    {
+        // GIVEN an archive object observed with a particular ETag.
+        using var handler = new Handler((HttpStatusCode)status, code);
+        using var http = new HttpClient(handler);
+        var options = new BlobClientOptions { Transport = new HttpClientTransport(http) };
+        options.Retry.MaxRetries = 0;
+        var archive = new AzureBackupRetentionArchive(new BlobContainerClient(new Uri("https://archive.blob.core.windows.net/backups"), options));
+        var item = new RetentionObject("old/object", "\"observed\"", DateTimeOffset.UtcNow.AddDays(-46), DateTimeOffset.UtcNow.AddDays(-46));
+        // WHEN deleting the observed object, THEN only already-absent blob responses are idempotent successes.
+        if (fails) await Assert.ThrowsAsync<RequestFailedException>(() => archive.DeleteAsync(item, default));
+        else await archive.DeleteAsync(item, default);
+        Assert.Equal("\"observed\"", handler.IfMatch);
+        Assert.Equal(HttpMethod.Delete, handler.Method);
+    }
+
     private sealed class Handler(HttpStatusCode status, string code) : HttpMessageHandler
     {
+        public HttpMethod? Method { get; private set; }
         public Uri? RequestUri { get; private set; }
         public string? IfMatch { get; private set; }
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
         {
+            Method = request.Method;
             RequestUri = request.RequestUri;
             IfMatch = request.Headers.IfMatch.ToString();
             var response = new HttpResponseMessage(status) { Content = new StringContent($"<Error><Code>{code}</Code><Message>Test response</Message></Error>", System.Text.Encoding.UTF8, "application/xml") };

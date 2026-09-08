@@ -20,6 +20,9 @@ param actionGroupId string
 param schedule string = '0 3 * * *'
 @description('Enable only after the container immutability policy is locked and a manual capture is verified.')
 param enableSchedule bool = false
+@description('Enable separately only after hosted expiration and denial checks pass.')
+param enableRetentionSchedule bool = false
+param retentionSchedule string = '0 5 * * *'
 @description('First deployment only. Leave false on later deployments so a locked policy is not updated.')
 param initializeProtection bool = false
 
@@ -49,7 +52,7 @@ resource archive 'Microsoft.Storage/storageAccounts@2023-05-01' = {
 resource blobs 'Microsoft.Storage/storageAccounts/blobServices@2023-05-01' = {
   parent: archive
   name: 'default'
-  properties: { containerDeleteRetentionPolicy: { enabled: true, days: 45 } }
+  properties: { isVersioningEnabled: false, deleteRetentionPolicy: { enabled: false }, containerDeleteRetentionPolicy: { enabled: true, days: 45 } }
 }
 resource container 'Microsoft.Storage/storageAccounts/blobServices/containers@2023-05-01' = {
   parent: blobs
@@ -61,21 +64,6 @@ resource protection 'Microsoft.Storage/storageAccounts/blobServices/containers/i
   parent: container
   name: 'default'
   properties: { immutabilityPeriodSinceCreationInDays: 37, allowProtectedAppendWrites: false }
-}
-// Run-scoped copies: no object is shared by later catalogs. Catalog logical lifetime is <=37 days,
-// capture lasts <=1 day, and no bytes are eligible for deletion before 45 days from creation.
-resource retention 'Microsoft.Storage/storageAccounts/managementPolicies@2023-05-01' = {
-  parent: archive
-  name: 'default'
-  properties: { policy: { rules: [{
-    name: 'expired-captures'
-    enabled: true
-    type: 'Lifecycle'
-    definition: {
-      filters: { blobTypes: ['blockBlob'], prefixMatch: ['backups/'] }
-      actions: { baseBlob: { delete: { daysAfterModificationGreaterThan: 45 } } }
-    }
-  }] } }
 }
 resource endpoint 'Microsoft.Network/privateEndpoints@2024-05-01' = {
   name: '${prefix}-backup-pe'
@@ -227,3 +215,113 @@ resource failedJob 'Microsoft.Insights/metricAlerts@2018-03-01' = {
     actions: [{ actionGroupId: actionGroupId }]
   }
 }
+
+resource retentionJob 'Microsoft.App/jobs@2025-01-01' = {
+  name: '${prefix}-backup-retention'
+  location: location
+  identity: { type: 'SystemAssigned, UserAssigned', userAssignedIdentities: { '${pullIdentityId}': {} } }
+  properties: {
+    environmentId: environment.id
+    configuration: {
+      triggerType: enableRetentionSchedule ? 'Schedule' : 'Manual'
+      replicaTimeout: 3600
+      replicaRetryLimit: 0
+      manualTriggerConfig: enableRetentionSchedule ? null : { parallelism: 1, replicaCompletionCount: 1 }
+      scheduleTriggerConfig: enableRetentionSchedule ? { cronExpression: retentionSchedule, parallelism: 1, replicaCompletionCount: 1 } : null
+      registries: [{ server: registryServer, identity: pullIdentityId }]
+    }
+    template: { containers: [{
+      name: 'backup'
+      image: image
+      command: ['dotnet', '/opt/workbench/database/Workbench.Database.dll']
+      args: ['backup', 'expire']
+      resources: { cpu: json('0.25'), memory: '0.5Gi' }
+      env: [
+        { name: 'Backup__InstallationId', value: installationId }
+        { name: 'Backup__DestinationContainer', value: 'https://${archive.name}.blob.${az.environment().suffixes.storage}/backups' }
+        { name: 'Backup__DestinationAccountId', value: archive.id }
+      ]
+    }] }
+  }
+}
+resource expirerRole 'Microsoft.Authorization/roleDefinitions@2022-04-01' = {
+  name: guid(resourceGroup().id, 'backup-object-expirer')
+  properties: {
+    roleName: '${prefix}-backup-object-expirer'
+    description: 'Read/delete expired archive blobs only. No write, production access, or policy authority.'
+    type: 'CustomRole'
+    assignableScopes: [resourceGroup().id]
+    permissions: [{ actions: [], notActions: [], dataActions: [
+      'Microsoft.Storage/storageAccounts/blobServices/containers/blobs/read'
+      'Microsoft.Storage/storageAccounts/blobServices/containers/blobs/delete'
+    ], notDataActions: [] }]
+  }
+}
+resource expirationAccess 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  scope: container
+  name: guid(container.id, retentionJob.id, 'expirer')
+  properties: { roleDefinitionId: expirerRole.id, principalId: retentionJob.identity.principalId, principalType: 'ServicePrincipal' }
+}
+resource expirationMetadata 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  scope: archive
+  name: guid(archive.id, retentionJob.id, 'metadata')
+  properties: { roleDefinitionId: readerRoleId, principalId: retentionJob.identity.principalId, principalType: 'ServicePrincipal' }
+}
+resource retentionStale 'Microsoft.Insights/scheduledQueryRules@2023-12-01' = {
+  name: '${prefix}-backup-retention-status'
+  location: location
+  properties: {
+    displayName: '${prefix}: backup expiration missing or failed'
+    description: 'No successful expiration in 26 hours, or expiration failed. Inspect protection and archive retention; never weaken WORM to clear an alert.'
+    enabled: enableRetentionSchedule
+    severity: 2
+    scopes: [logs.id]
+    evaluationFrequency: 'PT5M'
+    windowSize: 'P2D'
+    skipQueryValidation: true
+    criteria: { allOf: [{
+      query: replace('''
+ContainerAppConsoleLogs_CL
+| where TimeGenerated > ago(26h)
+| where ContainerGroupName_s startswith "__BACKUP_JOB__-"
+| extend s = parse_json(Log_s)
+| where tostring(s.Event) == 'BackupRetentionStatus'
+| summarize Success = countif(tostring(s.Outcome) == 'Succeeded'), Failed = countif(tostring(s.Outcome) in ('Failed', 'Incomplete'))
+| where Success == 0 or Failed > 0
+''', '__BACKUP_JOB__', '${prefix}-backup-retention')
+      timeAggregation: 'Count'
+      operator: 'GreaterThan'
+      threshold: 0
+      failingPeriods: { numberOfEvaluationPeriods: 1, minFailingPeriodsToAlert: 1 }
+    }] }
+    actions: { actionGroups: [actionGroupId] }
+  }
+}
+resource failedRetentionJob 'Microsoft.Insights/metricAlerts@2018-03-01' = {
+  name: '${prefix}-backup-retention-execution-failed'
+  location: 'global'
+  properties: {
+    description: 'Backup expiration execution failed or timed out. Investigate without initiating recovery.'
+    severity: 2
+    enabled: enableRetentionSchedule
+    scopes: [retentionJob.id]
+    evaluationFrequency: 'PT1M'
+    windowSize: 'PT5M'
+    criteria: {
+      'odata.type': 'Microsoft.Azure.Monitor.SingleResourceMultipleMetricCriteria'
+      allOf: [{
+        name: 'failed'
+        criterionType: 'StaticThresholdCriterion'
+        metricNamespace: 'Microsoft.App/jobs'
+        metricName: 'Executions'
+        dimensions: [{ name: 'state', operator: 'Include', values: ['Failed'] }]
+        operator: 'GreaterThan'
+        threshold: 0
+        timeAggregation: 'Maximum'
+      }]
+    }
+    actions: [{ actionGroupId: actionGroupId }]
+  }
+}
+
+output retentionJobName string = retentionJob.name

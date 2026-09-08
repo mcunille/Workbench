@@ -10,7 +10,7 @@ remain supported and retain their confirmations.
 Use a release containing `AddOnlineRecovery` and the backup command. Compile `infra/azure/backup.bicep`
 and run `infra/azure/test-online-backup.ps1 -TemplateFile <compiled-template>`. The template references
 existing production resources and creates a separate GRS account, one private endpoint/DNS association,
-a managed-identity Container Apps job, scoped roles and two alerts. It does not redeploy web/worker/SQL.
+separate managed-identity Container Apps capture and expiration jobs, scoped roles and four alerts. It does not redeploy web/worker/SQL.
 Create a reviewed parameter file containing the parameter values declared at the top of that template.
 Use the exact deployed image digest and schema, and retain that image for recovery.
 
@@ -21,7 +21,7 @@ each catalog owns its copies, which makes independent retention and deletion saf
 retained source versions and capture frequency. Measure bytes and execution time; do not assume the
 subscription budget stops spending.
 
-On the first deployment set `enableSchedule=false` and `initializeProtection=true`. Set
+On the first deployment set `enableSchedule=false`, `enableRetentionSchedule=false`, and `initializeProtection=true`. Set
 `initializeProtection=false` on every subsequent deployment so the template does not attempt to
 update a locked policy. The job starts Manual. It receives source Blob Data Reader,
 control-plane Reader for SQL retention and the two storage accounts, and a custom destination blob
@@ -34,8 +34,34 @@ The template creates a 37-day container immutability policy. Locking that policy
 explicitly approved Azure operation; it cannot subsequently be shortened or removed while protected
 data remains. Review `az storage container immutability-policy show` and then use the documented
 `lock` operation with its current ETag. Do not turn on protected append writes. Capture refuses an
-unlocked/insufficient policy. The lifecycle rule removes run-scoped copies only after 45 days, later
-than the longest supported catalog lifetime of 37 days plus the bounded capture duration.
+unlocked/insufficient policy. Azure lifecycle deletion is not supported for immutable containers,
+so this template deliberately has no lifecycle deletion rule. See [Azure lifecycle limitations](https://learn.microsoft.com/en-us/azure/storage/blobs/lifecycle-management-overview#known-issues-and-limitations).
+
+Expiration uses `dotnet /opt/workbench/database/Workbench.Database.dll backup expire` in a separate job.
+Its system identity has blob read/delete only on the archive container and control-plane Reader on
+that archive account. It has no blob write, production access, SQL access, or immutability-policy
+change authority. Container-level WORM remains the independent enforcement against deletion during
+retention. Azure permits explicit blob deletion after time-based retention expires; extended policies
+and legal holds still prevent deletion. See [immutable storage retention](https://learn.microsoft.com/en-us/azure/storage/blobs/immutable-storage-overview#time-based-retention-policies).
+
+The command validates the private GRS archive, locked protection of at least 37 days, and absence of
+blob versioning/soft-delete that would hide retained versions behind apparent deletion. It reads all
+catalogs in the configured installation before deletion, rejects cross-run references or missing
+retained objects, and preserves every unexpired catalog and its run. An expired run is eligible only
+when every listed object and catalog was both created and last modified at least 45 days ago.
+Abandoned runs with no catalog use the same age threshold. Deletes require the observed ETag;
+objects are deleted before their catalog so interruptions remain retryable. Only BlobNotFound is an
+idempotent deletion success; access, container, concurrency, WORM and legal-hold errors fail the job.
+No policy is unlocked, shortened or removed.
+
+Keep `enableRetentionSchedule=false` until hosted expiration verification is recorded. Local tests
+cover age/reference selection and request conditions; they do not prove Azure deletion or billing.
+On the first genuinely eligible aged capture, run expiration manually, verify removed expired bytes,
+preserved unexpired bytes/catalogs, rejection under an active WORM policy/legal hold, and failure/stale
+alert delivery. An early zero-deletion run verifies connectivity only. Never shorten production
+retention to manufacture this evidence. Only then activate `enableRetentionSchedule=true` (default
+05:00 UTC daily). Before that, cleanup is manual and storage keeps accumulating; there is no verified
+automatic 45-day cost bound. Failure alerts require investigation, not weakening protection.
 
 Run the job manually from the private environment after role propagation. Its command is:
 
@@ -58,7 +84,7 @@ bounded to 25 MiB, matching the application's current maximum. Larger future con
 explicit collector update. Staged/unrecognized objects are counted separately. Enumeration is a
 coverage interval, not a snapshot of SQL. An upload occurring later is eligible for the next run.
 An enumerated version that disappears yields `Incomplete`; access errors, timeouts and integrity
-failures yield failure. Neither advances successful freshness.
+failures yield failure. Neither advances successful freshness. Expiration reports `BackupRetentionStatus` separately and cannot advance capture freshness.
 
 Check all of:
 

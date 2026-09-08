@@ -16,6 +16,8 @@ static async Task<int> RunAsync(string[] arguments)
     {
         if (arguments is ["backup", "capture"])
             return await OnlineBackupCommand.RunAsync(new ConfigurationBuilder().AddEnvironmentVariables().Build(), CancellationToken.None);
+        if (arguments is ["backup", "expire"])
+            return await BackupRetentionCommand.RunAsync(new ConfigurationBuilder().AddEnvironmentVariables().Build(), CancellationToken.None);
         var hasSubcommand = arguments.Length > 1 &&
             arguments[0] is "tenant" or "principals" or "restore" or "development" or "storage";
         var options = ParseOptions(arguments.Skip(hasSubcommand ? 2 : 1));
