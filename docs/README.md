@@ -101,3 +101,7 @@ The accepted base architecture deliberately does not yet define:
 
 Those choices should be made through focused specs when evidence and concrete requirements make the
 decision necessary.
+
+Collection text portability follows the [H7 design](specs/2026-09-08-h7-collection-export.md).
+See the [CSV contract and spreadsheet guidance](collection-export.md) and
+[reproducible narrated walkthrough](demos/h7/README.md). Export is not a restorable backup.

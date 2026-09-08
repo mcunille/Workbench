@@ -36,6 +36,7 @@ public static class InventoryEndpoints
             .ProducesProblem(StatusCodes.Status404NotFound)
             .ProducesProblem(StatusCodes.Status409Conflict);
         group.MapItemPhotos();
+        group.MapItemExport();
         group.MapPost("/{id:guid}/archive", ArchiveAsync)
             .WithMetadata(WorkbenchAntiforgeryMetadata.Instance)
             .Produces<ItemDetailResponse>()
