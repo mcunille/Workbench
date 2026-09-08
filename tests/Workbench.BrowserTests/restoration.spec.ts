@@ -72,6 +72,18 @@ test('H6 archive navigation and photographed restoration persist in another sess
   const restored = await (await page.request.get(`/api/items/${item.id}`)).json();
   expect(restored).toEqual({ ...archived, archivedAtUtc: null, version: restored.version });
   expect(restored.version).not.toBe(archived.version);
+  // WHEN reopening from Collection, then jumping between same-record history entries.
+  await page.getByRole('link', { name: 'View in collection', exact: true }).click();
+  await page.getByRole('searchbox').fill(item.name);
+  await page.getByRole('button', { name: 'Search', exact: true }).click();
+  await page.getByRole('link').filter({ has: page.getByText(item.name, { exact: true }) }).click();
+  await expect(page.getByRole('link', { name: 'Back to collection', exact: true })).toBeVisible();
+  await page.evaluate(() => history.go(-2));
+  // THEN the archive origin renders immediately, including the earlier native fragment entry.
+  await expect(page.getByRole('link', { name: 'Back to archive', exact: true })).toBeVisible();
+  await page.evaluate(() => history.go(2));
+  await expect(page.getByRole('link', { name: 'Back to collection', exact: true })).toBeVisible();
+  await page.evaluate(() => history.go(-2));
   await page.getByRole('link', { name: 'Back to archive', exact: true }).click();
   await expect(page.getByText('No matches', { exact: true })).toBeVisible();
   const context = await browser.newContext({ baseURL: 'http://127.0.0.1:4179' });

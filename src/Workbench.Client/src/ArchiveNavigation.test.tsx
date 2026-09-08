@@ -279,3 +279,80 @@ it('keeps the archive return origin through a native skip-link entry and appeara
   ).toBeVisible();
   window.history.replaceState(null, '', '/');
 });
+it('refreshes the return origin on backward and forward jumps between the same record history entries', async () => {
+  // GIVEN a record opened from the archive and then restored in place.
+  window.history.replaceState(
+    { workbenchIndex: 0 },
+    '',
+    '/inventory/archive',
+  );
+  let item = {
+    id: 'stone',
+    name: 'Archived stone',
+    notes: null,
+    location: null,
+    photo: null,
+    version: 'v',
+    archivedAtUtc: '2026-09-07T00:00:00Z' as string | null,
+    createdAtUtc: '2026-09-06T00:00:00Z',
+  };
+  server.use(
+    http.get('*/api/system', () =>
+      HttpResponse.json({ name: 'Workbench', version: '1' }),
+    ),
+    http.get('*/api/auth/me', () =>
+      HttpResponse.json({
+        userId: 'person',
+        tenantName: 'Studio',
+        email: 'person@example.test',
+        permissions: ['TenantAccess'],
+      }),
+    ),
+    http.get('*/api/auth/antiforgery', () =>
+      HttpResponse.json({ requestToken: 'test' }),
+    ),
+    http.get('*/api/items', () =>
+      HttpResponse.json({ items: [item], nextCursor: null }),
+    ),
+    http.get('*/api/items/archived', () =>
+      HttpResponse.json({ items: [item], nextCursor: null }),
+    ),
+    http.get('*/api/items/stone', () => HttpResponse.json(item)),
+    http.post('*/api/items/stone/restore', () => {
+      item = { ...item, version: 'restored', archivedAtUtc: null };
+      return HttpResponse.json(item);
+    }),
+  );
+  render(<App />);
+  fireEvent.click(
+    await screen.findByRole('link', { name: /Archived stone/ }),
+  );
+  fireEvent.click(
+    await screen.findByRole('button', { name: 'Restore to collection' }),
+  );
+  fireEvent.click(
+    screen.getByRole('button', { name: 'Confirm restore' }),
+  );
+  await screen.findByText('Record restored to collection.');
+  fireEvent.click(
+    screen.getByRole('link', { name: 'View in collection' }),
+  );
+  fireEvent.click(
+    await screen.findByRole('link', { name: /Archived stone/ }),
+  );
+  await screen.findByRole('link', { name: 'Back to collection' });
+  // WHEN jumping directly to the earlier detail entry with the same pathname.
+  window.history.go(-2);
+  // THEN the return link reflects that entry's archive origin without another interaction.
+  await screen.findByRole('link', { name: 'Back to archive' });
+  expect(
+    screen.queryByRole('link', { name: 'Back to collection' }),
+  ).not.toBeInTheDocument();
+  // WHEN jumping forward to the active-origin entry THEN its collection origin renders again.
+  window.history.go(2);
+  await screen.findByRole('link', { name: 'Back to collection' });
+  expect(
+    screen.queryByRole('link', { name: 'Back to archive' }),
+  ).not.toBeInTheDocument();
+  window.history.replaceState(null, '', '/');
+});

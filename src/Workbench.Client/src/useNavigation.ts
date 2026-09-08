@@ -8,9 +8,10 @@ import {
 export function useNavigation() {
   const [path, setPath] = useState(window.location.pathname);
   const currentPath = useRef(window.location.pathname);
-  const currentEntryId = useRef<string>(
-    window.history.state?.workbenchEntryId ?? crypto.randomUUID(),
+  const [entryId, setEntryId] = useState<string>(
+    () => window.history.state?.workbenchEntryId ?? crypto.randomUUID(),
   );
+  const currentEntryId = useRef(entryId);
   const [confirmation, setConfirmation] = useState(false);
   const dirty = useRef(false);
   const uncertain = useRef(false);
@@ -34,6 +35,7 @@ export function useNavigation() {
         uncertain.current = false;
         index.current += 1;
         currentEntryId.current = crypto.randomUUID();
+        setEntryId(currentEntryId.current);
         window.history.pushState(
           {
             workbenchIndex: index.current,
@@ -69,12 +71,14 @@ export function useNavigation() {
         ignorePop.current = false;
         return;
       }
-      // Fragment navigation stays on the same form. Tag native entries so later
-      // Back/Forward distances include them without clearing the draft guard.
+      // Same-path entries may have different collection origins. Publish their
+      // identity without remounting the form or clearing its draft guard.
+      // Tag native fragments so later Back/Forward distances include them.
       if (window.location.pathname === currentPath.current) {
         index.current = event.state?.workbenchIndex ?? index.current + 1;
         currentEntryId.current =
           event.state?.workbenchEntryId ?? currentEntryId.current;
+        setEntryId(currentEntryId.current);
         if (
           event.state?.workbenchIndex === undefined ||
           event.state?.workbenchEntryId === undefined
@@ -108,6 +112,7 @@ export function useNavigation() {
         index.current = targetIndex;
         currentEntryId.current =
           event.state?.workbenchEntryId ?? crypto.randomUUID();
+        setEntryId(currentEntryId.current);
         currentPath.current = window.location.pathname;
         setPath(window.location.pathname);
       }
@@ -140,6 +145,7 @@ export function useNavigation() {
   };
   return {
     path,
+    entryId,
     navigate,
     follow,
     request,

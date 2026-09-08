@@ -168,7 +168,7 @@ function SignedInApplication({
               id={path.slice('/inventory/'.length)}
               memory={collectionMemory}
               archiveMemory={archiveMemory}
-              origin={origins.get(window.history.state?.workbenchEntryId)}
+              origin={origins.get(navigation.entryId)}
               onDirtyChange={navigation.setDirty}
               follow={navigation.follow}
               onAuthLost={authLost}
