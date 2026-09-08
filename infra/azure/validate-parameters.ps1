@@ -13,6 +13,25 @@ function Test-MappedAddressOverlap([Net.IPNetwork] $Network) {
 }
 function Test-WorkbenchAzureParameters([hashtable] $Document) {
     $p = $Document.parameters
+    $policy = $p.ingressPolicy.value
+    if ($policy -isnot [System.Collections.IDictionary] -or $policy.mode -cnotin @('Restricted', 'Public') -or
+        -not $policy.Contains('allowCidrs') -or $policy.allowCidrs -isnot [array] -or
+        @($policy.Keys | Where-Object { $_ -cnotin @('mode', 'allowCidrs') }).Count) {
+        throw 'An explicit ingressPolicy with mode Restricted or Public and allowCidrs array is required.'
+    }
+    if (($policy.mode -ceq 'Restricted' -and $policy.allowCidrs.Count -eq 0) -or
+        ($policy.mode -ceq 'Public' -and $policy.allowCidrs.Count -ne 0)) {
+        throw 'Restricted ingress requires client CIDRs; Public requires an explicitly empty allowCidrs array.'
+    }
+    $seenCidrs = [Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
+    foreach ($network in $policy.allowCidrs) {
+        $cidr = [Net.IPNetwork]::new([Net.IPAddress]::Any, 0)
+        if ($network -isnot [string] -or -not [Net.IPNetwork]::TryParse($network, [ref] $cidr) -or
+            $cidr.BaseAddress.AddressFamily -ne [Net.Sockets.AddressFamily]::InterNetwork -or
+            $cidr.PrefixLength -eq 0 -or $cidr.ToString() -cne $network -or -not $seenCidrs.Add($network)) {
+            throw 'Ingress requires unique canonical IPv4 client CIDRs narrower than /0.'
+        }
+    }
     $provider = if ($p.deliveryProvider) { $p.deliveryProvider.value } else { 'Smtp' }
     if ($provider -cnotin @('Smtp', 'Graph')) { throw 'Delivery provider must be Smtp or Graph.' }
     if ($provider -eq 'Graph') {

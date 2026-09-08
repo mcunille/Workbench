@@ -244,6 +244,7 @@ builder.Services.AddProblemDetails(options =>
 var app = builder.Build();
 
 app.UseForwardedHeaders();
+app.UseMiddleware<BrowserSecurityHeadersMiddleware>();
 app.UseExceptionHandler();
 app.UseDefaultFiles();
 app.UseStaticFiles();

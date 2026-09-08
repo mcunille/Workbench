@@ -10,6 +10,27 @@ $document = Get-Content "$PSScriptRoot/main.parameters.example.json" -Raw | Conv
 $document.parameters.image.value = 'example.azurecr.io/workbench@sha256:' + ('a' * 64)
 $document.parameters.installationId.value = 'ca434d31-5c6d-44c2-a899-0486d9facd45'
 $document.parameters.sqlAdminObjectId.value = 'bf125b43-8eac-4f23-baca-2a264f11f7df'
+# GIVEN an omitted access policy WHEN checked THEN publication cannot silently become public.
+$document.parameters.Remove('ingressPolicy')
+Assert-Rejected $document 'Missing ingress policy was accepted.'
+# GIVEN Restricted access without clients WHEN checked THEN an empty ACA allow list is rejected.
+$document.parameters.ingressPolicy = @{ value = @{ mode = 'Restricted'; allowCidrs = @() } }
+Assert-Rejected $document 'Empty Restricted ingress was accepted.'
+foreach ($invalidCidr in @('0.0.0.0/0', '::/0', 'not-a-cidr', '192.0.2.1', '192.0.2.1/24', '::ffff:192.0.2.1/128')) {
+    $document.parameters.ingressPolicy.value.allowCidrs = @($invalidCidr)
+    Assert-Rejected $document 'Invalid or universal ingress CIDR was accepted.'
+}
+# GIVEN explicit client networks WHEN checked THEN private bootstrap supports Restricted policy.
+$document.parameters.ingressPolicy.value.allowCidrs = @('192.0.2.0/24', '198.51.100.7/32')
+Test-WorkbenchAzureParameters $document
+# GIVEN Public with lingering rules WHEN checked THEN conflicting intent is rejected.
+$document.parameters.ingressPolicy.value.mode = 'Public'
+Assert-Rejected $document 'Public policy with restrictions was accepted.'
+$document.parameters.ingressPolicy.value.allowCidrs = @()
+Test-WorkbenchAzureParameters $document
+$document.parameters.ingressPolicy.value.mode = 'Unknown'
+Assert-Rejected $document 'Unknown ingress policy mode was accepted.'
+$document.parameters.ingressPolicy.value = @{ mode = 'Restricted'; allowCidrs = @('198.51.100.7/32') }
 # WHEN configuration is checked THEN valid inactive bootstrap succeeds
 Test-WorkbenchAzureParameters $document
 # GIVEN an HTTPS origin on a port ACA does not expose WHEN checked THEN links cannot target it

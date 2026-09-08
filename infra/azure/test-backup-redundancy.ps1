@@ -3,7 +3,8 @@ param([Parameter(Mandatory)][string] $TemplateFile)
 $ErrorActionPreference = 'Stop'
 
 function Get-TemplateResources($Template) {
-    foreach ($resource in $Template.resources) {
+    $entries = if ($Template.resources -is [System.Collections.IDictionary]) { $Template.resources.Values } else { $Template.resources }
+    foreach ($resource in $entries) {
         $resource
         if ($resource.type -eq 'Microsoft.Resources/deployments' -and $resource.properties.template) {
             Get-TemplateResources $resource.properties.template

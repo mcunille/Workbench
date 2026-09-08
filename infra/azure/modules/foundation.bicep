@@ -54,11 +54,13 @@ resource environment 'Microsoft.App/managedEnvironments@2025-01-01' = {
     }
   }
 }
-resource sql 'Microsoft.Sql/servers@2023-08-01' = {
+resource sql 'Microsoft.Sql/servers@2025-01-01' = {
   name: '${prefix}-sql-${suffix}'
   location: location
   properties: {
     version: '12.0'
+    // Separate from database PITR: retain the logical server after accidental deletion.
+    retentionDays: 7
     minimalTlsVersion: '1.2'
     publicNetworkAccess: 'Disabled'
     administrators: {
