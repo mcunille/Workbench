@@ -9,6 +9,8 @@ runbooks do not yet constitute complete, self-contained installation procedures.
 
 ## Current direction
 
+- [Tanzanite style reference](../DESIGN.md) documents the implemented sign-in visual language,
+  including color tokens, typography, glass materials, branding, components, and reusable design briefs.
 - [VISION.md](VISION.md) defines what Workbench is for, the people it serves, and its major product
   areas.
 - [DESIGN-PRINCIPLES.md](DESIGN-PRINCIPLES.md) defines the durable rules used to evaluate future
