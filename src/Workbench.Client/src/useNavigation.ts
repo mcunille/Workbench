@@ -11,7 +11,8 @@ export function useNavigation() {
   const [confirmation, setConfirmation] = useState(false);
   const dirty = useRef(false);
   const uncertain = useRef(false);
-  const [uncertainConfirmation, setUncertainConfirmation] = useState(false);
+  const [uncertainConfirmation, setUncertainConfirmation] =
+    useState(false);
   const action = useRef<(() => void) | null>(null);
   const index = useRef<number>(window.history.state?.workbenchIndex ?? 0);
   const ignorePop = useRef(false);
@@ -29,7 +30,14 @@ export function useNavigation() {
         dirty.current = false;
         uncertain.current = false;
         index.current += 1;
-        window.history.pushState({ workbenchIndex: index.current }, '', next);
+        window.history.pushState(
+          {
+            workbenchIndex: index.current,
+            workbenchEntryId: crypto.randomUUID(),
+          },
+          '',
+          next,
+        );
         currentPath.current = next;
         setPath(next);
       });
@@ -45,7 +53,12 @@ export function useNavigation() {
     const previousScrollRestoration = window.history.scrollRestoration;
     window.history.scrollRestoration = 'manual';
     window.history.replaceState(
-      { ...window.history.state, workbenchIndex: index.current },
+      {
+        ...window.history.state,
+        workbenchIndex: index.current,
+        workbenchEntryId:
+          window.history.state?.workbenchEntryId ?? crypto.randomUUID(),
+      },
       '',
     );
     const pop = (event: PopStateEvent) => {

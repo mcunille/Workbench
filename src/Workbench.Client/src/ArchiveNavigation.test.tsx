@@ -112,3 +112,93 @@ it('keeps archive and collection traversals independent through appearance and d
   expect(JSON.stringify(window.history.state)).not.toContain('draft');
   window.history.replaceState(null, '', '/');
 });
+it('does not reuse an old archive origin when browser history is truncated by creating a new record', async () => {
+  // GIVEN archived detail origins on history entries which will later be replaced.
+  window.history.replaceState(
+    { workbenchIndex: 0 },
+    '',
+    '/inventory/archive',
+  );
+  const summary = {
+    name: 'Archived stone',
+    location: null,
+    notes: null,
+    photo: null,
+    version: 'v',
+    archivedAtUtc: '2026-09-07T00:00:00Z',
+    createdAtUtc: '2026-09-06T00:00:00Z',
+  };
+  server.use(
+    http.get('*/api/system', () =>
+      HttpResponse.json({ name: 'Workbench', version: '1' }),
+    ),
+    http.get('*/api/auth/me', () =>
+      HttpResponse.json({
+        userId: 'person',
+        tenantName: 'Studio',
+        email: 'person@example.test',
+        permissions: ['TenantAccess'],
+      }),
+    ),
+    http.get('*/api/auth/antiforgery', () =>
+      HttpResponse.json({ requestToken: 'test' }),
+    ),
+    http.get('*/api/items', () =>
+      HttpResponse.json({ items: [], nextCursor: null }),
+    ),
+    http.get('*/api/items/archived', () =>
+      HttpResponse.json({
+        items: [
+          { ...summary, id: 'a', name: 'Archive A' },
+          { ...summary, id: 'b', name: 'Archive B' },
+        ],
+        nextCursor: null,
+      }),
+    ),
+    http.get('*/api/items/:id', ({ params }) =>
+      HttpResponse.json({
+        ...summary,
+        id: params.id,
+        name: params.id === 'created' ? 'New record' : 'Archived stone',
+        archivedAtUtc:
+          params.id === 'created' ? null : summary.archivedAtUtc,
+      }),
+    ),
+    http.post('*/api/items', () =>
+      HttpResponse.json(
+        {
+          ...summary,
+          id: 'created',
+          name: 'New record',
+          archivedAtUtc: null,
+        },
+        { status: 201 },
+      ),
+    ),
+  );
+  vi.spyOn(window, 'scrollTo').mockImplementation(() => {});
+  render(<App />);
+  fireEvent.click(await screen.findByRole('link', { name: /Archive A/ }));
+  await screen.findByRole('heading', { name: 'Archived stone' });
+  fireEvent.click(screen.getByRole('link', { name: 'Back to archive' }));
+  fireEvent.click(await screen.findByRole('link', { name: /Archive B/ }));
+  await screen.findByRole('heading', { name: 'Archived stone' });
+  // WHEN browser Back returns to the archive, then Collection > Add > Save replaces forward history.
+  window.history.go(-3);
+  await screen.findByRole('heading', { name: 'Archive' });
+  fireEvent.click(screen.getByRole('link', { name: 'Collection' }));
+  fireEvent.click(await screen.findByRole('link', { name: 'Add item' }));
+  fireEvent.change(await screen.findByLabelText('Name'), {
+    target: { value: 'New record' },
+  });
+  fireEvent.click(screen.getByRole('button', { name: 'Save item' }));
+  await screen.findByRole('heading', { name: 'New record' });
+  // THEN a new active record returns to its own collection rather than a stale archive origin.
+  expect(
+    screen.getByRole('link', { name: 'Back to collection' }),
+  ).toBeVisible();
+  expect(
+    screen.queryByRole('link', { name: 'Back to archive' }),
+  ).not.toBeInTheDocument();
+  window.history.replaceState(null, '', '/');
+});

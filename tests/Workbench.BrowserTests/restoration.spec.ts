@@ -49,6 +49,16 @@ test('H6 archive navigation and photographed restoration persist in another sess
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     for (const control of await page.locator('button:visible, select:visible').all()) expect((await control.boundingBox())!.height).toBeGreaterThanOrEqual(44);
     await page.screenshot({ path: `../../artifacts/h6/archived-${width}-${theme}.png`, fullPage: true });
+    await page.getByRole('link', { name: 'Back to archive', exact: true }).click();
+    await expect(page.getByRole('searchbox')).toHaveValue(item.name);
+    await expect(page.getByRole('button', { name: 'List', exact: true })).toHaveAttribute('aria-pressed', 'true');
+    const cdp = await page.context().newCDPSession(page);
+    await cdp.send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-reduced-transparency', value: 'reduce' }] });
+    expect(await page.evaluate(() => getComputedStyle(document.querySelector('.topbar')!).backdropFilter)).toBe('none');
+    await cdp.detach();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    await page.screenshot({ path: `../../artifacts/h6/archive-list-${width}-${theme}.png`, fullPage: true });
+    await page.getByRole('link').filter({ has: page.getByText(item.name, { exact: true }) }).click();
   }
   // WHEN restoring THEN identity, photo and saved details return in this and another authorized session.
   await restore(page).click(); await confirmRestore(page).click();

@@ -47,7 +47,7 @@ function SignedInApplication({
   const [collectionMemory] = useState(() => new CollectionMemory());
   const [archiveMemory] = useState(() => new CollectionMemory());
   const [origins] = useState(
-    () => new Map<number, 'active' | 'archived'>(),
+    () => new Map<string, 'active' | 'archived'>(),
   );
   function followFromCollection(event: MouseEvent<HTMLAnchorElement>) {
     const normalClick =
@@ -65,7 +65,7 @@ function SignedInApplication({
       destination !== '/inventory/new'
     )
       origins.set(
-        window.history.state.workbenchIndex,
+        window.history.state.workbenchEntryId,
         navigation.path === '/inventory/archive' ? 'archived' : 'active',
       );
   }
@@ -168,7 +168,7 @@ function SignedInApplication({
               id={path.slice('/inventory/'.length)}
               memory={collectionMemory}
               archiveMemory={archiveMemory}
-              origin={origins.get(window.history.state?.workbenchIndex)}
+              origin={origins.get(window.history.state?.workbenchEntryId)}
               onDirtyChange={navigation.setDirty}
               follow={navigation.follow}
               onAuthLost={authLost}

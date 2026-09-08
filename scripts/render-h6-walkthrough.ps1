@@ -46,7 +46,7 @@ $utf8 = New-Object Text.UTF8Encoding($false)
 [IO.File]::WriteAllText((Join-Path $documentationRoot 'captions.srt'), ($captions -join "`n"), $utf8)
 [IO.File]::WriteAllText((Join-Path $documentationRoot 'transcript.md'), ($transcript -join "`n") + "`n", $utf8)
 $arguments += @('-filter_complex', ($filters -join ';'), '-map', '0:v', '-map', '[narration]',
-    '-vf', "subtitles=captions.srt:force_style='FontSize=17,MarginV=18'",
+    '-vf', "pad=iw:ih+140:0:0:color=0x181818,subtitles=captions.srt:force_style='FontSize=8,MarginV=8,Outline=1'",
     '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '22', '-pix_fmt', 'yuv420p',
     '-c:a', 'aac', '-b:a', '128k', '-shortest', '-movflags', '+faststart', 'h6-archive-recovery.mp4')
 Push-Location $mediaRoot
@@ -57,3 +57,4 @@ try {
     if ($LASTEXITCODE -ne 0) { throw 'Walkthrough decode verification failed.' }
 } finally { Pop-Location }
 Write-Host "Rendered and decoded $(Join-Path $mediaRoot 'h6-archive-recovery.mp4')"
+
