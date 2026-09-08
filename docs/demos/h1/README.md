@@ -2,8 +2,7 @@
 
 [Transcript](transcript.md) · [Captions](captions.srt)
 
-Generate `h1-walkthrough.mp4` locally using the commands below. MP4 recordings are ignored by Git;
-share verification videos as external attachments instead of committing them.
+The recorded video is an external artifact, not a reproducible repository build.
 
 The video showcases the actual H1 application through Playwright against a fresh, disposable
 SQL Server database. Narration uses the local Microsoft Zira synthetic voice. Captions are
@@ -21,27 +20,6 @@ H1 supports individual records. Gemstone, jewelry, material, and consumable exam
 implemented category-specific fields, quantity tracking, consumption, or composition workflows.
 Photos, search, and editing also remain outside this slice.
 
-## Reproduce on Windows
+## Verification
 
-Use the repository's development prerequisites, installed Playwright Chromium, Docker, and a full
-FFmpeg build with H.264, AAC, and subtitle support. FFmpeg is an artifact-generation dependency;
-it is not added to the application runtime. For this recording, the Windows FFmpeg 7.1 binary
-bundled in `imageio-ffmpeg==0.6.0` was installed into the ignored artifact directory.
-
-From the repository root:
-
-```powershell
-npm run build --prefix src/Workbench.Client
-./docs/demos/record-narration.ps1
-npm test --prefix tests/Workbench.BrowserTests -- --config demos/playwright.config.ts
-python ./docs/demos/render-video.py --ffmpeg /absolute/path/to/ffmpeg.exe
-```
-
-The recording configuration is opt-in and excluded from the ordinary `*.spec.ts` suite. It
-asserts the demonstrated outcomes and deliberately pauses for narration pacing. The standard
-browser harness provisions and cleans up the disposable database and application. Raw footage,
-audio, and timing metadata stay in ignored `artifacts/h1-video`. The finished MP4 stays local;
-captions, transcript, and recording source remain tracked. The renderer checks the finished file
-by decoding its entire video and audio streams. The recorded scenario passed; ordinary browser
-discovery reports 16 tests after the gallery refinement. Representative creation, retry, and mobile frames
-were visually inspected, and the narration's measured peak remained below clipping.
+The recorded scenario passed against disposable SQL. Representative creation, retry, and mobile frames were visually inspected, and the completed video and audio were decoded successfully.

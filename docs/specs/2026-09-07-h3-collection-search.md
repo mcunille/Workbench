@@ -153,7 +153,7 @@ The real browser workflows ran at `http://127.0.0.1:4179`, the published probe a
 the disposable instances afterward. Browser checks cover 320px and desktop layouts, both themes,
 keyboard operation, contrast/touch targets, no overflow, later-page result restoration through
 app Back and browser Back/Forward, and initial/continued-page failures. The narrated
-[walkthrough source and transcript](../demos/h3/README.md) passed and its finished local video
+[walkthrough record and transcript](../demos/h3/README.md) passed and its finished local video
 was visually inspected and fully decoded. MP4s remain untracked under the current repository policy.
 
 Human collector usability, production deployment, public CA issuance, and SMTP delivery were not

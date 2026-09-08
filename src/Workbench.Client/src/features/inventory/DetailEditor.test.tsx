@@ -37,6 +37,32 @@ function setup() {
   return { onSaved, onCancel, onDirtyChange };
 }
 beforeEach(() => vi.clearAllMocks());
+it('retains a draft but prevents reconciliation against an archived record', async () => {
+  // GIVEN a draft and another session archiving the record.
+  const archived = {
+    ...item,
+    archivedAtUtc: '2026-09-07T01:00:00Z',
+    version: 'archived',
+  };
+  vi.mocked(updateItem).mockRejectedValue(new ItemConflictError());
+  vi.mocked(getItem).mockResolvedValue(archived);
+  const { onSaved } = setup();
+  fireEvent.change(screen.getByLabelText('Name'), {
+    target: { value: 'My unsaved draft' },
+  });
+  // WHEN saving THEN retain the draft with the read-only current record.
+  fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
+  const discard = await screen.findByRole('button', {
+    name: 'Discard draft and view archived record',
+  });
+  expect(screen.getByText('My unsaved draft')).toBeVisible();
+  expect(
+    screen.queryByRole('button', { name: 'Review my edits' }),
+  ).not.toBeInTheDocument();
+  // WHEN explicitly discarding THEN display the authoritative archived record.
+  fireEvent.click(discard);
+  expect(onSaved).toHaveBeenCalledWith(archived);
+});
 it('keeps the exact checked command after an uncertain save and retries it', async () => {
   // GIVEN a save whose response is lost.
   vi.mocked(updateItem)

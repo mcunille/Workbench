@@ -41,7 +41,11 @@ and a restricted SQL command to update descriptive fields. Text and photo change
 item rowversion; stale saves return a conflict and require explicit reconciliation. An immutable
 snapshot captured by the first edit preserves H1 creation replay identity. Failed saves retain
 the draft in memory for safe retry. Successful edits invalidate collection pages while
-preserving the query and view. Quantity-based stock,
+preserving the query and view. The [H5 archive increment](specs/2026-09-07-h5-item-archiving.md)
+uses the same checked version to set a separate archive timestamp. Ordinary browsing/search
+excludes archived records; existing tenant-authorized links retain read-only details and photos.
+SQL prevents descriptive and photo mutations of archived records, and original creation/photo
+replay evidence remains intact. H5 provides no unarchive or deletion action. Quantity-based stock,
 purchasing, accounting, and commerce require their own focused specifications.
 
 ### Collection identity

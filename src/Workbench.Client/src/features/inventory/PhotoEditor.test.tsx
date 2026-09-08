@@ -9,16 +9,77 @@ vi.mock('../../api/items', () => ({
   removeItemPhoto: vi.fn(),
   getPhoto: vi.fn(),
 }));
+it('keeps the prepared draft after an archive conflict without offering a fresh upload', async () => {
+  // GIVEN a prepared image and another session archiving the record.
+  const { ApiError } = await import('../../api/auth');
+  vi.mocked(preparePhoto).mockResolvedValue(new Blob(['prepared']));
+  vi.mocked(putItemPhoto).mockReset().mockRejectedValue(new ApiError(409));
+  vi.stubGlobal(
+    'URL',
+    Object.assign(URL, {
+      createObjectURL: vi.fn(() => 'blob:preview'),
+      revokeObjectURL: vi.fn(),
+    }),
+  );
+  const item = {
+    id: 'item',
+    name: 'Stone',
+    notes: null,
+    location: null,
+    photo: null,
+    version: 'old',
+    createdAtUtc: '',
+    archivedAtUtc: null as string | null,
+  };
+  const props = {
+    onAuthLost: vi.fn(),
+    onDirtyChange: vi.fn(),
+    reload: vi.fn().mockResolvedValue(undefined),
+  };
+  const view = render(<PhotoEditor item={item} {...props} />);
+  fireEvent.change(screen.getByLabelText('Choose photograph'), {
+    target: { files: [new File(['image'], 'photo.jpg')] },
+  });
+  await screen.findByAltText('Prepared photograph preview');
+  // WHEN a conflicting upload is followed by the current archived details.
+  fireEvent.click(screen.getByRole('button', { name: 'Upload photograph' }));
+  fireEvent.click(
+    await screen.findByRole('button', { name: 'Reload current item' }),
+  );
+  await waitFor(() => expect(props.reload).toHaveBeenCalledOnce());
+  view.rerender(
+    <PhotoEditor
+      item={{
+        ...item,
+        archivedAtUtc: '2026-09-07T01:00:00Z',
+        version: 'new',
+      }}
+      {...props}
+    />,
+  );
+  // THEN the draft remains available until explicitly discarded, and no mutation is offered.
+  expect(screen.getByAltText('Prepared photograph preview')).toBeVisible();
+  expect(
+    screen.queryByRole('button', { name: 'Upload photograph' }),
+  ).not.toBeInTheDocument();
+  fireEvent.click(
+    screen.getByRole('button', {
+      name: 'Discard draft and view archived record',
+    }),
+  );
+  expect(
+    screen.queryByAltText('Prepared photograph preview'),
+  ).not.toBeInTheDocument();
+  vi.mocked(putItemPhoto).mockReset();
+});
 it('invalidates the cached photograph on success even when detail reload fails', async () => {
   // GIVEN a prepared upload and a successful server mutation followed by a failed refresh.
   vi.mocked(preparePhoto).mockResolvedValue(new Blob(['prepared']));
-  vi.mocked(putItemPhoto)
-    .mockReset()
-    .mockResolvedValue({
-      requestId: 'request',
-      version: 'next',
-      photoId: 'new',
-    });
+  vi.mocked(putItemPhoto).mockReset().mockResolvedValue({
+    requestId: 'request',
+    version: 'next',
+    photoId: 'new',
+  });
   vi.stubGlobal(
     'URL',
     Object.assign(URL, {
@@ -100,7 +161,9 @@ it('previews locally and retries ambiguous uploads with the same command and byt
   expect(putItemPhoto).not.toHaveBeenCalled();
   // WHEN uploading and explicitly retrying THEN the command stays identical.
   fireEvent.click(screen.getByRole('button', { name: 'Upload photograph' }));
-  fireEvent.click(await screen.findByRole('button', { name: 'Retry upload' }));
+  fireEvent.click(
+    await screen.findByRole('button', { name: 'Retry upload' }),
+  );
   await waitFor(() => expect(reload).toHaveBeenCalledTimes(1));
   expect(vi.mocked(putItemPhoto).mock.calls[0]).toEqual(
     vi.mocked(putItemPhoto).mock.calls[1],
@@ -156,7 +219,7 @@ it('confirms removal and keeps an ambiguous removal command for safe retry', asy
     .mockResolvedValueOnce({ requestId: 'r', version: 'v', photoId: null });
   HTMLDialogElement.prototype.showModal = vi.fn();
   const reload = vi.fn().mockResolvedValue(undefined);
-  render(
+  const view = render(
     <PhotoEditor
       item={{
         id: 'item',
@@ -185,8 +248,30 @@ it('confirms removal and keeps an ambiguous removal command for safe retry', asy
     screen.getByRole('button', { name: 'Confirm removal', hidden: true }),
   );
   // WHEN retrying THEN preserve the request id and version.
-  fireEvent.click(await screen.findByRole('button', { name: 'Retry removal' }));
+  fireEvent.click(
+    await screen.findByRole('button', { name: 'Retry removal' }),
+  );
   await waitFor(() => expect(reload).toHaveBeenCalledOnce());
+  // AND the authoritative reload has no photograph, so announce that saved state.
+  view.rerender(
+    <PhotoEditor
+      item={{
+        id: 'item',
+        name: 'Stone',
+        notes: null,
+        location: null,
+        createdAtUtc: '',
+        version: 'v',
+        photo: null,
+      }}
+      onAuthLost={vi.fn()}
+      onDirtyChange={vi.fn()}
+      reload={reload}
+    />,
+  );
+  expect(
+    await screen.findByText('Current saved record has no photograph.'),
+  ).toBeVisible();
   expect(vi.mocked(removeItemPhoto).mock.calls[0]).toEqual(
     vi.mocked(removeItemPhoto).mock.calls[1],
   );

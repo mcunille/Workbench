@@ -10,6 +10,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Workbench.Server.Identity;
+using Workbench.Server.Inventory;
 using Workbench.Server.IntegrationTests.Infrastructure;
 using Workbench.Server.Operations;
 using Workbench.Server.Persistence;
@@ -28,16 +29,18 @@ public sealed class ItemPhotoDatabaseTests(SqlServerFixture sqlServer)
     {
         // GIVEN a persisted item and complete photo on the PR base schema.
         await using var context = await PhotoDatabaseContext.CreateAsync(sqlServer, "AddItemPhotographs");
-        var (path, item) = await context.CreatePhotoAsync();
-        var photo = item.GetProperty("photo").GetRawText();
+        var (path, version, photoId, bytes) = await context.SeedBasePhotoAsync();
         // WHEN the additive editing migration is applied.
         await DatabaseMigrator.MigrateAsync(context.Application.AdminConnectionString, CancellationToken.None);
         // THEN its text, version, photo metadata, and photo bytes remain intact.
         var retained = await context.Client.GetFromJsonAsync<JsonElement>(path);
-        Assert.Equal(item.GetProperty("name").GetString(), retained.GetProperty("name").GetString());
-        Assert.Equal(item.GetProperty("version").GetString(), retained.GetProperty("version").GetString());
-        Assert.Equal(photo, retained.GetProperty("photo").GetRawText());
-        Assert.Equal(HttpStatusCode.OK, (await context.Client.GetAsync(retained.GetProperty("photo").GetProperty("detailUrl").GetString())).StatusCode);
+        Assert.Equal("Recovery sapphire", retained.GetProperty("name").GetString());
+        Assert.Equal(version, retained.GetProperty("version").GetString());
+        Assert.Equal(photoId, retained.GetProperty("photo").GetProperty("id").GetGuid());
+        Assert.Equal(12, retained.GetProperty("photo").GetProperty("width").GetInt32());
+        Assert.Equal(8, retained.GetProperty("photo").GetProperty("height").GetInt32());
+        var photo = retained.GetProperty("photo").GetRawText();
+        Assert.Equal(bytes, await context.Client.GetByteArrayAsync(retained.GetProperty("photo").GetProperty("detailUrl").GetString()));
         // AND a text edit preserves the photo while advancing the shared version.
         var response = await SendJsonAsync(context.Client, HttpMethod.Put, path,
             new { expectedVersion = retained.GetProperty("version").GetString(), name = "Updated sapphire" });
@@ -299,6 +302,68 @@ public sealed class ItemPhotoDatabaseTests(SqlServerFixture sqlServer)
             var client = factory.CreateClient();
             await LoginAsync(client);
             return new PhotoDatabaseContext(application, root, store, factory, client);
+        }
+
+        public async Task<(string Path, string Version, Guid PhotoId, byte[] Detail)> SeedBasePhotoAsync()
+        {
+            // Seed durable SQL and blobs using the base schema instead of invoking a newer inventory model.
+            var itemId = Guid.NewGuid();
+            var photoId = Guid.NewGuid();
+            var detailRevision = Guid.NewGuid();
+            var thumbRevision = Guid.NewGuid();
+            var processed = new PhotoProcessor().Process(PhotoFixture.Png());
+            async Task<BlobContentIdentity> PersistAsync(Guid revision, byte[] bytes)
+            {
+                var id = new BlobObjectId(AuthTestApplication.TenantId, revision);
+                using var content = new MemoryStream(bytes);
+                var identity = await Store.StageAsync(id, content, PhotoProcessor.MaximumBytes, CancellationToken.None);
+                await Store.PublishAsync(id, CancellationToken.None);
+                return identity;
+            }
+            var detail = await PersistAsync(detailRevision, processed.Detail);
+            var thumb = await PersistAsync(thumbRevision, processed.Thumbnail);
+            await using var sql = new SqlConnection(Application.AdminConnectionString);
+            await sql.OpenAsync();
+            await using var seed = new SqlCommand("""
+                DECLARE @detail uniqueidentifier=NEWID(), @thumb uniqueidentifier=NEWID(), @operation uniqueidentifier=NEWID();
+                INSERT [Inventory].[Items] ([Id],[TenantId],[TrackingKind],[Name],[CreatedAtUtc],[CreationRequestId])
+                    VALUES (@item,@tenant,'Individual',N'Recovery sapphire',SYSUTCDATETIME(),NEWID());
+                INSERT [Storage].[Attachments] ([Id],[TenantId],[CreatedAtUtc])
+                    VALUES (@detail,@tenant,SYSUTCDATETIME()),(@thumb,@tenant,SYSUTCDATETIME());
+                INSERT [Storage].[Revisions]
+                    ([Id],[TenantId],[AttachmentId],[OperationId],[ActorUserId],[ProviderAlias],[Source],[MediaType],[Length],[Sha256],[State],[CreatedAtUtc])
+                    VALUES (@detailRevision,@tenant,@detail,NEWID(),@actor,@alias,N'ItemPhoto',N'image/webp',@detailLength,@detailDigest,1,SYSUTCDATETIME()),
+                        (@thumbRevision,@tenant,@thumb,NEWID(),@actor,@alias,N'ItemPhoto',N'image/webp',@thumbLength,@thumbDigest,1,SYSUTCDATETIME());
+                UPDATE [Storage].[Attachments] SET [CurrentRevisionId]=@detailRevision WHERE [Id]=@detail;
+                UPDATE [Storage].[Attachments] SET [CurrentRevisionId]=@thumbRevision WHERE [Id]=@thumb;
+                DECLARE @version varbinary(8)=(SELECT [RowVersion] FROM [Inventory].[Items] WHERE [Id]=@item);
+                INSERT [Inventory].[ItemPhotoOperations]
+                    ([Id],[TenantId],[ItemId],[RequestId],[ExpectedVersion],[PayloadSha256],[Kind],[State],[ActorUserId],[CreatedAtUtc],
+                        [DetailAttachmentId],[ThumbnailAttachmentId])
+                    VALUES (@operation,@tenant,@item,NEWID(),@version,@detailDigest,0,0,@actor,SYSUTCDATETIME(),@detail,@thumb);
+                INSERT [Inventory].[ItemPhotos]
+                    ([Id],[TenantId],[ItemId],[OperationId],[DetailAttachmentId],[ThumbnailAttachmentId],[Width],[Height],[CreatedAtUtc])
+                    VALUES (@photo,@tenant,@item,@operation,@detail,@thumb,@width,@height,SYSUTCDATETIME());
+                UPDATE [Inventory].[Items] SET [CurrentPhotoId]=@photo WHERE [Id]=@item;
+                SET @version=(SELECT [RowVersion] FROM [Inventory].[Items] WHERE [Id]=@item);
+                UPDATE [Inventory].[ItemPhotoOperations] SET [State]=1,[ResultVersion]=@version WHERE [Id]=@operation;
+                SELECT @version;
+                """, sql);
+            seed.Parameters.AddWithValue("@item", itemId);
+            seed.Parameters.AddWithValue("@tenant", AuthTestApplication.TenantId);
+            seed.Parameters.AddWithValue("@actor", AuthTestApplication.MemberUserId);
+            seed.Parameters.AddWithValue("@photo", photoId);
+            seed.Parameters.AddWithValue("@detailRevision", detailRevision);
+            seed.Parameters.AddWithValue("@thumbRevision", thumbRevision);
+            seed.Parameters.AddWithValue("@alias", Store.Alias);
+            seed.Parameters.AddWithValue("@detailLength", detail.Length);
+            seed.Parameters.AddWithValue("@detailDigest", detail.Sha256);
+            seed.Parameters.AddWithValue("@thumbLength", thumb.Length);
+            seed.Parameters.AddWithValue("@thumbDigest", thumb.Sha256);
+            seed.Parameters.AddWithValue("@width", processed.Width);
+            seed.Parameters.AddWithValue("@height", processed.Height);
+            var version = (byte[])(await seed.ExecuteScalarAsync())!;
+            return ("/api/items/" + itemId, Convert.ToBase64String(version), photoId, processed.Detail);
         }
 
         public async Task<(string Path, JsonElement Item)> CreatePhotoAsync()

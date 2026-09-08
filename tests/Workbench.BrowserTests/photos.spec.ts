@@ -38,7 +38,7 @@ test('prepares a camera image locally and persists uncropped photos across sessi
     .focus();
   await page.keyboard.press('Enter');
   await expect(
-    page.getByText('Photograph updated.', { exact: true }),
+    page.getByText('Current saved photograph loaded.', { exact: true }),
   ).toBeVisible();
   expect(uploads).toHaveLength(1);
   expect(uploads[0]).toBeLessThan(file.buffer.length / 2);
@@ -144,7 +144,7 @@ test('retains exact prepared bytes after a lost response and confirms removal af
     .click();
   await page.getByRole('button', { name: 'Retry upload', exact: true }).click();
   await expect(
-    page.getByText('Photograph updated.', { exact: true }),
+    page.getByText('Current saved photograph loaded.', { exact: true }),
   ).toBeVisible();
   expect(commands).toHaveLength(2);
   expect(commands[0]).toEqual(commands[1]);
@@ -167,7 +167,7 @@ test('retains exact prepared bytes after a lost response and confirms removal af
     .getByRole('button', { name: 'Upload photograph', exact: true })
     .click();
   await expect(
-    page.getByText('Photograph updated.', { exact: true }),
+    page.getByText('Current saved photograph loaded.', { exact: true }),
   ).toBeVisible();
   const after = await (
     await page.request.get(`/api/items/${page.url().split('/').at(-1)}`)

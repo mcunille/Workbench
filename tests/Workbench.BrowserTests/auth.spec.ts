@@ -48,12 +48,16 @@ async function signIn(page: import('@playwright/test').Page) {
 }
 
 test('durable authentication survives navigation and supports revocation and sign-out', async ({ page }) => {
+  // GIVEN an authenticated session alongside any sessions retained by earlier scenarios.
   await signIn(page);
   await page.reload();
   await expect(page.getByRole('heading', { name: 'Collection', exact: true })).toBeVisible();
 
   await page.getByRole('link', { name: 'Account', exact: true }).click();
-  await page.getByRole('button', { name: 'Revoke', exact: true }).click();
+  // WHEN revoking this session, other browser scenarios may have retained independent sessions.
+  await page.getByRole('listitem').filter({ hasText: 'This session' })
+    .getByRole('button', { name: 'Revoke', exact: true }).click();
+  // THEN revocation signs this browser out without depending on the total session count.
   await expect(page.getByRole('heading', { name: 'Sign in' })).toBeVisible();
 
   await signIn(page);

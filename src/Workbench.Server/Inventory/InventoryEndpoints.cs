@@ -35,6 +35,12 @@ public static class InventoryEndpoints
             .ProducesProblem(StatusCodes.Status404NotFound)
             .ProducesProblem(StatusCodes.Status409Conflict);
         group.MapItemPhotos();
+        group.MapPost("/{id:guid}/archive", ArchiveAsync)
+            .WithMetadata(WorkbenchAntiforgeryMetadata.Instance)
+            .Produces<ItemDetailResponse>()
+            .ProducesValidationProblem()
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status409Conflict);
         return endpoints;
     }
 
@@ -120,6 +126,8 @@ public static class InventoryEndpoints
         var status = (int)(await command.ExecuteScalarAsync(cancellationToken))!;
         if (status == 0)
             return Results.Problem(statusCode: StatusCodes.Status404NotFound, title: "Item not found.");
+        if (status == 3)
+            return ArchivedConflict();
         if (status == 2)
             return Results.Problem(statusCode: StatusCodes.Status409Conflict, title: "The item changed. Review the current record before saving again.",
                 extensions: new Dictionary<string, object?> { ["code"] = "item_version_conflict" });
@@ -143,7 +151,7 @@ public static class InventoryEndpoints
         if (q is { Length: > 200 } || q?.Contains('\0') == true)
             return ApiProblemResults.InvalidRequest("Search must be at most 200 characters and must not contain NUL.");
 
-        var query = database.Items.AsNoTracking();
+        var query = database.Items.AsNoTracking().Where(row => row.ArchivedAtUtc == null);
         if (!string.IsNullOrEmpty(q))
         {
             // Explicit collation keeps case/accent behavior independent of database defaults.
@@ -178,7 +186,38 @@ public static class InventoryEndpoints
     }
 
     private static ItemDetailResponse Detail(InventoryItem item) =>
-        new(item.Id, item.Name, item.Notes, item.StorageLocation, item.CreatedAtUtc, Convert.ToBase64String(item.RowVersion), Photo(item.CurrentPhoto));
+        new(item.Id, item.Name, item.Notes, item.StorageLocation, item.CreatedAtUtc, Convert.ToBase64String(item.RowVersion), Photo(item.CurrentPhoto), item.ArchivedAtUtc);
+
+    private static IResult ArchivedConflict() => Results.Problem(statusCode: StatusCodes.Status409Conflict,
+        title: "This record is archived and cannot be changed.",
+        extensions: new Dictionary<string, object?> { ["code"] = "item_archived" });
+
+    private static async Task<IResult> ArchiveAsync(Guid id, ArchiveItemRequest request,
+        WorkbenchDbContext database, CancellationToken cancellationToken)
+    {
+        var version = new byte[8];
+        if (request.ExpectedVersion is null || !Convert.TryFromBase64String(request.ExpectedVersion, version, out var written) || written != 8)
+            return Results.ValidationProblem(new Dictionary<string, string[]> { ["expectedVersion"] = ["A valid item version is required."] });
+        await using var transaction = await database.Database.BeginTransactionAsync(cancellationToken);
+        await using var command = new SqlCommand("[Inventory].[ArchiveItem]", (SqlConnection)database.Database.GetDbConnection(),
+            (SqlTransaction)transaction.GetDbTransaction())
+        { CommandType = CommandType.StoredProcedure };
+        command.Parameters.AddWithValue("@Id", id);
+        command.Parameters.Add(new SqlParameter("@ExpectedVersion", SqlDbType.VarBinary, -1) { Value = version });
+        var status = (int)(await command.ExecuteScalarAsync(cancellationToken))!;
+        if (status == 0)
+            return Results.Problem(statusCode: StatusCodes.Status404NotFound, title: "Item not found.");
+        if (status == 3)
+            return ArchivedConflict();
+        if (status == 2)
+            return Results.Problem(statusCode: StatusCodes.Status409Conflict,
+                title: "The item changed. Review the current record before archiving again.",
+                extensions: new Dictionary<string, object?> { ["code"] = "item_version_conflict" });
+        var saved = await database.Items.AsNoTracking().Include(row => row.CurrentPhoto).SingleAsync(row => row.Id == id, cancellationToken);
+        var response = Detail(saved);
+        await transaction.CommitAsync(cancellationToken);
+        return Results.Ok(response);
+    }
 
     private static ItemPhotoResponse? Photo(ItemPhoto? photo) => photo is null ? null : new(photo.Id,
         $"/api/items/{photo.ItemId}/photo/{photo.Id}/thumbnail", $"/api/items/{photo.ItemId}/photo/{photo.Id}/detail", photo.Width, photo.Height);

@@ -3,6 +3,30 @@
 Database migrations are an explicit, human-controlled deployment operation. A Workbench web
 replica never migrates its database and never receives the setup, operator, or migrator credential.
 
+## Item archiving release
+
+`20260907224158_AddItemArchiving` adds nullable `Inventory.Items.ArchivedAtUtc`, an active-row
+browsing index, and `Inventory.ArchiveItem`. The archive command checks the shared item version
+atomically under caller tenant isolation. Detail and photo mutation commands now require active
+state, even when called with an archived record's current version. Runtime direct UPDATE/DELETE
+remains denied; an INSERT trigger rejects creation with an archive timestamp.
+
+Apply this single additive migration before releasing H5. Readiness and provisioning require the
+new command and schema marker. Existing records stay active, with creation snapshots, photos,
+operation replay evidence, and blob retention unchanged. Verify fresh creation and upgrade from
+`AddItemDetailEditing`, including saved photographs and pending/completed photo operations.
+
+Archived records remain readable through their existing tenant-authorized links, including photo
+downloads. Ordinary browsing/search excludes them. There is no unarchive command in H5. After an
+unconfirmed archive, reload current details; retrying the same expected version cannot overwrite
+newer state. A current archived record proves its saved state, not which request archived it.
+Original creation replay returns that same archived identity and does not create a replacement.
+
+Down migration deliberately refuses to discard archive state. Prefer a forward correction or
+the existing paired offline SQL/blob restore procedure; do not roll back binaries without checking
+schema compatibility. Archiving does not retire its current photo blobs. Keep all base migrations
+unchanged; this release requires no data backfill or production operation during development.
+
 ## Item detail editing release
 
 `20260907194500_AddItemDetailEditing` adds `Inventory.UpdateItemDetails` after the photograph
