@@ -172,6 +172,11 @@ before planning an explicit transition. No database or migration-history rows ar
 
 ## Authoring and validating a migration
 
+The full `./scripts/verify.ps1` gate runs all migration drill tests once as part of the
+unfiltered Release server suite and retains per-test outcomes and timings in
+`artifacts/test-results/*.trx`. The standalone scenario commands below remain available
+for focused reruns and retain their console logs in `artifacts/migrations/`.
+
 The deployment phase adds `20260906031109_AddDeploymentQueueTelemetry` after the shipped provider
 schema. It adds aggregate worker telemetry and deployment readiness procedures with narrow execution
 grants; it does not rewrite the baseline or change tenant rows. The current release requires this

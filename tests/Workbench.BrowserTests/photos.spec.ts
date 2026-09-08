@@ -1,3 +1,4 @@
+import { browserBaseUrl } from './browser-environment';
 import { expect, test } from '@playwright/test';
 import { mkdir } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
@@ -50,10 +51,10 @@ test('prepares a camera image locally and persists uncropped photos across sessi
   await page.reload();
   await expect(page.getByAltText(`Photograph of ${name}`)).toBeVisible();
   // THEN another authenticated cookie jar sees the same persisted image.
-  const second = await browser.newContext({ baseURL: 'http://127.0.0.1:4179' });
+  const second = await browser.newContext({ baseURL: browserBaseUrl });
   try {
     const other = await second.newPage();
-    await photoSignIn(other);
+    await photoSignIn(other, 'secondary');
     await other.goto(url);
     await expect(other.getByAltText(`Photograph of ${name}`)).toBeVisible();
   } finally {

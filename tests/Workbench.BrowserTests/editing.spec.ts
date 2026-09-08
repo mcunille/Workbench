@@ -1,3 +1,4 @@
+import { browserBaseUrl } from './browser-environment';
 import { expect, test, type Page } from '@playwright/test';
 import { mkdir } from 'node:fs/promises';
 import { photoSignIn } from './photo-fixture';
@@ -38,10 +39,10 @@ test('H4 two independent sessions recover stale edits and refresh search', async
   // GIVEN two independently authenticated sessions reading one persisted version.
   await photoSignIn(page);
   const item = await create(page);
-  const otherContext = await browser.newContext({ baseURL: 'http://127.0.0.1:4179' });
+  const otherContext = await browser.newContext({ baseURL: browserBaseUrl });
   const other = await otherContext.newPage();
   try {
-    await photoSignIn(other);
+    await photoSignIn(other, 'secondary');
     await page.getByRole('searchbox', { name: 'Search collection', exact: true }).fill(item.name);
     await page.getByRole('button', { name: 'Search', exact: true }).click();
     await page.getByRole('link').filter({ has: page.getByText(item.name, { exact: true }) }).click();
@@ -191,10 +192,10 @@ test('H4 a lost creation response retries successfully after another session edi
   await expect(page.getByLabel('Name', { exact: true })).toBeDisabled();
 
   // AND another independently authenticated session discovers and corrects the saved item.
-  const otherContext = await browser.newContext({ baseURL: 'http://127.0.0.1:4179' });
+  const otherContext = await browser.newContext({ baseURL: browserBaseUrl });
   const other = await otherContext.newPage();
   try {
-    await photoSignIn(other);
+    await photoSignIn(other, 'secondary');
     await other.getByRole('searchbox', { name: 'Search collection', exact: true }).fill(name);
     await other.getByRole('button', { name: 'Search', exact: true }).click();
     await other.getByRole('link').filter({ has: other.getByText(name, { exact: true }) }).click();

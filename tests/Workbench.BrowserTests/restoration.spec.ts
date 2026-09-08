@@ -1,3 +1,4 @@
+import { browserBaseUrl } from './browser-environment';
 import { expect, test } from '@playwright/test';
 import { mkdir } from 'node:fs/promises';
 import { photoSignIn, cameraImage } from './photo-fixture';
@@ -86,9 +87,9 @@ test('H6 archive navigation and photographed restoration persist in another sess
   await page.evaluate(() => history.go(-2));
   await page.getByRole('link', { name: 'Back to archive', exact: true }).click();
   await expect(page.getByText('No matches', { exact: true })).toBeVisible();
-  const context = await browser.newContext({ baseURL: 'http://127.0.0.1:4179' });
+  const context = await browser.newContext({ baseURL: browserBaseUrl });
   try {
-    const other = await context.newPage(); await photoSignIn(other);
+    const other = await context.newPage(); await photoSignIn(other, 'secondary');
     await other.getByRole('searchbox').fill(item.name); await other.getByRole('button', { name: 'Search', exact: true }).click();
     await other.getByRole('link').filter({ has: other.getByText(item.name, { exact: true }) }).click();
     await other.reload();
@@ -122,9 +123,9 @@ test('H6 lost committed restore response retains same-token retry and uncertain 
 test('H6 a competing restore and re-archive requires renewed confirmation after a failed recovery read', async ({ page, browser }) => {
   // GIVEN an archived version whose confirmation is open in one session.
   await photoSignIn(page); const item = await createArchived(page); await page.goto(`/inventory/${item.id}`); await restore(page).click();
-  const context = await browser.newContext({ baseURL: 'http://127.0.0.1:4179' });
+  const context = await browser.newContext({ baseURL: browserBaseUrl });
   try {
-    const other = await context.newPage(); await photoSignIn(other);
+    const other = await context.newPage(); await photoSignIn(other, 'secondary');
     const active = await lifecycle(other, item.id, 'restore', item.version);
     const current = await lifecycle(other, item.id, 'archive', active.version);
     const bodies: any[] = []; page.on('request', request => { if (request.url().endsWith(`/api/items/${item.id}/restore`)) bodies.push(request.postDataJSON()); });
