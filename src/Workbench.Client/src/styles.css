@@ -900,6 +900,13 @@ dialog::backdrop {
   }
 }
 @media (forced-colors: active) {
+  .appearance::before {
+    background: ButtonFace;
+    border: 2px solid ButtonText;
+  }
+  .appearance[aria-checked] .icon {
+    color: ButtonText;
+  }
   button,
   .button,
   input,

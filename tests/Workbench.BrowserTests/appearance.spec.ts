@@ -1,6 +1,40 @@
 import { expect, test } from '@playwright/test';
 import { mkdir } from 'node:fs/promises';
 
+test('forced colors preserve both icons and a visible selected-theme boundary', async ({ page }) => {
+  // GIVEN a visitor using a high-contrast system palette.
+  await page.emulateMedia({ forcedColors: 'active', reducedMotion: 'reduce' });
+  await page.goto('/');
+  const control = page.getByRole('switch', { name: 'Dark theme' });
+  await expect(control).toBeVisible();
+  for (const colorScheme of ['light', 'dark'] as const) {
+    await page.emulateMedia({ colorScheme });
+    for (const dark of [false, true]) {
+      // WHEN choosing either theme in each high-contrast palette.
+      await control.setChecked(dark);
+      const paint = await control.evaluate(element => {
+        const thumb = getComputedStyle(element, '::before');
+        return {
+          background: getComputedStyle(element).backgroundColor,
+          thumbBackground: thumb.backgroundColor,
+          borderColor: thumb.borderTopColor,
+          borderStyle: thumb.borderTopStyle,
+          borderWidth: parseFloat(thumb.borderTopWidth),
+          icons: [...element.querySelectorAll('svg')].map(icon => getComputedStyle(icon).color),
+        };
+      });
+      // THEN the selected position has a contrasting boundary and both icons remain visible.
+      expect(paint.borderStyle).not.toBe('none');
+      expect(paint.borderWidth).toBeGreaterThanOrEqual(1);
+      expect(paint.borderColor).not.toBe(paint.background);
+      expect(paint.icons[dark ? 1 : 0]).not.toBe(paint.thumbBackground);
+      expect(paint.icons[dark ? 0 : 1]).not.toBe(paint.background);
+      await mkdir('../../artifacts/theme-switch', { recursive: true });
+      await control.screenshot({ path: `../../artifacts/theme-switch/forced-${colorScheme}-${dark ? 'dark' : 'light'}.png` });
+    }
+  }
+});
+
 for (const width of [320, 1280]) {
   test(`theme switch follows system until chosen and persists at ${width}px`, async ({ page }) => {
     // GIVEN a new visitor with dark system appearance and no saved choice.
