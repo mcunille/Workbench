@@ -201,10 +201,55 @@ blanket certification of all deployment paths or a claim that every issue #12 ch
   Readback confirmed HTTPS 200 and production backup ProtectionConfigured. The temporary VM,
   NAT, subnet and SQL restore infrastructure were already absent from the live inventory.
 
-Remaining evidence for the broader architecture/deployment issues: measured hosted cold-start
-samples, multi-replica session/rate-limit tests, an exercised compatible traffic rollback, complete
-monitoring ingestion/failure coverage, and measured cost/App Service comparison. The monthly
-budget is USD 100 with notifications, not a spending cap. Log Analytics retention is configured
-for 30 days; platform Activity Log retention is separate. Public Linux self-host acceptance is not
-established by the completed Windows localhost QA drill. Track those limits explicitly rather than
-checking every epic criterion because the public launch succeeded.
+The following follow-up supersedes the outstanding hosted checks in this launch snapshot.
+
+## Azure acceptance follow-up (2026-09-09 UTC)
+
+These checks exercised the existing public installation, not a fresh bootstrap. Serving source is
+`f58f1f4cf4523439c48ec9b7132b01792b6920d2`, image digest
+`sha256:322404ba57592165e17072ce7a69ae45b03d756646d05223f11168276ec9db60` in the same registry.
+Revision `wb-prod-web--0000005` was restored to 100% traffic after both drills. Subsequent main
+commits are not implicitly deployed or covered by this evidence.
+
+- **Two replicas:** a temporary same-image revision used min/max 2 and `Deployment__Replicas=2`.
+  Both replicas were ready with zero restarts. Twelve authenticated `/api/auth/me` requests using
+  one session returned 200: trace IDs correlated six to each replica in Log Analytics. Revoking
+  only that test session from a separate session returned 204. The original test browser then sent
+  twelve requests without signing out or refreshing; all returned 401, again six per replica.
+- **Shared login limit:** seven sequential attempts with valid credentials completed in 3,023 ms:
+  five returned 204 and two returned 401. Successful requests reached both replicas (three and two);
+  both rejected requests reached the latter replica. Successful test sessions were logged out after
+  each attempt. This demonstrates the shared combined account/network login allowance, not an
+  independent test of the account-only partition or a concurrent load test. Credentials and cookies
+  were not included in retained output.
+- **Replica cleanup:** test and reset revisions were deactivated and reported zero replicas.
+  App template min/max returned to 0/1 with `Deployment__Replicas=1`; revision `0000005` served
+  100% traffic and HTTPS readiness returned 200.
+- **Natural cold start:** control-plane polling observed zero replicas at 03:13:56 UTC without
+  sending warm-up requests. The first homepage request returned 200 in 27,943 ms; the subsequent
+  readiness request returned 200 in 119 ms. These are client-observed timings, not pure container
+  initialization times. The operator accepted this single sample and its delay, explicitly declined
+  more samples, and retained scale-to-zero. No p50/p95 distribution is claimed.
+- **Compatible release rollback:** the complete range from retained source `cc0e969` to serving
+  source `f58f1f4` changed frontend/docs only, with no server, database, Dockerfile or workload-module
+  changes. Retained revision `0000004` was warmed and reported a ready replica with zero restarts.
+  After approved traffic transfer, homepage/readiness and the older asset `index-CqYKE4ly.js`
+  returned 200; anonymous identity access returned 401 and all five security headers were present.
+  The operator confirmed sign-in on the older release. At 03:21 UTC traffic returned to `0000005`;
+  homepage/readiness returned 200 and asset `index-C9oy8019.js` confirmed the current release.
+  No migration, database rollback, worker change, or incompatible-schema rollback was performed.
+- **Readiness alert:** PR #72 corrected matching against actual platform readiness failure events.
+  The isolated drill alert fired at 02:17 UTC and resolved at 02:39 UTC; the operator received both
+  emails. The drill app and alert were removed, and production readiness remained healthy. This
+  exercises the matching query and delivery path without deliberately failing the production app.
+- **Scheduled backup:** job `f66addc2-0e1f-428a-9991-1dd3743ce201` started at 03:00:11 UTC and
+  completed at 03:17:23 UTC. `AddonAzureBackupJobs` contained a record at 03:17:24 UTC. Earlier
+  follow-up queries also observed SQL, Key Vault, ACR, Activity and Blob audit records. The accepted
+  empty-data restore scope above remains unchanged; this scheduled backup is not another restore test.
+
+The operator explicitly deferred measured cost/App Service comparison and will monitor spending.
+The monthly USD 100 budget provides notifications, not a spending cap. Log Analytics retention is
+30 days; platform Activity Log retention is separate. Remaining issue #12 acceptance is a complete
+reproducible bootstrap/runbook check and final deployment documentation/configuration security review.
+No final no-findings verdict is implied by these operational tests or the image scan. Public Linux
+self-host acceptance remains distinct from the completed Windows localhost QA drill.
