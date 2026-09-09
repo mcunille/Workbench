@@ -10,8 +10,10 @@ follow-up boundaries; a successful launch does not establish every portability o
 The [accepted deployment design](../specs/2026-09-05-azure-deployment.md) establishes the target;
 the templates in [infra/azure](../../infra/azure/main.bicep) implement the resource configuration.
 Compilation and parameter checks are local evidence only. Hosted identity, TLS, sign-in, worker mail,
-alert delivery, and scoped recovery now have recorded evidence. Measured cold-start distributions,
-scale-out acceptance and a workload-based cost comparison remain pending. Provisioning, DNS,
+alert delivery, and scoped recovery now have recorded evidence. The
+[acceptance follow-up](deployment-verification.md#azure-acceptance-follow-up-2026-09-09-utc) records
+scale-out, rollback, scheduled backup ingestion and the operator-accepted single cold-start sample.
+Additional samples and cost comparison are explicitly deferred for this installation. Provisioning, DNS,
 deployment and traffic changes require separate
 operator authorization; none of the commands below should be run against a retained environment as a test.
 
@@ -63,11 +65,18 @@ Azure public cloud; sovereign-cloud vault DNS and available SKUs need separate r
 System identities cannot be granted access before their resources exist. Use these explicit phases
 to avoid circular secret-resolution dependencies:
 
+The complete path includes [private host and secret preparation](azure-bootstrap-host.md),
+[Graph setup](azure-graph-bootstrap.md) when selected, [restricted-public validation](azure-bootstrap-validation.md)
+when a private canonical-host route is unavailable, and [native backup setup](azure-native-backup.md).
+The main template alone does not perform these operator steps. Audit-only verification of this
+procedure does not claim a fresh deployment has been executed.
+
 1. After authorization, run deployment `what-if`, inspect changes, then run `infra/azure/bootstrap.ps1 -Subscription <id> -ResourceGroup <name> -ParametersFile <file>` with all activation
    switches false. This creates the network, private SQL/blob/vault endpoints and DNS, logs, a bootstrap
    web resource, manual jobs and their identities. Deployment can briefly start an unconfigured web revision; the production validator fails closed. The bootstrap script deactivates every revision and waits for zero replicas, including after deployment failure. `activate=false` alone does not stop compute. The web has no ingress; do not start either job.
    Record the resource IDs and system principal IDs from outputs. Resource outputs contain no secrets.
-2. From a protected administrative host with private DNS/network access, populate the vault using
+2. Prepare the [protected administrative host](azure-bootstrap-host.md), retained identities,
+   secret files and recoverable transfer key. From that host, populate the vault using
    secret **files**, not `--value` arguments. Required names are `tenant-proof`, `protection-pfx`,
    `protection-password`, and `migration-connection`; SMTP mode additionally requires `smtp-password`. Graph mode must not create or grant that secret. The PFX secret is Base64-encoded
    PKCS#12 text. Its password is a separate secret. `migration-connection` contains an encrypted SQL
@@ -81,7 +90,10 @@ to avoid circular secret-resolution dependencies:
    Never grant runtime users `db_owner`, schema authority or another workload's role. Runtime
    identities cannot grant their own permissions. The one-time setup group is the SQL Entra admin;
    remove unnecessary membership after bootstrap. Preserve a controlled break-glass procedure.
-4. Set `grantAccess=true`, retaining `activate=false`, and run the bootstrap orchestration again after removing temporary subnets. The access module grants
+4. Set `grantAccess=true`, retaining `activate=false`. While the temporary host subnet exists,
+   deploy only `infra/azure/modules/access.bicep` using the scoped command below; do not run main
+   or bootstrap again. After temporary subnets are removed, main can preserve the same grants.
+   The access module grants
    web/worker Blob Data Contributor only on the installation container and Key Vault Secrets User
    only on their three shared secret resources (four in SMTP mode). Migration gets only its connection secret. Allow RBAC
    propagation and verify grants before activating. Recreating a system identity requires repeating
@@ -94,11 +106,13 @@ to avoid circular secret-resolution dependencies:
    resource ID. Keep its private key/password out of parameters and command arguments. The operator's
    diagnostic client must trust its issuer. Set `activate=true`, keeping `publishIngress=false`, `workerEnabled=false`, and
    public recovery disabled. The migration job can be configured earlier with `migrationConfigured=true` independently of `activate`; keep its trigger manual. Run it once and inspect terminal status, exit code, console success message and schema. Job start acceptance alone is not success.
-   Exercise private ingress from a protected diagnostic workload in the same Container Apps
-   environment, manual worker execution, SQL authorization, blob access and the selected email provider. Internal app
-   ingress is environment-only; an arbitrary host elsewhere in the VNet cannot reach it.
+   Exercise manual worker execution, SQL authorization, blob access and the selected email provider.
+   Private ingress needs a verified canonical-host route from the same Container Apps environment;
+   an arbitrary host elsewhere in the VNet cannot reach it. If that route is unavailable, use the
+   separately approved [restricted-public HTTPS procedure](azure-bootstrap-validation.md), preserving
+   private dependencies. It replaces the private web test, not the identity or delivery checks.
 6. Enable the minute worker schedule only after successful bounded delivery and lease-overlap tests.
-   After the private checks pass, separately authorize public DNS and ingress using the already-bound
+   After the applicable private or restricted-public checks pass, separately authorize public DNS and ingress using the already-bound
    bootstrap certificate and pinned revision traffic. Perform public TLS checks, then request the ACA
    managed certificate and replace the binding as described below. Public checks and cold-start
    measurements follow this explicit exposure authorization; they are not prerequisites that must
@@ -133,6 +147,26 @@ The provisioning command requires the migrated tables and roles; it does not cre
 administrator account. Bootstrap is one-time. The later migration-job run proves the job identity's
 authority and cannot substitute for this initial setup. Verify the administrator can log in through
 the runtime web identity during private acceptance; do not make SQL setup authority available to it.
+
+For step 4, set these nonsecret variables from recorded resource outputs. Preview and approve the
+account/secret-scoped grants, then create the same deployment. Keep `grantAccess=true` in the main
+installation file even though this command applies only the access module:
+
+```powershell
+az deployment group what-if -g $group --template-file infra/azure/modules/access.bicep `
+    --parameters storageName=$storageName vaultName=$vaultName webPrincipalId=$webPrincipalId `
+    workerPrincipalId=$workerPrincipalId migrationPrincipalId=$migrationPrincipalId deliveryProvider=$deliveryProvider
+if ($LASTEXITCODE -ne 0) { throw 'Access preview failed.' }
+# After approval of this exact preview:
+az deployment group create -g $group -n "${prefix}-access" --template-file infra/azure/modules/access.bicep `
+    --parameters storageName=$storageName vaultName=$vaultName webPrincipalId=$webPrincipalId `
+    workerPrincipalId=$workerPrincipalId migrationPrincipalId=$migrationPrincipalId deliveryProvider=$deliveryProvider `
+    --output none
+if ($LASTEXITCODE -ne 0) { throw 'Access deployment failed.' }
+```
+
+This first-install command uses the empty retained-certificate default. During later certificate
+rotation include the reviewed `previousCertificates` array through a parameter file instead.
 
 The identity file is `{ "version": 1, "identities": [...] }`, with five entries containing
 `role`, `name`, `principalId`, and `clientId`, for `workbench_web`, `workbench_worker`,
@@ -238,9 +272,10 @@ secrets. Measure actual shutdown against the 60-second web grace period.
 
 ## Paired checkpoint and isolated Azure restore
 
-For uninterrupted collection and SQL-authoritative manual reconciliation, use the
-[online backup and recovery runbook](online-backup-recovery.md). Its separate backup deployment
-requires explicit hosted approval and verification. The procedure below remains the strict,
+For the selected native daily seven-day vaulted backup, use [native backup setup](azure-native-backup.md).
+For SQL-authoritative manual reconciliation use the [recovery runbook](online-backup-recovery.md).
+Its custom capture/expiration deployment is an alternative, not a prerequisite for native backup.
+Do not deploy both by accident. The procedure below remains the strict,
 offline paired-checkpoint path; do not remove its write freeze when using those older commands.
 
 The foundation requests geo-redundant SQL backups (`Geo`) and geographically redundant application
@@ -328,8 +363,8 @@ query behavior, not notification delivery. Keep the separate approved end-to-end
 
 The 2026-09-09 read-only audit found 22 readiness events that the old phrase matched zero times;
 the corrected predicate matched all 22. SQL, Key Vault, ACR login/repository, Blob, Activity and
-CoreAzureBackup ingestion were observed. AddonAzureBackupJobs ingestion remained unconfirmed
-before the first scheduled 03:00 UTC backup; do not equate core backup logs with job-log coverage.
+CoreAzureBackup ingestion were observed. The first scheduled backup subsequently completed at
+03:17:23 UTC and AddonAzureBackupJobs ingestion was observed at 03:17:24 UTC; see the acceptance record.
 
 Dead-letter and paired-backup age over 24 hours additionally require a protected operational monitor;
 the templates have no successful-checkpoint emitter or dead-letter count source. Configure and exercise
@@ -354,11 +389,15 @@ configuration, observed result, failures and artifact reference. Required hosted
 and denied public dependencies; least-privilege managed identities; trusted ingress/spoof rejection;
 custom TLS; two-replica sessions/rates; migration concurrency/cancellation; worker retries/SMTP;
 dependency outages/readiness; exporter redaction; rollout and rollback; paired restore; alerts; and cost.
-Collect at least 30 genuine idle-to-ready samples, reporting p50/p95/max and first authenticated request
+The original general design target is at least 30 genuine idle-to-ready samples, reporting p50/p95/max and first authenticated request
 latency, image size, SQL state and concurrent load. Local startup is not an Azure cold-start sample.
 Review the design if cold p95 exceeds 15 seconds, warm errors exceed 1%, SQL CPU exceeds 70%, queue age
 exceeds five minutes, or 30-day projected cost exceeds equivalent App Service by 20%. No automatic
 topology change is authorized by a threshold breach.
+
+For this installation the operator accepted the one measured 27.943-second cold start, retained min/max
+0/1 to avoid an always-on replica, and declined more samples and measured cost comparison. Record
+those choices rather than treating a missing distribution or deferred cost worksheet as performed work.
 
 ## Microsoft 365 Graph delivery
 
@@ -367,6 +406,7 @@ Set `deliveryProvider=Graph`, `graphMailboxId` to the no-reply mailbox object UU
 to its Azure resource ID. SMTP input fields may be empty. The templates attach this identity only
 to the worker; web receives configuration for enqueue validation and migration receives neither.
 Self-hosted and Azure SMTP configurations continue to use `deliveryProvider=Smtp`.
+Follow the [executable Exchange setup sequence](azure-graph-bootstrap.md) before the delivery gates below.
 
 When changing an existing Azure SMTP installation to Graph, stop web revisions and scheduled
 workers first. Incremental deployments do not delete old role assignments omitted by a template.

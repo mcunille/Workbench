@@ -65,6 +65,8 @@ test('H6 archive navigation and photographed restoration persist in another sess
   // WHEN restoring THEN identity, photo and saved details return in this and another authorized session.
   await restore(page).click(); await confirmRestore(page).click();
   await expect(page.getByText('Record restored to collection.', { exact: true })).toBeVisible();
+  // AND the dialog's deferred focus handoff completes before the next keyboard action.
+  await expect(page.getByRole('button', { name: 'Edit details', exact: true })).toBeFocused();
   // AND keyboard fragment navigation plus appearance changes preserve the archive origin.
   await page.getByRole('link', { name: 'Skip to content', exact: true }).focus();
   await page.keyboard.press('Enter');
