@@ -22,6 +22,8 @@ and the remaining scale, monitoring, cost, and portability checks.
 
 These documents are living documentation. They should describe the project's current direction.
 
+The [refined navigation decision](specs/2026-09-09-refined-navigation.md) records the accepted collapsible desktop glass pane, mobile bottom pill, and shared profile controls. The [experimental crystal dock](design-ideas/README.md) is preserved separately for future exploration.
+
 ## Change specifications
 
 For scoped design, planning, delegation, debugging, and implementation review practices, see

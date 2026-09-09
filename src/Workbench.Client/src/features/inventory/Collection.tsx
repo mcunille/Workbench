@@ -381,6 +381,13 @@ export function ItemDetails({
   const [photoDirty, setPhotoDirty] = useState(false);
   const [savedMessage, setSavedMessage] = useState('');
   const editButton = useRef<HTMLButtonElement>(null);
+  const reconciledFocus = useRef<'restore' | 'edit' | null>(null);
+  useLayoutEffect(() => {
+    if (!reconciledFocus.current || archiving || restoring) return;
+    const target = reconciledFocus.current === 'restore' ? restoreButton : editButton;
+    target.current?.focus();
+    reconciledFocus.current = null;
+  }, [item, archiving, restoring]);
   const photoDirtyChange = useCallback(
     (dirty: boolean, uncertain: boolean) => {
       setPhotoDirty(dirty);
@@ -495,6 +502,9 @@ export function ItemDetails({
                 );
               }}
               onCurrent={(current, confirmed) => {
+                // Focus after React commits the replacement action, not on a frame that
+                // can run while its ref still points to the previous archived state.
+                reconciledFocus.current = current.archivedAtUtc ? 'restore' : 'edit';
                 setItem(current);
                 setArchiving(false);
                 setRestoring(false);
@@ -504,12 +514,6 @@ export function ItemDetails({
                       ? 'Record restored to collection.'
                       : 'This record is already in the collection. Current saved record loaded.'
                     : 'Current saved record loaded.',
-                );
-                requestAnimationFrame(() =>
-                  (current.archivedAtUtc
-                    ? restoreButton
-                    : editButton
-                  ).current?.focus(),
                 );
                 onDirtyChange(false, false);
               }}

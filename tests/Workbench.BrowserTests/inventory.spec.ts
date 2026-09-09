@@ -20,22 +20,28 @@ async function inspectLayout(page: Page) {
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), JSON.stringify(overflow)).toBe(true);
   for (const title of await page.locator('h1, .item-title, .lede, small, dt, label, .workspace-nav a').all()) {
     const titleContrast = await title.evaluate(title => {
-      const channels = (value: string) => value.match(/[\d.]+/g)!.slice(0, 3).map(Number);
-      const luminance = (color: string) => channels(color).map(channel => {
+      // Canvas normalizes both rgb() and color(srgb ...) from glass color-mix().
+      const context = document.createElement('canvas').getContext('2d')!;
+      const channels = (value: string) => {
+        context.clearRect(0, 0, 1, 1);
+        context.fillStyle = value;
+        context.fillRect(0, 0, 1, 1);
+        return Array.from(context.getImageData(0, 0, 1, 1).data);
+      };
+      const luminance = (color: number[]) => color.slice(0, 3).map(channel => {
         const value = channel / 255;
         return value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4;
       }).reduce((sum, value, index) => sum + value * [0.2126, 0.7152, 0.0722][index], 0);
       let parent: Element | null = title;
-      let background = 'rgb(255, 255, 255)';
+      const layers: number[][] = [];
       while (parent) {
-        const candidate = getComputedStyle(parent).backgroundColor;
-        if (candidate !== 'rgba(0, 0, 0, 0)' && candidate !== 'transparent') {
-          background = candidate;
-          break;
-        }
+        layers.push(channels(getComputedStyle(parent).backgroundColor));
         parent = parent.parentElement;
       }
-      const foregroundLight = luminance(getComputedStyle(title).color);
+      // Composite translucent fills instead of treating their channels as opaque.
+      const background = layers.reverse().reduce((under, over) =>
+        under.map((channel, index) => over[index] * over[3] / 255 + channel * (1 - over[3] / 255)), [255, 255, 255]);
+      const foregroundLight = luminance(channels(getComputedStyle(title).color));
       const backgroundLight = luminance(background);
       return (Math.max(foregroundLight, backgroundLight) + 0.05) / (Math.min(foregroundLight, backgroundLight) + 0.05);
     });
@@ -187,7 +193,7 @@ test('appearance survives authentication transitions when browser storage is blo
   await signInThroughUi(page, false);
   // THEN the in-memory choice remains intact in both control locations.
   await openUserMenu(page);
-  await expect(page.getByRole('switch', { name: 'Dark theme' })).toBeChecked();
+  await expect(page.getByRole('button', { name: 'Appearance Dark', exact: true })).toBeVisible();
   await openUserMenu(page);
   await page.getByRole('button', { name: 'Sign out', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Sign in', exact: true })).toBeVisible();
@@ -405,7 +411,7 @@ for (const width of [320, 1280]) {
     }
     await page.reload();
     await openUserMenu(page);
-    await expect(page.getByRole('switch', { name: 'Dark theme' })).not.toBeChecked();
+    await expect(page.getByRole('button', { name: 'Appearance Light', exact: true })).toBeVisible();
     await expect(page.getByRole('heading', { name, exact: true })).toBeVisible();
   });
 }

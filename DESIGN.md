@@ -263,13 +263,18 @@ height. Keep the label `Forgot your password?` and the destination `/recover`.
 
 **Role:** provide a compact light/dark switch with an initial system default.
 
-Use a sun/moon pill switch in the top-right appearance bar and workspace header, with
+On sign-in and public account surfaces, use a sun/moon pill switch in the top-right appearance bar, with
 no visible label or Auto option. The highlighted position shows the active theme. Expose
 the accessible name `Dark theme` and switch checked state; support keyboard activation
 and reduced motion. Follow system changes until the first toggle, then retain the explicit
 light/dark choice using the existing preference storage. Stored System values keep following
 the system until toggled. Appearance changes preserve form input, including when storage
 is unavailable. Reserve space above the sign-in panel for the control.
+
+The authenticated profile disclosure instead uses one Appearance button: leading icon,
+label, and current choice at the right. Activation cycles **Dark → Light → Auto → Dark**,
+without a nested submenu. Auto is the stored `system` preference and follows operating-system
+changes. Keep its appearance subscription active while the disclosure is closed.
 
 ## Layout
 
@@ -421,7 +426,7 @@ implementation and review workflow.
 ## Application surfaces
 
 The shared stylesheet implements Tanzanite throughout the existing workspace. Reading,
-editing, and photographic surfaces stay opaque; the sticky header and public account
+editing, and photographic surfaces stay opaque; the navigation pane, mobile dock, and public account
 cards use restrained glass. Layout, route structure, permissions, and workflows are unchanged.
 
 | Shared token | Dark | Light |
@@ -437,11 +442,12 @@ cards use restrained glass. Layout, route structure, permissions, and workflows 
 Shared radius tokens are `--radius-small: 2px`, `--radius-badge: 4px`,
 `--radius-input: 6px`, `--radius-button: 6px`, and `--radius-card: 12px`.
 Small and badge tokens are reserved for future components. Existing card, list, panel,
-editor, and dialog corners use 12px; controls and navigation links use 6px. Grid photo
+editor, and dialog corners use 12px; ordinary controls and desktop navigation links use 6px.
+Navigation pane, mobile pill, and profile shapes are scoped exceptions described below. Grid photo
 corners are inset by their 1px container border.
 
-The compact shared `Brand` uses the bench-pin Workbench wordmark at 20px in both
-desktop and mobile layouts. The stag and maker attribution appear only in the larger
+The compact shared `Brand` uses the bench-pin Workbench wordmark at 20px, reduced to
+18px in the desktop navigation heading and hidden in the mobile pill. The stag and maker attribution appear only in the larger
 sign-in lockup described above. Standard workspace controls retain their
 44px minimum target; the 60px/62px sign-in dimensions above are specific to that form.
 
@@ -451,3 +457,66 @@ chrome; reduced motion disables active translations. Forced colors retains nativ
 boundaries and an explicit active navigation outline.
 
 See the [application extension specification](docs/specs/2026-09-08-tanzanite-app.md).
+
+## Authenticated navigation
+
+Use a collapsible desktop glass pane and a mobile bottom pill, sharing destinations and
+permission checks. Search remains in the collection. The
+[decision record](docs/specs/2026-09-09-refined-navigation.md) captures the accepted scope.
+
+### Desktop pane
+
+Above 48rem, use a 13rem expanded pane and a 4.5rem icon rail. It reads as glass over the
+shared atmospheric background while reserving its column in the layout. Keep it flush with
+the top, left, and bottom: no margins, borders, or rounded corners on the left. Only the
+right corners are rounded (0.625rem / 10px), with a fine right edge. A translucent neutral
+fill, restrained reflection, blur, and soft lateral shadow create depth. Avoid a saturated
+violet surface or colored glow; Tanzanite is a faint atmospheric tint.
+
+The wordmark and page heading share a top row, with compact spacing before the first
+destination. A menu icon stays in the header when the wordmark recedes. Navigation icons
+and avatar use fixed columns and balanced side spacing; the menu button follows the pane
+edge without changing alignment mode mid-transition. Do not create a second header row.
+
+Animate pane and label widths together over 220ms, with the shorter label opacity transition
+inside that interval. Keep labels in layout during the transition so they do not disappear
+before the pane moves. Reduced motion removes transitions. Collapsed destinations retain
+accessible names and reveal labels on hover and keyboard focus.
+
+### Profile disclosure
+
+The trigger shows avatar and, when expanded, email. Tenant appears only at the top of the
+disclosure, followed by email. Rounded rows use **icon, label, flexible space, navigation
+cue or current value**. Account has a navigation cue; Appearance shows Dark/Light/Auto and
+cycles directly. Sign out is an action. Keep the release version inside this disclosure.
+
+The disclosure overlays content without moving the page. Escape dismisses it and returns
+focus to the trigger; outside interaction dismisses it. Preserve visible keyboard focus
+and unsaved-change confirmation when navigating or signing out. Keep the disclosure mounted
+and open underneath a confirmation dialog so cancelling can restore focus to its invoking action.
+The focused skip link must remain above the pane's stacking layer.
+
+### Mobile pill
+
+At 48rem and below, replace the desktop heading and pane with a centered glass bottom pill:
+Inventory, Administration when authorized, and User. Only the active destination shows
+its label; every control retains its accessible name and at least a 44px target. There is
+no search, collapse button, or duplicate header. The profile opens upward, stays within
+the viewport, and scrolls internally if needed without pushing the collection down.
+At enlarged text sizes, profile labels wrap and the active pill caption may ellipsize;
+the complete accessible name and minimum targets remain available.
+
+Reserve content clearance from the pill's sizing tokens: **pill height + bottom offset
+(including safe-area inset) + 1rem breathing room**. Height includes the 44px control,
+both 0.375rem padding edges, and both 1px borders. Offset is 1rem plus the bottom safe-area
+inset. The final item and controls must scroll completely above the pill.
+
+Provide opaque fallbacks for unsupported blur, reduced transparency, and forced colors.
+Check both appearances, short screens, enlarged text, keyboard operation, and both
+permission states. Do not tint photographs or reading surfaces.
+
+The morphing crystal dock with integrated search remains a [design idea](docs/design-ideas/README.md),
+not a supported desktop mode. Its prototype focus treatment does not override production
+accessibility. Current sources are [navigation.css](src/Workbench.Client/src/navigation.css),
+[App.tsx](src/Workbench.Client/src/App.tsx), and
+[AppearanceControl.tsx](src/Workbench.Client/src/AppearanceControl.tsx).
