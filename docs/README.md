@@ -4,8 +4,9 @@ This directory separates current product direction from the historical reasoning
 changes.
 
 Start with the [setup and installation guide](setup.md) to initialize a checkout and log in.
-The [production operations audit](operations/production-readiness.md) records why the production
-runbooks do not yet constitute complete, self-contained installation procedures.
+The [production operations audit](operations/production-readiness.md) distinguishes historical gaps
+from the [completed Azure launch](operations/deployment-verification.md#azure-public-launch-2026-09-08-utc)
+and the remaining scale, monitoring, cost, and portability checks.
 
 ## Current direction
 
@@ -84,11 +85,12 @@ commands retain their documented requirements.
 The accepted [Azure deployment specification](specs/2026-09-05-azure-deployment.md) defines
 scale-to-zero hosting and portable self-hosting. The [Azure runbook](operations/azure-deployment.md)
 and [Compose runbook](operations/self-hosted-deployment.md) describe the release configuration and
-explicit operational gates. Hosted deployment, cold-start measurements, and cloud recovery evidence
-remain pending; checked-in infrastructure is not evidence that an environment has been deployed.
+explicit operational gates. The first hosted deployment and scoped recovery drill are recorded;
+measured cold starts, hosted scale-out and broader recovery coverage remain pending.
 The [cost worksheet](operations/deployment-costs.md) records public retail rates and unmeasured
 usage scenarios. The [verification record](operations/deployment-verification.md) separates local
-evidence from pending hosted acceptance.
+evidence from hosted launch results and outstanding acceptance checks. Use the
+[Azure release checklist](operations/azure-release.md) for subsequent upgrades and cleanup.
 
 ## Still to be decided
 
@@ -101,3 +103,7 @@ The accepted base architecture deliberately does not yet define:
 
 Those choices should be made through focused specs when evidence and concrete requirements make the
 decision necessary.
+
+Collection text portability follows the [H7 design](specs/2026-09-08-h7-collection-export.md).
+See the [CSV contract and spreadsheet guidance](collection-export.md) and
+[reproducible narrated walkthrough](demos/h7/README.md). Export is not a restorable backup.

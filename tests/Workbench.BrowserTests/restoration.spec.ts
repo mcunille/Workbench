@@ -43,7 +43,7 @@ test('H6 archive navigation and photographed restoration persist in another sess
   for (const width of [320, 1280]) for (const theme of ['light', 'dark']) {
     await page.setViewportSize({ width, height: 900 });
     await page.emulateMedia({ reducedMotion: 'reduce' });
-    await page.getByRole('combobox', { name: 'Appearance', exact: true }).selectOption(theme);
+    await page.getByRole('switch', { name: 'Dark theme' }).setChecked(theme === 'dark');
     await expect(page.getByAltText(`Photograph of ${item.name}`)).toBeVisible();
     await expect(page.getByRole('button', { name: 'Edit details', exact: true })).toHaveCount(0);
     await expect(page.getByLabel('Choose photograph', { exact: true })).toHaveCount(0);
@@ -68,7 +68,7 @@ test('H6 archive navigation and photographed restoration persist in another sess
   await page.getByRole('link', { name: 'Skip to content', exact: true }).focus();
   await page.keyboard.press('Enter');
   await expect(page).toHaveURL(/#main$/);
-  await page.getByRole('combobox', { name: 'Appearance', exact: true }).selectOption('light');
+  await page.getByRole('switch', { name: 'Dark theme' }).setChecked(false);
   await expect(page.getByRole('link', { name: 'Back to archive', exact: true })).toBeVisible();
   const restored = await (await page.request.get(`/api/items/${item.id}`)).json();
   expect(restored).toEqual({ ...archived, archivedAtUtc: null, version: restored.version });
@@ -109,7 +109,7 @@ test('H6 lost committed restore response retains same-token retry and uncertain 
   await restore(page).click(); await confirmRestore(page).click();
   await expect(page.getByRole('alert')).toContainText('Restoration could not be confirmed');
   await page.setViewportSize({ width: 320, height: 900 });
-  await page.getByRole('combobox', { name: 'Appearance', exact: true }).selectOption('dark');
+  await page.getByRole('switch', { name: 'Dark theme' }).setChecked(true);
   // WHEN navigating away THEN the uncertain submitted operation is disclosed.
   await page.getByRole('link', { name: 'Back to archive', exact: true }).click();
   await expect(page.getByRole('dialog')).toBeVisible();

@@ -53,6 +53,22 @@ and archive searches have independent authenticated in-memory traversal state. A
 remain read-only until restored. No permanent deletion is provided. Quantity-based stock,
 purchasing, accounting, and commerce require their own focused specifications.
 
+### Collection records export
+
+The [H7 export](specs/2026-09-08-h7-collection-export.md) retrieves current text records as CSV v1.
+Collectors explicitly select active records or active plus archived records; search and loaded pages
+do not narrow the export. A bounded SERIALIZABLE read under the existing web principal and tenant
+RLS captures one collection state, releasing locks before encoding and delivery. Concurrent writes
+may briefly wait. Preparation fails without a file above 10,000 records or 32 MiB, after a 30-second
+preparation deadline, or on database failure. Each application instance admits two preparations.
+
+The authenticated, antiforgery-protected POST `/api/items/export` buffers a complete private CSV
+attachment and revalidates the session before returning it. No job, shared link, server export file,
+or schema change is introduced. The browser offers Download only after the complete body arrives;
+its private file and selected scope survive ordinary navigation and appearance changes. Prepared
+files expire after ten minutes and clear on sign-out, identity change, or reload. This is a text
+portability feature, not a restorable backup. See the [CSV contract](collection-export.md).
+
 ### Collection identity
 
 `Inventory.Items` holds tenant-owned physical identities. H1 enforces `TrackingKind = Individual`

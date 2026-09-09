@@ -71,9 +71,7 @@ it('keeps archive and collection traversals independent through appearance and d
     target: { value: 'archive draft' },
   });
   fireEvent.click(screen.getByRole('button', { name: 'List' }));
-  fireEvent.change(screen.getByRole('combobox', { name: 'Appearance' }), {
-    target: { value: 'dark' },
-  });
+  fireEvent.click(screen.getByRole('switch', { name: 'Dark theme' }));
   fireEvent.click(screen.getByRole('link', { name: /Archived stone/ }));
   await screen.findByRole('heading', { name: 'Archived stone' });
   expect(window.location.pathname).toBe('/inventory/stone');
@@ -267,12 +265,7 @@ it('keeps the archive return origin through a native skip-link entry and appeara
   await waitFor(() =>
     expect(window.history.state?.workbenchIndex).toBe(2),
   );
-  const appearance = screen.getByRole('combobox', {
-    name: 'Appearance',
-  }) as HTMLSelectElement;
-  fireEvent.change(appearance, {
-    target: { value: appearance.value === 'dark' ? 'light' : 'dark' },
-  });
+  fireEvent.click(screen.getByRole('switch', { name: 'Dark theme' }));
   // THEN the restored detail still returns to its original archive traversal.
   expect(
     screen.getByRole('link', { name: 'Back to archive' }),

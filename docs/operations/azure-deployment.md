@@ -1,14 +1,18 @@
 # Azure deployment operations
 
-**Readiness status:** This runbook is not yet a self-contained, verified production installation.
-See the [production operations audit](production-readiness.md) for missing administrative-host,
-ingress acceptance, monitoring, release, and recovery procedures. These are acceptance blockers.
+**Deployment status (2026-09-08 UTC):** The first Azure installation is publicly serving the
+security-reviewed release. See the [launch evidence](deployment-verification.md#azure-public-launch-2026-09-08-utc)
+for the verified configuration and remaining acceptance limits. Use the
+[release and public-access procedure](azure-release.md) for subsequent releases and cleanup.
+The [production operations audit](production-readiness.md) retains the historical gaps and current
+follow-up boundaries; a successful launch does not establish every portability or scale-out check.
 
 The [accepted deployment design](../specs/2026-09-05-azure-deployment.md) establishes the target;
 the templates in [infra/azure](../../infra/azure/main.bicep) implement the resource configuration.
-Compilation and parameter checks are local evidence only. No Azure environment, ingress trust,
-identity authorization, cold-start result, recovery duration, or cost projection has been validated.
-Hosted acceptance remains pending. Provisioning, DNS, deployment and traffic changes require separate
+Compilation and parameter checks are local evidence only. Hosted identity, TLS, sign-in, worker mail,
+alert delivery, and scoped recovery now have recorded evidence. Measured cold-start distributions,
+scale-out acceptance and a workload-based cost comparison remain pending. Provisioning, DNS,
+deployment and traffic changes require separate
 operator authorization; none of the commands below should be run against a retained environment as a test.
 
 ## Inputs and offline checks
@@ -206,6 +210,10 @@ tests need a controlled resolver/host route that preserves canonical Host and va
 disable certificate validation to make the test pass.
 
 ## Release and rollback
+
+Follow the executable [release checklist](azure-release.md), including comparison of the full
+deployed-to-candidate commit range. A security-only PR can still produce an image containing an
+intervening migration; inspecting only that PR is insufficient.
 
 Before an upgrade, record the current serving revision names, digest, schema version and paired
 checkpoint. Disable scheduled worker execution and drain active jobs when the schema compatibility
