@@ -28,6 +28,8 @@
 
 ## Development credentials
 
+- Start and refresh this checkout's isolated preview with `./scripts/dev-up.ps1`; use `dev-status.ps1` and `dev-down.ps1` for inspection and non-destructive stop. Follow `docs/setup.md`, inspect the affected workflow in the browser, and give the user the reported URL. Never reuse another checkout's environment state or delete its resources. `dev-destroy.ps1` is an explicit data-deletion operation, not routine cleanup.
+- Preview login credentials are stored in the protected, ignored `.dev-environment/secrets/login.txt`. Read them privately for browser verification; never print or include them in chat or artifacts.
 - Agents may load the ignored `.env.dev` file through `scripts/dev-env.ps1` for local Workbench development.
 - Never print, log, commit, or include credential values in command arguments, test output, diffs, or generated artifacts.
 - Use the migration credential only for explicit migration commands; the web process must use the web credential.

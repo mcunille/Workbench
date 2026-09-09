@@ -51,6 +51,7 @@ if (args is ["--health-check"])
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Logging.ClearProviders().AddProvider(new SafeTelemetryLoggerProvider(Console.Out));
+var developmentSuffix = DevelopmentEnvironmentIdentity.GetSuffix(builder.Configuration, builder.Environment);
 var configuredWebConnection =
     ProductionSecurityConfigurationValidator.GetWebConnectionString(builder.Configuration);
 var configuredTenantContextProof = string.IsNullOrWhiteSpace(configuredWebConnection)
@@ -181,7 +182,7 @@ builder.Services.AddDbContext<WorkbenchDbContext>((services, options) =>
 
 var dataProtection = builder.Services
     .AddDataProtection()
-    .SetApplicationName("Workbench");
+    .SetApplicationName("Workbench" + developmentSuffix);
 if (!string.IsNullOrWhiteSpace(configuredWebConnection))
 {
     dataProtection.PersistKeysToDbContext<WorkbenchDbContext>();
@@ -200,7 +201,7 @@ builder.Services
     .AddCookie(SessionCookieHandler.Scheme, options =>
     {
         options.Cookie.Name = builder.Environment.IsDevelopment()
-            ? ".Workbench.Session"
+            ? ".Workbench.Session" + developmentSuffix
             : "__Host-Workbench.Session";
         options.Cookie.HttpOnly = true;
         options.Cookie.SameSite = SameSiteMode.Lax;
@@ -226,7 +227,7 @@ builder.Services.AddAntiforgery(options =>
 {
     options.HeaderName = "X-CSRF-TOKEN";
     options.Cookie.Name = builder.Environment.IsDevelopment()
-        ? ".Workbench.Antiforgery"
+        ? ".Workbench.Antiforgery" + developmentSuffix
         : "__Host-Workbench.Antiforgery";
     options.Cookie.HttpOnly = true;
     options.Cookie.SameSite = SameSiteMode.Strict;

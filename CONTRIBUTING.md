@@ -10,9 +10,13 @@ The repository pins .NET SDK `10.0.401`, Node.js `26.7.0`, and npm `11.19.0`. Us
 the checked-in scripts and a Linux-container Docker engine for container verification. Do not update
 one toolchain pin without updating its locks, CI setup, documentation, and smoke evidence.
 
-Use the [canonical setup and installation guide](docs/setup.md) for local SQL initialization,
-credential configuration, bootstrap, startup, and first login. It also distinguishes supported
-self-hosted paths from pending production acceptance.
+Use the [canonical setup and installation guide](docs/setup.md) and `./scripts/dev-up.ps1` for an
+isolated per-worktree database, API, and built UI. Rerun after edits and share the reported localhost
+URL with the user after exercising the changed workflow. `dev-status.ps1` reports readiness and
+source freshness; `dev-down.ps1` preserves test data. Deletion requires `dev-destroy.ps1` with the
+exact environment ID. Keep `.dev-environment/secrets/login.txt` and all generated credentials private.
+This preview has no HMR or worker; use the documented self-host workflow for worker acceptance.
+Existing `.env.dev` installations retain their [manual workflow](docs/operations/manual-development.md).
 
 Before submitting application changes, run:
 

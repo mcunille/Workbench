@@ -29,7 +29,8 @@ public static class WorkerHost
             ?? throw new InvalidOperationException("A dedicated worker database credential is required.");
         var proof = TenantContextProof.Parse(ProductionSecurityConfigurationValidator.RequireTenantContextProofKey(configuration));
         builder.Services.AddDbContext<WorkbenchDbContext>(options => options.UseSqlServer(connection));
-        var protection = builder.Services.AddDataProtection().SetApplicationName("Workbench")
+        var protection = builder.Services.AddDataProtection().SetApplicationName("Workbench" +
+            DevelopmentEnvironmentIdentity.GetSuffix(configuration, builder.Environment))
             .PersistKeysToDbContext<WorkbenchDbContext>().DisableAutomaticKeyGeneration();
         if (!builder.Environment.IsDevelopment())
         {

@@ -41,7 +41,7 @@ function Assert-DocumentationCurrent {
         @{ Path = 'docs/specs/2026-09-01-data-identity-tenancy.md'; Text = '**Status:** Implemented' },
         @{ Path = 'docs/operations/database-migrations.md'; Text = './scripts/verify-migrations.ps1 -Scenario Clean' },
         @{ Path = 'docs/operations/database-backup-restore.md'; Text = './scripts/restore-database.ps1' },
-        @{ Path = 'README.md'; Text = '.env.dev' },
+        @{ Path = 'README.md'; Text = './scripts/dev-up.ps1' },
         @{
             Path = 'docs/ARCHITECTURE.md'
             Text = 'Public recovery remains disabled until'

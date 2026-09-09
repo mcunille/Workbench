@@ -1,4 +1,5 @@
 # Copyright (c) 2026 The White Stag Collection.
+. "$PSScriptRoot/../lib/LocalRuntime.ps1"
 function Get-LocalSetupConfiguration([hashtable]$Values) {
     $allowed = @('TenantName', 'AdminEmail', 'InstallationRoot', 'SourceRef', 'TrustLocalCertificate', 'HttpPort', 'HttpsPort')
     foreach ($key in $Values.Keys) {
@@ -24,12 +25,7 @@ function Get-LocalSetupConfiguration([hashtable]$Values) {
     return $result
 }
 function New-LocalConnection([string]$Role, [string]$Password) {
-    $builder = [System.Data.Common.DbConnectionStringBuilder]::new()
-    $builder['Server'] = 'tcp:sql,1433'; $builder['Database'] = 'Workbench'
-    $builder['User ID'] = if ($Role -eq 'setup') { 'sa' } else { "workbench_${Role}_local" }
-    $builder['Password'] = $Password; $builder['Encrypt'] = $true
-    $builder['TrustServerCertificate'] = $false; $builder['Persist Security Info'] = $false
-    $builder['Connect Timeout'] = 15
-    $builder['Max Pool Size'] = if ($Role -in @('web', 'worker')) { 20 } else { 5 }
-    return $builder.ConnectionString
+    $user = if ($Role -eq 'setup') { 'sa' } else { "workbench_${Role}_local" }
+    $pool = if ($Role -in @('web', 'worker')) { 20 } else { 5 }
+    return New-WorkbenchSqlConnection 'tcp:sql,1433' 'Workbench' $user $Password $false $pool
 }
