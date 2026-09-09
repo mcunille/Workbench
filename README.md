@@ -25,8 +25,8 @@ See the [H1 specification](docs/specs/2026-09-06-h1-collection-notebook.md),
 
 ## Setup and installation
 
-Follow the [canonical setup guide](docs/setup.md) for prerequisites, safe `.env.dev` creation,
-SQL initialization, first login, routine startup, and supported installation paths.
+Follow the [canonical setup guide](docs/setup.md) to launch an isolated per-worktree database,
+API, and built UI with `./scripts/dev-up.ps1`, then test at the reported localhost URL.
 See [Contributing](CONTRIBUTING.md) for verification and change-delivery requirements.
 
 ## Start here

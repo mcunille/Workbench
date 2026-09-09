@@ -11,3 +11,5 @@ artifacts
 docs
 tests
 *.md
+.env.dev
+.dev-environment

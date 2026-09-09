@@ -24,6 +24,9 @@ jobs:
           ./scripts/test-local-self-host-update.ps1
           ./scripts/test-local-self-host-update-validation.ps1
           ./scripts/test-local-self-host-update-checkpoint.ps1
+          ./tests/Workbench.BuildTests/LocalRuntime.Tests.ps1
+          ./tests/Workbench.BuildTests/DevEnvironment.Tests.ps1
+          ./tests/Workbench.BuildTests/DevLifecycle.Tests.ps1
 
   deployment-contracts:
     name: Deployment contracts

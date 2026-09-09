@@ -7,6 +7,7 @@ using Workbench.Server.Identity;
 using Workbench.Server.Persistence;
 using Workbench.Server.Storage;
 using Microsoft.Extensions.Configuration;
+using System.Text.Json;
 
 return await RunAsync(args);
 
@@ -29,6 +30,14 @@ static async Task<int> RunAsync(string[] arguments)
         }
 
         var connectionString = await ReadValidatedConnectionAsync(connectionFile, expectedDatabase);
+        if (arguments is ["development", "inspect", ..])
+        {
+            if (!string.Equals(RequireOption(options, "--environment"), "Development", StringComparison.Ordinal))
+                throw new ArgumentException("Development inspection input is invalid.");
+            var report = await DevelopmentDatabaseInspection.InspectAsync(connectionString, CancellationToken.None);
+            Console.WriteLine(JsonSerializer.Serialize(report, new JsonSerializerOptions(JsonSerializerDefaults.Web)));
+            return 0;
+        }
         if (arguments is ["storage", var action, ..])
         {
             await StorageMaintenanceCommand.RunAsync(action, connectionString, expectedDatabase, options, CancellationToken.None);
@@ -196,6 +205,7 @@ static int Usage()
           Workbench.Database principals provision-entra --connection-file <setup-path> --expected-database <name> --identity-file <path> --tenant-context-proof-key-file <path>
           Workbench.Database storage <manifest|snapshot|verify|migrate|reconcile> --connection-file <maintenance-path> --expected-database <name> --config-file <path> --offline-confirmation "OFFLINE <name>" [--output-file <new-path>] [--manifest-file <path>]
           Workbench.Database development recovery-link --connection-file <path> --expected-database <name> --environment Development --base-url <url> --email <email> --output-file <path>
+          Workbench.Database development inspect --connection-file <setup-path> --expected-database <name> --environment Development
         """);
     return 2;
 }
