@@ -91,6 +91,28 @@ immediately so a later deployment does not send traffic back. Keep the prior com
 for rollback. A rollback needs approval and installed-schema compatibility; do not down-migrate
 automatically. Rollback retention alone is not an exercised rollback test.
 
+## Exercise a compatible rollback
+
+Obtain approval for the target revision, temporary traffic transfer, validation, and return to the
+current release. Compare the complete source range and installed schema first; check compatibility
+with workers that will continue running. Never automatically down-migrate the database.
+
+Read the retained revision's immutable image, active state, FQDN and replica readiness. A revision
+that previously reported Healthy but has zero replicas is not yet a warm rollback target. A request
+to its revision-specific HTTPS hostname can wake it; canonical-host validation may return 400.
+That response alone is not a successful readiness check. Require ready replicas and then validate
+through the canonical production hostname after the approved traffic switch.
+
+Use `az containerapp ingress traffic set` as above with the explicit retained revision. Read back
+100% traffic and verify homepage, readiness, anonymous identity rejection, security headers, assets,
+and actual sign-in. Return to the current revision under the same approved drill scope, repeat the
+checks, and confirm the expected asset and traffic allocation. If checks fail, restore the known
+working revision and investigate before proceeding. Save nonsecret timestamps and results.
+
+The [2026-09-09 acceptance record](deployment-verification.md#azure-acceptance-follow-up-2026-09-09-utc)
+documents a completed frontend-only release rollback and return; it does not prove compatibility
+across an arbitrary future database migration.
+
 ## Open public access separately
 
 Once sign-in and launch checks pass, obtain approval to change `ingressPolicy` to
