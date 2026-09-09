@@ -1,6 +1,6 @@
 # Remember an acquisition
 
-**Status: Accepted — owner approved implementation on 2026-09-09.**
+**Status: Implemented — owner approved implementation on 2026-09-09.**
 
 Scenario [#73](https://github.com/mcunille/Workbench/issues/73); first delivery
 [H9 / #74](https://github.com/mcunille/Workbench/issues/74). Product scope is accepted;
