@@ -66,7 +66,9 @@ function Start-DevEnvironmentCore($Context) {
     Assert-DevResources $Context
     $source = Get-DevSource $Context.Owner.Root
     if ($Context.State.Build.SourceHash -ceq $source.Hash -and $Context.State.Image -ceq $Context.State.Build.Image -and (Get-DevStatus $Context).Ready) { Set-DevPhase $Context 'ready'; return }
-    $image = if ($Context.State.Build.SourceHash -ceq $source.Hash) { $Context.State.Build.Image } else { Build-DevImage $Context $source }
+    # A source match is reusable only while its immutable image remains in Docker's local cache.
+    # Listing full IDs includes untagged builds and lets engine failures propagate before refresh.
+    $image = if ($Context.State.Build.SourceHash -ceq $source.Hash -and $Context.State.Build.Image -cin @(Invoke-DevDocker $Context @('image','ls','--all','--no-trunc','--quiet'))) { $Context.State.Build.Image } else { Build-DevImage $Context $source }
     # No mutation of a running preview until the source build has succeeded.
     Set-DevPhase $Context 'refresh'
     Remove-DevContainer $Context app

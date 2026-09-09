@@ -1,5 +1,5 @@
 [CmdletBinding()]
-param([ValidateSet('None','OwnershipLabels','CachedImage','UnchangedImage','DatabaseReadiness')][string]$Mutation = 'None')
+param([ValidateSet('None','OwnershipLabels','CachedImage','UnchangedImage','DatabaseReadiness','ImageAvailability')][string]$Mutation = 'None')
 # Contract tests run lifecycle decisions without starting Docker or touching retained user state.
 $ErrorActionPreference = 'Stop'
 $lifecyclePath = Join-Path $PSScriptRoot '../../scripts/dev-environment/Lifecycle.ps1'
@@ -24,6 +24,12 @@ function Test-Scenario([string]$Name, [scriptblock]$Body) {
             . $lifecyclePath
             # Mutations change only these process-local function definitions, never repository source.
             if ($Mutation -eq 'OwnershipLabels') { Set-Item Function:Assert-DevResourceLabels {} }
+            if ($Mutation -eq 'ImageAvailability') {
+                $original = (Get-Command Start-DevEnvironmentCore).Definition
+                $fragment = ' -and $Context.State.Build.Image -cin @(Invoke-DevDocker $Context @(''image'',''ls'',''--all'',''--no-trunc'',''--quiet''))'
+                Assert-Contract ($original.Contains($fragment)) 'Image availability mutation target changed.'
+                Set-Item Function:Start-DevEnvironmentCore ([scriptblock]::Create($original.Replace($fragment, '')))
+            }
             if ($Mutation -in @('CachedImage','UnchangedImage')) {
                 $original = (Get-Command Start-DevEnvironmentCore).Definition
                 $from = if ($Mutation -eq 'CachedImage') { '{ $Context.State.Build.Image } else { Build-DevImage' } else { ' -and $Context.State.Image -ceq $Context.State.Build.Image' }
@@ -249,6 +255,10 @@ Test-Scenario 'Reverted source restores the last verified image after a failed r
     function Get-DevSource($Repository) { @{Hash='unchanged'} }
     function Get-DevStatus($Context) { @{Ready=$true} }
     function Build-DevImage { throw 'Previously verified source must use its own cached image.' }
+    function Invoke-DevDocker($Context, $Arguments) {
+        Assert-Contract (($Arguments -join ' ') -ceq 'image ls --all --no-trunc --quiet') 'Unexpected image lookup.'
+        $verifiedImage
+    }
     function Set-DevPhase($Context, $Phase) { $Context.State.Phase = $Phase }
     function Remove-DevContainer {}
     function Write-DevState {}
@@ -256,6 +266,52 @@ Test-Scenario 'Reverted source restores the last verified image after a failed r
     # WHEN source is reverted to A THEN B cannot pass unchanged reuse or become A's cached image.
     Assert-Rejected { Start-DevEnvironmentCore $context } 'Wrong image was reused as an unchanged preview.' 'Reached refresh after selecting image.'
     Assert-Contract ($context.State.Image -ceq $verifiedImage) 'Failed candidate image was selected for reverted source.'
+}
+
+Test-Scenario 'Missing cached image rebuilds reverted source before touching retained resources' {
+    # GIVEN reverted source A, failed candidate B, and a pruned cached image A.
+    $context = New-TestContext
+    $context.State.Image = 'sha256:' + ('b' * 64)
+    $context.State.Resources = @{blobs='retained-blobs';'sql-data'='retained-sql'}
+    $retained = $context.State.Resources | ConvertTo-Json -Compress
+    $events = [Collections.Generic.List[string]]::new()
+    $rebuiltImage = 'sha256:' + ('c' * 64)
+    function Assert-DevResources {}
+    function Get-DevSource { @{Hash='unchanged'} }
+    function Get-DevStatus { @{Ready=$false} }
+    function Invoke-DevDocker($Context, $Arguments) {
+        Assert-Contract (($Arguments -join ' ') -ceq 'image ls --all --no-trunc --quiet') 'Unexpected image lookup.'
+        $context.State.Image
+    }
+    function Build-DevImage($Context, $Source) {
+        Assert-Contract ($Source.Hash -ceq 'unchanged') 'Rebuild used the wrong source.'
+        $events.Add('build'); $rebuiltImage
+    }
+    function Set-DevPhase($Context, $Phase) { $Context.State.Phase = $Phase }
+    function Remove-DevContainer { $events.Add('remove-app') }
+    function Write-DevState {}
+    function Initialize-DevSecrets { throw 'Reached refresh after selecting image.' }
+    # WHEN restarting THEN rebuild current source before replacing the app and preserve data authority.
+    Assert-Rejected { Start-DevEnvironmentCore $context } 'Refresh did not proceed.' 'Reached refresh after selecting image.'
+    Assert-Contract (($events -join ',') -ceq 'build,remove-app') 'Missing cache did not rebuild before app removal.'
+    Assert-Contract ($context.State.Image -ceq $rebuiltImage) 'Refresh selected the missing cached image.'
+    Assert-Contract (($context.State.Resources | ConvertTo-Json -Compress) -ceq $retained) 'Recovery changed retained data authority.'
+}
+
+Test-Scenario 'Image inventory failure preserves the previous preview without rebuilding' {
+    # GIVEN matching source and a Docker engine failure while checking its cached image.
+    $context = New-TestContext
+    $before = $context.State | ConvertTo-Json -Depth 10 -Compress
+    function Assert-DevResources {}
+    function Get-DevSource { @{Hash='unchanged'} }
+    function Get-DevStatus { @{Ready=$false} }
+    function Invoke-DevDocker { throw 'Injected image inventory failure.' }
+    function Set-DevPhase { throw 'Refresh started without checking image inventory.' }
+    function Build-DevImage { throw 'Inventory failure must not trigger a build.' }
+    function Remove-DevContainer { throw 'Inventory failure must not remove the application.' }
+    # WHEN cache availability cannot be determined THEN surface the failure without changing state.
+    Assert-Rejected { Start-DevEnvironmentCore $context } 'Inventory failure was hidden.' 'Injected image inventory failure.'
+    Assert-Contract (($context.State | ConvertTo-Json -Depth 10 -Compress) -ceq $before) 'Inventory failure modified preview state.'
 }
 
 Test-Scenario 'Stopped environment remains reportable when source inventory fails' {
