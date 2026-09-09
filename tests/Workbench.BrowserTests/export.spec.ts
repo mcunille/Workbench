@@ -1,3 +1,4 @@
+import { setAppearance } from './user-menu-fixture';
 import { expect, test } from '@playwright/test';
 import { mkdir } from 'node:fs/promises';
 import { useAuthenticatedSession } from './auth-fixture';
@@ -72,7 +73,7 @@ test('H7 prepared download survives navigation and appearance and remains usable
   for (const width of [320, 1280]) for (const theme of ['light', 'dark']) {
     await page.setViewportSize({ width, height: 900 });
     await page.emulateMedia({ reducedMotion: 'reduce' });
-    await page.getByRole('switch', { name: 'Dark theme', exact: true }).setChecked(theme === 'dark');
+    await setAppearance(page, theme === 'dark');
     await expect(page.locator('html')).toHaveAttribute('data-theme', theme);
     // THEN status, download and every button remain visible without horizontal overflow.
     await expect(page.getByRole('link', { name: 'Download CSV', exact: true })).toBeVisible();
@@ -80,7 +81,7 @@ test('H7 prepared download survives navigation and appearance and remains usable
     for (const control of await page.locator('button:visible, select:visible, a.button:visible, .export-scope label:visible').all()) expect((await control.boundingBox())!.height).toBeGreaterThanOrEqual(44);
     const cdp = await page.context().newCDPSession(page);
     await cdp.send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-reduced-transparency', value: 'reduce' }] });
-    expect(await page.evaluate(() => getComputedStyle(document.querySelector('.topbar')!).backdropFilter)).toBe('none');
+    expect(await page.evaluate(() => getComputedStyle(document.querySelector('.workspace-nav')!).backdropFilter)).toBe('none');
     await cdp.detach();
     await page.evaluate(() => window.scrollTo(0, 0));
     await page.screenshot({ path: `../../artifacts/h7/export-${width}-${theme}.png`, fullPage: true });

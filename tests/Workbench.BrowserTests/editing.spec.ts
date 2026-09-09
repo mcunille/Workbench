@@ -1,3 +1,4 @@
+import { setAppearance } from './user-menu-fixture';
 import { browserBaseUrl } from './browser-environment';
 import { expect, test, type Page } from '@playwright/test';
 import { mkdir } from 'node:fs/promises';
@@ -62,7 +63,7 @@ test('H4 two independent sessions recover stale edits and refresh search', async
     await other.setViewportSize({ width: 320, height: 900 });
     await mkdir('../../artifacts/h4', { recursive: true });
     for (const theme of ['dark', 'light']) {
-      await other.getByRole('switch', { name: 'Dark theme' }).setChecked(theme === 'dark');
+      await setAppearance(other, theme === 'dark');
       expect(await other.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
       await checkTextContrast(other);
       await other.screenshot({ path: `../../artifacts/h4/conflict-320-${theme}.png`, fullPage: true });
@@ -109,7 +110,7 @@ test('H4 cancel and failed save preserve truthful state across appearance and la
   for (const width of [320, 1280]) {
     await page.setViewportSize({ width, height: 900 });
     for (const theme of ['dark', 'light', 'system']) {
-      await page.getByRole('switch', { name: 'Dark theme' }).setChecked(theme === 'dark');
+      await setAppearance(page, theme === 'dark');
       // THEN recoverable text survives, controls fit, and keyboard retry remains available.
       await expect(page.getByLabel('Name', { exact: true })).toHaveValue('Recovered correction');
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);

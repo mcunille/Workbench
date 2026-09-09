@@ -35,6 +35,7 @@ it.each(['csv', 'zip'] as const)('retains %s format, scope and download across n
   fireEvent.click(screen.getByRole('link', { name: 'Back to collection' }));
   fireEvent.click(screen.getByRole('link', { name: 'Archive' }));
   fireEvent.click(screen.getByRole('link', { name: 'Export records' }));
+  fireEvent.click(screen.getByRole('button', { name: 'User menu' }));
   const appearance = screen.getByRole('switch', { name: 'Dark theme' });
   const wasDark = appearance.getAttribute('aria-checked') === 'true';
   fireEvent.click(appearance);
