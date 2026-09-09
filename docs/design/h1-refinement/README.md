@@ -17,6 +17,5 @@ The boards were interpreted against written requirements, not literal pixel equi
 Seven implementation screenshots and the original dated narrative were preserved outside Git
 under `C:/Users/mcuni/.codex/visualizations/2026/09/09/01a084f1-b25a-7910-b093-c141e1459cd3/h1-refinement/`.
 `SHA256SUMS.txt` records their hashes, verified against repository revision
-`2db7cef22f4b55271f4c1faca49200bfd583a589` before untracking. This is a local historical
-archive, not a hosted evidence link or verification of current rendering. The original evidence
+`2db7cef22f4b55271f4c1faca49200bfd583a589` before untracking. The seven screenshots are also preserved as [PR #96 attachments](https://github.com/mcunille/Workbench/pull/96). These are historical captures, not verification of current rendering. The original evidence
 did not establish NVDA, VoiceOver or physical mobile keyboard conformance.

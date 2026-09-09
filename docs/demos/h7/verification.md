@@ -8,7 +8,7 @@ No application schema migration was introduced.
 | --- | --- |
 | Locked restore, formatting, generated API drift, Release build | Passed through `scripts/verify.ps1`. |
 | Full server suite, including migration drills | 536 passed, zero skipped; 14m37s. |
-| Focused export suite | 27 passed, run separately from the full server suite. |
+| Focused export suite | 27 passed, including six cases added after the full server build; built and run separately from the 536-test full suite. |
 | Strengthened interruption assertions | Both passed with a 120-second SQL command timeout; application deadline and cancellation must release capacity while the SQL blocker remains held. |
 | Client lint, typecheck, tests, build | Passed; 128 tests. |
 | Full browser suite | 45 passed; 2m42s. |
