@@ -20,6 +20,16 @@ $database = "workbench_$($token.Replace('-', '_'))"
 $container = "workbench-sql-$token"
 $temporaryRoot = [IO.Path]::GetFullPath((Join-Path ([IO.Path]::GetTempPath()) $token))
 $publishRoot = Join-Path $temporaryRoot 'publish'
+$databasePublishRoot = Join-Path $temporaryRoot 'database'
+if ($env:WORKBENCH_VERIFICATION_MANIFEST) {
+    . (Join-Path $PSScriptRoot 'verification-artifacts.ps1')
+    $artifacts = Get-VerificationArtifacts -RepositoryRoot $repositoryRoot `
+        -ManifestPath $env:WORKBENCH_VERIFICATION_MANIFEST -RunId $env:WORKBENCH_VERIFICATION_RUN
+    $publishRoot = $artifacts.ServerRoot
+    $databasePublishRoot = $artifacts.DatabaseRoot
+}
+elseif ($env:WORKBENCH_VERIFICATION_RUN) { throw 'Current-run verification manifest is required.' }
+$databaseAssembly = Join-Path $databasePublishRoot 'Workbench.Database.dll'
 $environmentFile = Join-Path $temporaryRoot 'sql.env'
 $setupConnectionFile = Join-Path $temporaryRoot 'setup.connection'
 $operatorConnectionFile = Join-Path $temporaryRoot 'operator.connection'
@@ -58,6 +68,14 @@ function Assert-CommandSucceeded([string]$name) {
 }
 
 try {
+    if (-not $env:WORKBENCH_VERIFICATION_MANIFEST) {
+        dotnet publish (Join-Path $repositoryRoot 'src/Workbench.Database/Workbench.Database.csproj') `
+            --configuration Release --output $databasePublishRoot -p:UseAppHost=false -p:BuildClient=false
+        Assert-CommandSucceeded 'Browser database tool publish'
+        dotnet publish (Join-Path $repositoryRoot 'src/Workbench.Server/Workbench.Server.csproj') `
+            --configuration Release --output $publishRoot -p:UseAppHost=false -p:BuildClient=false
+        Assert-CommandSucceeded 'Browser application publish'
+    }
     & $docker.Source run --detach --name $container --env-file $environmentFile `
         --label 'workbench.purpose=browser-test' --label "workbench.run=$token" `
         --publish "127.0.0.1:${sqlPort}:1433" `
@@ -77,10 +95,10 @@ try {
     & $docker.Source exec $container /bin/bash -c $createCommand
     Assert-CommandSucceeded 'Disposable database creation'
 
-    dotnet run --project (Join-Path $repositoryRoot 'src/Workbench.Database/Workbench.Database.csproj') -- `
+    & dotnet $databaseAssembly `
         migrate --connection-file $setupConnectionFile --expected-database $database
     Assert-CommandSucceeded 'Browser database migration'
-    dotnet run --project (Join-Path $repositoryRoot 'src/Workbench.Database/Workbench.Database.csproj') -- `
+    & dotnet $databaseAssembly `
         principals provision --connection-file $setupConnectionFile --expected-database $database `
         --web-user $webUser --web-password-file $webPasswordFile `
         --operator-user $operatorUser --operator-password-file $operatorPasswordFile `
@@ -90,15 +108,11 @@ try {
 
     $operatorConnection = "Server=127.0.0.1,$sqlPort;Database=$database;User Id=$operatorUser;Password=$operatorPassword;Encrypt=True;TrustServerCertificate=True"
     Set-Content -LiteralPath $operatorConnectionFile -Value $operatorConnection
-    dotnet run --project (Join-Path $repositoryRoot 'src/Workbench.Database/Workbench.Database.csproj') -- `
+    & dotnet $databaseAssembly `
         bootstrap --connection-file $operatorConnectionFile --expected-database $database `
         --tenant-name 'Browser Tenant' --admin-email 'browser-admin@example.test' `
         --password-file $adminPasswordFile
     Assert-CommandSucceeded 'Browser database bootstrap'
-
-    dotnet publish (Join-Path $repositoryRoot 'src/Workbench.Server/Workbench.Server.csproj') `
-        --configuration Release --output $publishRoot -p:UseAppHost=false -p:BuildClient=false
-    Assert-CommandSucceeded 'Browser application publish'
 
     $photoStorageRoot = Join-Path $temporaryRoot 'blobs'
     New-Item -ItemType Directory -Path $photoStorageRoot -Force | Out-Null

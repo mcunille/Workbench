@@ -63,53 +63,19 @@ try {
         throw 'Command shims did not return the expected tool versions.'
     }
 
-    # GIVEN the full verification pipeline with all migration tests in the server suite
-    # WHEN verification runs with native command shims
-    try {
-        & $verifyScript -SkipDependencyInstall
-        throw 'verify.ps1 unexpectedly completed in the command-shim test.'
+    # GIVEN the full gate, with partition inventory replacing an unfiltered server run
+    # WHEN inspecting the orchestration contract (runtime failures are tested in VerificationStages.Tests.ps1)
+    $verifyContent = Get-Content -LiteralPath $verifyScript -Raw
+    # THEN one compatible Release build produces OpenAPI, all partitions run, and children share current-run artifacts.
+    foreach ($required in @('test-server-partitions.ps1', '-NoBuild', 'Complete-VerificationStages',
+        'Publish-VerificationArtifacts', 'New-VerificationBuildReceipt', 'OpenApiDocumentsDirectory',
+        'WORKBENCH_VERIFICATION_MANIFEST', 'WORKBENCH_VERIFICATION_RUN')) {
+        if (-not $verifyContent.Contains($required)) { throw "Full verification missing required contract: $required" }
     }
-    catch {
-        if ($_.Exception.Message -notmatch 'Published server assembly is missing') {
-            throw
-        }
+    if ([regex]::Matches($verifyContent, '(?m)^\s*dotnet build ').Count -ne 1 -or
+        $verifyContent -match '(?m)^\s*dotnet test ' -or $verifyContent -match 'dotnet run') {
+        throw 'Full verification must build once and delegate the complete test inventory to isolated processes.'
     }
-
-    # THEN the unfiltered Release suite runs once and retains machine-readable test evidence.
-    $testCalls = @($global:workbenchDotnetCalls | Where-Object { $_ -match '^test(?: |$)' })
-    if ($testCalls.Count -ne 1 -or $testCalls[0] -notmatch '^test Workbench\.slnx --configuration Release ' -or
-        $testCalls[0] -match '--filter' -or $testCalls[0] -notmatch '--logger trx' -or
-        $testCalls[0] -notmatch '--results-directory .*artifacts[/\\]test-results') {
-        throw 'Full verification must run the unfiltered Release suite once and retain TRX evidence without rerunning migration scenarios.'
-    }
-
-    $installCalls = $global:workbenchNpmCalls | Where-Object { $_ -match '^ci(?: |$)' }
-    if ($installCalls) {
-        throw "verify.ps1 invoked npm ci despite -SkipDependencyInstall: $($installCalls -join ', ')"
-    }
-
-    $serverPublish = $global:workbenchDotnetCalls | Where-Object {
-        $_ -match 'publish .*Workbench\.Server\.csproj'
-    } | Select-Object -First 1
-    if (-not $serverPublish -or $serverPublish -notmatch '(?:^| )-p:BuildClient=false(?: |$)') {
-        throw 'test-publish.ps1 did not disable the client rebuild for -SkipClientBuild.'
-    }
-
-    # GIVEN a failing test in the full suite, which includes migration failures
-    $global:workbenchForceTestFailure = $true
-    $npmCallCount = $global:workbenchNpmCalls.Count
-    # WHEN verification encounters the failure
-    try {
-        & $verifyScript -SkipDependencyInstall
-        throw 'verify.ps1 unexpectedly continued after the suite failed.'
-    }
-    catch {
-        # THEN the gate fails immediately, before later client and browser checks.
-        if ($_.Exception.Message -notmatch 'dotnet test failed with exit code 1' -or
-            $global:workbenchNpmCalls.Count -ne $npmCallCount + 1) { throw }
-    }
-    finally { $global:workbenchForceTestFailure = $false }
-
     # GIVEN an operator requesting an individual migration drill
     foreach ($scenario in @('Clean', 'Upgrade', 'ReversibleRollback', 'RestoreRollback')) {
         $global:workbenchDotnetCalls.Clear()

@@ -23,7 +23,12 @@ Before submitting application changes, run:
 
 The first command performs locked restores, documentation checks, formatting, OpenAPI client drift
 detection, builds, tests (including migration drills in the server suite), browser checks, and
-published-output probes. Server test outcomes and timings are retained in `artifacts/test-results/`.
+published-output probes. Full-gate outcomes and stage/partition timings are retained in `artifacts/verification/<run-id>/`.
+The gate uses two isolated server processes by default; adjust
+`-ServerPartitions` (2–4) and `-ServerConcurrency` (1–4) for available Docker resources. Browser tests
+still use one worker. Every discovered server case must pass exactly once. See the
+[concurrent gate design](docs/specs/2026-09-09-concurrent-verification-gate.md) for artifact
+provenance and the aggregate CI check.
 The second requires Docker and verifies a SQL-backed runtime image as non-root and read-only with no Node.js,
 source files, setup credential, operator credential, or migrator credential. If Docker is
 unavailable, state that limit explicitly; do not report the container gate as passed.
