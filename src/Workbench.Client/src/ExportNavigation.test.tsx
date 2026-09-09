@@ -34,7 +34,11 @@ it('retains scope and download across collection/archive and appearance, and cle
   fireEvent.click(screen.getByRole('link', { name: 'Back to collection' }));
   fireEvent.click(screen.getByRole('link', { name: 'Archive' }));
   fireEvent.click(screen.getByRole('link', { name: 'Export records' }));
-  fireEvent.change(screen.getByRole('combobox', { name: 'Appearance' }), { target: { value: 'dark' } });
+  const appearance = screen.getByRole('switch', { name: 'Dark theme' });
+  const wasDark = appearance.getAttribute('aria-checked') === 'true';
+  fireEvent.click(appearance);
+  expect(appearance).toHaveAttribute('aria-checked', String(!wasDark));
+  expect(document.documentElement).toHaveAttribute('data-theme', wasDark ? 'light' : 'dark');
   // THEN the same private file and explicit scope remain available.
   expect(screen.getByRole('radio', { name: 'Active and archived records' })).toBeChecked();
   expect(screen.getByRole('link', { name: 'Download CSV' })).toHaveAttribute('href', 'blob:export');
