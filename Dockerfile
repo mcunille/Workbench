@@ -7,7 +7,7 @@ RUN npm ci --ignore-scripts --no-audit --no-fund
 COPY src/Workbench.Client/ ./
 RUN npm run build
 
-FROM mcr.microsoft.com/dotnet/sdk:10.0.400-noble AS server-build
+FROM mcr.microsoft.com/dotnet/sdk:10.0.401-noble AS server-build
 WORKDIR /src
 RUN mkdir -p /runtime-data/blobs
 COPY global.json Directory.Build.props Directory.Packages.props ./
