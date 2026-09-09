@@ -375,6 +375,11 @@ textarea[aria-invalid="true"] {
   margin-inline: auto;
 }
 .workspace-nav {
+  position: sticky;
+  top: 5rem;
+  align-self: start;
+  height: calc(100dvh - 5rem);
+  overflow-y: auto;
   display: flex;
   flex-direction: column;
   align-items: stretch;
@@ -402,6 +407,38 @@ textarea[aria-invalid="true"] {
   color: var(--accent);
   background: var(--selected);
   font-weight: 600;
+}
+.user-menu {
+  margin-top: auto;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--border-subtle);
+  min-width: 0;
+}
+.user-menu button {
+  width: 100%;
+  justify-content: flex-start;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  min-height: 48px;
+  text-align: left;
+}
+.user-menu-trigger span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+}
+.user-menu-trigger .icon-chevron {
+  transform: rotate(-90deg);
+}
+.user-menu-trigger[aria-expanded="true"] .icon-chevron {
+  transform: rotate(90deg);
+}
+.user-actions {
+  display: grid;
+  gap: 0.375rem;
+  padding-bottom: 0.375rem;
 }
 .workspace {
   min-width: 0;
@@ -795,6 +832,8 @@ dialog::backdrop {
     align-content: start;
   }
   .workspace-nav {
+    position: static;
+    height: auto;
     flex-direction: row;
     flex-wrap: wrap;
     gap: 0.25rem;
@@ -813,6 +852,10 @@ dialog::backdrop {
   .workspace-nav .icon {
     width: 1rem;
     height: 1rem;
+  }
+  .user-menu {
+    flex-basis: 100%;
+    margin-top: 0.5rem;
   }
   .workspace {
     padding: 2rem 1rem;
@@ -936,6 +979,7 @@ dialog::backdrop {
 /* Avoid a tall sticky header covering focused content on small or zoomed screens. */
 @media (max-width: 48rem), (max-height: 35rem) {
   .topbar { position: static; }
+  .workspace-nav { position: static; height: auto; align-self: stretch; }
 }
 html { scroll-padding-top: 8rem; }
 .collection-search {

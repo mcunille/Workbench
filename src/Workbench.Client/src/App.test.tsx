@@ -166,6 +166,7 @@ describe('App', () => {
       // THEN the choice survives both authentication boundary changes in this page.
       expect(screen.getByRole('switch', { name: 'Dark theme' })).toHaveAttribute('aria-checked', 'true');
       expect(document.documentElement.dataset.theme).toBe('dark');
+      fireEvent.click(screen.getByRole('button', { name: 'User menu' }));
       fireEvent.click(screen.getByRole('button', { name: 'Sign out' }));
       await screen.findByRole('heading', { name: 'Sign in' });
       expect(screen.getByRole('switch', { name: 'Dark theme' })).toHaveAttribute('aria-checked', 'true');
@@ -203,10 +204,24 @@ describe('App', () => {
     expect(
       await screen.findByRole('heading', { name: 'Collection' }),
     ).toBeVisible();
-    // THEN appearance and sign-out remain together in the workspace header.
+    // THEN appearance remains in the header and personal actions are initially hidden.
     const header = within(screen.getByRole('banner'));
     expect(header.getByRole('switch', { name: 'Dark theme' })).toBeVisible();
-    expect(header.getByRole('button', { name: 'Sign out' })).toBeVisible();
+    expect(screen.queryByRole('button', { name: 'Sign out' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Account' })).not.toBeInTheDocument();
+    const nav = within(screen.getByRole('navigation', { name: 'Workspace' }));
+    const trigger = nav.getByRole('button', { name: 'User menu' });
+    expect(trigger).toHaveAttribute('aria-expanded', 'false');
+    // WHEN the user row is expanded THEN both personal actions are available in the nav.
+    fireEvent.click(trigger);
+    expect(trigger).toHaveAttribute('aria-expanded', 'true');
+    expect(nav.getByRole('link', { name: 'Account' })).toHaveAttribute('href', '/account');
+    expect(nav.getByRole('button', { name: 'Sign out' })).toBeVisible();
+    // WHEN Escape is pressed THEN the disclosure closes and focus returns to its trigger.
+    fireEvent.keyDown(nav.getByRole('button', { name: 'Sign out' }), { key: 'Escape' });
+    expect(trigger).toHaveAttribute('aria-expanded', 'false');
+    expect(trigger).toHaveFocus();
+    expect(screen.queryByRole('button', { name: 'Sign out' })).not.toBeInTheDocument();
     expect(
       screen.getAllByRole('switch', { name: 'Dark theme' }),
     ).toHaveLength(1);

@@ -2,6 +2,7 @@ import {
   useCallback,
   useEffect,
   useLayoutEffect,
+  useRef,
   useState,
   type MouseEvent,
   type ReactNode,
@@ -38,6 +39,8 @@ function SignedInApplication({
   const { identity, signOut, refresh } = useAuth();
   const navigation = useNavigation();
   const [signOutFailed, setSignOutFailed] = useState(false);
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const userMenuTrigger = useRef<HTMLButtonElement>(null);
   const [collectionMemory] = useState(() => new CollectionMemory());
   const [archiveMemory] = useState(() => new CollectionMemory());
   const [exportMemory] = useState(() => new ExportMemory());
@@ -87,17 +90,6 @@ function SignedInApplication({
         <div className="identity-summary">
           <strong>{identity.tenantName}</strong>
           {appearance}
-          <button
-            className="quiet"
-            type="button"
-            onClick={() =>
-              navigation.request(() => {
-                void signOut().catch(() => setSignOutFailed(true));
-              })
-            }
-          >
-            Sign out
-          </button>
         </div>
       </header>
       <div className="workspace-layout">
@@ -114,14 +106,6 @@ function SignedInApplication({
             <Icon name="inventory" />
             Inventory
           </a>
-          <a
-            href="/account"
-            aria-current={path === '/account' ? 'page' : undefined}
-            onClick={navigation.follow}
-          >
-            <Icon name="account" />
-            Account
-          </a>
           {canManageUsers ? (
             <a
               href="/administration"
@@ -134,6 +118,51 @@ function SignedInApplication({
               Administration
             </a>
           ) : null}
+          <div
+            className="user-menu"
+            onKeyDown={(event) => {
+              if (event.key === 'Escape') {
+                setUserMenuOpen(false);
+                userMenuTrigger.current?.focus();
+              }
+            }}
+          >
+            {userMenuOpen ? (
+              <div id="user-actions" className="user-actions">
+                <a
+                  href="/account"
+                  aria-current={path === '/account' ? 'page' : undefined}
+                  onClick={navigation.follow}
+                >
+                  <Icon name="account" />
+                  Account
+                </a>
+                <button
+                  className="quiet"
+                  type="button"
+                  onClick={() => navigation.request(() => {
+                    void signOut().catch(() => setSignOutFailed(true));
+                  })}
+                >
+                  <Icon name="sign-out" />
+                  Sign out
+                </button>
+              </div>
+            ) : null}
+            <button
+              ref={userMenuTrigger}
+              className="quiet user-menu-trigger"
+              type="button"
+              aria-label="User menu"
+              aria-expanded={userMenuOpen}
+              aria-controls={userMenuOpen ? 'user-actions' : undefined}
+              onClick={() => setUserMenuOpen((open) => !open)}
+            >
+              <Icon name="account" />
+              <span title={identity.email ?? undefined}>{identity.email ?? 'Account'}</span>
+              <Icon name="chevron" />
+            </button>
+          </div>
         </nav>
         <main id="main" className="workspace">
           {signOutFailed ? (

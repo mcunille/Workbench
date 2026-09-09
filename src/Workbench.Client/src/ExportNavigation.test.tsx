@@ -44,6 +44,7 @@ it('retains scope and download across collection/archive and appearance, and cle
   expect(screen.getByRole('link', { name: 'Download CSV' })).toHaveAttribute('href', 'blob:export');
   expect(URL.createObjectURL).toHaveBeenCalledTimes(1);
   // WHEN signing out and signing back in THEN the prepared file and prior scope are discarded.
+  fireEvent.click(screen.getByRole('button', { name: 'User menu' }));
   fireEvent.click(screen.getByRole('button', { name: 'Sign out' }));
   await screen.findByRole('heading', { name: 'Sign in' });
   expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:export');

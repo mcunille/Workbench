@@ -1,3 +1,4 @@
+import { openUserMenu } from './user-menu-fixture';
 import { useAuthenticatedSession as signIn, signInThroughUi } from './auth-fixture';
 import { browserBaseUrl } from './browser-environment';
 import { expect, test, type Page } from '@playwright/test';
@@ -159,6 +160,7 @@ test('the studio shell reflows with enlarged text and respects reduced motion', 
   await page.setViewportSize({ width: 320, height: 900 });
   await page.getByRole('button', { name: 'Cancel', exact: true }).click();
   await page.getByRole('button', { name: 'Discard changes', exact: true }).click();
+  await openUserMenu(page);
   await page.getByRole('link', { name: 'Account', exact: true }).click();
   const sessionsTitle = page.getByRole('heading', { name: 'Sessions', exact: true });
   await expect(sessionsTitle).toBeVisible();
@@ -185,6 +187,7 @@ test('appearance survives authentication transitions when browser storage is blo
   await signInThroughUi(page, false);
   // THEN the in-memory choice remains intact in both control locations.
   await expect(page.getByRole('switch', { name: 'Dark theme' })).toBeChecked();
+  await openUserMenu(page);
   await page.getByRole('button', { name: 'Sign out', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Sign in', exact: true })).toBeVisible();
   await expect(page.getByRole('switch', { name: 'Dark theme' })).toBeChecked();
@@ -282,9 +285,9 @@ test('dirty cancel, app navigation, history and sign-out require an explicit cho
   // WHEN cancel, navigation, browser back and sign-out are each declined.
   for (const leave of [
     () => page.getByRole('button', { name: 'Cancel', exact: true }).click(),
-    () => page.getByRole('link', { name: 'Account', exact: true }).click(),
+    async () => { await openUserMenu(page); await page.getByRole('link', { name: 'Account', exact: true }).click(); },
     () => page.goBack(),
-    () => page.getByRole('button', { name: 'Sign out', exact: true }).click(),
+    async () => { await openUserMenu(page); await page.getByRole('button', { name: 'Sign out', exact: true }).click(); },
   ]) {
     await leave();
     const dialog = page.getByRole('dialog');
@@ -297,6 +300,7 @@ test('dirty cancel, app navigation, history and sign-out require an explicit cho
   }
 
   // WHEN the user confirms sign-out, the protected draft is discarded.
+  await openUserMenu(page);
   await page.getByRole('button', { name: 'Sign out', exact: true }).click();
   await page.getByRole('dialog').getByRole('button', { name: 'Discard changes', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Sign in', exact: true })).toBeVisible();
@@ -317,6 +321,7 @@ test('skip-link fragment navigation preserves the dirty draft guard across brows
   await page.getByRole('link', { name: 'Skip to content', exact: true }).focus();
   await page.keyboard.press('Enter');
   await expect(page).toHaveURL(/\/inventory\/new#main$/);
+  await openUserMenu(page);
   await page.getByRole('link', { name: 'Account', exact: true }).click();
   await expect(page.getByRole('dialog')).toBeVisible();
   await page.getByRole('dialog').getByRole('button', { name: 'Keep editing', exact: true }).click();
