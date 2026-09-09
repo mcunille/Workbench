@@ -19,7 +19,7 @@ const item = {
   archivedAtUtc: null,
 };
 beforeEach(() => {
-  vi.clearAllMocks();
+  vi.resetAllMocks();
   vi.mocked(getItem).mockResolvedValue(item);
 });
 function setup() {
@@ -65,9 +65,11 @@ it('retries an uncertain archive with the original version and shows read-only s
   fireEvent.click(
     screen.getByRole('button', { name: 'Confirm archive record' }),
   );
-  fireEvent.click(
-    await screen.findByRole('button', { name: 'Retry archive' }),
-  );
+  const retryArchive = await screen.findByRole('button', {
+    name: 'Retry archive',
+  });
+  await waitFor(() => expect(retryArchive).toBeEnabled());
+  fireEvent.click(retryArchive);
   // THEN the original command is retained and mutation controls disappear.
   await screen.findByText('Archived');
   expect(vi.mocked(archiveItem).mock.calls).toEqual([
@@ -97,11 +99,11 @@ it('requires renewed confirmation after a stale archive and a failed recovery re
   fireEvent.click(
     screen.getByRole('button', { name: 'Confirm archive record' }),
   );
-  fireEvent.click(
-    await screen.findByRole('button', {
-      name: 'Retry loading current record',
-    }),
-  );
+  const retryLoading = await screen.findByRole('button', {
+    name: 'Retry loading current record',
+  });
+  await waitFor(() => expect(retryLoading).toBeEnabled());
+  fireEvent.click(retryLoading);
   // THEN no fresh command is silently sent and a new confirmation is required.
   await screen.findByRole('heading', { name: 'Changed' });
   expect(archiveItem).toHaveBeenCalledOnce();
