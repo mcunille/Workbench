@@ -13,6 +13,66 @@ beforeEach(() => {
 });
 afterEach(() => vi.useRealTimers());
 
+it('defaults to CSV, preserves ZIP through expiry and clears it on identity disposal', async () => {
+  // GIVEN explicit ZIP scope and a complete file.
+  vi.useFakeTimers();
+  vi.mocked(prepareExport).mockResolvedValue(file());
+  const memory = new ExportMemory();
+  expect(memory.getSnapshot().format).toBe('csv');
+  memory.selectFormat('zip');
+  memory.select('all');
+  // WHEN preparing THEN format reaches transport and visible download feedback.
+  await memory.prepare(vi.fn());
+  expect(prepareExport).toHaveBeenCalledWith('all', expect.any(AbortSignal), 'zip');
+  expect(memory.getSnapshot().message).toContain('ZIP is ready');
+  memory.startDownload();
+  expect(memory.getSnapshot().message).toContain('saving the ZIP');
+  // WHEN expiry occurs THEN choices survive but private bytes do not.
+  await vi.advanceTimersByTimeAsync(600_000);
+  expect(memory.getSnapshot()).toMatchObject({ format: 'zip', scope: 'all', status: 'idle' });
+  expect(memory.getSnapshot().url).toBeUndefined();
+  memory.dispose();
+  expect(memory.getSnapshot()).toEqual({ status: 'idle', format: 'csv' });
+});
+
+it('discards ready and late ZIP files when format changes', async () => {
+  // GIVEN a prepared package.
+  vi.mocked(prepareExport).mockResolvedValue(file());
+  const memory = new ExportMemory();
+  memory.select('active');
+  memory.selectFormat('zip');
+  await memory.prepare(vi.fn());
+  // WHEN changing format THEN the ready package is released.
+  memory.selectFormat('csv');
+  expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:export');
+  expect(memory.getSnapshot()).toEqual({ status: 'idle', scope: 'active', format: 'csv' });
+  let finish!: (value: ReturnType<typeof file>) => void;
+  vi.mocked(prepareExport).mockReturnValue(new Promise(resolve => { finish = resolve; }));
+  const pending = memory.prepare(vi.fn());
+  const signal = vi.mocked(prepareExport).mock.calls[1][1];
+  memory.selectFormat('zip');
+  finish(file());
+  await pending;
+  // THEN late responses cannot recreate discarded files.
+  expect(signal.aborted).toBe(true);
+  expect(URL.createObjectURL).toHaveBeenCalledTimes(1);
+  memory.dispose();
+});
+
+it.each(['active', 'all'] as const)('offers CSV recovery for ZIP limits in %s scope', async scope => {
+  // GIVEN a package exceeding a server bound.
+  vi.mocked(prepareExport).mockRejectedValue(new ApiError(422));
+  const memory = new ExportMemory();
+  memory.select(scope);
+  memory.selectFormat('zip');
+  // WHEN preparation fails THEN explain package bounds and the text alternative.
+  await memory.prepare(vi.fn());
+  expect(memory.getSnapshot().message).toContain('128 MiB');
+  expect(memory.getSnapshot().message).toContain('Records (CSV)');
+  expect(memory.getSnapshot().message?.includes('Try Active records')).toBe(scope === 'all');
+  memory.dispose();
+});
+
 it('requires explicit scope and exposes only a completely prepared result', async () => {
   // GIVEN an unselected export and an unfinished request.
   const memory = new ExportMemory();

@@ -1,4 +1,4 @@
-# Collection export CSV contract
+# Collection export formats
 
 Open Export records from Collection or Archive. Choose Active records or Active and archived
 records, then Prepare export. Every record in that scope is included, irrespective of search or
@@ -54,3 +54,29 @@ CSV contains current item text and archive state. It excludes photos, edit/lifec
 creation replay payloads, identity/session data, and the rest of the application database. It cannot
 restore Workbench, and no import workflow is supplied. Use the operational backup and recovery
 runbooks for application recovery.
+
+## Records and photographs (ZIP)
+
+Select Records and photographs (ZIP) on the export page to include each record's stored detail
+photograph. Camera originals are unavailable; thumbnails and retired photographs are excluded.
+The package has `records.csv` (the unchanged CSV contract above), `manifest.json`, `README.txt`,
+and `photos/<item_id>.webp`. Use any ZIP extractor, a text editor and a WebP-capable image viewer.
+Match each permanent `item_id` across CSV, manifest and photograph filename. The manifest contains
+literal names and locations, without the CSV safety prefix. A photo status of `none` means no
+photograph existed in the snapshot; `included` supplies its path, media type, byte length and SHA-256.
+A missing or corrupt required photograph fails the entire package rather than becoming `none`.
+
+ZIP supports 10,000 records, 32 MiB CSV, 16 MiB manifest, 128 MiB total uncompressed content and
+128 MiB final ZIP. Preparation has a two-minute deadline. If all-record scope exceeds a limit,
+try Active records; otherwise the text-only CSV remains available. Search cannot reduce scope.
+Transient errors offer retry of a new snapshot. Repeated photo failures need operator investigation
+using the [storage recovery runbook](operations/blob-and-service-providers.md); do not delete photos
+as a workaround. Cancelling or interrupted delivery never offers a partially received file.
+Changing format or scope discards the old prepared file. ZIP shares CSV's ten-minute availability,
+private navigation/appearance state, and sign-out/identity-change/reload cleanup.
+
+Records and photo revision references are captured in one serializable transaction. Blob reads
+then use the captured immutable revisions with digest and length verification. Concurrent replacement
+or removal does not change a successful package's snapshot; existing seven-day retention protects
+those captured bytes during the two-minute preparation. No database locks span the provider reads.
+ZIP remains a collection copy, not an application backup or an import/restore facility.

@@ -42,11 +42,14 @@ public sealed class ItemExportBoundsTests
 [Collection(SqlServerCollection.Name)]
 public sealed class ItemExportFailureTests(SqlServerFixture sqlServer)
 {
-    [Fact]
-    public async Task OversizedCollectionNeverProducesAPartialFile()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task OversizedCollectionNeverProducesAPartialFile(bool package)
     {
         // GIVEN a tenant with one more record than the supported limit.
         await using var app = await AuthTestApplication.CreateAsync(sqlServer);
+        await using var storageFactory = CreateExportFactory(app);
         await using var sql = new SqlConnection(app.AdminConnectionString);
         await sql.OpenAsync();
         await using var seed = new SqlCommand("""
@@ -56,30 +59,41 @@ public sealed class ItemExportFailureTests(SqlServerFixture sqlServer)
             """, sql);
         seed.Parameters.AddWithValue("@tenant", AuthTestApplication.TenantId);
         await seed.ExecuteNonQueryAsync();
-        using var client = app.CreateClient();
+        using var client = storageFactory.CreateClient();
         await LoginAsync(client);
         // WHEN requesting the oversized scope.
-        var response = await PostAsync(client, "/api/items/export", new { scope = "all" });
+        var response = await PostAsync(client, ExportPath(package), new { scope = "all" });
         // THEN no partial file is delivered and the limit is actionable.
         Assert.Equal(HttpStatusCode.UnprocessableEntity, response.StatusCode);
         Assert.Contains("export_limit_exceeded", await response.Content.ReadAsStringAsync());
         Assert.Null(response.Content.Headers.ContentDisposition);
+        // AND repeated limit failures release both slots for the alternative scope after archiving.
+        for (var attempt = 0; attempt < 2; attempt++)
+            Assert.Equal(HttpStatusCode.UnprocessableEntity,
+                (await PostAsync(client, ExportPath(package), new { scope = "all" })).StatusCode);
+        await using var archive = new SqlCommand("UPDATE [Inventory].[Items] SET [ArchivedAtUtc]=SYSUTCDATETIME() WHERE [TenantId]=@tenant", sql);
+        archive.Parameters.AddWithValue("@tenant", AuthTestApplication.TenantId);
+        await archive.ExecuteNonQueryAsync();
+        Assert.Equal(HttpStatusCode.NoContent, (await PostAsync(client, ExportPath(package), new { scope = "active" })).StatusCode);
     }
 
-    [Fact]
-    public async Task BusyCapacityAndDatabaseFailureReleaseCapacityForRetry()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task BusyCapacityAndDatabaseFailureReleaseCapacityForRetry(bool package)
     {
         // GIVEN both preparation slots already in use.
         await using var app = await AuthTestApplication.CreateAsync(sqlServer);
-        using var client = app.CreateClient();
+        await using var storageFactory = CreateExportFactory(app);
+        using var client = storageFactory.CreateClient();
         await LoginAsync(client);
-        var capacity = app.Factory.Services.GetRequiredService<ItemExportCapacity>();
+        var capacity = storageFactory.Services.GetRequiredService<ItemExportCapacity>();
         Assert.True(capacity.TryEnter());
         Assert.True(capacity.TryEnter());
         try
         {
             // WHEN another preparation arrives THEN it receives retry guidance without a file.
-            var busy = await PostAsync(client, "/api/items/export", new { scope = "all" });
+            var busy = await PostAsync(client, ExportPath(package), new { scope = "all" });
             Assert.Equal(HttpStatusCode.TooManyRequests, busy.StatusCode);
             Assert.Equal(TimeSpan.FromSeconds(5), busy.Headers.RetryAfter?.Delta);
             Assert.Null(busy.Content.Headers.ContentDisposition);
@@ -93,7 +107,7 @@ public sealed class ItemExportFailureTests(SqlServerFixture sqlServer)
         // WHEN repeated preparations fail THEN each returns a truthful error and releases its slot.
         for (var attempt = 0; attempt < 3; attempt++)
         {
-            var failed = await PostAsync(client, "/api/items/export", new { scope = "all" });
+            var failed = await PostAsync(client, ExportPath(package), new { scope = "all" });
             Assert.Equal(HttpStatusCode.ServiceUnavailable, failed.StatusCode);
             Assert.Contains("export_preparation_failed", await failed.Content.ReadAsStringAsync());
             Assert.Null(failed.Content.Headers.ContentDisposition);
@@ -101,6 +115,6 @@ public sealed class ItemExportFailureTests(SqlServerFixture sqlServer)
         await using var grant = new SqlCommand("GRANT SELECT ON [Inventory].[Items] TO [workbench_web]", sql);
         await grant.ExecuteNonQueryAsync();
         // THEN a fresh retry can prepare normally after recovery.
-        Assert.Equal(HttpStatusCode.NoContent, (await PostAsync(client, "/api/items/export", new { scope = "all" })).StatusCode);
+        Assert.Equal(HttpStatusCode.NoContent, (await PostAsync(client, ExportPath(package), new { scope = "all" })).StatusCode);
     }
 }

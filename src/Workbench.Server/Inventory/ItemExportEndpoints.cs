@@ -33,7 +33,7 @@ public static class ItemExportEndpoints
             .ProducesProblem(StatusCodes.Status422UnprocessableEntity)
             .ProducesProblem(StatusCodes.Status429TooManyRequests)
             .ProducesProblem(StatusCodes.Status503ServiceUnavailable);
-        return group;
+        return group.MapItemPackage();
     }
 
     private static async Task<IResult> ExportAsync(ExportItemsRequest request, HttpContext http,
@@ -69,16 +69,7 @@ public static class ItemExportEndpoints
                 await transaction.CommitAsync(cancellationToken);
             }
             var bytes = items.Count == 0 ? null : ItemExportCsv.Encode(items, request.Scope, exportedAt, cancellationToken);
-            // The request principal has no bearer token. Re-open the protected cookie and resolve it
-            // authoritatively again instead of reusing the authentication handler's cached result.
-            var options = cookieOptions.Get(SessionCookieHandler.Scheme);
-            var cookie = options.CookieManager.GetRequestCookie(http, options.Cookie.Name!);
-            var token = cookie is null ? null : options.TicketDataFormat.Unprotect(cookie)?.Principal
-                .FindFirst(SessionCookieHandler.SessionTokenClaimType)?.Value;
-            var session = token is null ? null : await sessions.ResolveAsync(token, timeProvider.GetUtcNow(), cancellationToken);
-            if (session is null || session.TenantId != database.TenantContext.RequireTenantId() ||
-                session.UserId.ToString("N") != http.User.FindFirstValue(ClaimTypes.NameIdentifier) ||
-                session.SessionId.ToString("N") != http.User.FindFirstValue(SessionCookieHandler.SessionIdClaimType))
+            if (!await SessionStillValidAsync(http, database, sessions, cookieOptions, timeProvider, cancellationToken))
                 return Results.Unauthorized();
             cancellationToken.ThrowIfCancellationRequested();
             if (bytes is null)
@@ -102,6 +93,21 @@ public static class ItemExportEndpoints
         {
             capacity.Release();
         }
+    }
+
+    internal static async Task<bool> SessionStillValidAsync(HttpContext http, WorkbenchDbContext database,
+        SessionService sessions, IOptionsMonitor<CookieAuthenticationOptions> cookieOptions,
+        TimeProvider timeProvider, CancellationToken cancellationToken)
+    {
+        // Re-open the protected cookie and resolve authoritatively, rather than accepting cached authentication.
+        var options = cookieOptions.Get(SessionCookieHandler.Scheme);
+        var cookie = options.CookieManager.GetRequestCookie(http, options.Cookie.Name!);
+        var token = cookie is null ? null : options.TicketDataFormat.Unprotect(cookie)?.Principal
+            .FindFirst(SessionCookieHandler.SessionTokenClaimType)?.Value;
+        var session = token is null ? null : await sessions.ResolveAsync(token, timeProvider.GetUtcNow(), cancellationToken);
+        return session is not null && session.TenantId == database.TenantContext.RequireTenantId() &&
+            session.UserId.ToString("N") == http.User.FindFirstValue(ClaimTypes.NameIdentifier) &&
+            session.SessionId.ToString("N") == http.User.FindFirstValue(SessionCookieHandler.SessionIdClaimType);
     }
 
     private static IResult PreparationFailed() => Failure(503, "export_preparation_failed", "Export preparation failed. Retry to prepare a new snapshot.");

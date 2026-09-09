@@ -7,7 +7,7 @@ import { prepareExport } from './api/export';
 
 vi.mock('./api/export', () => ({ prepareExport: vi.fn() }));
 
-it('retains scope and download across collection/archive and appearance, and clears private files at sign-out', async () => {
+it.each(['csv', 'zip'] as const)('retains %s format, scope and download across navigation and appearance, and clears private files at sign-out', async format => {
   // GIVEN an authenticated empty collection and a prepared CSV.
   window.history.replaceState(null, '', '/inventory');
   let signedIn = true;
@@ -28,8 +28,9 @@ it('retains scope and download across collection/archive and appearance, and cle
   fireEvent.click(await screen.findByRole('link', { name: 'Export records' }));
   expect(window.location.pathname).toBe('/inventory/export');
   fireEvent.click(screen.getByRole('radio', { name: 'Active and archived records' }));
+  if (format === 'zip') fireEvent.click(screen.getByRole('radio', { name: 'Records and photographs (ZIP)' }));
   fireEvent.click(screen.getByRole('button', { name: 'Prepare export' }));
-  await screen.findByRole('link', { name: 'Download CSV' });
+  await screen.findByRole('link', { name: `Download ${format.toUpperCase()}` });
   // WHEN navigating through collection and archive and changing appearance.
   fireEvent.click(screen.getByRole('link', { name: 'Back to collection' }));
   fireEvent.click(screen.getByRole('link', { name: 'Archive' }));
@@ -41,7 +42,8 @@ it('retains scope and download across collection/archive and appearance, and cle
   expect(document.documentElement).toHaveAttribute('data-theme', wasDark ? 'light' : 'dark');
   // THEN the same private file and explicit scope remain available.
   expect(screen.getByRole('radio', { name: 'Active and archived records' })).toBeChecked();
-  expect(screen.getByRole('link', { name: 'Download CSV' })).toHaveAttribute('href', 'blob:export');
+  expect(screen.getByRole('radio', { name: format === 'zip' ? 'Records and photographs (ZIP)' : 'Records (CSV)' })).toBeChecked();
+  expect(screen.getByRole('link', { name: `Download ${format.toUpperCase()}` })).toHaveAttribute('href', 'blob:export');
   expect(URL.createObjectURL).toHaveBeenCalledTimes(1);
   // WHEN signing out and signing back in THEN the prepared file and prior scope are discarded.
   fireEvent.click(screen.getByRole('button', { name: 'Sign out' }));
@@ -53,5 +55,7 @@ it('retains scope and download across collection/archive and appearance, and cle
   await screen.findByRole('heading', { name: 'Export records' });
   expect(screen.getByRole('button', { name: 'Prepare export' })).toBeDisabled();
   expect(screen.queryByRole('link', { name: 'Download CSV' })).not.toBeInTheDocument();
+  expect(screen.queryByRole('link', { name: 'Download ZIP' })).not.toBeInTheDocument();
+  expect(screen.getByRole('radio', { name: 'Records (CSV)' })).toBeChecked();
   window.history.replaceState(null, '', '/');
 });

@@ -8,6 +8,39 @@ const headers = { 'Content-Type': 'text/csv; charset=utf-8', 'Content-Length': '
 afterEach(() => vi.unstubAllGlobals());
 beforeEach(() => vi.stubGlobal('window', { location: { origin: 'http://localhost:3000' } }));
 
+const zipHeaders = { ...headers, 'Content-Type': 'application/zip', 'Content-Disposition': 'attachment; filename="workbench-package-v1-all-20260908T123456Z.zip"' };
+it('accepts ZIP bytes above the standalone CSV bound', async () => {
+  // GIVEN a complete package larger than the text-only export limit.
+  const bytes = new Uint8Array(32 * 1024 * 1024 + 1);
+  vi.stubGlobal('fetch', vi.fn(async () => new Response(bytes, { headers: { ...zipHeaders, 'Content-Length': String(bytes.length) } })));
+  // WHEN preparing ZIP THEN the separate package bound permits it.
+  expect((await prepareExport('all', new AbortController().signal, 'zip'))?.blob.size).toBe(bytes.length);
+});
+it('prepares ZIP through its endpoint with the complete attachment contract', async () => {
+  // GIVEN a complete package response.
+  const fetchMock = vi.fn<typeof fetch>(async () => new Response('complete', { headers: zipHeaders }));
+  vi.stubGlobal('fetch', fetchMock);
+  // WHEN selecting ZIP THEN the package endpoint and accept type are used.
+  const result = await prepareExport('all', new AbortController().signal, 'zip');
+  expect(String(fetchMock.mock.calls[0][0])).toBe('http://localhost:3000/api/items/export-package');
+  expect(fetchMock).toHaveBeenCalledWith(expect.any(URL), expect.objectContaining({ headers: expect.objectContaining({ Accept: 'application/zip' }), body: '{"scope":"all"}' }));
+  expect(result?.filename).toBe('workbench-package-v1-all-20260908T123456Z.zip');
+  expect(await result?.blob.text()).toBe('complete');
+});
+
+it.each([
+  { ...zipHeaders, 'Content-Type': 'text/csv' },
+  { ...zipHeaders, 'Content-Type': 'application/zip-malformed' },
+  { ...zipHeaders, 'Content-Length': '134217729' },
+  { ...zipHeaders, 'Content-Length': '9' },
+  { ...zipHeaders, 'Content-Disposition': headers['Content-Disposition'] },
+  { ...zipHeaders, 'Content-Disposition': 'attachment; filename="../package.zip"' },
+])('rejects unverified package responses %#', async invalidHeaders => {
+  // GIVEN mismatched or incomplete package metadata WHEN preparing THEN no file is returned.
+  vi.stubGlobal('fetch', vi.fn(async () => new Response('complete', { headers: invalidHeaders })));
+  await expect(prepareExport('all', new AbortController().signal, 'zip')).rejects.toThrow();
+});
+
 it('posts explicit scope with antiforgery and accepts only the fully read file', async () => {
   // GIVEN a complete CSV attachment.
   const fetchMock = vi.fn(async () => new Response('complete', { headers }));
@@ -55,14 +88,15 @@ it('rejects a partial-content success even when its advertised length matches', 
   await expect(prepareExport('all', new AbortController().signal)).rejects.toThrow();
 });
 
-it('rejects a body read failure and cancellation after headers', async () => {
+it.each(['csv', 'zip'] as const)('rejects a %s body read failure and cancellation after headers', async format => {
   // GIVEN a connection that drops while delivering the body.
   const body = new ReadableStream({ start(controller) { controller.error(new Error('disconnected')); } });
-  vi.stubGlobal('fetch', vi.fn(async () => new Response(body, { headers })));
+  const responseHeaders = format === 'zip' ? zipHeaders : headers;
+  vi.stubGlobal('fetch', vi.fn(async () => new Response(body, { headers: responseHeaders })));
   // WHEN reading THEN the partial download is rejected.
-  await expect(prepareExport('all', new AbortController().signal)).rejects.toThrow('disconnected');
+  await expect(prepareExport('all', new AbortController().signal, format)).rejects.toThrow('disconnected');
   // AND cancellation after headers prevents a complete-looking response from being returned.
   const controller = new AbortController();
-  vi.stubGlobal('fetch', vi.fn(async () => { controller.abort(); return new Response('complete', { headers }); }));
-  await expect(prepareExport('all', controller.signal)).rejects.toThrow();
+  vi.stubGlobal('fetch', vi.fn(async () => { controller.abort(); return new Response('complete', { headers: responseHeaders }); }));
+  await expect(prepareExport('all', controller.signal, format)).rejects.toThrow();
 });
