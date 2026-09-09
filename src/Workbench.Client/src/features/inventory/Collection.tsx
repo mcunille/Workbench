@@ -381,6 +381,15 @@ export function ItemDetails({
   const [photoDirty, setPhotoDirty] = useState(false);
   const [savedMessage, setSavedMessage] = useState('');
   const editButton = useRef<HTMLButtonElement>(null);
+  const currentRecordFocus = useRef<'restore' | 'edit' | undefined>(
+    undefined,
+  );
+  useLayoutEffect(() => {
+    const target = currentRecordFocus.current;
+    if (!target) return;
+    currentRecordFocus.current = undefined;
+    (target === 'restore' ? restoreButton : editButton).current?.focus();
+  });
   const photoDirtyChange = useCallback(
     (dirty: boolean, uncertain: boolean) => {
       setPhotoDirty(dirty);
@@ -495,6 +504,9 @@ export function ItemDetails({
                 );
               }}
               onCurrent={(current, confirmed) => {
+                currentRecordFocus.current = current.archivedAtUtc
+                  ? 'restore'
+                  : 'edit';
                 setItem(current);
                 setArchiving(false);
                 setRestoring(false);
@@ -504,12 +516,6 @@ export function ItemDetails({
                       ? 'Record restored to collection.'
                       : 'This record is already in the collection. Current saved record loaded.'
                     : 'Current saved record loaded.',
-                );
-                requestAnimationFrame(() =>
-                  (current.archivedAtUtc
-                    ? restoreButton
-                    : editButton
-                  ).current?.focus(),
                 );
                 onDirtyChange(false, false);
               }}

@@ -67,6 +67,30 @@ const confirm = () =>
   fireEvent.click(
     screen.getByRole('button', { name: 'Confirm restore' }),
   );
+it('focuses the restored record controls after they are committed', async () => {
+  // GIVEN an archived record and an animation frame that runs before React commits.
+  const frame = vi
+    .spyOn(globalThis, 'requestAnimationFrame')
+    .mockImplementation((callback) => {
+      callback(0);
+      return 0;
+    });
+  try {
+    vi.mocked(restoreItem).mockResolvedValue(active);
+    details();
+    await open();
+
+    // WHEN restoration completes asynchronously.
+    await act(async () => confirm());
+
+    // THEN focus reaches the newly mounted editing control without another frame.
+    expect(
+      screen.getByRole('button', { name: 'Edit details' }),
+    ).toHaveFocus();
+  } finally {
+    frame.mockRestore();
+  }
+});
 it('cancels restoration without a request and returns focus while keeping archived details read-only', async () => {
   // GIVEN an archived direct record.
   details();

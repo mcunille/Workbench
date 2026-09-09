@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { setAppearance } from './user-menu-fixture';
 import { mkdir } from 'node:fs/promises';
 import { useAuthenticatedSession } from './auth-fixture';
 import { lifecycle } from './restoration-fixture';
@@ -67,14 +68,14 @@ test('H8 format and package survive navigation and both appearances with keyboar
   for (const width of [320, 1280]) for (const theme of ['light', 'dark']) {
     await page.setViewportSize({ width, height: 900 });
     await page.emulateMedia({ reducedMotion: 'reduce' });
-    await page.getByRole('switch', { name: 'Dark theme' }).setChecked(theme === 'dark');
+    await setAppearance(page, theme === 'dark');
     await expect(format).toBeChecked(); await expect(scope).toBeChecked();
     await expect(download).toHaveAttribute('href', originalUrl!);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     for (const control of await page.locator('button:visible, a.button:visible, .export-scope label:visible').all()) expect((await control.boundingBox())!.height).toBeGreaterThanOrEqual(44);
     const cdp = await page.context().newCDPSession(page);
     await cdp.send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-reduced-transparency', value: 'reduce' }] });
-    expect(await page.evaluate(() => getComputedStyle(document.querySelector('.topbar')!).backdropFilter)).toBe('none');
+    expect(await page.evaluate(() => getComputedStyle(document.querySelector('.workspace-nav')!).backdropFilter)).toBe('none');
     await cdp.detach();
     await page.screenshot({ path: `../../artifacts/h8/package-${width}-${theme}.png`, fullPage: true });
   }
