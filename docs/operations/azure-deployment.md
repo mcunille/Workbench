@@ -301,15 +301,35 @@ status alert; investigate both execution and telemetry before restarting or repl
 
 Queries use [the documented console/system tables](https://learn.microsoft.com/en-us/azure/container-apps/log-monitoring)
 and the job replica-name prefix from [the jobs log-query example](https://learn.microsoft.com/en-us/azure/container-apps/jobs-get-started-cli).
-Readiness alerting watches actual system-log text containing `readiness probe failed` for one revision,
+Readiness alerting selects `Reason_s == 'ProbeFailed'` and the observed readiness-failure message
+forms (`Probe of Readiness failed`, `failed readiness probe`, and readiness failure-threshold
+messages), retaining the older `readiness probe failed` form. It groups failures for one revision,
 with recent failures spanning at least five minutes. It does not interpret legitimate scale-to-zero
 as unhealthy, or claim that silence proves readiness. Validate that the platform emits this text in
-the selected environment, including failures that prevent application startup. If it does not, leave
+the selected environment. Startup/liveness events are deliberately excluded from this readiness
+rule; startup failure coverage must be verified separately. If the readiness message forms change, leave
 hosted acceptance pending and connect an observed supported status source; do not invent a readiness
 metric. All three scheduled queries skip deployment-time query validation because the tables do not
 exist during inactive bootstrap. Run each query against the live workspace, inject each failure and
 prove alert delivery before accepting the hosted installation. Bicep compilation does not validate KQL
 execution, log schema, timing or notification delivery.
+
+Run the synthetic query regression with an authorized read-only Log Analytics identity:
+
+```powershell
+./infra/azure/test-readiness-query.ps1 -WorkspaceId <workspace-customer-UUID>
+```
+
+This submits an in-memory `datatable` and the actual checked-in query to Azure's KQL engine;
+it does not ingest events, edit alerts, or simulate an outage. It verifies sustained observed
+message forms plus wrong-app/reason, startup/liveness, transient, stale and cross-revision
+exclusions. It requires Azure access and is not part of unauthenticated CI. A passing result proves
+query behavior, not notification delivery. Keep the separate approved end-to-end alert drill.
+
+The 2026-09-09 read-only audit found 22 readiness events that the old phrase matched zero times;
+the corrected predicate matched all 22. SQL, Key Vault, ACR login/repository, Blob, Activity and
+CoreAzureBackup ingestion were observed. AddonAzureBackupJobs ingestion remained unconfirmed
+before the first scheduled 03:00 UTC backup; do not equate core backup logs with job-log coverage.
 
 Dead-letter and paired-backup age over 24 hours additionally require a protected operational monitor;
 the templates have no successful-checkpoint emitter or dead-letter count source. Configure and exercise
