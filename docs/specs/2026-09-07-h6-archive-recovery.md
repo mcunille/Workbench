@@ -14,7 +14,7 @@ management, with no sale, possession, disposal, or financial meaning. Preserve t
 This increment adds archive browsing and single-record restoration. Archived records remain
 read-only until restored: no descriptive editing, photo addition, replacement, or removal.
 No permanent deletion, bulk operations, grouping, export policy, or package import is included.
-H7/H8 own export decisions; correct H5's sentence assigning export inclusion to H6 during delivery.
+H7/H8 own export decisions.
 
 ## Existing evidence and chosen approach
 
@@ -152,9 +152,8 @@ is authorized by this implementation.
 
 ## Acceptance and delivery
 
-After approval, maintain an uncommitted implementation plan and execute inline because persistence,
-API, UI state, and verification are dependent deliverables. Write focused failing tests with GIVEN,
-WHEN, and THEN comments before each behavior change, then implement and verify:
+Follow [CONTRIBUTING](../../CONTRIBUTING.md) for verification gates and the
+[development workflow](../development-workflow.md) for implementation and delivery.
 
 - Archived-only search beyond 50 rows, literal matching, invalid inputs, empty/no-match/failure
   states, pagination retry, and tenant isolation through HTTP and direct SQL with foreign IDs.
@@ -170,23 +169,16 @@ WHEN, and THEN comments before each behavior change, then implement and verify:
 - Fresh database and upgrade from the PR base with archived items, edited creation snapshots,
   retained photos and completed/pending photo operations; supported rollback/recovery checks.
 
-Run targeted mutation testing, investigating survivors and stating tooling/equivalence limits.
-Run `scripts/verify.ps1` and `scripts/smoke-container.ps1` from current source. Update the narrated
-Playwright walkthrough and inspect its rendered local video, keeping generated MP4s untracked.
-Record local application URLs and exact evidence/coverage limits; automated checks do not establish
-collector usability. Update living documentation, review the integrated result, commit scoped
-changes, and open a ready-for-review PR. Merging remains separately authorized.
-
 ## Verification record
+
+Historical evidence from the 2026-09-07 implementation; not current verification.
 
 `scripts/verify.ps1 -SkipDependencyInstall` passed end to end after explicit locked npm installs:
 451 server tests, 92 client tests, all 34 browser scenarios, formatting, generated-contract drift,
 current-source builds, all four migration drills, and the published release-unit probe.
 `scripts/smoke-container.ps1` also passed with the final navigation-corrected source: hardened
 non-root/read-only runtime, SQL readiness, local Compose TLS, session persistence after app
-replacement, forwarding-header controls, and worker telemetry. The temporary browser URL was
-`http://127.0.0.1:4179`, published probe `http://127.0.0.1:50964`, and final container probe
-`http://127.0.0.1:60264`; harnesses removed their disposable instances afterward.
+replacement, forwarding-header controls, and worker telemetry. Disposable verification instances were removed afterward.
 
 The full browser suite includes retained photographs, separate Grid/List/search traversals,
 320px/desktop layouts, both appearances, reduced-motion/transparency preferences, keyboard focus,
@@ -216,12 +208,10 @@ were 227.6 ms for the first page including cold query compilation, 38.5 ms for a
 10.2 ms for an absent match. These are local synthetic observations, not load testing or an
 unbounded scale guarantee. The retained tenant/chronology index needs no migration for H6.
 
-Independent implementation review found two navigation cases: browser history replacement could
-reuse another record's archive origin, and native keyboard fragment navigation could lose the
-origin after restoration and an appearance change. Focused App tests reproduced both. Each new
-history navigation now has a unique non-private entry identity, and native fragments retain the
-logical page's identity; distance indices still govern the existing pending-work guards. The
-reviewer rechecked the complete base/head range and reported no remaining actionable findings.
+Navigation regression coverage includes browser history replacement and native keyboard fragment
+navigation after restoration and appearance changes. Each history navigation has a unique non-private
+entry identity; native fragments retain the logical page identity, while distance indices govern
+pending-work guards.
 
 The [narrated walkthrough](../demos/h6/README.md) records synthetic data against the real API and
 SQL. Generated MP4s remain untracked. Local automated verification does not establish collector
@@ -230,19 +220,16 @@ usability, production deployment, hosted backup acceptance, public CA issuance, 
 
 ### Integration with the online-recovery base
 
-The merge of `13e05c7` advances H6's immediate predecessor to
-`20260907225320_AddOnlineRecovery`. The H6 migration and supported Down preserve recovery
+Integration evidence at `13e05c7` uses predecessor schema `20260907225320_AddOnlineRecovery`. The H6
+migration and supported Down preserve recovery
 reports, missing-file dispositions, procedure definitions, permissions and tenant predicates.
 Offline manifests from that release remain accepted alongside the previously supported schemas.
-Two focused regressions were observed failing before the compatibility corrections; all 26
-migration, restoration-database and blob-recovery checks passed afterward. The H6 migration
+All 26 migration, restoration-database and blob-recovery checks passed for this integration. The H6 migration
 Designer matches the current model snapshot; no migration from the base branch was rewritten.
 
 The combined application passed `scripts/verify.ps1 -SkipDependencyInstall`: 500 server tests,
 94 client tests, all 35 browser scenarios, formatting, generated API drift, builds, all four
-migration drills and the published-output probe at `http://127.0.0.1:60048`.
-`scripts/smoke-container.ps1` passed at `http://127.0.0.1:62912`. Disposable instances were removed.
-After the independent integration review corrected the immediate-prior-schema test fixture,
-all seven inventory-readiness checks passed against a fresh build. The review identified no
-runtime conflict. These checks add integration evidence to the earlier walkthrough and mutation
+migration drills and the published-output and hardened-container gates. Disposable instances were removed.
+All seven inventory-readiness checks passed against a fresh build with the immediate-prior-schema
+fixture. These checks add integration evidence to the earlier walkthrough and mutation
 records; the narrated video and mutation probes were not rerun for this merge.

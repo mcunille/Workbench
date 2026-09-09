@@ -134,11 +134,10 @@ writes for up to two minutes; captured immutable revisions and existing retentio
 
 ## Implementation and acceptance
 
-After approval, maintain an untracked plan and execute inline because snapshot, package, UI and
-contract changes are dependent. Deliver server tests/implementation, client tests/implementation,
-documentation/walkthrough, integrated verification and ready-for-review PR. Regenerate OpenAPI types.
+Follow [CONTRIBUTING](../../CONTRIBUTING.md) for verification gates and the
+[development workflow](../development-workflow.md) for implementation and delivery.
 
-- Start with failing focused tests for both scopes, empty/no-photo/mixed collections, exact CSV
+- Cover both scopes, empty/no-photo/mixed collections, exact CSV
   compatibility, manifest mapping, Unicode/path-like names and archive completeness beyond one page.
 - Exercise missing/truncated/corrupt/recovery-unavailable blobs, bounds including ZIP overhead,
   cancellation, deadline, capacity release, revoked sessions and interrupted response bodies.
@@ -148,12 +147,9 @@ documentation/walkthrough, integrated verification and ready-for-review PR. Rege
 - Prove API and restricted-SQL cross-tenant isolation, including malicious identifiers and archives.
 - Cover client format/scope changes, retry, cancellation, navigation/appearance preservation, stale
   responses, identity loss, expiry and object URL disposal. Inspect desktop and mobile workflows.
-- Run affected mutation tooling and report meaningful survivors, exclusions and unavailable coverage.
-- Run `scripts/verify.ps1` and `scripts/smoke-container.ps1`; inspect the current running workflow,
-  download and extract a real package, and update the narrated Playwright walkthrough. Keep MP4s local.
+- Download and extract a real package and update the narrated Playwright walkthrough.
 - Update collection-export and provider/recovery documentation. No schema migration is planned;
   revisit the design if persistence becomes necessary and then apply fresh/upgrade verification gates.
-- Publish a ready-for-review PR resolving #56 after implementation and verification. No merge is authorized.
 
 Automated checks do not establish collector usability. See the
 [H8 verification record](../demos/h8/verification.md) for implementation evidence and coverage limits.

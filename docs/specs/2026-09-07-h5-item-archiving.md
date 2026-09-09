@@ -146,14 +146,12 @@ photos, and completed/pending photo operations. Document compatibility and recov
 - Separate text/photo/archive versions reduce conflicts but complicate interactions. The existing
   shared rowversion gives a conservative, atomic boundary across all three commands.
 
-## Implementation and verification sequence
+## Acceptance and verification
 
-After design approval, maintain an uncommitted implementation plan and execute these dependent
-deliverables inline: persistence/API with tests first; client workflows and generated contracts;
-integrated migration/concurrency/browser evidence; documentation, review, and PR delivery.
+Follow [CONTRIBUTING](../../CONTRIBUTING.md) for verification gates and the
+[development workflow](../development-workflow.md) for implementation and delivery.
 
-Write focused failing tests with Gherkin comments before behavior changes. Cover confirmation
-cancellation, preserved metadata/photo, active-only search and pagination, direct archived reads,
+Cover confirmation cancellation, preserved metadata/photo, active-only search and pagination, direct archived reads,
 creation replay before/after edits and archive, validation, archived-current-version write refusal,
 tenant isolation through API and direct SQL, runtime permissions, and unchanged authentication.
 
@@ -165,22 +163,20 @@ reads, renewed confirmation, and an open editor encountering another session's a
 Exercise two authenticated browser contexts, desktop/mobile Grid/List/search, direct bookmarks,
 appearance/navigation state, keyboard/focus, and retained photo access. Update the narrated
 Playwright walkthrough with success, cancellation, uncertainty, and conflict recovery. Automated
-checks do not establish collector usability. Run affected mutation testing and document limits,
-`scripts/verify.ps1`, and `scripts/smoke-container.ps1`; report any unavailable gates accurately.
-Review the integrated change, update living documentation, commit the scoped changes, and open a
-ready-for-review PR after completion. Merging remains separately authorized.
+checks do not establish collector usability.
 
 ## Verification record
 
+Historical evidence from the 2026-09-07 implementation; not current verification.
+
 Implementation passed 439 server tests, 82 client tests, generated-contract drift, formatting,
 typechecking, builds, EF model consistency, clean/upgrade/rollback/recovery drills, published-output
-probes, and the SQL-backed container/Compose gate. The full browser run passed 29 scenarios and
-exposed an existing authentication test's single-session assumption. After scoping its Revoke
-selector to This session, all 10 archive/authentication scenarios passed together; the other
-20 scenarios were unchanged. No application authentication behavior changed.
+probes, and the SQL-backed container/Compose gate. The full browser run passed 29 scenarios; a focused
+rerun passed all 10 archive/authentication scenarios after correcting a test selector. The other 20
+scenarios were unchanged. No application authentication behavior changed.
 
 Four targeted manual mutants were detected: removing the SQL archive version predicate, changing
 the client expected token, omitting collection invalidation, and omitting uncertain-navigation
 protection. Restored source passed affected tests. No automated mutation score is claimed.
-The [narrated walkthrough](../demos/h5/README.md) passed and its captioned video was rendered,
-decoded, and visually inspected. These local checks do not establish collector usability.
+Historical walkthrough footage was inspected at delivery; see the [demonstration
+index](../demos/README.md) for its retirement. These local checks do not establish collector usability.

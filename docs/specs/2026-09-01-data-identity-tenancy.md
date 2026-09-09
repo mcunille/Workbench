@@ -417,57 +417,10 @@ unavailable, and unexpected states without mounting protected content optimistic
 Generated OpenAPI TypeScript remains the API contract boundary. Client tests intercept HTTP rather
 than mock generated internals. User-facing authentication errors are stable and non-enumerating.
 
-## Test-first implementation breakdown
+## Implementation guidance
 
-Implementation follows red-green-refactor. No production behavior is added before a focused test has
-failed for the expected missing behavior.
-
-1. **SQL test harness and migrator seam**
-   - Add a pinned real SQL Server integration fixture and a failing clean-migration test.
-   - Run the focused integration test and confirm failure because no migrator/schema exists.
-   - Add the minimal migrator, schema-version check, and test principal creation.
-   - Re-run focused and existing server tests.
-2. **Tenant schema, context, and RLS**
-   - Add failing tests for null context, cross-tenant reads/writes/relationships, raw SQL,
-     `IgnoreQueryFilters`, and pooled connection reuse.
-   - Add tenant entities, composite constraints, immutable context, EF filters/interceptors, and RLS.
-   - Re-run isolation tests, then all SQL integration tests.
-3. **Identity accounts and exact login lookup**
-   - Add failing password-login, generic-failure, no-tenant-input, and permission-denial tests.
-   - Add Identity schema, login directory/procedure, verifier boundary, and named permissions.
-   - Re-run authentication and cross-tenant suites.
-4. **Durable sessions and data protection**
-   - Add failing tests for opaque cookies, per-request SQL validation, idle/absolute expiration,
-     account disablement, security-version mismatch, single/all-session revocation, and replicas.
-   - Add durable session validation and protected SQL key ring.
-   - Re-run authentication, pooling, and published same-origin tests.
-5. **Antiforgery and browser authentication**
-   - Add failing API and client tests for login CSRF, bootstrap, sign-out, and stable failures.
-   - Add antiforgery contracts and React flows.
-   - Re-run server, client, and browser authentication tests.
-6. **Invitation, recovery, and tenant administration**
-   - Add failing non-enumeration, hash-at-rest, expiry, reuse, race, session-revocation,
-     cross-tenant administration, and disabled-production-provider tests.
-   - Add identity operations, delivery boundary/capture adapter, and bounded administration APIs/UI.
-   - Re-run identity, SQL concurrency, client, and browser tests.
-7. **Bootstrap, provisioning, and principal separation**
-   - Add failing one-time bootstrap, repeat refusal, additional-tenant provisioning, audit, and
-     actual-principal permission tests.
-   - Add operator CLI commands/procedures, `.env.dev` workflow, and least-privilege grants.
-   - Re-run operator, RLS, migration, and development-script tests.
-8. **Readiness, migration rollback, backup, and restore sanitization**
-   - Add failing readiness-version/RLS/grant tests and restore-revival tests.
-   - Add migration verification, backup/restore guidance/scripts, post-restore sanitization, and
-     readiness checks.
-   - Run clean, upgrade, disposable downgrade, incompatible restore, and full verification drills.
-9. **Documentation and security closure**
-   - Update living architecture, README, contributor, operations, and security documentation.
-   - Run an acceptance-criteria review, focused threat-model review, and security diff scan.
-   - Fix every reportable finding and repeat the affected tests and scan.
-   - Run the complete clean verification and container smoke gates.
-
-The temporary implementation plan supplies exact file paths, test names, and commands before code
-changes begin. It is not committed, in accordance with repository guidance.
+Follow [CONTRIBUTING](../../CONTRIBUTING.md) for verification gates and the
+[development workflow](../development-workflow.md) for implementation and delivery.
 
 ## Executable migration and rollback verification
 

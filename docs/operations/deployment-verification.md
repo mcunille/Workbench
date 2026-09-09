@@ -29,10 +29,7 @@ specification and issue remain open for hosted acceptance.
 - Nine selected manual source mutations were killed: three worker-drain changes and six security
   changes. The trusted-hop assertions were strengthened when mutation evidence exposed a gap.
   This was bounded mutation assessment; no broad Stryker or SQL mutation run was performed.
-- Independent implementation and security reviews covered the source snapshot and subsequent fixes.
-  Reported findings were corrected and reviewed again, including certificate bootstrap ordering,
-  custom-origin port validation, invitation bootstrap sequencing, proxy IP allocation, unknown-host
-  handling, and IPv4-mapped IPv6 trust boundaries. No formal Codex Security scan was run.
+- No formal Codex Security scan was run.
 
 ## Windows localhost QA drill (2026-09-06)
 
@@ -88,8 +85,8 @@ PowerShell configuration and simulated-Docker orchestration checks cover input r
 connection quoting, retained-resource refusal, role-specific mounts, loopback ports, startup order,
 and stopping public workloads after an injected worker failure. Two targeted manual mutations
 (missing tenant validation and disabled SQL certificate validation) were killed. Azure parameter
-and Compose proxy contract checks passed. Independent review findings were corrected and reviewed
-again. The Windows CI job repeats the offline installer checks; it does not claim a live Docker drill.
+and Compose proxy contract checks passed. The Windows CI job repeats the offline installer checks;
+it does not claim a live Docker drill.
 
 An initial tool-run installation outside the workspace could not share newly generated files with
 Docker Desktop, although PowerShell saw them. The live test succeeded from an ignored workspace
@@ -110,23 +107,19 @@ Dependencies had been installed with the locked commands in the preceding full r
 validated internal HTTPS, Secure-cookie login, session continuity after application replacement,
 forwarding-header checks, a private application listener, and worker telemetry as UID 1654.
 Its temporary application URL was `http://127.0.0.1:56137`; disposable resources were cleaned up.
-The first smoke/source run exposed a missing entry in the strict password-provisioning grant
-allowlist for the new readiness procedure. The specific grant and its authority assertions were
-added before the final passing runs.
 
 Focused failing tests preceded Graph delivery, durable retries, SQL manifest changes, bootstrap
 cleanup, and the immediate-prior-schema readiness guard. Four selected manual Graph mutations
 were killed: incorrect response acceptance, missing expiry validation, permanent classification
 of token-service outages, and accepting an origin query. This was bounded manual mutation testing,
 not a broad Stryker or SQL mutation run. Azure parameter/bootstrap tests, Compose configuration,
-workflow command-boundary checks, and Bicep build/lint passed. Independent implementation review
-findings were corrected, including explicit removal/readback of retained SMTP secret grants when
-switching an existing installation to Graph.
+workflow command-boundary checks, and Bicep build/lint passed. Switching an existing installation
+to Graph requires explicit removal and readback of retained SMTP secret grants.
 
 These checks did not deploy Azure resources or submit live mail. The operator previously verified
 Graph send acceptance and receipt, denial of personal-mailbox sending, and incoming no-reply
 rejection using a bootstrap VM. Released Workbench worker delivery and the hosted gates below
-remain unverified by this change.
+were not verified by these local checks.
 
 ## Remaining hosted acceptance
 

@@ -89,9 +89,8 @@ creation and upgrade from the previous schema with retained items and photos. Ke
 migrations unchanged. Use a forward correction for recovery; an application rollback must account
 for schema-readiness compatibility. Existing paired SQL/blob backup and restore procedures remain
 authoritative; reverting binaries is not authorization to discard saved edits or collection data.
-The snapshot addition is consolidated into this PR's development-only H4 migration; the base
-schema migrations are unchanged. Disposable test databases are recreated. A retained installation
-that applied an earlier development version needs a forward correction, not a rewritten history entry.
+A retained installation that applied an earlier development version needs a forward correction,
+not a rewritten history entry.
 
 ## Item photograph release
 
@@ -119,9 +118,7 @@ restricted runtime access. It follows `20260907054000_AddProviderRetryDelay` wit
 rewriting that or any earlier migration. The matching application requires the collection schema
 and effective SELECT/INSERT permissions before reporting ready; liveness remains independent.
 
-During integration with the provider-retry release, the unmerged, development-only notebook
-migration was reordered after that base migration. The provider-retry migration remains unchanged;
-the notebook migration advances its readiness version marker and the backup manifest schema boundary.
+The notebook migration advances its readiness version marker and the backup manifest schema boundary.
 
 Apply it through the explicit migrator procedure below before releasing the H1 web application.
 The runtime can create and read individual objects; it cannot update or delete saved collection
@@ -173,17 +170,16 @@ writes only to an explicitly named new file. Remove that file immediately after 
 
 Follow the [canonical setup guide](../setup.md) for generated credentials, SQL containment,
 bootstrap, routine migrations, and existing-database precautions. The original identity baseline
-has shipped; never rewrite shipped migrations or retained database history. Earlier unmerged
-PR snapshots require an explicit transition or a deliberately disposable replacement.
+has shipped; never rewrite shipped migrations or retained database history. Unsupported development
+schemas require an explicit transition or a deliberately disposable replacement.
 
 For a non-development provisioning job, pass the Base64-encoded 32-byte value only through
 `--tenant-context-proof-key-file`. After provisioning, remove that temporary file. Configure web
 replicas with `WORKBENCH_TENANT_CONTEXT_PROOF_KEY_FILE` pointing to their read-only secret mount.
 
 The blob/provider phase adds one migration, `20260905222755_AddBlobAndOperationalProviders`, after
-the two established baseline migrations. It consolidates three development-only migrations from
-earlier revisions of PR #23. Databases created by those earlier revisions must not be treated as an
-upgrade baseline: use a fresh disposable database for verification, and preserve any retained data
+the two established baseline migrations. Databases with pre-consolidation provider migration history
+are not supported upgrade baselines: use a fresh disposable database for verification, and preserve any retained data
 before planning an explicit transition. No database or migration-history rows are automatically reset.
 
 ## Authoring and validating a migration

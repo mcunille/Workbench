@@ -20,9 +20,9 @@ az containerapp show -g $group -n $app --query 'properties.configuration.ingress
 az containerapp revision list -g $group -n $app --query '[].{name:name,active:properties.active,health:properties.healthState,traffic:properties.trafficWeight}'
 ```
 
-Compare the entire deployed-to-candidate range, not just the last PR. During the first security
-rollout, the PR had no migration but the release included `AddItemRestoration`; the candidate
-correctly remained unready until that migration ran. Review old-web/new-schema and worker
+Compare the entire deployed-to-candidate range, including migrations introduced before the last PR.
+A candidate requiring `AddItemRestoration`, for example, remains unready until that migration runs.
+Review old-web/new-schema and worker
 compatibility before deciding whether workers may continue. If compatibility requires a pause,
 obtain approval for the interruption; do not silently stop the public service.
 

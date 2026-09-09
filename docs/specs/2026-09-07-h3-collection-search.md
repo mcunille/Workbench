@@ -92,8 +92,7 @@ explicit, predictable request boundary with less request churn than live search.
 
 ## Acceptance and delivery
 
-Write focused tests first, with GIVEN/WHEN/THEN comments, and demonstrate the
-intended missing behavior before implementation. Cover each searchable field,
+Cover each searchable field,
 case/accent semantics, literal wildcard characters, whitespace, limits, null fields,
 empty queries, matches beyond the initial 50 items, multiple matching pages,
 invalid cursors, cancellation/failure, and cross-tenant search under real SQL RLS.
@@ -105,25 +104,18 @@ clearing protected state on authentication loss. Verify keyboard operation,
 accessible feedback, 44px targets, contrast, both themes, and no page overflow at
 320 CSS pixels. Appearance changes must preserve search and position.
 
-Run affected mutation checks and report meaningful survivors or tooling limits.
-Run the application gates in [CONTRIBUTING](../../CONTRIBUTING.md), inspect the
-running desktop/mobile workflow, and update the narrated Playwright walkthrough
-using synthetic data. Review the integrated implementation, update living docs,
-commit the scoped changes, and open a ready-for-review PR. Production deployment
+Follow [CONTRIBUTING](../../CONTRIBUTING.md) for verification gates and the
+[development workflow](../development-workflow.md) for implementation and delivery. Production deployment
 and merge require separate authorization.
 
 ## Verification evidence
 
-Focused SQL tests first failed because the original endpoint ignored `q` and accepted invalid
-queries. The implemented tests cover literal punctuation, field boundaries, case/accent behavior,
-UTF-16 limits, null/empty values, pagination beyond the unfiltered first page, authenticated tenant
-isolation, request cancellation, and denied SQL reads followed by retry. Four search tests and
-six existing inventory endpoint tests passed; the full server suite passed all 416 tests.
+Historical evidence from the 2026-09-07 implementation; not current verification.
 
-Client tests reproduced missing query submission and navigation restoration before implementation.
-A further regression test first failed for an unavailable cached item; returning now removes its
-summary and focuses the collection heading. The integrated client suite passed all 58 tests,
-including stale responses, pagination retry, photo reconciliation, and authentication-state clearing.
+SQL coverage includes literal punctuation, field boundaries, case/accent behavior, UTF-16 limits,
+null/empty values, pagination beyond the unfiltered first page, authenticated tenant isolation,
+cancellation, and denied reads followed by retry. Client coverage includes unavailable cached items,
+stale responses, pagination retry, photo reconciliation, and authentication-state clearing.
 
 Six bounded manual mutants were detected: the maximum-query boundary, accent sensitivity,
 stale-response suppression, query forwarding, photo-cache invalidation, and immediate identity
@@ -148,29 +140,21 @@ migration drills, all 21 browser tests, and the published release-unit probe. Lo
 were installed explicitly before this run. `scripts/smoke-container.ps1` also passed its hardened
 SQL-backed non-root runtime and local Compose checks. No H3 schema migration was needed.
 
-The real browser workflows ran at `http://127.0.0.1:4179`, the published probe at
-`http://127.0.0.1:63278`, and the container probe at `http://127.0.0.1:57158`; the harnesses removed
-the disposable instances afterward. Browser checks cover 320px and desktop layouts, both themes,
+Browser checks cover 320px and desktop layouts, both themes,
 keyboard operation, contrast/touch targets, no overflow, later-page result restoration through
-app Back and browser Back/Forward, and initial/continued-page failures. The narrated
-[walkthrough record and transcript](../demos/h3/README.md) passed and its finished local video
-was visually inspected and fully decoded. MP4s remain untracked under the current repository policy.
+app Back and browser Back/Forward, and initial/continued-page failures. Historical walkthrough footage was inspected at delivery; the retired walkthrough files are recorded in the [demonstration index](../demos/README.md).
 
 Human collector usability, production deployment, public CA issuance, and SMTP delivery were not
 verified by this increment. Reload deliberately clears the in-memory search traversal.
 
 ### Internal review correction
 
-Independent review found a delayed-completion case: after confirming navigation away from a
-pending photo removal, a successful response could leave the restored collection advertising the
-old image. A real-browser regression reproduced a successful DELETE with the old image still
-visible. The corrected authenticated memory owner notifies mounted collection subscribers on
+The authenticated memory owner notifies mounted collection subscribers on
 photo changes, including completion after details unmounts. Subscriptions are removed on unmount;
 late failures and completions for an old identity cannot alter the new identity's traversal.
 
-After this client-only correction, all 62 client tests and all 22 browser tests passed, including
-the reproduced sequence and the original photo workflows. Lint/typecheck/build, the published
-probe (`http://127.0.0.1:52809`), and hardened container/Compose probe
-(`http://127.0.0.1:53025`) were rerun successfully. The earlier 416-server-test and four-migration
+For the final client-only change, all 62 client tests and all 22 browser tests passed, including
+delayed photo completion and the original photo workflows. Lint/typecheck/build, the published
+probe and hardened container/Compose probe were rerun successfully. The earlier 416-server-test and four-migration
 evidence applies to unchanged server/schema code; that broader suite was not repeated for the
 client-only fix. The walkthrough was refreshed from the corrected build.

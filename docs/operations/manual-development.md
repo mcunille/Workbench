@@ -49,9 +49,7 @@ Neither production runbook is currently a complete, self-contained installation 
 [self-hosted Compose runbook](self-hosted-deployment.md)
 and [Azure runbook](azure-deployment.md) describe the checked-in deployment paths and
 their acceptance requirements; they must not be treated as production-readiness certification.
-[Provider issue #11](https://github.com/mcunille/Workbench/issues/11) is closed; provider support is
-implemented. [Deployment issue #12](https://github.com/mcunille/Workbench/issues/12) remains open for
-hosted acceptance. Public TLS, real SMTP, external SQL certificate validation, the optional production
+Public TLS, real SMTP, external SQL certificate validation, the optional production
 SQL profile, and full installation recovery require the specific acceptance drills in the
 [verification record](deployment-verification.md). Local success does not establish
 production readiness. Do not use `.env.dev`, Developer-edition SQL, or this disposable fixture there.
@@ -220,8 +218,7 @@ Do not run the disposable creation command or point this fixture's `sa` credenti
 Follow the [migration runbook](database-migrations.md) for explicit file-based tooling.
 Use validated SQL certificates outside this local fixture.
 
-The original identity baseline has shipped; the old blanket “unmerged baseline” caveat no longer
-applies. Databases made from earlier, unmerged PR revisions may still have rewritten migration
+Databases made from unsupported development revisions may have rewritten migration
 history (including pre-consolidation provider migrations). Such databases are not supported upgrade
 baselines. Preserve needed data and plan an explicit transition, or opt into a fresh disposable
 installation. Never edit migration-history rows to pretend an upgrade succeeded.

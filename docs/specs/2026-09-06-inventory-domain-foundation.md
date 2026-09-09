@@ -16,8 +16,7 @@ purchase line, balance, or accounting entry.
 ## GemInv evidence
 
 Inspected the local `F:/Sources/Git/GemInv` checkout at commit
-`83358c232708ae809ca35afc15f54f6c9eb892aa`. Tracked files were clean; an untracked `.claude/`
-directory was present and left untouched. This is source inspection, not runtime verification.
+`83358c232708ae809ca35afc15f54f6c9eb892aa`. This is source inspection, not runtime verification.
 
 | Source relative to GemInv | Observed behavior | Workbench lesson |
 | --- | --- | --- |

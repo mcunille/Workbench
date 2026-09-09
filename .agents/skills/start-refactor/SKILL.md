@@ -145,11 +145,3 @@ PR under root guidance. Include the target, measured complexity before/after, mo
 mapping, mutation evidence and limitations, coverage numbers, and verification results. Keep the
 summary proportional to the change. Leave merging and separately gated collaboration writes to
 their existing authorization rules.
-
-## Migration basis
-
-Adapted from GemInv's `start-refactor` on 2026-09-05. The
-[official GPT-6 Astra guidance](https://developers.openai.com/api/docs/guides/latest-model?model=gpt-6-astra)
-was checked that day. This version retains characterization, mutation evidence, separate commits,
-and target coverage, while clarifying authorization, limiting repeated testing, and removing
-GemInv-specific paths and mandatory compile-failure ceremonies. No model configuration is changed.

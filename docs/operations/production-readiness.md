@@ -49,7 +49,7 @@ Setup deliberately refuses an existing installation root and does not implement 
 resumption, upgrades, backup scheduling, or certificate rotation. Those must not be inferred from a
 successful initial installation.
 
-## Corrections made in this change
+## Operational requirements identified by the audit
 
 The subsequent [Azure release verification fixes](../specs/azure-release-verification-fixes.md)
 add worker-only Graph delivery, versioned Entra manifests using client IDs for SQL SIDs,
@@ -126,4 +126,4 @@ rotation, scheduled paired backups with delivered alerts, and isolated recovery 
 sessions and exact blob digests. Record image/schema/configuration identifiers, UTC timestamps,
 measured recovery time/data loss and protected artifact references without secrets or tenant data.
 Only after both procedures and those environment-specific results pass can the corresponding
-installation be described as production ready. The current PR does not satisfy that expanded gate.
+installation be described as production ready. The historical local verification does not satisfy that expanded gate.

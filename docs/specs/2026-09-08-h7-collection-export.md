@@ -111,9 +111,8 @@ Raw CSV preserves literal text but is unsuitable for the stated spreadsheet-safe
 
 ## Implementation and acceptance evidence
 
-After design approval, execute inline because the API, client state, and contract are dependent.
-Maintain an untracked implementation plan covering server/CSV, UI, verification, documentation,
-and PR delivery. Start with failing focused tests, then implement the smallest passing increment.
+Follow [CONTRIBUTING](../../CONTRIBUTING.md) for verification gates and the
+[development workflow](../development-workflow.md) for implementation and delivery.
 
 - Cover both scopes, more than one browsing page, empty results, limits, cancellation, capacity,
   preparation failure, authentication loss, and response completeness.
@@ -121,11 +120,7 @@ and PR delivery. Start with failing focused tests, then implement the smallest p
   revocation during preparation. Exercise real concurrent insert/edit/archive/restore preparation.
 - Cover client navigation/appearance state, scope changes, stale responses, object URL disposal,
   accessible feedback, keyboard use, and mobile downloads.
-- Assess affected mutations with available tooling and report surviving/equivalent mutants or
-  tooling limits precisely.
-- Run `scripts/verify.ps1` and `scripts/smoke-container.ps1`, regenerate API declarations, inspect
-  the running workflow, and update the narrated Playwright walkthrough. Keep MP4s untracked.
-- Update living documentation and publish a ready-for-review PR resolving #55. No merge is authorized.
+- Inspect the running export workflow and update the narrated Playwright walkthrough.
 
 Automated evidence does not establish collector usability. No migrations are planned; if a schema
 change becomes necessary, revisit this design and follow fresh/upgrade and consolidation gates.

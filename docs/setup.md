@@ -53,7 +53,7 @@ server/database and built UI response; it does not replace testing the requested
 ./scripts/dev-down.ps1
 ```
 
-Rerun `dev-up` after source changes. This first version uses **built previews**, without Vite HMR
+Rerun `dev-up` after source changes. The workflow uses **built previews**, without Vite HMR
 or a background worker. It reuses an unchanged ready build and preserves data when refreshing.
 Build inputs include tracked and untracked, non-ignored files under `src/Workbench.Server`,
 `src/Workbench.Database`, and `src/Workbench.Client`, plus the Dockerfile and explicit root build

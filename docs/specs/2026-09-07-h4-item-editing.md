@@ -127,8 +127,7 @@ Do not assume old binaries accept the new schema version. No production operatio
 
 ## Acceptance and verification
 
-Write focused failing behavior tests before implementation, with Gherkin comments. Cover normalized
-save/reload/search, stable identity and metadata, cancellation, invalid/missing versions, unknown
+Cover normalized save/reload/search, stable identity and metadata, cancellation, invalid/missing versions, unknown
 fields, boundaries, cross-tenant and unauthenticated requests, and direct SQL permission denial.
 Test stale unchanged-value requests and response-loss retries without overwriting a later save.
 
@@ -140,6 +139,5 @@ failed saves and failed conflict reloads, repeated conflicts, and search members
 Check desktop and 320 CSS-pixel layouts, keyboard/focus, accessible errors/status, 44-pixel targets,
 System/Light/Dark persistence, draft preservation during theme changes, and required text contrast.
 Extend the narrated Playwright walkthrough with edit, cancel, failure/retry, and two-session conflict.
-Run affected mutation testing and report survivors or unavailable tooling accurately. Run
-`scripts/verify.ps1` and `scripts/smoke-container.ps1`, plus migration and generated-contract gates.
-Review the integrated diff, update living documentation, commit, and open a ready-for-review PR.
+Follow [CONTRIBUTING](../../CONTRIBUTING.md) for verification gates and the
+[development workflow](../development-workflow.md) for implementation and delivery.
