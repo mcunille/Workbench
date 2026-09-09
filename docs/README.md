@@ -112,3 +112,8 @@ Collection text portability follows the [H7 design](specs/2026-09-08-h7-collecti
 Photograph portability extends it through the [H8 package design](specs/2026-09-08-h8-collection-package.md).
 See the [CSV and ZIP contracts and spreadsheet guidance](collection-export.md) and
 [reproducible narrated walkthrough](demos/h7/README.md). Export is not a restorable backup.
+
+Acquisition context follows the [H9 design](specs/2026-09-09-acquisition-context.md): optional
+origin information for a saved piece, explicit unknown/partial dates, tenant-isolated persistence,
+and version-checked corrections with recoverable drafts. See the [walkthrough](demos/h9/README.md).
+Shared acquisition linking, documents, and acquisition-aware exports remain H10–H12.
