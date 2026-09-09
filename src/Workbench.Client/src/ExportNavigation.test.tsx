@@ -35,7 +35,11 @@ it.each(['csv', 'zip'] as const)('retains %s format, scope and download across n
   fireEvent.click(screen.getByRole('link', { name: 'Back to collection' }));
   fireEvent.click(screen.getByRole('link', { name: 'Archive' }));
   fireEvent.click(screen.getByRole('link', { name: 'Export records' }));
-  fireEvent.click(screen.getByRole('switch', { name: 'Dark theme' }));
+  const appearance = screen.getByRole('switch', { name: 'Dark theme' });
+  const wasDark = appearance.getAttribute('aria-checked') === 'true';
+  fireEvent.click(appearance);
+  expect(appearance).toHaveAttribute('aria-checked', String(!wasDark));
+  expect(document.documentElement).toHaveAttribute('data-theme', wasDark ? 'light' : 'dark');
   // THEN the same private file and explicit scope remain available.
   expect(screen.getByRole('radio', { name: 'Active and archived records' })).toBeChecked();
   expect(screen.getByRole('radio', { name: format === 'zip' ? 'Records and photographs (ZIP)' : 'Records (CSV)' })).toBeChecked();

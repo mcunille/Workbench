@@ -1,6 +1,7 @@
 import { FloatingField } from '../../FloatingField';
 import { useState, type FormEvent } from 'react';
 import { Brand } from '../../Brand';
+import { SignInBrand } from '../../SignInBrand';
 import {
   consumeInvitation,
   consumeRecovery,
@@ -54,9 +55,9 @@ export function Recovery({ invitation = false, token = null }: {
 
   const title = invitation ? 'Accept invitation' : token ? 'Reset password' : 'Recover account';
   return (
-    <main className="public-shell">
-      <section className="auth-card" aria-labelledby="recovery-title">
-        <Brand />
+    <main className={invitation ? 'public-shell' : 'sign-in-shell'}>
+      <section className={invitation ? 'auth-card' : 'auth-card sign-in-card'} aria-labelledby="recovery-title">
+        {invitation ? <Brand /> : <SignInBrand />}
         <h1 id="recovery-title">{title}</h1>
         {complete ? (
           <p role="status">

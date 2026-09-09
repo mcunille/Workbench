@@ -7,7 +7,7 @@ using Xunit;
 
 namespace Workbench.Server.IntegrationTests;
 
-[Collection(SqlServerCollection.Name)]
+[Collection(PhotoProcessorCollection.Name)]
 public sealed class PhotoProcessorTests
 {
     private readonly PhotoProcessor processor = new();

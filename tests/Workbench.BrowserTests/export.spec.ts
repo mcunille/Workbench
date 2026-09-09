@@ -72,7 +72,8 @@ test('H7 prepared download survives navigation and appearance and remains usable
   for (const width of [320, 1280]) for (const theme of ['light', 'dark']) {
     await page.setViewportSize({ width, height: 900 });
     await page.emulateMedia({ reducedMotion: 'reduce' });
-    await page.getByRole('switch', { name: 'Dark theme' }).setChecked(theme === 'dark');
+    await page.getByRole('switch', { name: 'Dark theme', exact: true }).setChecked(theme === 'dark');
+    await expect(page.locator('html')).toHaveAttribute('data-theme', theme);
     // THEN status, download and every button remain visible without horizontal overflow.
     await expect(page.getByRole('link', { name: 'Download CSV', exact: true })).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);

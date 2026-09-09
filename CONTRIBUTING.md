@@ -6,7 +6,7 @@ welcome.
 
 ## Development prerequisites
 
-The repository pins .NET SDK `10.0.400`, Node.js `26.7.0`, and npm `11.19.0`. Use PowerShell 7 for
+The repository pins .NET SDK `10.0.401`, Node.js `26.7.0`, and npm `11.19.0`. Use PowerShell 7 for
 the checked-in scripts and a Linux-container Docker engine for container verification. Do not update
 one toolchain pin without updating its locks, CI setup, documentation, and smoke evidence.
 
@@ -46,6 +46,33 @@ sign-out, and revocation scenarios create their own sessions. Cookies live only 
 browser-run directory and are removed by the parent test command. Tests still run with one worker.
 If another checkout is using the default browser port, set `WORKBENCH_BROWSER_PORT` to a free port
 before running `npm test --prefix tests/Workbench.BrowserTests` or `./scripts/verify.ps1`.
+
+## Focused local iteration
+
+Select only the tests affected by your edit while iterating:
+
+```powershell
+./scripts/test-focused.ps1 -ServerFilter 'FullyQualifiedName~PhotoProcessorTests'
+./scripts/test-focused.ps1 -ClientFiles 'src/main.test.tsx'
+./scripts/test-focused.ps1 -BrowserFiles 'inventory.spec.ts'
+```
+
+Client and browser selectors are relative to their respective test runner directories and use
+Vitest's filename filtering and Playwright's file matching. Supply actual filenames from the
+checkout; selectors can be arrays, and selections for different suites can be combined. Empty
+selections are rejected, and server filters matching no tests fail. Server tests build current
+Release source, and browser tests first build the client and then use the existing SQL/server
+startup and cleanup workflow.
+
+Dependencies must already be restored/installed. Add `-InstallDependencies` after changing locks
+or on first use to perform locked .NET restore and npm installs for the selected suites. Browser
+tests also require Docker and installed Playwright Chromium (see the setup guide). Ordinary
+SQL integration tests require Docker; photo-processing tests can run without SQL.
+
+Focused runs are iteration feedback. The full `verify.ps1` and `smoke-container.ps1` delivery gates
+above remain required; use `verify.ps1 -SkipDependencyInstall` when npm dependencies are unchanged.
+See the [local test iteration design](docs/specs/2026-09-08-local-test-iteration.md) for database
+template isolation, measurement results, and the cold-start tradeoff.
 
 ## Before proposing a change
 
