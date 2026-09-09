@@ -105,5 +105,6 @@ Those choices should be made through focused specs when evidence and concrete re
 decision necessary.
 
 Collection text portability follows the [H7 design](specs/2026-09-08-h7-collection-export.md).
-See the [CSV contract and spreadsheet guidance](collection-export.md) and
+Photograph portability extends it through the [H8 package design](specs/2026-09-08-h8-collection-package.md).
+See the [CSV and ZIP contracts and spreadsheet guidance](collection-export.md) and
 [reproducible narrated walkthrough](demos/h7/README.md). Export is not a restorable backup.

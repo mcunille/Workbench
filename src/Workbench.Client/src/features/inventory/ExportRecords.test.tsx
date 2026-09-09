@@ -10,6 +10,25 @@ beforeEach(() => {
   URL.createObjectURL = vi.fn(() => 'blob:export');
   URL.revokeObjectURL = vi.fn();
 });
+it('offers accessible package selection, limits, and ZIP download with CSV recovery', async () => {
+  // GIVEN the CSV-compatible default and explicit package selection.
+  vi.mocked(prepareExport).mockResolvedValue({ blob: new Blob(['package']), filename: 'package.zip' });
+  const memory = new ExportMemory();
+  render(<ExportRecords memory={memory} follow={vi.fn()} onAuthLost={vi.fn()} />);
+  expect(screen.getByRole('radio', { name: 'Records (CSV)' })).toBeChecked();
+  fireEvent.click(screen.getByRole('radio', { name: 'Records and photographs (ZIP)' }));
+  expect(screen.getByText(/128 MiB/)).toBeVisible();
+  expect(screen.getByText(/camera originals/)).toBeVisible();
+  fireEvent.click(screen.getByRole('radio', { name: 'Active records' }));
+  // WHEN preparation completes THEN ZIP download is available.
+  fireEvent.click(screen.getByRole('button', { name: 'Prepare export' }));
+  expect(await screen.findByRole('link', { name: 'Download ZIP' })).toHaveAttribute('download', 'package.zip');
+  // WHEN selecting CSV THEN the old package is discarded and CSV facts return.
+  fireEvent.click(screen.getByRole('radio', { name: 'Records (CSV)' }));
+  expect(screen.queryByRole('link', { name: 'Download ZIP' })).not.toBeInTheDocument();
+  expect(screen.getByText('CSV version 1 · UTF-8')).toBeVisible();
+  memory.dispose();
+});
 it('requires accessible explicit scope, reports completeness, and preserves a file across page remounts', async () => {
   // GIVEN an export page with no implicit scope.
   const memory = new ExportMemory();

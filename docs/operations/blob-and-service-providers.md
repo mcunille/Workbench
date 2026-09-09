@@ -274,3 +274,23 @@ exact clock-boundary equality, pool-buffer return, and a redundant persistent-in
 Compile-error mutants and out-of-scope mutations were excluded. SQL procedures, authorization, retention,
 and lease rules have real-SQL regression coverage but were not mutation-tested. Broader mutation coverage
 and a successful delivery through the chosen production SMTP relay remain separate verification work.
+
+## Collection package preparation
+
+H8 ZIP export reads only detail revisions selected with current item records in one tenant-scoped
+serializable transaction. Removed or replaced photos retain their immutable bytes for seven days;
+this is a correctness dependency for the maximum two-minute package preparation after database locks
+are released. Do not shorten retention without revisiting the export contract. Recovery-unavailable,
+missing, corrupt or mismatched-provider revisions fail the whole package. Existing offline provider
+migration and restore requirements still apply. Repeated failures should be investigated through the
+protected reconciliation/recovery procedure above, not by dropping photos from the export.
+
+Packages use bounded process memory; no export jobs or temporary disk artifacts are persisted.
+At most two CSV/ZIP preparations run per application instance. Each ZIP can retain up to 128 MiB
+of archive data, a final response copy, up to 32 MiB CSV and 16 MiB manifest, plus bounded projection,
+serializer and transfer buffers. Budget memory for concurrent preparation and in-flight response
+copies; the preparation slots do not limit slow HTTP deliveries. Ordinary host admission and resource
+controls remain necessary. The browser retains a Blob up to 128 MiB until it expires or is cleared.
+Cancellation and failure dispose streams and release references/capacity; process termination leaves
+no temporary export file. Neither managed memory disposal nor object URL revocation promises secure
+erasure of previously delivered data. See the [package design](../specs/2026-09-08-h8-collection-package.md).

@@ -42,7 +42,7 @@ test('H7 narrated collection export walkthrough', async ({ browser }) => {
     await narrate('Download started means the browser received the download request. It does not claim that your operating system saved the file.', 10);
     await page.goBack(); await page.goForward();
     await page.setViewportSize({ width: 390, height: 844 });
-    await page.getByRole('combobox', { name: 'Appearance', exact: true }).selectOption('dark');
+    await page.getByRole('switch', { name: 'Dark theme' }).setChecked(true);
     await expect(page.getByRole('link', { name: 'Download CSV', exact: true })).toBeVisible();
     await narrate('Ordinary navigation and appearance changes retain the prepared file in private application memory. Reload, sign out, an identity change, or ten minutes clears it.', 12);
     await page.getByRole('radio', { name: 'Active and archived records', exact: true }).check();
@@ -56,7 +56,7 @@ test('H7 narrated collection export walkthrough', async ({ browser }) => {
     const allRows = await downloadExport(page);
     expect(allRows.find(row => row[3] === archived.id)![8]).toBe('true');
     await page.setViewportSize({ width: 1280, height: 900 });
-    await page.getByRole('combobox', { name: 'Appearance', exact: true }).selectOption('light');
+    await page.getByRole('switch', { name: 'Dark theme' }).setChecked(false);
     await narrate('The successful export now includes the archived record and its archival timestamp. Automated checks parse the download and compare saved text. Collector usability still needs human evaluation.', 13);
   } finally {
     await writeFile(`${root}/segments.json`, JSON.stringify(segments, null, 2));

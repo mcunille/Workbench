@@ -3,13 +3,19 @@ import type { ExportMemory } from './exportMemory';
 export function ExportRecords({ memory, follow, onAuthLost }: { memory: ExportMemory; follow(event: MouseEvent<HTMLAnchorElement>): void; onAuthLost(): void }) {
   const state = useSyncExternalStore(memory.subscribe, memory.getSnapshot);
   const preparing = state.status === 'preparing';
+  const isPackage = state.format === 'zip';
   return <section className="export-records">
     <div className="page-heading">
-      <div><h1>Export records</h1><p className="lede">Take a copy of your collection’s current text records.</p></div>
+      <div><h1>Export records</h1><p className="lede">Take a copy of your collection’s current records, with optional photographs.</p></div>
       <a className="secondary button" href="/inventory" onClick={follow}>Back to collection</a>
     </div>
     <div className="panel export-panel">
       <form onSubmit={event => { event.preventDefault(); void memory.prepare(onAuthLost); }}>
+        <fieldset className="export-scope" disabled={preparing}>
+          <legend>Choose export format</legend>
+          <label><input type="radio" name="export-format" value="csv" checked={!isPackage} onChange={() => memory.selectFormat('csv')} />Records (CSV)</label>
+          <label><input type="radio" name="export-format" value="zip" checked={isPackage} onChange={() => memory.selectFormat('zip')} />Records and photographs (ZIP)</label>
+        </fieldset>
         <fieldset className="export-scope" disabled={preparing} aria-describedby="export-scope-help">
           <legend>Choose records to export</legend>
           <label><input type="radio" name="export-scope" value="active" checked={state.scope === 'active'} onChange={() => memory.select('active')} />Active records</label>
@@ -17,11 +23,12 @@ export function ExportRecords({ memory, follow, onAuthLost }: { memory: ExportMe
         </fieldset>
         <p id="export-scope-help">Export includes every record in your chosen scope. Search, loaded pages, and the screen you came from do not limit it.</p>
         <dl className="export-facts">
-          <div><dt>Format</dt><dd>CSV version 1 · UTF-8</dd></div>
-          <div><dt>Limits</dt><dd>10,000 records · 32 MiB</dd></div>
+          <div><dt>Format</dt><dd>{isPackage ? 'ZIP version 1 · CSV, manifest, instructions, and WebP photographs' : 'CSV version 1 · UTF-8'}</dd></div>
+          <div><dt>Limits</dt><dd>{isPackage ? '10,000 records · 32 MiB CSV · 16 MiB manifest · 128 MiB total contents and ZIP · Two-minute preparation deadline' : '10,000 records · 32 MiB'}</dd></div>
           <div><dt>File availability</dt><dd>Ten minutes, in this tab. Sign-out or reload clears it.</dd></div>
         </dl>
-        <p>This is not a backup and cannot restore Workbench. Photos, history, and session information are excluded.</p>
+        <p>{isPackage ? 'The ZIP includes current stored detail photographs, not camera originals or thumbnails. Extract it and read README.txt; photographs require a WebP-capable viewer. Missing or unreadable required photographs fail the whole package.' : 'Photos are excluded from CSV. Choose Records and photographs (ZIP) to include them.'}</p>
+        <p>This is not a backup and cannot restore Workbench. History and session information are excluded.</p>
         <details className="export-guidance" open>
           <summary>Opening the CSV in a spreadsheet</summary>
           <p>Import columns as Text to preserve exact IDs, timestamps, and user text. Names, notes, and locations have one added apostrophe to protect against spreadsheet formulas; it may remain visible.</p>
@@ -30,9 +37,9 @@ export function ExportRecords({ memory, follow, onAuthLost }: { memory: ExportMe
         <div className="button-row">
           <button className="primary" type="submit" disabled={!state.scope || preparing}>{state.status === 'failed' ? 'Retry' : state.status === 'ready' || state.status === 'empty' ? 'Prepare new export' : 'Prepare export'}</button>
           {preparing ? <button className="secondary" type="button" onClick={() => memory.cancel()}>Cancel</button> : null}
-          {state.status === 'ready' && state.url ? <a className="primary button" href={state.url} download={state.filename} onClick={event => { if (!memory.startDownload()) event.preventDefault(); }}>Download CSV</a> : null}
+          {state.status === 'ready' && state.url ? <a className="primary button" href={state.url} download={state.filename} onClick={event => { if (!memory.startDownload()) event.preventDefault(); }}>Download {isPackage ? 'ZIP' : 'CSV'}</a> : null}
         </div>
-        {state.status === 'ready' || state.status === 'empty' || state.status === 'failed' ? <p className="muted">Preparing again creates a new snapshot. Records may have changed.</p> : null}
+        {state.status === 'ready' || state.status === 'empty' || state.status === 'failed' ? <p className="muted">Preparing again creates a new snapshot. Records{isPackage ? ' and photographs' : ''} may have changed.</p> : null}
         <p role={state.status === 'failed' ? 'alert' : 'status'} aria-live={state.status === 'failed' ? 'assertive' : 'polite'}>{state.message ?? 'Select a scope to prepare your export.'}</p>
       </form>
     </div>

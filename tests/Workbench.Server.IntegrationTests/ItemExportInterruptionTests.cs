@@ -16,17 +16,21 @@ namespace Workbench.Server.IntegrationTests;
 public sealed class ItemExportInterruptionTests(SqlServerFixture sqlServer)
 {
     [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public async Task BlockedSqlReadTerminatesAndReleasesPreparationCapacity(bool clientAborts)
+    [InlineData(false, false)]
+    [InlineData(true, false)]
+    [InlineData(false, true)]
+    [InlineData(true, true)]
+    public async Task BlockedSqlReadTerminatesAndReleasesPreparationCapacity(bool clientAborts, bool package)
     {
         // GIVEN an independent SQL transaction preventing the export from reading its collection.
         await using var app = await AuthTestApplication.CreateAsync(sqlServer);
+        await using var storageFactory = CreateExportFactory(app);
         // Keep SQL's own timeout longer than the assertion window so it cannot mask a missing application deadline.
-        await using var factory = app.Factory.WithWebHostBuilder(builder => builder.ConfigureServices(services =>
+        await using var factory = storageFactory.WithWebHostBuilder(builder => builder.ConfigureServices(services =>
             services.AddDbContext<WorkbenchDbContext>(options => options.UseSqlServer(app.WebConnectionString,
-                sql => sql.CommandTimeout(120)))));
+                sql => sql.CommandTimeout(240)))));
         using var client = factory.CreateClient();
+        client.Timeout = TimeSpan.FromSeconds(180);
         await LoginAsync(client);
         await using var blocker = new SqlConnection(app.AdminConnectionString);
         await blocker.OpenAsync();
@@ -34,11 +38,11 @@ public sealed class ItemExportInterruptionTests(SqlServerFixture sqlServer)
         await using var hold = new SqlCommand("SELECT COUNT(*) FROM [Inventory].[Items] WITH (TABLOCKX,HOLDLOCK)", blocker, transaction);
         await hold.ExecuteScalarAsync();
         using var cancellation = new CancellationTokenSource();
-        var pending = PostAsync(client, "/api/items/export", new { scope = "all" }, cancellation.Token);
+        var pending = PostAsync(client, ExportPath(package), new { scope = "all" }, cancellation.Token);
         try
         {
             await ItemExportConcurrencyTests.AssertBlockedWriterAsync(app.AdminConnectionString);
-            // WHEN the client cancels, or the real 30-second preparation deadline expires.
+            // WHEN the client cancels, or the real 30-second CSV / 120-second package preparation deadline expires.
             if (clientAborts)
             {
                 cancellation.Cancel();
@@ -46,7 +50,7 @@ public sealed class ItemExportInterruptionTests(SqlServerFixture sqlServer)
             }
             else
             {
-                var response = await pending.WaitAsync(TimeSpan.FromSeconds(40));
+                var response = await pending.WaitAsync(TimeSpan.FromSeconds(package ? 135 : 40));
                 // THEN a timed-out request gives actionable failure and never an attachment.
                 Assert.Equal(HttpStatusCode.ServiceUnavailable, response.StatusCode);
                 Assert.Contains("export_preparation_failed", await response.Content.ReadAsStringAsync());
@@ -68,6 +72,6 @@ public sealed class ItemExportInterruptionTests(SqlServerFixture sqlServer)
         }
         finally { await transaction.RollbackAsync(); }
         // AND a new export can succeed when the database becomes available again.
-        Assert.Equal(HttpStatusCode.NoContent, (await PostAsync(client, "/api/items/export", new { scope = "all" })).StatusCode);
+        Assert.Equal(HttpStatusCode.NoContent, (await PostAsync(client, ExportPath(package), new { scope = "all" })).StatusCode);
     }
 }

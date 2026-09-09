@@ -19,19 +19,28 @@ namespace Workbench.Server.IntegrationTests;
 public sealed class ItemExportConcurrencyTests(SqlServerFixture sqlServer)
 {
     [Theory]
-    [InlineData("edit", "all")]
-    [InlineData("archive", "all")]
-    [InlineData("restore", "all")]
-    [InlineData("insert", "all")]
-    [InlineData("edit", "active")]
-    [InlineData("archive", "active")]
-    [InlineData("restore", "active")]
-    [InlineData("insert", "active")]
-    public async Task ExportIsOneSnapshotWhileAnIndependentSessionChangesTheCollection(string change, string scope)
+    [InlineData("edit", "all", false)]
+    [InlineData("archive", "all", false)]
+    [InlineData("restore", "all", false)]
+    [InlineData("insert", "all", false)]
+    [InlineData("edit", "active", false)]
+    [InlineData("archive", "active", false)]
+    [InlineData("restore", "active", false)]
+    [InlineData("insert", "active", false)]
+    [InlineData("edit", "all", true)]
+    [InlineData("archive", "all", true)]
+    [InlineData("restore", "all", true)]
+    [InlineData("insert", "all", true)]
+    [InlineData("edit", "active", true)]
+    [InlineData("archive", "active", true)]
+    [InlineData("restore", "active", true)]
+    [InlineData("insert", "active", true)]
+    public async Task ExportIsOneSnapshotWhileAnIndependentSessionChangesTheCollection(string change, string scope, bool package)
     {
         // GIVEN a retained record and a second session whose export pauses with its snapshot locks held.
         await using var app = await AuthTestApplication.CreateAsync(sqlServer);
-        using var writer = app.CreateClient();
+        await using var storageFactory = CreateExportFactory(app);
+        using var writer = storageFactory.CreateClient();
         await LoginAsync(writer);
         var created = await PostAsync(writer, "/api/items", new { creationRequestId = Guid.NewGuid(), name = "Before snapshot" });
         var item = await created.Content.ReadFromJsonAsync<JsonElement>();
@@ -43,11 +52,11 @@ public sealed class ItemExportConcurrencyTests(SqlServerFixture sqlServer)
             version = (await archived.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("version").GetString();
         }
         var barrier = new BeforeCommit();
-        await using var factory = app.Factory.WithWebHostBuilder(builder => builder.ConfigureServices(services =>
+        await using var factory = storageFactory.WithWebHostBuilder(builder => builder.ConfigureServices(services =>
             services.AddDbContext<WorkbenchDbContext>(options => options.AddInterceptors(barrier))));
         using var reader = factory.CreateClient();
         await LoginAsync(reader);
-        var exporting = PostAsync(reader, "/api/items/export", new { scope });
+        var exporting = PostAsync(reader, ExportPath(package), new { scope });
         await barrier.Held.Task.WaitAsync(TimeSpan.FromSeconds(15));
         // WHEN an independent real HTTP/SQL session attempts a conflicting write.
         Task<HttpResponseMessage> writing = change switch
@@ -66,7 +75,7 @@ public sealed class ItemExportConcurrencyTests(SqlServerFixture sqlServer)
         // THEN SQL held the write until the snapshot was complete, and the file contains its prior state.
         Assert.Equal(scope == "active" && change == "restore" ? HttpStatusCode.NoContent : HttpStatusCode.OK, response.StatusCode);
         Assert.True(written.IsSuccessStatusCode);
-        var csv = await response.Content.ReadAsStringAsync();
+        var csv = await ReadRecordsAsync(response, package);
         if (scope == "active" && change == "restore") Assert.Equal("", csv);
         else
         {
@@ -75,28 +84,31 @@ public sealed class ItemExportConcurrencyTests(SqlServerFixture sqlServer)
         }
         Assert.DoesNotContain("After snapshot", csv);
         // AND a new snapshot includes the later committed change.
-        var next = await PostAsync(writer, "/api/items/export", new { scope });
-        var nextCsv = await next.Content.ReadAsStringAsync();
+        var next = await PostAsync(writer, ExportPath(package), new { scope });
+        var nextCsv = await ReadRecordsAsync(next, package);
         Assert.Equal(scope == "active" && change == "archive" ? HttpStatusCode.NoContent : HttpStatusCode.OK, next.StatusCode);
         if (change is "insert" or "edit") Assert.Contains("After snapshot", nextCsv);
         else if (scope == "active" && change == "archive") Assert.Equal("", nextCsv);
         else Assert.Contains(change == "archive" ? "\"true\"" : "\"false\"", nextCsv);
     }
 
-    [Fact]
-    public async Task SessionRevokedDuringPreparationCannotReceivePreparedBytes()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task SessionRevokedDuringPreparationCannotReceivePreparedBytes(bool package)
     {
         // GIVEN an authenticated member and preparation paused before commit.
         await using var app = await AuthTestApplication.CreateAsync(sqlServer);
-        using var client = app.CreateClient();
+        await using var storageFactory = CreateExportFactory(app);
+        using var client = storageFactory.CreateClient();
         await LoginAsync(client);
         await PostAsync(client, "/api/items", new { creationRequestId = Guid.NewGuid(), name = "Private text" });
         var barrier = new BeforeCommit();
-        await using var factory = app.Factory.WithWebHostBuilder(builder => builder.ConfigureServices(services =>
+        await using var factory = storageFactory.WithWebHostBuilder(builder => builder.ConfigureServices(services =>
             services.AddDbContext<WorkbenchDbContext>(options => options.AddInterceptors(barrier))));
         using var reader = factory.CreateClient();
         await LoginAsync(reader);
-        var exporting = PostAsync(reader, "/api/items/export", new { scope = "all" });
+        var exporting = PostAsync(reader, ExportPath(package), new { scope = "all" });
         await barrier.Held.Task.WaitAsync(TimeSpan.FromSeconds(15));
         // WHEN an administrator revokes the member's sessions while preparation is in flight.
         try
