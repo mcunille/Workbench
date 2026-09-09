@@ -58,7 +58,10 @@ export function AcquisitionEditor({
   useEffect(() => {
     const field = Object.keys(errors)[0]?.toLowerCase();
     if (field)
-      form.current?.querySelector<HTMLElement>(`[name="${field}"]`)?.focus();
+      (
+        form.current?.querySelector<HTMLElement>(`[name="${field}"]`) ??
+        heading.current
+      )?.focus();
   }, [errors]);
   function authFailure(error: unknown) {
     if (
@@ -114,6 +117,12 @@ export function AcquisitionEditor({
             field +
             ' or choose less precise date information.',
         ];
+      else if (needed) {
+        const value = Number(draft[field]);
+        const maximum = field === 'year' ? 9999 : field === 'month' ? 12 : 31;
+        if (!Number.isInteger(value) || value < 1 || value > maximum)
+          required[field] = [`Enter a whole ${field} from 1 to ${maximum}.`];
+      }
     }
     if (!submitted && Object.keys(required).length) {
       setErrors(required);
@@ -153,7 +162,10 @@ export function AcquisitionEditor({
       else if (error instanceof ItemValidationError) {
         setSubmitted(undefined);
         setErrors(error.errors);
-        setMessage('Check the highlighted fields and save again.');
+        setMessage(
+          error.errors.acquisition?.join(' ') ??
+            'Check the highlighted fields and save again.',
+        );
       } else
         setMessage(
           'We could not confirm whether your acquisition was saved. Your submitted input is kept unchanged. Retry this save or review the current acquisition.',

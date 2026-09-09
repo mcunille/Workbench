@@ -25,8 +25,14 @@ async function request(
   });
   if (response.status === 409) throw new AcquisitionConflictError();
   if (response.status === 400) {
-    const problem = await response.json();
-    if (problem.errors) throw new ItemValidationError(problem.errors);
+    const problem = await response.json().catch(() => null);
+    throw new ItemValidationError(
+      problem?.errors ?? {
+        acquisition: [
+          'The request could not be accepted. Check the entered facts and try again.',
+        ],
+      },
+    );
   }
   if (!response.ok) throw new ApiError(response.status);
   return response.json();

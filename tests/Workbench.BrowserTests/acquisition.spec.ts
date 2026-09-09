@@ -32,6 +32,14 @@ test('H9 optional facts, explicit methods and partial dates survive a new login 
     if (precision !== 'Unknown') await page.getByLabel('Year', { exact: true }).fill('2020');
     if (precision === 'Month' || precision === 'Exact date') await page.getByLabel('Month', { exact: true }).fill('2');
     if (precision === 'Exact date') await page.getByLabel('Day', { exact: true }).fill('29');
+    if (method === 'Gift') {
+      // GIVEN a fractional year WHEN saving THEN allow correction without an uncertain request.
+      await page.getByLabel('Year', { exact: true }).fill('2020.5');
+      await save(page);
+      await expect(page.getByText('Enter a whole year from 1 to 9999.', { exact: true })).toBeVisible();
+      await expect(page.getByLabel('Year', { exact: true })).toBeFocused();
+      await page.getByLabel('Year', { exact: true }).fill('2020');
+    }
     await page.getByLabel('Provenance notes (optional)', { exact: true }).fill('<b>Family recollection</b>');
     // WHEN the collector saves only known facts THEN the saved view invents no precision or HTML.
     await save(page);

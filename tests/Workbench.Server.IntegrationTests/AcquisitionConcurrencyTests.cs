@@ -142,7 +142,7 @@ public sealed class AcquisitionConcurrencyTests(SqlServerFixture sqlServer)
             attemptedPartialCommit.Parameters.AddWithValue("@id", item.Id);
             attemptedPartialCommit.Parameters.AddWithValue("@request", request.CreationRequestId);
             attemptedPartialCommit.Parameters.AddWithValue("@version", Convert.FromBase64String(item.Version));
-            Assert.Equal(-1, await attemptedPartialCommit.ExecuteScalarAsync());
+            Assert.Equal(-1, Convert.ToInt32(await attemptedPartialCommit.ExecuteScalarAsync()));
         }
         foreach (var table in new[] { "Acquisitions", "AcquisitionItems", "AcquisitionCreationRecords" })
         {

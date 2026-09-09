@@ -400,3 +400,59 @@ it('delegates authentication loss without retaining an enabled save flow', async
     screen.queryByRole('button', { name: 'Add acquisition' }),
   ).not.toBeInTheDocument();
 });
+
+it.each(['2020.5', '10000', '2147483648'])(
+  'keeps an invalid year editable without sending it: %s',
+  async (year) => {
+    // GIVEN a numeric value that cannot represent an acquired year.
+    const write = vi.fn(() =>
+      HttpResponse.json({ acquisition, itemVersion: 'next' }),
+    );
+    server.use(http.post('*/api/items/stone/acquisition', write));
+    setup();
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'Add acquisition' }),
+    );
+    fireEvent.change(screen.getByLabelText('Acquisition method'), {
+      target: { value: 'Gift' },
+    });
+    fireEvent.change(screen.getByLabelText('Date precision'), {
+      target: { value: 'Year' },
+    });
+    fireEvent.change(screen.getByLabelText('Year'), {
+      target: { value: year },
+    });
+    // WHEN saving THEN no unbindable command is sent or frozen as uncertain.
+    fireEvent.click(screen.getByRole('button', { name: 'Save acquisition' }));
+    await screen.findByText('Enter a whole year from 1 to 9999.');
+    expect(screen.getByLabelText('Year')).toBeEnabled();
+    expect(screen.getByLabelText('Year')).toHaveFocus();
+    expect(write).not.toHaveBeenCalled();
+  },
+);
+
+it('keeps input editable after a definite bad request without field details', async () => {
+  // GIVEN a definitive binding rejection without a field-error body.
+  server.use(
+    http.post(
+      '*/api/items/stone/acquisition',
+      () => new HttpResponse(null, { status: 400 }),
+    ),
+  );
+  setup();
+  fireEvent.click(
+    await screen.findByRole('button', { name: 'Add acquisition' }),
+  );
+  fireEvent.change(screen.getByLabelText('Acquisition method'), {
+    target: { value: 'Trade' },
+  });
+  // WHEN the response arrives THEN allow correction, without calling the rejected save uncertain.
+  fireEvent.click(screen.getByRole('button', { name: 'Save acquisition' }));
+  await screen.findByText(
+    'The request could not be accepted. Check the entered facts and try again.',
+  );
+  expect(screen.getByLabelText('Acquisition method')).toBeEnabled();
+  expect(
+    screen.queryByRole('button', { name: 'Retry save' }),
+  ).not.toBeInTheDocument();
+});
