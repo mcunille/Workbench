@@ -104,7 +104,7 @@ test('H9 competing sessions preserve drafts through failed conflict reads and de
       await setAppearance(other, dark);
       expect(await other.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
       await expect(other.getByText('My retained recollection', { exact: true })).toBeVisible();
-      expect(await other.evaluate(() => getComputedStyle(document.querySelector('.topbar')!).backdropFilter)).toBe('none');
+      await expect(other.getByRole('navigation', { name: 'Workspace', exact: true })).toHaveCSS('backdrop-filter', 'none');
     }
     await cdp.detach();
     // THEN keyboard reconciliation starts with saved values and only explicit submission changes them.
