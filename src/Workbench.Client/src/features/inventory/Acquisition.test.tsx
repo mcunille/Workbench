@@ -258,7 +258,8 @@ it('focuses server validation, retains fields, and preserves partial date precis
   // WHEN saving THEN no artificial month/day is sent, and correction stays editable.
   fireEvent.click(screen.getByRole('button', { name: 'Save acquisition' }));
   await screen.findByText('The acquired date cannot be in the future.');
-  expect(screen.getByLabelText('Year')).toHaveFocus();
+  // THEN the post-render validation effect moves focus to the rejected field.
+  await waitFor(() => expect(screen.getByLabelText('Year')).toHaveFocus());
   expect(screen.getByLabelText('Year')).toHaveValue(9999);
   expect(screen.getByLabelText('Year')).toBeEnabled();
   expect(commands[0]).toMatchObject({
