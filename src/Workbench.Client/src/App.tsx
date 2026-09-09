@@ -40,7 +40,25 @@ function SignedInApplication({
   const navigation = useNavigation();
   const [signOutFailed, setSignOutFailed] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [navigationCollapsed, setNavigationCollapsed] = useState(false);
+  const userMenu = useRef<HTMLDivElement>(null);
   const userMenuTrigger = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    if (!userMenuOpen) return;
+    function dismiss(event: Event) {
+      // A confirmation dialog returns focus to its invoking profile action.
+      if (event.target instanceof Element && event.target.closest('dialog')) return;
+      if (event.target instanceof Node && !userMenu.current?.contains(event.target)) {
+        setUserMenuOpen(false);
+      }
+    }
+    document.addEventListener('pointerdown', dismiss);
+    document.addEventListener('focusin', dismiss);
+    return () => {
+      document.removeEventListener('pointerdown', dismiss);
+      document.removeEventListener('focusin', dismiss);
+    };
+  }, [userMenuOpen]);
   const [collectionMemory] = useState(() => new CollectionMemory());
   const [archiveMemory] = useState(() => new CollectionMemory());
   const [exportMemory] = useState(() => new ExportMemory());
@@ -85,10 +103,27 @@ function SignedInApplication({
       <a className="skip-link" href="#main">
         Skip to content
       </a>
-      <div className="workspace-layout">
+      <div className={`workspace-layout${navigationCollapsed ? ' navigation-collapsed' : ''}`}>
         <nav className="workspace-nav" aria-label="Workspace">
-          <Brand />
+          <div className="navigation-heading">
+            <Brand />
+            <button
+              className="quiet navigation-toggle"
+              type="button"
+              aria-label={navigationCollapsed ? 'Expand navigation' : 'Collapse navigation'}
+              aria-expanded={!navigationCollapsed}
+              title={navigationCollapsed ? 'Expand navigation' : 'Collapse navigation'}
+              onClick={() => {
+                setUserMenuOpen(false);
+                setNavigationCollapsed((collapsed) => !collapsed);
+              }}
+            >
+              <Icon name="menu" />
+            </button>
+          </div>
           <a
+            className="navigation-destination"
+            title={navigationCollapsed ? 'Inventory' : undefined}
             href="/inventory"
             aria-current={
               path.startsWith('/inventory') || path === '/'
@@ -98,9 +133,24 @@ function SignedInApplication({
             onClick={navigation.follow}
           >
             <Icon name="inventory" />
-            Inventory
+            <span className="navigation-label">Inventory</span>
           </a>
+          <div className="navigation-secondary">
+            {canManageUsers ? (
+              <a
+                className="navigation-destination"
+                title={navigationCollapsed ? 'Administration' : undefined}
+                href="/administration"
+                aria-current={path === '/administration' ? 'page' : undefined}
+                onClick={navigation.follow}
+              >
+                <Icon name="administration" />
+                <span className="navigation-label">Administration</span>
+              </a>
+            ) : null}
+          </div>
           <div
+            ref={userMenu}
             className="user-menu"
             onKeyDown={(event) => {
               if (event.key === 'Escape') {
@@ -109,61 +159,54 @@ function SignedInApplication({
               }
             }}
           >
+            <button
+              ref={userMenuTrigger}
+              className="quiet user-menu-trigger"
+              type="button"
+              aria-label="User menu"
+              title={navigationCollapsed ? 'Account and appearance' : undefined}
+              aria-describedby="user-email"
+              aria-expanded={userMenuOpen}
+              aria-controls={userMenuOpen ? 'user-actions' : undefined}
+              onClick={() => setUserMenuOpen((open) => !open)}
+            >
+              <span className="user-avatar" aria-hidden="true">{identity.email?.slice(0, 1).toUpperCase() ?? 'W'}</span>
+              <span className="user-menu-identity">
+                <span id="user-email" className="user-email" title={identity.email ?? undefined}>{identity.email ?? 'Account'}</span>
+              </span>
+              <Icon name="chevron" />
+            </button>
             {/* Keep the appearance subscription active while the disclosure is hidden. */}
             <div id="user-actions" className="user-actions" hidden={!userMenuOpen}>
+              <div className="profile-heading">
+                <strong>{identity.tenantName}</strong>
+                <span>{identity.email ?? 'Account'}</span>
+              </div>
               <a
+                className="profile-row"
                 href="/account"
                 aria-current={path === '/account' ? 'page' : undefined}
                 onClick={navigation.follow}
               >
                 <Icon name="account" />
-                Account
+                <span>Account</span>
+                <Icon name="chevron" />
               </a>
-              {canManageUsers ? (
-                <a
-                  href="/administration"
-                  aria-current={path === '/administration' ? 'page' : undefined}
-                  onClick={navigation.follow}
-                >
-                  <Icon name="administration" />
-                  Administration
-                </a>
-              ) : null}
-              <div className="user-appearance">
-                <span>Appearance</span>
-                {appearance}
-              </div>
+              {appearance}
               <button
-                className="quiet"
+                className="quiet profile-row"
                 type="button"
                 onClick={() => navigation.request(() => {
                   void signOut().catch(() => setSignOutFailed(true));
                 })}
               >
                 <Icon name="sign-out" />
-                Sign out
+                <span>Sign out</span>
               </button>
+              <div className="nav-version" title={system.version}>
+                Workbench {system.version.split('+')[0]}
+              </div>
             </div>
-            <button
-              ref={userMenuTrigger}
-              className="quiet user-menu-trigger"
-              type="button"
-              aria-label="User menu"
-              aria-describedby="user-email user-tenant"
-              aria-expanded={userMenuOpen}
-              aria-controls={userMenuOpen ? 'user-actions' : undefined}
-              onClick={() => setUserMenuOpen((open) => !open)}
-            >
-              <Icon name="account" />
-              <span className="user-menu-identity">
-                <span id="user-email" className="user-email" title={identity.email ?? undefined}>{identity.email ?? 'Account'}</span>
-                <span id="user-tenant" className="user-tenant">{identity.tenantName}</span>
-              </span>
-              <Icon name="chevron" />
-            </button>
-          </div>
-          <div className="nav-version" title={system.version}>
-            Workbench {system.version.split('+')[0]}
           </div>
         </nav>
         <main id="main" className="workspace">
@@ -234,7 +277,7 @@ function SignedInApplication({
     </div>
   );
 }
-function WorkbenchApplication({ appearance }: { appearance: ReactNode }) {
+function WorkbenchApplication({ appearance, menuAppearance }: { appearance: ReactNode; menuAppearance: ReactNode }) {
   const { identity, status } = useAuth();
   const [system, setSystem] = useState<SystemInformation>();
   const [systemFailed, setSystemFailed] = useState(false);
@@ -302,7 +345,7 @@ function WorkbenchApplication({ appearance }: { appearance: ReactNode }) {
     <SignedInApplication
       key={JSON.stringify([identity.userId, identity.tenantName])}
       system={system}
-      appearance={appearance}
+      appearance={menuAppearance}
     />
   );
 }
@@ -332,7 +375,9 @@ export function App({
         </>
       ) : (
         <AuthProvider>
-          <WorkbenchApplication appearance={appearance} />
+          <WorkbenchApplication appearance={appearance} menuAppearance={
+            <AppearanceControl preference={preference} setPreference={setPreference} variant="menu" />
+          } />
         </AuthProvider>
       )}
     </>

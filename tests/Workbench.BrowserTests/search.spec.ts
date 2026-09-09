@@ -34,7 +34,9 @@ for (const width of [320, 1280]) {
     await page.getByRole('button', { name: 'Load more', exact: true }).click();
     await expect(page.locator('.collection-list > li')).toHaveCount(53);
     const selected = page.getByRole('link').filter({ has: page.getByText(`Piece 51 ${phrase}`, { exact: true }) });
-    await selected.scrollIntoViewIfNeeded();
+    // Center the target above floating navigation before recording the position.
+    // Otherwise Playwright may scroll again to avoid the pill during click().
+    await selected.evaluate(element => element.scrollIntoView({ block: 'center', behavior: 'instant' }));
     const scroll = await page.evaluate(() => window.scrollY);
     await selected.click();
     await expect(page.getByRole('heading', { name: `Piece 51 ${phrase}`, exact: true })).toBeVisible();

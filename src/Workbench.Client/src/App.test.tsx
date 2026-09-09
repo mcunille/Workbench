@@ -165,7 +165,7 @@ describe('App', () => {
       await screen.findByRole('heading', { name: 'Collection' });
       // THEN the choice survives both authentication boundary changes in this page.
       fireEvent.click(screen.getByRole('button', { name: 'User menu' }));
-      expect(screen.getByRole('switch', { name: 'Dark theme' })).toHaveAttribute('aria-checked', 'true');
+      expect(screen.getByRole('button', { name: 'Appearance Dark' })).toBeVisible();
       expect(document.documentElement.dataset.theme).toBe('dark');
       fireEvent.click(screen.getByRole('button', { name: 'Sign out' }));
       await screen.findByRole('heading', { name: 'Sign in' });
@@ -204,24 +204,31 @@ describe('App', () => {
     expect(
       await screen.findByRole('heading', { name: 'Collection' }),
     ).toBeVisible();
-    // THEN the header is gone and controls are hidden behind the user row.
+    // THEN administration is a direct destination and personal controls stay behind the user row.
     expect(screen.queryByRole('banner')).not.toBeInTheDocument();
     expect(screen.queryByRole('switch', { name: 'Dark theme' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('link', { name: 'Administration' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Administration' }) !== null).toBe(administrator);
     expect(screen.queryByRole('button', { name: 'Sign out' })).not.toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'Account' })).not.toBeInTheDocument();
     const nav = within(screen.getByRole('navigation', { name: 'Workspace' }));
     expect(nav.getByRole('img', { name: 'Workbench' })).toBeVisible();
-    expect(nav.getByText('Tenant A')).toBeVisible();
+    expect(nav.getByText('Tenant A')).not.toBeVisible();
     const trigger = nav.getByRole('button', { name: 'User menu' });
-    expect(trigger).toHaveAccessibleDescription('admin@example.com Tenant A');
+    expect(trigger).toHaveAccessibleDescription('admin@example.com');
     expect(trigger).toHaveAttribute('aria-expanded', 'false');
+    // WHEN collapsing the sidebar THEN destinations retain accessible names and the account panel works.
+    fireEvent.click(nav.getByRole('button', { name: 'Collapse navigation' }));
+    expect(nav.getByRole('button', { name: 'Expand navigation' })).toHaveAttribute('aria-expanded', 'false');
+    expect(nav.getByRole('link', { name: 'Inventory' })).toHaveAttribute('href', '/inventory');
     // WHEN the user row is expanded THEN both personal actions are available in the nav.
     fireEvent.click(trigger);
     expect(trigger).toHaveAttribute('aria-expanded', 'true');
+    // THEN the tenant appears only inside the menu and appearance is a direct cycling action.
+    expect(nav.getByText('Tenant A')).toBeVisible();
+    expect(nav.queryByRole('switch')).not.toBeInTheDocument();
     expect(nav.getByRole('link', { name: 'Account' })).toHaveAttribute('href', '/account');
     expect(nav.getByRole('button', { name: 'Sign out' })).toBeVisible();
-    expect(nav.getByRole('switch', { name: 'Dark theme' })).toBeVisible();
+    expect(nav.getByRole('button', { name: /Appearance/ })).toBeVisible();
     expect(nav.queryByRole('link', { name: 'Administration' }) !== null).toBe(administrator);
     // WHEN Escape is pressed THEN the disclosure closes and focus returns to its trigger.
     fireEvent.keyDown(nav.getByRole('button', { name: 'Sign out' }), { key: 'Escape' });
@@ -229,13 +236,17 @@ describe('App', () => {
     expect(trigger).toHaveFocus();
     expect(screen.queryByRole('button', { name: 'Sign out' })).not.toBeInTheDocument();
     expect(
-      screen.getAllByRole('switch', { hidden: true }),
+      screen.getAllByRole('button', { name: /Appearance/, hidden: true }),
     ).toHaveLength(1);
     // AND the release label stays compact while retaining the full build as metadata.
     expect(nav.getByText('Workbench 1.2.3')).toHaveAttribute(
       'title',
       '1.2.3+abcdef0123456789',
     );
+    // WHEN expanding again THEN the labeled navigation returns without changing the page.
+    fireEvent.click(nav.getByRole('button', { name: 'Expand navigation' }));
+    expect(nav.getByRole('button', { name: 'Collapse navigation' })).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.getByRole('heading', { name: 'Collection' })).toBeVisible();
   });
 
   it('renders a safe failure state', async () => {

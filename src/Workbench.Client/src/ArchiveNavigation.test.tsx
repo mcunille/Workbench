@@ -72,7 +72,7 @@ it('keeps archive and collection traversals independent through appearance and d
   });
   fireEvent.click(screen.getByRole('button', { name: 'List' }));
   fireEvent.click(screen.getByRole('button', { name: 'User menu' }));
-  fireEvent.click(screen.getByRole('switch', { name: 'Dark theme' }));
+  fireEvent.click(screen.getByRole('button', { name: /^Appearance / }));
   fireEvent.click(screen.getByRole('link', { name: /Archived stone/ }));
   await screen.findByRole('heading', { name: 'Archived stone' });
   expect(window.location.pathname).toBe('/inventory/stone');
@@ -257,17 +257,26 @@ it('keeps the archive return origin through a native skip-link entry and appeara
   fireEvent.click(
     await screen.findByRole('button', { name: 'Restore to collection' }),
   );
-  fireEvent.click(
-    screen.getByRole('button', { name: 'Confirm restore' }),
-  );
-  await screen.findByText('Record restored to collection.');
+  // WHEN an animation frame runs before React commits the restored state.
+  const frame = vi.spyOn(window, 'requestAnimationFrame').mockImplementation(callback => {
+    callback(0);
+    return 0;
+  });
+  try {
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm restore' }));
+    await screen.findByText('Record restored to collection.');
+    // THEN the newly available action receives focus after it mounts.
+    expect(screen.getByRole('button', { name: 'Edit details' })).toHaveFocus();
+  } finally {
+    frame.mockRestore();
+  }
   // WHEN a native keyboard skip link creates a fragment history entry and appearance rerenders the app.
   fireEvent.click(screen.getByRole('link', { name: 'Skip to content' }));
   await waitFor(() =>
     expect(window.history.state?.workbenchIndex).toBe(2),
   );
   fireEvent.click(screen.getByRole('button', { name: 'User menu' }));
-  fireEvent.click(screen.getByRole('switch', { name: 'Dark theme' }));
+  fireEvent.click(screen.getByRole('button', { name: /^Appearance / }));
   // THEN the restored detail still returns to its original archive traversal.
   expect(
     screen.getByRole('link', { name: 'Back to archive' }),

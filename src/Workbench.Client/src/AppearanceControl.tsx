@@ -15,9 +15,11 @@ function readSystemDark() {
 export function AppearanceControl({
   preference,
   setPreference,
+  variant = 'switch',
 }: {
   preference: Appearance;
   setPreference(value: Appearance): void;
+  variant?: 'switch' | 'menu';
 }) {
   const systemDark = useSyncExternalStore(
     subscribeToSystemTheme,
@@ -27,6 +29,24 @@ export function AppearanceControl({
   useEffect(() => {
     applyAppearance(preference, systemDark);
   }, [preference, systemDark]);
+  function choose(value: Appearance) {
+    setPreference(value);
+    try {
+      localStorage.setItem('workbench.appearance', value);
+    } catch {
+      /* Preference remains usable for this page. */
+    }
+  }
+  if (variant === 'menu') return (
+      <button className="quiet profile-row" type="button"
+        aria-label={`Appearance ${preference === 'system' ? 'Auto' : dark ? 'Dark' : 'Light'}`}
+        title={`Switch to ${preference === 'system' ? 'dark' : preference === 'dark' ? 'light' : 'automatic'} appearance`}
+        onClick={() => choose(preference === 'system' ? 'dark' : preference === 'dark' ? 'light' : 'system')}>
+        <Icon name={preference === 'system' ? 'system' : dark ? 'moon' : 'sun'} />
+        <span>Appearance</span>
+        <span className="profile-row-detail" aria-live="polite">{preference === 'system' ? 'Auto' : dark ? 'Dark' : 'Light'}</span>
+      </button>
+  );
   return (
     <button
       className="appearance"
@@ -37,12 +57,7 @@ export function AppearanceControl({
       title={dark ? 'Switch to light theme' : 'Switch to dark theme'}
       onClick={() => {
         const value = dark ? 'light' : 'dark';
-        setPreference(value);
-        try {
-          localStorage.setItem('workbench.appearance', value);
-        } catch {
-          /* Preference remains usable for this page. */
-        }
+        choose(value);
       }}
     >
       <Icon name="sun" />

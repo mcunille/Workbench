@@ -3,15 +3,37 @@ import { useState } from 'react';
 import { AppearanceControl } from './AppearanceControl';
 import { readAppearance } from './appearance';
 
-function Harness() {
+function Harness({ variant = 'switch' }: { variant?: 'switch' | 'menu' }) {
   const [preference, setPreference] = useState(readAppearance);
   return (
     <AppearanceControl
       preference={preference}
       setPreference={setPreference}
+      variant={variant}
     />
   );
 }
+
+it('cycles the profile appearance through dark, light, and auto without a submenu', () => {
+  // GIVEN auto appearance and a light system theme.
+  localStorage.clear();
+  const changeSystem = systemTheme(false);
+  render(<Harness variant="menu" />);
+  // WHEN repeatedly activating the same row THEN each choice applies and persists.
+  fireEvent.click(screen.getByRole('button', { name: 'Appearance Auto' }));
+  expect(document.documentElement.dataset.theme).toBe('dark');
+  expect(localStorage.getItem('workbench.appearance')).toBe('dark');
+  fireEvent.click(screen.getByRole('button', { name: 'Appearance Dark' }));
+  expect(document.documentElement.dataset.theme).toBe('light');
+  expect(localStorage.getItem('workbench.appearance')).toBe('light');
+  fireEvent.click(screen.getByRole('button', { name: 'Appearance Light' }));
+  expect(screen.getByRole('button', { name: 'Appearance Auto' })).not.toHaveAttribute('aria-expanded');
+  expect(localStorage.getItem('workbench.appearance')).toBe('system');
+  expect(screen.queryByRole('group', { name: 'Appearance choices' })).not.toBeInTheDocument();
+  // AND returning to auto resumes following system changes.
+  changeSystem(true);
+  expect(document.documentElement.dataset.theme).toBe('dark');
+});
 
 afterEach(() => {
   localStorage.clear();

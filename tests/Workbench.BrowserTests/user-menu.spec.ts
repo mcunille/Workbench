@@ -12,11 +12,15 @@ for (const width of [1280, 390]) {
     const trigger = nav.getByRole('button', { name: 'User menu' });
     await expect(nav.getByRole('link', { name: 'Account', exact: true })).toHaveCount(0);
     await expect(page.getByRole('banner')).toHaveCount(0);
-    await expect(nav.getByRole('link', { name: 'Administration' })).toHaveCount(0);
+    await expect(nav.getByRole('link', { name: 'Administration' })).toBeVisible();
     await expect(nav.getByRole('switch', { name: 'Dark theme' })).toHaveCount(0);
-    const brand = (await nav.getByRole('img', { name: 'Workbench' }).boundingBox())!;
-    const inventory = (await nav.getByRole('link', { name: 'Inventory' }).boundingBox())!;
-    expect(brand.y + brand.height).toBeLessThanOrEqual(inventory.y);
+    if (width > 768) {
+      const brand = (await nav.getByRole('img', { name: 'Workbench' }).boundingBox())!;
+      const inventory = (await nav.getByRole('link', { name: 'Inventory' }).boundingBox())!;
+      expect(brand.y + brand.height).toBeLessThanOrEqual(inventory.y);
+    } else {
+      await expect(nav.getByRole('button', { name: 'Collapse navigation' })).toHaveCount(0);
+    }
     // WHEN the system theme changes while the menu is closed THEN appearance still follows it.
     await page.emulateMedia({ colorScheme: 'dark' });
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
@@ -31,11 +35,20 @@ for (const width of [1280, 390]) {
     await expect(account).toBeVisible();
     await expect(signOut).toBeVisible();
     await expect(nav.getByRole('link', { name: 'Administration' })).toBeVisible();
-    const appearance = nav.getByRole('switch', { name: 'Dark theme' });
+    const appearance = nav.getByRole('button', { name: 'Appearance Auto' });
     await expect(appearance).toBeVisible();
-    const switchBox = (await appearance.boundingBox())!;
-    expect(switchBox.width).toBe(92);
-    expect(switchBox.height).toBe(44);
+    // THEN forward tabbing enters each action and reverse tabbing returns to the trigger.
+    await page.keyboard.press('Tab');
+    await expect(account).toBeFocused();
+    await page.keyboard.press('Tab');
+    await expect(appearance).toBeFocused();
+    await page.keyboard.press('Tab');
+    await expect(signOut).toBeFocused();
+    await page.keyboard.press('Shift+Tab');
+    await page.keyboard.press('Shift+Tab');
+    await page.keyboard.press('Shift+Tab');
+    await expect(trigger).toBeFocused();
+    expect((await appearance.boundingBox())!.height).toBeGreaterThanOrEqual(44);
     const tenant = (await nav.getByText('Browser Tenant', { exact: true }).boundingBox())!;
     const version = (await nav.getByText(/^Workbench \d/).boundingBox())!;
     expect(tenant.y + tenant.height).toBeLessThanOrEqual(version.y);
@@ -49,7 +62,8 @@ for (const width of [1280, 390]) {
     const evidenceDirectory = process.env.WORKBENCH_MENU_EVIDENCE_DIRECTORY;
     if (evidenceDirectory) await page.screenshot({ path: join(evidenceDirectory, `user-menu-${width}.png`), fullPage: true });
     // AND an explicit choice persists after the menu closes and the system changes.
-    await appearance.setChecked(true);
+    await appearance.click();
+    await expect(nav.getByRole('button', { name: 'Appearance Dark' })).toBeVisible();
     // WHEN dismissing from an action THEN focus returns to the collapsed trigger.
     await signOut.focus();
     await page.keyboard.press('Escape');

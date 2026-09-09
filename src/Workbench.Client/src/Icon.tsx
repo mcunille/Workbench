@@ -1,4 +1,6 @@
 type IconName =
+  | 'menu'
+  | 'system'
   | 'sun'
   | 'moon'
   | 'grid'
@@ -14,6 +16,8 @@ type IconName =
   | 'back';
 
 const paths: Record<IconName, string> = {
+  menu: 'M3 6h18 M3 12h18 M3 18h18',
+  system: 'M3 4h18v13H3z M8 21h8 M12 17v4',
   'sign-out': 'M9 4H4v16h5 M10 12h11 M17 8l4 4-4 4',
   sun: 'M16 12a4 4 0 1 1-8 0 4 4 0 0 1 8 0 M12 2v2 M12 20v2 M2 12h2 M20 12h2 M5 5l1.5 1.5 M17.5 17.5 19 19 M5 19l1.5-1.5 M17.5 6.5 19 5',
   moon: 'M20.5 13a8.5 8.5 0 0 1-9.5-9.5A8.5 8.5 0 1 0 20.5 13z',

@@ -9,12 +9,13 @@ test('enlarged navigation fits with wider platform font metrics', async ({ page 
   await page.setViewportSize({ width: 320, height: 900 });
   await page.addStyleTag({ content: 'html { font-size: 200%; } .workspace-nav { font-family: monospace; }' });
   await openUserMenu(page);
-  // WHEN navigation reflows THEN every link fits its container without clipping text.
+  // WHEN navigation reflows THEN destinations fit the pill and profile actions fit their overlay.
   const navigation = page.getByRole('navigation', { name: 'Workspace' });
   const bounds = (await navigation.boundingBox())!;
   for (const link of await navigation.getByRole('link').all()) {
     const box = (await link.boundingBox())!;
-    expect(box.x + box.width, await link.innerText()).toBeLessThanOrEqual(bounds.x + bounds.width);
+    const container = await link.evaluate(el => el.closest('.user-actions')?.getBoundingClientRect().right);
+    expect(box.x + box.width, await link.innerText()).toBeLessThanOrEqual(container ?? bounds.x + bounds.width);
     expect(await link.evaluate(el => el.scrollWidth <= el.clientWidth)).toBe(true);
   }
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
