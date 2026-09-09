@@ -196,7 +196,7 @@
     white-space: nowrap;
   }
   .navigation-destination[aria-current] .navigation-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
-  .navigation-secondary { margin: 0; }
+  .navigation-secondary { margin: 0; min-width: 0; }
   .navigation-secondary:empty { display: none; }
   .user-menu { position: static; flex: 0 0 auto; margin: 0; padding: 0; border: 0; }
   .user-menu button.user-menu-trigger { width: 44px; height: var(--mobile-nav-control-height); min-height: var(--mobile-nav-control-height); padding: 0; justify-content: center; gap: 0; border-radius: 50%; }

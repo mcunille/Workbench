@@ -37,6 +37,17 @@ for (const width of [1280, 390]) {
     await expect(nav.getByRole('link', { name: 'Administration' })).toBeVisible();
     const appearance = nav.getByRole('button', { name: 'Appearance Auto' });
     await expect(appearance).toBeVisible();
+    // THEN forward tabbing enters each action and reverse tabbing returns to the trigger.
+    await page.keyboard.press('Tab');
+    await expect(account).toBeFocused();
+    await page.keyboard.press('Tab');
+    await expect(appearance).toBeFocused();
+    await page.keyboard.press('Tab');
+    await expect(signOut).toBeFocused();
+    await page.keyboard.press('Shift+Tab');
+    await page.keyboard.press('Shift+Tab');
+    await page.keyboard.press('Shift+Tab');
+    await expect(trigger).toBeFocused();
     expect((await appearance.boundingBox())!.height).toBeGreaterThanOrEqual(44);
     const tenant = (await nav.getByText('Browser Tenant', { exact: true }).boundingBox())!;
     const version = (await nav.getByText(/^Workbench \d/).boundingBox())!;

@@ -159,6 +159,23 @@ function SignedInApplication({
               }
             }}
           >
+            <button
+              ref={userMenuTrigger}
+              className="quiet user-menu-trigger"
+              type="button"
+              aria-label="User menu"
+              title={navigationCollapsed ? 'Account and appearance' : undefined}
+              aria-describedby="user-email"
+              aria-expanded={userMenuOpen}
+              aria-controls={userMenuOpen ? 'user-actions' : undefined}
+              onClick={() => setUserMenuOpen((open) => !open)}
+            >
+              <span className="user-avatar" aria-hidden="true">{identity.email?.slice(0, 1).toUpperCase() ?? 'W'}</span>
+              <span className="user-menu-identity">
+                <span id="user-email" className="user-email" title={identity.email ?? undefined}>{identity.email ?? 'Account'}</span>
+              </span>
+              <Icon name="chevron" />
+            </button>
             {/* Keep the appearance subscription active while the disclosure is hidden. */}
             <div id="user-actions" className="user-actions" hidden={!userMenuOpen}>
               <div className="profile-heading">
@@ -190,23 +207,6 @@ function SignedInApplication({
                 Workbench {system.version.split('+')[0]}
               </div>
             </div>
-            <button
-              ref={userMenuTrigger}
-              className="quiet user-menu-trigger"
-              type="button"
-              aria-label="User menu"
-              title={navigationCollapsed ? 'Account and appearance' : undefined}
-              aria-describedby="user-email"
-              aria-expanded={userMenuOpen}
-              aria-controls={userMenuOpen ? 'user-actions' : undefined}
-              onClick={() => setUserMenuOpen((open) => !open)}
-            >
-              <span className="user-avatar" aria-hidden="true">{identity.email?.slice(0, 1).toUpperCase() ?? 'W'}</span>
-              <span className="user-menu-identity">
-                <span id="user-email" className="user-email" title={identity.email ?? undefined}>{identity.email ?? 'Account'}</span>
-              </span>
-              <Icon name="chevron" />
-            </button>
           </div>
         </nav>
         <main id="main" className="workspace">

@@ -76,6 +76,28 @@ test('desktop pane preserves icon positions and keyboard access through collapse
 });
 
 for (const width of [320, 390]) {
+  test(`mobile destinations and profile remain reachable with enlarged text at ${width}px`, async ({ page }) => {
+    // GIVEN a narrow workspace with text enlarged to 200%.
+    await page.setViewportSize({ width, height: 844 });
+    await useAuthenticatedSession(page);
+    await page.addStyleTag({ content: 'html { font-size: 200%; }' });
+    const nav = page.getByRole('navigation', { name: 'Workspace' });
+    // WHEN either destination is active THEN all pill controls remain inside the viewport.
+    for (const destination of ['Administration', 'Inventory']) {
+      await nav.getByRole('link', { name: destination, exact: true }).click();
+      await expect(nav.getByRole('link', { name: destination, exact: true })).toHaveAttribute('aria-current', 'page');
+      for (const control of await nav.locator('a, button').all()) {
+        if (!await control.isVisible()) continue;
+        const box = (await control.boundingBox())!;
+        expect(box.x).toBeGreaterThanOrEqual(0);
+        expect(box.x + box.width).toBeLessThanOrEqual(width);
+      }
+      // AND the profile can be opened with its visible control and its actions remain reachable.
+      await nav.getByRole('button', { name: 'User menu' }).click();
+      await expect(nav.getByRole('link', { name: 'Account', exact: true })).toBeVisible();
+      await page.keyboard.press('Escape');
+    }
+  });
   test(`mobile pill leaves content reachable at ${width}px`, async ({ page }) => {
     // GIVEN real authenticated collection content and a narrow viewport.
     await page.setViewportSize({ width, height: 844 });

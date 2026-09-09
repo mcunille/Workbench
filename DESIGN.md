@@ -495,6 +495,8 @@ focus to the trigger; outside interaction dismisses it. Preserve visible keyboar
 and unsaved-change confirmation when navigating or signing out. Keep the disclosure mounted
 and open underneath a confirmation dialog so cancelling can restore focus to its invoking action.
 The focused skip link must remain above the pane's stacking layer.
+Keep the trigger before its disclosure in DOM order so Enter then Tab reaches Account,
+Appearance, and Sign out in sequence; reverse tabbing must return to the trigger.
 
 ### Mobile pill
 
@@ -505,6 +507,8 @@ no search, collapse button, or duplicate header. The profile opens upward, stays
 the viewport, and scrolls internally if needed without pushing the collection down.
 At enlarged text sizes, profile labels wrap and the active pill caption may ellipsize;
 the complete accessible name and minimum targets remain available.
+Allow destination wrappers to shrink along with their captions. Verify both Inventory
+and Administration active at 320px with 200% text, keeping User inside the viewport.
 
 Reserve content clearance from the pill's sizing tokens: **pill height + bottom offset
 (including safe-area inset) + 1rem breathing room**. Height includes the 44px control,
