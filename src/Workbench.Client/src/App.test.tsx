@@ -56,7 +56,7 @@ describe('App', () => {
     vi.spyOn(window, 'scrollTo').mockImplementation(() => {});
     render(<App />);
     await screen.findByRole('link', { name: /Stone/ });
-    // THEN the application header exposes the complete product name as one wordmark.
+    // THEN the application navigation exposes the complete product name as one wordmark.
     expect(screen.getByRole('img', { name: 'Workbench' })).toBeVisible();
     // AND the collection attribution is reserved for sign-in.
     expect(screen.queryByText(/The White Stag Collection/)).not.toBeInTheDocument();
@@ -164,6 +164,7 @@ describe('App', () => {
       );
       await screen.findByRole('heading', { name: 'Collection' });
       // THEN the choice survives both authentication boundary changes in this page.
+      fireEvent.click(screen.getByRole('button', { name: 'User menu' }));
       expect(screen.getByRole('switch', { name: 'Dark theme' })).toHaveAttribute('aria-checked', 'true');
       expect(document.documentElement.dataset.theme).toBe('dark');
       fireEvent.click(screen.getByRole('button', { name: 'Sign out' }));
@@ -174,7 +175,7 @@ describe('App', () => {
       set.mockRestore();
     }
   });
-  it('keeps workspace controls together and release metadata compact', async () => {
+  it.each([false, true])('keeps workspace controls in the nav for administrator=%s', async (administrator) => {
     // GIVEN an authenticated workspace with a full build identifier.
     server.use(
       http.get('*/api/system', () =>
@@ -188,7 +189,7 @@ describe('App', () => {
           userId: '11111111-1111-1111-1111-111111111111',
           email: 'admin@example.com',
           tenantName: 'Tenant A',
-          permissions: ['TenantAccess'],
+          permissions: administrator ? ['TenantAccess', 'TenantUsersManage'] : ['TenantAccess'],
         }),
       ),
       http.get('*/api/items', () =>
@@ -203,15 +204,35 @@ describe('App', () => {
     expect(
       await screen.findByRole('heading', { name: 'Collection' }),
     ).toBeVisible();
-    // THEN appearance and sign-out remain together in the workspace header.
-    const header = within(screen.getByRole('banner'));
-    expect(header.getByRole('switch', { name: 'Dark theme' })).toBeVisible();
-    expect(header.getByRole('button', { name: 'Sign out' })).toBeVisible();
+    // THEN the header is gone and controls are hidden behind the user row.
+    expect(screen.queryByRole('banner')).not.toBeInTheDocument();
+    expect(screen.queryByRole('switch', { name: 'Dark theme' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Administration' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Sign out' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Account' })).not.toBeInTheDocument();
+    const nav = within(screen.getByRole('navigation', { name: 'Workspace' }));
+    expect(nav.getByRole('img', { name: 'Workbench' })).toBeVisible();
+    expect(nav.getByText('Tenant A')).toBeVisible();
+    const trigger = nav.getByRole('button', { name: 'User menu' });
+    expect(trigger).toHaveAccessibleDescription('admin@example.com Tenant A');
+    expect(trigger).toHaveAttribute('aria-expanded', 'false');
+    // WHEN the user row is expanded THEN both personal actions are available in the nav.
+    fireEvent.click(trigger);
+    expect(trigger).toHaveAttribute('aria-expanded', 'true');
+    expect(nav.getByRole('link', { name: 'Account' })).toHaveAttribute('href', '/account');
+    expect(nav.getByRole('button', { name: 'Sign out' })).toBeVisible();
+    expect(nav.getByRole('switch', { name: 'Dark theme' })).toBeVisible();
+    expect(nav.queryByRole('link', { name: 'Administration' }) !== null).toBe(administrator);
+    // WHEN Escape is pressed THEN the disclosure closes and focus returns to its trigger.
+    fireEvent.keyDown(nav.getByRole('button', { name: 'Sign out' }), { key: 'Escape' });
+    expect(trigger).toHaveAttribute('aria-expanded', 'false');
+    expect(trigger).toHaveFocus();
+    expect(screen.queryByRole('button', { name: 'Sign out' })).not.toBeInTheDocument();
     expect(
-      screen.getAllByRole('switch', { name: 'Dark theme' }),
+      screen.getAllByRole('switch', { hidden: true }),
     ).toHaveLength(1);
     // AND the release label stays compact while retaining the full build as metadata.
-    expect(screen.getByText('Workbench 1.2.3')).toHaveAttribute(
+    expect(nav.getByText('Workbench 1.2.3')).toHaveAttribute(
       'title',
       '1.2.3+abcdef0123456789',
     );
