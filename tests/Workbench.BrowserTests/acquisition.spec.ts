@@ -2,6 +2,7 @@ import { expect, test, type Page } from '@playwright/test';
 import { browserBaseUrl } from './browser-environment';
 import { signInThroughUi, useAuthenticatedSession } from './auth-fixture';
 import { lifecycle } from './restoration-fixture';
+import { setAppearance } from './user-menu-fixture';
 
 test.setTimeout(120_000);
 
@@ -100,7 +101,7 @@ test('H9 competing sessions preserve drafts through failed conflict reads and de
     const cdp = await context.newCDPSession(other);
     await cdp.send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-reduced-motion', value: 'reduce' }, { name: 'prefers-reduced-transparency', value: 'reduce' }] });
     for (const dark of [false, true]) {
-      await other.getByRole('switch', { name: 'Dark theme' }).setChecked(dark);
+      await setAppearance(other, dark);
       expect(await other.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
       await expect(other.getByText('My retained recollection', { exact: true })).toBeVisible();
       expect(await other.evaluate(() => getComputedStyle(document.querySelector('.topbar')!).backdropFilter)).toBe('none');
@@ -120,7 +121,7 @@ test('H9 competing sessions preserve drafts through failed conflict reads and de
     // AND cancelling navigation and changing appearance preserve the editable reconciliation.
     await other.getByRole('link', { name: 'Back to collection', exact: true }).click();
     await other.getByRole('dialog').getByRole('button', { name: 'Keep editing', exact: true }).click();
-    await other.getByRole('switch', { name: 'Dark theme' }).setChecked(false);
+    await setAppearance(other, false);
     await expect(other.getByLabel('Provenance notes (optional)', { exact: true })).toHaveValue('My retained recollection');
     await save(other);
     await page.reload();

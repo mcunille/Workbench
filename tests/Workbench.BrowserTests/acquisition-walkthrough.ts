@@ -4,6 +4,7 @@ import { resolve, isAbsolute, sep } from 'node:path';
 import { browserBaseUrl } from './browser-environment';
 import { useAuthenticatedSession } from './auth-fixture';
 import { lifecycle } from './restoration-fixture';
+import { setAppearance } from './user-menu-fixture';
 
 test('H9 narrated acquisition walkthrough', async ({ browser }) => {
   test.setTimeout(300_000);
@@ -60,7 +61,7 @@ test('H9 narrated acquisition walkthrough', async ({ browser }) => {
     await page.getByRole('region', { name: 'Acquisition', exact: true }).screenshot({ path: root + '/saved-acquisition.png' });
     await narrate('Reload retrieves the persisted acquisition and its year-only date. Corrections retain the same item identity. Version checks require deliberate review when another save has changed the record.', 14);
     await page.setViewportSize({ width: 390, height: 844 });
-    await page.getByRole('switch', { name: 'Dark theme' }).setChecked(true);
+    await setAppearance(page, true);
     await page.getByRole('button', { name: 'Edit acquisition', exact: true }).click();
     await page.getByLabel('Acquisition method', { exact: true }).selectOption('Gift');
     await expect(page.getByLabel('Gift from (optional)', { exact: true })).toHaveValue('Family collection');
