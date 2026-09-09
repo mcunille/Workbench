@@ -34,7 +34,33 @@ parameters. Never substitute the latest main commit or a mutable image tag after
 ## Stage without switching traffic
 
 Prepare a module parameter file containing the inputs of `infra/azure/modules/workloads.bicep`.
-Set `image` to the verified digest and `releaseTraffic` to the current explicit revision at 100%.
+Use the offline helper below rather than copying only explicitly supplied main parameters: `smtpPort`
+defaults to 587 in main but is required by the standalone module. Compile from the same reviewed
+source as the workload module. Export the recorded foundation deployment's **outputs** (not its
+entire deployment object) and check they belong to this installation. `$installationParameters`
+must include an explicit `location`; the helper deliberately does not evaluate ARM expressions.
+Before assembly, update that installation file with the reviewed image, explicit serving traffic,
+ingress policy and activation choices. The helper snapshots those values; editing the input later
+does not update a previously generated output file.
+
+```powershell
+az bicep build --file infra/azure/main.bicep --outfile $compiledMain
+if ($LASTEXITCODE -ne 0) { throw 'Main compilation failed.' }
+$outputs = az deployment group show -g $group -n "${prefix}-foundation" --query properties.outputs -o json
+if ($LASTEXITCODE -ne 0) { throw 'Foundation output read failed.' }
+$outputs | Set-Content -LiteralPath $foundationOutputsFile
+./infra/azure/new-workload-parameters.ps1 -ParametersFile $installationParameters `
+    -MainTemplateFile $compiledMain -FoundationOutputsFile $foundationOutputsFile `
+    -OutputFile $workloadParameters
+```
+
+Choose a new output filename each time; the helper refuses overwriting existing files. It resolves
+literal main defaults, validates the complete configuration, includes foundation service bindings,
+and exports only module inputs. It makes no Azure calls and cannot prove supplied outputs belong to
+the intended live environment; that readback and what-if review remain mandatory. Unsupported future
+ARM bindings fail closed instead of being evaluated or silently dropped.
+
+The generated `image` must be the verified digest and `releaseTraffic` the explicit serving revision at 100%.
 Preserve `ingressPolicy`, certificate, endpoints, identities, secrets references, and worker schedule.
 The shared image parameter updates web, worker, and migration jobs: the worker's next scheduled
 execution uses the new image even while web traffic remains on the old revision.

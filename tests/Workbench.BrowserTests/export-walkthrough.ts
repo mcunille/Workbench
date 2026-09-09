@@ -1,3 +1,4 @@
+import { setAppearance } from './user-menu-fixture';
 import { browserBaseUrl } from './browser-environment';
 import { expect, test } from '@playwright/test';
 import { mkdir, writeFile } from 'node:fs/promises';
@@ -42,7 +43,7 @@ test('H7 narrated collection export walkthrough', async ({ browser }) => {
     await narrate('Download started means the browser received the download request. It does not claim that your operating system saved the file.', 10);
     await page.goBack(); await page.goForward();
     await page.setViewportSize({ width: 390, height: 844 });
-    await page.getByRole('switch', { name: 'Dark theme', exact: true }).setChecked(true);
+    await setAppearance(page, true);
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
     await expect(page.getByRole('link', { name: 'Download CSV', exact: true })).toBeVisible();
     await narrate('Ordinary navigation and appearance changes retain the prepared file in private application memory. Reload, sign out, an identity change, or ten minutes clears it.', 12);
@@ -57,7 +58,7 @@ test('H7 narrated collection export walkthrough', async ({ browser }) => {
     const allRows = await downloadExport(page);
     expect(allRows.find(row => row[3] === archived.id)![8]).toBe('true');
     await page.setViewportSize({ width: 1280, height: 900 });
-    await page.getByRole('switch', { name: 'Dark theme', exact: true }).setChecked(false);
+    await setAppearance(page, false);
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
     await narrate('The successful export now includes the archived record and its archival timestamp. Automated checks parse the download and compare saved text. Collector usability still needs human evaluation.', 13);
   } finally {

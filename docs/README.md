@@ -78,15 +78,19 @@ reconciliation, paired backups, restore verification, and provider migration.
 The accepted [online backup and manual recovery direction](specs/2026-09-07-online-backup-and-manual-recovery.md)
 requires uninterrupted backup collection and SQL-authoritative reconciliation, with explicit
 missing-file acceptance and tenant notices after manual recovery. The
-[online backup runbook](operations/online-backup-recovery.md) documents the separate collector and
-guarded recovery commands; hosted verification remains required. Existing offline maintenance
+[native backup runbook](operations/azure-native-backup.md) documents the selected hosted setup.
+The [online recovery runbook](operations/online-backup-recovery.md) documents the alternative custom
+collector and guarded recovery commands. Existing offline maintenance
 commands retain their documented requirements.
 
 The accepted [Azure deployment specification](specs/2026-09-05-azure-deployment.md) defines
 scale-to-zero hosting and portable self-hosting. The [Azure runbook](operations/azure-deployment.md)
 and [Compose runbook](operations/self-hosted-deployment.md) describe the release configuration and
-explicit operational gates. The first hosted deployment and scoped recovery drill are recorded;
-measured cold starts, hosted scale-out and broader recovery coverage remain pending.
+explicit operational gates. Follow [administrative-host preparation](operations/azure-bootstrap-host.md),
+[Graph setup](operations/azure-graph-bootstrap.md), and the
+[restricted-public validation path](operations/azure-bootstrap-validation.md) when applicable.
+The hosted deployment, scoped recovery, replica tests and one operator-accepted cold start are recorded;
+broader recovery claims and final security acceptance remain distinct.
 The [cost worksheet](operations/deployment-costs.md) records public retail rates and unmeasured
 usage scenarios. The [verification record](operations/deployment-verification.md) separates local
 evidence from hosted launch results and outstanding acceptance checks. Use the

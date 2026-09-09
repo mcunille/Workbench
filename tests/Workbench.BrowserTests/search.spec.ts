@@ -1,3 +1,4 @@
+import { setAppearance } from './user-menu-fixture';
 import { expect, test, type Page } from '@playwright/test';
 import { mkdir } from 'node:fs/promises';
 import { photoSignIn } from './photo-fixture';
@@ -53,7 +54,7 @@ for (const width of [320, 1280]) {
     await page.goBack();
     await expect(selected).toBeFocused();
     for (const appearance of ['dark', 'light']) {
-      await page.getByRole('switch', { name: 'Dark theme' }).setChecked(appearance === 'dark');
+      await setAppearance(page, appearance === 'dark');
       await expect(search).toHaveValue(phrase.toUpperCase());
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     }

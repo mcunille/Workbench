@@ -1,5 +1,10 @@
 # Online Azure backups and manual file reconciliation
 
+**Backup selection:** the recorded production installation uses [native vaulted Blob backup](azure-native-backup.md).
+Use that setup procedure for the accepted daily seven-day policy. The custom capture/expiration
+system below is an alternative and is not deployed by choosing native backup. Both routes feed the
+manual SQL-authoritative reconciliation procedure; native-restored bytes do not require custom catalogs.
+
 This workflow implements the [accepted SQL-authoritative policy](../specs/2026-09-07-online-backup-and-manual-recovery.md).
 Capture leaves production web, uploads and workers running. Recovery commands operate only on an
 isolated restored database/store with writers stopped. Existing self-hosted/offline snapshot commands

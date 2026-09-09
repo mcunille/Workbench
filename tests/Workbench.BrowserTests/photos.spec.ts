@@ -1,3 +1,4 @@
+import { setAppearance } from './user-menu-fixture';
 import { browserBaseUrl } from './browser-environment';
 import { expect, test } from '@playwright/test';
 import { mkdir } from 'node:fs/promises';
@@ -65,9 +66,7 @@ test('prepares a camera image locally and persists uncropped photos across sessi
   for (const width of [320, 1280]) {
     await page.setViewportSize({ width, height: 900 });
     for (const theme of ['light', 'dark']) {
-      await page
-        .getByRole('switch', { name: 'Dark theme' })
-        .setChecked(theme === 'dark');
+      await setAppearance(page, theme === 'dark');
       expect(
         await page.evaluate(
           () => document.documentElement.scrollWidth <= innerWidth,

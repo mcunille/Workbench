@@ -1,3 +1,4 @@
+import { openUserMenu } from './user-menu-fixture';
 import { expect, test } from '@playwright/test';
 import { signInThroughUi as signIn } from './auth-fixture';
 
@@ -47,6 +48,7 @@ test('durable authentication survives navigation and supports revocation and sig
   await page.reload();
   await expect(page.getByRole('heading', { name: 'Collection', exact: true })).toBeVisible();
 
+  await openUserMenu(page);
   await page.getByRole('link', { name: 'Account', exact: true }).click();
   // WHEN revoking this session, other browser scenarios may have retained independent sessions.
   await page.getByRole('listitem').filter({ hasText: 'This session' })
@@ -56,6 +58,7 @@ test('durable authentication survives navigation and supports revocation and sig
 
   await signIn(page);
   const logoutResponse = page.waitForResponse((response) => response.url().endsWith('/api/auth/logout'));
+  await openUserMenu(page);
   await page.getByRole('button', { name: 'Sign out', exact: true }).click();
   expect((await logoutResponse).status()).toBe(204);
   await expect(page.getByRole('heading', { name: 'Sign in' })).toBeVisible();
