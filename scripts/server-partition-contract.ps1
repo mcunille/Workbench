@@ -20,7 +20,18 @@ function Invoke-ServerTestDiscovery {
         if ([string]$discovery[$index] -match '^The following Tests are available:') { $header = $index; break }
     }
     if ($header -lt 0) { throw 'Server test discovery inventory header is missing.' }
-    return @($discovery | Select-Object -Skip ($header + 1) | Where-Object { [string]$_ -match '^    \S' } | ForEach-Object { ([string]$_).Trim() })
+    $names = [Collections.Generic.List[string]]::new()
+    foreach ($entry in ($discovery | Select-Object -Skip ($header + 1))) {
+        $line = [string]$entry
+        if ($line.Length -eq 0) { continue }
+        if (-not $line.StartsWith('    ', [StringComparison]::Ordinal)) {
+            throw "Unexpected server discovery output after inventory header: $line"
+        }
+        # VSTest adds exactly four spaces. Custom display-name whitespace is identity,
+        # not formatting: preserve it so unsupported names fail rather than disappear.
+        $names.Add($line.Substring(4))
+    }
+    return $names.ToArray()
 }
 
 function Assert-ServerTestProjects {

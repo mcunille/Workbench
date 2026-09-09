@@ -124,7 +124,7 @@ setup and resource contention are costs, not free parallel speedup.
 
 Focused PowerShell contracts passed for partition inventory/failures, real native Unicode
 decoding, stage/CI aggregation, artifact provenance, focused entry points, and restore
-boundaries. Eighteen targeted manual mutation probes were killed (eight partition/discovery,
+boundaries. Nineteen targeted manual mutation probes were killed (nine partition/discovery,
 five provenance, three stage/aggregate, two native process streams); one initial identity-check survivor prompted a
 same-count substituted-name assertion. These are scoped manual probes, not an automated
 whole-repository mutation score. Immutable-patch internal reviews found no actionable issues.
@@ -152,3 +152,10 @@ the production launch parameter objects with a real native emitter inside a back
 It reproduced the exact transport failure on Linux before the fix and passes on Linux and
 Windows afterward. Removing stdout/stderr redirection is caught by targeted mutations.
 A fresh actual standalone publish also passed inside the corrected background-job boundary.
+
+Discovery removes exactly VSTest's four-space prefix without trimming test identity or
+filtering custom display names out of the inventory. Leading/trailing/whitespace-only
+names therefore reach validation and fail if unsupported, rather than silently reducing
+coverage. Native-emitter regressions pass on Windows and Linux; strict fresh discovery
+also matches the complete 545-case passing TRX inventory. Unexpected nonempty output
+after the discovery header fails closed.

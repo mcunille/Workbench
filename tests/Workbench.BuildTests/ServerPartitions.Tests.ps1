@@ -23,6 +23,15 @@ try {
     # THEN non-ASCII theory names stay exact and both caller encodings are preserved.
     if ($decodedNames.Count -ne 1 -or $decodedNames[0] -cne $expectedNativeName) { throw 'Native UTF-8 test inventory was decoded incorrectly.' }
     if ([Console]::OutputEncoding.CodePage -ne 437 -or $OutputEncoding.CodePage -ne 20127) { throw 'Discovery changed caller encodings.' }
+    # GIVEN valid discovery rows whose custom display names contain leading/trailing whitespace
+    $customNames = @('Suite.Normal', ' leading-space', 'Suite.Trailing ', ' ')
+    $nativeBytes = [Text.Encoding]::UTF8.GetBytes("The following Tests are available:`n" + (($customNames | ForEach-Object { "    $_" }) -join "`n") + "`n")
+    Set-Content $nativeScript ('[Console]::OpenStandardOutput().Write([Convert]::FromBase64String(''' + [Convert]::ToBase64String($nativeBytes) + '''))')
+    # WHEN discovery removes only VSTest's four-space prefix THEN no test identity is dropped or trimmed.
+    $customActual = @(Invoke-ServerTestDiscovery -Command { & (Join-Path $PSHOME 'pwsh') -NoProfile -File $nativeScript })
+    Assert-ServerTestCoverage -Expected $customNames -Actual $customActual
+    # AND unsupported custom names fail the partition contract instead of shrinking its inventory.
+    Assert-Rejected { New-ServerTestPartitions -TestNames $customActual -PartitionCount 2 } 'Unsupported discovered'
     Assert-Rejected { Invoke-ServerTestDiscovery -Command { throw 'discovery command failed' } } 'discovery command failed'
     if ([Console]::OutputEncoding.CodePage -ne 437 -or $OutputEncoding.CodePage -ne 20127) { throw 'Failed discovery changed caller encodings.' }
 }
