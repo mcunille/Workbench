@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { setAppearance } from './user-menu-fixture';
 import { mkdir } from 'node:fs/promises';
 import { useAuthenticatedSession } from './auth-fixture';
 import { setAppearance } from './user-menu-fixture';

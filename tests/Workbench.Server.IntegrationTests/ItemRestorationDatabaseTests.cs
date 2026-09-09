@@ -171,7 +171,7 @@ public sealed class ItemRestorationDatabaseTests(SqlServerFixture sqlServer)
         var retained = await RetainedEvidenceAsync(admin);
         var recoverySchema = await RecoverySchemaAsync(admin);
         // WHEN the additive restoration migration upgrades the online-recovery base data.
-        await DatabaseMigrator.MigrateAsync(database.AdminConnectionString, CancellationToken.None);
+        await DatabaseMigrator.MigrateToAsync(database.AdminConnectionString, "AddItemRestoration", CancellationToken.None);
         // THEN current readiness advances while recovery commands, grants and tenant isolation survive.
         await AssertMigrationMarkerAsync(admin, "20260908010000_AddItemRestoration");
         Assert.Equal(recoverySchema, await RecoverySchemaAsync(admin));

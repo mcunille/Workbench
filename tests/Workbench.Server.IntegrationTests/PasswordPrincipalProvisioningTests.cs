@@ -14,6 +14,9 @@ public sealed class PasswordPrincipalProvisioningTests(SqlServerFixture sqlServe
     [Theory]
     [InlineData("GRANT UPDATE ON OBJECT::[Inventory].[Items] TO [workbench_web]")]
     [InlineData("GRANT DELETE ON OBJECT::[Inventory].[Items] TO [workbench_web]")]
+    [InlineData("GRANT INSERT ON OBJECT::[Inventory].[Acquisitions] TO [workbench_web]")]
+    [InlineData("GRANT UPDATE ON OBJECT::[Inventory].[AcquisitionCreationRecords] TO [workbench_web]")]
+    [InlineData("GRANT DELETE ON OBJECT::[Inventory].[AcquisitionItems] TO [workbench_web]")]
     [InlineData("GRANT SELECT ON OBJECT::[Inventory].[Items] TO [workbench_web] WITH GRANT OPTION")]
     [InlineData("GRANT CONTROL TO [workbench_web]")]
     [InlineData("GRANT CONTROL TO [workbench_operator]")]
@@ -153,6 +156,23 @@ public sealed class PasswordPrincipalProvisioningTests(SqlServerFixture sqlServe
                 Assert.Equal(expected ? 1 : 0, Convert.ToInt32(await inventoryPermission.ExecuteScalarAsync()));
             }
             // AND the provider retry readiness probe retains the same restricted workload authority.
+            foreach (var table in new[] { "Acquisitions", "AcquisitionItems", "AcquisitionCreationRecords" })
+            {
+                foreach (var operation in new[] { "SELECT", "INSERT", "UPDATE", "DELETE" })
+                {
+                    await using var acquisitionPermission = new SqlCommand("SELECT HAS_PERMS_BY_NAME(@object, 'OBJECT', @operation)", connection);
+                    acquisitionPermission.Parameters.AddWithValue("@object", $"Inventory.{table}");
+                    acquisitionPermission.Parameters.AddWithValue("@operation", operation);
+                    var expected = principal.Role == "workbench_migrator" || (principal.Role == "workbench_web" && operation == "SELECT");
+                    Assert.Equal(expected ? 1 : 0, Convert.ToInt32(await acquisitionPermission.ExecuteScalarAsync()));
+                }
+            }
+            foreach (var procedure in new[] { "CreateAcquisition", "UpdateAcquisition" })
+            {
+                await using var acquisitionPermission = new SqlCommand("SELECT HAS_PERMS_BY_NAME(@object, 'OBJECT', 'EXECUTE')", connection);
+                acquisitionPermission.Parameters.AddWithValue("@object", $"Inventory.{procedure}");
+                Assert.Equal(principal.Role == "workbench_operator" ? 0 : 1, Convert.ToInt32(await acquisitionPermission.ExecuteScalarAsync()));
+            }
             await using var retryPermission = new SqlCommand(
                 "SELECT HAS_PERMS_BY_NAME('Security.ReadProviderRetryReadiness', 'OBJECT', 'EXECUTE')", connection);
             Assert.Equal(principal.Role == "workbench_operator" ? 0 : 1, Convert.ToInt32(await retryPermission.ExecuteScalarAsync()));

@@ -13,7 +13,7 @@ using Workbench.Server.Operations;
 
 namespace Workbench.Server.Persistence;
 
-public class WorkbenchDbContext : IdentityDbContext<
+public partial class WorkbenchDbContext : IdentityDbContext<
     WorkbenchUser,
     WorkbenchRole,
     Guid,
@@ -39,6 +39,9 @@ public class WorkbenchDbContext : IdentityDbContext<
     public TenantContext TenantContext { get; }
 
     public DbSet<InventoryItem> Items => Set<InventoryItem>();
+    public DbSet<Acquisition> Acquisitions => Set<Acquisition>();
+    public DbSet<AcquisitionItem> AcquisitionItems => Set<AcquisitionItem>();
+    public DbSet<AcquisitionCreationRecord> AcquisitionCreationRecords => Set<AcquisitionCreationRecord>();
     public DbSet<ItemCreationSnapshot> ItemCreationSnapshots => Set<ItemCreationSnapshot>();
     public DbSet<ItemPhoto> ItemPhotos => Set<ItemPhoto>();
     public DbSet<ItemPhotoOperation> ItemPhotoOperations => Set<ItemPhotoOperation>();
@@ -94,6 +97,7 @@ public class WorkbenchDbContext : IdentityDbContext<
             .OnDelete(DeleteBehavior.Restrict);
 
         ConfigureInventory(modelBuilder);
+        ConfigureAcquisitions(modelBuilder);
         ConfigureItemCreationSnapshots(modelBuilder);
         ConfigureItemPhotos(modelBuilder);
         ConfigureIdentity(modelBuilder);

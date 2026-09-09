@@ -71,6 +71,17 @@ portability feature, not a restorable backup. See the [CSV contract](collection-
 
 ### Collection identity
 
+The [H9 acquisition context](specs/2026-09-09-acquisition-context.md) adds an optional origin event
+with method, free-text source, partial acquired date, and collector-recorded provenance notes.
+`Inventory.Acquisitions` has a separate identity and rowversion. `Inventory.AcquisitionItems`
+links it to an item through tenant-qualified foreign keys, allowing one current acquisition per
+item. `Inventory.AcquisitionCreationRecords` retains immutable creation replay evidence. All three
+tables use tenant RLS and deny direct runtime writes; restricted create/update commands check item
+and acquisition versions. Creation/linking is atomic, and retries never create another item.
+Archived links remain readable and cannot be edited. Conflict recovery preserves private in-session
+drafts and requires explicit reconciliation. Multi-item linking, documents, and acquisition-aware
+exports remain separate increments; existing CSV/ZIP exports do not yet include acquisition context.
+
 `Inventory.Items` holds tenant-owned physical identities. H1 enforces `TrackingKind = Individual`
 and has no editable quantity, financial value, category requirement, or purchase parent. Names
 remain user-entered regardless of future classification. A server UUID is permanent; a separate
