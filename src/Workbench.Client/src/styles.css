@@ -511,6 +511,16 @@ footer {
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-card);
 }
+.empty-state-link {
+  display: block;
+  color: var(--text);
+  text-decoration: none;
+}
+.empty-state-link:hover,
+.empty-state-link:focus-visible {
+  background: var(--hover);
+  border-color: var(--border);
+}
 .empty-state .photo-placeholder {
   width: 72px;
   height: 72px;

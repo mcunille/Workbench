@@ -7,7 +7,7 @@ import {
 } from '@testing-library/react';
 import { vi } from 'vitest';
 import { Collection, ItemDetails } from './Collection';
-import { getItem, getItems } from '../../api/items';
+import { getArchivedItems, getItem, getItems } from '../../api/items';
 import { CollectionMemory } from './collectionMemory';
 import { ApiError } from '../../api/auth';
 
@@ -90,10 +90,46 @@ it('distinguishes no matches and reports server validation without showing prior
   ).not.toBeInTheDocument();
 });
 
-vi.mock('../../api/items', () => ({ getItems: vi.fn(), getItem: vi.fn() }));
+vi.mock('../../api/items', () => ({
+  getItems: vi.fn(),
+  getItem: vi.fn(),
+  getArchivedItems: vi.fn(),
+}));
 beforeEach(() => {
   vi.mocked(getItems).mockReset();
   vi.mocked(getItem).mockReset();
+  vi.mocked(getArchivedItems).mockReset();
+});
+
+it('opens the add-item flow from the whole empty collection card', async () => {
+  // GIVEN an empty collection.
+  vi.mocked(getItems).mockResolvedValue({ items: [], nextCursor: null });
+  const follow = vi.fn((event) => event.preventDefault());
+  render(<Collection follow={follow} onAuthLost={vi.fn()} />);
+  const card = await screen.findByRole('link', {
+    name: /Your collection starts here/,
+  });
+  // WHEN clicking the explanatory text inside the card.
+  fireEvent.click(screen.getByText(/Add your first item with just a name/));
+  // THEN the card uses the existing add-item route and navigation handler.
+  expect(card).toHaveAttribute('href', '/inventory/new');
+  expect(follow).toHaveBeenCalledTimes(1);
+});
+
+it('keeps the empty archive informational', async () => {
+  // GIVEN an empty archive.
+  vi.mocked(getArchivedItems).mockResolvedValue({ items: [], nextCursor: null });
+  const follow = vi.fn();
+  render(<Collection archived follow={follow} onAuthLost={vi.fn()} />);
+  // WHEN clicking its empty-state heading.
+  fireEvent.click(
+    await screen.findByRole('heading', { name: 'Your archive is empty' }),
+  );
+  // THEN it does not offer or trigger item creation.
+  expect(
+    screen.queryByRole('link', { name: /Your archive is empty/ }),
+  ).not.toBeInTheDocument();
+  expect(follow).not.toHaveBeenCalled();
 });
 
 it('removes an unavailable selected item and returns focus to the collection heading', async () => {
