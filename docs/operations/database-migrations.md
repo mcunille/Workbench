@@ -3,6 +3,22 @@
 Database migrations are an explicit, human-controlled deployment operation. A Workbench web
 replica never migrates its database and never receives the setup, operator, or migrator credential.
 
+## Acquisition context release
+
+`20260909034719_AddAcquisitionContext` adds acquisition context, tenant-qualified item links,
+immutable creation replay evidence, RLS and restricted create/update commands. Apply this migration
+before running H9. Readiness, provisioning and backup schema markers require the new version and
+the new table/command permissions. Runtime principals can read the new tables but cannot directly
+insert, update or delete their rows. Creation and editing check item state and rowversion inside
+the transaction; edits also check acquisition rowversion. No existing item requires an acquisition
+or data backfill, and archive/restore retains acquisition links.
+
+Verify fresh creation and upgrade from `20260908010000_AddItemRestoration`, preserving active and
+archived items, photographs and replay evidence. The additive migration is the sole H9 schema
+increment. Down refuses to discard recorded acquisition context; prefer forward correction or
+the established paired SQL/blob restore workflow. Older binaries are not assumed compatible with
+the new readiness marker. These development checks do not authorize a production migration.
+
 ## Item restoration release
 
 `20260908010000_AddItemRestoration` adds the restricted `Inventory.RestoreItem` command

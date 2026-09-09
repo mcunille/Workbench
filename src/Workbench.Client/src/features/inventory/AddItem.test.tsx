@@ -87,7 +87,7 @@ describe('Add item', () => {
     expect(screen.getByLabelText('Notes (optional)')).toHaveValue(
       'Keep this note',
     );
-    expect(screen.getByLabelText('Name')).toHaveFocus();
+    await waitFor(() => expect(screen.getByLabelText('Name')).toHaveFocus());
     expect(screen.getByLabelText('Name')).not.toBeDisabled();
   });
 });

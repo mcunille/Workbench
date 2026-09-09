@@ -14,6 +14,7 @@ import { ItemPhoto } from './ItemPhoto';
 import { PhotoEditor } from './PhotoEditor';
 import { DetailEditor } from './DetailEditor';
 import { ArchiveItem } from './ArchiveItem';
+import { AcquisitionPanel } from './AcquisitionPanel';
 import {
   getItem,
   getItems,
@@ -349,6 +350,7 @@ export function ItemDetails({
   const [item, setItem] = useState<ItemDetail>();
   const [editing, setEditing] = useState(false);
   const [archiving, setArchiving] = useState(false);
+  const [acquisitionEditing, setAcquisitionEditing] = useState(false);
   const [restoring, setRestoring] = useState(false);
   const restoreButton = useRef<HTMLButtonElement>(null);
   const invalidate = useCallback(() => {
@@ -541,7 +543,7 @@ export function ItemDetails({
                 <button
                   ref={restoreButton}
                   className="primary"
-                  disabled={photoDirty || restoring}
+                  disabled={photoDirty || restoring || acquisitionEditing}
                   onClick={() => {
                     setRestoring(true);
                     setSavedMessage('');
@@ -555,7 +557,7 @@ export function ItemDetails({
                   <button
                     ref={editButton}
                     className="secondary"
-                    disabled={photoDirty || archiving || restoring}
+                    disabled={photoDirty || archiving || restoring || acquisitionEditing}
                     onClick={() => {
                       setEditing(true);
                       setSavedMessage('');
@@ -566,7 +568,7 @@ export function ItemDetails({
                   <button
                     ref={archiveButton}
                     className="secondary danger"
-                    disabled={photoDirty || archiving || restoring}
+                    disabled={photoDirty || archiving || restoring || acquisitionEditing}
                     onClick={() => {
                       setArchiving(true);
                       setSavedMessage('');
@@ -579,7 +581,7 @@ export function ItemDetails({
               <PhotoEditor
                 key={item.id}
                 item={item}
-                disabled={archiving || restoring}
+                disabled={archiving || restoring || acquisitionEditing}
                 onAuthLost={onAuthLost}
                 onDirtyChange={photoDirtyChange}
                 onPhotoChanged={() => {
@@ -595,6 +597,18 @@ export function ItemDetails({
               />
             </>
           )}
+          <AcquisitionPanel
+            key={'acquisition-' + item.id}
+            item={item}
+            disabled={editing || photoDirty || archiving || restoring}
+            onEditingChange={setAcquisitionEditing}
+            onDirtyChange={onDirtyChange}
+            onAuthLost={onAuthLost}
+            onCurrent={(version, current) => {
+              setItem(previous => previous ? { ...(current ?? previous), version } : previous);
+              if (current) reconcile(current);
+            }}
+          />
           <dl className="item-details">
             <div className="detail-field">
               <dt>Storage location</dt>

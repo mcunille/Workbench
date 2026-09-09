@@ -541,6 +541,17 @@ footer {
   gap: 1.25rem;
   margin: 1.5rem 0;
 }
+.acquisition-section {
+  margin-block: 2rem;
+  padding-block: 1.5rem;
+  border-block: 1px solid var(--border-subtle);
+}
+.acquisition-form .edit-field {
+  display: grid;
+  gap: 0.5rem;
+  margin-block: 0.5rem;
+  min-width: 0;
+}
 .editor .form-stack {
   gap: 0.5rem;
   margin-top: 2rem;

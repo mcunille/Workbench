@@ -1010,6 +1010,182 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/items/{id}/acquisition": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ItemAcquisitionResponse"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["CreateAcquisitionRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ItemAcquisitionResponse"];
+                    };
+                };
+                /** @description Created */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ItemAcquisitionResponse"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["HttpValidationProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/items/{id}/acquisition/{acquisitionId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                    acquisitionId: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["UpdateAcquisitionRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ItemAcquisitionResponse"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["HttpValidationProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/items/export": {
         parameters: {
             query?: never;
@@ -1605,6 +1781,20 @@ export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
         AccountState: number;
+        AcquisitionResponse: {
+            /** Format: uuid */
+            id: string;
+            method: string;
+            source: null | string;
+            /** Format: int32 */
+            year: null | number | string;
+            /** Format: int32 */
+            month: null | number | string;
+            /** Format: int32 */
+            day: null | number | string;
+            notes: null | string;
+            version: string;
+        };
         AntiforgeryResponse: {
             requestToken: string;
         };
@@ -1614,6 +1804,20 @@ export interface components {
         ChangePasswordRequest: {
             currentPassword: string;
             newPassword: string;
+        };
+        CreateAcquisitionRequest: {
+            /** Format: uuid */
+            creationRequestId: string;
+            expectedItemVersion: null | string;
+            method: null | string;
+            source: null | string;
+            /** Format: int32 */
+            year: null | number | string;
+            /** Format: int32 */
+            month: null | number | string;
+            /** Format: int32 */
+            day: null | number | string;
+            notes: null | string;
         };
         CreateItemRequest: {
             /** Format: uuid */
@@ -1648,6 +1852,10 @@ export interface components {
         };
         /** Format: binary */
         IFormFile: string;
+        ItemAcquisitionResponse: {
+            acquisition: null | components["schemas"]["AcquisitionResponse"];
+            itemVersion: string;
+        };
         ItemDetailResponse: {
             /** Format: uuid */
             id: string;
@@ -1743,6 +1951,19 @@ export interface components {
             id: string;
             email: null | string;
             state: components["schemas"]["AccountState"];
+        };
+        UpdateAcquisitionRequest: {
+            expectedItemVersion: null | string;
+            expectedAcquisitionVersion: null | string;
+            method: null | string;
+            source: null | string;
+            /** Format: int32 */
+            year: null | number | string;
+            /** Format: int32 */
+            month: null | number | string;
+            /** Format: int32 */
+            day: null | number | string;
+            notes: null | string;
         };
         UpdateItemDetailsRequest: {
             expectedVersion: null | string;

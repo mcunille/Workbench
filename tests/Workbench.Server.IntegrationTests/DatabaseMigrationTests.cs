@@ -47,7 +47,8 @@ public sealed class DatabaseMigrationTests(SqlServerFixture sqlServer)
             migration => Assert.EndsWith("_AddItemDetailEditing", migration, StringComparison.Ordinal),
             migration => Assert.EndsWith("_AddItemArchiving", migration, StringComparison.Ordinal),
             migration => Assert.EndsWith("_AddOnlineRecovery", migration, StringComparison.Ordinal),
-            migration => Assert.EndsWith("_AddItemRestoration", migration, StringComparison.Ordinal));
+            migration => Assert.EndsWith("_AddItemRestoration", migration, StringComparison.Ordinal),
+            migration => Assert.EndsWith("_AddAcquisitionContext", migration, StringComparison.Ordinal));
     }
 
     [Theory]
@@ -62,6 +63,7 @@ public sealed class DatabaseMigrationTests(SqlServerFixture sqlServer)
     [InlineData("AddItemDetailEditing")]
     [InlineData("AddItemArchiving")]
     [InlineData("AddOnlineRecovery")]
+    [InlineData("AddItemRestoration")]
     public async Task MigratorUpgradesASeededPriorSchemaWithoutLosingTenantData(string priorMigration)
     {
         // GIVEN tenant data in either the initial schema or the PR base schema.

@@ -12,8 +12,8 @@ New-Item -ItemType Directory -Path $artifactRoot -Force | Out-Null
 $logPath = Join-Path $artifactRoot ("{0}-{1}.log" -f $Scenario, (Get-Date -Format 'yyyyMMdd-HHmmss'))
 $filters = @{
     Clean = 'FullyQualifiedName~DatabaseMigrationTests.MigratorCreatesCurrentSchemaOnEmptyDatabase'
-    Upgrade = 'FullyQualifiedName~DatabaseMigrationTests.MigratorUpgradesASeededPriorSchemaWithoutLosingTenantData|FullyQualifiedName~ItemRestorationDatabaseTests.UpgradeAndDownRetainArchivedEditedIdentityAndPhotoHistory'
-    ReversibleRollback = 'FullyQualifiedName~DatabaseMigrationTests.RetainedMetadataCannotBeRolledBackDestructively|FullyQualifiedName~ItemRestorationDatabaseTests.UpgradeAndDownRetainArchivedEditedIdentityAndPhotoHistory'
+    Upgrade = 'FullyQualifiedName~DatabaseMigrationTests.MigratorUpgradesASeededPriorSchemaWithoutLosingTenantData|FullyQualifiedName~ItemRestorationDatabaseTests.UpgradeAndDownRetainArchivedEditedIdentityAndPhotoHistory|FullyQualifiedName~AcquisitionDatabaseTests.UpgradeFromRestorationRetainsRecordsAndDownRefusesAcquisitionLoss'
+    ReversibleRollback = 'FullyQualifiedName~DatabaseMigrationTests.RetainedMetadataCannotBeRolledBackDestructively|FullyQualifiedName~ItemRestorationDatabaseTests.UpgradeAndDownRetainArchivedEditedIdentityAndPhotoHistory|FullyQualifiedName~AcquisitionDatabaseTests.UpgradeFromRestorationRetainsRecordsAndDownRefusesAcquisitionLoss'
     RestoreRollback = 'FullyQualifiedName~RestoreSanitizationTests.RestoreSanitizationInvalidatesAllAuthenticationArtifacts'
 }
 
