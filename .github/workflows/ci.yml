@@ -79,6 +79,9 @@ jobs:
         run: |
           ./tests/Workbench.BuildTests/WorkflowActions.Tests.ps1
           ./tests/Workbench.BuildTests/VerificationScripts.Tests.ps1
+          ./tests/Workbench.BuildTests/VerificationStages.Tests.ps1
+          ./tests/Workbench.BuildTests/ServerPartitions.Tests.ps1
+          ./tests/Workbench.BuildTests/ArtifactReuse.Tests.ps1
           ./tests/Workbench.BuildTests/FocusedTests.Tests.ps1
           ./tests/Workbench.BuildTests/RestoreDatabase.Tests.ps1
           ./tests/Workbench.BuildTests/RestoreDatabase.Sql.Tests.ps1
@@ -98,6 +101,21 @@ jobs:
         shell: pwsh
         run: ./scripts/verify.ps1 -SkipDependencyInstall
 
+      - name: Retain gate timings and partition evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: verification-evidence
+          if-no-files-found: error
+          path: |
+            artifacts/verification/**/gate.json
+            artifacts/verification/**/stages.json
+            artifacts/verification/**/inventory.json
+            artifacts/verification/**/timing.json
+            artifacts/verification/**/*.trx
+            artifacts/verification/**/test.log
+            artifacts/verification/**/discovery.log
+
   container-smoke:
     name: Hardened container smoke
     runs-on: ubuntu-latest
@@ -108,3 +126,19 @@ jobs:
       - name: Build and smoke test the runtime image
         shell: pwsh
         run: ./scripts/smoke-container.ps1
+
+  required-gate:
+    name: Required verification gate
+    if: ${{ always() }}
+    needs: [local-setup-contracts, deployment-contracts, verify, container-smoke]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - name: Require every verification job to succeed
+        shell: pwsh
+        env:
+          REQUIRED_JOB_RESULTS: ${{ toJSON(needs) }}
+        run: |
+          . ./scripts/verification-stages.ps1
+          Assert-RequiredCiJobs -Needs ($env:REQUIRED_JOB_RESULTS | ConvertFrom-Json -AsHashtable)

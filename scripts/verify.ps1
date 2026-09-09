@@ -1,6 +1,8 @@
 [CmdletBinding()]
 param(
-    [switch]$SkipDependencyInstall
+    [switch]$SkipDependencyInstall,
+    [ValidateRange(2, 4)][int]$ServerPartitions = 2,
+    [ValidateRange(1, 4)][int]$ServerConcurrency = 2
 )
 
 $ErrorActionPreference = 'Stop'
@@ -59,71 +61,100 @@ function Assert-DocumentationCurrent {
     }
 }
 
+. (Join-Path $PSScriptRoot 'verification-stages.ps1')
+. (Join-Path $PSScriptRoot 'verification-artifacts.ps1')
+$runId = [Guid]::NewGuid().ToString('N')
+$runRoot = Join-Path $repositoryRoot "artifacts/verification/$runId"
+New-Item -ItemType Directory -Path $runRoot -Force | Out-Null
+$stages = @()
+$stagesJoined = $false
+$gateClock = [Diagnostics.Stopwatch]::StartNew()
+$prerequisiteClock = [Diagnostics.Stopwatch]::StartNew()
+$passed = $false
+$priorManifest = $env:WORKBENCH_VERIFICATION_MANIFEST
+$priorRun = $env:WORKBENCH_VERIFICATION_RUN
 Push-Location $repositoryRoot
 try {
     Assert-ToolVersion 'dotnet' '10.0.401' { dotnet --version }
     Assert-ToolVersion 'Node.js' 'v26.7.0' { node --version }
     Assert-ToolVersion 'npm' '11.19.0' { npm --version }
-
     Assert-DocumentationCurrent
-
     dotnet restore Workbench.slnx --locked-mode
     Assert-NativeCommandSucceeded 'dotnet restore --locked-mode'
-
     if (-not $SkipDependencyInstall) {
         npm ci --prefix $clientRoot --ignore-scripts --no-audit --no-fund
         Assert-NativeCommandSucceeded 'npm ci'
-
         npm ci --prefix $browserRoot --ignore-scripts --no-audit --no-fund
         Assert-NativeCommandSucceeded 'browser npm ci'
     }
-
+    # This process only reads client inputs; output-producing builds remain serialized below.
+    $stages += Start-VerificationStage -Name client -RepositoryRoot $repositoryRoot -Arguments @($clientRoot) -Action {
+        param($client)
+        npm run lint --prefix $client
+        if ($LASTEXITCODE -ne 0) { throw 'Client lint failed.' }
+        npm run test:run --prefix $client
+        if ($LASTEXITCODE -ne 0) { throw 'Client tests failed.' }
+    }
     dotnet format Workbench.slnx --verify-no-changes --no-restore
     Assert-NativeCommandSucceeded 'dotnet format'
-
-    dotnet build $serverProject `
-        --no-restore `
-        "-p:OpenApiDocumentsDirectory=$openApiRoot"
-    Assert-NativeCommandSucceeded 'OpenAPI document generation'
-
+    $receipt = New-VerificationBuildReceipt -RepositoryRoot $repositoryRoot -RunId $runId
+    dotnet build Workbench.slnx --configuration Release --no-restore `
+        -p:UseAppHost=false -p:BuildClient=false "-p:OpenApiDocumentsDirectory=$openApiRoot"
+    Assert-NativeCommandSucceeded 'Release build and OpenAPI document generation'
+    # Let early readers finish before rewriting generated TypeScript, even on a fast warm build.
+    $stages[0].Job | Wait-Job | Out-Null
     npm run generate:api --prefix $clientRoot
     Assert-NativeCommandSucceeded 'TypeScript API generation'
-
-    git diff --exit-code -- `
-        src/Workbench.Client/openapi/Workbench.Server.json `
-        src/Workbench.Client/src/api/generated.ts
+    git diff --exit-code -- src/Workbench.Client/openapi/Workbench.Server.json src/Workbench.Client/src/api/generated.ts
     Assert-NativeCommandSucceeded 'generated API drift check'
 
-    dotnet build Workbench.slnx --configuration Release --no-restore
-    Assert-NativeCommandSucceeded 'dotnet build'
-
-    # Migration drills are included in this unfiltered suite; retain their results without rerunning them.
-    dotnet test Workbench.slnx --configuration Release --no-build --no-restore `
-        --logger trx --results-directory (Join-Path $repositoryRoot 'artifacts/test-results')
-    Assert-NativeCommandSucceeded 'dotnet test'
-
-    npm run lint --prefix $clientRoot
-    Assert-NativeCommandSucceeded 'client lint'
-
+    # Each child owns a SQL container; process-wide pool and image state never cross partitions.
+    $stages += Start-VerificationStage -Name server -RepositoryRoot $repositoryRoot `
+        -Arguments @($ServerPartitions, $ServerConcurrency, (Join-Path $runRoot 'server-tests')) -Action {
+        param($count, $concurrency, $results)
+        & ./scripts/test-server-partitions.ps1 -PartitionCount $count -MaxConcurrency $concurrency -NoBuild -ResultsDirectory $results
+        if (-not $?) { throw 'Server partitions failed.' }
+    }
     npm run typecheck --prefix $clientRoot
     Assert-NativeCommandSucceeded 'client typecheck'
-
-    npm run test:run --prefix $clientRoot
-    Assert-NativeCommandSucceeded 'client tests'
-
     npm run build --prefix $clientRoot
     Assert-NativeCommandSucceeded 'client build'
-
-    npm test --prefix $browserRoot
-    Assert-NativeCommandSucceeded 'browser tests'
-
-    & (Join-Path $PSScriptRoot 'test-publish.ps1') -SkipClientBuild
-    if (-not $?) {
-        throw 'Published release-unit verification failed.'
+    $manifest = Publish-VerificationArtifacts -RepositoryRoot $repositoryRoot -RunId $runId -BuildReceipt $receipt -OutputRoot $runRoot
+    $env:WORKBENCH_VERIFICATION_MANIFEST = $manifest
+    $env:WORKBENCH_VERIFICATION_RUN = $runId
+    $prerequisiteClock.Stop()
+    $stages += Start-VerificationStage -Name browser -RepositoryRoot $repositoryRoot -Arguments @($browserRoot) -Action {
+        param($browser)
+        npm test --prefix $browser
+        if ($LASTEXITCODE -ne 0) { throw 'Browser tests failed.' }
     }
-
+    $stages += Start-VerificationStage -Name published -RepositoryRoot $repositoryRoot -Action {
+        & ./scripts/test-publish.ps1
+        if (-not $?) { throw 'Published release-unit verification failed.' }
+    }
+    $stagesJoined = $true
+    Complete-VerificationStages -Stages $stages -RequiredNames @('client', 'server', 'browser', 'published') `
+        -TimingPath (Join-Path $runRoot 'stages.json')
+    $passed = $true
     Write-Host 'Workbench source and published release-unit verification passed.'
 }
 finally {
-    Pop-Location
+    # Even a prerequisite failure must join started stages and retain their results.
+    try {
+        if (-not $stagesJoined -and $stages.Count) {
+            Complete-VerificationStages -Stages $stages -RequiredNames @($stages | ForEach-Object Name) `
+                -TimingPath (Join-Path $runRoot 'stages.json')
+        }
+    }
+    finally {
+        foreach ($stage in $stages) { Remove-Job -Job $stage.Job -Force -ErrorAction SilentlyContinue }
+        $env:WORKBENCH_VERIFICATION_MANIFEST = $priorManifest
+        $env:WORKBENCH_VERIFICATION_RUN = $priorRun
+        [pscustomobject]@{ RunId = $runId; Succeeded = $passed; Seconds = $gateClock.Elapsed.TotalSeconds;
+            PrerequisiteSeconds = $prerequisiteClock.Elapsed.TotalSeconds; ServerPartitions = $ServerPartitions;
+            ServerConcurrency = $ServerConcurrency; ProcessorCount = [Environment]::ProcessorCount } |
+            ConvertTo-Json | Set-Content -LiteralPath (Join-Path $runRoot 'gate.json')
+        Write-Host ("Gate evidence: {0}; elapsed {1:N2}s" -f $runRoot, $gateClock.Elapsed.TotalSeconds)
+        Pop-Location
+    }
 }

@@ -6,8 +6,9 @@
 
 Provide explicit focused test selection, remove the photo processor's unnecessary SQL
 dependency, and reduce repeated application-fixture preparation. Full `verify.ps1` and
-container smoke remain delivery requirements. This change does not enable SQL/browser
-parallelism, consolidate release builds, or replace real SQL with mocks.
+container smoke remain delivery requirements. The initial iteration change does not replace real SQL with mocks. The approved
+[final-gate extension](2026-09-09-concurrent-verification-gate.md) adds isolated server
+processes, concurrent stages, and shared current-run Release artifacts.
 
 `scripts/test-focused.ps1` selects server filters and client/browser files explicitly. It
 builds current source, propagates failures, and offers explicit locked dependency installation.
@@ -67,6 +68,6 @@ outside the normal suite so benchmarking does not add recurring verification ove
 - Application-fixture characterization rereads persisted data after another application's
   mutation, verifies real passwords, distinct security stamps/proof keys, complete migration
   history, and rejection of another database's contained credential.
-- Prior-schema readiness and migration drills remain part of the unfiltered server gate.
+- Prior-schema readiness and migration drills remain part of the complete discovered-inventory server gate.
 - Scoped manual mutations must detect shared proof keys and leaked failed databases;
   restored source must be rebuilt before final verification.

@@ -9,6 +9,15 @@ $temporaryRoot = [IO.Path]::GetFullPath([IO.Path]::GetTempPath())
 $publishRoot = Join-Path $temporaryRoot ("workbench-publish-{0}" -f [Guid]::NewGuid().ToString('N'))
 $databasePublishRoot = "$publishRoot-database"
 $publishedProcess = $null
+$reuseArtifacts = [bool]$env:WORKBENCH_VERIFICATION_MANIFEST
+if ($reuseArtifacts) {
+    . (Join-Path $PSScriptRoot 'verification-artifacts.ps1')
+    $artifacts = Get-VerificationArtifacts -RepositoryRoot $repositoryRoot `
+        -ManifestPath $env:WORKBENCH_VERIFICATION_MANIFEST -RunId $env:WORKBENCH_VERIFICATION_RUN
+    $publishRoot = $artifacts.ServerRoot
+    $databasePublishRoot = $artifacts.DatabaseRoot
+}
+elseif ($env:WORKBENCH_VERIFICATION_RUN) { throw 'Current-run verification manifest is required.' }
 
 function Assert-NativeCommandSucceeded {
     param([Parameter(Mandatory)][string]$CommandName)
@@ -19,27 +28,30 @@ function Assert-NativeCommandSucceeded {
 }
 
 try {
-    $serverPublishArguments = @(
-        'publish'
-        (Join-Path $repositoryRoot 'src/Workbench.Server/Workbench.Server.csproj')
-        '--configuration'
-        'Release'
-        '--no-restore'
-        '--output'
-        $publishRoot
-    )
-    if ($SkipClientBuild) {
-        $serverPublishArguments += '-p:BuildClient=false'
-    }
-    dotnet @serverPublishArguments
-    Assert-NativeCommandSucceeded 'dotnet publish'
+    if (-not $reuseArtifacts) {
+        $serverPublishArguments = @(
+            'publish'
+            (Join-Path $repositoryRoot 'src/Workbench.Server/Workbench.Server.csproj')
+            '--configuration'
+            'Release'
+            '--no-restore'
+            '--output'
+            $publishRoot
+        )
+        if ($SkipClientBuild) {
+            $serverPublishArguments += '-p:BuildClient=false'
+        }
+        dotnet @serverPublishArguments
+        Assert-NativeCommandSucceeded 'dotnet publish'
 
-    dotnet publish (Join-Path $repositoryRoot 'src/Workbench.Database/Workbench.Database.csproj') `
-        --configuration Release `
-        --no-restore `
-        --output $databasePublishRoot `
-        -p:UseAppHost=false
-    Assert-NativeCommandSucceeded 'database tool publish'
+        dotnet publish (Join-Path $repositoryRoot 'src/Workbench.Database/Workbench.Database.csproj') `
+            --configuration Release `
+            --no-restore `
+            --output $databasePublishRoot `
+            -p:UseAppHost=false
+        Assert-NativeCommandSucceeded 'database tool publish'
+
+    }
 
     $serverAssembly = Join-Path $publishRoot 'Workbench.Server.dll'
     $clientIndex = Join-Path $publishRoot 'wwwroot/index.html'
@@ -155,31 +167,33 @@ finally {
         $publishedProcess.WaitForExit()
     }
 
-    $resolvedPublishRoot = [IO.Path]::GetFullPath($publishRoot)
-    $isTaskDirectory = [IO.Path]::GetFileName($resolvedPublishRoot).StartsWith(
-        'workbench-publish-',
-        [StringComparison]::Ordinal)
-    $isUnderTemporaryRoot = $resolvedPublishRoot.StartsWith(
-        $temporaryRoot,
-        [StringComparison]::OrdinalIgnoreCase)
+    if (-not $reuseArtifacts) {
+        $resolvedPublishRoot = [IO.Path]::GetFullPath($publishRoot)
+        $isTaskDirectory = [IO.Path]::GetFileName($resolvedPublishRoot).StartsWith(
+            'workbench-publish-',
+            [StringComparison]::Ordinal)
+        $isUnderTemporaryRoot = $resolvedPublishRoot.StartsWith(
+            $temporaryRoot,
+            [StringComparison]::OrdinalIgnoreCase)
 
-    if (Test-Path -LiteralPath $resolvedPublishRoot) {
-        if (-not $isTaskDirectory -or -not $isUnderTemporaryRoot) {
-            throw "Refusing to remove unexpected publish path: $resolvedPublishRoot"
+        if (Test-Path -LiteralPath $resolvedPublishRoot) {
+            if (-not $isTaskDirectory -or -not $isUnderTemporaryRoot) {
+                throw "Refusing to remove unexpected publish path: $resolvedPublishRoot"
+            }
+
+            Remove-Item -LiteralPath $resolvedPublishRoot -Recurse -Force
         }
 
-        Remove-Item -LiteralPath $resolvedPublishRoot -Recurse -Force
-    }
-
-    $resolvedDatabasePublishRoot = [IO.Path]::GetFullPath($databasePublishRoot)
-    if (Test-Path -LiteralPath $resolvedDatabasePublishRoot) {
-        $isDatabaseTaskDirectory = [IO.Path]::GetFileName($resolvedDatabasePublishRoot).StartsWith(
-            'workbench-publish-', [StringComparison]::Ordinal)
-        $isDatabaseUnderTemporaryRoot = $resolvedDatabasePublishRoot.StartsWith(
-            $temporaryRoot, [StringComparison]::OrdinalIgnoreCase)
-        if (-not $isDatabaseTaskDirectory -or -not $isDatabaseUnderTemporaryRoot) {
-            throw "Refusing to remove unexpected database publish path: $resolvedDatabasePublishRoot"
+        $resolvedDatabasePublishRoot = [IO.Path]::GetFullPath($databasePublishRoot)
+        if (Test-Path -LiteralPath $resolvedDatabasePublishRoot) {
+            $isDatabaseTaskDirectory = [IO.Path]::GetFileName($resolvedDatabasePublishRoot).StartsWith(
+                'workbench-publish-', [StringComparison]::Ordinal)
+            $isDatabaseUnderTemporaryRoot = $resolvedDatabasePublishRoot.StartsWith(
+                $temporaryRoot, [StringComparison]::OrdinalIgnoreCase)
+            if (-not $isDatabaseTaskDirectory -or -not $isDatabaseUnderTemporaryRoot) {
+                throw "Refusing to remove unexpected database publish path: $resolvedDatabasePublishRoot"
+            }
+            Remove-Item -LiteralPath $resolvedDatabasePublishRoot -Recurse -Force
         }
-        Remove-Item -LiteralPath $resolvedDatabasePublishRoot -Recurse -Force
     }
 }
