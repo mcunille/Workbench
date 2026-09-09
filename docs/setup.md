@@ -12,7 +12,7 @@ and localhost HTTPS. The development instructions below remain a separate dispos
 
 ## Prerequisites and supported paths
 
-Install .NET SDK **10.0.400**, Node.js **26.7.0**, npm **11.19.0**, PowerShell 7, Git, and Docker
+Install .NET SDK **10.0.401**, Node.js **26.7.0**, npm **11.19.0**, PowerShell 7, Git, and Docker
 with a running **Linux-container** engine capable of running the pinned SQL Server amd64 image.
 An unsupported host architecture is not made supported by these instructions; use a compatible
 Linux Docker host. The repository pins are in `global.json`, `.node-version`, and package files.

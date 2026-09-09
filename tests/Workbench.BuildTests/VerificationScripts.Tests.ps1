@@ -31,7 +31,7 @@ function global:dotnet {
     $arguments = $args -join ' '
     $global:workbenchDotnetCalls.Add($arguments)
     if ($args.Count -eq 1 -and $args[0] -eq '--version') {
-        '10.0.400'
+        '10.0.401'
         $global:LASTEXITCODE = 0
         return
     }
@@ -57,7 +57,7 @@ function global:sqlcmd {
 }
 
 try {
-    if ((dotnet --version) -ne '10.0.400' -or
+    if ((dotnet --version) -ne '10.0.401' -or
         (node --version) -ne 'v26.7.0' -or
         (npm --version) -ne '11.19.0') {
         throw 'Command shims did not return the expected tool versions.'
