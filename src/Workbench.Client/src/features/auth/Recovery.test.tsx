@@ -11,6 +11,20 @@ vi.mock('../../api/auth', () => ({
 }));
 
 describe('Recovery', () => {
+  it('presents recovery with the sign-in branding and email form', () => {
+    // GIVEN a visitor who forgot their password.
+    // WHEN the recovery request page is rendered.
+    render(<Recovery />);
+
+    // THEN the sign-in identity appears above the accessible email form.
+    expect(screen.getByRole('img', { name: 'Workbench' })).toBeVisible();
+    expect(screen.getByText('by The White Stag Collection')).toBeVisible();
+    expect(screen.getByRole('heading', { name: 'Recover account' })).toBeVisible();
+    expect(screen.getByLabelText('Email')).toHaveAttribute('type', 'email');
+    expect(screen.getByRole('button', { name: 'Recover account' })).toBeVisible();
+    expect(screen.getByRole('link', { name: 'Return to sign in' })).toHaveAttribute('href', '/');
+  });
+
   it.each([false, true])('identifies the product on public account pages (invitation=%s)', (invitation) => {
     // GIVEN a visitor opening recovery or an invitation without a token.
     // WHEN the public account page is rendered.
