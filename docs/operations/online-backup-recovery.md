@@ -21,7 +21,7 @@ Use the exact deployed image digest and schema, and retain that image for recove
 
 Before applying it, obtain approval for the resources, permissions and incremental cost. Account for
 the endpoint's hourly charge, daily full blob-version copies, checks of retained copies, replication
-traffic, execution and monitoring. This first version intentionally does not deduplicate across runs:
+traffic, execution and monitoring. Backups do not deduplicate across runs:
 each catalog owns its copies, which makes independent retention and deletion safe. Cost grows with
 retained source versions and capture frequency. Measure bytes and execution time; do not assume the
 subscription budget stops spending.

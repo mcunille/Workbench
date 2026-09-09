@@ -201,7 +201,7 @@ migration or deployment is authorized by this spec.
 
 ## Acceptance and delivery evidence
 
-Use focused failing tests first, with GIVEN/WHEN/THEN comments. Cover every method, optional facts,
+Cover every method, optional facts,
 date precision/leap/boundary cases, normalization, re-login retrieval, same item identity after
 correction, no-acquisition items, archived reads/write denial, and API plus direct SQL isolation.
 Test invalid versions, unknown fields, foreign IDs/FKs, direct write denial, and original replay
@@ -209,11 +209,8 @@ after edit/archive. Use real connections for create/create, edit/edit, and edit/
 assert one winning write and no orphan or duplicate records. Inject response loss and failed
 conflict reads; verify retained input and deliberate reconciliation without silent overwrites.
 
-Run client/API/SQL and browser checks, generated OpenAPI drift, fresh/upgrade/rollback guards,
-affected mutation testing (or accurately report unavailable tooling), `scripts/verify.ps1`, and
-`scripts/smoke-container.ps1`. Exercise desktop/mobile/320px, both appearances, keyboard/focus and
-motion/transparency preferences. Produce a narrated Playwright walkthrough from current source
-using non-sensitive data and retain media outside Git. Attach supported evidence to the ready
-PR, reporting attachment limitations if necessary. Update living documentation and the migration
-runbook, review the complete diff, commit and push scoped changes, and open a ready-for-review PR
-closing #74. Do not mark H10–H12 or the entire scenario complete.
+Follow [CONTRIBUTING](../../CONTRIBUTING.md) for verification gates and the
+[development workflow](../development-workflow.md) for implementation and delivery.
+Fresh/upgrade and rollback-guard coverage applies to the acquisition migration. Exercise
+desktop/mobile/320px, both appearances, keyboard/focus and motion/transparency preferences.
+The narrated walkthrough uses non-sensitive data. H10–H12 remain separate deliveries.

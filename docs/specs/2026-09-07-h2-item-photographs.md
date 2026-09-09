@@ -202,7 +202,7 @@ and schema/readiness changes. Existing items start with no photo. Never rewrite 
 migration. Verify fresh creation and upgrade from the PR base. Reject destructive rollback
 once photo records exist; recover through a forward fix or the paired restore runbook.
 
-Write failing focused tests first with GIVEN/WHEN/THEN comments, then implement:
+Required coverage:
 
 - Decoder fixtures for all accepted formats, orientation, profiled color conversion,
   alpha, metadata stripping, animation, corrupt content, misleading MIME/extensions,
@@ -218,12 +218,9 @@ Write failing focused tests first with GIVEN/WHEN/THEN comments, then implement:
 - Client/browser tests for success, errors/retry, session expiry, conflicts, keyboard,
   removal confirmation, Grid/List/details, reload, mobile widths, and all appearance modes.
 
-Run affected mutation testing and document meaningful surviving mutants and tooling limits.
-Run `scripts/verify.ps1` and `scripts/smoke-container.ps1`, plus deployment checks if request
-limit/container configuration changes. Inspect the running workflow and update the narrated
-Playwright walkthrough with local URLs and accurate evidence. Review the complete change,
-update living documentation, and deliver a ready-for-review PR closing #40. No merge.
+Follow [CONTRIBUTING](../../CONTRIBUTING.md) for verification gates and the
+[development workflow](../development-workflow.md) for implementation and delivery.
 
 Implementation follows the approved policies, API/schema direction, native imaging dependency,
 synchronous pair publication, and documented interruption recovery above. See the
-[narrated walkthrough](../demos/h2/README.md) for observed browser behavior and measured preparation.
+[historical demonstration evidence](../demos/README.md) for measured browser preparation.

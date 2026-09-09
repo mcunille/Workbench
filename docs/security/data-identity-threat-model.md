@@ -5,8 +5,7 @@
 This model covers Workbench's implemented SQL persistence, shared-database tenancy, built-in
 password identity, durable browser sessions, tenant user administration, database control-plane
 commands, and backup/restore boundary. It is a reusable model for the current architecture, not a
-claim that each scenario is a vulnerability. The architecture pass was performed sequentially
-because delegation was unavailable for this task.
+claim that each scenario is a vulnerability.
 
 | Component | Responsibility and source |
 | --- | --- |
@@ -99,8 +98,6 @@ Assumptions and exclusions:
   authorization are outside this phase and require their own extensions to this model.
 - A migrator can change RLS and grant itself data access by design. Protection is operational:
   short-lived delivery, independent authorization, audit, and no standing presence in web runtime.
-- No independently delegated architecture review was permitted; material claims were checked in a
-  sequential source pass and are covered by integration, browser, migration, and container tests.
 
 ## Attack Surface, Mitigations, and Attacker Stories
 

@@ -1,18 +1,16 @@
 # H8 verification record
 
+Historical delivery revision: `0afd75a121d38c1e96070171486c6e9dd93aa567` (2026-09-08).
 Implementation follows the owner-approved package design for issue #56. The package endpoint retains
 H7 CSV behavior and introduces no database migration, durable export job or server download identifier.
 
 ## Focused evidence
 
-- Tests were written first: missing endpoint/ZIP behavior and unsupported identifier requests failed
-  before implementation. Corrupt content exposed an incorrect 500 mapping, corrected to the promised
-  503 recovery outcome. An injected Azure credential failure reproduced the same mapping gap and was
-  corrected with a focused failure-and-retry test. A resource test exposed MemoryStream capacity growth
-  above its ceiling before the capacity clamp was added.
+- Focused failure-and-retry tests cover corrupt content and Azure credential failures mapping to
+  the promised 503 recovery outcome. Resource tests cover buffer capacity at its ceiling.
 - Archive tests verify exact stored bytes and SHA-256, CSV compatibility, literal manifest mapping,
   explicit absence, Unicode/path-like text, row/per-photo/CSV/manifest/aggregate/final-directory limits,
-  exact buffer capacity, cancellation and stream disposal. All 18 pass on current source.
+  exact buffer capacity, cancellation and stream disposal. All 18 passed on the verified source.
 - HTTP and real-SQL tests cover both scopes beyond one page, archived and foreign records/photos,
   authentication/antiforgery, strict scope-only requests, incomplete/corrupt/missing/recovery-unavailable
   photographs, retries, shared capacity, SQL failures and session revocation.
@@ -22,7 +20,7 @@ H7 CSV behavior and introduces no database migration, durable export job or serv
   captured bytes, and an actual worker refuses premature purge under seven-day retention. A real
   120-second deadline and client cancellation release capacity while SQL remains blocked.
 - 48 focused client tests, typecheck and lint passed. Seven focused CSV/ZIP browser scenarios passed
-  at `http://127.0.0.1:5286` against current client assets and disposable SQL. Downloaded ZIPs are parsed
+  at `http://127.0.0.1:5286` against the verified client assets and disposable SQL. Downloaded ZIPs are parsed
   independently and photo bytes compared to authenticated stored detail responses. Desktop and 320px
   light/dark screenshots were inspected; keyboard, reduced motion/transparency, navigation, reload,
   incomplete response, cancellation and retry checks passed.
@@ -60,8 +58,6 @@ locked restores, formatting, generated OpenAPI drift, Release build with no warn
 599 server tests (including all 38 package-specific tests and migration/recovery drills), 149 client
 tests, lint/typecheck/build, all 53 browser tests and published release-unit probes at
 `http://127.0.0.1:64193`. Dependencies had already been installed from their lockfiles.
-Independent implementation review of the complete feature range and subsequent upstream integration
-reported no actionable findings.
 
 The narrated Playwright capture used an isolated copy of the integrated checkout (implementation revision `a14b536`) with SDK
 10.0.401; all 525 tracked files were verified equal to the delivery checkout by SHA-256 before building. It passed at `http://127.0.0.1:5287/inventory/export`, including actual

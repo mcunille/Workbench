@@ -14,3 +14,7 @@ artifacts/
 .dev-environment/
 # Generated verification and walkthrough videos stay local.
 *.[mM][pP]4
+
+# Historical implementation screenshots are preserved outside Git; concept boards remain tracked.
+/docs/design/h1-refinement/*-light.png
+/docs/design/h1-refinement/*-dark.png

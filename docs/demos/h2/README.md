@@ -2,7 +2,11 @@
 
 [Transcript](transcript.md) · [Captions](captions.srt)
 
-The recorded video is an external artifact, not a reproducible repository build.
+Historical recording from 2026-09-07 at revision `ee34da4898b1bf5ac7b61783ed596f9773e49265`.
+[View or download the original recording](https://github.com/mcunille/Workbench/blob/ee34da4898b1bf5ac7b61783ed596f9773e49265/docs/demos/h2/h2-walkthrough.mp4).
+The transcript and captions match this retained media. Capabilities and verification below describe
+that historical increment; consult the [documentation index](../../README.md) for current behavior.
+The recording is no longer tracked at the branch tip and has no current-source reproduction script.
 
 The recording exercises the real photo workflow against a disposable SQL Server database and private local blob storage. Authentication happens off camera. The gemstone illustrations are synthetic demonstration fixtures, not photographs of real possessions. Narration uses Microsoft Zira, a synthetic voice.
 

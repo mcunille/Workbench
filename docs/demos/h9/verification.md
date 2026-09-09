@@ -1,7 +1,7 @@
 # H9 verification record
 
 Implemented against base `00d61e8f223a621fc462911844cf4f541705fcfe`. The full delivery gate verified
-code and tests at `e76bbf5fb90dbc4375a4c0fb4313da94432a7157`; subsequent changes only record this evidence.
+code and tests at `e76bbf5fb90dbc4375a4c0fb4313da94432a7157` (2026-09-08).
 
 ## Focused evidence
 
@@ -48,8 +48,6 @@ System.Speech. Authentication happened off camera; records are synthetic.
   corrections: migration/provisioning, non-root read-only runtime, internal TLS, secure-cookie
   login and durable session after app replacement. Evidence: `artifacts/h9-container-smoke.log`;
   its temporary local URL was `http://127.0.0.1:64320` and containers were removed.
-- Independent implementation review of `00d61e8..e76bbf5` found no remaining actionable findings.
-  Its invalid-date feedback finding was fixed and re-reviewed before the final gate.
 
 Collector usability testing requires a human participant and remains separate from automated
 acceptance. H10–H12, real production deployment, and acquisition-aware export are outside this delivery.

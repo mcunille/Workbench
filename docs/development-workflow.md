@@ -88,25 +88,9 @@ For a user-requested PR review or author feedback round, use the repository's `r
 `handle-pr-feedback` skill and its exact permission contract. Retain the working branch and
 worktree for feedback; creation of a PR does not authorize merge or cleanup of unrelated work.
 
-## Guidance maintenance and audit record
+## Guidance maintenance
 
 Add guidance for demonstrated recurring needs. Use narrow triggers and move detail behind relevant
 links. Check changes against representative scenarios, such as a typo, an architectural decision,
 independent tasks, overlapping edits, and a blocked test. Distinguish a static scenario walkthrough
 from an actual agent experiment. Avoid adding repeated warnings in response to hypothetical failures.
-
-This guidance was selected from a local audit of Superpowers 6.3.0 on 2026-09-05. Its 14 skill
-entrypoints were compared with Workbench's existing rules; no vendor scripts or hooks were imported
-or executed. This was a workflow audit, not a security audit of the plugin's executable components.
-
-| Source skills | Disposition |
-| --- | --- |
-| `brainstorming` | Retain scoped design and alternatives; omit approval ceremonies for every change. |
-| `writing-plans`, `executing-plans` | Retain task contracts and progress recovery; omit full-code plans and automatic blocker stops. |
-| `subagent-driven-development`, `dispatching-parallel-agents` | Retain focused ownership and integration review; omit fixed retry counts, model mandates, and compulsory delegation. |
-| `systematic-debugging` | Retain reproduction and hypothesis testing; omit secret-revealing diagnostics and retry-count architecture gates. |
-| `requesting-code-review`, `receiving-code-review` | Retain requirements/quality review and evidence-based feedback; keep repository PR skills authoritative. |
-| `using-git-worktrees`, `finishing-a-development-branch` | Retain workspace awareness and preservation; keep existing PR delivery and merge boundaries. |
-| `test-driven-development`, `verification-before-completion` | Already represented in root guidance; do not duplicate their process. |
-| `writing-skills` | Retain narrow scope, selective loading, and scenario checks; omit mandatory pressure-test ceremonies for all documentation. |
-| `using-superpowers` | Omit universal activation and recursive skill-loading requirements. |

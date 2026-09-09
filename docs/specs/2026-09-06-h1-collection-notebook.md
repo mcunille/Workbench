@@ -118,7 +118,7 @@ authenticated session. Separate creation request identity keeps item identifiers
 
 ## Verification and delivery
 
-Write focused failing tests first, with GIVEN/WHEN/THEN comments. Cover normalization and limits,
+Cover normalization and limits,
 HTTP authentication/antiforgery, validation, real SQL persistence, cross-tenant direct reads and
 writes, pagination, identical-name acceptance, and concurrent replay/mismatched-request behavior.
 Verify database failures and uncertain-save retry without duplicate creation.
@@ -129,24 +129,19 @@ Exercise the running application with real authenticated persistence after reloa
 session, desktop and 320px layouts, keyboard navigation, both themes, loading/error/retry, and
 cancel/discard. Record local URLs and distinguish browser evidence from integration assertions.
 
-Run affected mutation testing, investigate meaningful survivors, and report unavailable tooling
-or coverage limits. Run `scripts/verify.ps1` and `scripts/smoke-container.ps1`, including migration
-and permission drills. Perform an internal implementation review, fix in-scope findings, update
-living documentation, then commit, push, and open a ready-for-review PR. Merge remains separate.
+Follow [CONTRIBUTING](../../CONTRIBUTING.md) for verification gates and the
+[development workflow](../development-workflow.md) for implementation and delivery. Merge remains separate.
 
 Human hobbyist usability validation remains external evidence, not something automated checks
 can establish. Completing H1 delivers a text collection notebook and does not complete H2–H4.
 
 ### Development evidence
 
-Focused tests first demonstrated missing creation (HTTP 404 instead of 201) and incorrect
-prior-schema readiness (200 instead of 503). Integration subsequently exposed the principal
-provisioning allowlist gap; its success test failed before the narrow inventory grant entry was
-added. Tests retain rejection of UPDATE, DELETE, and grant-option authority.
+Historical evidence from the 2026-09-07 implementation; not current verification.
 
-Independent source review found a dirty-form guard failure during native fragment navigation.
-Regressions at initial and later history positions failed before the fix; same-page fragment
-navigation now preserves the draft while ordinary route changes still require confirmation.
+Regression coverage includes principal provisioning that rejects UPDATE, DELETE, and grant-option
+authority, plus dirty-form protection during native fragment navigation at initial and later history
+positions.
 
 Six targeted manual mutations were detected: accepting an oversized name, bypassing replay
 conflict checks, removing the immediate duplicate-submit guard, changing the retry request ID,

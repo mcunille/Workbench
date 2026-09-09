@@ -263,12 +263,10 @@ both directions and resumable publication. SQL worker tests use independent conn
 roles. The full source and container gates remain required; actual Azure identity/RBAC and the selected
 SMTP relay require deployment checks in the target environment.
 
-The implementation review covered 44 changed source items, followed by a focused review of destination
-privacy, pending-migration refusal, and cleanup state handling. No reportable finding remained within
-the supported deployment policy. A public Azure destination was reproduced with Azurite and is now
-rejected before copying; the test also preserves successful private copies in both directions.
+Azurite regression coverage verifies rejection of public Azure destinations before copying and
+successful private copies in both directions.
 
-Focused Stryker 4.16 mutation testing of blob transfer, read integrity, and SMTP validation reached
+Historical focused Stryker 4.16 mutation testing of blob transfer, read integrity, and SMTP validation reached
 92.16% (46 killed and one timed out among 51 valid in-scope mutants). Remaining gaps cover successful SMTP invitation delivery,
 exact clock-boundary equality, pool-buffer return, and a redundant persistent-integrity-failure guard.
 Compile-error mutants and out-of-scope mutations were excluded. SQL procedures, authorization, retention,

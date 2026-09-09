@@ -322,35 +322,6 @@ or jewelry photograph represents the item. That extension requires its own scope
 - Make every element glass or remove borders simply to make the form look softer.
 - Apply these scoped tokens globally or silently replace the rest of the application's styling.
 
-## Agent Prompt Guide
-
-### Reusable design brief
-
-> Design the requested Workbench surface using the Tanzanite reference. Start with a
-> neutral black or white canvas and restrained translucent glass. Keep blue/violet light
-> faint and near the top edge; leave the lower background neutral. Use clean system
-> sans-serif typography, soft neutral shadows, and clear control boundaries. Preserve
-> the original geometric stag and star. Where the sign-in brand lockup is used, place
-> “by The White Stag Collection” directly beneath Workbench in smaller muted gray text.
-> Keep primary actions neutral with inverse text. Preserve the requested workflow and
-> existing accessible interactions. Do not invent extra UI or expand the restyle beyond
-> the authorized surface. Use the actual source tokens and verify both appearances and
-> narrow layouts in the browser.
-
-### Example component briefs
-
-1. **Sign-in panel:** Center a 580px maximum-width glass panel with a 12px radius,
-   40px vertical and 48px horizontal padding. Place a 112 × 150px stag image box above
-   the 44px semibold bench-pin Workbench wordmark and 13px gray byline.
-   Left-align the form beneath it.
-2. **Dark atmosphere:** Use `#08090c` as the canvas. Add the documented blue and violet
-   radial layers above the viewport. Keep the lower page virtually black and the card neutral.
-3. **Primary action:** Create a full-width, minimum 60px-high button with a 6px radius,
-   18px/500 text, neutral inverse colors, and subtle 1px hover lift. Respect reduced motion.
-4. **Mobile adaptation:** At 600px and below, use 16px outer horizontal padding and
-   32px/24px panel padding. Reduce the mark to 96 × 128px and reduce the wordmark to 38px. Keep
-   the original labels, control heights, and recovery route; allow vertical scrolling.
-
 ## Quick Start
 
 ### Existing Workbench implementation
@@ -371,29 +342,6 @@ typography, validation, focus, and control rules; `sign-in.css` supplies scoped 
 Import `floating-field.css` last for the shared text-field interaction.
 Changing the root `data-theme` attribute remains the responsibility of the existing
 appearance control.
-
-### CSS atmosphere recipe
-
-This excerpt uses the exact current dark-mode values. It illustrates the layering;
-it is not a standalone replacement for the complete component stylesheet.
-
-```css
-:root[data-theme="dark"] .sign-in-page {
-  --canvas: #08090c;
-  background:
-    radial-gradient(ellipse 65% 32rem at 10% -12rem, #263a7280, transparent),
-    radial-gradient(ellipse 55% 28rem at 95% -12rem, #43265360, transparent),
-    var(--canvas);
-}
-
-:root[data-theme="dark"] .sign-in-card {
-  background: linear-gradient(155deg, #ffffff0b, #ffffff00 35%), #101114b8;
-  box-shadow:
-    inset 0 1px 0 #ffffff75,
-    0 8px 24px #00000030,
-    0 32px 80px #00000070;
-}
-```
 
 Workbench currently uses plain CSS and React. No Tailwind preset, additional component
 library, or separate font installation is needed to reproduce this reference.

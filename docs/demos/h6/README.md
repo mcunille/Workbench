@@ -34,9 +34,8 @@ failed recovery reads. These automated checks do not establish collector usabili
 
 The final-source capture passed on 2026-09-07. The 82-second narrated MP4 rendered and decoded
 successfully; desktop/mobile frames and caption placement were inspected, and the narration track
-was checked for non-silent, unclipped output. An earlier capture setup encountered a transient
-photo-processing busy response while another browser run occupied the shared test port; the
-isolated rerun passed without application changes.
+was checked for non-silent, unclipped output. These historical results accompany delivery revision
+`0071fa0329369e66f0c878b43f1cda1b57884edc`.
 
 The [H6 verification record](../../specs/2026-09-07-h6-archive-recovery.md#verification-record)
 records the full gate: 451 server tests, 92 client tests, 34 browser scenarios, four migration drills,
