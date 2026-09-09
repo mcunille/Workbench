@@ -98,10 +98,12 @@ builder.Services.AddSingleton<SessionService>(services => new SessionService(
     RequireWebConnectionString(services.GetRequiredService<IConfiguration>()),
     services.GetRequiredService<DurableSessionOptions>(),
     services.GetRequiredService<TenantContextProof>()));
+builder.Services.AddSingleton<DummyPasswordHash>();
 builder.Services.AddScoped<IIdentityVerifier>(services => new BuiltInPasswordVerifier(
     RequireWebConnectionString(services.GetRequiredService<IConfiguration>()),
     services.GetRequiredService<IPasswordHasher<WorkbenchUser>>(),
-    services.GetRequiredService<TenantContextProof>()));
+    services.GetRequiredService<TenantContextProof>(),
+    services.GetRequiredService<DummyPasswordHash>()));
 if (builder.Environment.IsDevelopment())
 {
     builder.Services.AddSingleton<DevelopmentIdentityMessageDelivery>();

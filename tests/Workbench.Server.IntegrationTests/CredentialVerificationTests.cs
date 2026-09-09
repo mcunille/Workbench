@@ -87,7 +87,7 @@ public sealed class CredentialVerificationTests(SqlServerFixture sqlServer) : IA
     }
 
     private BuiltInPasswordVerifier CreateVerifier() =>
-        new(_webConnectionString, new PasswordHasher<WorkbenchUser>(), _contextProof);
+        new(_webConnectionString, new PasswordHasher<WorkbenchUser>(), _contextProof, new DummyPasswordHash());
 
     private async Task SeedUsersAsync()
     {

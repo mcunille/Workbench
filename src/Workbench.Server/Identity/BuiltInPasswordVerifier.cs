@@ -24,18 +24,19 @@ public sealed class BuiltInPasswordVerifier : IIdentityVerifier
         CreatedAtUtc = DateTimeOffset.UnixEpoch,
         State = AccountState.Disabled,
     };
-    private readonly string _dummyPasswordHash;
+    private readonly DummyPasswordHash _dummyPasswordHash;
 
     public BuiltInPasswordVerifier(
         string connectionString,
         IPasswordHasher<WorkbenchUser> passwordHasher,
-        TenantContextProof contextProof)
+        TenantContextProof contextProof,
+        DummyPasswordHash dummyPasswordHash)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(connectionString);
         _connectionString = connectionString;
         _passwordHasher = passwordHasher;
         _contextProof = contextProof;
-        _dummyPasswordHash = passwordHasher.HashPassword(_dummyUser, "dummy-password-never-accepted");
+        _dummyPasswordHash = dummyPasswordHash;
     }
 
     public async Task<VerifiedIdentity?> VerifyAsync(
@@ -48,7 +49,7 @@ public sealed class BuiltInPasswordVerifier : IIdentityVerifier
 
         var normalizedEmail = email.Trim().ToUpperInvariant();
         var user = await ResolveUserAsync(normalizedEmail, cancellationToken);
-        var hash = user?.PasswordHash ?? _dummyPasswordHash;
+        var hash = user?.PasswordHash ?? _dummyPasswordHash.GetOrCreate(_passwordHasher, _dummyUser);
         var result = _passwordHasher.VerifyHashedPassword(user ?? _dummyUser, hash, credential);
 
         if (user is null ||
