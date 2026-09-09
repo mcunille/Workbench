@@ -26,7 +26,7 @@ H7 CSV behavior and introduces no database migration, durable export job or serv
   independently and photo bytes compared to authenticated stored detail responses. Desktop and 320px
   light/dark screenshots were inspected; keyboard, reduced motion/transparency, navigation, reload,
   incomplete response, cancellation and retry checks passed.
-- Final container smoke passed at `http://127.0.0.1:56246`: non-root read-only SQL-backed runtime,
+- Final container smoke passed at `http://127.0.0.1:61077`: non-root read-only SQL-backed runtime,
   private listener, internal TLS, cookie login, durable sessions across app replacement, forwarded
   client isolation and worker telemetry. The disposable environment was removed afterward.
 
@@ -51,25 +51,22 @@ an incorrect ZIP size ceiling, skipped body-completeness checking, and ignored f
 
 Deliberately corrupt ownership metadata is not a separate H8 fixture; existing relational ownership
 constraints and restricted-SQL isolation tests cover the related boundaries. H8 package scenarios use
-filesystem/test providers; provider portability tests do not
-establish live Azure managed-identity/RBAC configuration. No collector usability study was performed.
+filesystem/test providers; provider portability tests do not establish live Azure managed-identity/RBAC configuration. No collector usability study was performed.
 
 ## Full gate and media
 
-`scripts/verify.ps1 -SkipDependencyInstall` passed: locked restores, formatting, generated OpenAPI
-drift, Release build with no warnings/errors, 593 server tests (including migration/recovery drills),
-148 client tests, lint/typecheck/build, all 53 browser tests and published release-unit probes at
-`http://127.0.0.1:62844`. Dependencies had already been installed from their lockfiles.
+`scripts/verify.ps1 -SkipDependencyInstall` passed on the integrated revision with SDK 10.0.401:
+locked restores, formatting, generated OpenAPI drift, Release build with no warnings/errors,
+599 server tests (including all 38 package-specific tests and migration/recovery drills), 149 client
+tests, lint/typecheck/build, all 53 browser tests and published release-unit probes at
+`http://127.0.0.1:64193`. Dependencies had already been installed from their lockfiles.
+Independent implementation review of the complete feature range and subsequent upstream integration
+reported no actionable findings.
 
-The final credential-failure mapping and two photo-capture tests were added after the full server
-suite built; strengthened archive assertions also received a separate current-source run. Final
-formatting verification passed, followed by a fresh Release build and all 38 package-specific tests
-passing in the delivery checkout. The later browser/publish stages and final container smoke also
-rebuilt the server with the credential mapping.
-
-The narrated Playwright capture passed at `http://127.0.0.1:5287/inventory/export`, including actual
+The narrated Playwright capture used an isolated copy of the integrated checkout (implementation revision `a14b536`) with SDK
+10.0.401; all 525 tracked files were verified equal to the delivery checkout by SHA-256 before building. It passed at `http://127.0.0.1:5287/inventory/export`, including actual
 ZIP downloads and an offline display of extracted manifest/README text and decoded WebP bytes.
-The 118.44-second H.264/AAC MP4 rendered and decoded successfully. Desktop, mobile, offline manifest/photo
+The 117.56-second H.264/AAC MP4 rendered and decoded successfully. Desktop, mobile, offline manifest/photo
 and README frames were inspected. Audio is non-silent (mean -21.0 dB, maximum -2.2 dB); narration fits
 each presentation hold. Transcript and captions are committed here; the 3.8 MB MP4, extracted ZIPs,
 frames and logs remain ignored under `artifacts/h8/walkthrough/`. Disposable applications were stopped
