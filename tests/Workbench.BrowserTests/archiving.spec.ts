@@ -1,3 +1,4 @@
+import { setAppearance } from './user-menu-fixture';
 import { browserBaseUrl } from './browser-environment';
 import { expect, test, type Page } from '@playwright/test';
 import { mkdir } from 'node:fs/promises';
@@ -49,7 +50,7 @@ test('H5 cancellation and confirmed archive preserve a photographed bookmark acr
   for (const width of [320, 1280]) {
     await page.setViewportSize({ width, height: 900 });
     for (const theme of ['light', 'dark']) {
-      await page.getByRole('switch', { name: 'Dark theme' }).setChecked(theme === 'dark');
+      await setAppearance(page, theme === 'dark');
       await page.reload();
       await expect(page.getByAltText(`Photograph of ${item.name}`)).toBeVisible();
       expect(await page.getByAltText(`Photograph of ${item.name}`).evaluate((image: HTMLImageElement) => image.naturalWidth)).toBeGreaterThan(0);
@@ -94,7 +95,7 @@ test('H5 lost committed response retries the same token and reviews saved archiv
   await confirm(page).click();
   await expect(page.getByRole('alert')).toContainText('Archiving could not be confirmed');
   await page.setViewportSize({ width: 320, height: 900 });
-  await page.getByRole('switch', { name: 'Dark theme' }).setChecked(true);
+  await setAppearance(page, true);
   // WHEN retrying THEN the unchanged token conflicts and current saved state is loaded.
   await page.getByRole('button', { name: 'Retry archive', exact: true }).click();
   await expect(page.getByText('Archived', { exact: true })).toBeVisible();

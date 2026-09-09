@@ -1,3 +1,4 @@
+import { openUserMenu, setAppearance } from './user-menu-fixture';
 import { expect, test } from '@playwright/test';
 import { photoSignIn } from './photo-fixture';
 
@@ -7,6 +8,7 @@ test('enlarged navigation fits with wider platform font metrics', async ({ page 
   await page.goto('/inventory/new');
   await page.setViewportSize({ width: 320, height: 900 });
   await page.addStyleTag({ content: 'html { font-size: 200%; } .workspace-nav { font-family: monospace; }' });
+  await openUserMenu(page);
   // WHEN navigation reflows THEN every link fits its container without clipping text.
   const navigation = page.getByRole('navigation', { name: 'Workspace' });
   const bounds = (await navigation.boundingBox())!;
@@ -26,7 +28,7 @@ test('enlarged editor labels remain readable without overlapping fields', async 
   await page.addStyleTag({ content: 'html { font-size: 200%; }' });
   await page.emulateMedia({ reducedMotion: 'reduce' });
   for (const theme of ['light', 'dark']) {
-    await page.getByRole('switch', { name: 'Dark theme' }).setChecked(theme === 'dark');
+    await setAppearance(page, theme === 'dark');
     for (const name of ['Name', 'Notes (optional)', 'Storage location (optional)']) {
       const input = page.getByLabel(name, { exact: true });
       const label = page.getByText(name, { exact: true });
@@ -57,7 +59,7 @@ test('label colors follow appearance changes without an intermediate color trans
   await page.getByLabel('Password', { exact: true }).focus();
   // WHEN appearance changes THEN label text immediately uses the new theme color.
   for (const theme of ['dark', 'light']) {
-    await page.getByRole('switch', { name: 'Dark theme' }).setChecked(theme === 'dark');
+    await setAppearance(page, theme === 'dark');
     const colors = await page.getByText('Email', { exact: true }).evaluate(el => {
       const animations = el.getAnimations().filter(animation =>
         animation instanceof CSSTransition && animation.transitionProperty === 'color');
@@ -78,7 +80,7 @@ for (const appearance of ['light', 'dark']) {
   test(`floating labels preserve names and use a single focus border in ${appearance}`, async ({ page }) => {
     // GIVEN an empty sign-in field in the selected appearance.
     await page.goto('/');
-    await page.getByRole('switch', { name: 'Dark theme' }).setChecked(appearance === 'dark');
+    await setAppearance(page, appearance === 'dark');
     const input = page.getByRole('textbox', { name: 'Email', exact: true });
     const label = page.getByText('Email', { exact: true });
     const labelIsRaised = async () => {

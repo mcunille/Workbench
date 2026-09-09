@@ -1,4 +1,4 @@
-import { openUserMenu } from './user-menu-fixture';
+import { openUserMenu, setAppearance } from './user-menu-fixture';
 import { useAuthenticatedSession as signIn, signInThroughUi } from './auth-fixture';
 import { browserBaseUrl } from './browser-environment';
 import { expect, test, type Page } from '@playwright/test';
@@ -73,7 +73,7 @@ test('collection grid and list preserve saved links across responsive layouts an
   for (const width of [320, 390, 768, 1440]) {
     await page.setViewportSize({ width, height: 1000 });
     for (const appearance of ['light', 'dark']) {
-      await page.getByRole('switch', { name: 'Dark theme' }).setChecked(appearance === 'dark');
+      await setAppearance(page, appearance === 'dark');
       for (const [view, button] of [['grid', grid], ['list', list]] as const) {
         await button.focus();
         await page.keyboard.press('Enter');
@@ -103,19 +103,19 @@ test('collection grid and list preserve saved links across responsive layouts an
   await enlargedText.evaluate(element => element.remove());
   await page.setViewportSize({ width: 1440, height: 1000 });
 
-  // AND a reduced-transparency preference makes the header opaque without changing item links.
+  // AND a reduced-transparency preference keeps the navigation opaque without changing item links.
   const cdp = await context.newCDPSession(page);
   try {
     await cdp.send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-reduced-transparency', value: 'reduce' }] });
     expect(await page.evaluate(() => matchMedia('(prefers-reduced-transparency: reduce)').matches)).toBe(true);
     for (const appearance of ['light', 'dark']) {
-      await page.getByRole('switch', { name: 'Dark theme' }).setChecked(appearance === 'dark');
-      const header = page.locator('header.topbar');
-      await expect.poll(() => header.evaluate(element => getComputedStyle(element).backdropFilter)).toBe('none');
-      const background = await header.evaluate(element => getComputedStyle(element).backgroundColor);
+      await setAppearance(page, appearance === 'dark');
+      const navigation = page.locator('.workspace-nav');
+      await expect.poll(() => navigation.evaluate(element => getComputedStyle(element).backdropFilter)).toBe('none');
+      const background = await navigation.evaluate(element => getComputedStyle(element).backgroundColor);
       expect(background).toMatch(/^rgb\(/);
       await inspectLayout(page);
-      await page.screenshot({ path: `${screenshotDirectory}/collection-opaque-header-${appearance}.png`, fullPage: true });
+      await page.screenshot({ path: `${screenshotDirectory}/collection-opaque-nav-${appearance}.png`, fullPage: true });
     }
   } finally {
     await cdp.detach();
@@ -126,7 +126,7 @@ test('collection grid and list preserve saved links across responsive layouts an
 });
 
 test('the studio shell reflows with enlarged text and respects reduced motion', async ({ page }) => {
-  // GIVEN a collector entering a draft with the refined header and form surfaces.
+  // GIVEN a collector entering a draft with the navigation and form surfaces.
   await signIn(page);
   await startItem(page, 'A sapphire to remember');
   await mkdir(screenshotDirectory, { recursive: true });
@@ -134,7 +134,7 @@ test('the studio shell reflows with enlarged text and respects reduced motion', 
     await page.setViewportSize({ width, height: 1000 });
     for (const appearance of ['light', 'dark']) {
       // WHEN viewport and appearance change, the draft and accessible controls remain intact.
-      await page.getByRole('switch', { name: 'Dark theme' }).setChecked(appearance === 'dark');
+      await setAppearance(page, appearance === 'dark');
       await expect(page.getByLabel('Name', { exact: true })).toHaveValue('A sapphire to remember');
       await inspectLayout(page);
       await page.screenshot({ path: `${screenshotDirectory}/form-${width}-${appearance}.png`, fullPage: true });
@@ -182,10 +182,11 @@ test('appearance survives authentication transitions when browser storage is blo
     Storage.prototype.setItem = () => { throw new Error('Storage blocked for this test'); };
   });
   await page.goto('/');
-  await page.getByRole('switch', { name: 'Dark theme' }).setChecked(true);
+  await setAppearance(page, true);
   // WHEN signing in and then out without reloading the document.
   await signInThroughUi(page, false);
   // THEN the in-memory choice remains intact in both control locations.
+  await openUserMenu(page);
   await expect(page.getByRole('switch', { name: 'Dark theme' })).toBeChecked();
   await openUserMenu(page);
   await page.getByRole('button', { name: 'Sign out', exact: true }).click();
@@ -374,7 +375,7 @@ for (const width of [320, 1280]) {
 
     // WHEN appearance changes on a dirty form, entered content remains available.
     for (const appearance of ['Dark', 'Light']) {
-      await page.getByRole('switch', { name: 'Dark theme' }).setChecked(appearance.toLowerCase() === 'dark');
+      await setAppearance(page, appearance.toLowerCase() === 'dark');
       await expect(page.getByLabel('Name', { exact: true })).toHaveValue(name);
       await expect(page.getByLabel('Notes (optional)', { exact: true })).toHaveValue(notes);
       await expect.poll(() => page.evaluate(() => getComputedStyle(document.documentElement).colorScheme)).toBe(appearance.toLowerCase());
@@ -386,7 +387,7 @@ for (const width of [320, 1280]) {
     await page.keyboard.press('Enter');
     await expect(page.getByRole('heading', { name, exact: true })).toBeVisible();
     for (const appearance of ['Dark', 'Light']) {
-      await page.getByRole('switch', { name: 'Dark theme' }).setChecked(appearance.toLowerCase() === 'dark');
+      await setAppearance(page, appearance.toLowerCase() === 'dark');
       // THEN the entire identifier and notes fit without horizontal page overflow.
       await expect(page.getByText(notes, { exact: true })).toBeVisible();
       await inspectLayout(page);
@@ -403,6 +404,7 @@ for (const width of [320, 1280]) {
       }
     }
     await page.reload();
+    await openUserMenu(page);
     await expect(page.getByRole('switch', { name: 'Dark theme' })).not.toBeChecked();
     await expect(page.getByRole('heading', { name, exact: true })).toBeVisible();
   });

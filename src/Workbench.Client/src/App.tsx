@@ -85,15 +85,9 @@ function SignedInApplication({
       <a className="skip-link" href="#main">
         Skip to content
       </a>
-      <header className="topbar">
-        <Brand />
-        <div className="identity-summary">
-          <strong>{identity.tenantName}</strong>
-          {appearance}
-        </div>
-      </header>
       <div className="workspace-layout">
         <nav className="workspace-nav" aria-label="Workspace">
+          <Brand />
           <a
             href="/inventory"
             aria-current={
@@ -106,18 +100,6 @@ function SignedInApplication({
             <Icon name="inventory" />
             Inventory
           </a>
-          {canManageUsers ? (
-            <a
-              href="/administration"
-              aria-current={
-                path === '/administration' ? 'page' : undefined
-              }
-              onClick={navigation.follow}
-            >
-              <Icon name="administration" />
-              Administration
-            </a>
-          ) : null}
           <div
             className="user-menu"
             onKeyDown={(event) => {
@@ -127,41 +109,61 @@ function SignedInApplication({
               }
             }}
           >
-            {userMenuOpen ? (
-              <div id="user-actions" className="user-actions">
+            {/* Keep the appearance subscription active while the disclosure is hidden. */}
+            <div id="user-actions" className="user-actions" hidden={!userMenuOpen}>
+              <a
+                href="/account"
+                aria-current={path === '/account' ? 'page' : undefined}
+                onClick={navigation.follow}
+              >
+                <Icon name="account" />
+                Account
+              </a>
+              {canManageUsers ? (
                 <a
-                  href="/account"
-                  aria-current={path === '/account' ? 'page' : undefined}
+                  href="/administration"
+                  aria-current={path === '/administration' ? 'page' : undefined}
                   onClick={navigation.follow}
                 >
-                  <Icon name="account" />
-                  Account
+                  <Icon name="administration" />
+                  Administration
                 </a>
-                <button
-                  className="quiet"
-                  type="button"
-                  onClick={() => navigation.request(() => {
-                    void signOut().catch(() => setSignOutFailed(true));
-                  })}
-                >
-                  <Icon name="sign-out" />
-                  Sign out
-                </button>
+              ) : null}
+              <div className="user-appearance">
+                <span>Appearance</span>
+                {appearance}
               </div>
-            ) : null}
+              <button
+                className="quiet"
+                type="button"
+                onClick={() => navigation.request(() => {
+                  void signOut().catch(() => setSignOutFailed(true));
+                })}
+              >
+                <Icon name="sign-out" />
+                Sign out
+              </button>
+            </div>
             <button
               ref={userMenuTrigger}
               className="quiet user-menu-trigger"
               type="button"
               aria-label="User menu"
+              aria-describedby="user-email user-tenant"
               aria-expanded={userMenuOpen}
               aria-controls={userMenuOpen ? 'user-actions' : undefined}
               onClick={() => setUserMenuOpen((open) => !open)}
             >
               <Icon name="account" />
-              <span title={identity.email ?? undefined}>{identity.email ?? 'Account'}</span>
+              <span className="user-menu-identity">
+                <span id="user-email" className="user-email" title={identity.email ?? undefined}>{identity.email ?? 'Account'}</span>
+                <span id="user-tenant" className="user-tenant">{identity.tenantName}</span>
+              </span>
               <Icon name="chevron" />
             </button>
+          </div>
+          <div className="nav-version" title={system.version}>
+            Workbench {system.version.split('+')[0]}
           </div>
         </nav>
         <main id="main" className="workspace">
@@ -222,9 +224,6 @@ function SignedInApplication({
           )}
         </main>
       </div>
-      <footer title={system.version}>
-        Workbench {system.version.split('+')[0]}
-      </footer>
       {navigation.confirmation ? (
         <DiscardDialog
           uncertain={navigation.uncertain}
