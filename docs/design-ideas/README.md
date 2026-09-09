@@ -13,6 +13,9 @@ or a supported desktop navigation mode. The selected mobile pill uses existing d
 without search. See the [accepted decision](../specs/2026-09-09-refined-navigation.md)
 and [living guidance](../../DESIGN.md#authenticated-navigation).
 
-Screenshots are kept outside the repository and Git history under the repository's media
-policy. The delivery PR may embed an attachment after capture; the interactive file remains
-the portable visual reference if attachment support is unavailable.
+![Crystal dock exploration with its profile panel open](https://github.com/user-attachments/assets/8a3c2d03-dc4e-438c-9c94-0e6088fa430f)
+
+Captured from the standalone prototype at revision `c6f7b0b`. This is the experimental
+design backup, not the production mobile pill. The image is hosted as a
+[PR #91 attachment](https://github.com/mcunille/Workbench/pull/91), outside the repository
+and Git history; the HTML remains the portable interactive reference.
