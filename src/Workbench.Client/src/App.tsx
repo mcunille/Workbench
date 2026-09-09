@@ -293,10 +293,10 @@ export function App({
   return (
     <>
       {window.location.pathname === '/recover' ? (
-        <>
+        <div className="sign-in-page">
           <PublicAppearance>{appearance}</PublicAppearance>
           <Recovery token={recoveryToken} />
-        </>
+        </div>
       ) : window.location.pathname === '/invite' ? (
         <>
           <PublicAppearance>{appearance}</PublicAppearance>

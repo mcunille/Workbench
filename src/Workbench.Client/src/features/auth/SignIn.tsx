@@ -1,7 +1,7 @@
 import { FloatingField } from '../../FloatingField';
 import { useState, type FormEvent } from 'react';
 import { useAuth } from './useAuth';
-import { Wordmark } from '../../Wordmark';
+import { SignInBrand } from '../../SignInBrand';
 
 export function SignIn() {
   const { identity, signIn } = useAuth();
@@ -31,17 +31,8 @@ export function SignIn() {
 
   return (
     <section className="auth-card sign-in-card" aria-labelledby="sign-in-title">
-      <div className="sign-in-brand">
-        <img src="/stag-mark.svg" width="112" height="150" alt="" />
-        <p className="sign-in-wordmark">
-          <Wordmark />
-        </p>
-        <p className="sign-in-byline">by The White Stag Collection</p>
-      </div>
+      <SignInBrand />
       <h1 id="sign-in-title">Sign in</h1>
-      <p className="lede">
-        Use the Workbench account assigned to your organization.
-      </p>
       <form className="form-stack" onSubmit={(event) => void submit(event)}>
         <FloatingField label="Email" htmlFor="sign-in-email">
           <input id="sign-in-email" placeholder=" " name="email" type="email" autoComplete="username" required />
