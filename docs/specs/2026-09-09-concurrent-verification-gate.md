@@ -124,8 +124,8 @@ setup and resource contention are costs, not free parallel speedup.
 
 Focused PowerShell contracts passed for partition inventory/failures, real native Unicode
 decoding, stage/CI aggregation, artifact provenance, focused entry points, and restore
-boundaries. Sixteen targeted manual mutation probes were killed (eight partition/discovery,
-five provenance, three stage/aggregate); one initial identity-check survivor prompted a
+boundaries. Eighteen targeted manual mutation probes were killed (eight partition/discovery,
+five provenance, three stage/aggregate, two native process streams); one initial identity-check survivor prompted a
 same-count substituted-name assertion. These are scoped manual probes, not an automated
 whole-repository mutation score. Immutable-patch internal reviews found no actionable issues.
 Raw local evidence lives under ignored `artifacts/gate-optimization/` and
@@ -137,3 +137,18 @@ and worker queue telemetry. Standalone fresh publication passed without a manife
 a standalone `auth.spec.ts` browser run passed all six authentication scenarios and
 cleaned its disposable SQL/files. The real SQL restore marker/missing-proof/success
 contract checks also passed. These additional checks were run after the timed full gates.
+
+### Native child process streams
+
+The initial Linux CI run passed all server/client/browser cases but correctly failed the
+published stage and required aggregate: a `Start-Process` descendant inherited PowerShell's
+background-job stdout transport and wrote application JSON directly into its protocol.
+That failed run took 393.37 seconds for the gate and is not green verification.
+
+Both published-server and health-probe stdout/stderr now redirect to their own temporary
+log directory outside shared publish outputs. Failure diagnostics are emitted through
+PowerShell's managed output; process logs are cleaned after shutdown. A focused test uses
+the production launch parameter objects with a real native emitter inside a background job.
+It reproduced the exact transport failure on Linux before the fix and passes on Linux and
+Windows afterward. Removing stdout/stderr redirection is caught by targeted mutations.
+A fresh actual standalone publish also passed inside the corrected background-job boundary.

@@ -9,6 +9,8 @@ $temporaryRoot = [IO.Path]::GetFullPath([IO.Path]::GetTempPath())
 $publishRoot = Join-Path $temporaryRoot ("workbench-publish-{0}" -f [Guid]::NewGuid().ToString('N'))
 $databasePublishRoot = "$publishRoot-database"
 $publishedProcess = $null
+$processLogRoot = Join-Path $temporaryRoot ("workbench-publish-logs-{0}" -f [Guid]::NewGuid().ToString('N'))
+$publishedVerified = $false
 $reuseArtifacts = [bool]$env:WORKBENCH_VERIFICATION_MANIFEST
 if ($reuseArtifacts) {
     . (Join-Path $PSScriptRoot 'verification-artifacts.ps1')
@@ -28,6 +30,7 @@ function Assert-NativeCommandSucceeded {
 }
 
 try {
+    New-Item -ItemType Directory -Path $processLogRoot | Out-Null
     if (-not $reuseArtifacts) {
         $serverPublishArguments = @(
             'publish'
@@ -91,6 +94,9 @@ try {
         FilePath = 'dotnet'
         ArgumentList = @($serverAssembly)
         WorkingDirectory = $publishRoot
+        # Native descendants must not inherit PowerShell background-job transport streams.
+        RedirectStandardOutput = Join-Path $processLogRoot 'server.stdout.log'
+        RedirectStandardError = Join-Path $processLogRoot 'server.stderr.log'
         Environment = @{
             ASPNETCORE_ENVIRONMENT = 'Development'
             ASPNETCORE_URLS = $baseUrl
@@ -130,6 +136,8 @@ try {
         FilePath = 'dotnet'
         ArgumentList = @($serverAssembly, '--health-check')
         WorkingDirectory = $publishRoot
+        RedirectStandardOutput = Join-Path $processLogRoot 'probe.stdout.log'
+        RedirectStandardError = Join-Path $processLogRoot 'probe.stderr.log'
         Environment = @{ WORKBENCH_HEALTH_URL = "$baseUrl/health/live" }
         Wait = $true
         PassThru = $true
@@ -159,12 +167,28 @@ try {
         throw "Published API miss contract failed at $baseUrl/api/not-a-route."
     }
 
+    $publishedVerified = $true
     Write-Host "Published release unit verified at $baseUrl."
 }
 finally {
     if ($publishedProcess -and -not $publishedProcess.HasExited) {
         Stop-Process -Id $publishedProcess.Id
         $publishedProcess.WaitForExit()
+    }
+
+    if (Test-Path -LiteralPath $processLogRoot) {
+        if (-not $publishedVerified) {
+            Get-ChildItem -LiteralPath $processLogRoot -File | ForEach-Object {
+                Write-Host "$($_.Name):"
+                Get-Content -LiteralPath $_.FullName | ForEach-Object { Write-Host $_ }
+            }
+        }
+        $resolvedLogRoot = [IO.Path]::GetFullPath($processLogRoot)
+        if ([IO.Path]::GetDirectoryName($resolvedLogRoot).TrimEnd('/','\') -ne $temporaryRoot.TrimEnd('/','\') -or
+            -not [IO.Path]::GetFileName($resolvedLogRoot).StartsWith('workbench-publish-logs-', [StringComparison]::Ordinal)) {
+            throw "Refusing to remove unexpected publish log path: $resolvedLogRoot"
+        }
+        Remove-Item -LiteralPath $resolvedLogRoot -Recurse -Force
     }
 
     if (-not $reuseArtifacts) {

@@ -82,6 +82,7 @@ jobs:
           ./tests/Workbench.BuildTests/VerificationStages.Tests.ps1
           ./tests/Workbench.BuildTests/ServerPartitions.Tests.ps1
           ./tests/Workbench.BuildTests/ArtifactReuse.Tests.ps1
+          ./tests/Workbench.BuildTests/PublishedProcess.Tests.ps1
           ./tests/Workbench.BuildTests/FocusedTests.Tests.ps1
           ./tests/Workbench.BuildTests/RestoreDatabase.Tests.ps1
           ./tests/Workbench.BuildTests/RestoreDatabase.Sql.Tests.ps1
