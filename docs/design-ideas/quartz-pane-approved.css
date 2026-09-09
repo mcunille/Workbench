@@ -8,27 +8,6 @@
   overflow: visible;
   gap: 0.5rem;
 }
-.workspace-nav {
-  --pane-spectrum: linear-gradient(174deg,
-        rgb(49 44 128 / 44%) 0%,
-        rgb(70 65 159 / 44%) 12%,
-        rgb(85 91 184 / 44%) 22%,
-        rgb(69 91 205 / 56%) 24%,
-        rgb(99 125 224 / 56%) 38%,
-        rgb(48 66 155 / 38%) 43%,
-        rgb(52 43 133 / 52%) 64%,
-        rgb(106 111 196 / 48%) 76%,
-        rgb(54 76 180 / 40%) 85%,
-        rgb(79 104 208 / 40%) 97%,
-        rgb(66 58 151 / 44%) 99%,
-        rgb(49 44 128 / 44%) 100%);
-}
-:root:not([data-theme="dark"]) .workspace-nav {
-  --pane-spectrum: linear-gradient(174deg,
-        rgb(170 177 188 / 45%) 0%, rgb(255 255 255 / 85%) 20%,
-        rgb(155 166 183 / 42%) 39%, rgb(242 245 249 / 65%) 58%,
-        rgb(181 190 203 / 45%) 77%, rgb(255 255 255 / 75%) 100%);
-}
 @supports (backdrop-filter: blur(1px)) {
   .workspace-nav {
     background: color-mix(in srgb, var(--surface) 28%, transparent);
@@ -46,7 +25,19 @@
       border-right: 1px solid color-mix(in srgb, var(--text) 10%, transparent);
       border-radius: 0 0.625rem 0.625rem 0;
       box-shadow: inset -1px 0 0 rgb(255 255 255 / 5%), 5px 0 18px -6px rgb(0 0 0 / 14%);
-
+      --pane-spectrum: linear-gradient(174deg,
+        rgb(49 44 128 / 44%) 0%,
+        rgb(70 65 159 / 44%) 12%,
+        rgb(85 91 184 / 44%) 22%,
+        rgb(69 91 205 / 56%) 24%,
+        rgb(99 125 224 / 56%) 38%,
+        rgb(48 66 155 / 38%) 43%,
+        rgb(52 43 133 / 52%) 64%,
+        rgb(106 111 196 / 48%) 76%,
+        rgb(54 76 180 / 40%) 85%,
+        rgb(79 104 208 / 40%) 97%,
+        rgb(66 58 151 / 44%) 99%,
+        rgb(49 44 128 / 44%) 100%);
       background: color-mix(in srgb, var(--surface) 34%, transparent);
     }
     .workspace-nav::before {
@@ -57,7 +48,7 @@
       /* Shallow edge refraction with three soft, unequal angled reflections. */
       background: var(--pane-spectrum);
       border-radius: inherit;
-      opacity: 0.85;
+      opacity: var(--pane-refraction-vividness, 0.85);
       mask-image:
         linear-gradient(90deg, transparent 55%, rgb(0 0 0 / 0.12) 78%, rgb(0 0 0 / 0.45) 92%, #000 100%),
         linear-gradient(25deg,
@@ -69,8 +60,8 @@
     }
     .workspace-nav::after {
       content: '';
-      opacity: 1;
-      filter: brightness(1.5066176471) saturate(1.3117647059);
+      opacity: var(--pane-edge-opacity, 1);
+      filter: brightness(var(--pane-edge-brightness, 1.5066176471)) saturate(var(--pane-edge-saturation, 1.3117647059));
       position: absolute;
       pointer-events: none;
       inset: 0;
@@ -83,7 +74,10 @@
       clip-path: inset(0 0 0 calc(100% - 0.625rem));
     }
     :root:not([data-theme="dark"]) .workspace-nav {
-
+      --pane-spectrum: linear-gradient(174deg,
+        rgb(170 177 188 / 45%) 0%, rgb(255 255 255 / 85%) 20%,
+        rgb(155 166 183 / 42%) 39%, rgb(242 245 249 / 65%) 58%,
+        rgb(181 190 203 / 45%) 77%, rgb(255 255 255 / 75%) 100%);
       background: linear-gradient(125deg, rgb(255 255 255 / 55%), rgb(242 245 249 / 20%) 44%, rgb(255 255 255 / 38%) 100%), color-mix(in srgb, var(--surface) 48%, transparent);
       border-right-color: rgb(145 153 168 / 20%);
       box-shadow: inset -1px 0 0 rgb(255 255 255 / 65%), 5px 0 18px -6px rgb(40 49 65 / 10%);
@@ -91,11 +85,11 @@
       -webkit-backdrop-filter: blur(18px) saturate(65%);
     }
     :root:not([data-theme="dark"]) .workspace-nav::before {
-      opacity: 0.55;
+      opacity: var(--quartz-vividness, 0.55);
       mask-image: linear-gradient(90deg, transparent 12%, rgb(0 0 0 / 0.18) 55%, #000 100%);
     }
     :root:not([data-theme="dark"]) .workspace-nav::after {
-      opacity: 1;
+      opacity: var(--quartz-edge-opacity, 1);
       filter: none;
     }
   }
@@ -278,38 +272,8 @@
   }
   @supports (backdrop-filter: blur(1px)) {
     .workspace-nav { background: color-mix(in srgb, var(--surface) 80%, transparent); }
-    .workspace-nav::before, .workspace-nav::after {
-      display: block;
-      content: '';
-      position: absolute;
-      inset: 0;
-      border-radius: inherit;
-      pointer-events: none;
-      background: var(--pane-spectrum);
-    }
-    .workspace-nav::before {
-      opacity: 0.85;
-      mask-image: linear-gradient(180deg, #000, transparent 28% 65%, rgb(0 0 0 / 0.45));
-    }
-    .workspace-nav::after {
-      padding: 1px;
-      mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-      mask-composite: exclude;
-      filter: brightness(1.5066176471) saturate(1.3117647059);
-    }
-    :root:not([data-theme="dark"]) .workspace-nav {
-      background: linear-gradient(125deg, rgb(255 255 255 / 55%), rgb(242 245 249 / 20%) 44%, rgb(255 255 255 / 38%) 100%), color-mix(in srgb, var(--surface) 80%, transparent);
-      border-color: rgb(145 153 168 / 20%);
-      box-shadow: inset 0 1px 0 rgb(255 255 255 / 65%), 0 8px 28px rgb(40 49 65 / 12%);
-      backdrop-filter: blur(18px) saturate(65%);
-      -webkit-backdrop-filter: blur(18px) saturate(65%);
-    }
-    :root:not([data-theme="dark"]) .workspace-nav::before { opacity: 0.55; }
-    :root:not([data-theme="dark"]) .workspace-nav::after { filter: none; }
-
   }
 }
 @media (max-width: 48rem) and (prefers-reduced-transparency: reduce), (max-width: 48rem) and (forced-colors: active) {
-  .workspace-nav, :root:not([data-theme="dark"]) .workspace-nav { background: var(--surface); box-shadow: none; backdrop-filter: none; -webkit-backdrop-filter: none; }
-  .workspace-nav::before, .workspace-nav::after { display: none; }
+  .workspace-nav { background: var(--surface); box-shadow: none; }
 }

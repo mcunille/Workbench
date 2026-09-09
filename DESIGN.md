@@ -416,10 +416,25 @@ permission checks. Search remains in the collection. The
 
 Above 48rem, use a 13rem expanded pane and a 4.5rem icon rail. It reads as glass over the
 shared atmospheric background while reserving its column in the layout. Keep it flush with
-the top, left, and bottom: no margins, borders, or rounded corners on the left. Only the
+the top, left, and bottom: no margins, borders, or rounded corners on the left. The
+outer workspace layout spans the full viewport, including ultrawide screens; constrain
+reading content separately rather than centering the navigation with the content. Only the
 right corners are rounded (0.625rem / 10px), with a fine right edge. A translucent neutral
 fill, restrained reflection, blur, and soft lateral shadow create depth. Avoid a saturated
-violet surface or colored glow; Tanzanite is a faint atmospheric tint.
+violet surface or colored glow; color is concentrated in the edge and shallow reflections.
+
+The accepted navigation materials are **Tanzanite for dark mode** and **Quartz for light
+mode**, on both the desktop pane and mobile pill. Tanzanite uses the reference stone's
+indigo, blue, and periwinkle, without pink or white glints. Its saved 85% preview setting
+means 0.85 reflection opacity and edge brightness/saturation of approximately 1.507/1.312.
+Quartz uses neutral frosted glass and a cool silver edge at the saved 55% setting (0.55
+reflection opacity). Keep the center calm; do not reintroduce repeated rays or rainbow
+stripes. The mobile material follows the entire pill perimeter while retaining its more
+opaque fill for readability over scrolling content. Appearance controls choose the material;
+there is no user-facing vividness slider or separate material picker.
+
+Reference snapshots: [Tanzanite](docs/design-ideas/tanzanite-pane-approved.md) and
+[Quartz](docs/design-ideas/quartz-pane-approved.md).
 
 The wordmark and page heading share a top row, with compact spacing before the first
 destination. A menu icon stays in the header when the wordmark recedes. Navigation icons

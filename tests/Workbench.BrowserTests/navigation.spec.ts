@@ -3,6 +3,20 @@ import { useAuthenticatedSession } from './auth-fixture';
 import { setAppearance } from './user-menu-fixture';
 import { join } from 'node:path';
 
+test('desktop navigation stays flush with the viewport on ultrawide screens', async ({ page }) => {
+  // GIVEN a workspace wider than the former 112rem layout cap.
+  await page.setViewportSize({ width: 2400, height: 1000 });
+  await useAuthenticatedSession(page);
+  const nav = page.getByRole('navigation', { name: 'Workspace' });
+  // WHEN expanded or collapsed THEN the pane remains attached to the left viewport edge.
+  await expect.poll(async () => (await nav.boundingBox())!.x).toBe(0);
+  await nav.getByRole('button', { name: 'Collapse navigation' }).click();
+  await expect.poll(async () => (await nav.boundingBox())!.width).toBe(72);
+  expect((await nav.boundingBox())!.x).toBe(0);
+  // AND the page does not require horizontal scrolling.
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+});
+
 test('focused skip link stays above the glass pane', async ({ page }) => {
   // GIVEN a desktop workspace with a glass pane.
   await page.setViewportSize({ width: 1280, height: 900 });

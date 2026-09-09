@@ -344,8 +344,6 @@ textarea[aria-invalid="true"] {
   grid-template-columns: 14rem minmax(0, 1fr);
   flex: 1;
   width: 100%;
-  max-width: 112rem;
-  margin-inline: auto;
 }
 .workspace-nav {
   position: sticky;
