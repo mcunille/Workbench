@@ -1,4 +1,8 @@
 import { expect, test } from '@playwright/test';
+import { signInThroughUi as signIn } from './auth-fixture';
+
+// Dedicated auth sessions share the real login budget with other browser scenarios.
+test.setTimeout(120_000);
 
 const email = 'browser-admin@example.test';
 const password = 'Browser Correct Horse 9!';
@@ -35,16 +39,6 @@ for (const path of ['/recover', '/invite']) {
     await expect(page).toHaveURL(new RegExp(`${path}$`));
     await expect(page.getByLabel('New password')).toHaveCount(0);
   });
-}
-
-async function signIn(page: import('@playwright/test').Page) {
-  await page.goto('/');
-  await page.getByLabel('Email').fill(email);
-  await page.getByLabel('Password').fill(password);
-  const loginResponse = page.waitForResponse((response) => response.url().endsWith('/api/auth/login'));
-  await page.getByRole('button', { name: 'Sign in' }).click();
-  expect((await loginResponse).status()).toBe(204);
-  await expect(page.getByRole('heading', { name: 'Collection', exact: true })).toBeVisible();
 }
 
 test('durable authentication survives navigation and supports revocation and sign-out', async ({ page }) => {
