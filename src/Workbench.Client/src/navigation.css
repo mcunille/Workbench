@@ -1,5 +1,5 @@
 .workspace-layout {
-  grid-template-columns: 13rem minmax(0, 1fr);
+  grid-template-columns: minmax(229px, 14.3125rem) minmax(0, 1fr);
 }
 .skip-link { z-index: 40; }
 .workspace-nav {

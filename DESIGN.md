@@ -416,11 +416,15 @@ permission checks. Search remains in the collection. The
 
 ### Desktop pane
 
-Above 48rem, use a 13rem expanded pane and a 4.5rem icon rail. It reads as glass over the
+Above 48rem, use a 14.3125rem expanded pane (minimum 229px) and a 4.5rem icon rail.
+Below 900px, default to the icon rail while retaining the expand/collapse control. Remember
+the user's narrow and desktop collapse choices separately when resizing. At 48rem and below, retain the mobile
+pill described below. The desktop pane reads as glass over the
 shared atmospheric background while reserving its column in the layout. Keep it flush with
 the top, left, and bottom: no margins, borders, or rounded corners on the left. The
 outer workspace layout spans the full viewport, including ultrawide screens; constrain
-reading content separately rather than centering the navigation with the content. Only the
+reading content separately to 76rem and center it within the space remaining beside the
+navigation, with equal inline margins. Only the
 right corners are rounded (0.625rem / 10px), with a fine right edge. A translucent neutral
 fill, restrained reflection, blur, and soft lateral shadow create depth. Avoid a saturated
 violet surface or colored glow; color is concentrated in the edge and shallow reflections.
