@@ -29,6 +29,11 @@ on 2026-09-10.
   navigation, lost responses, explicit reconciliation, keyboard operation, 320px appearances,
   and reduced-motion/transparency preferences. The first run exposed two test defects
   (card accessible-name selection and premature save observation), corrected before this run.
+- The first complete gate passed all 191 client tests, 71 browser scenarios, the published
+  release check, and 688 of 692 server cases. It detected three stale migration-history count
+  assertions and a missing H9 backup-manifest compatibility entry after advancing the current
+  schema marker. The assertions and supported prior-schema entry were corrected and independently
+  reviewed; all 24 migration/recovery cases then passed against rebuilt source in 1 minute 58 seconds.
 
 ## Delivery evidence
 
@@ -56,5 +61,8 @@ Media remains at
 Automated scenarios do not establish uncoached collector usability. No production migration,
 deployment or traffic change is part of this work. H11 documents, H12 exports, financial fields,
 purchase orders, lots, assembly relationships and public sharing are excluded.
+The paired-recovery compatibility theory substitutes supported schema labels on a current-schema
+backup; it does not restore an actual H9-produced backup. The separate H9-to-H10 upgrade test
+verifies preserved acquisition relationships and the destructive rollback guard.
 
 Generated media remains outside Git. See [reproduction instructions](README.md).
