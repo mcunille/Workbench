@@ -6,26 +6,26 @@ This living model covers the implemented base architecture: the same-origin Reac
 release unit, SQL tenancy and identity, private blobs and photographs, durable background work,
 email providers, self-hosted and Azure deployment, and manual recovery. It supersedes the earlier
 phase-only model at this path. Source baseline: `f6c02c77d5a7f5af354d565f62ccc2d33c1f4fd7`
-(merged login-admission fix, PR #89).
+(merged login-admission fix, PR #89). References and development boundaries were reconciled
+against `45a999b` on 2026-09-10; this does not redate the original security review.
 
 This is an architecture and threat map, not a fresh vulnerability scan or a production attestation.
 Scenarios below are review hypotheses, not unresolved findings. Dated operational results and
 accepted verification limits belong in the [deployment verification record](../operations/deployment-verification.md).
 The [architecture](../ARCHITECTURE.md), [security policy](../../SECURITY.md), and linked runbooks
-remain authoritative for their respective contracts. Source references use repository-relative
-paths and baseline line numbers; later edits can move those lines.
+remain authoritative for their respective contracts. Source references use stable repository-relative files and named symbols where needed.
 
 ## Components and authority
 
 | Component | Responsibility and evidence |
 | --- | --- |
-| Browser and same-origin edge | UI is not an authorization boundary. Middleware processes proxy metadata, authenticates, authorizes, and checks antiforgery before protected operations. API misses remain API errors, separate from SPA fallback. `src/Workbench.Server/Program.cs:249` |
-| Durable identity | Cookie validation resolves the session in SQL on every request and replaces its principal with current authority. Login admission precedes credential verification. `src/Workbench.Server/Identity/SessionAuthenticationEvents.cs:12`; `src/Workbench.Server/Identity/AuthEndpoints.cs:64` |
-| Tenant persistence | Immutable request tenant context, EF filtering/save guards, tenant-consistent relational constraints, and nonce-bound SQL tenant proof with RLS form separate controls. A web connection alone is insufficient tenant authority. `src/Workbench.Server/Tenancy/TenantContextProof.cs:11`; `src/Workbench.Server/Persistence/WorkbenchDbContext.cs:79` |
-| Blob and photo path | SQL owns attachment identity, state and content metadata. Filesystem/Azure providers publish immutable revisions; photographs pass bounded server decoding and re-encoding. Browser preparation does not replace validation. `src/Workbench.Server/Storage/FileSystemBlobStore.cs:10`; `src/Workbench.Server/Storage/AzureBlobStore.cs:14`; `src/Workbench.Server/Inventory/PhotoProcessor.cs:47` |
-| Worker | Separate SQL authority leases durable work, applies tenant proof, validates current state, delivers identity messages or deletes eligible attachment content, and completes/retries with lease ownership checks. `src/Workbench.Server/Operations/WorkProcessor.cs:21` |
-| Database control plane | Setup, operator, migrator and storage-maintenance operations require their own credentials/identities. Presence of the database CLI in an image does not itself grant those credentials. `src/Workbench.Database/Program.cs:31`; `src/Workbench.Server/Operations/WorkerHost.cs:25` |
-| Recovery operator | Restores and sanitizes SQL, reconciles isolated blob content against SQL, explicitly accepts missing/corrupt files, and validates readiness before cutover. `src/Workbench.Server/Storage/FileRecovery.cs:17`; `src/Workbench.Server/Storage/FileRecoveryCommand.cs:13` |
+| Browser and same-origin edge | UI is not an authorization boundary. Middleware processes proxy metadata, authenticates, authorizes, and checks antiforgery before protected operations. API misses remain API errors, separate from SPA fallback. `src/Workbench.Server/Program.cs` |
+| Durable identity | Cookie validation resolves the session in SQL on every request and replaces its principal with current authority. Login admission precedes credential verification. `src/Workbench.Server/Identity/SessionAuthenticationEvents.cs`; `src/Workbench.Server/Identity/AuthEndpoints.cs` |
+| Tenant persistence | Immutable request tenant context, EF filtering/save guards, tenant-consistent relational constraints, and nonce-bound SQL tenant proof with RLS form separate controls. A web connection alone is insufficient tenant authority. `src/Workbench.Server/Tenancy/TenantContextProof.cs`; `src/Workbench.Server/Persistence/WorkbenchDbContext.cs` |
+| Blob and photo path | SQL owns attachment identity, state and content metadata. Filesystem/Azure providers publish immutable revisions; photographs pass bounded server decoding and re-encoding. Browser preparation does not replace validation. `src/Workbench.Server/Storage/FileSystemBlobStore.cs`; `src/Workbench.Server/Storage/AzureBlobStore.cs`; `src/Workbench.Server/Inventory/PhotoProcessor.cs` |
+| Worker | Separate SQL authority leases durable work, applies tenant proof, validates current state, delivers identity messages or deletes eligible attachment content, and completes/retries with lease ownership checks. `src/Workbench.Server/Operations/WorkProcessor.cs` |
+| Database control plane | Setup, operator, migrator and storage-maintenance operations require their own credentials/identities. Presence of the database CLI in an image does not itself grant those credentials. `src/Workbench.Database/Program.cs`; `src/Workbench.Server/Operations/WorkerHost.cs` |
+| Recovery operator | Restores and sanitizes SQL, reconciles isolated blob content against SQL, explicitly accepts missing/corrupt files, and validates readiness before cutover. `src/Workbench.Server/Storage/FileRecovery.cs`; `src/Workbench.Server/Storage/FileRecoveryCommand.cs` |
 
 ```mermaid
 flowchart LR
@@ -62,17 +62,17 @@ Required properties:
   verification, whether or not the account exists. Invalid or denied requests perform no password
   hashing/comparison. Admitted missing/passwordless accounts use a lazily cached process-wide dummy
   hash; this reduces unnecessary work but does not promise constant-time responses or DDoS immunity.
-  `src/Workbench.Server/Identity/AuthEndpoints.cs:75`;
-  `src/Workbench.Server/Identity/BuiltInPasswordVerifier.cs:27`;
-  `src/Workbench.Server/Identity/DummyPasswordHash.cs:7`.
+  `src/Workbench.Server/Identity/AuthEndpoints.cs`;
+  `src/Workbench.Server/Identity/BuiltInPasswordVerifier.cs`;
+  `src/Workbench.Server/Identity/DummyPasswordHash.cs`.
 - Store session/identity-operation verification tokens as hashes. The delivery outbox is a distinct
   exception: it temporarily stores a data-protection-encrypted message containing the raw one-time
   token, bound to tenant and work ID. Decryption authority is sensitive. Never log raw tokens or
-  include them in telemetry/audit metadata. `src/Workbench.Server/Identity/IdentityOperationService.cs:144`.
+  include them in telemetry/audit metadata. `src/Workbench.Server/Identity/IdentityOperationService.cs`.
 - Require explicit public recovery/invitation enablement, an available provider, and shared rate
   limiting. Recovery admission precedes account lookup; the public response does not disclose
-  account existence. `src/Workbench.Server/Identity/IdentityOperationService.cs:25`;
-  `src/Workbench.Server/Identity/RecoveryEndpoints.cs:37`.
+  account existence. `src/Workbench.Server/Identity/IdentityOperationService.cs`;
+  `src/Workbench.Server/Identity/RecoveryEndpoints.cs`.
 - Keep workload and control-plane authority separate, and require SQL sanitation plus file recovery
   disposition before a restored service becomes ready. Backups alone do not establish safe recovery.
 
@@ -83,14 +83,14 @@ Required properties:
 `KnownProxies` mode accepts configured addresses and narrow networks with one to three forwarded
 hops. The self-hosted origin must be reachable only through the intended proxy; TLS termination,
 certificate renewal, listener exposure and host controls remain deployment responsibilities.
-`src/Workbench.Server/Security/PublicEndpointConfiguration.cs:33`.
+`src/Workbench.Server/Security/PublicEndpointConfiguration.cs`.
 
 `AzureContainerApps` mode is an explicit, narrower-purpose trust decision: all workloads in the
 managed environment are trusted **only for forwarded client IP and protocol metadata**. It uses
 one hop and no address lists because platform peers change. It does not consume forwarded Host or
 use this trust to establish identity, tenant, permissions or SQL access. Canonical HTTPS origin
 and explicit allowed hosts are validated separately.
-`src/Workbench.Server/Security/PublicEndpointConfiguration.cs:10` and `:45`.
+`src/Workbench.Server/Security/PublicEndpointConfiguration.cs`.
 
 Deployment context accepted by the operator: the environment is a controlled deployment boundary.
 An attacker who gains an internal workload can supply misleading forwarding metadata, including
@@ -103,19 +103,19 @@ deploy workloads is an operational obligation. This exception does not extend to
 
 Azure foundation templates disable public SQL, blob and vault access and define private endpoints
 and private DNS. These restrict network reachability; they do not replace Entra/RBAC, SQL roles or
-tenant enforcement. `infra/azure/modules/foundation.bicep:57`.
+tenant enforcement. `infra/azure/modules/foundation.bicep`.
 
 Web and worker blob access is container-scoped, not tenant-scoped Azure RBAC. Likewise a filesystem
 workload can access its configured root. Isolation within that authority depends on SQL ownership,
 application checks and constrained object naming. Compromise of the whole web/worker process is
 stronger than possession of only its SQL credential and can expose shared workload secrets and
-blob authority. `infra/azure/modules/access.bicep:10`;
-`src/Workbench.Server/Operations/OperationalConfiguration.cs:65`.
+blob authority. `infra/azure/modules/access.bicep`;
+`src/Workbench.Server/Operations/OperationalConfiguration.cs`.
 
 On Linux, filesystem publication uses `renameat2` without replacement and directory `fsync`;
 Windows uses non-overwriting `File.Move` and has a different durability implementation. Volume
 atomicity and crash guarantees must be verified on the actual host/filesystem, especially with
-Docker bind mounts. `src/Workbench.Server/Storage/ConfinedDirectory.cs:92`.
+Docker bind mounts. `src/Workbench.Server/Storage/ConfinedDirectory.cs`.
 
 ### Effective resources and secret precedence
 
@@ -124,17 +124,17 @@ settings do not themselves prove host ACL isolation.
 
 | Consumer/path | Effective configuration and location | Authority and enforcement |
 | --- | --- | --- |
-| Web SQL | `ConnectionStrings:WorkbenchFile` takes precedence over `ConnectionStrings:Workbench`, then `WORKBENCH_WEB_CONNECTION`. Files must be nonempty. | Web SQL principal; production startup validation. `src/Workbench.Server/Security/DeploymentSecrets.cs:11`; `src/Workbench.Server/Security/ProductionSecurityConfigurationValidator.cs:59` |
-| Worker SQL | `ConnectionStrings:WorkerFile`, then `ConnectionStrings:Worker`, then `WORKBENCH_WORKER_CONNECTION`. | Separate worker connection, not the web credential. `src/Workbench.Server/Operations/WorkerHost.cs:25` |
-| Tenant proof | Nonblank `TenantContext:ProofKey` (or legacy direct environment fallback) wins over `TenantContext:ProofKeyFile` (or legacy file fallback). This differs from connection-file precedence. | Workloads receive proof secret separately from SQL credentials; SQL controls protect its database copy. `src/Workbench.Server/Security/ProductionSecurityConfigurationValidator.cs:67`; `src/Workbench.Server/Tenancy/TenantContextProof.cs:11` |
-| Data protection | SQL key ring, application name `Workbench`; configured certificate path before legacy path. Password file precedes configured password then legacy fallback. Current certificate encrypts new keys; configured previous certificates decrypt old ones. | Web replicas share keys. Worker disables automatic key generation. PFX loads use ephemeral private-key storage. `src/Workbench.Server/Program.cs:185`; `src/Workbench.Server/Security/DeploymentSecrets.cs:28`; `src/Workbench.Server/Operations/WorkerHost.cs:33` |
-| Filesystem blobs | Absolute `Storage:Root`; objects named `<tenant-N>-<revision-N>.a` (staged) or `.b` (published). Provider alias binds provider, normalized root and installation UUID. | Confined filesystem operations; production requires durable storage, and replicas require shared/atomic declarations plus actual volume support. `src/Workbench.Server/Storage/FileSystemBlobStore.cs:96`; `src/Workbench.Server/Operations/OperationalConfiguration.cs:23` |
-| Azure blobs | HTTPS `Storage:ContainerUri`; object path `<installation-N>/<tenant-N>/<revision-N>.<suffix>`; provider alias binds container and installation. | System-assigned managed identity, container-level grant, conditional create-only publication. `src/Workbench.Server/Operations/OperationalConfiguration.cs:65`; `src/Workbench.Server/Storage/AzureBlobStore.cs:112` |
-| Local development | Ignored `.env.dev` is loaded through the development loader; it is not a production secret store. | Developer host access remains privileged; the web process must use its web credential. `scripts/dev-env.ps1:1` |
-| SMTP | `Smtp` configuration with `PasswordFile` overriding password; canonical public origin supplies message-link origin. | SMTP configuration can also be present in the web workload for readiness; unlike Graph, it is not a worker-only credential boundary. Transport validation and host/recipient configuration remain required. `src/Workbench.Server/Operations/OperationalConfiguration.cs:101` |
-| Graph | Validated `Graph` options and matching canonical origin; worker selects the mail managed identity. Web uses a queue-only provider. | Exchange mailbox-scoped send authorization is an external configuration obligation; avoid broader additive application grants. `src/Workbench.Server/Operations/WorkerHost.cs:15`; `src/Workbench.Server/Identity/GraphIdentityMessageDelivery.cs:36` |
-| Azure secret delivery | Key Vault references mounted into workloads; access module grants specific secrets to workload principals. | Scope grants independently from blob and SQL authority; migration connection belongs to migration workload. `infra/azure/modules/access.bicep:10`; `infra/azure/modules/workloads.bicep:1` |
-| Maintenance/setup/migration | Explicit connection/configuration files for CLI commands, or provisioned managed identities. | Privileged principals are not browser authority; temporary bootstrap access and local recovery artifacts require protection and cleanup. `src/Workbench.Database/Program.cs:31`; [bootstrap runbook](../operations/azure-bootstrap-host.md) |
+| Web SQL | `ConnectionStrings:WorkbenchFile` takes precedence over `ConnectionStrings:Workbench`, then `WORKBENCH_WEB_CONNECTION`. Files must be nonempty. | Web SQL principal; production startup validation. `src/Workbench.Server/Security/DeploymentSecrets.cs`; `src/Workbench.Server/Security/ProductionSecurityConfigurationValidator.cs` |
+| Worker SQL | `ConnectionStrings:WorkerFile`, then `ConnectionStrings:Worker`, then `WORKBENCH_WORKER_CONNECTION`. | Separate worker connection, not the web credential. `src/Workbench.Server/Operations/WorkerHost.cs` |
+| Tenant proof | Nonblank `TenantContext:ProofKey` (or legacy direct environment fallback) wins over `TenantContext:ProofKeyFile` (or legacy file fallback). This differs from connection-file precedence. | Workloads receive proof secret separately from SQL credentials; SQL controls protect its database copy. `src/Workbench.Server/Security/ProductionSecurityConfigurationValidator.cs`; `src/Workbench.Server/Tenancy/TenantContextProof.cs` |
+| Data protection | SQL key ring, application name `Workbench` in production; `DevelopmentEnvironmentIdentity.GetSuffix` appends a validated environment ID in isolated development. Configured certificate path precedes the legacy path. Password file precedes configured password then legacy fallback. Current certificate encrypts new keys; configured previous certificates decrypt old ones. | Web replicas share keys. Worker disables automatic key generation. PFX loads use ephemeral private-key storage. `src/Workbench.Server/Program.cs`; `src/Workbench.Server/Security/DeploymentSecrets.cs`; `src/Workbench.Server/Operations/WorkerHost.cs` |
+| Filesystem blobs | Absolute `Storage:Root`; objects named `<tenant-N>-<revision-N>.a` (staged) or `.b` (published). Provider alias binds provider, normalized root and installation UUID. | Confined filesystem operations; production requires durable storage, and replicas require shared/atomic declarations plus actual volume support. `src/Workbench.Server/Storage/FileSystemBlobStore.cs`; `src/Workbench.Server/Operations/OperationalConfiguration.cs` |
+| Azure blobs | HTTPS `Storage:ContainerUri`; object path `<installation-N>/<tenant-N>/<revision-N>.<suffix>`; provider alias binds container and installation. | System-assigned managed identity, container-level grant, conditional create-only publication. `src/Workbench.Server/Operations/OperationalConfiguration.cs`; `src/Workbench.Server/Storage/AzureBlobStore.cs` |
+| Local development | `dev-up.ps1` creates isolated SQL/blob resources and protected ignored `.dev-environment/secrets` files; the API binds to loopback. The retained manual workflow may load web and migrator credentials from ignored `.env.dev`. | Developer host access remains privileged; the web receives only its web SQL credential. Preview ownership checks prevent adopting another checkout's resources. `scripts/dev-environment/Compose.ps1`; `scripts/dev-environment/Database.ps1`; `scripts/dev-environment/State.ps1`; `scripts/dev-env.ps1`; [setup](../setup.md) |
+| SMTP | `Smtp` configuration with `PasswordFile` overriding password; canonical public origin supplies message-link origin. | SMTP configuration can also be present in the web workload for readiness; unlike Graph, it is not a worker-only credential boundary. Transport validation and host/recipient configuration remain required. `src/Workbench.Server/Operations/OperationalConfiguration.cs` |
+| Graph | Validated `Graph` options and matching canonical origin; worker selects the mail managed identity. Web uses a queue-only provider. | Exchange mailbox-scoped send authorization is an external configuration obligation; avoid broader additive application grants. `src/Workbench.Server/Operations/WorkerHost.cs`; `src/Workbench.Server/Identity/GraphIdentityMessageDelivery.cs` |
+| Azure secret delivery | Key Vault references mounted into workloads; access module grants specific secrets to workload principals. | Scope grants independently from blob and SQL authority; migration connection belongs to migration workload. `infra/azure/modules/access.bicep`; `infra/azure/modules/workloads.bicep` |
+| Maintenance/setup/migration | Explicit connection/configuration files for CLI commands, or provisioned managed identities. | Privileged principals are not browser authority; temporary bootstrap access and local recovery artifacts require protection and cleanup. `src/Workbench.Database/Program.cs`; [bootstrap runbook](../operations/azure-bootstrap-host.md) |
 | Backup/recovery | SQL restore point plus retained blob content, installation binding and protected recovery keys. Native Azure and custom/offline workflows have different consistency/retention contracts. | Recovery operator, not the serving workload, authorizes target selection and cutover. [Native backup](../operations/azure-native-backup.md); [manual recovery](../operations/online-backup-recovery.md) |
 
 ### Concrete deployment mounts and backup roles
@@ -144,15 +144,15 @@ Production Compose maps protected host files `${WORKBENCH_SECRET_DIRECTORY}/<sec
 and `smtp-password`, but receive separate `web-connection` and `worker-connection` files. Both
 mount the named blob volume at `/var/lib/workbench/blobs`, giving effective object paths
 `/var/lib/workbench/blobs/<tenant-N>-<revision-N>.{a,b,c}`; `.c` is an in-progress copy.
-`compose.yaml:15`, `:65`, `:71`, `:85`, `:104`;
-`src/Workbench.Server/Storage/FileSystemBlobStore.cs:18`.
+`compose.yaml`;
+`src/Workbench.Server/Storage/FileSystemBlobStore.cs`.
 The localhost installer generates a distinct topology with loopback-only published proxy ports;
 general production Compose publishes ports 80/443. Do not assume one path's exposure applies to
-the other. `scripts/setup-local-self-host.ps1:163`; `compose.yaml:45`.
+the other. `scripts/setup-local-self-host.ps1`; `compose.yaml`.
 
 Azure web/worker mounts use `/secrets/tenant-proof`, `/secrets/protection-pfx`,
 `/secrets/protection-password` and, for SMTP, `/secrets/smtp-password`. The migration workload
-receives `/secrets/connection`. `infra/azure/modules/workloads.bicep:79` and `:233`.
+receives `/secrets/connection`. `infra/azure/modules/workloads.bicep`.
 
 The optional custom backup implementation is distinct from the selected native Azure backup
 service. Its capture job can read source versions and write/read archive objects; locked
@@ -160,8 +160,8 @@ immutability is required to prevent replacement. Its separate expiration job has
 read/delete authority without source-data or archive write/policy authority. Capture objects use
 `<installation-N>/<backup-N>/objects/<hash-of-source-name-and-version>` and catalogs record
 integrity outcomes and gaps. Neither the role declarations nor this model establish that a
-schedule or lock is active. `infra/azure/backup.bicep:115` and `:247`;
-`src/Workbench.Server/Storage/OnlineBackup.cs:44`.
+schedule or lock is active. `infra/azure/backup.bicep`;
+`src/Workbench.Server/Storage/OnlineBackup.cs`.
 
 ## Workers and recovery
 
@@ -169,7 +169,7 @@ A queue row is not sufficient authority to send a message. The worker locks the 
 current operation purpose, hash, expiry, recipient, security version and state against the
 protected payload. Completion/retry uses owner and generation checks. External delivery is not
 transactional with SQL: a send followed by failed commit can be retried, so exactly-once email
-arrival is not promised. `src/Workbench.Server/Operations/WorkProcessor.cs:67`.
+arrival is not promised. `src/Workbench.Server/Operations/WorkProcessor.cs`.
 
 Online SQL and blob backups need not capture one atomic instant. Recovery is manual into isolated
 targets: guard the restored database, sanitize old sessions/identity operations/key state, inspect
@@ -177,9 +177,9 @@ blob content against SQL and revalidate before applying the accepted disposition
 absent from **all** SQL revision rows, including retained history, not merely absent from active
 attachments. Missing/corrupt published content requires explicit acceptance and tenant-visible
 recovery notices. Production must not be resumed simply because the database is online.
-`src/Workbench.Server/Storage/FileRecovery.cs:17`;
-`src/Workbench.Server/Storage/FileRecoveryCommand.cs:77`;
-`src/Workbench.Server/Persistence/FileRecoverySchema.cs:1`.
+`src/Workbench.Server/Storage/FileRecovery.cs`;
+`src/Workbench.Server/Storage/FileRecoveryCommand.cs`;
+`src/Workbench.Server/Persistence/FileRecoverySchema.cs`.
 
 Geo-redundancy, versioning and backup retention address different failures. Replication alone can
 replicate deletion/corruption; recovery also depends on retained versions/backup points, keys,
@@ -197,15 +197,15 @@ are separate, higher-authority starting conditions.
 | --- | --- | --- |
 | High | Tenant user substitutes IDs or uses pooling to read/write another tenant. | Current session, immutable tenant, EF/constraints/RLS and nonce-bound proof must all survive each endpoint and worker path. Review `TenantIsolationTests` and `TenantConnectionPoolingTests`. |
 | High | Stolen token survives revocation, is consumed twice, or is resurrected by restore. | Every-request SQL validation, transactional consumption and guarded sanitation. Review `RecoveryTests`, `RecoveryDispositionTests`, and `FileRecoveryTests`; operator cutover remains privileged. |
-| High | Queue tampering sends a capability to a different recipient or deletes another tenant's live blob. | Tenant/work-purpose encryption, current-state validation, eligible deletion state, owner/generation leases. Evidence: `src/Workbench.Server/Operations/WorkProcessor.cs:100`. |
-| High | Blob ID/path manipulation, symlink traversal or publication race exposes or replaces private content. | SQL-owned IDs, confined filesystem operations and create-only immutable Azure publication; blob credentials themselves remain root/container-wide. Evidence: `src/Workbench.Server/Storage/FileSystemBlobStore.cs:39`; `src/Workbench.Server/Storage/AzureBlobStore.cs:34`. |
+| High | Queue tampering sends a capability to a different recipient or deletes another tenant's live blob. | Tenant/work-purpose encryption, current-state validation, eligible deletion state, owner/generation leases. Evidence: `src/Workbench.Server/Operations/WorkProcessor.cs`. |
+| High | Blob ID/path manipulation, symlink traversal or publication race exposes or replaces private content. | SQL-owned IDs, confined filesystem operations and create-only immutable Azure publication; blob credentials themselves remain root/container-wide. Evidence: `src/Workbench.Server/Storage/FileSystemBlobStore.cs`; `src/Workbench.Server/Storage/AzureBlobStore.cs`. |
 | High | Setup/migrator/deployment credential theft changes schema, RLS, images or grants. | Separate principals, secret references, digest-bound release procedures, short-lived bootstrap authority, platform audit. Legitimate owner DDL is not a vulnerability; unintended acquisition is. |
-| High | Request input becomes executable SQL or an operator gains unauthorized recovery authority. | Parameterized SQL/EF and bounded administrative commands; setup-only development recovery must not become a public or ordinary operator capability. Evidence: `src/Workbench.Server/Identity/BuiltInPasswordVerifier.cs:66`; `src/Workbench.Database/Program.cs:31`. |
-| Medium | Account enumeration or password-KDF exhaustion through anonymous requests. | Generic responses; shared account/network admission before verification; cached dummy hash. No constant-time or volumetric-capacity guarantee. Evidence: `tests/Workbench.Server.IntegrationTests/LoginHashingTests.cs:1`. |
-| Medium | CSRF or unsafe client rendering changes account state or leaks private data. | Antiforgery metadata/middleware, explicit DTOs, browser security headers, no persistent browser token storage. Evidence: `src/Workbench.Server/Program.cs:249`; `src/Workbench.Server/Identity/RecoveryEndpoints.cs:17`. |
-| Medium | Malicious photo or export workload exhausts memory/CPU or exposes unintended media. | Bounded server photo parsing/re-encoding, tenant authorization and export limits; native libraries remain dependency attack surfaces. Evidence: `src/Workbench.Server/Inventory/PhotoProcessor.cs:11`; [export contract](../collection-export.md). |
+| High | Request input becomes executable SQL or an operator gains unauthorized recovery authority. | Parameterized SQL/EF and bounded administrative commands; setup-only development recovery must not become a public or ordinary operator capability. Evidence: `src/Workbench.Server/Identity/BuiltInPasswordVerifier.cs`; `src/Workbench.Database/Program.cs`. |
+| Medium | Account enumeration or password-KDF exhaustion through anonymous requests. | Generic responses; shared account/network admission before verification; cached dummy hash. No constant-time or volumetric-capacity guarantee. Evidence: `tests/Workbench.Server.IntegrationTests/LoginHashingTests.cs`. |
+| Medium | CSRF or unsafe client rendering changes account state or leaks private data. | Antiforgery metadata/middleware, explicit DTOs, browser security headers, no persistent browser token storage. Evidence: `src/Workbench.Server/Program.cs`; `src/Workbench.Server/Identity/RecoveryEndpoints.cs`. |
+| Medium | Malicious photo or export workload exhausts memory/CPU or exposes unintended media. | Bounded server photo parsing/re-encoding, tenant authorization and export limits; native libraries remain dependency attack surfaces. Evidence: `src/Workbench.Server/Inventory/PhotoProcessor.cs`; [export contract](../collection-export.md). |
 | Medium | Forged forwarding metadata bypasses a network limit or confuses scheme. | Bounded proxy mode or explicit ACA environment trust; canonical origin/hosts and independent account limits. Internal workload compromise is a prerequisite for abusing the accepted ACA boundary. |
-| Medium | Logs, error messages, backups or downloaded packages disclose secrets/private data. | Bounded safe telemetry and private exports; privileged backup stores and local downloads still require access/retention controls. Evidence: `src/Workbench.Server/Operations/SafeTelemetryLoggerProvider.cs:17`; [backup runbook](../operations/database-backup-restore.md). |
+| Medium | Logs, error messages, backups or downloaded packages disclose secrets/private data. | Bounded safe telemetry and private exports; privileged backup stores and local downloads still require access/retention controls. Evidence: `src/Workbench.Server/Operations/SafeTelemetryLoggerProvider.cs`; [backup runbook](../operations/database-backup-restore.md). |
 
 Priorities express review order and plausible impact, not calibrated vulnerability verdicts.
 Critical impact would require broad unauthenticated compromise; High includes practical cross-tenant

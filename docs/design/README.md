@@ -1,5 +1,10 @@
 # Workbench UI visual reference
 
+This is a historical mockup. Its bronze palette, serif wordmark, compact stag branding and radii
+are superseded by [Tanzanite](../specs/2026-09-08-tanzanite-visual-language.md) and the current
+[DESIGN.md](../../DESIGN.md), including floating fields and refined navigation. The preserved
+prototype and its checks do not describe the current application or authorize additional features.
+
 Open [workbench-ui-preview.html](workbench-ui-preview.html) in a browser after checking out or
 downloading the repository. GitHub's file viewer displays its source rather than running it.
 The file embeds the mockup styles, application script, sample photographs and brand emblem. Pinned
@@ -18,7 +23,7 @@ to this documentation file and is not a proposed Workbench runtime dependency.
 - Item details and the short add-item flow using in-memory sample records.
 - Narrow-screen navigation and item details, plus illustrative linked product-area screens.
 
-Bronze is the accepted accent. The stag geometry and original `#947C4A` gold derive from the
+Bronze was the accepted accent for this mockup. The stag geometry and original `#947C4A` gold derive from the
 owner-supplied company artwork; the serif Workbench wordmark is a product treatment. The six
 gemstone/jewelry photographs were generated for the mockup. Names, provenance, measurements,
 financial entries and work orders are fictional examples. Refreshing discards all changes.

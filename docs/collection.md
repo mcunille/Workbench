@@ -52,7 +52,9 @@ contents, safe decoding and failures. These files cannot restore Workbench.
 
 ## Usability and boundaries
 
-Desktop/mobile layouts and System/Light/Dark appearance must preserve task state. Collection records,
+Appearance follows the system until an explicit preference is selected. The sign-in switch toggles
+Light/Dark; the signed-in account menu cycles Auto → Dark → Light → Auto, allowing a return to system
+appearance. Desktop/mobile layouts and appearance changes preserve task state. Collection records,
 photos and in-session drafts are private to the authorized tenant; signing out clears protected
 client state. Appearance is the persisted local preference. Accounting, commerce, bulk quantities,
 classification and valuation are separate workflows, not prerequisites for keeping a collection.

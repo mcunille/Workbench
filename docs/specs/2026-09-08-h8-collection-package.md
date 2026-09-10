@@ -1,6 +1,8 @@
 # H8 collection package with photographs
 
-**Status: Accepted — owner approved implementation on 2026-09-08.**
+**Status: Implemented — owner approved implementation on 2026-09-08.**
+The package endpoint, snapshot and archive writer implement this scope. See
+[collection export](../collection-export.md) for the current CSV/ZIP contracts and limits.
 
 Implements the accepted product scope of [issue #56](https://github.com/mcunille/Workbench/issues/56).
 Extends [H7](2026-09-08-h7-collection-export.md) and the existing H2 photo/provider boundary.

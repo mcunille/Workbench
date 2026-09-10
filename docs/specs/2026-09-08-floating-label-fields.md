@@ -1,6 +1,7 @@
 # Floating-label fields
 
-Status: approved by the request to adopt the label-input interaction shown at
+Status: implemented in the shared `FloatingField` component and `floating-field.css`; approved by
+the request to adopt the label-input interaction shown at
 https://spell.sh/docs/label-input and in the supplied screenshots.
 
 Text, email, password, search, and multiline fields start with their label inside the

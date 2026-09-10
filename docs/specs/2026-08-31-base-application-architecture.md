@@ -1,6 +1,8 @@
 # Base application architecture
 
-**Status:** Accepted
+**Status:** Implemented foundation. This historical design includes later capabilities and acceptance
+targets; it does not certify every target or production readiness. Use the living architecture below
+and the [acceptance matrix](../operations/production-readiness.md) for current scope and evidence.
 
 **Living architecture:** [`docs/ARCHITECTURE.md`](../ARCHITECTURE.md)
 

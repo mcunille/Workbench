@@ -50,7 +50,7 @@ all spreadsheet applications interpret arbitrary imported text identically.
 
 ## This is not a backup
 
-CSV contains current item text and archive state. It excludes photos, edit/lifecycle history,
+CSV contains current item text and archive state. It excludes acquisition context, photos, edit/lifecycle history,
 creation replay payloads, identity/session data, and the rest of the application database. It cannot
 restore Workbench, and no import workflow is supplied. Use the operational backup and recovery
 runbooks for application recovery.

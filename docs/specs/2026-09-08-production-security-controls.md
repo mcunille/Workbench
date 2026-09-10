@@ -1,6 +1,10 @@
 # Production security controls
 
-**Status:** Implementation authorized; hosted application remains separately approval-gated.
+**Status:** Implemented, with scoped hosted application recorded in the
+[deployment evidence](../operations/evidence/2026-09-deployment-acceptance.md#azure-public-launch-2026-09-08-utc)
+and its follow-up. Configuration, observed ingestion, alert delivery and recovery drills are distinct
+claims; use the [acceptance matrix](../operations/production-readiness.md) for remaining limits.
+Future hosted operations remain separately approval-gated.
 
 The pre-public Azure review found missing canonical ingress restrictions, browser protections and
 security event collection. Correct these controls without changing tenant authority, the accepted

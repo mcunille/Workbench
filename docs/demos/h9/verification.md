@@ -29,9 +29,10 @@ code and tests at `e76bbf5fb90dbc4375a4c0fb4313da94432a7157` (2026-09-08).
 
 ## Media and reproduction
 
-Generated media stays outside Git at
-`C:/Users/mcuni/.codex/visualizations/2026/09/09/01a0843d-3272-7182-b35d-6939f37f92e4/h9/`:
-`h9-acquisition.mp4`, `saved-acquisition.png`, and `archived-mobile-dark.png`.
+The recorded outputs were `h9-acquisition.mp4`, `saved-acquisition.png`, and
+`archived-mobile-dark.png` in a local directory outside Git. For reproduction, select an absolute
+external directory with `WORKBENCH_H9_MEDIA` as shown in the [walkthrough index](../README.md#h6h9-commands);
+the original operator's private output location is not a prerequisite or a shared media destination.
 The transcript/captions and [reproduction commands](README.md) are committed. The renderer used
 FFmpeg 7.1 from the pinned `imageio-ffmpeg` 0.6.0 helper in ignored local artifacts, and Windows
 System.Speech. Authentication happened off camera; records are synthetic.

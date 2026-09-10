@@ -1,13 +1,19 @@
 # Workbench UI design guidance
 
-**Status:** Accepted
+**Status:** Accepted interaction and accessibility principles; visual values partially superseded.
+The bronze palette, serif wordmark, compact stag lockup and original radius values below are
+historical mockup decisions. [Tanzanite](2026-09-08-tanzanite-visual-language.md),
+[floating labels](2026-09-08-floating-label-fields.md) and
+[refined navigation](2026-09-09-refined-navigation.md) supersede those treatments.
+[DESIGN.md](../../DESIGN.md) owns current visual values. Historical checks and unmet acceptance
+criteria below remain scoped to their original evidence; this reconciliation does not complete them.
 
 **Research date:** 2026-09-06
 
 **Scope:** Product UI design direction and a standalone visual reference; no application behavior
 or dependency changes.
 
-**Decision:** Use a calm studio workspace with progressive capability, responsive task layouts,
+**Historical decision:** Use a calm studio workspace with progressive capability, responsive task layouts,
 equally complete light and dark themes, and bronze accents aligned with The White Stag Collection.
 The owner accepted the branded mockup after correction of item-title contrast in light mode.
 Acceptance establishes the design direction; application implementation remains separate work.
@@ -25,7 +31,7 @@ product areas; it does not approve inventory fields, accounting commands, saved-
 commerce workflows, public sharing, or a component-library migration. Those need their own scoped
 requirements. Examples below illustrate future screens, not capabilities already implemented.
 
-### Current evidence
+### Evidence at the original design revision
 
 At repository revision `92976ca`, the client uses React, TypeScript, Vite, plain CSS, and a typed API
 client. Its package manifest contains no component, icon, animation, or styling framework.

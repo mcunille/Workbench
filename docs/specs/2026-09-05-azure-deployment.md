@@ -1,11 +1,14 @@
 # Azure deployment and portable self-hosting
 
-**Status:** Accepted
+**Status:** Implemented with scoped hosted verification. See the
+[acceptance matrix](../operations/production-readiness.md) and dated
+[deployment evidence](../operations/evidence/2026-09-deployment-acceptance.md) for completed checks
+and remaining limits; this status does not certify every acceptance target below.
 
 Tracks [issue #12](https://github.com/mcunille/Workbench/issues/12), following the implemented
 blob and operational providers phase (#11). The user accepted this design on 2026-09-05. Acceptance does not authorize provisioning Azure resources, deployment, DNS changes,
-production operations, or merging. Live acceptance evidence remains outstanding until a separately
-authorized disposable environment is available.
+production operations, or merging. Separately authorized launch and follow-up evidence now exists;
+the original acceptance requirements below remain historical requirements where not explicitly met.
 
 ## Problem and scope
 
@@ -137,7 +140,13 @@ down-migrations. Production traffic changes remain human-authorized.
 
 Configure Azure SQL point-in-time retention (initially seven days) and blob soft-delete/version
 retention (initially 30 days), both environment parameters. Retention alone is not a paired backup.
-For a recoverable checkpoint, drain all writers and workers, capture the exact manifest and retained
+The original stopped-writer checkpoint decision below predates the accepted
+[online backup/manual recovery](2026-09-07-online-backup-and-manual-recovery.md) design. Current
+procedures distinguish [custom recovery sets](../operations/online-backup-recovery.md) from
+[Azure-native protection](../operations/azure-native-backup.md); native backup does not establish
+custom-set activation or a populated cross-store restore. Recovery still remains offline.
+
+For that original recoverable checkpoint, drain all writers and workers, capture the exact manifest and retained
 blob version identities, and record a recoverable SQL time while writes remain frozen. Verify the
 pair and retain its digest, schema version, image digest, and encryption-key recovery dependencies
 in access-controlled backup storage. Longer retention must extend all dependent artifacts together.

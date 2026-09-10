@@ -40,8 +40,10 @@ Provider failures never authorize deletion of ambiguous bytes. Preserve pending 
 use the offline procedure below; do not mark them failed merely to unblock migration.
 
 Logical replacement/removal hides earlier URLs immediately, while seven-day retention and holds
-still apply. Include both retained variants in paired SQL/blob backups. Recovery remains blocked
-if either required image is absent or has a mismatched digest. Do not advertise immediate physical
+still apply. Include both retained variants in paired SQL/blob backups. Strict paired recovery remains
+blocked if either required image is absent or has a mismatched digest. The separate
+[SQL-authoritative recovery procedure](online-backup-recovery.md#manual-recovery) permits reviewed,
+explicitly accepted missing-file dispositions while preserving SQL records. Do not advertise immediate physical
 erasure or preservation of the original photo. Browser color conversion varies across devices;
 these images support identification, not gemological color measurement.
 
@@ -151,10 +153,18 @@ Liveness is process-only. Readiness checks SQL/security state, bounded blob acce
 container policy, and SMTP TLS/authentication when SMTP is enabled; it sends no probe email. Central
 console telemetry exports fixed category, event number, level, timestamp, trace ID, and failure boolean.
 It excludes arbitrary messages, exceptions, scopes, addresses, tokens, paths, queries, and payloads.
+The worker separately emits the closed `WorkQueueStatus` aggregate event described above; those
+counts and ages are not arbitrary logger fields or tenant-row output.
 Detailed tenant-sensitive evidence belongs in authorized SQL audit records. Restrict proxy/SMTP/cloud
 service logs separately; application redaction cannot control external infrastructure logging.
 
 ## Offline reconciliation, paired backup, and restore
+
+This section defines strict paired recovery. For online Azure backups, including native-restored
+bytes, use [manual SQL-authoritative recovery](online-backup-recovery.md#manual-recovery) when exact
+pairing is unavailable. Its isolated target, sanitation, report review and digest acceptance are
+required before missing-file dispositions can complete the storage gate; a failed `storage verify`
+does not authorize that outcome automatically.
 
 Use the separate `workbench_storage_maintenance` identity from the [database-principal matrix](database-principals.md) for the narrow manifest, relocation,
 recovery-verification, and deletion-replay procedures. It must not be an ordinary web or worker user.
@@ -227,7 +237,7 @@ dotnet Workbench.Database.dll storage verify --connection-file <maintenance-conn
 ```
 
 Verification compares the full manifest with SQL and streams every referenced blob through SHA-256.
-Only success clears blob recovery pending. Missing bytes, changed metadata, a wrong installation/database,
+Only success of this strict verification clears blob recovery pending through this command. Missing bytes, changed metadata, a wrong installation/database,
 or incompatible schema keep recovery blocked. Rebuild protected keys, check tenant isolation and login,
 and inspect readiness before the human-operated cutover. Restore drills use disposable SQL databases;
 never overwrite a production database as part of verification.
