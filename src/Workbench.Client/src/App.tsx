@@ -15,6 +15,7 @@ import { Sessions } from './features/auth/Sessions';
 import { SignIn } from './features/auth/SignIn';
 import { useAuth } from './features/auth/useAuth';
 import { AddItem } from './features/inventory/AddItem';
+import { AcquisitionView } from './features/inventory/AcquisitionView';
 import { Collection, ItemDetails } from './features/inventory/Collection';
 import { CollectionMemory } from './features/inventory/collectionMemory';
 import { ExportMemory } from './features/inventory/exportMemory';
@@ -66,6 +67,21 @@ function SignedInApplication({
   const [origins] = useState(
     () => new Map<string, 'active' | 'archived'>(),
   );
+  const [acquisitionReturns] = useState(() => new Map<string, string>());
+  function followInventory(event: MouseEvent<HTMLAnchorElement>) {
+    if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+    event.preventDefault();
+    const destination = event.currentTarget.pathname;
+    const currentOrigin = origins.get(navigation.entryId);
+    const currentPath = navigation.path;
+    navigation.navigate(destination, nextEntry => {
+      if (currentOrigin) origins.set(nextEntry, currentOrigin);
+      if (currentPath.startsWith('/acquisitions/') && /^\/inventory\/[^/]+$/.test(destination)
+        && !['/inventory/archive', '/inventory/new', '/inventory/export'].includes(destination)) {
+        acquisitionReturns.set(nextEntry, currentPath);
+      }
+    });
+  }
   function followFromCollection(event: MouseEvent<HTMLAnchorElement>) {
     const normalClick =
       event.button === 0 &&
@@ -126,7 +142,7 @@ function SignedInApplication({
             title={navigationCollapsed ? 'Inventory' : undefined}
             href="/inventory"
             aria-current={
-              path.startsWith('/inventory') || path === '/'
+              path.startsWith('/inventory') || path.startsWith('/acquisitions/') || path === '/'
                 ? 'page'
                 : undefined
             }
@@ -235,6 +251,10 @@ function SignedInApplication({
                 navigation.navigate(`/inventory/${item.id}`);
               }}
             />
+          ) : /^\/acquisitions\/[^/]+\/from\/[^/]+$/.test(path) ? (
+            <AcquisitionView key={path} id={path.split('/')[2]} originId={path.split('/')[4]}
+              follow={followInventory} onDirtyChange={navigation.setDirty} onAuthLost={authLost}
+              onItemSaved={() => collectionMemory.invalidate()} />
           ) : path.startsWith('/inventory/') ? (
             <ItemDetails
               key={path}
@@ -242,8 +262,9 @@ function SignedInApplication({
               memory={collectionMemory}
               archiveMemory={archiveMemory}
               origin={origins.get(navigation.entryId)}
+              acquisitionReturn={acquisitionReturns.get(navigation.entryId)}
               onDirtyChange={navigation.setDirty}
-              follow={navigation.follow}
+              follow={followInventory}
               onAuthLost={authLost}
             />
           ) : path === '/account' ? (

@@ -37,6 +37,7 @@ public static class InventoryEndpoints
             .ProducesProblem(StatusCodes.Status409Conflict);
         group.MapItemPhotos();
         group.MapAcquisitions();
+        endpoints.MapAcquisitionBrowsing();
         group.MapItemExport();
         group.MapPost("/{id:guid}/archive", ArchiveAsync)
             .WithMetadata(WorkbenchAntiforgeryMetadata.Instance)
@@ -201,7 +202,7 @@ public static class InventoryEndpoints
         return Results.Ok(new ItemPageResponse(rows, nextCursor));
     }
 
-    private static ItemDetailResponse Detail(InventoryItem item) =>
+    internal static ItemDetailResponse Detail(InventoryItem item) =>
         new(item.Id, item.Name, item.Notes, item.StorageLocation, item.CreatedAtUtc, Convert.ToBase64String(item.RowVersion), Photo(item.CurrentPhoto), item.ArchivedAtUtc);
 
     private static IResult ArchivedConflict() => Results.Problem(statusCode: StatusCodes.Status409Conflict,

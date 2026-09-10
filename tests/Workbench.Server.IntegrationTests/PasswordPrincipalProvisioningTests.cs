@@ -167,7 +167,7 @@ public sealed class PasswordPrincipalProvisioningTests(SqlServerFixture sqlServe
                     Assert.Equal(expected ? 1 : 0, Convert.ToInt32(await acquisitionPermission.ExecuteScalarAsync()));
                 }
             }
-            foreach (var procedure in new[] { "CreateAcquisition", "UpdateAcquisition" })
+            foreach (var procedure in new[] { "CreateAcquisition", "UpdateAcquisition", "ChangeAcquisitionLink" })
             {
                 await using var acquisitionPermission = new SqlCommand("SELECT HAS_PERMS_BY_NAME(@object, 'OBJECT', 'EXECUTE')", connection);
                 acquisitionPermission.Parameters.AddWithValue("@object", $"Inventory.{procedure}");

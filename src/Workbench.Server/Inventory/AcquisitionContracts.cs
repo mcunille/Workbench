@@ -60,3 +60,9 @@ public static class AcquisitionInput
         return bytes;
     }
 }
+
+[JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
+public sealed record LinkAcquisitionRequest(string? ExpectedItemVersion, Guid? ExpectedAcquisitionId,
+    string? ExpectedAcquisitionVersion, Guid? TargetAcquisitionId, string? TargetAcquisitionVersion);
+public sealed record AcquisitionPageResponse(IReadOnlyList<AcquisitionResponse> Items, string? NextCursor);
+public sealed record AcquisitionItemsResponse(IReadOnlyList<ItemDetailResponse> Items, string? NextCursor);

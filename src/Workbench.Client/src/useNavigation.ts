@@ -29,7 +29,7 @@ export function useNavigation() {
     } else next();
   }, []);
   const navigate = useCallback(
-    (next: string) => {
+    (next: string, onNavigated?: (entryId: string) => void) => {
       request(() => {
         dirty.current = false;
         uncertain.current = false;
@@ -46,6 +46,7 @@ export function useNavigation() {
         );
         currentPath.current = next;
         setPath(next);
+        onNavigated?.(currentEntryId.current);
       });
     },
     [request],

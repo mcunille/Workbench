@@ -48,7 +48,8 @@ public sealed class DatabaseMigrationTests(SqlServerFixture sqlServer)
             migration => Assert.EndsWith("_AddItemArchiving", migration, StringComparison.Ordinal),
             migration => Assert.EndsWith("_AddOnlineRecovery", migration, StringComparison.Ordinal),
             migration => Assert.EndsWith("_AddItemRestoration", migration, StringComparison.Ordinal),
-            migration => Assert.EndsWith("_AddAcquisitionContext", migration, StringComparison.Ordinal));
+            migration => Assert.EndsWith("_AddAcquisitionContext", migration, StringComparison.Ordinal),
+            migration => Assert.EndsWith("_AddSharedAcquisitions", migration, StringComparison.Ordinal));
     }
 
     [Theory]

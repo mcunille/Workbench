@@ -1,5 +1,10 @@
 import type { Acquisition } from '../../api/acquisitions';
 
+export function acquisitionLabel(value: Acquisition) {
+  const date = value.year == null ? '' : [String(value.year), ...[value.month, value.day].filter(part => part != null).map(part => String(part).padStart(2, '0'))].join('-');
+  return `${value.source ?? 'Source not recorded'} · ${value.method} · ${date || 'Date unknown'} · ${value.id.slice(0, 8)}`;
+}
+
 export const methods = [
   'Purchase',
   'Gift',

@@ -14,8 +14,8 @@ public sealed class InventoryReadinessTests(SqlServerFixture sqlServer)
     [Fact]
     public async Task ImmediatePriorSchemaMustBeUpgradedBeforeServingInventory()
     {
-        // GIVEN the immediate prior release with valid authentication but no acquisition contract.
-        await using var application = await AuthTestApplication.CreateAsync(sqlServer, priorMigration: "AddItemRestoration");
+        // GIVEN the immediate prior release with acquisition context but no shared relationship command.
+        await using var application = await AuthTestApplication.CreateAsync(sqlServer, priorMigration: "AddAcquisitionContext");
         using var client = application.CreateClient();
         // WHEN this release probes readiness.
         var response = await client.GetAsync("/health/ready");
@@ -34,6 +34,7 @@ public sealed class InventoryReadinessTests(SqlServerFixture sqlServer)
     [InlineData("DENY SELECT ON [Inventory].[ItemCreationSnapshots] TO [workbench_web]")]
     [InlineData("DENY EXECUTE ON [Inventory].[CreateAcquisition] TO [workbench_web]")]
     [InlineData("DENY EXECUTE ON [Inventory].[UpdateAcquisition] TO [workbench_web]")]
+    [InlineData("DENY EXECUTE ON [Inventory].[ChangeAcquisitionLink] TO [workbench_web]")]
     [InlineData("DENY SELECT ON [Inventory].[Acquisitions] TO [workbench_web]")]
     [InlineData("DENY SELECT ON [Inventory].[AcquisitionItems] TO [workbench_web]")]
     [InlineData("DENY SELECT ON [Inventory].[AcquisitionCreationRecords] TO [workbench_web]")]
