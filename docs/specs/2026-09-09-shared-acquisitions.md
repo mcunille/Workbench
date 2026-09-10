@@ -1,6 +1,9 @@
 # Connect the pieces from an acquisition
 
-**Status: Accepted — owner approved implementation on 2026-09-10.**
+**Status: Implemented — owner approved implementation on 2026-09-10.**
+
+Current collector behavior is owned by the [collection guide](../collection.md).
+See the [verification record](../demos/h10/verification.md) for executed checks and limits.
 
 Implements [H10 / #75](https://github.com/mcunille/Workbench/issues/75) within
 [scenario #73](https://github.com/mcunille/Workbench/issues/73). Extends the accepted
