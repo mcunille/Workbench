@@ -2,15 +2,13 @@
 
 The web application, database tool, and explicit worker share the same release. Blob APIs are internal
 application services for generated content; there is no general upload endpoint. Item photographs
-use the bounded workflow below. Other user uploads require their own type allowlist and malware
+use the bounded workflow below; user-facing behavior is described in the [collection guide](../collection.md). Other user uploads require their own type allowlist and malware
 policy before publication.
 
 ## Item photograph ingestion
 
-Saved items accept one optional photograph. The browser allows JPEG, PNG, and WebP sources up to
-20 MiB and 40 megapixels (16,384 pixels per axis), prepares orientation/color and resizes locally,
-then shows a preview. The original never uploads as a fallback. Browsers that cannot prepare the
-file show an actionable error. HEIC/HEIF, RAW, animated, and multi-picture images require conversion.
+The [collection guide](../collection.md) owns accepted source formats, browser preparation and
+user-visible retry behavior. The following limits describe server and storage operations.
 
 The API independently limits the prepared file to 4 MiB and 2,048 pixels per axis. Multipart
 overhead is bounded to an additional 64 KiB, including requests without Content-Length. The
@@ -123,8 +121,8 @@ security version, recipient, purpose, and token hash before sending. Tokens are 
 excluded from ordinary request URLs. Payloads are erased after completion, terminal failure, or restore
 sanitation. Development's explicitly non-delivering memory sink is not a production delivery provider.
 
-Provision a separate contained SQL user in `workbench_worker` using a protected administrative session.
-Do not add it to web, operator, migrator, or owner roles. Its only cross-tenant action is the bounded
+Provision the separate worker identity following the [database-principal matrix](database-principals.md).
+Do not add it to web, operator, migrator, or owner roles. Its cross-tenant claim action is the bounded
 claim procedure, which returns references without protected payloads. Supply its connection as
 `ConnectionStrings:Worker` or `WORKBENCH_WORKER_CONNECTION`, plus the same proof key, certificate,
 storage binding, and selected delivery-provider configuration. Graph additionally requires the worker mail identity. Do not pass the web or migration credential.
@@ -139,7 +137,7 @@ Run continuously as a supervised process or invoke `--once` with a durable sched
 scaled to zero does not run work. Claims have 120-second leases and generation fencing; each execution
 has a 60-second deadline. Failed transient operations use exponential delay plus jitter, up to five
 attempts. Graph throttling delays are persisted with the queue item: `Retry-After` is clamped to one hour and cannot shorten the existing backoff. Token-acquisition failures also use bounded retries; Graph authorization rejections are permanent. Permanent failures and exhausted attempts become dead letters. Queue state is authoritative
-in `Operations.WorkItems`; inspect it through an authorized tenant SQL session or a protected operator
+in `Operations.WorkItems`; inspect it through an authorized tenant SQL session or a protected database-owner
 session. Alert on dead letters and oldest due work age. A successful `--once` process exit indicates a
 completed iteration, not necessarily successful delivery; inspect the work outcome.
 
@@ -158,7 +156,7 @@ service logs separately; application redaction cannot control external infrastru
 
 ## Offline reconciliation, paired backup, and restore
 
-Provision a separate `workbench_storage_maintenance` principal for the narrow manifest, relocation,
+Use the separate `workbench_storage_maintenance` identity from the [database-principal matrix](database-principals.md) for the narrow manifest, relocation,
 recovery-verification, and deletion-replay procedures. It must not be an ordinary web or worker user.
 Keep connection files, configuration, manifests, reports, SQL backups, and blob snapshots in an
 access-controlled encrypted location outside Git. Unix output files use mode 0600; Windows output
@@ -275,7 +273,7 @@ and a successful delivery through the chosen production SMTP relay remain separa
 
 ## Collection package preparation
 
-H8 ZIP export reads only detail revisions selected with current item records in one tenant-scoped
+Collection ZIP export reads only detail revisions selected with current item records in one tenant-scoped
 serializable transaction. Removed or replaced photos retain their immutable bytes for seven days;
 this is a correctness dependency for the maximum two-minute package preparation after database locks
 are released. Do not shorten retention without revisiting the export contract. Recovery-unavailable,

@@ -1,225 +1,12 @@
 # Database migrations
 
-Database migrations are an explicit, human-controlled deployment operation. A Workbench web
-replica never migrates its database and never receives the setup, operator, or migrator credential.
-
-## Acquisition context release
-
-`20260909034719_AddAcquisitionContext` adds acquisition context, tenant-qualified item links,
-immutable creation replay evidence, RLS and restricted create/update commands. Apply this migration
-before running H9. Readiness, provisioning and backup schema markers require the new version and
-the new table/command permissions. Runtime principals can read the new tables but cannot directly
-insert, update or delete their rows. Creation and editing check item state and rowversion inside
-the transaction; edits also check acquisition rowversion. No existing item requires an acquisition
-or data backfill, and archive/restore retains acquisition links.
-
-Verify fresh creation and upgrade from `20260908010000_AddItemRestoration`, preserving active and
-archived items, photographs and replay evidence. The additive migration is the sole H9 schema
-increment. Down refuses to discard recorded acquisition context; prefer forward correction or
-the established paired SQL/blob restore workflow. Older binaries are not assumed compatible with
-the new readiness marker. These development checks do not authorize a production migration.
-
-## Item restoration release
-
-`20260908010000_AddItemRestoration` adds the restricted `Inventory.RestoreItem` command
-without changing the item table or any previous migration. Apply it before releasing H6.
-Readiness and principal provisioning require the new schema marker and EXECUTE permission.
-The command requires an explicit transaction and the archived record's eight-byte rowversion,
-under caller tenant RLS. It clears only the archive timestamp; SQL advances the version.
-Identity, text, creation snapshots, photo references, and operation replay evidence remain intact.
-Runtime direct item UPDATE/DELETE remains denied.
-
-The Archive view searches all authorized archived records. Restore returns the same record to
-active browsing. After an unconfirmed response, retry the original version or review current
-saved details. An already-active conflict reports saved state without proving which request won;
-a re-archived record requires a new explicit confirmation. Never replay a stale restore token
-against a freshly loaded version automatically.
-
-Verify fresh creation and upgrade from `AddOnlineRecovery`, including edited creation snapshots,
-archived records, retained photos and completed/pending photo operations. H6 Down removes only
-the restore procedure and restores the preceding online-recovery readiness marker; it preserves
-recovery reports, missing-file dispositions, procedures, permissions and tenant isolation. It does
-not reverse item restorations or discard data. Drain H6 writers before using this supported schema/binary rollback together.
-The preceding online-recovery application can read the same records but lacks archive recovery
-controls. The supported target is `20260907225320_AddOnlineRecovery`; its own destructive Down
-remains blocked. Returning only to an older binary without checking readiness/schema compatibility
-is not a verified rollback.
-For data recovery use a forward correction or the documented paired SQL/blob restore procedure.
-Development verification does not authorize a production migration or cutover.
-
-## Item archiving release
-
-`20260907224158_AddItemArchiving` adds nullable `Inventory.Items.ArchivedAtUtc`, an active-row
-browsing index, and `Inventory.ArchiveItem`. The archive command checks the shared item version
-atomically under caller tenant isolation. Detail and photo mutation commands now require active
-state, even when called with an archived record's current version. Runtime direct UPDATE/DELETE
-remains denied; an INSERT trigger rejects creation with an archive timestamp.
-
-Apply this single additive migration before releasing H5. Readiness and provisioning require the
-new command and schema marker. Existing records stay active, with creation snapshots, photos,
-operation replay evidence, and blob retention unchanged. Verify fresh creation and upgrade from
-`AddItemDetailEditing`, including saved photographs and pending/completed photo operations.
-
-Archived records remain readable through their existing tenant-authorized links, including photo
-downloads. Ordinary browsing/search excludes them. There is no unarchive command in H5. After an
-unconfirmed archive, reload current details; retrying the same expected version cannot overwrite
-newer state. A current archived record proves its saved state, not which request archived it.
-Original creation replay returns that same archived identity and does not create a replacement.
-
-Down migration deliberately refuses to discard archive state. Prefer a forward correction or
-the existing paired offline SQL/blob restore procedure; do not roll back binaries without checking
-schema compatibility. Archiving does not retire its current photo blobs. Keep all base migrations
-unchanged; this release requires no data backfill or production operation during development.
-
-## Item detail editing release
-
-`20260907194500_AddItemDetailEditing` adds `Inventory.UpdateItemDetails` after the photograph
-release. Its conditional update changes only name, notes, and descriptive location using the
-expected rowversion under caller tenant isolation. Runtime principals receive EXECUTE permission;
-direct item UPDATE/DELETE remains denied. Existing item identity, text, and photographs are retained.
-It also adds tenant-qualified `Inventory.ItemCreationSnapshots`, captured once by the first edit
-in the same transaction. Creation retries compare these immutable original fields and return the
-current item. Runtime snapshot access is SELECT-only; direct writes are denied. Existing items
-need no backfill. Down migration is deliberately disabled to preserve creation evidence;
-an empty tenant-filtered view from the migrator is never treated as proof that deletion is safe.
-The new application requires the new schema marker and command permission before reporting ready.
-
-Apply this additive migration through the explicit migrator before releasing H4. Verify fresh
-creation and upgrade from the previous schema with retained items and photos. Keep previous
-migrations unchanged. Use a forward correction for recovery; an application rollback must account
-for schema-readiness compatibility. Existing paired SQL/blob backup and restore procedures remain
-authoritative; reverting binaries is not authorization to discard saved edits or collection data.
-A retained installation that applied an earlier development version needs a forward correction,
-not a rewritten history entry.
-
-## Item photograph release
-
-`20260907082353_AddItemPhotographs` follows the shipped collection notebook migration. It adds
-the nullable current-photo pointer, tenant-qualified photo and operation history tables, RLS,
-and `Inventory.SetItemPhoto`. Existing items retain all text and start without photographs.
-The procedure changes only the photo pointer under caller tenant isolation and an expected
-rowversion; ordinary runtime SQL remains denied direct UPDATE/DELETE on `Inventory.Items`.
-New photo/history grants are included in principal provisioning and readiness checks.
-
-Apply this one additive migration through the explicit migrator before releasing H2. The current
-application refuses readiness on the H1 schema. Migration history and the paired-backup manifest
-advance together. Upgrade verification includes H1 items with saved text, and fresh schema
-verification includes cross-tenant restrictions and the item-qualified current-photo FK.
-
-The down migration rejects destructive rollback. Preserve photos and operation history through a
-forward correction or the paired SQL/blob restore process. An old application's schema-readiness
-contract may refuse the new schema; reverting binaries alone is not an established rollback path.
-
-## Collection notebook release
-
-`20260907060000_AddCollectionNotebook` adds tenant-owned `Inventory.Items`, individual-object
-constraints, chronological browsing and creation-request uniqueness, row-level security, and
-restricted runtime access. It follows `20260907054000_AddProviderRetryDelay` without
-rewriting that or any earlier migration. The matching application requires the collection schema
-and effective SELECT/INSERT permissions before reporting ready; liveness remains independent.
-
-The notebook migration advances its readiness version marker and the backup manifest schema boundary.
-
-Apply it through the explicit migrator procedure below before releasing the H1 web application.
-The runtime can create and read individual objects; it cannot update or delete saved collection
-rows. Request UUID uniqueness prevents retry or concurrent submission from duplicating an item.
-Collection text remains in SQL and is included in ordinary database backups; H1 adds no blob data.
-
-Upgrade verification must include the immediate prior provider-retry schema with retained tenant
-and identity data, followed by a persisted collection create/read. The clean drill also creates
-the new table and validates its constraints and tenant isolation using restricted principals.
-
-The down migration deliberately refuses to delete collection records. Use a reviewed forward
-correction or the established offline [restore and sanitation procedure](database-backup-restore.md).
-Reverting application binaries is not permission to drop the table: preserve new records and
-verify the older release's schema/readiness compatibility before an application-only rollback.
-
-## Principal boundary
-
-| Principal | Intended use | Must not be available to |
-| --- | --- | --- |
-| Setup/database owner | One-time database initialization and principal provisioning | Web containers, agents doing routine development, scheduled jobs |
-| `workbench_migrator` | Applying and rolling back reviewed EF Core migrations | Web containers and application configuration |
-| `workbench_operator` | Bootstrap, additional-tenant provisioning, and restore sanitation | Web containers and ordinary tenant users |
-| `workbench_web` | Runtime queries and commands through the application | Migration or operator tooling |
-
-Store production principal secrets in the deployment platform's secret facility. Deliver the
-migrator secret only to a one-shot migration job, remove it when that job exits, and audit access to
-it. Do not put connection strings or password files in source control, container layers, logs,
-command history, agent prompts, or build artifacts. Rotate a principal immediately if its secret may
-have crossed one of those boundaries.
-
-The migrator necessarily has schema-change authority and can therefore alter controls enforced in
-SQL. Treat it as a deployment control-plane identity: no interactive application use, no standing
-mount in a web replica, short-lived delivery, separately authorized invocation, and credential
-rotation independent of the web principal.
-
-Tenant RLS also requires a distinct 32-byte proof key. Principal provisioning writes that key into
-an owner-only SQL table; the web and operator roles are explicitly denied direct access. The same
-value is delivered separately to the application workload, preferably as a read-only mounted secret
-file. A web connection string by itself therefore cannot select an arbitrary tenant through
-`SESSION_CONTEXT`. Keep the proof key separate from every database password, rotate both sides
-together under drained traffic, and never expose the raw value in container environment inspection.
-
-Development recovery-link generation is deliberately not granted to the operator role because it
-returns a raw credential-reset capability for an existing user. It requires the local one-time
-setup/database-owner connection, is never part of a production web or operator environment, and
-writes only to an explicitly named new file. Remove that file immediately after use.
-
-## Local one-time setup
-
-Follow the [canonical setup guide](../setup.md) for generated credentials, SQL containment,
-bootstrap, routine migrations, and existing-database precautions. The original identity baseline
-has shipped; never rewrite shipped migrations or retained database history. Unsupported development
-schemas require an explicit transition or a deliberately disposable replacement.
-
-For a non-development provisioning job, pass the Base64-encoded 32-byte value only through
-`--tenant-context-proof-key-file`. After provisioning, remove that temporary file. Configure web
-replicas with `WORKBENCH_TENANT_CONTEXT_PROOF_KEY_FILE` pointing to their read-only secret mount.
-
-The blob/provider phase adds one migration, `20260905222755_AddBlobAndOperationalProviders`, after
-the two established baseline migrations. Databases with pre-consolidation provider migration history
-are not supported upgrade baselines: use a fresh disposable database for verification, and preserve any retained data
-before planning an explicit transition. No database or migration-history rows are automatically reset.
-
-## Authoring and validating a migration
-
-The full `./scripts/verify.ps1` gate runs all migration drill tests once as part of the
-unfiltered Release server suite and retains per-test outcomes and timings in
-`artifacts/test-results/*.trx`. The standalone scenario commands below remain available
-for focused reruns and retain their console logs in `artifacts/migrations/`.
-
-The deployment phase adds `20260906031109_AddDeploymentQueueTelemetry` after the shipped provider
-schema. It adds aggregate worker telemetry and deployment readiness procedures with narrow execution
-grants; it does not rewrite the baseline or change tenant rows. The current release requires this
-migration before web readiness or worker activation. Upgrade verification includes the provider
-release as its base. Application rollback to that release is allowed only after verifying its
-readiness/schema compatibility; this migration's down path removes its additive procedures and
-restores the prior readiness version without deleting durable data.
-
-Keep migrations deterministic and reversible where SQL Server permits. Review generated SQL and
-permission changes, especially RLS predicates, grants, denials, migration history, security tables,
-and readiness procedures. Run all four drills against disposable real SQL Server databases:
-
-```powershell
-./scripts/verify-migrations.ps1 -Scenario Clean
-./scripts/verify-migrations.ps1 -Scenario Upgrade
-./scripts/verify-migrations.ps1 -Scenario ReversibleRollback
-./scripts/verify-migrations.ps1 -Scenario RestoreRollback
-./scripts/verify-database-permissions.ps1
-```
-
-The clean drill applies every migration to an empty database. For the initial database release,
-Upgrade starts from `InitialSchema`; after the baseline ships, it starts from the previous supported
-release. The historical `ReversibleRollback` scenario now verifies that blob metadata migrations
-refuse a destructive down-migration; retained revisions and queued work require offline recovery.
-Restore rollback
-validates the restored-schema path and mandatory security sanitation. Permission probes exercise the
-actual web, operator, and migrator roles.
+Database migrations are an explicit, human-controlled deployment operation. A web replica never
+migrates its database. Use the migrator identity defined in the authoritative
+[database-principal matrix](database-principals.md); keep setup and operator authority out of web configuration.
 
 ## Deployment procedure
 
-1. Identify the immutable application revision and its expected migration.
+1. Identify the immutable application revision and its expected migration in the matrix below.
 2. Confirm a current, restorable backup and the application's schema compatibility window.
 3. Stop or drain incompatible writers when the migration design requires it.
 4. Supply the migrator connection through an access-controlled temporary connection file.
@@ -233,44 +20,76 @@ actual web, operator, and migrator roles.
 7. Run database permission probes and confirm `/health/ready` succeeds with the web principal.
 8. Release only the application revision proven compatible with that schema.
 
-Application rollback is safe only within the documented schema compatibility window. If an older
-binary is incompatible, do not improvise a down migration against live data; follow the reviewed
-restore procedure instead.
+Application rollback is safe only within a verified schema compatibility window. An older binary
+may reject a newer readiness marker. Do not improvise a down migration against live data; use a
+reviewed forward correction or the [restore and sanitation procedure](database-backup-restore.md).
+Blob-bearing databases also require the [paired SQL/blob workflow](blob-and-service-providers.md#offline-reconciliation-paired-backup-and-restore).
+Development verification does not authorize production migration, rollback, or cutover.
 
-## Additional tenant provisioning
+## Local one-time setup
 
-Only an installation operator may create another tenant. Supply the operator connection and the new
-administrator password in separate access-controlled files:
+Follow the [canonical setup guide](../setup.md) for generated credentials, SQL containment,
+bootstrap, routine migrations, and existing-database precautions. See
+[principal provisioning and secret delivery](database-principals.md#provisioning-and-secret-delivery)
+for password/Entra identities and the tenant proof key.
+
+Never rewrite shipped migrations or retained database history. Databases with pre-consolidation
+provider migration history are not supported upgrade baselines: use a fresh disposable database for
+verification, and preserve retained data before planning an explicit transition. Unsupported
+schemas require an explicit transition or deliberately disposable replacement; no database or
+migration-history rows are automatically reset.
+
+## Authoring and validating a migration
+
+Keep migrations deterministic and reversible where SQL Server permits. Review generated SQL and
+permission changes, especially RLS predicates, grants, denials, migration history, security tables,
+and readiness procedures. Verify fresh creation and upgrade from the immediate supported predecessor
+with retained tenant/identity data and affected collection records, photos, pending/completed photo
+operations, and immutable replay evidence. Collection additions require no item backfill.
+
+Run all four drills against disposable real SQL Server databases:
 
 ```powershell
-Workbench.Database tenant create --connection-file <operator-path> --expected-database <name> `
-  --tenant-name <tenant-name> --admin-email <email> --password-file <password-path>
+./scripts/verify-migrations.ps1 -Scenario Clean
+./scripts/verify-migrations.ps1 -Scenario Upgrade
+./scripts/verify-migrations.ps1 -Scenario ReversibleRollback
+./scripts/verify-migrations.ps1 -Scenario RestoreRollback
+./scripts/verify-database-permissions.ps1
 ```
 
-The operator interface grants no general tenant-data browsing authority. Tenant administrators own
-user management inside their tenant after provisioning.
+The full `./scripts/verify.ps1` gate runs all migration drill tests once in the unfiltered Release
+server suite and retains outcomes/timings in `artifacts/test-results/*.trx`. Focused scenario reruns
+retain console logs in `artifacts/migrations/`. Clean applies every migration to an empty database.
+For the initial release, Upgrade starts at `InitialSchema`; later releases use the previous supported
+release. The historical ReversibleRollback scenario now verifies that blob metadata refuses
+destructive Down. RestoreRollback validates restored-schema recovery and mandatory sanitation.
+Permission probes exercise actual restricted principals; see the
+[principal reference](database-principals.md#source-and-verification).
 
-## Invitation identity claims
+## Migration compatibility matrix
 
-`20260906092000_DeferInvitationIdentityClaim` releases global login claims held by
-pending or cancelled credentialless users. Tenant user rows, roles, invitation tokens,
-and delivery work remain intact. Accepted accounts, including disabled accounts with
-passwords, retain their identities. Stop old web replicas before applying this migration:
-only the matching application version claims identity during invitation consumption.
-The application reports unready until its web principal can execute the required invitation
-claim procedure. Missing procedure or revoked/denied execution authority keeps readiness
-unhealthy while liveness remains available.
-Rollback is blocked because restoring pre-acceptance claims could collide with identities
-accepted since migration. Use a reviewed forward migration or the established offline
-restore and sanitation procedure.
+Rows are ordered by application. The predecessor column names the preceding row's full migration
+ID by its unique suffix; the first migration starts from an empty database. Each release must have
+its required schema and permissions before readiness succeeds; liveness remains independent.
+This inventory describes checked-in migration behavior, not permission to execute Down in production.
 
-## Provider retry scheduling
+| Migration ID | Predecessor | Compatibility and retained-data obligations | Down behavior |
+| --- | --- | --- | --- |
+| `20260904061204_InitialSchema` | Empty database | Initial tenant, identity, and security-audit tables; not a current runtime baseline. | Drops base tables; no destructive-data guard. |
+| `20260904061246_EstablishSecurityBoundaries` | `InitialSchema` | Shipped identity baseline: RLS, roles, identity/admin commands, proof key, readiness and restore state. | Removes security controls and state; no destructive-data guard. Not a supported live rollback. |
+| `20260905222755_AddBlobAndOperationalProviders` | `EstablishSecurityBoundaries` | Consolidated provider release; retains identity baseline and adds storage metadata, queue and restricted worker/maintenance roles. Paired SQL/blob recovery required. | Always blocked to preserve blob/operational metadata. |
+| `20260906031109_AddDeploymentQueueTelemetry` | `AddBlobAndOperationalProviders` | Adds aggregate worker telemetry and deployment readiness. Apply before matching web/worker activation. | Removes additive procedures and restores provider readiness marker without deleting durable data; verify old binary compatibility. |
+| `20260906092000_DeferInvitationIdentityClaim` | `AddDeploymentQueueTelemetry` | Stop old web replicas first. Releases pending/cancelled credentialless global login claims, retaining users, roles, tokens, delivery work and accepted password identities (including disabled accounts). Matching web requires invitation-claim EXECUTE. | Always blocked: restoring old claims could collide with identities accepted since migration. |
+| `20260907054000_AddProviderRetryDelay` | `DeferInvitationIdentityClaim` | Apply before matching web/worker release. Adds bounded delay to `Operations.RetryWork`; pending work, leases, five-attempt limit and terminal cleanup remain intact. | Always blocked; forward correction or verified restore. |
+| `20260907060000_AddCollectionNotebook` | `AddProviderRetryDelay` | Adds tenant-owned items, constraints/RLS and SELECT/INSERT; advances readiness and backup schema boundary. Existing tenant/identity data retained. | Always blocked to preserve collection records. |
+| `20260907082353_AddItemPhotographs` | `AddCollectionNotebook` | Adds current-photo pointer, photo/history tables and `SetItemPhoto`; items retain text and start without photos. Advances readiness, grants and paired-backup schema. | Always blocked to preserve photos and operation history. |
+| `20260907194500_AddItemDetailEditing` | `AddItemPhotographs` | Adds `UpdateItemDetails` and immutable first-edit creation snapshots; runtime snapshot access is SELECT-only. Requires new marker/EXECUTE; retain existing items/photos. | Always blocked to preserve edits and creation evidence; tenant-filtered emptiness cannot authorize deletion. |
+| `20260907224158_AddItemArchiving` | `AddItemDetailEditing` | Adds archive state/index and `ArchiveItem`; existing rows remain active. Detail/photo commands require active state; direct UPDATE/DELETE stays denied. Retains photos and replay evidence. | Always blocked to preserve archive state. |
+| `20260907225320_AddOnlineRecovery` | `AddItemArchiving` | Adds missing-file dispositions, recovery reports/acceptance and readiness; retain guarded sanitation and tenant isolation. | Always blocked; forward correction or isolated recovery. |
+| `20260908010000_AddItemRestoration` | `AddOnlineRecovery` | Adds `RestoreItem` EXECUTE and readiness marker without changing item table; retains identity, creation snapshots, photos, replay evidence and recovery state. | Supported one-step schema/binary rollback after draining restoration writers: removes only restore procedure and restores online-recovery marker. Does not reverse restored items; predecessor's own Down remains blocked. |
+| `20260909034719_AddAcquisitionContext` | `AddItemRestoration` | Current required schema: acquisition context, tenant-qualified links, immutable replay evidence and restricted create/update commands. Readiness, provisioning and backup markers advance. Retain active/archived items, photos and links. | Always blocked to preserve acquisition/replay evidence; forward correction or paired recovery. |
 
-`20260907054000_AddProviderRetryDelay` adds an optional bounded provider delay to
-`Operations.RetryWork` without rewriting shipped migrations or pending work. Apply it before
-starting the matching web and worker release. Web readiness remains unhealthy on the immediate
-prior invitation schema until the new retry capability is available.
-
-Graph `Retry-After` cannot shorten exponential backoff and is capped at one hour. Scheduling
-remains in SQL, with the existing five-attempt limit, lease fencing, and terminal payload cleanup.
-Down migration is blocked; use a reviewed forward correction or the offline restore procedure.
+Product behavior, user-visible concurrency/retry rules and the shipped feature inventory belong in
+[collection documentation](../collection.md). Provider retry/backoff behavior belongs in
+[identity delivery and worker operations](blob-and-service-providers.md#identity-delivery-and-worker).
+The [migration source](../../src/Workbench.Server/Persistence/Migrations) is authoritative for SQL.

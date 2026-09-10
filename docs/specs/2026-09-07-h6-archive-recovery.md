@@ -218,6 +218,14 @@ SQL. Generated MP4s remain untracked. Local automated verification does not esta
 usability, production deployment, hosted backup acceptance, public CA issuance, or SMTP delivery.
 
 
+### Walkthrough media
+
+The final-source capture passed on 2026-09-07. The 82-second narrated MP4 rendered and decoded
+successfully with FFmpeg 7.1; desktop/mobile frames and caption placement were inspected, and the narration track
+was checked for non-silent, unclipped output. These historical results accompany delivery revision
+`0071fa0329369e66f0c878b43f1cda1b57884edc`.
+
+
 ### Integration with the online-recovery base
 
 Integration evidence at `13e05c7` uses predecessor schema `20260907225320_AddOnlineRecovery`. The H6

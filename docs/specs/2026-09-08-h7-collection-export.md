@@ -76,28 +76,13 @@ decision. Ordinary read-committed paging is rejected because it cannot provide t
 
 ## CSV version 1
 
-UTF-8 with BOM, comma delimiter, CRLF record separators, one header, no preamble or `sep=` line.
-Quote every field with double quotes and double embedded quotes. Preserve embedded newlines and
-Unicode. Fixed columns, in order:
+The authoritative [CSV format contract](../collection-export.md#format-version-1) owns the dialect,
+ordered columns, nulls and timestamp representation. Its [spreadsheet safety and literal-text
+decoding rules](../collection-export.md#spreadsheet-safety-and-recovering-literal-text) define the
+reversible encoding and consumer guidance. Export metadata repeats per row so separated records
+remain interpretable; archival state and timestamp come from the same captured row. No updated
+timestamp is invented. The safety transformation must also be explained beside the download.
 
-`schema_version,exported_at_utc,scope,item_id,tracking_kind,name,notes,location,is_archived,created_at_utc,archived_at_utc`
-
-Use schema version `1`, scope `active` or `all`, canonical hyphenated UUIDs, existing tracking-kind
-values, lowercase `true`/`false`, and UTC ISO 8601 timestamps with seven fractional digits and `Z`.
-Repeat export metadata per row so a record remains interpretable when separated from the file.
-An empty nullable field means absent; current item normalization does not retain empty optional text.
-Archival state and timestamp come from the same row. Do not invent an updated timestamp.
-
-For all present user-entered name, notes, and location values, prefix exactly one ASCII apostrophe
-before CSV quoting, including values already beginning with an apostrophe. This deliberately changes
-the serialized text to prevent formula-leading characters from appearing at the beginning of these
-cells. Consumers recover the original value by removing exactly one prefix apostrophe after CSV
-parsing; null optional values remain empty. Document this transformation beside the download and
-in the CSV contract. IDs and system metadata use constrained server formats and no such prefix.
-
-Quoting alone is not formula protection. Do not promise identical automatic interpretation by all
-spreadsheet software: an apostrophe may remain visible, and re-saving or removing the prefix can
-remove protection. Recommend importing columns as Text for exact IDs, timestamps, and user text.
 Test commas, quotes, CR/LF, Unicode, leading whitespace/control characters, `=`, `+`, `-`, `@`,
 and existing apostrophes, including parse-and-decode equality. Version any later contract change.
 
@@ -124,3 +109,6 @@ Follow [CONTRIBUTING](../../CONTRIBUTING.md) for verification gates and the
 
 Automated evidence does not establish collector usability. No migrations are planned; if a schema
 change becomes necessary, revisit this design and follow fresh/upgrade and consolidation gates.
+
+See the [H7 verification record](../demos/h7/verification.md) for dated implementation evidence and
+coverage limits, and the [walkthrough](../demos/h7/README.md) for its scenario.

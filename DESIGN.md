@@ -363,7 +363,7 @@ library, or separate font installation is needed to reproduce this reference.
 - [Sign-in component](src/Workbench.Client/src/features/auth/SignIn.tsx): brand, copy,
   form semantics, pending/error feedback, and recovery link.
 - [Application shell](src/Workbench.Client/src/App.tsx): signed-out composition.
-- [Accepted sign-in specification](docs/specs/2026-09-08-tanzanite-sign-in.md): approval
+- [Accepted sign-in specification](docs/specs/2026-09-08-tanzanite-visual-language.md#first-acceptance-sign-in): approval
   scope and implementation requirements.
 - [Design principles](docs/DESIGN-PRINCIPLES.md): broader product and engineering guidance.
 
@@ -404,7 +404,7 @@ or use colored fills to imply inventory state. Reduced transparency falls back t
 chrome; reduced motion disables active translations. Forced colors retains native control
 boundaries and an explicit active navigation outline.
 
-See the [application extension specification](docs/specs/2026-09-08-tanzanite-app.md).
+See the [application extension specification](docs/specs/2026-09-08-tanzanite-visual-language.md#subsequent-acceptance-application-extension).
 
 ## Authenticated navigation
 

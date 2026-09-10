@@ -1,10 +1,8 @@
 # First hobbyist scenario: remember and find my collection
 
-**Status:** Partially delivered. H1 was merged in [PR #37](https://github.com/mcunille/Workbench/pull/37)
-on 2026-09-07. H2 is implemented according to its accepted [design](2026-09-07-h2-item-photographs.md)
-with browser-side preparation. H3 is implemented according to its accepted
-[search design](2026-09-07-h3-collection-search.md).
-H4 follows its accepted [editing design](2026-09-07-h4-item-editing.md).
+**Status:** Scenario requirements and historical delivery context. H1 merged in
+[PR #37](https://github.com/mcunille/Workbench/pull/37) on 2026-09-07.
+The [collection guide](../collection.md) owns current behavior; the issue below owns delivery status.
 This is not a committed sprint forecast.
 
 **Delivery tracking:** [Scenario issue #43](https://github.com/mcunille/Workbench/issues/43).
@@ -24,19 +22,13 @@ Hobbyist-first follows the [product vision](../VISION.md) and
 durable records and room to grow; do not require accounting, a business profile, or a permanent
 “hobbyist mode.” Professionals should eventually extend the same records and workflows.
 
-H1 now provides a durable collection notebook: create an individual item with a name, optional
-notes and storage location, browse it in the responsive gallery or compact List view, and reopen
-its details after reload or another authenticated session. Saves are duplicate-safe and unsaved
-work is protected. H2 extends these saved records with one photograph, replacement and removal;
-H3 adds literal search across the entire collection with navigation-state restoration;
-H4 adds descriptive editing with checked versions and recoverable conflict drafts.
-
-Apply the accepted [UI guidance](2026-09-06-ui-design-guidance.md) and
-[implemented refinement](../design/h1-refinement/README.md): original stag branding, bronze accents,
-warm neutral and charcoal surfaces, responsive cards with Grid/List switching, selective header
-translucency, opaque reading surfaces and accessibility fallbacks. System/Light/Dark appearance
-must preserve task state. Extend these views rather than reverting to the earlier list-only proposal.
-The older [mockup](../design/README.md) does not authorize its additional filters or financial widgets.
+Use the [collection guide](../collection.md) for current capabilities and the accepted
+[UI guidance](2026-09-06-ui-design-guidance.md) for accessibility and progressive capability.
+[DESIGN.md](../../DESIGN.md) owns current visual values; the
+[H1 refinement](../design/h1-refinement/README.md) preserves the original design context.
+System/Light/Dark appearance must preserve task state. Extend the responsive Grid/List views rather
+than reverting to the earlier list-only proposal. The older [mockup](../design/README.md) does not
+authorize its additional filters or financial widgets.
 
 A tenant and authorized account must already be available through existing setup or invitation
 flows. Public registration, tenant provisioning and production deployment are separate scenarios.

@@ -141,3 +141,13 @@ System/Light/Dark persistence, draft preservation during theme changes, and requ
 Extend the narrated Playwright walkthrough with edit, cancel, failure/retry, and two-session conflict.
 Follow [CONTRIBUTING](../../CONTRIBUTING.md) for verification gates and the
 [development workflow](../development-workflow.md) for implementation and delivery.
+
+## Verification record
+
+Historical evidence from revision `e176204` on 2026-09-07; not current verification.
+The approximately 76-second recording decoded, with desktop, mobile retry, conflict comparison
+and reconciliation frames inspected. Four manual mutants were detected: SQL version predicate,
+client checked token, stale reconciliation initialization and late cache invalidation. No automated
+mutation score was claimed. The scenario used synthetic data and disposable infrastructure with
+authentication off camera. These checks do not establish collector usability or production acceptance.
+See the [demonstration index](../demos/README.md#historical-h1h5-recordings) for media retirement.

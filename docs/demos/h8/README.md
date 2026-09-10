@@ -8,18 +8,8 @@ explicit no-photo record, archived inclusion, navigation and theme retention, an
 failure and safe retry. The final view displays the actual downloaded manifest and image bytes.
 Authentication occurs off camera. Automated checks do not establish collector usability.
 
-Generate from current source:
-
-```powershell
-npm run build --prefix src/Workbench.Client
-npm test --prefix tests/Workbench.BrowserTests -- --config package-walkthrough.config.ts
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File ./scripts/render-h8-walkthrough.ps1 -Ffmpeg 'C:/Tools/ffmpeg.exe'
-```
-
-The renderer uses Windows PowerShell System.Speech with Microsoft Zira Desktop and a local FFmpeg
-installation. Adjust the example FFmpeg path. Capture, actual ZIP downloads and the narrated MP4
-remain under ignored `artifacts/h8/walkthrough/`; the renderer writes this directory's transcript and
-captions and verifies MP4 decoding. Keep generated videos out of Git and share them externally.
+For capture commands, rendering prerequisites and media policy, use the
+[walkthrough index](../README.md#capture-and-rendering-prerequisites).
 
 The separate `package.spec.ts` regressions independently parse ZIP entries and validate CSV/manifest
 mapping, photo length/digest and exact stored detail bytes. They exercise both scopes, photo absence,

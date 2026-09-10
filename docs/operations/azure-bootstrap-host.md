@@ -184,6 +184,38 @@ Do not print `az keyvault secret show` output. On a retry remove only the exact 
 files after inspection; never regenerate the original proof to fix a permission problem. SMTP users
 must prepare `smtp-password` as an additional protected input; Graph users must omit it.
 
+## Initial SQL authority and runtime grants
+
+Use the [database principal matrix](database-principals.md) for the complete role contract.
+The initial SQL commands above require a protected setup connection authenticated as the SQL Entra
+administrator and a different operator connection mapped to `workbench_operator`. Both target
+`Workbench`, require encryption/certificate validation and an authentication method available on
+that host. Copying a job connection file onto a laptop does not impersonate its managed identity.
+Keep connection files, tenant proof and administrator password in protected storage.
+Provisioning requires migrated tables/roles; it creates neither schema nor administrator account.
+Bootstrap is one-time. Later migration-job success cannot substitute for this initial setup.
+Verify administrator login through the runtime identity without granting it SQL setup authority.
+
+For step 4, set these nonsecret variables from recorded resource outputs. Preview and approve the
+account/secret-scoped grants, then create the same deployment. Keep `grantAccess=true` in the main
+installation file even though this command applies only the access module:
+
+```powershell
+az deployment group what-if -g $group --template-file infra/azure/modules/access.bicep `
+    --parameters storageName=$storageName vaultName=$vaultName webPrincipalId=$webPrincipalId `
+    workerPrincipalId=$workerPrincipalId migrationPrincipalId=$migrationPrincipalId deliveryProvider=$deliveryProvider
+if ($LASTEXITCODE -ne 0) { throw 'Access preview failed.' }
+# After approval of this exact preview:
+az deployment group create -g $group -n "${prefix}-access" --template-file infra/azure/modules/access.bicep `
+    --parameters storageName=$storageName vaultName=$vaultName webPrincipalId=$webPrincipalId `
+    workerPrincipalId=$workerPrincipalId migrationPrincipalId=$migrationPrincipalId deliveryProvider=$deliveryProvider `
+    --output none
+if ($LASTEXITCODE -ne 0) { throw 'Access deployment failed.' }
+```
+
+This first-install command uses the empty retained-certificate default. During later certificate
+rotation include the reviewed `previousCertificates` array through a parameter file instead.
+
 ## Independent recovery copy
 
 Before deleting this host, preserve the proof, PFX, its password, installation metadata and initial

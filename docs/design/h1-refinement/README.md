@@ -2,7 +2,7 @@
 
 These boards document the 2026-09-07 studio refinement. They are composition inputs,
 not current UI requirements. Use [DESIGN.md](../../../DESIGN.md) and the
-[application design specification](../../specs/2026-09-08-tanzanite-app.md) for current styling;
+[application design specification](../../specs/2026-09-08-tanzanite-visual-language.md#subsequent-acceptance-application-extension) for current styling;
 H1 behavior remains defined by the [first hobbyist scenario](../../specs/2026-09-06-first-hobbyist-scenario.md).
 
 - [Collection concept](collection-concept.png): original collection composition.

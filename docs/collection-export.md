@@ -80,3 +80,26 @@ then use the captured immutable revisions with digest and length verification. C
 or removal does not change a successful package's snapshot; existing seven-day retention protects
 those captured bytes during the two-minute preparation. No database locks span the provider reads.
 ZIP remains a collection copy, not an application backup or an import/restore facility.
+
+### Package manifest version 1
+
+ZIP entry names are fixed ASCII names or generated `photos/<item_id>.webp` paths using canonical
+hyphenated UUIDs; user names never become paths. `README.txt` identifies package version, scope and
+snapshot timestamp and explains extraction, CSV decoding, photo matching and backup exclusions.
+
+`manifest.json` is UTF-8 JSON with these fields:
+
+| Field | Meaning |
+| --- | --- |
+| `package_version` | Integer `1`. |
+| `scope` | `active` or `all`, matching CSV. |
+| `exported_at_utc` | The same UTC snapshot timestamp as CSV. |
+| `record_count` | Number of items in the snapshot. |
+| `photo_count` | Number with an included detail photograph. |
+| `items` | One entry per record with `item_id`, literal `name`, nullable `location`, and `photo`. |
+| `photo.status` | `none` if absent in the snapshot, otherwise `included`. |
+| Included photo fields | `path`, `media_type` (`image/webp`), `byte_length`, and `sha256` (64 hexadecimal characters). These fields are absent for `none`. |
+
+Manifest text needs no CSV apostrophe decoding. The package omits acquisition context, histories,
+replay payloads, credentials and sessions. The format owner is this guide; dated H7/H8 specs retain
+the snapshot, privacy, bounds and alternatives reasoning.

@@ -26,4 +26,6 @@ Photos, search, and editing also remain outside this slice.
 
 ## Verification
 
+Historical implementation revision: `159b71f` (2026-09-07).
+
 The recorded scenario passed against disposable SQL. Representative creation, retry, and mobile frames were visually inspected, and the completed video and audio were decoded successfully.

@@ -41,3 +41,10 @@ container probes used ephemeral ports 55531 and 64631 respectively. Those dispos
 were stopped by their verification scripts. See the [walkthrough instructions](README.md) for
 local media generation. MP4s remain untracked. Automated evidence does not establish collector
 usability, universal spreadsheet import behavior, public-CA issuance, SMTP delivery, or hosted drills.
+
+## Walkthrough media
+
+The capture passed on 2026-09-08. The 97-second narrated MP4 rendered and decoded with FFmpeg
+9.0.1; desktop and mobile frames and caption placement were inspected. Audio analysis measured
+-21.2 dB mean and -2.4 dB peak, confirming non-silent output without clipping. The four focused
+export browser regressions also passed against the real API and disposable SQL.

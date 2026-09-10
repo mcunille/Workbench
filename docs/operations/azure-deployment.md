@@ -1,21 +1,25 @@
 # Azure deployment operations
 
-**Deployment status (2026-09-08 UTC):** The first Azure installation is publicly serving the
-security-reviewed release. See the [launch evidence](deployment-verification.md#azure-public-launch-2026-09-08-utc)
-for the verified configuration and remaining acceptance limits. Use the
-[release and public-access procedure](azure-release.md) for subsequent releases and cleanup.
-The [production operations audit](production-readiness.md) retains the historical gaps and current
-follow-up boundaries; a successful launch does not establish every portability or scale-out check.
+Use this ordered entry point for Azure installation and operation. The
+[accepted design](../specs/2026-09-05-azure-deployment.md) defines the target and
+[infra/azure](../../infra/azure/main.bicep) implements configuration. The
+[current acceptance matrix](production-readiness.md) owns recorded completion, deferrals and limits;
+[dated evidence](deployment-verification.md) does not establish that later revisions are deployed.
+Provisioning, DNS, public ingress, deployment, traffic changes and cleanup each retain their
+separate operator-authorization boundaries.
 
-The [accepted deployment design](../specs/2026-09-05-azure-deployment.md) establishes the target;
-the templates in [infra/azure](../../infra/azure/main.bicep) implement the resource configuration.
-Compilation and parameter checks are local evidence only. Hosted identity, TLS, sign-in, worker mail,
-alert delivery, and scoped recovery now have recorded evidence. The
-[acceptance follow-up](deployment-verification.md#azure-acceptance-follow-up-2026-09-09-utc) records
-scale-out, rollback, scheduled backup ingestion and the operator-accepted single cold-start sample.
-Additional samples and cost comparison are explicitly deferred for this installation. Provisioning, DNS,
-deployment and traffic changes require separate
-operator authorization; none of the commands below should be run against a retained environment as a test.
+| Order | Entry/gate | Command owner |
+| --- | --- | --- |
+| 1 | Select nonsecret installation inputs, reviewed immutable image and inactive foundation; validate before deployment. | [Inputs/offline checks](#inputs-and-offline-checks), [staged bootstrap](#staged-bootstrap) |
+| 2 | Prepare private host/identities, generate protected files, initialize SQL and grant scoped runtime access. | [Bootstrap host](azure-bootstrap-host.md), [principal contract](database-principals.md) |
+| 3 | Configure selected delivery provider before delivery gates; preserve retained-secret revocation checks on a switch. | [Graph setup](azure-graph-bootstrap.md); SMTP inputs below |
+| 4 | Select trust/TLS boundary, configure migration and activate without public publication; prove runtime access and mail. | [Trust acceptance](#trust-tls-and-readiness-acceptance), [restricted-public fallback](azure-bootstrap-validation.md) when private canonical routing is unavailable |
+| 5 | Establish selected backup path and audit/deletion protections. Native backup, optional custom collection and strict offline restore remain distinct. | [Native backup](azure-native-backup.md), [security controls](azure-security-controls.md), [recovery choices](#paired-checkpoint-and-isolated-azure-restore) |
+| 6 | Approve public exposure only after candidate gates; pin traffic, validate HTTPS and record hosted evidence. | [Release/public access](azure-release.md), [ingress policy](azure-ingress.md), [browser protections](browser-security.md) |
+| 7 | Remove approved temporary resources after independent recovery verification; use staged release/rollback for later versions. | [Release/cleanup](azure-release.md), [monitoring and costs](#monitoring-costs-and-hosted-evidence) |
+
+The detailed gates below preserve ordering and configuration constraints; specialist runbooks own
+commands for their stages. A static runbook review is not a fresh deployment or hosted acceptance.
 
 ## Inputs and offline checks
 
@@ -86,12 +90,12 @@ procedure does not claim a fresh deployment has been executed.
    and retain encrypted certificate/proof recovery copies outside the vault's failure domain.
 3. Bootstrap schema using the explicit database CLI and setup authority from the private operator
    host. Provision Entra users with the exact principal and client IDs, plus separately selected
-   operator and maintenance identities. Use a protected setup connection file and the CLI below.
+   operator and maintenance identities. Use the protected setup connection and [initialization commands](azure-bootstrap-host.md#generate-files-and-initialize-sql).
    Never grant runtime users `db_owner`, schema authority or another workload's role. Runtime
    identities cannot grant their own permissions. The one-time setup group is the SQL Entra admin;
    remove unnecessary membership after bootstrap. Preserve a controlled break-glass procedure.
 4. Set `grantAccess=true`, retaining `activate=false`. While the temporary host subnet exists,
-   deploy only `infra/azure/modules/access.bicep` using the scoped command below; do not run main
+   deploy only `infra/azure/modules/access.bicep` using the [scoped grants procedure](azure-bootstrap-host.md#initial-sql-authority-and-runtime-grants); do not run main
    or bootstrap again. After temporary subnets are removed, main can preserve the same grants.
    The access module grants
    web/worker Blob Data Contributor only on the installation container and Key Vault Secrets User
@@ -119,58 +123,14 @@ procedure does not claim a fresh deployment has been executed.
    somehow run against an inaccessible public endpoint. Public recovery remains disabled until
    controlled end-to-end email delivery succeeds.
 
-As part of step 3, the initial SQL sequence below runs on the protected administrative host using the database tool
-from the reviewed release. Obtain a setup connection authenticated as the SQL Entra administrator
-and a **different** operator connection authenticated as the identity mapped to `workbench_operator`.
-Both connection files target `Workbench`, require encryption and certificate validation, and must use
-an authentication method available on that host. A system-managed-identity connection works only
-where that actual identity is available; copying a job's connection file onto a laptop does not
-impersonate the job. Keep connection files, proof and administrator password in protected storage.
+The [bootstrap-host procedure](azure-bootstrap-host.md#generate-files-and-initialize-sql) owns
+initial schema/provisioning/bootstrap commands in execution order. Its
+[authority and scoped grants section](azure-bootstrap-host.md#initial-sql-authority-and-runtime-grants)
+owns setup/operator authentication requirements and the access-module preview/apply commands.
+Use the [complete principal matrix](database-principals.md) for role responsibilities and restrictions.
 
-Run these three commands in order and stop at any nonzero exit:
-
-```powershell
-dotnet Workbench.Database.dll migrate --connection-file <setup-connection-file> `
-  --expected-database Workbench
-if ($LASTEXITCODE -ne 0) { throw 'Initial migration failed.' }
-dotnet Workbench.Database.dll principals provision-entra --connection-file <setup-connection-file> `
-  --expected-database Workbench --identity-file <identity-mappings.json> `
-  --tenant-context-proof-key-file <proof-key-file>
-if ($LASTEXITCODE -ne 0) { throw 'Entra principal provisioning failed.' }
-dotnet Workbench.Database.dll bootstrap --connection-file <operator-connection-file> `
-  --expected-database Workbench --tenant-name <tenant-name> --admin-email <administrator-email> `
-  --password-file <administrator-password-file>
-if ($LASTEXITCODE -ne 0) { throw 'Initial tenant/administrator bootstrap failed.' }
-```
-
-The provisioning command requires the migrated tables and roles; it does not create the schema or
-administrator account. Bootstrap is one-time. The later migration-job run proves the job identity's
-authority and cannot substitute for this initial setup. Verify the administrator can log in through
-the runtime web identity during private acceptance; do not make SQL setup authority available to it.
-
-For step 4, set these nonsecret variables from recorded resource outputs. Preview and approve the
-account/secret-scoped grants, then create the same deployment. Keep `grantAccess=true` in the main
-installation file even though this command applies only the access module:
-
-```powershell
-az deployment group what-if -g $group --template-file infra/azure/modules/access.bicep `
-    --parameters storageName=$storageName vaultName=$vaultName webPrincipalId=$webPrincipalId `
-    workerPrincipalId=$workerPrincipalId migrationPrincipalId=$migrationPrincipalId deliveryProvider=$deliveryProvider
-if ($LASTEXITCODE -ne 0) { throw 'Access preview failed.' }
-# After approval of this exact preview:
-az deployment group create -g $group -n "${prefix}-access" --template-file infra/azure/modules/access.bicep `
-    --parameters storageName=$storageName vaultName=$vaultName webPrincipalId=$webPrincipalId `
-    workerPrincipalId=$workerPrincipalId migrationPrincipalId=$migrationPrincipalId deliveryProvider=$deliveryProvider `
-    --output none
-if ($LASTEXITCODE -ne 0) { throw 'Access deployment failed.' }
-```
-
-This first-install command uses the empty retained-certificate default. During later certificate
-rotation include the reviewed `previousCertificates` array through a parameter file instead.
-
-The identity file is `{ "version": 1, "identities": [...] }`, with five entries containing
-`role`, `name`, `principalId`, and `clientId`, for `workbench_web`, `workbench_worker`,
-`workbench_migrator`, `workbench_operator`, and `workbench_storage_maintenance`.
+The identity file is `{ "version": 1, "identities": [...] }`; supply `role`, `name`,
+`principalId` and `clientId` for every identity in the [principal matrix](database-principals.md).
 Obtain both IDs from the actual managed identity. SQL external-user SIDs use **clientId**;
 Azure RBAC and Exchange service-principal registration use **principalId**. Offline provisioning
 cannot verify that the two IDs belong to the same Entra identity. Legacy objectId-only files
@@ -245,30 +205,12 @@ disable certificate validation to make the test pass.
 
 ## Release and rollback
 
-Follow the executable [release checklist](azure-release.md), including comparison of the full
-deployed-to-candidate commit range. A security-only PR can still produce an image containing an
-intervening migration; inspecting only that PR is insufficient.
-
-Before an upgrade, record the current serving revision names, digest, schema version and paired
-checkpoint. Disable scheduled worker execution and drain active jobs when the schema compatibility
-window requires it. Supply `releaseTraffic` with explicit **existing** revision names and weights
-totaling 100 before updating the image; never send production traffic implicitly to `latestRevision`.
-The candidate shares the image digest with manual worker/migration jobs. Keep production allocation
-pinned while starting migration, inspecting successful completion, checking schema and running
-candidate authenticated smoke tests. In multiple-revision mode, use a private revision route or a
-temporary operator-controlled test binding; prove its host/TLS configuration before testing.
-
-Only after approval, replace the pinned allocation with the verified revision name, then enable the
-worker schedule. Public rollout commands are intentionally not embedded in a CI script. On failure,
-leave traffic on a compatible old revision. Roll back an image only when it supports the installed
-schema; otherwise stop traffic and execute the reviewed recovery procedure. Never automate down-
-migrations. A single job replica prevents neither overlapping executions nor concurrent external
-CLI invocations: the database migration lock and lease fencing remain authoritative.
-
-Worker jobs use `--worker --drain`, 100 items, a 45-second drain budget, a 90-second platform timeout,
-one replica and one retry. Validate retry/overlap outcomes and queue age separately from process exit.
-The migration job is manual, has no retries and a 30-minute timeout, and receives no SMTP/blob/proof
-secrets. Measure actual shutdown against the 60-second web grace period.
+The [release runbook](azure-release.md) owns the complete deployed-to-candidate comparison,
+checkpoint/compatibility preconditions, job/revision commands, pinned candidate staging, authenticated
+checks, promotion, rollback and cleanup. Keep traffic on the recorded compatible revision until
+candidate checks pass and the operator separately authorizes promotion. Never automatically
+perform down-migrations. Its [job acceptance requirements](azure-release.md#job-runtime-acceptance)
+include overlap, queue outcomes and shutdown limits; process exit alone is insufficient.
 
 ## Paired checkpoint and isolated Azure restore
 
@@ -401,62 +343,16 @@ those choices rather than treating a missing distribution or deferred cost works
 
 ## Microsoft 365 Graph delivery
 
-Set `deliveryProvider=Graph`, `graphMailboxId` to the no-reply mailbox object UUID,
-`graphManagedIdentityClientId` to the dedicated mail identity client UUID, and `mailIdentityId`
-to its Azure resource ID. SMTP input fields may be empty. The templates attach this identity only
-to the worker; web receives configuration for enqueue validation and migration receives neither.
-Self-hosted and Azure SMTP configurations continue to use `deliveryProvider=Smtp`.
-Follow the [executable Exchange setup sequence](azure-graph-bootstrap.md) before the delivery gates below.
-
-When changing an existing Azure SMTP installation to Graph, stop web revisions and scheduled
-workers first. Incremental deployments do not delete old role assignments omitted by a template.
-List role assignments at the `smtp-password` secret scope, identify the exact assignments for
-the web and worker principal IDs, and explicitly remove those two assignments by their resource
-IDs as part of the reviewed provider switch. Do not delete the secret or unrelated assignments.
-Read back both principals' effective assignments, including inherited vault/resource-group grants,
-and verify neither can read `smtp-password` before resuming. If broader inherited authority grants
-access, narrow it through a separately reviewed permissions change. Verify the deployed web/worker
-have no SMTP secret reference or mount and only the worker carries the mail identity. Merely
-redeploying with `deliveryProvider=Graph` does not prove old SMTP access was revoked.
-
-Create an Exchange application RBAC `Application Mail.Send` assignment restricted to the
-single no-reply shared mailbox. Verify `Test-ServicePrincipalAuthorization` returns InScope=True
-for that mailbox and False for a personal mailbox. Inspect the mail principal's Entra
-`appRoleAssignments` and remove separately authorized broad grants through a reviewed operation;
-Exchange scope does not constrain independent Entra grants. From the actual mail identity, verify
-Graph accepts the intended sender, the message is received, personal-mailbox sending returns
-403/ErrorAccessDenied, and replies trigger the configured incoming rejection rule. Do not grant
-mailbox-read permission for health checks. A bootstrap VM test is supporting evidence only: repeat
-with Workbench's released worker and durable queue before public recovery/invitations are enabled.
-Graph 202 means accepted, not delivered. Queue retries are bounded; an ambiguous timeout can produce
-a duplicate email, so operators must not blindly replay uncertain requests.
+The [Graph runbook](azure-graph-bootstrap.md) owns provider parameters, Exchange/mail-identity
+setup, removal/readback of retained SMTP grants when switching providers, and bounded delivery
+tests. Complete it before activation/delivery acceptance. Only the worker carries the mail identity;
+web queues messages. Require receipt from the released durable worker and denial of other senders;
+a bootstrap-host send or Graph 202 alone is insufficient. SMTP remains a supported separate path.
 
 ## Temporary administrative host cleanup
 
-Before a main-template redeployment, remove temporary subnet dependencies: the template declares
-only `apps` and `endpoints`. The bootstrap script refuses other retained subnets. A scoped access
-module or migration-job-only configuration update can be used while the administrative subnet exists;
-do not redeploy foundation during that period.
-
-Verify an encrypted recovery bundle can actually be decrypted locally, including initial credentials,
-tenant proof, the certificate private key and password, plus retained configuration/installation ID.
-A Windows DPAPI transfer key depends on that Windows account: arrange a separately protected,
-recoverable backup outside the VM/vault failure domain before calling disaster recovery complete.
-When generating PKCS#12 with OpenSSL, use separate input/output passphrase files; referencing one
-single-line file twice can fail because OpenSSL expects two lines. Keep secrets out of arguments,
-Run Command output and shell tracing. Normalize generated Linux scripts to LF and check explicit
-guest success markers: Azure Run Command completion is not proof of a successful guest command.
-
-After all private-host work is complete, remove the temporary VM principal's SQL administrator-group
-membership, registry pull role, vault secret-officer role and other temporary assignments. Detach
-retained operator/mail identities, remove any temporary direct Exchange Organization Management
-membership added for troubleshooting (preserve original administrator access), and remove the VM,
-its NIC and OS disk. Detach the NAT gateway and NSG from the temporary subnet, delete that subnet,
-then delete the temporary NAT gateway, public IP and NSG/resource group after checking its inventory.
-Verify each deletion; deallocating a VM alone leaves NAT, IP and disk charges. Keep retained production
-identities and recovery secrets. Retire local transfer keys only after an independently recoverable
-replacement has been verified. No cleanup command is implicitly authorized to delete production data.
-
-The queue-age and missing-worker-status alerts evaluate every five minutes; worker execution remains
-once per minute. Readiness and other alert frequencies are unchanged. Validate alert query execution
-and delivery on hosted data before closing production monitoring acceptance.
+After host-dependent work and independent recovery-key verification, follow
+[temporary host cleanup](azure-release.md#temporary-administrative-host-cleanup) in the release
+runbook. Remove temporary subnet dependencies before redeploying main; scoped grants/workload
+updates remain the route while that subnet exists. Cleanup requires approval of exact resources
+and verified readback; preserve retained identities, production resources and recovery keys.
