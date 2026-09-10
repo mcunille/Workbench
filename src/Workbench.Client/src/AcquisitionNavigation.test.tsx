@@ -9,15 +9,17 @@ it('preserves collection traversal through shared navigation and discards a guar
   HTMLDialogElement.prototype.showModal = function () { this.setAttribute('open', ''); };
   const origin = { id: 'stone', name: 'Blue sapphire', location: null, notes: null, photo: null, version: 'i1', createdAtUtc: '2026-01-01T00:00:00Z', archivedAtUtc: null };
   const sibling = { ...origin, id: 'sibling', name: 'Green sapphire' };
+  let archivedSibling = false;
+  const currentSibling = () => ({ ...sibling, archivedAtUtc: archivedSibling ? '2026-01-02T00:00:00Z' : null });
   const acquisition = { id: 'fair', method: 'Purchase', source: 'Autumn fair', year: 2025, month: null, day: null, notes: null, version: 'a1' };
   server.use(
     http.get('*/api/system', () => HttpResponse.json({ name: 'Workbench', version: '1' })),
     http.get('*/api/auth/me', () => HttpResponse.json({ userId: 'person', tenantName: 'Studio', email: 'person@example.test', permissions: ['TenantAccess'] })),
     http.get('*/api/items', () => HttpResponse.json({ items: [origin, sibling], nextCursor: 'next-page' })),
-    http.get('*/api/items/:id', ({ params }) => HttpResponse.json(params.id === 'sibling' ? sibling : origin)),
+    http.get('*/api/items/:id', ({ params }) => HttpResponse.json(params.id === 'sibling' ? currentSibling() : origin)),
     http.get('*/api/items/:id/acquisition', () => HttpResponse.json({ acquisition, itemVersion: 'i1' })),
     http.get('*/api/acquisitions/fair', () => HttpResponse.json(acquisition)),
-    http.get('*/api/acquisitions/fair/items', () => HttpResponse.json({ items: [origin, sibling], nextCursor: null })),
+    http.get('*/api/acquisitions/fair/items', () => HttpResponse.json({ items: [origin, currentSibling()], nextCursor: null })),
     http.get('*/api/acquisitions', () => HttpResponse.json({ items: [acquisition], nextCursor: null })),
   );
   const scroll = vi.spyOn(window, 'scrollTo').mockImplementation(() => {});
@@ -52,5 +54,16 @@ it('preserves collection traversal through shared navigation and discards a guar
   expect(screen.getByRole('button', { name: 'Load more' })).toBeVisible();
   await waitFor(() => expect(screen.getByRole('link', { name: /Blue sapphire/ })).toHaveFocus());
   expect(scroll).toHaveBeenCalled();
+  // WHEN the same active traversal visits an archived sibling THEN its read-only acquisition view still returns to the original collection.
+  archivedSibling = true;
+  fireEvent.click(screen.getByRole('link', { name: /Blue sapphire/ }));
+  fireEvent.click(await screen.findByRole('link', { name: 'View acquisition' }));
+  fireEvent.click(await screen.findByRole('checkbox', { name: 'Show archived pieces' }));
+  fireEvent.click(await screen.findByRole('link', { name: 'Green sapphire' }));
+  fireEvent.click(await screen.findByRole('link', { name: 'View acquisition' }));
+  await screen.findByText(/This acquisition view is read-only/);
+  expect(window.location.pathname).toBe('/acquisitions/fair/from/sibling');
+  expect(screen.getByRole('link', { name: 'Back to collection' })).toHaveAttribute('href', '/inventory');
+  expect(screen.queryByRole('link', { name: 'Back to archive' })).not.toBeInTheDocument();
   window.history.replaceState(null, '', '/');
 });

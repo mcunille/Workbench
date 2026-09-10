@@ -12,8 +12,8 @@ vi.mock('../../api/items', async original => ({ ...await original<typeof import(
 const item = { id: 'stone', name: 'Blue sapphire', notes: null, location: null, photo: null,
   version: 'i1', createdAtUtc: '2026-01-01T00:00:00Z', archivedAtUtc: null };
 const acquisition = { id: 'fair', method: 'Purchase', source: 'Autumn fair', year: 2025, month: null, day: null, notes: null, version: 'a1' };
-function setup() {
-  return render(<AcquisitionView id="fair" originId="stone" follow={vi.fn()} onDirtyChange={vi.fn()} onAuthLost={vi.fn()} onItemSaved={vi.fn()} />);
+function setup(collectionOrigin?: 'active' | 'archived') {
+  return render(<AcquisitionView id="fair" originId="stone" collectionOrigin={collectionOrigin} follow={vi.fn()} onDirtyChange={vi.fn()} onAuthLost={vi.fn()} onItemSaved={vi.fn()} />);
 }
 beforeEach(() => {
   vi.mocked(api.getSharedAcquisition).mockReset().mockResolvedValue(acquisition);
@@ -31,9 +31,23 @@ it('shows archived origin membership initially and keeps its acquisition view re
   setup();
   await screen.findByText(/This acquisition view is read-only/);
   expect(screen.getByRole('checkbox', { name: 'Show archived pieces' })).toBeChecked();
-  expect(api.getAcquisitionItems).toHaveBeenCalledWith('fair', true);
+  await waitFor(() => expect(api.getAcquisitionItems).toHaveBeenCalledWith('fair', true));
   expect(await screen.findByRole('link', { name: item.name })).toHaveAttribute('href', '/inventory/stone');
   expect(screen.queryByRole('button', { name: /Connect existing piece|Record a new piece|Edit shared acquisition/ })).not.toBeInTheDocument();
+});
+it.each([
+  ['active', '2026-01-02T00:00:00Z', 'Back to collection', '/inventory'],
+  ['archived', null, 'Back to archive', '/inventory/archive'],
+] as const)('keeps the %s traversal return independent of the current piece archive state', async (collectionOrigin, archivedAtUtc, label, href) => {
+  // GIVEN a shared acquisition opened after visiting a sibling or restoring a piece in a retained collection traversal.
+  vi.mocked(items.getItem).mockResolvedValue({ ...item, archivedAtUtc });
+  setup(collectionOrigin);
+  // WHEN the current piece loads THEN its archive state controls read-only behavior while the collection origin controls the return destination.
+  await screen.findByText('Autumn fair');
+  expect(screen.getByRole('link', { name: label })).toHaveAttribute('href', href);
+  expect(screen.getByRole('checkbox', { name: 'Show archived pieces' })).toHaveProperty('checked', Boolean(archivedAtUtc));
+  if (archivedAtUtc) expect(screen.queryByRole('button', { name: 'Connect existing piece' })).not.toBeInTheDocument();
+  else expect(screen.getByRole('button', { name: 'Connect existing piece' })).toBeVisible();
 });
 it('paginates active pieces and explicitly includes archives', async () => {
   // GIVEN multiple membership pages.

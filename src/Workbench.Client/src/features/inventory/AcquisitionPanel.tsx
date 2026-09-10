@@ -83,7 +83,7 @@ export function AcquisitionPanel({
       {picking ? <AcquisitionPicker onAuthLost={onAuthLost} onCancel={() => {
         restoreFocus.current = true; setPicking(false); onEditingChange(false); onDirtyChange(false, false);
       }} onSelect={value => { setPicking(false); setTarget(value); }} /> : target !== undefined && context ? (
-        <AcquisitionLinkEditor item={item} initial={context} target={target} onDirtyChange={onDirtyChange} onAuthLost={onAuthLost}
+        <AcquisitionLinkEditor item={item} initial={{ ...context, itemVersion: item.version }} target={target} onDirtyChange={onDirtyChange} onAuthLost={onAuthLost}
           onClose={(saved, currentItem) => {
             if (saved) { setContext(saved); onCurrent(currentItem?.version ?? saved.itemVersion, currentItem); setMessage('Current saved connection loaded.'); }
             restoreFocus.current = true; setTarget(undefined); onEditingChange(false); onDirtyChange(false, false);

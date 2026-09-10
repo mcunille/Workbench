@@ -9,9 +9,10 @@ import { AcquisitionEditor } from './AcquisitionEditor';
 import { AcquisitionLinkEditor } from './AcquisitionLinkEditor';
 import { ExistingPiecePicker } from './ExistingPiecePicker';
 
-export function AcquisitionView({ id, originId, follow, onDirtyChange, onAuthLost, onItemSaved }: {
+export function AcquisitionView({ id, originId, collectionOrigin, follow, onDirtyChange, onAuthLost, onItemSaved }: {
   id: string;
   originId: string;
+  collectionOrigin?: 'active' | 'archived';
   follow(event: MouseEvent<HTMLAnchorElement>): void;
   onDirtyChange(dirty: boolean, uncertain: boolean): void;
   onAuthLost(): void;
@@ -95,10 +96,11 @@ export function AcquisitionView({ id, originId, follow, onDirtyChange, onAuthLos
     finally { busy.current = false; if (active.current) setPending(false); }
   }
   const readOnly = !origin || Boolean(origin.archivedAtUtc);
+  const backToArchive = collectionOrigin === 'archived' || (!collectionOrigin && Boolean(origin?.archivedAtUtc));
   const editableItem = page?.items.find(item => !item.archivedAtUtc);
   return <section className="editor acquisition-view">
     <div className="button-row"><a className="text-link back-link" href={`/inventory/${originId}`} onClick={follow}>Back to piece</a>
-      <a className="text-link back-link" href={origin?.archivedAtUtc ? '/inventory/archive' : '/inventory'} onClick={follow}>{origin?.archivedAtUtc ? 'Back to archive' : 'Back to collection'}</a></div>
+      <a className="text-link back-link" href={backToArchive ? '/inventory/archive' : '/inventory'} onClick={follow}>{backToArchive ? 'Back to archive' : 'Back to collection'}</a></div>
     <h1 ref={heading} tabIndex={-1}>Acquisition</h1>
     {failed ? <div role="alert"><p>We could not load this acquisition.</p><button className="secondary" onClick={() => { setFailed(false); setAttempt(previous => previous + 1); }}>Retry loading acquisition</button></div> : !value || !origin ? <p role="status">Loading acquisition…</p> : <>
       <p className="hint">Shared context recorded by you; not independently verified.</p>

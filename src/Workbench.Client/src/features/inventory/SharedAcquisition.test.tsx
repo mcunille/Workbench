@@ -1,11 +1,16 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { vi } from 'vitest';
 import * as acquisitions from '../../api/acquisitions';
 import { AcquisitionPanel } from './AcquisitionPanel';
+import { getItem } from '../../api/items';
 
 vi.mock('../../api/acquisitions', async (original) => ({
   ...await original<typeof import('../../api/acquisitions')>(),
   getAcquisition: vi.fn(),
+  saveAcquisitionLink: vi.fn(),
+}));
+vi.mock('../../api/items', async original => ({
+  ...await original<typeof import('../../api/items')>(), getItem: vi.fn(),
 }));
 const item = { id: 'stone', name: 'Blue sapphire', notes: null, location: null, photo: null,
   version: 'item-v1', createdAtUtc: '2026-01-01T00:00:00Z', archivedAtUtc: null };
@@ -38,4 +43,22 @@ it('offers archived acquisition navigation without relationship writes', async (
   // WHEN context loads THEN navigation remains available and changes are absent.
   expect(await screen.findByRole('link', { name: 'View acquisition' })).toHaveAttribute('href', '/acquisitions/fair/from/stone');
   expect(screen.queryByRole('button', { name: /Change acquisition|Remove connection|Edit acquisition/ })).not.toBeInTheDocument();
+});
+it('uses the latest locally saved item version when correcting a cached acquisition connection', async () => {
+  // GIVEN acquisition context loaded before a local item detail save advanced its version.
+  const savedItem = { ...item, name: 'Updated sapphire', version: 'item-v2' };
+  vi.mocked(acquisitions.getAcquisition).mockResolvedValue({ acquisition, itemVersion: item.version });
+  vi.mocked(acquisitions.saveAcquisitionLink).mockResolvedValue({ acquisition: null, itemVersion: 'item-v3' });
+  vi.mocked(getItem).mockResolvedValue({ ...savedItem, version: 'item-v3' });
+  const props = { disabled: false, onEditingChange: vi.fn(), onDirtyChange: vi.fn(), onAuthLost: vi.fn(), onCurrent: vi.fn() };
+  const view = render(<AcquisitionPanel item={item} {...props} />);
+  await screen.findByRole('button', { name: 'Remove connection' });
+  view.rerender(<AcquisitionPanel item={savedItem} {...props} />);
+  // WHEN removing the current connection THEN retain its expected identity/version and use the saved item's current token.
+  fireEvent.click(screen.getByRole('button', { name: 'Remove connection' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Remove connection' }));
+  await waitFor(() => expect(acquisitions.saveAcquisitionLink).toHaveBeenCalledWith(item.id, {
+    expectedItemVersion: 'item-v2', expectedAcquisitionId: acquisition.id, expectedAcquisitionVersion: acquisition.version,
+    targetAcquisitionId: null, targetAcquisitionVersion: null,
+  }));
 });

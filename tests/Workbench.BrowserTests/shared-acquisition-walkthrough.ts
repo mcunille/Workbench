@@ -60,6 +60,7 @@ test('H10 narrated shared acquisition walkthrough', async ({ browser }) => {
         await expect(page.getByRole('heading', { name: 'Review current connection', exact: true })).toBeVisible();
         await page.getByRole('button', { name: 'Use saved connection', exact: true }).click();
       }
+      await expect(acquisitionPanel(page).getByRole('button', { name: 'Edit acquisition', exact: true })).toBeVisible();
       await expect(acquisitionPanel(page).getByText('Autumn mineral fair', { exact: true })).toBeVisible();
     }
     // WHEN opening the shared view THEN all three independently recorded pieces appear.

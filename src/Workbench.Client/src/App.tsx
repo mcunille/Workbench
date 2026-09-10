@@ -253,6 +253,7 @@ function SignedInApplication({
             />
           ) : /^\/acquisitions\/[^/]+\/from\/[^/]+$/.test(path) ? (
             <AcquisitionView key={path} id={path.split('/')[2]} originId={path.split('/')[4]}
+              collectionOrigin={origins.get(navigation.entryId)}
               follow={followInventory} onDirtyChange={navigation.setDirty} onAuthLost={authLost}
               onItemSaved={() => collectionMemory.invalidate()} />
           ) : path.startsWith('/inventory/') ? (

@@ -5,6 +5,7 @@ import { lifecycle } from './restoration-fixture';
 import { setAppearance } from './user-menu-fixture';
 
 test.setTimeout(120_000);
+test.use({ actionTimeout: 20_000 });
 
 async function selectAcquisition(page: import('@playwright/test').Page, source: string) {
   await page.getByRole('searchbox', { name: 'Search acquisitions', exact: true }).fill(source);
@@ -17,20 +18,35 @@ test('H10 a saved origin opens a shared acquisition without losing collection se
   await useAuthenticatedSession(page);
   const name = `H10 stone ${crypto.randomUUID()}`;
   const piece = await createPiece(page, name);
-  await createOrigin(page, piece.id, 'H10 fair');
+  const origin = await createOrigin(page, piece.id, 'H10 fair');
+  const sibling = await createPiece(page, `Archived sibling ${crypto.randomUUID()}`);
+  const csrf = await (await page.request.get('/api/auth/antiforgery')).json();
+  const link = await page.request.put(`/api/items/${sibling.id}/acquisition-link`, {
+    headers: { 'X-CSRF-TOKEN': csrf.requestToken },
+    data: { expectedItemVersion: sibling.version, expectedAcquisitionId: null, expectedAcquisitionVersion: null,
+      targetAcquisitionId: origin.acquisition.id, targetAcquisitionVersion: origin.acquisition.version },
+  });
+  expect(link.status()).toBe(200);
+  await lifecycle(page, sibling.id, 'archive', (await link.json()).itemVersion);
   await page.goto('/inventory');
   await page.getByRole('searchbox', { name: 'Search collection', exact: true }).fill(name);
   await page.getByRole('button', { name: 'Search', exact: true }).click();
-  await page.getByRole('link', { name, exact: true }).click();
+  await page.locator(`a[href="/inventory/${piece.id}"]`).click();
   // WHEN opening the acquisition THEN its shared context and originating piece are available.
   await acquisitionPanel(page).getByRole('link', { name: 'View acquisition', exact: true }).click();
   await expect(page.getByText('H10 fair', { exact: true })).toBeVisible();
-  await expect(page.getByRole('link', { name, exact: true })).toBeVisible();
-  // WHEN returning through the originating piece THEN the collection search is retained.
+  await expect(page.locator(`a[href="/inventory/${piece.id}"]`).filter({ hasText: name })).toBeVisible();
+  // WHEN traversing an archived sibling THEN read-only context retains the original active collection destination.
+  await page.getByLabel('Show archived pieces', { exact: true }).check();
+  await page.getByRole('link', { name: sibling.name, exact: true }).click();
+  await acquisitionPanel(page).getByRole('link', { name: 'View acquisition', exact: true }).click();
+  await expect(page.getByRole('link', { name: 'Back to collection', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Connect existing piece', exact: true })).toHaveCount(0);
+  // WHEN returning through the archived piece THEN the original collection search is retained.
   await page.getByRole('link', { name: 'Back to piece', exact: true }).click();
   await page.getByRole('link', { name: 'Back to collection', exact: true }).click();
   await expect(page.getByRole('searchbox', { name: 'Search collection', exact: true })).toHaveValue(name);
-  await expect(page.getByRole('link', { name, exact: true })).toBeVisible();
+  await expect(page.locator(`a[href="/inventory/${piece.id}"]`)).toBeVisible();
 });
 
 test('H10 three stones share corrections, archive relationships and deliberate link removal', async ({ page }) => {
@@ -46,6 +62,7 @@ test('H10 three stones share corrections, archive relationships and deliberate l
     await acquisitionPanel(page).getByRole('button', { name: 'Connect to an acquisition', exact: true }).click();
     await selectAcquisition(page, source);
     await page.getByRole('button', { name: 'Save connection', exact: true }).click();
+    await expect(acquisitionPanel(page).getByRole('button', { name: 'Edit acquisition', exact: true })).toBeVisible();
     await expect(acquisitionPanel(page).getByText(source, { exact: true })).toBeVisible();
     const current = await (await page.request.get(`/api/items/${stone.id}/acquisition`)).json();
     expect(current.acquisition.id).toBe(origin.acquisition.id);
