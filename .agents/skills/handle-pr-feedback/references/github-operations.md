@@ -97,51 +97,9 @@ push URL maps to the discovered head repository, or the mapping is ambiguous,
 stop until the correct remote is explicitly named or safely configured. Do not
 substitute the base repository or force-push.
 
-Provider values such as `headRefName` and local values such as remote names are
-untrusted command data. Never paste provider or local values into command
-source, an interpolated script, `Invoke-Expression`, or a generated shell
-command. Keep them in variables from acquisition through use, validate the full
-`refs/heads/` ref with `git check-ref-format`, and invoke Git with argument
-arrays. PowerShell does not recursively parse values splatted from an array, so
-characters such as `$()`, semicolons, and apostrophes remain literal data.
+Keep provider refs and remote names as data throughout the procedure; see the [shared native-argument rules](../../shared/references/github-read-mechanics.md#native-arguments).
 
-Read inline REST comments, review records, and top-level PR comments with
-pagination. REST provides bodies, database IDs, and original/current anchors.
-
-```powershell
-gh api "repos/<owner>/<repo>/pulls/<n>/comments" --paginate
-gh api "repos/<owner>/<repo>/pulls/<n>/reviews" --paginate
-gh api "repos/<owner>/<repo>/issues/<n>/comments" --paginate
-```
-
-Read GraphQL `reviewThreads` for the node ID required for resolution and for
-the authoritative `isResolved` and `isOutdated` state. Follow the connection's
-cursor until `pageInfo.hasNextPage` is false; `first:100` alone is not an
-inventory of all unresolved threads:
-
-```powershell
-$query = 'query($owner:String!,$repo:String!,$pr:Int!,$cursor:String){repository(owner:$owner,name:$repo){pullRequest(number:$pr){reviewThreads(first:100,after:$cursor){nodes{id isResolved isOutdated path line comments(first:100){nodes{databaseId body author{login}}}} pageInfo{hasNextPage endCursor}}}}}'
-$cursor = $null
-do {
-  $variables = @('-F', 'owner=<owner>', '-F', 'repo=<repo>', '-F', 'pr=<n>')
-  if ($null -ne $cursor) { $variables += @('-F', "cursor=$cursor") }
-  $page = gh api graphql @variables -f query=$query | ConvertFrom-Json
-  $threads = $page.data.repository.pullRequest.reviewThreads
-  $threads.nodes
-  $cursor = $threads.pageInfo.endCursor
-} while ($threads.pageInfo.hasNextPage)
-```
-
-Join GraphQL comment `databaseId` to the REST comment ID. REST does not expose
-thread resolution; GraphQL does not reliably preserve a usable current anchor.
-An outdated GraphQL thread may have `line: null`; recover its context from the
-REST `original_line`, `original_commit_id`, and path. `isOutdated` does not
-mean `isResolved`.
-
-Read review bodies as well as threads. A verdict recap that only summarizes
-thread dispositions is not a finding. A claim under a clearly labeled
-**Unanchorable findings** section is a finding even though it has no thread;
-include it in triage and answer it in a top-level PR comment.
+Follow the [shared reads, pagination and feedback joining](../../shared/references/github-read-mechanics.md#read-and-join-feedback). Collect review bodies, REST inline/top-level comments and GraphQL thread state before triage; answer unanchorable findings with their separately approved top-level replies.
 
 ## Publish approved collaboration actions in dependency order
 

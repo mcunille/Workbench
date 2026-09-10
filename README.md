@@ -4,24 +4,14 @@ Workbench is fully open-source software by The White Stag Collection for gemston
 hobbyists, collectors, and businesses. It is intended to connect three areas that are often managed
 separately: inventory and collections, bookkeeping and accounting, and commerce.
 
-The project is implementing its accepted base architecture in phases. Its React and TypeScript
-client and ASP.NET Core API publish as one same-origin release unit. SQL Server persistence,
-database-enforced tenant isolation, built-in identity, durable sessions, and explicit database
-operations are implemented. Blob and operational providers and deployment infrastructure are
-implemented; hosted acceptance remains pending.
+The current application provides a private collection notebook: save and find individual pieces,
+manage a photograph, correct descriptions, archive and restore records, record acquisition context,
+and download collection copies. See the [collection guide](docs/collection.md) for current behavior
+and boundaries. Accounting and commerce remain future workflows.
 
-The first collection workflow lets an authenticated tenant member save an individually tracked
-piece with a name, optional notes, and storage location, then browse and reopen it across sessions.
-It supports mobile and desktop layouts with System/Light/Dark appearance. Saved items can have
-one private photograph, prepared in the browser before upload, with replacement and removal.
-Search finds literal phrases in names, notes, and locations across all collection pages, and
-returning from details preserves the query, Grid/List view, and position within the signed-in app.
-Descriptive edits check the saved version and preserve drafts for explicit conflict recovery.
-Saved edits refresh search results. Deletion, bulk stock, and financial workflows remain later increments.
-See the [H1 specification](docs/specs/2026-09-06-h1-collection-notebook.md),
-[H2 photograph specification](docs/specs/2026-09-07-h2-item-photographs.md), and
-[H3 search specification](docs/specs/2026-09-07-h3-collection-search.md), and
-[H4 editing specification](docs/specs/2026-09-07-h4-item-editing.md).
+The React client and ASP.NET Core API ship as one same-origin release unit with SQL Server tenant
+isolation. See [architecture](docs/ARCHITECTURE.md) for technical contracts and the
+[acceptance matrix](docs/operations/production-readiness.md) for dated deployment evidence.
 
 ## Setup and installation
 

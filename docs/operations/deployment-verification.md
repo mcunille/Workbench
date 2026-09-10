@@ -1,248 +1,47 @@
 # Deployment verification record
 
-See the [production operations completeness audit](production-readiness.md) for historical
-runbook gaps and current acceptance boundaries. Evidence is dated and scoped below; later Azure
-launch evidence supersedes earlier statements that no hosted installation had been exercised.
+Use the [current acceptance matrix](production-readiness.md) to distinguish completed checks,
+operator deferrals and unverified requirements. This index owns navigation to immutable,
+scoped evidence; it is not another acceptance checklist or operating procedure.
 
-Initial implementation evidence for issue #12, recorded on 2026-09-06 UTC. These checks used disposable
-local resources. No Azure deployment or production operation was performed. The accepted deployment
-specification and issue remain open for hosted acceptance.
+| Record | Scope |
+| --- | --- |
+| [Initial deployment acceptance, 2026-09-06 through 2026-09-09](evidence/2026-09-deployment-acceptance.md) | Local suite, Windows QA/installer, Azure release corrections, public launch and bounded follow-up, with exact revisions and limits. |
+| [Local self-host update, 2026-09-07](evidence/2026-09-07-local-self-host-update.md) | Same-release/prior-schema updates of disposable Windows fixtures, nonempty checkpoints and failure containment. |
+| [Original production audit, 2026-09-06](evidence/2026-09-06-production-audit.md) | Historical audit plus later annotations, retained for traceability; not current acceptance. |
+
+Add each later verification change as a scoped, dated record in `evidence/` and link it here,
+from its spec/demo, and from the relevant acceptance row. Keep one evidence location per change.
+Record source/image/schema identifiers, environment, results and coverage limits; never infer
+that later commits were deployed. Store screenshots/recordings outside Git under
+[the contributor evidence policy](../../CONTRIBUTING.md). Reusable commands belong in runbooks.
+
+The following headings preserve incoming links to the original record.
 
 ## Local evidence
 
-- `scripts/verify.ps1 -SkipDependencyInstall` passed locked restore, formatting, API contract
-  generation, release builds, 230 server tests, 18 client tests, six browser tests, database creation,
-  upgrade/rollback and restore checks, and the published application smoke check. Subsequent proxy
-  cases increased the server suite to 234 tests; all 234 passed in the final current-source run.
-- `scripts/smoke-container.ps1` rebuilt the final application image and passed the hardened SQL-backed
-  runtime checks as non-root user 1654. Its disposable Compose fixture exercised the checked-in
-  services and proxy configuration with a locally issued CA certificate whose trust was validated.
-  SQL readiness, Secure-cookie login, session continuity after app replacement, forged forwarding
-  headers, unknown-host rejection, private app listeners, and worker queue telemetry without restarts
-  passed. The temporary HTTP smoke URL was `http://127.0.0.1:54666`; the fixture was cleaned up.
-- Bicep 0.46.1 compiled and linted the infrastructure. Parameter tests covered valid IPv4/IPv6 trust,
-  broad and mapped-address rejection, and canonical HTTPS port constraints. Compose normalization,
-  deployment preflight, proxy address reservation, and workflow action pinning checks passed.
-- New behavior was developed with focused failing tests before implementation. Real SQL tests cover
-  two independent hosts sharing sessions and abuse controls, concurrent migration lock contention,
-  cancelled migration recovery, least-privilege queue aggregates, and deployment readiness.
-- Nine selected manual source mutations were killed: three worker-drain changes and six security
-  changes. The trusted-hop assertions were strengthened when mutation evidence exposed a gap.
-  This was bounded mutation assessment; no broad Stryker or SQL mutation run was performed.
-- No formal Codex Security scan was run.
+See the [dated evidence](evidence/2026-09-deployment-acceptance.md#local-evidence).
 
 ## Windows localhost QA drill (2026-09-06)
 
-An operator completed a manual retained QA installation using Windows, Docker Desktop with WSL2,
-SQL Express, one app, one continuous worker, and Caddy at `https://localhost`. The subsequent
-[local setup automation](local-self-host.md) incorporates the manual steps; this record does not
-represent a successful clean installation using that new automation.
-
-Release identifiers:
-
-- Source commit: `cca9043bd3f5933b59d097059ccfa91719f466ca`.
-- Application image: `sha256:0595ae9469c5cbbc06a175042489ac3462f667efaf52cbf0304f77a8daf83827`.
-- SQL image: `mcr.microsoft.com/mssql/server@sha256:7c29dfbac885ad7519e219c7fe4aee0e67283e21a10e9c252d13b0fbde1866f8`.
-- Caddy image: `caddy@sha256:4c6e91c6ed0e2fa03efd5b44747b625fec79bc9cd06ac5235a779726618e530d`.
-
-Observed outcomes:
-
-- SQL hostname/certificate-chain validation passed with encryption reported `TRUE`; certificate
-  verification was not bypassed. The database was contained, migrated, provisioned, and bootstrapped.
-- Only Caddy published ports, both bound to `127.0.0.1`. Current-user Windows trust of its public CA
-  enabled HTTPS readiness `200` with normal validation. Browser login, refresh/session persistence,
-  logout, and service restart recovery passed.
-- With writers stopped, SQL `COPY_ONLY` backup with checksums and `RESTORE VERIFYONLY`, the paired
-  blob snapshot, recovery credentials/certificates/configuration, and local image archive were saved
-  in a Windows ACL-protected local folder. All 42 cataloged file checksums passed.
-- A separate Docker network and SQL/blob volumes were used for recovery. SQL restore and
-  `DBCC CHECKDB`, restore-pending marking, migration check, operator sanitation, paired manifest
-  verification, recovered app readiness, and one recovered worker iteration passed.
-- The operator accepted the QA drill as complete. The original QA service remained healthy and
-  restore containers were stopped with their data retained.
-
-Undocumented interventions found during the manual run were SQL executable capability requirements,
-TLS volume permission ordering, explicit OpenSSL CA-bundle selection, and app-before-worker
-data-protection initialization. These are installation requirements, not optional troubleshooting.
-
-Limits: the snapshot contained zero blob revisions because no attachment UI workflow was available.
-Recovered browser sign-in and rejection of pre-recovery sessions were not tested. The backup was
-local, not encrypted by the backup commands, and not a scheduled off-host backup. No measured recovery
-objective, certificate rotation, update/rollback, host reboot, alert delivery, real SMTP, public TLS,
-or Azure deployment was established. This is QA evidence, not production-readiness certification.
+See the [dated evidence](evidence/2026-09-deployment-acceptance.md#windows-localhost-qa-drill-2026-09-06).
 
 ## Automated local installer verification
 
-On 2026-09-06, the new installer completed a fresh isolated installation with separate loopback
-ports, a separate Compose project, and the archived main commit above. SQL certificate validation,
-all five database principals, bootstrap, app readiness before worker startup, and a worker iteration
-passed without manual provisioning. HTTPS readiness and administrator login plus authenticated
-identity retrieval passed against the generated Caddy CA. The HTTP client used the exported CA;
-Windows trust was not changed by this automated test. Local-CA revocation availability was treated
-as best-effort while certificate-chain and hostname validation remained enabled.
-
-PowerShell configuration and simulated-Docker orchestration checks cover input rejection, TLS
-connection quoting, retained-resource refusal, role-specific mounts, loopback ports, startup order,
-and stopping public workloads after an injected worker failure. Two targeted manual mutations
-(missing tenant validation and disabled SQL certificate validation) were killed. Azure parameter
-and Compose proxy contract checks passed. The Windows CI job repeats the offline installer checks;
-it does not claim a live Docker drill.
-
-An initial tool-run installation outside the workspace could not share newly generated files with
-Docker Desktop, although PowerShell saw them. The live test succeeded from an ignored workspace
-directory visible to Docker. Setup now checks host-file sharing before generating credentials.
-The prior user-operated retained installation was not changed. These automated checks do not extend
-the recovery or production claims of the manual drill.
+See the [dated evidence](evidence/2026-09-deployment-acceptance.md#automated-local-installer-verification).
 
 ## Azure release correction evidence (2026-09-07 UTC)
 
-The [release correction](../specs/azure-release-verification-fixes.md) was verified locally against
-current main, including its invitation-claim and password-principal security fixes. The final
-`scripts/verify.ps1 -SkipDependencyInstall` run passed locked restore, formatting, generated API
-drift checks, release builds, 327 server tests, 18 client tests, six browser tests, all four migration
-scenarios, and the published release check at temporary URL `http://127.0.0.1:60701`.
-Dependencies had been installed with the locked commands in the preceding full run.
-
-`scripts/smoke-container.ps1` rebuilt the corrected image and passed fresh SQL provisioning,
-validated internal HTTPS, Secure-cookie login, session continuity after application replacement,
-forwarding-header checks, a private application listener, and worker telemetry as UID 1654.
-Its temporary application URL was `http://127.0.0.1:56137`; disposable resources were cleaned up.
-
-Focused failing tests preceded Graph delivery, durable retries, SQL manifest changes, bootstrap
-cleanup, and the immediate-prior-schema readiness guard. Four selected manual Graph mutations
-were killed: incorrect response acceptance, missing expiry validation, permanent classification
-of token-service outages, and accepting an origin query. This was bounded manual mutation testing,
-not a broad Stryker or SQL mutation run. Azure parameter/bootstrap tests, Compose configuration,
-workflow command-boundary checks, and Bicep build/lint passed. Switching an existing installation
-to Graph requires explicit removal and readback of retained SMTP secret grants.
-
-These checks did not deploy Azure resources or submit live mail. The operator previously verified
-Graph send acceptance and receipt, denial of personal-mailbox sending, and incoming no-reply
-rejection using a bootstrap VM. Released Workbench worker delivery and the hosted gates below
-were not verified by these local checks.
+See the [dated evidence](evidence/2026-09-deployment-acceptance.md#azure-release-correction-evidence-2026-09-07-utc).
 
 ## Remaining hosted acceptance
 
-Compilation and local tests do not establish Azure resource deployability or hosted security.
-Separately authorized validation must demonstrate real Entra SQL provisioning and RBAC, private
-DNS/connectivity, Key Vault access and certificate rotation, the actual ACA proxy peer chain,
-custom-domain public TLS, cold starts and scale-out, worker scheduling and races, SMTP delivery,
-revision rollout/rollback, paired cloud recovery, and delivered alerts using real telemetry.
-Backup-age and dead-letter monitoring still need their documented operational data sources.
-
-The earlier disposable runtime fixture does not prove external SQL certificate validation. The later
-Windows localhost drill exercised private-CA validation for the optional local SQL profile, with the
-manual corrections recorded above. Public CA issuance and actual SMTP delivery were not tested.
-Neither container session persistence nor the empty-blob recovery drill substitutes for full recovery
-acceptance with representative data and restored authentication checks.
-
-The [cost worksheet](deployment-costs.md) uses retrieved public rates and synthetic inputs, not a
-measured bill. Hosted latency, capacity, job lifetime, recovery, alert delivery, and billing evidence
-must be attached before issue #12 or its specification can be marked complete.
+See the [dated evidence](evidence/2026-09-deployment-acceptance.md#remaining-hosted-acceptance).
 
 ## Azure public launch (2026-09-08 UTC)
 
-The operator approved public access after the hosted walkthrough, security remediation in PR #66,
-and successful sign-in on the deployed candidate. This records a particular installation, not a
-blanket certification of all deployment paths or a claim that every issue #12 checkbox passed.
-
-- Serving source: `cc0e96996f8f655aa6a1c6b257b068862a8d892f`.
-- Registry image: `wbprodafd5e7ff.azurecr.io/workbench@sha256:0e17b57ae2dc0c8be02df198f9a7f92d45444e0c6d7f247ba835541cde922eb3`.
-- App `wb-prod-web`, revision `wb-prod-web--0000004`, 100% traffic; healthy readback.
-  Revision `0000003` remains available for a compatible, separately approved rollback.
-- `https://workbench.whitestagcollection.com/` and `/health/ready` returned 200 after promotion
-  and public opening. Anonymous `/api/auth/me` returned 401. The operator confirmed sign-in.
-- Live responses contained HSTS `max-age=31536000`, `X-Frame-Options: DENY`,
-  `X-Content-Type-Options: nosniff`, `Referrer-Policy: no-referrer`, and CSP `frame-ancestors 'none'`.
-- The explicit Public policy removed the 13 temporary operator/certificate-validation allow rules.
-  HTTPS-only ingress, managed certificate binding and revision traffic were preserved. SQL, Blob
-  and Key Vault readbacks continued to report public network access Disabled.
-- The candidate initially returned readiness 503: the complete release included `AddItemRestoration`
-  even though the security PR alone added no migration. Approved job `wb-prod-migration-mi0id95`
-  succeeded at 07:26:35 UTC, logged the database migration success marker, and candidate health
-  became Healthy. The serving old revision still returned 200. Future releases must compare the
-  entire deployed-to-candidate range before scheduling changes.
-- The worker retained its one-minute schedule and completed executions using the verified new
-  digest. Earlier hosted checks delivered recovery email from the durable queue, verified the
-  recovery link, rejected reuse, and invalidated the old session. Mail identity tests allowed only
-  the no-reply mailbox, denied personal-mailbox sending, and confirmed incoming-message rejection.
-- Worker-status-missing alert delivery was exercised by an approved schedule pause; the alert fired,
-  scheduled execution resumed, fresh queue status arrived, and the alert resolved. Security-change
-  notifications arrived for approved configuration changes. Multiple emails represented separate
-  administrative events, including identically named diagnostic settings on different resources.
-- All six resource audit routes read back the intended enabled categories and workspace. Activity
-  and Blob records were observed. SQL, Key Vault, ACR and native-backup audit-table ingestion were
-  not yet confirmed in the final monitoring query; configuration alone is not ingestion evidence.
-- SQL retained seven-day backup retention and seven-day logical-server soft delete. SQL and native
-  backup vault deletion locks were applied. The native vault read back GeoRedundant, immutability
-  Locked, soft delete AlwaysOn with 14 days, and a seven-day VaultStore policy. These are distinct
-  retention controls. Logical-server undelete and customer-initiated cross-region Blob recovery
-  were not tested.
-- Native backup job `85d46a43-edea-4ec9-a838-bca0ae7e5c79` completed at 05:11:13 UTC; isolated
-  restore job `e888960b-9512-46f3-af44-60fe714c3c5b` completed at 05:53:11 UTC. The operator
-  accepted the empty-data recovery drill. Earlier SQL PITR, restore sanitation and paired empty
-  storage verification passed. This does not establish nonempty attachment recovery or a full
-  cross-region application RTO. Recovery remains manual; normal backups need no application outage.
-- Downloaded password-manager recovery attachments passed hash checks and authenticated decryption,
-  including installation metadata, four recovery values and the certificate private key, without
-  the original Windows-protected key or original recovery files. No secrets are recorded here.
-- The exact candidate scan detected zero High/Critical advisories, five Medium and seven Low
-  package findings. These include Ubuntu/OpenSSL advisories remaining in the upstream runtime;
-  this is not a clean-image or complete security-audit verdict.
-- Approved cleanup deleted restore target `wbrestoreafd5e7ff0908` and its temporary backup role,
-  deleted the unbound `workbench-prod-bootstrap` certificate, and deactivated revision `0000002`.
-  Readback confirmed HTTPS 200 and production backup ProtectionConfigured. The temporary VM,
-  NAT, subnet and SQL restore infrastructure were already absent from the live inventory.
-
-The following follow-up supersedes the outstanding hosted checks in this launch snapshot.
+See the [dated evidence](evidence/2026-09-deployment-acceptance.md#azure-public-launch-2026-09-08-utc).
 
 ## Azure acceptance follow-up (2026-09-09 UTC)
 
-These checks exercised the existing public installation, not a fresh bootstrap. Serving source is
-`f58f1f4cf4523439c48ec9b7132b01792b6920d2`, image digest
-`sha256:322404ba57592165e17072ce7a69ae45b03d756646d05223f11168276ec9db60` in the same registry.
-Revision `wb-prod-web--0000005` was restored to 100% traffic after both drills. Subsequent main
-commits are not implicitly deployed or covered by this evidence.
-
-- **Two replicas:** a temporary same-image revision used min/max 2 and `Deployment__Replicas=2`.
-  Both replicas were ready with zero restarts. Twelve authenticated `/api/auth/me` requests using
-  one session returned 200: trace IDs correlated six to each replica in Log Analytics. Revoking
-  only that test session from a separate session returned 204. The original test browser then sent
-  twelve requests without signing out or refreshing; all returned 401, again six per replica.
-- **Shared login limit:** seven sequential attempts with valid credentials completed in 3,023 ms:
-  five returned 204 and two returned 401. Successful requests reached both replicas (three and two);
-  both rejected requests reached the latter replica. Successful test sessions were logged out after
-  each attempt. This demonstrates the shared combined account/network login allowance, not an
-  independent test of the account-only partition or a concurrent load test. Credentials and cookies
-  were not included in retained output.
-- **Replica cleanup:** test and reset revisions were deactivated and reported zero replicas.
-  App template min/max returned to 0/1 with `Deployment__Replicas=1`; revision `0000005` served
-  100% traffic and HTTPS readiness returned 200.
-- **Natural cold start:** control-plane polling observed zero replicas at 03:13:56 UTC without
-  sending warm-up requests. The first homepage request returned 200 in 27,943 ms; the subsequent
-  readiness request returned 200 in 119 ms. These are client-observed timings, not pure container
-  initialization times. The operator accepted this single sample and its delay, explicitly declined
-  more samples, and retained scale-to-zero. No p50/p95 distribution is claimed.
-- **Compatible release rollback:** the complete range from retained source `cc0e969` to serving
-  source `f58f1f4` changed frontend/docs only, with no server, database, Dockerfile or workload-module
-  changes. Retained revision `0000004` was warmed and reported a ready replica with zero restarts.
-  After approved traffic transfer, homepage/readiness and the older asset `index-CqYKE4ly.js`
-  returned 200; anonymous identity access returned 401 and all five security headers were present.
-  The operator confirmed sign-in on the older release. At 03:21 UTC traffic returned to `0000005`;
-  homepage/readiness returned 200 and asset `index-C9oy8019.js` confirmed the current release.
-  No migration, database rollback, worker change, or incompatible-schema rollback was performed.
-- **Readiness alert:** PR #72 corrected matching against actual platform readiness failure events.
-  The isolated drill alert fired at 02:17 UTC and resolved at 02:39 UTC; the operator received both
-  emails. The drill app and alert were removed, and production readiness remained healthy. This
-  exercises the matching query and delivery path without deliberately failing the production app.
-- **Scheduled backup:** job `f66addc2-0e1f-428a-9991-1dd3743ce201` started at 03:00:11 UTC and
-  completed at 03:17:23 UTC. `AddonAzureBackupJobs` contained a record at 03:17:24 UTC. Earlier
-  follow-up queries also observed SQL, Key Vault, ACR, Activity and Blob audit records. The accepted
-  empty-data restore scope above remains unchanged; this scheduled backup is not another restore test.
-
-The operator explicitly deferred measured cost/App Service comparison and will monitor spending.
-The monthly USD 100 budget provides notifications, not a spending cap. Log Analytics retention is
-30 days; platform Activity Log retention is separate. Remaining issue #12 acceptance is a complete
-reproducible bootstrap/runbook check and final deployment documentation/configuration security review.
-No final no-findings verdict is implied by these operational tests or the image scan. Public Linux
-self-host acceptance remains distinct from the completed Windows localhost QA drill.
+See the [dated evidence](evidence/2026-09-deployment-acceptance.md#azure-acceptance-follow-up-2026-09-09-utc).

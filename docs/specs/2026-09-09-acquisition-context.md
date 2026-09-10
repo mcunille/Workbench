@@ -214,3 +214,6 @@ Follow [CONTRIBUTING](../../CONTRIBUTING.md) for verification gates and the
 Fresh/upgrade and rollback-guard coverage applies to the acquisition migration. Exercise
 desktop/mobile/320px, both appearances, keyboard/focus and motion/transparency preferences.
 The narrated walkthrough uses non-sensitive data. H10–H12 remain separate deliveries.
+
+See the [H9 verification record](../demos/h9/verification.md) for dated implementation evidence and
+coverage limits, and the [walkthrough](../demos/h9/README.md) for its scenario.

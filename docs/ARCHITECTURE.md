@@ -22,36 +22,32 @@ are present and covered by source, integration, browser, migration, permission, 
 and container checks. Portable filesystem/Azure blob storage, immutable SQL revisions, encrypted SMTP
 outbox delivery, and an explicit SQL-leased worker now provide the operational service foundation.
 The Azure deployment phase supplies Bicep, scoped workload identities, explicit migration and worker
-jobs, and a production Compose topology. Its hosted acceptance drills remain pending; see the
+jobs, and a production Compose topology. Its recorded hosted acceptance and remaining limits are owned by the
+[current acceptance matrix](operations/production-readiness.md); see the
 [Azure deployment runbook](operations/azure-deployment.md) and
 [self-hosting runbook](operations/self-hosted-deployment.md). See the [provider runbook](operations/blob-and-service-providers.md)
 for configuration, paired recovery, and migration procedures.
 
-The first inventory slice is the [H1 collection notebook](specs/2026-09-06-h1-collection-notebook.md):
-authenticated tenant members can create, browse, and reopen individual objects with names, notes,
-and descriptive storage locations. The [H2 photograph increment](specs/2026-09-07-h2-item-photographs.md)
-adds one private photo per saved item. The [H3 search increment](specs/2026-09-07-h3-collection-search.md)
-adds tenant-scoped literal phrase search across names, notes, and locations before chronological
-pagination. Matching is case-insensitive and accent-sensitive with an explicit SQL collation;
-queries are trimmed and limited to 200 UTF-16 code units. The existing tenant/chronology index
-is retained; arbitrary substring queries can scan the tenant's candidates. Collection navigation
-state stays in authenticated application memory and resets on reload or authentication loss.
-The [H4 editing increment](specs/2026-09-07-h4-item-editing.md) uses a required version token
-and a restricted SQL command to update descriptive fields. Text and photo changes share the
-item rowversion; stale saves return a conflict and require explicit reconciliation. An immutable
-snapshot captured by the first edit preserves H1 creation replay identity. Failed saves retain
-the draft in memory for safe retry. Successful edits invalidate collection pages while
-preserving the query and view. The [H5 archive increment](specs/2026-09-07-h5-item-archiving.md)
-uses the same checked version to set a separate archive timestamp. Ordinary browsing/search
-excludes archived records; existing tenant-authorized links retain read-only details and photos.
-SQL prevents descriptive and photo mutations of archived records, and original creation/photo
-replay evidence remains intact. The [H6 recovery increment](specs/2026-09-07-h6-archive-recovery.md)
-adds a separate searchable Archive and a checked restore command. It clears only archive state,
-preserving identity, creation replay and the current photograph. Both transitions share the item
-rowversion and SQL tenant boundary; stale retries cannot reverse a later lifecycle change. Active
-and archive searches have independent authenticated in-memory traversal state. Archived records
-remain read-only until restored. No permanent deletion is provided. Quantity-based stock,
-purchasing, accounting, and commerce require their own focused specifications.
+Current user workflows are owned by the [collection guide](collection.md). The following collection
+sections describe technical contracts and link their historical design rationale.
+
+Collection search applies a tenant-scoped literal phrase predicate to names, notes and locations
+before chronological pagination. Matching is case-insensitive and accent-sensitive with an explicit
+SQL collation; queries are trimmed and limited to 200 UTF-16 code units. The tenant/chronology index
+is retained; arbitrary substring queries can scan the tenant's candidates. Navigation state stays in
+authenticated application memory and resets on reload or authentication loss.
+
+Descriptive edits use a required version token and a restricted SQL command. Text, photograph,
+archive and restore transitions share the item rowversion; stale commands cannot overwrite a later
+change. An immutable snapshot captured by the first edit preserves creation replay identity.
+Successful edits invalidate collection pages while retaining query and view; failed saves keep
+private in-memory drafts for explicit reconciliation.
+
+Archive state is a separate timestamp. Active browsing/search excludes archived records; SQL rejects
+descriptive and photo mutations until a checked restore clears only archive state. Identity,
+creation/photo replay evidence and the current photograph are retained. Active and archive searches
+have independent authenticated traversal state. Existing authorized links remain readable.
+See [collection design records](collection.md#design-records) for the individual decisions and limits.
 
 ### Collection records export
 
@@ -442,7 +438,8 @@ and constraints. Destructive changes use an expand, migrate, and contract sequen
 backup and an explicit compatibility window. Application rollback is allowed only while the deployed
 schema remains compatible; otherwise recovery follows the documented restore procedure.
 
-The [migration runbook](operations/database-migrations.md) defines principal custody, compatibility
+The [principal matrix](operations/database-principals.md) defines principal custody; the
+[migration runbook](operations/database-migrations.md) defines compatibility
 checks, and rollback boundaries. The [backup/restore runbook](operations/database-backup-restore.md)
 keeps cutover human-operated, writes an independent restore-pending marker before multi-user access,
 and requires post-restore sanitation before readiness. Sanitation

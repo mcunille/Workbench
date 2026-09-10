@@ -24,7 +24,10 @@ Compare the entire deployed-to-candidate range, including migrations introduced 
 A candidate requiring `AddItemRestoration`, for example, remains unready until that migration runs.
 Review old-web/new-schema and worker
 compatibility before deciding whether workers may continue. If compatibility requires a pause,
-obtain approval for the interruption; do not silently stop the public service.
+obtain approval for the interruption; do not silently stop the public service. Disable the worker
+schedule and drain active executions when that compatibility window requires it; record the paired
+checkpoint before upgrading. Resume the schedule after successful candidate gates and approved
+promotion. Verify the installed schema as well as migration-job success before switching traffic.
 
 Build the selected reviewed source, label its commit, run repository release gates, and perform
 the [exact-image assessment](azure-security-controls.md#exact-image-assessment). After upload
@@ -175,3 +178,45 @@ scoped. Preserve the Container Apps managed resource group and Network Watcher.
 
 Read back deletions, traffic, HTTPS readiness and backup `ProtectionConfigured`. The completed
 2026-09-08 cleanup is recorded in [deployment verification](deployment-verification.md#azure-public-launch-2026-09-08-utc).
+
+## Temporary administrative host cleanup
+
+Before a main-template redeployment, remove temporary subnet dependencies: the template declares
+only `apps` and `endpoints`. The bootstrap script refuses other retained subnets. A scoped access
+module or migration-job-only configuration update can be used while the administrative subnet exists;
+do not redeploy foundation during that period.
+
+Verify an encrypted recovery bundle can actually be decrypted locally, including initial credentials,
+tenant proof, the certificate private key and password, plus retained configuration/installation ID.
+A Windows DPAPI transfer key depends on that Windows account: arrange a separately protected,
+recoverable backup outside the VM/vault failure domain before calling disaster recovery complete.
+When generating PKCS#12 with OpenSSL, use separate input/output passphrase files; referencing one
+single-line file twice can fail because OpenSSL expects two lines. Keep secrets out of arguments,
+Run Command output and shell tracing. Normalize generated Linux scripts to LF and check explicit
+guest success markers: Azure Run Command completion is not proof of a successful guest command.
+
+After all private-host work is complete, remove the temporary VM principal's SQL administrator-group
+membership, registry pull role, vault secret-officer role and other temporary assignments. Detach
+retained operator/mail identities, remove any temporary direct Exchange Organization Management
+membership added for troubleshooting (preserve original administrator access), and remove the VM,
+its NIC and OS disk. Detach the NAT gateway and NSG from the temporary subnet, delete that subnet,
+then delete the temporary NAT gateway, public IP and NSG/resource group after checking its inventory.
+Verify each deletion; deallocating a VM alone leaves NAT, IP and disk charges. Keep retained production
+identities and recovery secrets. Retire local transfer keys only after an independently recoverable
+replacement has been verified. No cleanup command is implicitly authorized to delete production data.
+
+
+## Job runtime acceptance
+
+Worker jobs use `--worker --drain`, 100 items, a 45-second drain budget, a 90-second platform timeout,
+one replica and one retry. Validate retry/overlap outcomes and queue age separately from process exit.
+The migration job is manual, has no retries and a 30-minute timeout, and receives no SMTP/blob/proof
+secrets. A single job replica prevents neither overlapping executions nor concurrent external CLI
+invocations: migration locking and lease fencing remain authoritative. Measure actual shutdown
+against the 60-second web grace period.
+
+Candidate authenticated checks in multiple-revision mode need a private revision route or temporary
+operator-controlled test binding; prove canonical Host/TLS configuration before testing. Keep explicit
+existing revision weights totaling 100 throughout staging; never implicitly route to `latestRevision`.
+On failure retain traffic on a compatible old revision. If no image supports the installed schema,
+stop traffic only under the approved interruption/recovery scope and follow reviewed recovery.

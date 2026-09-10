@@ -12,34 +12,7 @@ gh pr checks <n>
 
 Use the metadata response as the current base/head identity. Checks are evidence to inspect, not a substitute for independently running feasible affected repository-native verification.
 
-Read REST reviews, inline comments, and top-level PR comments with pagination. Top-level PR comments use the issue-comments endpoint; they can contain author replies to review-body **Unanchorable findings**. Include the review `commit_id` when selecting a previous AI comment-review anchor.
-
-```powershell
-$reviews = gh api "repos/<owner>/<repo>/pulls/<n>/reviews" --paginate --slurp --jq 'map(.[])' | ConvertFrom-Json
-$inlineComments = gh api "repos/<owner>/<repo>/pulls/<n>/comments" --paginate --slurp --jq 'map(.[])' | ConvertFrom-Json
-$topLevelComments = gh api "repos/<owner>/<repo>/issues/<n>/comments" --paginate --slurp --jq 'map(.[])' | ConvertFrom-Json
-```
-
-Read GraphQL thread state because REST inline comments do not expose resolution. Include comment identity and body so REST comments can be associated with their thread.
-
-```powershell
-$query = 'query($owner:String!,$repo:String!,$pr:Int!,$cursor:String){repository(owner:$owner,name:$repo){pullRequest(number:$pr){reviewThreads(first:100,after:$cursor){nodes{id isResolved isOutdated path line comments(first:100){nodes{databaseId body author{login}}}} pageInfo{hasNextPage endCursor}}}}}'
-$cursor = $null
-$allThreads = @()
-do {
-  $variables = @('-F', 'owner=<owner>', '-F', 'repo=<repo>', '-F', 'pr=<n>)
-  if ($null -ne $cursor) { $variables += @('-F', "cursor=$cursor") }
-  $page = gh api graphql @variables -f query=$query | ConvertFrom-Json
-  $threads = $page.data.repository.pullRequest.reviewThreads
-  $allThreads += @($threads.nodes)
-  $cursor = $threads.pageInfo.endCursor
-} while ($threads.pageInfo.hasNextPage)
-$allThreads
-```
-
-`isOutdated` means the diff anchor no longer applies; it does not mean the thread is resolved. `isResolved` is the explicit resolution state. A GraphQL `line` can be null, so use the REST comment's available original/current anchor fields or report the finding in the grouped body as an Unanchorable finding; never fabricate a line.
-
-Do not select scope or disposition prior findings until every review-thread page and every top-level comment page has been collected. Associate top-level replies with labeled **Unanchorable findings** by review/comment identity and chronology, and independently validate their claims just like inline replies.
+Follow the [shared feedback reads and pagination](../../shared/references/github-read-mechanics.md#read-and-join-feedback) before selecting scope or disposing of prior findings.
 
 ## Fetch and select the review boundary
 

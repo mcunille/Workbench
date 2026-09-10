@@ -1,5 +1,30 @@
 # Microsoft 365 setup for Workbench notifications
 
+## Provider selection and existing SMTP switch
+
+Set `deliveryProvider=Graph`, `graphMailboxId` to the no-reply mailbox object UUID,
+`graphManagedIdentityClientId` to the dedicated mail identity client UUID, and `mailIdentityId`
+to its Azure resource ID. SMTP input fields may be empty. The templates attach this identity only
+to the worker; web receives configuration for enqueue validation and migration receives neither.
+Self-hosted and Azure SMTP configurations continue to use `deliveryProvider=Smtp`.
+Complete the Exchange setup and durable-worker delivery gates below.
+
+When changing an existing Azure SMTP installation to Graph, stop web revisions and scheduled
+workers first. Incremental deployments do not delete old role assignments omitted by a template.
+List role assignments at the `smtp-password` secret scope, identify the exact assignments for
+the web and worker principal IDs, and explicitly remove those two assignments by their resource
+IDs as part of the reviewed provider switch. Do not delete the secret or unrelated assignments.
+Read back both principals' effective assignments, including inherited vault/resource-group grants,
+and verify neither can read `smtp-password` before resuming. If broader inherited authority grants
+access, narrow it through a separately reviewed permissions change. Verify the deployed web/worker
+have no SMTP secret reference or mount and only the worker carries the mail identity. Merely
+redeploying with `deliveryProvider=Graph` does not prove old SMTP access was revoked.
+
+Graph 202 means accepted, not delivered. Queue retries are bounded; ambiguous timeouts can
+produce duplicate email. Do not grant mailbox-read permission for health checks.
+
+## Exchange setup and delivery acceptance
+
 Use this only when `deliveryProvider=Graph`. Azure identity creation and Exchange changes require
 operator approval. This procedure does not grant tenant-wide Graph application permissions.
 Prerequisites are the organization's verified mail domain, Exchange Online administration access,
@@ -57,6 +82,7 @@ az rest --method get --url "https://graph.microsoft.com/v1.0/servicePrincipals/$
 ```
 
 For this dedicated identity expect none; investigate any returned grant before delivery acceptance.
+Remove broad grants only through a separately authorized, reviewed operation.
 Exchange scope does not constrain separate Entra grants. Keep runtime worker retries bounded during
 propagation. Set `mailIdentityId` to the Azure identity resource ID in the installation parameters.
 

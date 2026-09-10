@@ -33,21 +33,12 @@ and reduced-motion/transparency preferences. Never imply that starting a downloa
 
 ## Package version 1
 
-ZIP entries use fixed ASCII names and server-generated canonical UUIDs, never user-entered paths:
-
-| Entry | Contents |
-| --- | --- |
-| `README.txt` | Offline instructions, schema/layout version, scope, timestamp, CSV decoding, WebP guidance and backup exclusion. |
-| `records.csv` | Exact H7 CSV version 1 columns and reversible spreadsheet-safety encoding. |
-| `manifest.json` | Package version, scope, UTC export timestamp, record/photo counts and one entry per exported item. |
-| `photos/<item_id>.webp` | Exact stored detail photograph bytes for that item in the snapshot. |
-
-Manifest item entries contain `item_id`, literal `name`, nullable `location`, and `photo`.
-For absence, `photo` is `{ "status": "none" }`. For a photograph, it contains `status: "included"`,
-`path`, `media_type: "image/webp"`, `byte_length` and SHA-256 hex digest. JSON is UTF-8 and preserves
-literal user text via normal JSON escaping; names and locations need no CSV apostrophe decoding.
-The README explains matching `item_id` across manifest, CSV and filenames. No executable HTML or
-external resources are required. Document that opening WebP needs a WebP-capable image viewer.
+The authoritative [collection package contract](../collection-export.md#records-and-photographs-zip)
+owns ZIP entries, manifest fields, photo mapping and offline-reader guidance. It preserves the
+[CSV contract](../collection-export.md#format-version-1). Fixed ASCII entry names and generated
+UUIDs prevent user-entered paths from controlling extraction destinations. The offline README
+must explain schema/layout version, scope, timestamp, CSV decoding and backup exclusion; no
+executable HTML or external resources are required.
 
 Missing, corrupt, recovery-unavailable or unreadable required photographs fail the entire package.
 Never turn a retrieval failure into `none`, omit a required entry, or return a partial-success ZIP.

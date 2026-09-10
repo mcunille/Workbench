@@ -1,5 +1,8 @@
 # Database backup and restore
 
+Use the [database-principal matrix](database-principals.md) for setup, operator and maintenance
+authorities; each restore step below still requires its stated authority and isolation.
+
 Backups contain tenant data, password hashes, identity-operation hashes, audit history, and encrypted
 data-protection keys. Handle a backup as highly sensitive production data: encrypt it, restrict and
 audit access, keep it outside the application host and repository, define retention, and securely

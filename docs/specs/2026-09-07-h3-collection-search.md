@@ -158,3 +158,9 @@ delayed photo completion and the original photo workflows. Lint/typecheck/build,
 probe and hardened container/Compose probe were rerun successfully. The earlier 416-server-test and four-migration
 evidence applies to unchanged server/schema code; that broader suite was not repeated for the
 client-only fix. The walkthrough was refreshed from the corrected build.
+
+### Walkthrough media
+
+At revision `b7bf3ef` on 2026-09-07, the recorded SQL/storage scenario passed and its 69-second
+recording decoded; desktop/light, mobile/dark, search, retry recovery and cleared-result frames
+were inspected. It used synthetic data and disposable infrastructure, with authentication off camera.

@@ -180,3 +180,7 @@ the client expected token, omitting collection invalidation, and omitting uncert
 protection. Restored source passed affected tests. No automated mutation score is claimed.
 Historical walkthrough footage was inspected at delivery; see the [demonstration
 index](../demos/README.md) for its retirement. These local checks do not establish collector usability.
+
+At revision `9e618a1` on 2026-09-07, the approximately 96-second recording decoded; mobile uncertain
+outcome, desktop archived state and photographed archived details at desktop/light and 320px/dark
+were inspected. It used synthetic data and disposable infrastructure, with authentication off camera.
