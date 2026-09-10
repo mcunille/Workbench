@@ -37,11 +37,11 @@ on 2026-09-10.
 
 ## Delivery evidence
 
-- Final-source `smoke-container.ps1` passed at `14d34de`: non-root/read-only SQL-backed runtime,
+- Final-source `smoke-container.ps1` passed at `6f7f5a4`: non-root/read-only SQL-backed runtime,
   local Compose TLS, Secure-cookie login, durable session after app replacement, forwarded
-  headers, private listener and worker queue telemetry. Log: `artifacts/h10-smoke-final.log`.
+  headers, private listener and worker queue telemetry. Log: `artifacts/h10-smoke-delivery.log`.
 - This checkout's isolated preview at `http://localhost:32769` was started with `dev-up.ps1`
-  and exercised using its protected login. Two synthetic pieces were connected through the
+  and refreshed to `6f7f5a4`, then exercised using its protected login. Two synthetic pieces were connected through the
   UI and opened in the shared view. Desktop/light and 320px/dark screenshots were inspected;
   the narrow document had no horizontal overflow. Preview credentials were not captured.
 - The narrated Playwright capture passed against source `14d34de` with synthetic records and
@@ -49,7 +49,12 @@ on 2026-09-10.
   passed complete FFmpeg decoding, and representative desktop/shared and mobile/archive
   captioned frames were visually inspected. Reproduction uses FFmpeg 7.1 from the pinned local
   `imageio-ffmpeg` 0.6.0 helper and Windows System.Speech.
-- The complete `verify.ps1` gate result will be recorded before PR delivery.
+- The complete `verify.ps1 -SkipDependencyInstall` gate passed at
+  `6f7f5a4127fb78f6e4aead471bc143c0dc5eb043` in 782.44 seconds: 692 server tests
+  (two partitions, exact inventory coverage), 191 client tests across 36 files, 71 browser
+  scenarios, formatting, lint, type checking, builds, generated API drift checks and published
+  release-unit probes. Run evidence: `artifacts/verification/d99184e45ab7470c91200768833b83f3/`;
+  log: `artifacts/h10-verify-final.log`. Only this evidence document changed after that gate.
 
 Media remains at
 `C:/Users/mcuni/.codex/visualizations/2026/09/10/01a08a18-209c-7912-8ffa-aa2ac6cd2ac9/h10/`:
