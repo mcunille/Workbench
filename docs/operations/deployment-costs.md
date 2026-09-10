@@ -1,6 +1,6 @@
 # Deployment cost estimate
 
-This is a reproducible **public retail estimate, not a measured bill or a deployment quote**.
+This is a historical, reproducible **public retail estimate, not a measured bill or a current deployment quote**.
 Rates were retrieved without authentication from Microsoft's Azure Retail Prices API on
 **2026-09-06 UTC**, in **USD**, for **West US 2 (`westus2`)**, Consumption/pay-as-you-go pricing.
 Global meters are identified below. No Azure resources were created. Contract discounts, tax,
@@ -8,11 +8,23 @@ reservations, and savings plans are excluded. Refresh the rates before approving
 
 ## Topology and rate evidence
 
-The initial topology uses a Consumption Container Apps environment, a web replica allocation of
+The historical estimated topology uses a Consumption Container Apps environment, a web replica allocation of
 0.5 vCPU / 1 GiB with minimum 0 and maximum 3 replicas, and a scheduled 0.5 vCPU / 1 GiB worker
 once per minute. SQL is provisioned Standard S0; it does not stop billing when web replicas reach
 zero. Three private endpoints serve SQL, Blob, and Key Vault, with three private DNS zones.
-The foundation uses Standard LRS Blob, Standard Key Vault, and Log Analytics PerGB2018.
+The estimate assumes Standard LRS Blob, Standard Key Vault, and Log Analytics PerGB2018.
+The checked-in [foundation template](../../infra/azure/modules/foundation.bicep) now specifies
+`Standard_GRS`, SQL backup redundancy `Geo`, seven-day SQL retention and 30-day blob soft-delete
+retention with versioning by default. The LRS storage rates and formulas below are preserved as
+dated evidence; they do not price that GRS configuration.
+
+Template defaults do not prove deployed settings. The [recorded deployment state](azure-deployment.md)
+and [native Blob backup runbook](azure-native-backup.md) document installation evidence and the
+selected native vaulted backup policy. Native backup is separate from source-account versioning and
+from the alternative custom capture/expiration resources in
+[online backup operations](online-backup-recovery.md). This estimate prices neither backup route;
+include the selected vault/storage, retention, replication, execution and monitoring charges in a
+fresh deployment estimate rather than adding both alternatives by default.
 
 Each value below is an actual `retailPrice` returned by the linked API query, not a price inferred
 from another region. `effectiveStartDate` is the meter's start date, not the date it was retrieved.
@@ -95,7 +107,7 @@ After grants are consumed, each additional average second per every-minute worke
 `43,200 * 0.000021 = $0.9072/month`. Each extra web replica-hour adds `$0.0756`. This makes actual
 job startup time, revision overlap, and replica residence time essential measurements.
 
-Add usage with these first-tier formulas:
+Add usage for the historical LRS scenario with these first-tier formulas:
 
 ```text
 Blob = stored GB-month * 0.0184
@@ -110,7 +122,8 @@ Logs = chargeable ingestion GB * 2.30 + chargeable retained GB-month * 0.10
 For illustration only, 10 GB-month Blob, 10,000 writes, 10,000 reads, one million DNS queries,
 10,000 vault operations, 100 GB total Private Link traffic, and 1 GB chargeable log ingestion add
 $3.968 before list operations and chargeable retention. Added to the two-hours/day, five-second-job
-case and the fixed component, the **priced-components subtotal is $43.10**. None of these usage
+case and the fixed component, the **historical LRS priced-components subtotal is $43.10**; it is not
+a current hosted total or a GRS/native-backup estimate. None of these usage
 quantities has been observed in a hosted environment. Log grant eligibility and included retention
 must be checked for the subscription/table plan; the example intentionally assumes the 1 GB is chargeable.
 
@@ -144,7 +157,8 @@ support measuring duty cycle before selecting a permanent plan; they do not esta
 
 ## Refresh and hosted acceptance
 
-Before a hosted rollout, repeat the linked queries and retain the returned `productName`, `skuName`,
+Before a hosted rollout, select rates for the actual storage redundancy and backup design rather than
+reusing the historical LRS query. Repeat the relevant queries and retain the returned `productName`, `skuName`,
 `meterName`, `retailPrice`, `currencyCode`, `unitOfMeasure`, `tierMinimumUnits`, `armRegionName`,
 `effectiveStartDate`, and `type`. Follow `NextPageLink` if present and select the intended tier and OS.
 The documented API is public and requires no subscription credentials.

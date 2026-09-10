@@ -6,7 +6,7 @@ separately: inventory and collections, bookkeeping and accounting, and commerce.
 
 The current application provides a private collection notebook: save and find individual pieces,
 manage a photograph, correct descriptions, archive and restore records, record acquisition context,
-and download collection copies. See the [collection guide](docs/collection.md) for current behavior
+and download CSV records or ZIP packages with photographs. See the [collection guide](docs/collection.md) for current behavior
 and boundaries. Accounting and commerce remain future workflows.
 
 The React client and ASP.NET Core API ship as one same-origin release unit with SQL Server tenant

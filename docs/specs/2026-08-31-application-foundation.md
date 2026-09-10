@@ -1,6 +1,8 @@
 # Application foundation and single release unit
 
-**Status:** Accepted
+**Status:** Implemented. The runnable client/server, same-origin release unit, health endpoints,
+container and verification scripts are present. The phase exclusions below describe the original
+foundation boundary; subsequent phases are documented in the [architecture](../ARCHITECTURE.md).
 
 **Issue:** [#9](https://github.com/mcunille/Workbench/issues/9)
 

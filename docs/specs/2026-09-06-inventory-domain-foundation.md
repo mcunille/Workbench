@@ -1,7 +1,9 @@
 # Inventory domain foundation for H1
 
-**Status: Accepted** — the owner approved this foundation and implementation of H1 following
-inspection of GemInv. Expanded stock-management workflows remain outside H1.
+**Status: Accepted; partially implemented** — the owner approved this foundation and implementation
+of H1 following inspection of GemInv. The individually tracked collection slice is implemented;
+expanded stock-management, quantities and component workflows remain outside that delivery.
+The [collection guide](../collection.md) owns the supported product scope.
 
 ## Purpose
 

@@ -303,9 +303,9 @@ The sign-in page uses the original vector stag and the inline bench-pin wordmark
 Its atmosphere is CSS, so there is no raster background to load, crop, or scale. The implementation must remain live
 HTML controls rather than a flattened image of the approved concept.
 
-If this language is later extended to the collection, preserve accurate item photography
-and existing domain interactions. Atmospheric tints should never alter how a gemstone
-or jewelry photograph represents the item. That extension requires its own scoped design.
+The accepted application extension includes the collection. Preserve accurate item photography
+and existing domain interactions. Atmospheric tints must never alter how a gemstone
+or jewelry photograph represents the item. See Application surfaces below for its shared treatment.
 
 ## Do's and Don'ts
 
@@ -325,7 +325,8 @@ or jewelry photograph represents the item. That extension requires its own scope
 - Restore the serif sign-in wordmark or shrink the stag into a barely visible header icon.
 - Add ornaments, floating orbs, badges, social-login options, or marketing copy to this form.
 - Make every element glass or remove borders simply to make the form look softer.
-- Apply these scoped tokens globally or silently replace the rest of the application's styling.
+- Apply sign-in-specific geometry globally; use the shared application tokens and navigation
+  exceptions documented below for other surfaces.
 
 ## Quick Start
 
@@ -335,6 +336,7 @@ The application already imports these styles in this order:
 
 ```tsx
 import './styles.css';
+import './navigation.css';
 import './sign-in.css';
 import './floating-field.css';
 ```

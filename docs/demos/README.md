@@ -44,8 +44,8 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File ./scripts/render-h7-walk
 npm test --prefix tests/Workbench.BrowserTests -- --config package-walkthrough.config.ts
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File ./scripts/render-h8-walkthrough.ps1 -Ffmpeg 'C:/Tools/ffmpeg.exe'
 
-# H9: choose an absolute output directory outside the repository.
-$env:WORKBENCH_H9_MEDIA = Join-Path $env:TEMP 'workbench-h9-media'
+# H9: replace this example with your selected absolute directory outside the repository.
+$env:WORKBENCH_H9_MEDIA = 'C:/WorkbenchMedia/h9'
 npm test --prefix tests/Workbench.BrowserTests -- --config acquisition-walkthrough.config.ts
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File ./scripts/render-h9-walkthrough.ps1 -Ffmpeg 'C:/Tools/ffmpeg.exe' -MediaRoot $env:WORKBENCH_H9_MEDIA
 ```

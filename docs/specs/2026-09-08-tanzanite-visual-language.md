@@ -1,7 +1,7 @@
 # Tanzanite visual language
 
-**Status:** Sign-in implemented; the application extension was accepted after the sign-in design
-merged. This record preserves that approval sequence, not a new assertion of deployment.
+**Status:** Implemented for sign-in and the application extension. This record preserves the
+approval sequence; implementation status is not a new assertion of deployment.
 
 [DESIGN.md](../../DESIGN.md) owns the current palette, materials, typography and dimensions.
 This document records why the visual direction was selected and how its scope expanded.
@@ -47,15 +47,16 @@ previous presentation without data migration.
 
 ## Subsequent acceptance: application extension
 
-Status: approved for implementation by the request to update the rest of the app after
+Status: implemented following approval to update the rest of the app after
 merging the sign-in design. This extends the accepted visual language; it does not change
 application architecture or workflows.
 
 ### Scope
 
 - Apply the neutral white/charcoal palette with faint blue/violet atmosphere at the top.
-- Carry the original geometric stag, system sans Workbench wordmark, and muted
-  “by The White Stag Collection” attribution into the workspace and public account states.
+- Historical extension approval included the stag and maker attribution across surfaces.
+  The subsequent shared-brand refinement confines both to sign-in; workspace and public account
+  headers use the bench-pin Workbench wordmark. [DESIGN.md](../../DESIGN.md) owns that current rule.
 - Use subtle glass for chrome, opaque readable content surfaces, and neutral depth.
 - Apply the approved radius scale: small 2px, badges 4px, inputs/buttons 6px, cards 12px.
 - Cover collection grid/list, details, editors, dialogs, account, administration, recovery,

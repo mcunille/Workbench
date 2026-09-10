@@ -1,6 +1,15 @@
 # Online backup and SQL-authoritative manual recovery
 
-**Status:** Implemented locally; hosted verification and activation pending.
+**Status:** Custom recovery-set capture/expiration and SQL-authoritative manual reconciliation are
+implemented locally. The custom capture/expiration deployment has not been activated in the recorded
+production installation; it is an alternative to the selected
+[Azure-native vaulted Blob backup](../operations/azure-native-backup.md), not a prerequisite for it.
+Native protection, a scheduled backup and an isolated empty-data restore have scoped hosted evidence
+in the [deployment record](../operations/evidence/2026-09-deployment-acceptance.md). That evidence
+does not establish custom recovery-set activation, a populated cross-store recovery drill, or all
+acceptance criteria below. Use the [acceptance matrix](../operations/production-readiness.md) for
+current evidence limits and the [recovery runbook](../operations/online-backup-recovery.md) for the
+two collection routes and shared manual reconciliation procedure.
 
 ## Decision and scope
 
@@ -22,7 +31,7 @@ This specification defines the new Azure workflow. Existing offline commands and
 self-hosted backup path retain their current requirements until an explicit replacement is built.
 Do not remove an offline confirmation from an existing command to simulate online support.
 
-## Current implementation and the gap
+## Historical implementation gaps at design time
 
 - `StorageMaintenanceCommand` requires offline confirmation for every action. Its SQL export is
   paged without one consistent read transaction, and therefore is not an online SQL snapshot.
@@ -34,7 +43,8 @@ Do not remove an offline confirmation from an existing command to simulate onlin
 - Recovery verification requires an exact manifest match and verified bytes for all entries before
   clearing the storage recovery gate. No accepted-loss state or tenant-facing recovery notice exists.
 
-Those are implementation gaps, not evidence that the online procedure already works.
+Those were the gaps motivating this design. The implementation status above and current runbook
+supersede this baseline; the baseline itself is not evidence of hosted verification.
 
 ## Online backup collection
 

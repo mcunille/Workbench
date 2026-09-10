@@ -1,6 +1,8 @@
 # Azure forwarded metadata trust
 
-Status: approved design, 2026-09-07.
+Status: implemented; design approved 2026-09-07. Current configuration and operational restrictions
+are in [Azure ingress](../operations/azure-ingress.md). Hosted observations are scoped by the
+[acceptance matrix](../operations/production-readiness.md), not implied by this status.
 
 ## Problem and evidence
 

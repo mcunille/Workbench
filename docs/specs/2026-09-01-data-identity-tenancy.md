@@ -311,10 +311,13 @@ Hosted Azure deployments use separate managed identities for the web application
 The migration job obtains a short-lived token and runs from the exact application image digest being
 released. The web runtime is never assigned the migration identity or configuration.
 
-Self-hosted deployments provide the migration credential through a mounted secret file or protected
-interactive input. It is absent from `.env.dev`, production environment variables, Compose service
-configuration, image layers, and web application configuration. The secret is available only for
-the migrator process lifetime and can be rotated or disabled after deployment.
+Self-hosted release deployments provide the migration credential through a mounted secret file or
+protected interactive input. Keep it out of web runtime environment variables, Compose web service
+configuration, image layers, and web application configuration. The release secret is available only
+for the migrator process lifetime and can be rotated or disabled after deployment. Legacy manual
+development is a separate boundary: ignored `.env.dev` includes migrator settings loaded by
+`scripts/dev-env.ps1` for explicit migration commands; the web connection uses only the web principal.
+New checkout previews use isolated `scripts/dev-up.ps1` credentials instead; see [setup](../setup.md).
 
 Migration execution verifies target database identity, current schema version, expected release
 version, and artifact hash. It acquires a database application lock so only one migrator runs. It
@@ -387,7 +390,10 @@ keys. Backup media is therefore a credential-bearing security asset and requires
 control, retention, and tested restoration.
 
 Hosted guidance uses Azure SQL point-in-time recovery and platform backup controls. Self-hosting
-receives operator-run SQL backup and restore scripts. Backup and restore remain human-operated.
+receives operator-run SQL backup and restore scripts. This original operator-run backup decision is
+extended by [online backup/manual recovery](2026-09-07-online-backup-and-manual-recovery.md).
+Current [Azure-native protection](../operations/azure-native-backup.md) includes scheduled backup;
+custom recovery sets have separate activation/evidence requirements. Restore remains human-operated.
 
 The restore script writes an independent pending marker into the restored database before returning
 it to multi-user mode. After any restore, traffic stays stopped while a mandatory post-restore command:

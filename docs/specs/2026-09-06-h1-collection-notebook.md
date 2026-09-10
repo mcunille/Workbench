@@ -89,8 +89,10 @@ explicit sign-out offer Keep editing or Discard changes before leaving. A clean 
 nothing. Warn on browser unload where supported. Involuntary authentication loss clears protected
 data through existing session handling; it cannot promise draft recovery after sign-out.
 
-Use the accepted compact stag/Workbench branding and semantic bronze, warm neutral, and charcoal
-tokens. Appearance offers System/Light/Dark on public surfaces and in account settings. Persist
+The original H1 acceptance used compact stag/Workbench branding and bronze, warm neutral, and
+charcoal tokens. Those visual values are historical and superseded by
+[Tanzanite](2026-09-08-tanzanite-visual-language.md) and the current [DESIGN.md](../../DESIGN.md).
+Appearance supports System/Light/Dark; current control placement and cycling follow DESIGN.md. Persist
 only this preference locally, safely falling back to System for inaccessible/corrupt storage.
 Resolve it before first paint under the existing CSP; follow OS changes only in System mode.
 Update color-scheme and browser theme color without remounting forms or losing focus and scroll.

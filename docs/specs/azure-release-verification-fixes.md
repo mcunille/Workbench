@@ -1,6 +1,9 @@
 # Azure release verification fixes
 
-Status: implemented and locally verified; hosted acceptance remains pending.
+Status: implemented and locally verified, with subsequent scoped hosted evidence in the
+[launch/follow-up record](../operations/evidence/2026-09-deployment-acceptance.md). The
+[acceptance matrix](../operations/production-readiness.md) distinguishes completed checks and
+remaining gates; the pre-launch requirements below are not a current claim that all hosted work is pending.
 
 ## Problem and scope
 

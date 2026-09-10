@@ -81,9 +81,14 @@ failed release can leave the final mode uncertain; the script's error is not per
 
 ## Mandatory post-restore sanitation
 
-SQL recovery must be paired with the exact blob snapshot and digest manifest described in the
-[provider runbook](blob-and-service-providers.md). Keep every replica and worker offline until both
-stores are restored and `storage verify` succeeds. Sanitation cancels identity-delivery outbox rows,
+For strict paired recovery, restore the exact blob snapshot and digest manifest described in the
+[provider runbook](blob-and-service-providers.md#offline-reconciliation-paired-backup-and-restore),
+then complete `storage verify`. The separate
+[SQL-authoritative recovery procedure](online-backup-recovery.md#manual-recovery) can instead record
+missing files in an isolated recovered store after explicit review and acceptance of a bound report
+digest. That procedure preserves SQL records and exposes unavailable-file notices; it does not make
+an incomplete strict verification pass. Keep every target replica and worker offline until the
+selected storage recovery procedure succeeds. Sanitation cancels identity-delivery outbox rows,
 resets outstanding deletion leases, and sets a separate blob-recovery marker when retained content
 exists. SQL sanitation alone does not clear that marker or permit worker claims.
 
@@ -129,7 +134,8 @@ Do not count passing disposable tests as evidence for these outcomes:
 - a new sign-in creates a usable session with the expected tenant and permissions;
 - representative tenant rows remain isolated through application and direct role probes;
 - audit history contains the restore-sanitation event and correlation identifier; and
-- any later blob restore is coherent with SQL metadata before blob workflows are enabled.
+- the selected storage recovery gate is complete: either exact paired verification succeeds, or
+  the reviewed SQL-authoritative report is accepted and recovered/unavailable-file behavior is checked.
 
 Record the drill date, source and target identifiers, application and schema versions, validation
 results, exceptions, and the human who authorized cutover. Do not record credentials or token values.

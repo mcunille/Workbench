@@ -2,6 +2,10 @@
 
 **Status:** Implemented
 
+Provider code and local verification establish implementation. Scoped hosted observations are in
+the [acceptance matrix](../operations/production-readiness.md) and its linked dated evidence;
+they do not certify all provider, migration or populated-recovery requirements in this design.
+
 Tracks [issue #11](https://github.com/mcunille/Workbench/issues/11), following the
 implemented data and identity phase in issue #10. This design was accepted on 2026-09-05.
 The implementation and deployment prerequisites are documented in the
@@ -220,6 +224,12 @@ known failed/deleted SQL operations after their leases and grace periods expire.
 Unknown objects are report-only; operator-approved cleanup requires a saved manifest
 and a fresh reference check. Never delete outside the installation/tenant namespace.
 
+The initial stopped-writer backup below is historical. The later accepted
+[online backup/manual recovery](2026-09-07-online-backup-and-manual-recovery.md) decision adds online
+capture with offline recovery. Use the [custom recovery-set runbook](../operations/online-backup-recovery.md)
+and separate [Azure-native backup runbook](../operations/azure-native-backup.md) for current procedures;
+native protection evidence does not prove custom recovery-set activation.
+
 For the initial paired backup procedure, enter maintenance mode, stop/drain workers
 and blob mutations across all replicas, and create a SQL backup plus a blob snapshot
 or copy and digest manifest from that stable state. Record installation, schema,
@@ -284,7 +294,7 @@ PR after verification, leaving merge and production operations to explicit appro
 This design deliberately adds an internal blob primitive without a public upload
 workflow, retains old revisions, and uses a SQL queue with a separate worker mode.
 These are architectural/product choices requiring acceptance. SMTP duplicates,
-protected outbox token retention, OS-specific filesystem guarantees, maintenance
-windows for consistent backup, and live Azure verification are explicit constraints.
+protected outbox token retention, OS-specific filesystem guarantees, offline recovery,
+and the documented hosted verification limits remain explicit constraints.
 If implementation cannot meet a stated invariant, revise this design and obtain
 approval for the changed boundary rather than silently weakening it.

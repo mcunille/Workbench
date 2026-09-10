@@ -3,6 +3,9 @@
 Database migrations are an explicit, human-controlled deployment operation. A web replica never
 migrates its database. Use the migrator identity defined in the authoritative
 [database-principal matrix](database-principals.md); keep setup and operator authority out of web configuration.
+That matrix also separates the worker and storage-maintenance roles. The worker's cross-tenant
+queue status permission returns aggregate counts and age only; it does not grant general tenant-data
+browsing. Storage manifest/recovery authority belongs to protected maintenance tooling.
 
 ## Deployment procedure
 
@@ -23,7 +26,9 @@ migrates its database. Use the migrator identity defined in the authoritative
 Application rollback is safe only within a verified schema compatibility window. An older binary
 may reject a newer readiness marker. Do not improvise a down migration against live data; use a
 reviewed forward correction or the [restore and sanitation procedure](database-backup-restore.md).
-Blob-bearing databases also require the [paired SQL/blob workflow](blob-and-service-providers.md#offline-reconciliation-paired-backup-and-restore).
+Blob-bearing restores must complete either the [strict paired SQL/blob workflow](blob-and-service-providers.md#offline-reconciliation-paired-backup-and-restore)
+or [reviewed SQL-authoritative recovery](online-backup-recovery.md#manual-recovery), including its explicit
+missing-file acceptance when needed. Both preserve the SQL restore guard and mandatory sanitation.
 Development verification does not authorize production migration, rollback, or cutover.
 
 ## Local one-time setup

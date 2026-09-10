@@ -2,6 +2,9 @@
 
 **Status:** Scenario requirements and historical delivery context. H1 merged in
 [PR #37](https://github.com/mcunille/Workbench/pull/37) on 2026-09-07.
+H1–H9 capabilities are now implemented in the collection workflow, including photographs, search,
+editing, archive/recovery, CSV/ZIP export and acquisition context. This scenario remains partially
+validated: implementation does not establish its integrated human usability acceptance below.
 The [collection guide](../collection.md) owns current behavior; the issue below owns delivery status.
 This is not a committed sprint forecast.
 
@@ -23,7 +26,8 @@ durable records and room to grow; do not require accounting, a business profile,
 “hobbyist mode.” Professionals should eventually extend the same records and workflows.
 
 Use the [collection guide](../collection.md) for current capabilities and the accepted
-[UI guidance](2026-09-06-ui-design-guidance.md) for accessibility and progressive capability.
+[UI guidance](2026-09-06-ui-design-guidance.md) for accessibility and progressive capability;
+its original bronze/serif visual treatment has been superseded.
 [DESIGN.md](../../DESIGN.md) owns current visual values; the
 [H1 refinement](../design/h1-refinement/README.md) preserves the original design context.
 System/Light/Dark appearance must preserve task state. Extend the responsive Grid/List views rather
@@ -112,7 +116,9 @@ formal gem taxonomy, valuations, purchase orders, bookkeeping, work orders or co
 The subsequent [H5 design](2026-09-07-h5-item-archiving.md) adds safe record archiving with retained
 read-only links. The [H6 design](2026-09-07-h6-archive-recovery.md) extends it with a separate
 searchable archive and checked restoration of the same record and photograph. Archived records
-remain read-only until restored. Deletion and collection export remain separate increments. Evaluate the initial
+remain read-only until restored. H7/H8 subsequently implemented CSV and photographic ZIP export,
+and H9 added acquisition context; see the [collection guide](../collection.md) for their current scope.
+Deletion remains outside these increments. Evaluate the initial
 release as a limited collection pilot, not a complete professional inventory system.
 
 Choose subsequent complete scenarios from observed needs:
