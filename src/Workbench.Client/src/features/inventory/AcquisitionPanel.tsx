@@ -1,13 +1,16 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type MouseEvent } from 'react';
 import { ApiError } from '../../api/auth';
 import {
   getAcquisition,
   type AcquisitionContext,
+  type Acquisition,
 } from '../../api/acquisitions';
 import type { ItemDetail } from '../../api/items';
 import { AcquisitionEditor } from './AcquisitionEditor';
 import { AcquisitionValues } from './AcquisitionFields';
 import { fields } from './acquisitionDraft';
+import { AcquisitionPicker } from './AcquisitionPicker';
+import { AcquisitionLinkEditor } from './AcquisitionLinkEditor';
 
 export function AcquisitionPanel({
   item,
@@ -16,6 +19,8 @@ export function AcquisitionPanel({
   onDirtyChange,
   onAuthLost,
   onCurrent,
+  follow,
+  viewHref,
 }: {
   item: ItemDetail;
   disabled: boolean;
@@ -23,21 +28,25 @@ export function AcquisitionPanel({
   onDirtyChange(dirty: boolean, uncertain: boolean): void;
   onAuthLost(): void;
   onCurrent(version: string, item?: ItemDetail): void;
+  follow?(event: MouseEvent<HTMLAnchorElement>): void;
+  viewHref?: string;
 }) {
   const [context, setContext] = useState<AcquisitionContext>();
   const [failed, setFailed] = useState(false);
   const [attempt, setAttempt] = useState(0);
   const [editing, setEditing] = useState(false);
+  const [picking, setPicking] = useState(false);
+  const [target, setTarget] = useState<Acquisition | null>();
   const [message, setMessage] = useState('');
   const button = useRef<HTMLButtonElement>(null);
   const heading = useRef<HTMLHeadingElement>(null);
   const restoreFocus = useRef(false);
   useLayoutEffect(() => {
-    if (!editing && restoreFocus.current) {
+    if (!editing && !picking && target === undefined && restoreFocus.current) {
       restoreFocus.current = false;
       (button.current ?? heading.current)?.focus();
     }
-  }, [editing]);
+  }, [editing, picking, target]);
   useEffect(() => {
     let current = true;
     void getAcquisition(item.id).then(
@@ -71,7 +80,15 @@ export function AcquisitionPanel({
         independently verified.
       </p>
       {message ? <p role="status">{message}</p> : null}
-      {editing && context ? (
+      {picking ? <AcquisitionPicker onAuthLost={onAuthLost} onCancel={() => {
+        restoreFocus.current = true; setPicking(false); onEditingChange(false); onDirtyChange(false, false);
+      }} onSelect={value => { setPicking(false); setTarget(value); }} /> : target !== undefined && context ? (
+        <AcquisitionLinkEditor item={item} initial={{ ...context, itemVersion: item.version }} target={target} onDirtyChange={onDirtyChange} onAuthLost={onAuthLost}
+          onClose={(saved, currentItem) => {
+            if (saved) { setContext(saved); onCurrent(currentItem?.version ?? saved.itemVersion, currentItem); setMessage('Current saved connection loaded.'); }
+            restoreFocus.current = true; setTarget(undefined); onEditingChange(false); onDirtyChange(false, false);
+          }} />
+      ) : editing && context ? (
         <AcquisitionEditor
           itemId={item.id}
           initial={{ ...context, itemVersion: item.version }}
@@ -106,11 +123,15 @@ export function AcquisitionPanel({
       ) : context ? (
         <>
           {context.acquisition ? (
-            <AcquisitionValues value={fields(context.acquisition)} />
+            <>
+              <AcquisitionValues value={fields(context.acquisition)} />
+              <a className="text-link" href={!item.archivedAtUtc && viewHref?.split('/')[2] === context.acquisition.id ? viewHref : `/acquisitions/${context.acquisition.id}/from/${item.id}`} onClick={follow}>View acquisition</a>
+            </>
           ) : (
             <p>No acquisition recorded.</p>
           )}
           {!item.archivedAtUtc ? (
+            <div className="button-row">
             <button
               className="secondary"
               ref={button}
@@ -123,6 +144,13 @@ export function AcquisitionPanel({
             >
               {context.acquisition ? 'Edit acquisition' : 'Add acquisition'}
             </button>
+            <button className="secondary" disabled={disabled} onClick={() => {
+              setPicking(true); onEditingChange(true); onDirtyChange(true, false); setMessage('');
+            }}>{context.acquisition ? 'Change acquisition' : 'Connect to an acquisition'}</button>
+            {context.acquisition ? <button className="secondary danger" disabled={disabled} onClick={() => {
+              setTarget(null); onEditingChange(true); setMessage('');
+            }}>Remove connection</button> : null}
+            </div>
           ) : null}
         </>
       ) : (

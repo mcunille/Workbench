@@ -10,10 +10,9 @@ using Workbench.Server.Persistence;
 
 namespace Workbench.Server.Persistence.Migrations
 {
-    [DbContext(typeof(WorkbenchDbContext))]
-    partial class WorkbenchDbContextModelSnapshot : ModelSnapshot
+    sealed partial class AddSharedAcquisitions
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder

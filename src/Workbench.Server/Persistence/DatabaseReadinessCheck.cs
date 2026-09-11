@@ -98,6 +98,7 @@ public sealed class DatabaseReadinessCheck(
                     AND HAS_PERMS_BY_NAME(N'[Inventory].[RestoreItem]', N'OBJECT', N'EXECUTE') = 1
                     AND HAS_PERMS_BY_NAME(N'[Inventory].[CreateAcquisition]', N'OBJECT', N'EXECUTE') = 1
                     AND HAS_PERMS_BY_NAME(N'[Inventory].[UpdateAcquisition]', N'OBJECT', N'EXECUTE') = 1
+                    AND HAS_PERMS_BY_NAME(N'[Inventory].[ChangeAcquisitionLink]', N'OBJECT', N'EXECUTE') = 1
                     AND HAS_PERMS_BY_NAME(N'[Inventory].[Acquisitions]', N'OBJECT', N'SELECT') = 1
                     AND HAS_PERMS_BY_NAME(N'[Inventory].[Acquisitions]', N'OBJECT', N'INSERT') = 0
                     AND HAS_PERMS_BY_NAME(N'[Inventory].[Acquisitions]', N'OBJECT', N'UPDATE') = 0

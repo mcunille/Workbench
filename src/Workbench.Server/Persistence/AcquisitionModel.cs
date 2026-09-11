@@ -24,6 +24,7 @@ public partial class WorkbenchDbContext
         acquisition.HasKey(row => row.Id);
         acquisition.IsTenantOwned(row => (Guid?)row.TenantId == TenantContext.TenantId);
         acquisition.HasIndex(row => new { row.TenantId, row.CreationRequestId }).IsUnique();
+        acquisition.HasIndex(row => new { row.TenantId, row.CreatedAtUtc, row.Id });
         acquisition.Property(row => row.Method).HasMaxLength(16).IsRequired();
         acquisition.Property(row => row.Source).HasMaxLength(200);
         acquisition.Property(row => row.Notes).HasMaxLength(4000);

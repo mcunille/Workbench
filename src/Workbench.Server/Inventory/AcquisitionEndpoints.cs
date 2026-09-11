@@ -9,7 +9,7 @@ using Workbench.Server.Persistence;
 
 namespace Workbench.Server.Inventory;
 
-public static class AcquisitionEndpoints
+public static partial class AcquisitionEndpoints
 {
     public static RouteGroupBuilder MapAcquisitions(this RouteGroupBuilder group)
     {
@@ -23,6 +23,8 @@ public static class AcquisitionEndpoints
             .WithMetadata(WorkbenchAntiforgeryMetadata.Instance)
             .Produces<ItemAcquisitionResponse>().ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status404NotFound).ProducesProblem(StatusCodes.Status409Conflict);
+        group.MapPut("/{id:guid}/acquisition-link", LinkAsync).WithMetadata(WorkbenchAntiforgeryMetadata.Instance)
+            .Produces<ItemAcquisitionResponse>().ProducesValidationProblem().ProducesProblem(404).ProducesProblem(409);
         return group;
     }
 

@@ -600,6 +600,49 @@ footer {
   padding-block: 1.5rem;
   border-block: 1px solid var(--border-subtle);
 }
+.acquisition-picker-list,
+.acquisition-piece-list {
+  display: grid;
+  gap: 1rem;
+  list-style: none;
+  padding: 0;
+  margin-block: 1.5rem;
+}
+.acquisition-picker-list li,
+.acquisition-piece-list li {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--border-subtle);
+}
+.acquisition-picker-list button {
+  text-align: start;
+  white-space: normal;
+  max-width: 100%;
+}
+.acquisition-piece-list li {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
+}
+.acquisition-view .checkbox-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-height: 44px;
+}
+.acquisition-view .checkbox-row input {
+  width: 1.25rem;
+  height: 1.25rem;
+}
+.acquisition-section input[type="search"],
+.acquisition-view input[type="search"] {
+  flex: 1 1 12rem;
+  width: 100%;
+  min-width: 0;
+}
+.edit-comparison > section { min-width: 0; overflow-wrap: anywhere; }
 .acquisition-form .edit-field {
   display: grid;
   gap: 0.5rem;

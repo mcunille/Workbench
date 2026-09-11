@@ -42,8 +42,24 @@ no permanent-delete workflow.
 
 Saved items support optional acquisition context: method, free-text source, unknown or partial
 acquired date, and collector-recorded provenance notes. Corrections check versions and retain drafts
-for conflict recovery. Archived acquisition context is readable but cannot be edited. Shared
-acquisitions, supporting documents and acquisition-aware exports remain separate increments.
+for conflict recovery. One acquisition can describe several independently recorded pieces;
+each piece has at most one current acquisition. Open View acquisition to see associated pieces,
+connect an existing piece or record a new one, and return through the collection without losing
+its query, view or position. New-item entry saves the piece first; a failed connection save
+retains that item and retries only the relationship.
+
+Use Change acquisition or Remove connection to correct a mistaken association. Review the
+current and intended context before confirming. Replacing a connection is atomic, and both
+acquisitions and the piece remain saved. An acquisition with no connected pieces remains
+findable in the acquisition picker. Shared context corrections apply to every associated
+piece, including archived pieces; there are no separate copies to diverge.
+
+Archived item details and acquisition views opened from them are read-only. Ordinary associated
+piece browsing hides archived records unless Show archived pieces is selected. Archive and
+restore preserve the relationship. After an uncertain connection save, retry the original
+request or review current state; matching saved values do not prove which request succeeded.
+Conflicts require deliberate review before saving with fresh versions. Supporting documents
+and acquisition-aware exports remain separate increments.
 
 Open Export records from Collection or Archive to prepare CSV or a ZIP with current stored detail
 photographs. Select active records or active plus archived records; search and loaded pages do not
@@ -76,3 +92,4 @@ journey without developer intervention.
 | Restore | [H6](specs/2026-09-07-h6-archive-recovery.md) |
 | CSV and photographs package | [H7](specs/2026-09-08-h7-collection-export.md), [H8](specs/2026-09-08-h8-collection-package.md) |
 | Acquisition context | [H9](specs/2026-09-09-acquisition-context.md) |
+| Shared acquisition relationships | [H10](specs/2026-09-09-shared-acquisitions.md) |

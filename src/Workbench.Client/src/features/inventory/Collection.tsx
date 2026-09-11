@@ -350,11 +350,13 @@ export function ItemDetails({
   memory,
   archiveMemory,
   origin,
+  acquisitionReturn,
 }: Props & {
   id: string;
   memory?: CollectionMemory;
   archiveMemory?: CollectionMemory;
   origin?: 'active' | 'archived';
+  acquisitionReturn?: string;
   onDirtyChange(value: boolean, uncertain: boolean): void;
 }) {
   const [item, setItem] = useState<ItemDetail>();
@@ -436,6 +438,7 @@ export function ItemDetails({
     origin === 'archived' || (!origin && Boolean(item?.archivedAtUtc));
   return (
     <section className="editor">
+      {acquisitionReturn ? <a className="text-link back-link" href={acquisitionReturn} onClick={follow}>Back to acquisition</a> : null}
       <a
         className="text-link back-link"
         href={backToArchive ? '/inventory/archive' : '/inventory'}
@@ -616,6 +619,8 @@ export function ItemDetails({
           <AcquisitionPanel
             key={'acquisition-' + item.id}
             item={item}
+            follow={follow}
+            viewHref={acquisitionReturn}
             disabled={editing || photoDirty || archiving || restoring}
             onEditingChange={setAcquisitionEditing}
             onDirtyChange={onDirtyChange}

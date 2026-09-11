@@ -65,7 +65,8 @@ test('H9 optional facts, explicit methods and partial dates survive a new login 
     await lifecycle(reader, item.id, 'archive', current.version);
     await reader.goto(`/inventory/${item.id}`);
     await expect(panel(reader).getByText('Gift', { exact: true })).toBeVisible();
-    await expect(panel(reader).getByRole('button', { name: /acquisition/i })).toHaveCount(0);
+    await expect(panel(reader).getByRole('button', { name: /Edit acquisition|Add acquisition|Change acquisition|Remove connection|Connect to an acquisition/i })).toHaveCount(0);
+    await expect(panel(reader).getByRole('link', { name: 'View acquisition', exact: true })).toBeVisible();
   } finally { await fresh.close(); }
 });
 

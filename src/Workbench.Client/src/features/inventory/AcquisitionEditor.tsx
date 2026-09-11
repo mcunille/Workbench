@@ -184,6 +184,7 @@ export function AcquisitionEditor({
             ? 'Edit acquisition'
             : 'Add acquisition'}
       </h3>
+      {base.acquisition ? <p>Changes apply to every associated piece, including archived pieces.</p> : null}
       {review ? (
         <>
           <p>
