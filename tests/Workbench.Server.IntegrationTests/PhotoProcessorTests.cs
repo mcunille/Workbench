@@ -235,7 +235,9 @@ public sealed class PhotoProcessorTests
         Assert.Equal(422, exception.StatusCode);
     }
 
-    private static MagickImage CreateImage(MagickColor color, uint width, uint height)
+    internal static MagickImage CreateImage(MagickColor color, uint width, uint height) => new(CreatePng(color, width, height));
+
+    internal static byte[] CreatePng(MagickColor color, uint width, uint height)
     {
         // Construct PNG bytes directly because the production policy also forbids the XC pseudo-coder.
         using var png = new MemoryStream();
@@ -258,7 +260,7 @@ public sealed class PhotoProcessorTests
         }
         WriteChunk(png, "IDAT", compressed.ToArray());
         WriteChunk(png, "IEND", []);
-        return new MagickImage(png.ToArray());
+        return png.ToArray();
     }
 
     private static void WriteChunk(Stream stream, string type, byte[] data)

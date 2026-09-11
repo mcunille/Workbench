@@ -12,23 +12,25 @@ namespace Workbench.Server.IntegrationTests;
 [Collection(SqlServerCollection.Name)]
 public sealed class SharedAcquisitionDatabaseTests(SqlServerFixture sqlServer)
 {
-    [Fact]
-    public async Task UpgradeFromAcquisitionContextPreservesRelationshipsAndBlocksDestructiveDown()
+    [Theory]
+    [InlineData("AddAcquisitionContext")]
+    [InlineData("AddSharedAcquisitions")]
+    public async Task UpgradeFromAcquisitionContextPreservesRelationshipsAndBlocksDestructiveDown(string priorMigration)
     {
         // GIVEN saved shared context and immutable creation evidence on the PR base schema.
         await using var database = await sqlServer.CreateDatabaseAsync();
-        await DatabaseMigrator.MigrateToAsync(database.AdminConnectionString, "AddAcquisitionContext", default);
+        await DatabaseMigrator.MigrateToAsync(database.AdminConnectionString, priorMigration, default);
         var tenant = Guid.NewGuid();
         await database.SeedTenantAuditRowsAsync(tenant, Guid.NewGuid());
         await using var admin = new SqlConnection(database.AdminConnectionString);
         await admin.OpenAsync();
         await SeedAsync(admin, tenant);
         var before = await Snapshot(admin);
-        // WHEN applying the single H10 migration THEN every saved row and token is retained exactly.
+        // WHEN applying the current migration THEN every saved row and token is retained exactly.
         await DatabaseMigrator.MigrateAsync(database.AdminConnectionString, default);
         Assert.Equal(before, await Snapshot(admin));
         await using var marker = new SqlCommand("SELECT OBJECT_DEFINITION(OBJECT_ID(N'Security.ReadDatabaseReadiness'))", admin);
-        Assert.Contains("20260910071000_AddSharedAcquisitions", (string)(await marker.ExecuteScalarAsync())!);
+        Assert.Contains("20260911184933_AddAcquisitionDocuments", (string)(await marker.ExecuteScalarAsync())!);
         // AND rollback cannot discard relationship corrections or shared context.
         var migrator = await database.CreateRoleUserAsync("workbench_migrator");
         Assert.Equal(50020, (await Assert.ThrowsAsync<SqlException>(() => DatabaseMigrator.MigrateToAsync(migrator, "AddAcquisitionContext", default))).Number);

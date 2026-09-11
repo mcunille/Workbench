@@ -95,8 +95,18 @@ Tenant-scoped, paginated acquisition discovery and membership reads support shar
 membership browsing excludes archived pieces unless explicitly requested. Archive and restore
 retain connections. Archived item details and acquisition views opened from them are read-only;
 an active linked item can still edit the shared context. Conflict recovery preserves private
-in-session drafts and requires explicit reconciliation. Documents and acquisition-aware exports
-remain separate increments; existing CSV/ZIP exports do not yet include acquisition context.
+in-session drafts and requires explicit reconciliation. Existing CSV/ZIP exports do not yet include
+acquisition context or documents.
+
+Acquisition documents have tenant-qualified acquisition and immutable attachment/revision links.
+Restricted prepare/finalize commands enforce active linkage, versions, capacity and mutation replay
+evidence. Pending uploads reserve capacity but remain absent from saved document lists. Provider
+publication and integrity verification precede the SQL transaction exposing the document; a losing
+finalization retires its bytes through the existing retention lifecycle. Session application locks
+serialize exact request UUIDs across replicas. Rename and removal retain command evidence; successful
+replay does not resurrect removed documents. Original validated bytes are private attachment downloads
+after complete bounded digest verification. The [H11 design](specs/2026-09-11-h11-acquisition-documents.md)
+defines content policy, parser qualification, resource bounds and recovery behavior.
 
 `Inventory.Items` holds tenant-owned physical identities. H1 enforces `TrackingKind = Individual`
 and has no editable quantity, financial value, category requirement, or purchase parent. Names

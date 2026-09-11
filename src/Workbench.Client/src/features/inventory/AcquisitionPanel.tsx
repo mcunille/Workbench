@@ -1,16 +1,17 @@
-import { useEffect, useLayoutEffect, useRef, useState, type MouseEvent } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type MouseEvent } from 'react';
 import { ApiError } from '../../api/auth';
 import {
   getAcquisition,
   type AcquisitionContext,
   type Acquisition,
 } from '../../api/acquisitions';
-import type { ItemDetail } from '../../api/items';
+import { getItem, type ItemDetail } from '../../api/items';
 import { AcquisitionEditor } from './AcquisitionEditor';
 import { AcquisitionValues } from './AcquisitionFields';
 import { fields } from './acquisitionDraft';
 import { AcquisitionPicker } from './AcquisitionPicker';
 import { AcquisitionLinkEditor } from './AcquisitionLinkEditor';
+import { AcquisitionDocumentsPanel } from './AcquisitionDocumentsPanel';
 
 export function AcquisitionPanel({
   item,
@@ -35,12 +36,18 @@ export function AcquisitionPanel({
   const [failed, setFailed] = useState(false);
   const [attempt, setAttempt] = useState(0);
   const [editing, setEditing] = useState(false);
+  const [documentsEditing, setDocumentsEditing] = useState(false);
+  const documentEditingChange = useCallback((value: boolean) => {
+    setDocumentsEditing(value); onEditingChange(value);
+  }, [onEditingChange]);
   const [picking, setPicking] = useState(false);
   const [target, setTarget] = useState<Acquisition | null>();
   const [message, setMessage] = useState('');
   const button = useRef<HTMLButtonElement>(null);
   const heading = useRef<HTMLHeadingElement>(null);
   const restoreFocus = useRef(false);
+  const active = useRef(true);
+  useEffect(() => { active.current = true; return () => { active.current = false; }; }, []);
   useLayoutEffect(() => {
     if (!editing && !picking && target === undefined && restoreFocus.current) {
       restoreFocus.current = false;
@@ -135,7 +142,7 @@ export function AcquisitionPanel({
             <button
               className="secondary"
               ref={button}
-              disabled={disabled}
+              disabled={disabled || documentsEditing}
               onClick={() => {
                 setEditing(true);
                 onEditingChange(true);
@@ -144,14 +151,24 @@ export function AcquisitionPanel({
             >
               {context.acquisition ? 'Edit acquisition' : 'Add acquisition'}
             </button>
-            <button className="secondary" disabled={disabled} onClick={() => {
+            <button className="secondary" disabled={disabled || documentsEditing} onClick={() => {
               setPicking(true); onEditingChange(true); onDirtyChange(true, false); setMessage('');
             }}>{context.acquisition ? 'Change acquisition' : 'Connect to an acquisition'}</button>
-            {context.acquisition ? <button className="secondary danger" disabled={disabled} onClick={() => {
+            {context.acquisition ? <button className="secondary danger" disabled={disabled || documentsEditing} onClick={() => {
               setTarget(null); onEditingChange(true); setMessage('');
             }}>Remove connection</button> : null}
             </div>
           ) : null}
+          {context.acquisition ? <AcquisitionDocumentsPanel key={context.acquisition.id}
+            itemId={item.id} acquisitionId={context.acquisition.id} itemVersion={item.version}
+            acquisitionVersion={context.acquisition.version} archived={Boolean(item.archivedAtUtc)} disabled={disabled}
+            onDirtyChange={onDirtyChange} onEditingChange={documentEditingChange} onAuthLost={onAuthLost}
+            onCurrent={async () => {
+              const [currentItem, currentContext] = await Promise.all([getItem(item.id), getAcquisition(item.id)]);
+              if (!active.current) return;
+              setContext(currentContext);
+              onCurrent(currentItem.version, currentItem);
+            }} /> : null}
         </>
       ) : (
         <p role="status">Loading acquisition…</p>

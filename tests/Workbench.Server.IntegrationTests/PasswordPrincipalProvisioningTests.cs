@@ -156,7 +156,7 @@ public sealed class PasswordPrincipalProvisioningTests(SqlServerFixture sqlServe
                 Assert.Equal(expected ? 1 : 0, Convert.ToInt32(await inventoryPermission.ExecuteScalarAsync()));
             }
             // AND the provider retry readiness probe retains the same restricted workload authority.
-            foreach (var table in new[] { "Acquisitions", "AcquisitionItems", "AcquisitionCreationRecords" })
+            foreach (var table in new[] { "Acquisitions", "AcquisitionItems", "AcquisitionCreationRecords", "AcquisitionDocuments", "AcquisitionDocumentOperations" })
             {
                 foreach (var operation in new[] { "SELECT", "INSERT", "UPDATE", "DELETE" })
                 {
@@ -167,7 +167,7 @@ public sealed class PasswordPrincipalProvisioningTests(SqlServerFixture sqlServe
                     Assert.Equal(expected ? 1 : 0, Convert.ToInt32(await acquisitionPermission.ExecuteScalarAsync()));
                 }
             }
-            foreach (var procedure in new[] { "CreateAcquisition", "UpdateAcquisition", "ChangeAcquisitionLink" })
+            foreach (var procedure in new[] { "CreateAcquisition", "UpdateAcquisition", "ChangeAcquisitionLink", "PrepareAcquisitionDocument", "FinishAcquisitionDocument" })
             {
                 await using var acquisitionPermission = new SqlCommand("SELECT HAS_PERMS_BY_NAME(@object, 'OBJECT', 'EXECUTE')", connection);
                 acquisitionPermission.Parameters.AddWithValue("@object", $"Inventory.{procedure}");

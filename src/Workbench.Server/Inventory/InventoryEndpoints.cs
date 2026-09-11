@@ -38,6 +38,7 @@ public static class InventoryEndpoints
         group.MapItemPhotos();
         group.MapAcquisitions();
         endpoints.MapAcquisitionBrowsing();
+        group.MapAcquisitionDocuments();
         group.MapItemExport();
         group.MapPost("/{id:guid}/archive", ArchiveAsync)
             .WithMetadata(WorkbenchAntiforgeryMetadata.Instance)

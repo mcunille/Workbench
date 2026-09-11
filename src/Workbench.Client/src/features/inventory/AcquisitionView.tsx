@@ -8,6 +8,7 @@ import { AddItem } from './AddItem';
 import { AcquisitionEditor } from './AcquisitionEditor';
 import { AcquisitionLinkEditor } from './AcquisitionLinkEditor';
 import { ExistingPiecePicker } from './ExistingPiecePicker';
+import { AcquisitionDocumentsPanel } from './AcquisitionDocumentsPanel';
 
 export function AcquisitionView({ id, originId, collectionOrigin, follow, onDirtyChange, onAuthLost, onItemSaved }: {
   id: string;
@@ -26,6 +27,7 @@ export function AcquisitionView({ id, originId, collectionOrigin, follow, onDirt
   const [failed, setFailed] = useState(false);
   const [piecesFailed, setPiecesFailed] = useState(false);
   const [pending, setPending] = useState(false);
+  const [documentsEditing, setDocumentsEditing] = useState(false);
   const [mode, setMode] = useState<'view' | 'existing' | 'new' | 'link' | 'edit' | 'saved'>('view');
   const [selected, setSelected] = useState<{ item: ItemDetail; context: AcquisitionContext }>();
   const [savedNew, setSavedNew] = useState<ItemDetail>();
@@ -124,10 +126,19 @@ export function AcquisitionView({ id, originId, collectionOrigin, follow, onDirt
           <a className="text-link" href={`/inventory/${savedNew.id}`} onClick={follow}>View saved piece</a>
         </section> : <>
           {!readOnly ? <div className="button-row">
-            <button ref={actionButton} className="primary" onClick={() => { setMode('existing'); setMessage(''); onDirtyChange(true, false); }}>Connect existing piece</button>
-            <button className="secondary" onClick={() => { setMode('new'); setMessage(''); }}>Record a new piece</button>
-            {editableItem ? <button className="secondary" disabled={pending} onClick={() => void prepare(editableItem, true)}>Edit shared acquisition</button> : null}
+            <button ref={actionButton} className="primary" disabled={documentsEditing} onClick={() => { setMode('existing'); setMessage(''); onDirtyChange(true, false); }}>Connect existing piece</button>
+            <button className="secondary" disabled={documentsEditing} onClick={() => { setMode('new'); setMessage(''); }}>Record a new piece</button>
+            {editableItem ? <button className="secondary" disabled={pending || documentsEditing} onClick={() => void prepare(editableItem, true)}>Edit shared acquisition</button> : null}
           </div> : null}
+          <AcquisitionDocumentsPanel key={`${origin.id}-${value.id}`} itemId={origin.id} acquisitionId={value.id}
+            itemVersion={origin.version} acquisitionVersion={value.version} archived={readOnly} disabled={pending}
+            onDirtyChange={onDirtyChange} onEditingChange={setDocumentsEditing} onAuthLost={onAuthLost}
+            onCurrent={async () => {
+              const [currentItem, currentAcquisition] = await Promise.all([getItem(origin.id), getSharedAcquisition(value.id)]);
+              if (!active.current) return;
+              setOrigin(currentItem);
+              setValue(currentAcquisition);
+            }} />
           <h2>Associated pieces</h2>
           <label className="checkbox-row"><input type="checkbox" checked={includeArchived} onChange={event => {
             setPage(undefined); setPiecesFailed(false); setArchived(event.target.checked);

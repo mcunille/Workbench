@@ -2,7 +2,7 @@
 
 The web application, database tool, and explicit worker share the same release. Blob APIs are internal
 application services for generated content; there is no general upload endpoint. Item photographs
-use the bounded workflow below; user-facing behavior is described in the [collection guide](../collection.md). Other user uploads require their own type allowlist and malware
+and acquisition documents use the bounded workflows below; user-facing behavior is described in the [collection guide](../collection.md). Other user uploads require their own type allowlist and malware
 policy before publication.
 
 ## Item photograph ingestion
@@ -46,6 +46,51 @@ blocked if either required image is absent or has a mismatched digest. The separ
 explicitly accepted missing-file dispositions while preserving SQL records. Do not advertise immediate physical
 erasure or preservation of the original photo. Browser color conversion varies across devices;
 these images support identification, not gemological color measurement.
+
+## Acquisition document validation
+
+Acquisition documents preserve the validated original bytes, including embedded image metadata.
+Each file is limited to 10 MiB; the multipart request allows another 64 KiB. Accepted raster formats
+are single-frame JPEG, PNG, and WebP, with at most 40 million pixels and 12,000 pixels per axis.
+The document validator shares the photograph native-processing semaphore. It temporarily raises
+native dimension/profile limits only while holding that semaphore, then restores the photograph
+limits of 2,048 pixels per axis and 4 MiB of profiles, including after validation failure. The same
+256 MiB native cache budget, disabled disk/delegates/coders, and two-thread limit apply. Document
+image decoding has cooperative two-minute progress cancellation. Images are not re-encoded or stripped.
+
+PDF support is a deliberately restricted subset, implemented with pinned PdfPig 0.1.16 plus a bounded
+original-syntax preflight. The packaged license and third-party terms ship in
+`third-party-notices/PdfPig.txt`. PdfPig's strict parser silently normalizes duplicate dictionary
+keys; the preflight therefore checks original indirect-object and cross-reference-trailer syntax,
+including nested dictionaries and escaped names, before accepting the normalized object graph.
+Every current cross-reference object and each page is inspected. Files must have 1–200 pages.
+
+Supported PDF stream encodings are unfiltered data, Flate, ASCII85, and ASCIIHex. DCT/JPEG is accepted
+only as the final encoding of a standard image object, with its JPEG bytes independently decoded by
+the restricted image validator. Ordinary JPEG scan PDFs are covered by qualification tests. Compressed
+object/cross-reference streams, inline images, stream prediction/decode parameters, other codecs
+(including JBIG2, JPEG2000, CCITT, LZW, and RunLength), and unsupported object syntax are rejected.
+Re-exporting to a PDF without those features or uploading a supported raster is required; acceptance
+of every otherwise valid PDF is not claimed.
+
+Encrypted files, action entry points (including otherwise benign actions), forms, JavaScript,
+external file references, embedded files, 3D, PostScript, and rich media are rejected. No public blob
+URL or inline PDF rendering is offered. These checks are format and active-content validation,
+not antivirus certification.
+
+PDF resource guards limit traversal to 50,000 current objects, 250,000 tokens, and depth 64. Flate
+expansion is checked before the library decoder allocates output, with a 64 MiB per-stream limit;
+ASCII85 input is bounded before its possible fourfold expansion. The aggregate decoded-stream budget
+is 128 MiB. Predictor parameters are rejected before invoking library decoders because output-size
+checks alone do not bound predictor row allocations or guarantee progress. One document-validation
+job runs per process. Elapsed-time checks use a two-minute deadline; managed parser/native execution
+is not hard-isolated or forcibly interrupted. Deployment process/container memory limits remain necessary.
+
+Qualification fixtures cover valid raster/plain-PDF/JPEG-scan input, source-byte preservation,
+encrypted PDFs with empty passwords, indirect/escaped action names, duplicate object/trailer keys,
+unsupported codecs and xref streams, external/3D content, page/dimension limits, decompression and
+predictor amplification, and native-limit restoration. A focused manual mutation removing the duplicate
+key guard is detected by four tests; this is not an exhaustive mutation score or independent parser audit.
 
 ## Deployment configuration
 

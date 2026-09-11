@@ -20,7 +20,7 @@ The execution-policy override applies only to that renderer process. Renderers w
 walkthrough's transcript and captions and check MP4 decoding; inspect the resulting frames,
 caption placement and narration before considering the media complete.
 
-## H6–H10 commands
+## H6–H11 commands
 
 Run the capture and then its matching renderer:
 
@@ -31,6 +31,7 @@ Run the capture and then its matching renderer:
 | H8 collection package | `package-walkthrough.config.ts` | [Narration](h8/README.md) · [Evidence](h8/verification.md) |
 | H9 acquisition | `acquisition-walkthrough.config.ts` | [Narration](h9/README.md) · [Evidence](h9/verification.md) |
 | H10 shared acquisition | `shared-acquisition-walkthrough.config.ts` | [Commands and narration](h10/README.md) · [Evidence](h10/verification.md) |
+| H11 acquisition documents | `acquisition-documents-walkthrough.config.ts` | [Commands and narration](h11/README.md) · [Evidence](h11/verification.md) |
 
 ```powershell
 # H6

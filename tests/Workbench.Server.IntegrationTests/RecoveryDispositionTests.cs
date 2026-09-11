@@ -17,8 +17,10 @@ namespace Workbench.Server.IntegrationTests;
 [Collection(SqlServerCollection.Name)]
 public sealed class RecoveryDispositionTests(SqlServerFixture sqlServer)
 {
-    [Fact]
-    public async Task AcceptedLossKeepsSqlRecordRemovesOnlyRecoveredOrphanAndRejectsDownload()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task AcceptedLossKeepsSqlRecordRemovesOnlyRecoveredOrphanAndRejectsDownload(bool acquisitionDocument)
     {
         // GIVEN a sanitized isolated SQL restore containing a file absent from recovered storage.
         await using var database = await sqlServer.CreateDatabaseAsync();
@@ -51,7 +53,13 @@ public sealed class RecoveryDispositionTests(SqlServerFixture sqlServer)
             var actor = new RequestActor(Guid.NewGuid(), tenant, Guid.NewGuid(), new HashSet<string>
                 { AttachmentService.ManagePermission, AttachmentService.ReadPermission });
             AttachmentRevisionInfo revision;
-            await using (var context = BlobPersistenceTests.CreateContext(web, proof, tenant))
+            AcquisitionDocumentFixture.Saved? document = null;
+            if (acquisitionDocument)
+            {
+                document = await AcquisitionDocumentFixture.UploadAsync(database.AdminConnectionString, web, proof, tenant, original);
+                revision = document.Revision; attachment = document.AttachmentId;
+            }
+            else await using (var context = BlobPersistenceTests.CreateContext(web, proof, tenant))
                 revision = await new AttachmentService(context, original, actor).UploadAsync(attachment, Guid.NewGuid(), null, new MemoryStream([1, 2, 3]), default);
             await using var setup = new SqlConnection(database.AdminConnectionString);
             await setup.OpenAsync();
@@ -81,12 +89,20 @@ public sealed class RecoveryDispositionTests(SqlServerFixture sqlServer)
             await FileRecoveryCommand.RunAsync("recovery-apply", maintenance, arguments, configuration, target, installation, default);
             // THEN the source bytes survive, the recovered orphan is absent, and SQL retains an explicit disposition.
             await using var sourceBytes = await original.OpenReadAsync(new(tenant, revision.Id), default);
-            Assert.Equal(1, sourceBytes.ReadByte());
+            Assert.Equal(document is null ? 1 : document.Bytes[0], sourceBytes.ReadByte());
             await Assert.ThrowsAsync<FileNotFoundException>(() => target.OpenReadAsync(orphan, default));
             await using var status = new SqlCommand("SELECT COUNT(*) FROM [Storage].[RecoveryFiles] WHERE Reason='Missing'", setup);
             Assert.Equal(1, (int)(await status.ExecuteScalarAsync())!);
             await using var recoveredContext = BlobPersistenceTests.CreateContext(web, proof, tenant);
             await Assert.ThrowsAsync<RecoveredFileUnavailableException>(() => new AttachmentService(recoveredContext, target, actor).DownloadAsync(attachment, default));
+            if (document is not null)
+            {
+                var service = new Workbench.Server.Inventory.AcquisitionDocumentService(recoveredContext, target, actor);
+                var listing = await service.ListAsync(document.ItemId, document.AcquisitionId, default);
+                Assert.True(Assert.Single(listing.Documents).Unavailable);
+                Assert.Equal("Recovery receipt", listing.Documents[0].Label);
+                await Assert.ThrowsAsync<RecoveredFileUnavailableException>(() => service.ReadAsync(document.ItemId, document.AcquisitionId, document.DocumentId, default));
+            }
             // AND an acknowledged retry does not reopen guards, delete more files, or add another report.
             await FileRecoveryCommand.RunAsync("recovery-apply", maintenance, arguments, configuration, target, installation, default);
         }

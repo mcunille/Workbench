@@ -23,6 +23,7 @@ public sealed class BlobRecoveryTests(SqlServerFixture sqlServer)
     [InlineData("20260908010000_AddItemRestoration")]
     [InlineData("20260909034719_AddAcquisitionContext")]
     [InlineData("20260910071000_AddSharedAcquisitions")]
+    [InlineData("20260911184933_AddAcquisitionDocuments")]
     public async Task PairedBackupRestoresContentAndMigrationPreservesIdentity(string priorSchema)
     {
         // GIVEN an offline installation with one retained attachment and dedicated maintenance authority.
@@ -60,7 +61,13 @@ public sealed class BlobRecoveryTests(SqlServerFixture sqlServer)
         try
         {
             AttachmentRevisionInfo revision;
-            await using (var context = BlobPersistenceTests.CreateContext(web, proof, tenant))
+            AcquisitionDocumentFixture.Saved? document = null;
+            if (priorSchema == "20260911184933_AddAcquisitionDocuments")
+            {
+                document = await AcquisitionDocumentFixture.UploadAsync(database.AdminConnectionString, web, proof, tenant, source);
+                revision = document.Revision;
+            }
+            else await using (var context = BlobPersistenceTests.CreateContext(web, proof, tenant))
             {
                 var actor = new RequestActor(Guid.NewGuid(), tenant, Guid.NewGuid(), new HashSet<string> { AttachmentService.ManagePermission });
                 using var bytes = new MemoryStream([8, 9, 10]);
@@ -101,7 +108,7 @@ public sealed class BlobRecoveryTests(SqlServerFixture sqlServer)
             }
             // GIVEN a compatible exact-pair manifest produced by a supported release.
             var priorManifest = JsonSerializer.Deserialize<BlobManifest>(await File.ReadAllTextAsync(manifestPath))!;
-            Assert.Equal("20260910071000_AddSharedAcquisitions", priorManifest.SchemaVersion);
+            Assert.Equal("20260911184933_AddAcquisitionDocuments", priorManifest.SchemaVersion);
             await File.WriteAllTextAsync(manifestPath, JsonSerializer.Serialize(priorManifest with { SchemaVersion = priorSchema }));
             // THEN verification blocks reopening until every referenced object is restored.
             await Assert.ThrowsAsync<FileNotFoundException>(() => StorageMaintenanceCommand.RunAsync("verify", maintenance, databaseName, options, CancellationToken.None));
@@ -157,6 +164,15 @@ public sealed class BlobRecoveryTests(SqlServerFixture sqlServer)
             Assert.Equal(revision.Sha256, migrated.Sha256);
             await BlobMaintenance.VerifyAsync(source, entry, CancellationToken.None);
             await BlobMaintenance.VerifyAsync(target, entry, CancellationToken.None);
+            if (document is not null)
+            {
+                // AND the restored acquisition still serves its exact original document through tenant authorization.
+                await using var restored = BlobPersistenceTests.CreateContext(web, proof, tenant);
+                var service = new Workbench.Server.Inventory.AcquisitionDocumentService(restored, target,
+                    new RequestActor(Guid.NewGuid(), tenant, Guid.NewGuid(), new HashSet<string>()));
+                Assert.Equal(document.Bytes, (await service.ReadAsync(document.ItemId, document.AcquisitionId, document.DocumentId, default)).Content);
+                Assert.Equal("Recovery receipt", Assert.Single((await service.ListAsync(document.ItemId, document.AcquisitionId, default)).Documents).Label);
+            }
             // AND the paired manifest records its schema boundary as well as immutable content identity.
             using var manifest = JsonDocument.Parse(await File.ReadAllTextAsync(manifestPath));
             Assert.True(manifest.RootElement.TryGetProperty("SchemaVersion", out var schema));

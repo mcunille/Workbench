@@ -1,0 +1,15 @@
+1
+00:00:00,468 --> 00:00:12,479
+Paperwork belongs to the acquisition and is shared by its linked pieces. Give each file an understandable label. The stored report or image is supporting evidence, not a claim of verified authenticity.
+
+2
+00:00:12,509 --> 00:00:24,521
+This demonstration loses the response after the server saves the file. Workbench keeps the exact request. Check and retry resolves that outcome without creating a second successful attachment.
+
+3
+00:00:25,003 --> 00:00:37,022
+The saved list identifies each document by label, format, size and upload date. Downloads deliver the validated original bytes. A failed download is reported separately and can be retried safely.
+
+4
+00:00:37,735 --> 00:00:49,750
+On a narrow screen, the same paperwork remains accessible. A checked label correction updates shared context. File content stays immutable; add a corrected copy and explicitly remove a mistaken file.
