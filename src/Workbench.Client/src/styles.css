@@ -450,6 +450,7 @@ textarea[aria-invalid="true"] {
   min-width: 0;
   width: 100%;
   max-width: 76rem;
+  margin-inline: auto;
   padding: 3rem;
 }
 .page-heading {

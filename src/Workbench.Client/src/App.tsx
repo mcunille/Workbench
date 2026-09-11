@@ -4,6 +4,7 @@ import {
   useLayoutEffect,
   useRef,
   useState,
+  useSyncExternalStore,
   type MouseEvent,
   type ReactNode,
 } from 'react';
@@ -26,6 +27,16 @@ import { Icon } from './Icon';
 import { readAppearance } from './appearance';
 import { Brand } from './Brand';
 
+const narrowNavigationQuery = '(width < 900px)';
+function subscribeToNavigationWidth(update: () => void) {
+  const media = window.matchMedia?.(narrowNavigationQuery);
+  media?.addEventListener('change', update);
+  return () => media?.removeEventListener('change', update);
+}
+function readNarrowNavigation() {
+  return window.matchMedia?.(narrowNavigationQuery).matches ?? false;
+}
+
 function PublicAppearance({ children }: { children: ReactNode }) {
   return <div className="appearance-bar">{children}</div>;
 }
@@ -40,7 +51,10 @@ function SignedInApplication({
   const navigation = useNavigation();
   const [signOutFailed, setSignOutFailed] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
-  const [navigationCollapsed, setNavigationCollapsed] = useState(false);
+  const [desktopNavigationCollapsed, setDesktopNavigationCollapsed] = useState(false);
+  const [narrowNavigationCollapsed, setNarrowNavigationCollapsed] = useState(true);
+  const narrowNavigation = useSyncExternalStore(subscribeToNavigationWidth, readNarrowNavigation);
+  const navigationCollapsed = narrowNavigation ? narrowNavigationCollapsed : desktopNavigationCollapsed;
   const userMenu = useRef<HTMLDivElement>(null);
   const userMenuTrigger = useRef<HTMLButtonElement>(null);
   useEffect(() => {
@@ -115,7 +129,8 @@ function SignedInApplication({
               title={navigationCollapsed ? 'Expand navigation' : 'Collapse navigation'}
               onClick={() => {
                 setUserMenuOpen(false);
-                setNavigationCollapsed((collapsed) => !collapsed);
+                if (narrowNavigation) setNarrowNavigationCollapsed((collapsed) => !collapsed);
+                else setDesktopNavigationCollapsed((collapsed) => !collapsed);
               }}
             >
               <Icon name="menu" />
