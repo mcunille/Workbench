@@ -47,7 +47,10 @@ test('H12 narrated acquisition history and paperwork export journey', async ({ b
       await page.getByRole('searchbox', { name: 'Search acquisitions', exact: true }).fill(source);
       await page.getByRole('button', { name: 'Search', exact: true }).click();
       await page.getByRole('button', { name: new RegExp(`^Select ${source}`) }).click();
+      const savedLink = page.waitForResponse(response => response.request().method() === 'PUT' && new URL(response.url()).pathname === `/api/items/${piece.id}/acquisition-link`);
       await page.getByRole('button', { name: 'Save connection', exact: true }).click();
+      expect((await savedLink).status()).toBe(200);
+      await expect(page.getByRole('button', { name: 'Save connection', exact: true })).toHaveCount(0);
       await expect(acquisitionPanel(page).getByText(source, { exact: true })).toBeVisible();
     }
     await acquisitionPanel(page).getByRole('link', { name: 'View acquisition', exact: true }).click();

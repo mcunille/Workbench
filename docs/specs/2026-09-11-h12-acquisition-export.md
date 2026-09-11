@@ -1,11 +1,14 @@
 # Take acquisition history with the collection
 
-**Status: Accepted — owner approved implementation on 2026-09-11.**
+**Status: Implemented — owner approved implementation on 2026-09-11.**
 
 Remaining implementation increment [H12 / #77](https://github.com/mcunille/Workbench/issues/77)
 of [scenario #73](https://github.com/mcunille/Workbench/issues/73). H9–H11 are merged through
 `052333a`. Their accepted contracts remain unchanged. This proposal completes the focused export
 design required by the [acquisition specification](2026-09-09-acquisition-context.md#h11-and-h12-extension-boundaries).
+
+The [verification record](../demos/h12/verification.md) documents automated and narrated
+scenario evidence. The separate uncoached collector trial remains pending.
 
 ## Outcome and scope
 

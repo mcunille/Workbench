@@ -18,11 +18,13 @@ namespace Workbench.Server.IntegrationTests;
 public sealed class ItemAcquisitionExportConcurrencyTests(SqlServerFixture sqlServer)
 {
     [Theory]
-    [InlineData(false, false)]
-    [InlineData(false, true)]
-    [InlineData(true, false)]
-    [InlineData(true, true)]
-    public async Task AcquisitionEditOrUnlinkWaitsForCoherentCsvAndPackageSnapshot(bool package, bool unlink)
+    [InlineData(false, "edit")]
+    [InlineData(false, "unlink")]
+    [InlineData(false, "relink")]
+    [InlineData(true, "edit")]
+    [InlineData(true, "unlink")]
+    [InlineData(true, "relink")]
+    public async Task AcquisitionEditOrLinkChangeWaitsForCoherentCsvAndPackageSnapshot(bool package, string change)
     {
         // GIVEN saved acquisition facts and a reader paused before its export transaction commits.
         await using var app = await AuthTestApplication.CreateAsync(sqlServer);
@@ -34,6 +36,15 @@ public sealed class ItemAcquisitionExportConcurrencyTests(SqlServerFixture sqlSe
             new CreateAcquisitionRequest(Guid.NewGuid(), item.Version, "Gift", "Before acquisition", 2020, null, null, "Before notes"));
         Assert.Equal(HttpStatusCode.Created, created.StatusCode);
         var saved = (await created.Content.ReadFromJsonAsync<ItemAcquisitionResponse>())!;
+        ItemAcquisitionResponse? target = null;
+        if (change == "relink")
+        {
+            var targetItem = await CreateItemAsync(writer);
+            using var targetCreated = await SendAsync(writer, HttpMethod.Post, $"/api/items/{targetItem.Id}/acquisition",
+                new CreateAcquisitionRequest(Guid.NewGuid(), targetItem.Version, "Trade", "Target event", 2019, null, null, null));
+            Assert.Equal(HttpStatusCode.Created, targetCreated.StatusCode);
+            target = (await targetCreated.Content.ReadFromJsonAsync<ItemAcquisitionResponse>())!;
+        }
         var barrier = new BeforeCommit();
         await using var factory = storageFactory.WithWebHostBuilder(builder => builder.ConfigureServices(services =>
             services.AddDbContext<WorkbenchDbContext>(options => options.AddInterceptors(barrier))));
@@ -42,10 +53,10 @@ public sealed class ItemAcquisitionExportConcurrencyTests(SqlServerFixture sqlSe
         var exporting = SendAsync(reader, HttpMethod.Post, ItemExportEndpointTests.ExportPath(package), new { scope = "all" });
         await barrier.Held.Task.WaitAsync(TimeSpan.FromSeconds(15));
 
-        // WHEN an independent SQL session edits or removes the captured relationship.
-        var writing = unlink
+        // WHEN an independent SQL session edits, removes or replaces the captured relationship.
+        var writing = change != "edit"
             ? SendAsync(writer, HttpMethod.Put, $"/api/items/{item.Id}/acquisition-link",
-                new LinkAcquisitionRequest(saved.ItemVersion, saved.Acquisition!.Id, saved.Acquisition.Version, null, null))
+                new LinkAcquisitionRequest(saved.ItemVersion, saved.Acquisition!.Id, saved.Acquisition.Version, target?.Acquisition!.Id, target?.Acquisition!.Version))
             : SendAsync(writer, HttpMethod.Put, $"/api/items/{item.Id}/acquisition/{saved.Acquisition!.Id}",
                 new UpdateAcquisitionRequest(saved.ItemVersion, saved.Acquisition.Version, "Purchase", "After acquisition", 2021, 2, 3, "After notes"));
         try { await ItemExportConcurrencyTests.AssertBlockedWriterAsync(app.AdminConnectionString); }
@@ -69,7 +80,16 @@ public sealed class ItemAcquisitionExportConcurrencyTests(SqlServerFixture sqlSe
         var nextCsv = await ItemExportEndpointTests.ReadRecordsAsync(next, package);
         Assert.DoesNotContain("Before acquisition", nextCsv);
         Assert.DoesNotContain("Before notes", nextCsv);
-        if (unlink) Assert.DoesNotContain(saved.Acquisition.Id.ToString("D"), nextCsv);
+        if (change != "edit")
+        {
+            Assert.DoesNotContain(saved.Acquisition.Id.ToString("D"), nextCsv);
+            if (target is not null)
+            {
+                // AND both selected pieces now repeat the target event's stable identity and facts.
+                Assert.Equal(2, nextCsv.Split(target.Acquisition!.Id.ToString("D"), StringSplitOptions.None).Length - 1);
+                Assert.Equal(2, nextCsv.Split("Target event", StringSplitOptions.None).Length - 1);
+            }
+        }
         else { Assert.Contains("After acquisition", nextCsv); Assert.Contains("After notes", nextCsv); }
     }
 

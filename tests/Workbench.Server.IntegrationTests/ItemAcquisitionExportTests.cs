@@ -206,6 +206,56 @@ public sealed class ItemAcquisitionExportTests(SqlServerFixture sqlServer)
         Assert.Null(response.Content.Headers.ContentDisposition);
     }
 
+    [Theory]
+    [InlineData("length")]
+    [InlineData("sha256")]
+    [InlineData("media-type")]
+    [InlineData("no-current-revision")]
+    [InlineData("different-current-revision")]
+    [InlineData("deleted-attachment")]
+    [InlineData("purged-revision")]
+    public async Task InconsistentDocumentMetadataRejectsPackageBeforeProviderRead(string mismatch)
+    {
+        // GIVEN committed paperwork whose attachment or document metadata no longer agrees with its revision.
+        await using var context = await Context.CreateAsync(sqlServer);
+        var item = await CreateItemAsync(context.Client);
+        await context.CreateAcquisitionAsync(item);
+        var document = await context.UploadAsync(item.Id);
+        await using var sql = new SqlConnection(context.Application.AdminConnectionString);
+        await sql.OpenAsync();
+        // Published revision identity is immutable under Storage.ProtectRevision, including for db_owner.
+        // Change the document side of those comparisons without disabling the trigger or SQL constraints.
+        var statement = mismatch switch
+        {
+            "length" => "UPDATE Inventory.AcquisitionDocuments SET Length=Length+1 WHERE Id=@document;",
+            "sha256" => "UPDATE Inventory.AcquisitionDocuments SET Sha256=REPLICATE('0',64) WHERE Id=@document;",
+            "media-type" => "UPDATE Inventory.AcquisitionDocuments SET MediaType='application/pdf',Extension='pdf' WHERE Id=@document;",
+            "no-current-revision" => "UPDATE a SET CurrentRevisionId=NULL FROM Storage.Attachments a JOIN Inventory.AcquisitionDocuments d ON d.AttachmentId=a.Id WHERE d.Id=@document;",
+            "deleted-attachment" => "UPDATE a SET DeletedAtUtc=SYSUTCDATETIME(),DeleteAfterUtc=DATEADD(day,7,SYSUTCDATETIME()) FROM Storage.Attachments a JOIN Inventory.AcquisitionDocuments d ON d.AttachmentId=a.Id WHERE d.Id=@document;",
+            "purged-revision" => "UPDATE r SET State=3 FROM Storage.Revisions r JOIN Inventory.AcquisitionDocuments d ON d.RevisionId=r.Id WHERE d.Id=@document;",
+            _ => """
+                DECLARE @replacement uniqueidentifier=NEWID();
+                INSERT Storage.Revisions(Id,TenantId,AttachmentId,OperationId,ActorUserId,PreviousRevisionId,ProviderAlias,Source,MediaType,Length,Sha256,State,CreatedAtUtc)
+                SELECT @replacement,r.TenantId,r.AttachmentId,NEWID(),r.ActorUserId,r.Id,r.ProviderAlias,r.Source,r.MediaType,r.Length,r.Sha256,r.State,SYSUTCDATETIME()
+                FROM Storage.Revisions r JOIN Inventory.AcquisitionDocuments d ON d.RevisionId=r.Id WHERE d.Id=@document;
+                UPDATE a SET CurrentRevisionId=@replacement FROM Storage.Attachments a
+                JOIN Inventory.AcquisitionDocuments d ON d.AttachmentId=a.Id WHERE d.Id=@document;
+                """
+        };
+        await using var corrupt = new SqlCommand(statement, sql);
+        corrupt.Parameters.AddWithValue("@document", document.Id);
+        Assert.Equal(mismatch == "different-current-revision" ? 2 : 1, await corrupt.ExecuteNonQueryAsync());
+        var reads = context.Store.Reads;
+
+        // WHEN preparing the ZIP THEN metadata validation fails before any provider stream is acquired.
+        using var response = await context.ExportAsync();
+        Assert.Equal(HttpStatusCode.ServiceUnavailable, response.StatusCode);
+        Assert.Equal(reads, context.Store.Reads);
+        Assert.Null(response.Content.Headers.ContentDisposition);
+        Assert.Contains("export_preparation_failed", await response.Content.ReadAsStringAsync());
+        Assert.DoesNotContain(document.Id.ToString("D"), await response.Content.ReadAsStringAsync());
+    }
+
     [Fact]
     public async Task OrphanAcquisitionsRemovedDocumentsAndPendingUploadsAreExcluded()
     {
