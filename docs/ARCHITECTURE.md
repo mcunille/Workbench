@@ -67,16 +67,27 @@ portability feature, not a restorable backup. See the [CSV contract](collection-
 
 ### Collection identity
 
-The [H9 acquisition context](specs/2026-09-09-acquisition-context.md) adds an optional origin event
+The [H9 acquisition context](specs/2026-09-09-acquisition-context.md) records an optional origin event
 with method, free-text source, partial acquired date, and collector-recorded provenance notes.
-`Inventory.Acquisitions` has a separate identity and rowversion. `Inventory.AcquisitionItems`
-links it to an item through tenant-qualified foreign keys, allowing one current acquisition per
-item. `Inventory.AcquisitionCreationRecords` retains immutable creation replay evidence. All three
-tables use tenant RLS and deny direct runtime writes; restricted create/update commands check item
-and acquisition versions. Creation/linking is atomic, and retries never create another item.
-Archived links remain readable and cannot be edited. Conflict recovery preserves private in-session
-drafts and requires explicit reconciliation. Multi-item linking, documents, and acquisition-aware
-exports remain separate increments; existing CSV/ZIP exports do not yet include acquisition context.
+[H10 shared acquisitions](specs/2026-09-09-shared-acquisitions.md) lets several individually recorded
+pieces share that context. `Inventory.Acquisitions` has a separate identity and rowversion;
+`Inventory.AcquisitionItems` uses tenant-qualified foreign keys and permits at most one current
+acquisition per item. `Inventory.AcquisitionCreationRecords` retains immutable creation replay
+evidence. All three tables use tenant RLS and deny direct runtime writes.
+
+Restricted create/update commands check item and acquisition versions. The restricted
+`Inventory.ChangeAcquisitionLink` command atomically connects, replaces, or removes a relationship,
+checking the active item, expected membership, and old/target acquisition versions. It locks the
+item first and acquisitions in deterministic order, then advances the affected rowversions.
+Removing the last connection preserves the acquisition. Creation retries never create another
+item, and old acquisition-creation replays cannot restore a removed or replaced connection.
+
+Tenant-scoped, paginated acquisition discovery and membership reads support shared navigation;
+membership browsing excludes archived pieces unless explicitly requested. Archive and restore
+retain connections. Archived item details and acquisition views opened from them are read-only;
+an active linked item can still edit the shared context. Conflict recovery preserves private
+in-session drafts and requires explicit reconciliation. Documents and acquisition-aware exports
+remain separate increments; existing CSV/ZIP exports do not yet include acquisition context.
 
 `Inventory.Items` holds tenant-owned physical identities. H1 enforces `TrackingKind = Individual`
 and has no editable quantity, financial value, category requirement, or purchase parent. Names
