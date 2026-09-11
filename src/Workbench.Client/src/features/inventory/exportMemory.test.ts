@@ -69,7 +69,24 @@ it.each(['active', 'all'] as const)('offers CSV recovery for ZIP limits in %s sc
   await memory.prepare(vi.fn());
   expect(memory.getSnapshot().message).toContain('128 MiB');
   expect(memory.getSnapshot().message).toContain('Records (CSV)');
+  expect(memory.getSnapshot().message).toContain('10,000 documents');
+  expect(memory.getSnapshot().message).toContain('excludes photographs and acquisition documents');
   expect(memory.getSnapshot().message?.includes('Try Active records')).toBe(scope === 'all');
+  memory.dispose();
+});
+
+it('explains document storage failures without offering a partial package', async () => {
+  // GIVEN required paperwork cannot be read from storage.
+  vi.mocked(prepareExport).mockRejectedValue(new ApiError(503));
+  const memory = new ExportMemory();
+  memory.select('active');
+  memory.selectFormat('zip');
+  // WHEN preparation fails THEN retry and operator recovery remain available without a download.
+  await memory.prepare(vi.fn());
+  expect(memory.getSnapshot().status).toBe('failed');
+  expect(memory.getSnapshot().url).toBeUndefined();
+  expect(memory.getSnapshot().message).toContain('photograph or document storage');
+  expect(memory.getSnapshot().message).toContain('excludes photographs and acquisition documents');
   memory.dispose();
 });
 

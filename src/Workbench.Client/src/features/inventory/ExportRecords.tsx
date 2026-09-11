@@ -6,7 +6,7 @@ export function ExportRecords({ memory, follow, onAuthLost }: { memory: ExportMe
   const isPackage = state.format === 'zip';
   return <section className="export-records">
     <div className="page-heading">
-      <div><h1>Export records</h1><p className="lede">Take a copy of your collection’s current records, with optional photographs.</p></div>
+      <div><h1>Export records</h1><p className="lede">Take a copy of your collection’s current records and acquisition facts, with optional photographs and paperwork.</p></div>
       <a className="secondary button" href="/inventory" onClick={follow}>Back to collection</a>
     </div>
     <div className="panel export-panel">
@@ -14,7 +14,7 @@ export function ExportRecords({ memory, follow, onAuthLost }: { memory: ExportMe
         <fieldset className="export-scope" disabled={preparing}>
           <legend>Choose export format</legend>
           <label><input type="radio" name="export-format" value="csv" checked={!isPackage} onChange={() => memory.selectFormat('csv')} />Records (CSV)</label>
-          <label><input type="radio" name="export-format" value="zip" checked={isPackage} onChange={() => memory.selectFormat('zip')} />Records and photographs (ZIP)</label>
+          <label><input type="radio" name="export-format" value="zip" checked={isPackage} onChange={() => memory.selectFormat('zip')} />Records, photographs and acquisition documents (ZIP)</label>
         </fieldset>
         <fieldset className="export-scope" disabled={preparing} aria-describedby="export-scope-help">
           <legend>Choose records to export</legend>
@@ -23,23 +23,24 @@ export function ExportRecords({ memory, follow, onAuthLost }: { memory: ExportMe
         </fieldset>
         <p id="export-scope-help">Export includes every record in your chosen scope. Search, loaded pages, and the screen you came from do not limit it.</p>
         <dl className="export-facts">
-          <div><dt>Format</dt><dd>{isPackage ? 'ZIP version 1 · CSV, manifest, instructions, and WebP photographs' : 'CSV version 1 · UTF-8'}</dd></div>
-          <div><dt>Limits</dt><dd>{isPackage ? '10,000 records · 32 MiB CSV · 16 MiB manifest · 128 MiB total contents and ZIP · Two-minute preparation deadline' : '10,000 records · 32 MiB'}</dd></div>
+          <div><dt>Format</dt><dd>{isPackage ? 'ZIP version 2 · CSV, manifest, instructions, WebP photographs and acquisition documents' : 'CSV version 2 · UTF-8'}</dd></div>
+          <div><dt>Limits</dt><dd>{isPackage ? '10,000 records · 10,000 documents · 32 MiB CSV · 16 MiB manifest · 128 MiB total contents and ZIP · Two-minute preparation deadline' : '10,000 records · 32 MiB'}</dd></div>
           <div><dt>File availability</dt><dd>Ten minutes, in this tab. Sign-out or reload clears it.</dd></div>
         </dl>
-        <p>{isPackage ? 'The ZIP includes current stored detail photographs, not camera originals or thumbnails. Extract it and read README.txt; photographs require a WebP-capable viewer. Missing or unreadable required photographs fail the whole package.' : 'Photos are excluded from CSV. Choose Records and photographs (ZIP) to include them.'}</p>
+        <p>{isPackage ? 'The ZIP includes current stored detail photographs, not camera originals or thumbnails, and exact stored acquisition documents. Extract it and read README.txt; photographs require a WebP-capable viewer. Missing or unreadable required photographs or documents fail the whole package.' : 'CSV includes acquisition facts; photographs and acquisition documents require ZIP.'}</p>
+        {isPackage ? <p>Shared acquisition documents appear once for the included pieces. They may describe pieces outside your chosen scope; their contents and your written text are not redacted.</p> : null}
         <p>This is not a backup and cannot restore Workbench. History and session information are excluded.</p>
         <details className="export-guidance" open>
           <summary>Opening the CSV in a spreadsheet</summary>
-          <p>Import columns as Text to preserve exact IDs, timestamps, and user text. Names, notes, and locations have one added apostrophe to protect against spreadsheet formulas; it may remain visible.</p>
-          <p>To recover the original text after parsing the CSV, remove exactly one leading apostrophe from each present name, notes, and location value. Empty optional fields mean absent. Removing the prefix or re-saving may remove formula protection.</p>
+          <p>Import columns as Text to preserve exact IDs, timestamps, and user text. Names, notes, locations, acquisition sources and acquisition notes have one added apostrophe to protect against spreadsheet formulas; it may remain visible.</p>
+          <p>To recover the original text after parsing the CSV, remove exactly one leading apostrophe from each present name, notes, location, acquisition source and acquisition notes value. Empty optional fields mean absent. Removing the prefix or re-saving may remove formula protection.</p>
         </details>
         <div className="button-row">
           <button className="primary" type="submit" disabled={!state.scope || preparing}>{state.status === 'failed' ? 'Retry' : state.status === 'ready' || state.status === 'empty' ? 'Prepare new export' : 'Prepare export'}</button>
           {preparing ? <button className="secondary" type="button" onClick={() => memory.cancel()}>Cancel</button> : null}
           {state.status === 'ready' && state.url ? <a className="primary button" href={state.url} download={state.filename} onClick={event => { if (!memory.startDownload()) event.preventDefault(); }}>Download {isPackage ? 'ZIP' : 'CSV'}</a> : null}
         </div>
-        {state.status === 'ready' || state.status === 'empty' || state.status === 'failed' ? <p className="muted">Preparing again creates a new snapshot. Records{isPackage ? ' and photographs' : ''} may have changed.</p> : null}
+        {state.status === 'ready' || state.status === 'empty' || state.status === 'failed' ? <p className="muted">Preparing again creates a new snapshot. Records and acquisition facts{isPackage ? ', photographs and documents' : ''} may have changed.</p> : null}
         <p role={state.status === 'failed' ? 'alert' : 'status'} aria-live={state.status === 'failed' ? 'assertive' : 'polite'}>{state.message ?? 'Select a scope to prepare your export.'}</p>
       </form>
     </div>
