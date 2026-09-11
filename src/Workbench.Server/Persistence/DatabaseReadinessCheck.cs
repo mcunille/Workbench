@@ -115,6 +115,16 @@ public sealed class DatabaseReadinessCheck(
                     AND HAS_PERMS_BY_NAME(N'[Inventory].[ItemCreationSnapshots]', N'OBJECT', N'INSERT') = 0
                     AND HAS_PERMS_BY_NAME(N'[Inventory].[ItemCreationSnapshots]', N'OBJECT', N'UPDATE') = 0
                     AND HAS_PERMS_BY_NAME(N'[Inventory].[ItemCreationSnapshots]', N'OBJECT', N'DELETE') = 0
+                    AND HAS_PERMS_BY_NAME(N'[Inventory].[PrepareAcquisitionDocument]', N'OBJECT', N'EXECUTE') = 1
+                    AND HAS_PERMS_BY_NAME(N'[Inventory].[FinishAcquisitionDocument]', N'OBJECT', N'EXECUTE') = 1
+                    AND HAS_PERMS_BY_NAME(N'[Inventory].[AcquisitionDocuments]', N'OBJECT', N'SELECT') = 1
+                    AND HAS_PERMS_BY_NAME(N'[Inventory].[AcquisitionDocuments]', N'OBJECT', N'INSERT') = 0
+                    AND HAS_PERMS_BY_NAME(N'[Inventory].[AcquisitionDocuments]', N'OBJECT', N'UPDATE') = 0
+                    AND HAS_PERMS_BY_NAME(N'[Inventory].[AcquisitionDocuments]', N'OBJECT', N'DELETE') = 0
+                    AND HAS_PERMS_BY_NAME(N'[Inventory].[AcquisitionDocumentOperations]', N'OBJECT', N'SELECT') = 1
+                    AND HAS_PERMS_BY_NAME(N'[Inventory].[AcquisitionDocumentOperations]', N'OBJECT', N'INSERT') = 0
+                    AND HAS_PERMS_BY_NAME(N'[Inventory].[AcquisitionDocumentOperations]', N'OBJECT', N'UPDATE') = 0
+                    AND HAS_PERMS_BY_NAME(N'[Inventory].[AcquisitionDocumentOperations]', N'OBJECT', N'DELETE') = 0
                     AND HAS_PERMS_BY_NAME(N'[Storage].[RecoveryFiles]', N'OBJECT', N'SELECT') = 1
                     AND HAS_PERMS_BY_NAME(N'[Storage].[RecoveryFiles]', N'OBJECT', N'UPDATE') = 0
                     AND HAS_PERMS_BY_NAME(N'[Storage].[RecoveryFiles]', N'OBJECT', N'DELETE') = 0

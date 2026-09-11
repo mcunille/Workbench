@@ -10,7 +10,7 @@ public sealed class PhotoProcessor
 {
     public const int MaximumBytes = 4 * 1024 * 1024;
 
-    private static readonly SemaphoreSlim Capacity = new(1, 1);
+    internal static readonly SemaphoreSlim Capacity = new(1, 1);
 
     static PhotoProcessor()
     {
@@ -28,8 +28,8 @@ public sealed class PhotoProcessor
               <policy domain="resource" name="map" value="0" />
               <policy domain="resource" name="disk" value="0" />
               <policy domain="resource" name="thread" value="2" />
-              <policy domain="resource" name="width" value="2048" />
-              <policy domain="resource" name="height" value="2048" />
+              <policy domain="resource" name="width" value="12000" />
+              <policy domain="resource" name="height" value="12000" />
               <policy domain="resource" name="list-length" value="2" />
             </policymap>
             """;
@@ -43,6 +43,8 @@ public sealed class PhotoProcessor
         ResourceLimits.Height = 2048;
         ResourceLimits.ListLength = 2;
     }
+
+    internal static void InitializeImagePolicy() { }
 
     public ProcessedPhoto Process(byte[] content)
     {
@@ -104,7 +106,7 @@ public sealed class PhotoProcessor
         }
     }
 
-    private static MagickFormat DetectFormat(ReadOnlySpan<byte> bytes)
+    internal static MagickFormat DetectFormat(ReadOnlySpan<byte> bytes)
     {
         if (bytes.StartsWith(new byte[] { 255, 216, 255 }))
         {
@@ -160,7 +162,7 @@ public sealed class PhotoProcessor
         }
     }
 
-    private static void CheckDimensions(ReadOnlySpan<byte> bytes, MagickFormat format)
+    internal static void CheckDimensions(ReadOnlySpan<byte> bytes, MagickFormat format, uint maximumAxis = 2048, ulong maximumPixels = 4194304)
     {
         uint width = 0, height = 0;
         if (format == MagickFormat.Png && bytes.Length >= 24 && bytes.Slice(12, 4).SequenceEqual("IHDR"u8))
@@ -209,7 +211,7 @@ public sealed class PhotoProcessor
                 height = 1 + ((bits >> 14) & 0x3fff);
             }
         }
-        if (width > 2048 || height > 2048)
+        if (width > maximumAxis || height > maximumAxis || (ulong)width * height > maximumPixels)
             throw new PhotoInputException(413, "Prepare the photograph at no more than 2048 pixels per edge.");
     }
 }

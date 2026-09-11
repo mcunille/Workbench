@@ -58,8 +58,23 @@ Archived item details and acquisition views opened from them are read-only. Ordi
 piece browsing hides archived records unless Show archived pieces is selected. Archive and
 restore preserve the relationship. After an uncertain connection save, retry the original
 request or review current state; matching saved values do not prove which request succeeded.
-Conflicts require deliberate review before saving with fresh versions. Supporting documents
-and acquisition-aware exports remain separate increments.
+Conflicts require deliberate review before saving with fresh versions.
+
+The Documents section retains labeled acquisition paperwork shared by all connected pieces.
+Add a PDF, JPEG, PNG or WebP up to 10 MiB; each acquisition allows 20 current or pending documents.
+Downloads preserve validated source bytes, including any embedded metadata. Labels, format, byte
+size and upload date distinguish files. A stored report is not verification of authenticity, and
+format checks are not antivirus certification. Encrypted, malformed and active-content PDFs are
+rejected. Rename a label or explicitly remove a mistaken document; correcting file content means
+adding the corrected copy and removing the mistaken one. Removal ends application access while
+the provider's seven-day retention and holds still apply.
+
+Archived pieces retain read-only paperwork. Failed loads and unavailable files are distinct from
+having no documents. Retry failed downloads; for recovery-unavailable files, contact the administrator
+or add another copy through an active linked piece. An uncertain upload keeps its exact request in
+memory: Check and retry resolves its recorded outcome before resubmission. Browser closure and
+sign-out do not preserve drafts. Existing CSV/ZIP exports do not yet include acquisition documents;
+acquisition-aware exports remain H12.
 
 Open Export records from Collection or Archive to prepare CSV or a ZIP with current stored detail
 photographs. Select active records or active plus archived records; search and loaded pages do not
@@ -93,3 +108,4 @@ journey without developer intervention.
 | CSV and photographs package | [H7](specs/2026-09-08-h7-collection-export.md), [H8](specs/2026-09-08-h8-collection-package.md) |
 | Acquisition context | [H9](specs/2026-09-09-acquisition-context.md) |
 | Shared acquisition relationships | [H10](specs/2026-09-09-shared-acquisitions.md) |
+| Acquisition documents | [H11](specs/2026-09-11-h11-acquisition-documents.md) |
