@@ -82,6 +82,12 @@
 .po-entry-heading h3 { margin: 0; font-size: .9375rem; font-weight: 500; }
 .po-entry-heading > button { padding: .375rem .625rem; font-size: .8125rem; }
 .po-entry-secondary { align-items: start; }
+.po-title-fields { grid-template-columns: minmax(0, 1fr); }
+.po-entry-price { min-width: 0; display: grid; align-content: start; gap: .5rem; }
+.po-entry-details { margin: 0; padding: 0; border: 0; }
+.po-entry-details > summary { align-content: center; color: var(--muted); font-size: .875rem; }
+.po-entry-details[open] > .po-entry-secondary { margin-top: .5rem; }
+.po-entry-heading { flex-wrap: wrap; }
 .po-add-entry { display: flex; justify-content: flex-end; margin-top: 1rem; }
 .po-entry .muted { margin: -.25rem 0 0; font-size: .8125rem; }
 .po-order-context { align-items: start; gap: 1.5rem; }
@@ -157,6 +163,8 @@
 .po-order-identity .po-reference { width: 100%; font-size: .8125rem; color: var(--muted); }
 .po-row-detail { display: block; margin-top: .25rem; }
 .po-supplier-controls { margin-bottom: 1rem; }
+.po-supplier-controls > p { margin-block: 0 .5rem; }
+.po-supplier-options { margin-top: 0; padding-top: 0; border-top: 0; }
 .po-editor .po-supplier-controls .button-row { flex-wrap: wrap; margin-block: .5rem; padding-top: 0; border-top: 0; }
 .po-contact-details { margin-top: 1rem; }
 .po-contact-details > summary { cursor: pointer; min-height: 44px; padding-block: .75rem; }
