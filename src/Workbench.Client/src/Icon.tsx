@@ -6,6 +6,7 @@ type IconName =
   | 'grid'
   | 'list'
   | 'inventory'
+  | 'cart'
   | 'account'
   | 'sign-out'
   | 'administration'
@@ -24,6 +25,7 @@ const paths: Record<IconName, string> = {
   grid: 'M3 3h7v7H3z M14 3h7v7h-7z M3 14h7v7H3z M14 14h7v7h-7z',
   list: 'M8 5h13 M8 12h13 M8 19h13 M3 5h.01 M3 12h.01 M3 19h.01',
   inventory: 'M4 8h16v12H4z M3 4h18v4H3z M9 12h6',
+  cart: 'M2 3h3l3 12h11l3-9H6 M8 15l-1 3h13 M10 21h.01 M18 21h.01',
   account: 'M20 21v-2a8 8 0 0 0-16 0v2 M16 7a4 4 0 1 1-8 0 4 4 0 0 1 8 0',
   administration: 'M12 3 3 7v5c0 5 9 9 9 9s9-4 9-9V7z M8 12l3 3 5-6',
   image:

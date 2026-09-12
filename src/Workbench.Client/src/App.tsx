@@ -27,6 +27,9 @@ import { DiscardDialog } from './DiscardDialog';
 import { Icon } from './Icon';
 import { readAppearance } from './appearance';
 import { Brand } from './Brand';
+import { DraftList } from './features/purchasing/DraftList';
+import { DraftEditor } from './features/purchasing/DraftEditor';
+import { DraftMemory } from './features/purchasing/draftMemory';
 
 const narrowNavigationQuery = '(width < 900px)';
 function subscribeToNavigationWidth(update: () => void) {
@@ -77,6 +80,7 @@ function SignedInApplication({
   const [collectionMemory] = useState(() => new CollectionMemory());
   const [archiveMemory] = useState(() => new CollectionMemory());
   const [exportMemory] = useState(() => new ExportMemory());
+  const [draftMemory] = useState(() => new DraftMemory());
   useLayoutEffect(() => () => exportMemory.dispose(), [exportMemory]);
   const [origins] = useState(
     () => new Map<string, 'active' | 'archived'>(),
@@ -166,6 +170,14 @@ function SignedInApplication({
             <Icon name="inventory" />
             <span className="navigation-label">Inventory</span>
           </a>
+          <a className="navigation-destination"
+            title={navigationCollapsed ? 'Purchase orders' : undefined}
+            href="/purchase-orders"
+            aria-current={path.startsWith('/purchase-orders') ? 'page' : undefined}
+            onClick={navigation.follow}>
+            <Icon name="cart" />
+            <span className="navigation-label">Purchase orders</span>
+          </a>
           <div className="navigation-secondary">
             {canManageUsers ? (
               <a
@@ -254,6 +266,15 @@ function SignedInApplication({
               follow={followFromCollection}
               onAuthLost={authLost}
             />
+          ) : path === '/purchase-orders' ? (
+            <DraftList memory={draftMemory} follow={navigation.follow} onAuthLost={authLost} />
+          ) : /^\/purchase-orders\/[^/]+$/.test(path) ? (
+            <DraftEditor key={navigation.viewId}
+              id={path === '/purchase-orders/new' ? undefined : path.slice('/purchase-orders/'.length)}
+              onDirtyChange={navigation.setDirty} onAuthLost={authLost}
+              onCancel={() => navigation.navigate('/purchase-orders')}
+              onSaved={() => draftMemory.invalidate()}
+              onCreated={id => navigation.replace(`/purchase-orders/${id}`)} />
           ) : path === '/inventory/export' ? (
             <ExportRecords memory={exportMemory} follow={navigation.follow} onAuthLost={authLost} />
           ) : path === '/inventory/new' ? (

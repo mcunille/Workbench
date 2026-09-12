@@ -146,6 +146,27 @@ URLs or original/historical photo routes. Pending and retained variants remain w
 manifest, reconciliation, worker hold, and paired recovery boundary; see the
 [provider runbook](operations/blob-and-service-providers.md#item-photograph-ingestion).
 
+### Purchase order drafts
+
+The [Purchasing module](purchasing.md) stores mutable planning documents independently of inventory,
+acquisitions and financial records. `Purchasing.DraftOrders` combines searchable draft headers with
+bounded versioned JSON for source links and shopping-list entries. Reference prices are nullable
+exact decimal strings; null never becomes zero, and no totals or obligations are calculated.
+
+Tenant RLS, tenant-qualified foreign keys, current authenticated authority and restricted SQL
+commands protect both drafts and their immutable request receipts. The runtime cannot directly
+insert, update or delete purchasing rows. Each save atomically records a compact request receipt;
+a versioned server-computed fingerprint rejects reuse of the same request UUID with changed content.
+Retries return recorded success without executing again. Receipts retain identifiers, resulting
+version and completion time, not historical request/response bodies. Current details are loaded
+separately after success, with explicit comparison if the draft has changed since that save.
+
+Updates replace one draft document after rowversion validation. A per-request transaction lock and
+draft row lock serialize competing retries and edits. The authenticated, antiforgery-protected API
+is private/no-store and bounds request bodies before binding. Tenant-scoped browsing uses descending
+updated-time/UUID keyset pagination; it is a live list and refreshes after local saves. See the
+[PO-01 specification](specs/2026-09-11-po-01-draft-supplier-orders.md) for contracts and recovery behavior.
+
 ## Architectural invariants
 
 1. Hosted and self-hosted installations use the same application source, feature set, data model,

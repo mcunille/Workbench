@@ -15,6 +15,7 @@ public sealed class SharedAcquisitionDatabaseTests(SqlServerFixture sqlServer)
     [Theory]
     [InlineData("AddAcquisitionContext")]
     [InlineData("AddSharedAcquisitions")]
+    [InlineData("AddAcquisitionDocuments")]
     public async Task UpgradeFromAcquisitionContextPreservesRelationshipsAndBlocksDestructiveDown(string priorMigration)
     {
         // GIVEN saved shared context and immutable creation evidence on the PR base schema.
@@ -30,7 +31,7 @@ public sealed class SharedAcquisitionDatabaseTests(SqlServerFixture sqlServer)
         await DatabaseMigrator.MigrateAsync(database.AdminConnectionString, default);
         Assert.Equal(before, await Snapshot(admin));
         await using var marker = new SqlCommand("SELECT OBJECT_DEFINITION(OBJECT_ID(N'Security.ReadDatabaseReadiness'))", admin);
-        Assert.Contains("20260911184933_AddAcquisitionDocuments", (string)(await marker.ExecuteScalarAsync())!);
+        Assert.Contains("20260912030844_AddDraftSupplierOrders", (string)(await marker.ExecuteScalarAsync())!);
         // AND rollback cannot discard relationship corrections or shared context.
         var migrator = await database.CreateRoleUserAsync("workbench_migrator");
         Assert.Equal(50020, (await Assert.ThrowsAsync<SqlException>(() => DatabaseMigrator.MigrateToAsync(migrator, "AddAcquisitionContext", default))).Number);
