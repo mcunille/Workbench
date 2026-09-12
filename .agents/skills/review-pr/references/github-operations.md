@@ -80,7 +80,7 @@ Run the boundary regression suite with `./tests/Workbench.BuildTests/ReviewBound
 
 Immediately before every publication round, run the metadata read again and compare its `headRefOid` to the reviewed SHA. A mismatch cancels publication and requires a new review preview and explicit approval.
 
-Post all line-anchored findings and the verdict in one comment-only review at the reviewed head. Derive `<side>` from the observed diff hunk: use `RIGHT` for additions and context, and `LEFT` for deletions. Use the line number on that observed side; do not hard-code `RIGHT` or transplant a line number from the other side. Use programmatic JSON serialization rather than hand-written shell JSON, especially for multiline bodies and quotes.
+Post the approved selection of line-anchored comments and, when requested, the grouped verdict body in one comment-only review at the reviewed head. Derive `<side>` from the observed diff hunk: use `RIGHT` for additions and context, and `LEFT` for deletions. Use the line number on that observed side; do not hard-code `RIGHT` or transplant a line number from the other side. Use programmatic JSON serialization rather than hand-written shell JSON, especially for multiline bodies and quotes.
 
 ```powershell
 $review = @{
@@ -95,7 +95,15 @@ $reviewJson = $review | ConvertTo-Json -Depth 8 -Compress
 $reviewJson | gh api "repos/<owner>/<repo>/pulls/<n>/reviews" --method POST --input -
 ```
 
-Post an inline reply only when that exact reply was approved. It is separate from the grouped review and does not resolve the thread.
+For approved inline-only publication, omit `body` from the REST payload. A connector may require a
+nonempty review argument even when inline comments are supplied. Prefer a supported API path that
+accepts an absent body; if the connector accepts a whitespace-only body, it may be used to produce
+no visible summary. Do not invent summary text to satisfy a wrapper. After a failed or uncertain
+write, determine whether a review was created before retrying; a confirmed pre-submission argument
+validation failure can be corrected and retried. Read back the result, including the body, inline
+anchors, and text.
+
+Post an inline reply only when that exact reply was approved. It is separate from the review and does not resolve the thread.
 
 ```powershell
 $reply = @{ body = 'AI: <approved reply>' } | ConvertTo-Json -Compress
