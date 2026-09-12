@@ -1,6 +1,6 @@
 # PO-02: supplier identity and purchase references
 
-**Status:** Accepted — implementation authorized by the owner on 2026-09-11.
+**Status:** Implemented — verified on 2026-09-12; delivery in PR #107.
 
 ## Problem and scope
 
@@ -28,9 +28,9 @@ Quantities, commitment, invoices, payments, sending orders, documents, general r
 merging and supplier roles remain separate stories. Existing acquisition seller text is not
 automatically converted or linked to a supplier.
 
-## Recommended product decisions
+## Product decisions
 
-| Concern | Proposed behavior |
+| Concern | Behavior |
 | --- | --- |
 | Reusable supplier | A business-owned record with a required name and optional contact details. Duplicate names are allowed; a name is not identity. |
 | One-off supplier | Enter details directly on the draft without creating a directory record. An empty draft remains valid. |
@@ -250,7 +250,7 @@ for the narrower snapshot guarantee and does not replace committed-order history
 
 Assigning PO numbers at commitment avoids numbering abandoned drafts, but leaves PO-02 drafts without
 a useful permanent reference until PO-04. Editable numbers accommodate external conventions but add
-collision and renumbering policy. The proposed immutable automatic number is the smaller default;
+collision and renumbering policy. The immutable automatic number is the smaller default;
 the separate supplier reference captures external identifiers without redefining internal identity.
 
 ## Acceptance criteria and verification
