@@ -56,7 +56,7 @@ export function DraftList({ memory, follow, onAuthLost }: Props) {
         <div className="po-search-controls"><FloatingField htmlFor="po-search" label="Search purchase orders"><input id="po-search" type="search" maxLength={200} value={query} onChange={event => setQuery(event.target.value)} placeholder="Reference, supplier or title" /></FloatingField>
         <button type="submit" className="secondary">Search</button>
         <button className="quiet po-search-refresh" type="button" disabled={pending === 'refresh'} onClick={() => void load(true)}>Refresh</button>
-        {query || memory.query ? <button type="button" className="quiet" onClick={() => { setQuery(''); void load(true, ''); }}>Clear search</button> : null}</div>
+        {query || memory.query ? <button type="button" className="quiet po-search-clear" onClick={() => { setQuery(''); void load(true, ''); }}>Clear search</button> : null}</div>
       </form>
       <div className="po-list-toolbar">
         <p className="po-list-caption">{memory.query ? 'Matching draft orders' : 'Draft orders'}</p>
