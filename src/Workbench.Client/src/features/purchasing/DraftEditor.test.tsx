@@ -83,6 +83,8 @@ it('links authoritative validation errors to retained fields', async () => {
   fireEvent.click(screen.getByRole('button', { name: 'Save draft' }));
   // THEN field errors are announced, linked, and input remains editable.
   await screen.findByRole('link', { name: 'Choose a currency.' });
+  expect(screen.queryByText('Review the draft fields and save again.')).not.toBeInTheDocument();
+  expect(screen.getByRole('heading', { name: 'Review these fields' })).toBeVisible();
   expect(screen.getByLabelText('Currency')).toHaveAttribute('aria-invalid', 'true');
   expect(screen.getByLabelText('Notes')).toHaveValue('Kept notes');
   expect(screen.getByLabelText('Notes')).not.toBeDisabled();

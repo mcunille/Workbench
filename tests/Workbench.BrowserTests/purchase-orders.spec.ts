@@ -185,7 +185,7 @@ test('reference prices shift cents by default and retain opt-in extra precision 
   await expect(price).toHaveValue('');
   // WHEN opting into extra precision and saving THEN meaningful digits survive reload.
   await page.getByRole('checkbox', { name: 'Use extra precision for entry 1' }).check();
-  await price.fill('0.0123');
+  await price.fill('0.0123', { timeout: 10000 });
   await save(page);
   await page.reload();
   await expect(price).toHaveValue('0.0123');

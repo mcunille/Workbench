@@ -46,6 +46,13 @@
 .po-accessible-heading { position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 .editor.po-editor .form-stack { gap: 0; padding: 0; margin-top: 1.25rem; }
 .po-editor .form-stack > [role="alert"] { padding: 1.25rem; margin: 0; }
+.po-validation-summary { border-bottom: 1px solid var(--border-subtle); }
+.po-validation-summary h2 { margin: 0 0 .75rem; font-size: 1rem; font-weight: 500; color: var(--danger); }
+.po-validation-summary ul { list-style: none; padding: 0; margin: 0; display: grid; gap: .5rem; }
+.po-validation-summary a { display: flex; align-items: center; justify-content: space-between; gap: 1rem; min-height: 44px; padding: .75rem 1rem; border: 1px solid var(--border-subtle); border-radius: var(--radius-input); color: var(--text); background: var(--canvas); text-decoration: none; overflow-wrap: anywhere; }
+.po-validation-summary a::after { content: '→'; flex-shrink: 0; color: var(--muted); }
+.po-validation-summary a:hover { background: var(--hover); }
+.po-validation-summary a:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 .po-form-section { padding: 1.5rem; }
 .po-form-section + .po-form-section { border-top: 1px solid var(--border-subtle); }
 .po-section-heading { display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin-bottom: 1.25rem; }

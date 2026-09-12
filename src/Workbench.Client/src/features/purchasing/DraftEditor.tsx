@@ -192,7 +192,7 @@ export function DraftEditor({ id: initialId, onDirtyChange, onAuthLost, onSaved,
         </div>
         <p className="po-save-status" role="status">{saveStatus}</p>
       </header>
-      {message ? <p role="alert" className="form-message error">{message}</p> : null}
+      {message && !Object.keys(errors).length ? <p role="alert" className="form-message error">{message}</p> : null}
       {mode === 'current-failed' || mode === 'conflict-failed' || mode === 'load-failed' ? (
         <button className="secondary" onClick={() => void retryRead()}>Load current draft</button>
       ) : null}
@@ -213,8 +213,8 @@ export function DraftEditor({ id: initialId, onDirtyChange, onAuthLost, onSaved,
       ) : null}
       <form id="po-draft-form" className="form-stack" noValidate onSubmit={event => { event.preventDefault(); void save(); }}>
         {Object.keys(errors).length ? (
-          <div role="alert" tabIndex={-1} id={fieldId('draft')}>
-            <p>Review these fields:</p>
+          <div role="alert" className="po-validation-summary" tabIndex={-1} id={fieldId('draft')}>
+            <h2>Review these fields</h2>
             <ul>{Object.entries(errors).flatMap(([path, messages]) => messages.map((text, index) => (
               <li key={`${path}-${index}`}>
                 <a href={`#${fieldId(path)}`} onClick={event => {

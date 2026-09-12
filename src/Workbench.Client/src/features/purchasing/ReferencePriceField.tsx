@@ -14,7 +14,7 @@ function fromDigits(value: string): string | null {
 export function ReferencePriceField({ id, index, value, onChange, disabled, error }: {
   id: string; index: number; value: string | null; onChange(value: string | null): void; disabled: boolean; error?: string;
 }) {
-  const [requestedPrecision, setRequestedPrecision] = useState(false);
+  const [requestedPrecision, setRequestedPrecision] = useState(() => needsPrecision(value));
   const preciseValue = needsPrecision(value);
   const extra = requestedPrecision || preciseValue;
   const input = useRef<HTMLInputElement>(null);
@@ -24,7 +24,8 @@ export function ReferencePriceField({ id, index, value, onChange, disabled, erro
   });
   return <div className="po-field po-price-field">
     <FloatingField htmlFor={id} label={`Reference price ${index}`}>
-      <input ref={input} id={id} value={value ?? ''} disabled={disabled} placeholder="0.00"
+      {/* Recreate the native input when its keyboard mode changes to avoid collapsed layout in Chromium. */}
+      <input key={extra ? 'decimal' : 'cents'} ref={input} id={id} value={value ?? ''} disabled={disabled} placeholder="0.00"
         inputMode={extra ? 'decimal' : 'numeric'} aria-invalid={!!error}
         aria-describedby={`${id}-help${error ? ` ${id}-error` : ''}`}
         onFocus={event => { if (!extra) pinCaret(event.currentTarget); }}
@@ -36,6 +37,10 @@ export function ReferencePriceField({ id, index, value, onChange, disabled, erro
             event.preventDefault();
             const element = event.currentTarget;
             const allSelected = element.selectionStart === 0 && element.selectionEnd === element.value.length;
+            if (element.selectionStart !== element.selectionEnd) {
+              onChange(allSelected ? null : fromDigits(element.value.slice(0, element.selectionStart ?? 0) + element.value.slice(element.selectionEnd ?? 0)));
+              return;
+            }
             const digits = (value ?? '').replace(/\D/g, '').replace(/^0+/, '');
             onChange(allSelected || digits.length <= 1 ? null : fromDigits(digits.slice(0, -1)));
           }
