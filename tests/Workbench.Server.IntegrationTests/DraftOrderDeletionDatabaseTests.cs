@@ -17,9 +17,18 @@ public sealed partial class DraftOrderDatabaseTests
         await using var connection = await Open(database, await database.CreateWebUserAsync(), tenant);
         var canonical = JsonSerializer.Serialize(new
         {
-            operation = "Create", targetId = (string?)null, expectedVersion = (string?)null,
-            draft = new { title = "Cart", supplierName = "Supplier", currency = "USD", notes = "Private notes", sourceLinks = new[] { "https://supplier.example/cart" },
-                entries = new[] { new { id = Guid.NewGuid(), description = "Stone", notes = "Entry notes", sourceLink = "https://supplier.example/stone", indicativePrice = "1.0000" } } },
+            operation = "Create",
+            targetId = (string?)null,
+            expectedVersion = (string?)null,
+            draft = new
+            {
+                title = "Cart",
+                supplierName = "Supplier",
+                currency = "USD",
+                notes = "Private notes",
+                sourceLinks = new[] { "https://supplier.example/cart" },
+                entries = new[] { new { id = Guid.NewGuid(), description = "Stone", notes = "Entry notes", sourceLink = "https://supplier.example/stone", indicativePrice = "1.0000" } }
+            },
         });
         var saved = await Save(connection, actor, createRequest, canonical, "Create"); var request = Guid.NewGuid();
         // AND the new deletion migration upgrades the retained draft without changing its concurrency token or prior receipts.
