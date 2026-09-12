@@ -1050,6 +1050,8 @@ html { scroll-padding-top: 1rem; }
 }
 .collection-view {
   display: inline-flex;
+  flex-wrap: wrap;
+  max-width: 100%;
   gap: 0.25rem;
 }
 .collection-view button {
@@ -1128,7 +1130,29 @@ html { scroll-padding-top: 1rem; }
 .photo-preview { margin-block: 1rem; }
 .photo-preview img { display: block; max-height: 24rem; background: var(--placeholder); border-radius: var(--radius-card); }
 .photo-editor input[type="file"] { max-width: 100%; }
-.item-photo > [role="status"] { padding: .5rem; font-size: .8rem; }
+.item-photo > [role="status"] {
+  display: block;
+  min-width: 0;
+  max-width: 100%;
+  padding: .5rem;
+  font-size: .8rem;
+  overflow-wrap: anywhere;
+}
+.item-photo > [role="status"] button { max-width: 100%; }
+.collection-list[data-view="list"] a:has(.item-photo > [role="status"]) {
+  flex-wrap: wrap;
+}
+.collection-list[data-view="list"] .item-photo:has(> [role="status"]) {
+  display: block;
+  width: 100%;
+  flex-basis: 100%;
+  height: auto;
+  min-height: 56px;
+}
+.photo-editor > .item-photo:has(> [role="status"]) {
+  height: auto;
+  min-height: 3.5rem;
+}
 
 .item-photo { overflow: hidden; }
 /* Saved values and a private draft remain readable at narrow viewport widths. */

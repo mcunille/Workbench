@@ -64,13 +64,14 @@ export function ItemPhoto({
           {interactive && recoveryLossUrl !== url ? (
             <button
               type="button"
+              aria-label="Retry photograph"
               onClick={(event) => {
                 event.preventDefault();
                 event.stopPropagation();
                 setRetry((value) => value + 1);
               }}
             >
-              Retry photograph
+              Retry
             </button>
           ) : null}
         </span>

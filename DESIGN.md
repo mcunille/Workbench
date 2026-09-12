@@ -421,6 +421,9 @@ Grid cards share the same vertical structure and equal row heights, including wh
 names wrap or photographs are missing. Use a consistent 9rem image area with uncropped
 photographs; placeholders, loading, and unavailable photographs retain that same space.
 Keep the chosen Grid/List view unchanged.
+Photo failure notices in List view use the row width and expand with their text.
+In item details, failure notices and retry controls determine their container height;
+image dimensions must never clip the recovery instructions.
 
 Item detail leads with identity, storage location, and notes, followed by maintenance
 controls, photography, acquisition, and record metadata. A missing photograph uses a
