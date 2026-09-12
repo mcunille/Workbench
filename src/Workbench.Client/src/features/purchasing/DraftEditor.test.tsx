@@ -1,13 +1,68 @@
+import { createSupplier, getSupplier, getSuppliers } from '../../api/suppliers';
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { vi } from 'vitest';
 import { DraftEditor } from './DraftEditor';
 import { createDraft, updateDraft, getDraft, deleteDraft, DraftError } from '../../api/purchaseOrders';
 
 vi.mock('../../api/purchaseOrders', async importOriginal => ({ ...await importOriginal<typeof import('../../api/purchaseOrders')>(), createDraft: vi.fn(), updateDraft: vi.fn(), getDraft: vi.fn(), deleteDraft: vi.fn() }));
-const content = { title: null, supplierName: null, currency: null, notes: null, sourceLinks: [], entries: [] };
-const saved = { id: 'draft-one', draft: content, version: 'v1', createdAtUtc: '2026-09-12T00:00:00Z', updatedAtUtc: '2026-09-12T00:00:00Z' };
+vi.mock('../../api/suppliers', async original => ({ ...await original<typeof import('../../api/suppliers')>(), createSupplier: vi.fn(), getSupplier: vi.fn(), getSuppliers: vi.fn() }));
+const content = { title: null, supplierName: null, supplierId: null, supplierContactName: null, supplierEmail: null, supplierPhone: null, supplierWebsite: null, supplierPostalAddress: null, supplierOrderReference: null, platform: null, currency: null, notes: null, sourceLinks: [], entries: [] };
+const saved = { id: 'draft-one', poReference: 'PO-000001', supplierIsArchived: false, draft: content, version: 'v1', createdAtUtc: '2026-09-12T00:00:00Z', updatedAtUtc: '2026-09-12T00:00:00Z' };
 const receipt = { requestId: 'request', replayed: false, draftOrderId: saved.id, savedVersion: saved.version, completedAtUtc: saved.updatedAtUtc };
 const props = () => ({ onDirtyChange: vi.fn(), onAuthLost: vi.fn(), onSaved: vi.fn(), onCancel: vi.fn(), onCreated: vi.fn() });
+it('summarizes saved supplier context and exposes it for editing', async () => {
+  // GIVEN a saved draft with supplier and transaction platform.
+  vi.mocked(getDraft).mockResolvedValue({ ...saved, draft: { ...content, supplierName: 'Gem supplier', platform: 'Instagram' } });
+  render(<DraftEditor {...props()} id={saved.id} />);
+  const name = await screen.findByDisplayValue('Gem supplier');
+  // THEN the supplier remains identifiable while its editing fields are collapsed.
+  expect(name.closest('details')).not.toHaveAttribute('open');
+  expect(screen.getByText('Gem supplier · Instagram')).toBeVisible();
+});
+it('keeps empty entry details optional and reveals their validation errors', async () => {
+  // GIVEN a new entry whose optional notes and source are empty.
+  vi.mocked(createDraft).mockRejectedValue(new DraftError(400, 'draft_validation_failed', { 'draft.entries[0].sourceLink': ['Check this source link.'] }));
+  render(<DraftEditor {...props()} />);
+  fireEvent.click(screen.getByRole('button', { name: 'Add entry' }));
+  const source = screen.getByLabelText('Entry source link 1');
+  const disclosure = source.closest('details');
+  expect(disclosure).not.toBeNull();
+  expect(disclosure).not.toHaveAttribute('open');
+  // WHEN the server reports an error inside the optional details.
+  fireEvent.click(screen.getByRole('button', { name: 'Save draft' }));
+  await screen.findByRole('link', { name: 'Check this source link.' });
+  // THEN the field is revealed and the summary link can focus it.
+  expect(disclosure).toHaveAttribute('open');
+  // AND a validation link reopens details the user subsequently collapsed.
+  disclosure!.removeAttribute('open');
+  fireEvent.click(screen.getByRole('link', { name: 'Check this source link.' }));
+  expect(disclosure).toHaveAttribute('open');
+  expect(source).toHaveFocus();
+});
+it('reveals newly populated details when adopting a newer saved version of the same entry', async () => {
+  // GIVEN an existing empty entry and a newer saved version containing research notes.
+  const entry = { id: 'same-entry', description: 'Sapphire', indicativePrice: null, notes: null, sourceLink: null };
+  vi.mocked(getDraft).mockResolvedValueOnce({ ...saved, draft: { ...content, entries: [entry] } }).mockResolvedValueOnce({ ...saved, version: 'v2', draft: { ...content, entries: [{ ...entry, notes: 'New research' }] } });
+  vi.mocked(updateDraft).mockRejectedValue(new DraftError(409, 'draft_version_conflict'));
+  render(<DraftEditor {...props()} id={saved.id} />);
+  await screen.findByDisplayValue('Sapphire');
+  fireEvent.change(screen.getByLabelText('Title'), { target: { value: 'Local title' } });
+  // WHEN conflict recovery adopts the newer saved content.
+  fireEvent.click(screen.getByRole('button', { name: 'Save draft' }));
+  fireEvent.click(await screen.findByRole('button', { name: 'Use saved version' }));
+  // THEN notes added to the same entry are revealed without needing to rediscover them.
+  const notes = await screen.findByDisplayValue('New research');
+  expect(notes.closest('details')).toHaveAttribute('open');
+});
+it('reveals populated entry details when reopening a draft', async () => {
+  // GIVEN an existing entry with research notes.
+  vi.mocked(getDraft).mockResolvedValue({ ...saved, draft: { ...content, entries: [{ id: 'entry', description: 'Sapphire', indicativePrice: null, notes: 'Check inclusions', sourceLink: null }] } });
+  render(<DraftEditor {...props()} id={saved.id} />);
+  // WHEN the draft loads THEN existing details are visible and retained.
+  const notes = await screen.findByDisplayValue('Check inclusions');
+  expect(notes.closest('details')).toHaveAttribute('open');
+  expect(notes).toBeVisible();
+});
 beforeEach(() => { Object.defineProperty(HTMLDialogElement.prototype, 'showModal', { configurable: true, value(this: HTMLDialogElement) { this.setAttribute('open', ''); } }); vi.mocked(deleteDraft).mockReset(); vi.mocked(createDraft).mockReset(); vi.mocked(updateDraft).mockReset(); vi.mocked(getDraft).mockReset(); });
 it('saves an empty draft and enables editing only after loading the confirmed current document', async () => {
   // GIVEN all business fields are optional and the confirmation read has not returned.
@@ -302,4 +357,98 @@ it('requires review and a fresh confirmation after a stale deletion', async () =
   await waitFor(() => expect(deleteDraft).toHaveBeenCalledTimes(2));
   expect(vi.mocked(deleteDraft).mock.calls[1][1].expectedVersion).toBe('v2');
   expect(vi.mocked(deleteDraft).mock.calls[1][1].requestId).not.toBe(vi.mocked(deleteDraft).mock.calls[0][1].requestId);
+});
+it('retains platform and supplier contact fields through validation and includes them in the save', async () => {
+  // GIVEN a one-off supplier with transaction-specific details.
+  vi.mocked(createDraft).mockRejectedValue(new DraftError(400, 'draft_validation_failed', { 'draft.supplierEmail': ['Check email.'] }));
+  render(<DraftEditor {...props()} />);
+  // WHEN the owner enters contacts and a platform and saves.
+  fireEvent.change(screen.getByLabelText('Platform'), { target: { value: 'Instagram' } });
+  fireEvent.change(screen.getByLabelText('Supplier email'), { target: { value: 'not-an-email' } });
+  fireEvent.change(screen.getByLabelText('Supplier order reference'), { target: { value: 'IG-8' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Save draft' }));
+  // THEN authoritative errors preserve every submitted field.
+  await screen.findByRole('link', { name: 'Check email.' });
+  expect(vi.mocked(createDraft).mock.calls[0][0].draft).toMatchObject({ platform: 'Instagram', supplierEmail: 'not-an-email', supplierOrderReference: 'IG-8' });
+  expect(screen.getByLabelText('Platform')).toHaveValue('Instagram');
+});
+
+
+
+it('searches and saves an inline supplier independently without submitting the enclosing draft', async () => {
+  // GIVEN an unsaved order and a supplier directory.
+  const supplier = { id: 'supplier-one', supplier: { name: 'Gem Studio', contactName: null, email: 'hello@example.test', phone: null, website: null, postalAddress: null }, isArchived: false, version: 's1', createdAtUtc: saved.createdAtUtc, updatedAtUtc: saved.updatedAtUtc };
+  vi.mocked(getSuppliers).mockResolvedValue({ items: [], nextCursor: null });
+  vi.mocked(createSupplier).mockResolvedValue({ requestId: 'supplier-request', replayed: false, supplierId: supplier.id, savedVersion: supplier.version, completedAtUtc: supplier.updatedAtUtc }); vi.mocked(getSupplier).mockResolvedValue(supplier);
+  render(<DraftEditor {...props()} />);
+  fireEvent.change(screen.getByLabelText('Title'), { target: { value: 'Unsaved order' } });
+  // WHEN searching the supplier picker and independently saving a new directory entry.
+  fireEvent.click(screen.getByRole('button', { name: 'Choose supplier' }));
+  const chooser = await screen.findByRole('dialog', { name: 'Choose supplier' });
+  fireEvent.submit(within(chooser).getByRole('searchbox').closest('form')!);
+  await waitFor(() => expect(getSuppliers).toHaveBeenCalledTimes(2));
+  expect(createDraft).not.toHaveBeenCalled();
+  fireEvent.click(within(chooser).getByRole('button', { name: 'Cancel' }));
+  fireEvent.click(screen.getByRole('button', { name: 'New supplier' }));
+  const dialog = screen.getByRole('dialog', { name: 'New supplier' });
+  expect(dialog.closest('#po-draft-form')).toBeNull();
+  fireEvent.change(within(dialog).getByLabelText('Name'), { target: { value: 'Gem Studio' } });
+  fireEvent.click(within(dialog).getByRole('button', { name: 'Save supplier' }));
+  fireEvent.click(await screen.findByRole('button', { name: 'Use supplier' }));
+  // THEN only the supplier was saved; the order retains its local title and selected snapshot.
+  expect(createDraft).not.toHaveBeenCalled(); expect(createSupplier).toHaveBeenCalledTimes(1);
+  expect(screen.getByLabelText('Title')).toHaveValue('Unsaved order'); expect(screen.getByLabelText('Supplier name')).toHaveValue('Gem Studio');
+});
+it('previews refresh and supplier changes while preserving platform and requiring a reference decision', async () => {
+  // GIVEN a linked draft with its own snapshot, platform and external reference.
+  const linked = { ...saved, draft: { ...content, supplierId: 'old', supplierName: 'Old studio', supplierEmail: 'saved@example.test', platform: 'Instagram', supplierOrderReference: 'OLD-42' } };
+  const latest = { id: 'old', supplier: { name: 'Old studio', contactName: 'Current owner', email: 'current@example.test', phone: null, website: null, postalAddress: 'Current address' }, isArchived: false, version: 's2', createdAtUtc: saved.createdAtUtc, updatedAtUtc: saved.updatedAtUtc };
+  vi.mocked(getDraft).mockResolvedValue(linked); vi.mocked(getSupplier).mockResolvedValue(latest);
+  vi.mocked(getSuppliers).mockResolvedValue({ items: [{ ...latest, id: 'new', supplier: { ...latest.supplier, name: 'New studio' } }], nextCursor: null });
+  render(<DraftEditor id={saved.id} {...props()} />); await waitFor(() => expect(screen.getByLabelText('Platform')).toHaveValue('Instagram'));
+  // WHEN a refresh is first canceled and then explicitly accepted.
+  fireEvent.click(screen.getByRole('button', { name: 'Use current supplier details' }));
+  let dialog = await screen.findByRole('dialog', { name: 'Review supplier details' });
+  expect(within(dialog).getByText('saved@example.test')).toBeVisible(); expect(within(dialog).getByText('current@example.test')).toBeVisible();
+  fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel' })); expect(screen.getByLabelText('Supplier email')).toHaveValue('saved@example.test');
+  fireEvent.click(screen.getByRole('button', { name: 'Use current supplier details' })); fireEvent.click(await screen.findByRole('button', { name: 'Replace supplier details' }));
+  expect(screen.getByLabelText('Platform')).toHaveValue('Instagram'); expect(screen.getByLabelText('Supplier order reference')).toHaveValue('OLD-42'); expect(screen.getByLabelText('Supplier email')).toHaveValue('current@example.test');
+  // WHEN changing identity, the owner must deliberately keep or clear the old supplier reference.
+  fireEvent.click(screen.getByRole('button', { name: 'Choose supplier' })); fireEvent.click(await screen.findByRole('button', { name: 'Select New studio' }));
+  dialog = screen.getByRole('dialog', { name: 'Review supplier details' }); expect(within(dialog).getByRole('button', { name: 'Replace supplier details' })).toBeDisabled();
+  fireEvent.click(within(dialog).getByLabelText('Clear supplier order reference')); fireEvent.click(within(dialog).getByRole('button', { name: 'Replace supplier details' }));
+  // THEN platform stays independent and nothing is saved implicitly.
+  expect(screen.getByLabelText('Supplier name')).toHaveValue('New studio'); expect(screen.getByLabelText('Platform')).toHaveValue('Instagram'); expect(screen.getByLabelText('Supplier order reference')).toHaveValue(''); expect(updateDraft).not.toHaveBeenCalled();
+});
+it('keeps supplier details as one-off without carrying the prior reference silently', async () => {
+  // GIVEN an archived linked supplier with transaction details.
+  vi.mocked(getDraft).mockResolvedValue({ ...saved, supplierIsArchived: true, draft: { ...content, supplierId: 'old', supplierName: 'Studio', supplierPhone: '+44 123', platform: 'Retail', supplierOrderReference: 'A-1' } });
+  render(<DraftEditor id={saved.id} {...props()} />); fireEvent.click(await screen.findByRole('button', { name: 'Keep details as one-off' }));
+  // WHEN unlinking, explicitly retain the reference and snapshot.
+  fireEvent.click(screen.getByLabelText('Keep supplier order reference')); fireEvent.click(screen.getByRole('button', { name: 'Confirm one-off details' }));
+  vi.mocked(updateDraft).mockRejectedValue(new DraftError(400, 'draft_validation_failed'));
+  fireEvent.click(screen.getByRole('button', { name: 'Save draft' }));
+  // THEN the association alone is removed and the full contact/platform/reference snapshot is retained.
+  await waitFor(() => expect(updateDraft).toHaveBeenCalledWith(saved.id, expect.objectContaining({ draft: expect.objectContaining({ supplierId: null, supplierName: 'Studio', supplierPhone: '+44 123', platform: 'Retail', supplierOrderReference: 'A-1' }) })));
+});
+it('clears the order snapshot immediately when supplier refresh loses business access', async () => {
+  // GIVEN private saved and local contact details and an authorization failure on supplier refresh.
+  vi.mocked(getDraft).mockResolvedValue({ ...saved, draft: { ...content, supplierId: 'one', supplierName: 'Private studio', platform: 'Private platform' } });
+  vi.mocked(getSupplier).mockRejectedValueOnce(new DraftError(403));
+  const callbacks = props(); render(<DraftEditor id={saved.id} {...callbacks} />);
+  fireEvent.click(await screen.findByRole('button', { name: 'Use current supplier details' }));
+  // WHEN the supplier API rejects authority THEN no contact body remains while authentication refresh runs.
+  await waitFor(() => expect(callbacks.onAuthLost).toHaveBeenCalled());
+  expect(screen.getByLabelText('Supplier name')).toHaveValue(''); expect(screen.getByLabelText('Platform')).toHaveValue('');
+  expect(screen.getByLabelText('Title')).toBeDisabled();
+});
+it('presents a clear new order heading and one draft state before any details are entered', () => {
+  // GIVEN a new purchase order with no assigned reference.
+  render(<DraftEditor {...props()} />);
+  // WHEN its initial editing view is shown THEN the task is visible without duplicated state copy.
+  expect(screen.getByRole('heading', { name: 'New purchase order', level: 1 })).toBeVisible();
+  expect(screen.getAllByText('Draft', { exact: true })).toHaveLength(1);
+  expect(screen.queryByText('Assigned when saved')).not.toBeInTheDocument();
+  expect(screen.queryByText('Not saved yet')).not.toBeInTheDocument();
+  expect(screen.getByLabelText('Title')).toBeEnabled();
 });

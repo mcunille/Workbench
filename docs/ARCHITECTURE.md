@@ -167,6 +167,18 @@ is private/no-store and bounds request bodies before binding. Tenant-scoped brow
 updated-time/UUID keyset pagination; it is a live list and refreshes after local saves. See the
 [PO-01 specification](specs/2026-09-11-po-01-draft-supplier-orders.md) for contracts and recovery behavior.
 
+PO-02 adds reusable tenant-owned suppliers with independently stored contact snapshots on each
+draft. Directory edits do not mutate orders; an explicit draft save applies reviewed snapshot
+changes. The transaction platform belongs to the order and is independent of the supplier link.
+Supplier archival prevents new selections while preserving existing links and snapshots.
+
+Permanent business PO numbers are assigned by a transactional tenant counter on first save and
+retained on deletion tombstones. Reference/name/title search runs within the tenant, with query-bound
+forward cursors. V2 draft writes include all supplier and platform fields in their fingerprints.
+Legacy writes resolve existing V1 receipts only; unmatched legacy saves require reloading rather
+than silently clearing V2 fields. Supplier writes use the same compact-receipt and rowversion
+reconciliation principles. See the [PO-02 specification](specs/2026-09-11-po-02-supplier-identity-and-references.md).
+
 ## Architectural invariants
 
 1. Hosted and self-hosted installations use the same application source, feature set, data model,

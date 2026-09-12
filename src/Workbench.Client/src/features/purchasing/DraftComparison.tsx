@@ -1,3 +1,5 @@
+import { SupplierDetails } from './supplierDetails';
+import { supplierSnapshot } from './supplierSnapshot';
 import { formatReferencePrice } from './referencePrice';
 import type { DraftContent } from '../../api/purchaseOrders';
 function SafeLink({ value }: { value: string }) {
@@ -12,13 +14,13 @@ export function DraftComparison({ heading, draft }: { heading: string; draft: Dr
       <dl className="po-comparison-details">
         <div><dt>Title</dt><dd>{draft.title ?? 'Untitled draft'}</dd></div>
         <div><dt>Supplier</dt><dd>{draft.supplierName ?? 'Not set'}</dd></div>
-        <div><dt>Currency</dt><dd>{draft.currency ?? 'Not set'}</dd></div>
+        <div><dt>Supplier directory link</dt><dd>{draft.supplierId ?? 'One-off'}</dd></div><div><dt>Platform</dt><dd>{draft.platform ?? 'Not set'}</dd></div><div><dt>Supplier order reference</dt><dd>{draft.supplierOrderReference ?? 'Not set'}</dd></div><div><dt>Currency</dt><dd>{draft.currency ?? 'Not set'}</dd></div>
         <div><dt>Notes</dt><dd>{draft.notes ?? 'None'}</dd></div>
         <div><dt>Source links</dt><dd>{draft.sourceLinks.length ? (
           <ul>{draft.sourceLinks.map((link, index) => <li key={index}><SafeLink value={link} /></li>)}</ul>
         ) : 'None'}</dd></div>
       </dl>
-      <h4>Shopping list</h4>
+      <SupplierDetails heading="Supplier contact snapshot" supplier={supplierSnapshot(draft)} /><h4>Shopping list</h4>
       {draft.entries.length ? draft.entries.map((entry, index) => (
         <section className="po-comparison-entry" key={entry.id}>
           <h5>Entry {index + 1}</h5>
