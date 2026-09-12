@@ -27,7 +27,6 @@ async function saveSupplier(page: Page) {
 async function selectSupplier(page: Page, name: string) {
   await page.getByRole('button', { name: 'Choose supplier', exact: true }).click();
   await page.getByLabel('Search suppliers', { exact: true }).fill(name);
-  await page.getByLabel('Search suppliers', { exact: true }).press('Enter');
   await page.getByRole('button', { name: `Select ${name}`, exact: true }).click();
   await page.getByRole('button', { name: 'Use supplier', exact: true }).click();
 }
@@ -98,7 +97,6 @@ test('one supplier has independent order snapshots and platforms with deliberate
   // AND the directory hides it by default, but includes it on explicit request and allows reactivation.
   await page.goto('/suppliers');
   await page.getByLabel('Search suppliers', { exact: true }).fill(supplierName);
-  await page.getByLabel('Search suppliers', { exact: true }).press('Enter');
   await expect(page.getByText('No matching suppliers.', { exact: true })).toBeVisible();
   await page.getByLabel('Include archived suppliers', { exact: true }).check();
   await page.getByRole('link', { name: `Edit ${supplierName}`, exact: true }).click();
@@ -139,7 +137,6 @@ test('one-off supplier details and transaction platform persist with a permanent
   // WHEN searching the whole purchasing list by external reference THEN this saved order is found.
   await page.getByRole('button', { name: 'Back to purchase orders', exact: true }).click();
   await page.getByLabel('Search purchase orders', { exact: true }).fill(externalReference);
-  await page.getByLabel('Search purchase orders', { exact: true }).press('Enter');
   await expect(page.getByRole('link').filter({ hasText: title })).toBeVisible();
   await expect(page.getByText('Gem Rock Auctions', { exact: true })).toBeVisible();
   await page.getByRole('link').filter({ hasText: title }).click();

@@ -143,6 +143,10 @@ Search applies server-side to the entire active business's saved drafts, not jus
 Use a bounded, trimmed query of at most 200 code units and literal, case-insensitive substring
 matching; SQL wildcard characters in input are ordinary text. Do not search contact details.
 Empty query restores normal browsing. Show a distinct no-matches state and a clear-search action.
+Purchase-order and supplier search runs automatically 300 ms after typing stops, without a Search
+button. Enter, Refresh and Clear search act immediately and cancel any pending debounce. New input
+invalidates older responses immediately; leaving the list cancels delayed work. Retained results
+and pagination remain bound to their successfully loaded query after a search failure.
 
 Retain PO-01's 50-row forward pagination and updated-time/UUID ordering. Changing the query restarts
 at page one; bind the new cursor version to the normalized query and reject mismatched reuse.

@@ -29,7 +29,6 @@ for (const width of [320, 1440]) test(`purchasing controls and compact supplier 
   // WHEN selecting a supplier for an empty order THEN only populated details are confirmed, without a blank comparison.
   await page.getByRole('button', { name: 'Choose supplier', exact: true }).click();
   await page.getByLabel('Search suppliers', { exact: true }).fill(supplier);
-  await page.getByLabel('Search suppliers', { exact: true }).press('Enter');
   await page.getByRole('button', { name: `Select ${supplier}`, exact: true }).click();
   const confirmation = page.getByRole('dialog', { name: 'Use supplier?', exact: true });
   await expect(confirmation).toContainText(supplier);
