@@ -4,6 +4,7 @@ import { Icon } from '../../Icon';
 import { ApiError } from '../../api/auth';
 import { createDraft, updateDraft, getDraft, DraftError, type DraftContent, type DraftOrder, type CreateDraftRequest, type UpdateDraftRequest, type SaveReceipt } from '../../api/purchaseOrders';
 import { DraftSupplier } from './DraftSupplier';
+import { SupplierDialog } from './SupplierDialog';
 import { DraftComparison } from './DraftComparison';
 import './purchasing.css';
 import { ClearPricesDialog } from './ClearPricesDialog';
@@ -41,6 +42,10 @@ function EntryDetails({ populated, invalid, children }: { populated: boolean; in
 }
 
 export function DraftEditor({ id: initialId, onDirtyChange, onAuthLost, onSaved, onCreated, onCancel }: Props) {
+  const [clearingSupplier, setClearingSupplier] = useState(false);
+  const supplierSummary = useRef<HTMLElement>(null);
+  const focusSupplierSummary = useRef(false);
+
   const [supplierExpanded, setSupplierExpanded] = useState(!initialId);
   const [supplierDirty, setSupplierDirty] = useState(false);
   const [supplierUncertain, setSupplierUncertain] = useState(false);
@@ -103,7 +108,7 @@ export function DraftEditor({ id: initialId, onDirtyChange, onAuthLost, onSaved,
   useEffect(() => { onDirtyChange(dirty, uncertain); }, [dirty, uncertain, onDirtyChange]);
   useEffect(() => () => onDirtyChange(false, false), [onDirtyChange]);
   useEffect(() => {
-    if (addedEntry.current) return;
+    if (addedEntry.current || focusSupplierSummary.current) return;
     const first = Object.keys(errors)[0];
     if (first) document.getElementById(fieldId(first))?.focus();
   }, [errors]);
@@ -116,6 +121,7 @@ export function DraftEditor({ id: initialId, onDirtyChange, onAuthLost, onSaved,
     description?.scrollIntoView?.({ block: 'center', behavior: 'instant' });
     addedEntry.current = undefined;
   }, [draft.entries]);
+  useEffect(() => { if (!clearingSupplier && focusSupplierSummary.current) { supplierSummary.current?.focus(); focusSupplierSummary.current = false; } }, [clearingSupplier]);
   const frozen = mode !== 'editing';
   const [undoBoundary, setUndoBoundary] = useState({ mode, currency: draft.currency });
   if (undoBoundary.mode !== mode || undoBoundary.currency !== draft.currency) {
@@ -182,7 +188,7 @@ export function DraftEditor({ id: initialId, onDirtyChange, onAuthLost, onSaved,
       } else if (error instanceof ApiError && error.status >= 400 && error.status < 500) {
         submitted.current = undefined; setMode('editing');
         setErrors(error instanceof DraftError ? error.errors : {});
-        setMessage(error instanceof DraftError && error.code === 'supplier_selection_conflict' ? 'The selected supplier is no longer available for new orders. Choose an active supplier or keep these details as one-off, then save again.' : error instanceof DraftError && error.code === 'draft_contract_reload_required' ? 'This draft contract has changed. Your input is kept. Reload before submitting again.' : error.status === 413 ? 'This draft is too large. Shorten it and save again.' : 'Review the draft fields and save again.');
+        setMessage(error instanceof DraftError && error.code === 'supplier_selection_conflict' ? 'The selected supplier is no longer available for new orders. Choose an active supplier or clear the supplier, then save again.' : error instanceof DraftError && error.code === 'draft_contract_reload_required' ? 'This draft contract has changed. Your input is kept. Reload before submitting again.' : error.status === 413 ? 'This draft is too large. Shorten it and save again.' : 'Review the draft fields and save again.');
       } else {
         setMode('uncertain'); setMessage('We couldn’t confirm your save.');
       }
@@ -234,6 +240,14 @@ export function DraftEditor({ id: initialId, onDirtyChange, onAuthLost, onSaved,
 
   return (
     <section className="editor po-editor">
+      {clearingSupplier && !frozen ? <SupplierDialog title="Clear supplier?" cancel={() => setClearingSupplier(false)}>
+        <p>Clear this PO’s supplier details and supplier order reference? The supplier stays in your directory. Save the draft to keep this change.</p>
+        <div className="button-row po-dialog-footer"><button type="button" className="secondary" autoFocus onClick={() => setClearingSupplier(false)}>Cancel</button><button type="button" className="secondary danger" onClick={() => {
+          setDraft({ ...draft, supplierId: null, supplierName: null, supplierContactName: null, supplierEmail: null, supplierPhone: null, supplierWebsite: null, supplierPostalAddress: null, supplierOrderReference: null });
+          setErrors(Object.fromEntries(Object.entries(errors).filter(([path]) => !path.startsWith('draft.supplier'))));
+          focusSupplierSummary.current = true; setClearingSupplier(false);
+        }}>Clear supplier</button></div>
+      </SupplierDialog> : null}
       {confirmingDelete && baseline && !frozen ? <DeleteDraftDialog title={baseline.draft.title ?? 'Untitled draft'}
         cancel={() => setConfirmingDelete(false)} confirm={() => void removeDraft()} /> : null}
       {clearingPrices && !frozen ? <ClearPricesDialog count={draft.entries.filter(entry => entry.indicativePrice !== null).length} cancel={() => setClearingPrices(false)} clear={() => {
@@ -300,8 +314,8 @@ export function DraftEditor({ id: initialId, onDirtyChange, onAuthLost, onSaved,
           </div>
         </section>
         <details className="po-form-section po-supplier-section" open={supplierExpanded || Object.keys(errors).some(key => key.startsWith('draft.supplier') || key === 'draft.platform')} onToggle={event => setSupplierExpanded(event.currentTarget.open)}>
-          <summary className="po-supplier-summary"><span>Supplier details</span><span className="po-supplier-summary-context">{[draft.supplierName, draft.platform].filter(Boolean).join(' · ') || 'Add a supplier or one-off contact'}</span></summary>
-          <DraftSupplier draft={draft} archived={!!baseline?.supplierIsArchived && baseline.draft.supplierId === draft.supplierId} frozen={frozen} onChange={setDraft} onAuthLost={supplierAccessLost} onDirtyChange={reportSupplierDirty} />
+          <summary ref={supplierSummary} className="po-supplier-summary"><span className="po-supplier-summary-row"><span className="po-supplier-summary-copy"><span>Supplier details</span><span className="po-supplier-summary-context">{[draft.supplierName, draft.platform].filter(Boolean).join(' · ') || 'Add a supplier or one-off contact'}</span></span>{[draft.supplierId, draft.supplierName, draft.supplierContactName, draft.supplierEmail, draft.supplierPhone, draft.supplierWebsite, draft.supplierPostalAddress, draft.supplierOrderReference].some(Boolean) ? <button type="button" className="quiet danger" disabled={frozen} onClick={event => { event.preventDefault(); event.stopPropagation(); setClearingSupplier(true); }}>Clear supplier</button> : null}</span></summary>
+          <DraftSupplier draft={draft} archived={!!baseline?.supplierIsArchived && baseline.draft.supplierId === draft.supplierId} frozen={frozen || clearingSupplier} onChange={setDraft} onAuthLost={supplierAccessLost} onDirtyChange={reportSupplierDirty} />
           <div className="po-header-fields">
             {field('draft.supplierName', 'Supplier name', draft.supplierName, supplierName => setDraft({ ...draft, supplierName }))}
             {field('draft.platform', 'Platform', draft.platform, platform => setDraft({ ...draft, platform }), { placeholder: 'e.g. Instagram, Retail' })}

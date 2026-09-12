@@ -200,3 +200,7 @@
   .po-supplier-list li { gap: .5rem; padding: .875rem; }
   .po-supplier-list li > button, .po-supplier-list li > a { flex-shrink: 0; }
 }
+
+.po-supplier-summary-row { display: inline-flex; width: calc(100% - 1.25rem); align-items: center; gap: 1rem; vertical-align: middle; }
+.po-supplier-summary-copy { flex: 1; min-width: 0; }
+.po-supplier-summary-row > button { flex-shrink: 0; }

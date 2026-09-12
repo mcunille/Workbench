@@ -420,18 +420,33 @@ it('previews refresh and supplier changes while preserving platform and requirin
   // THEN platform stays independent and nothing is saved implicitly.
   expect(screen.getByLabelText('Supplier name')).toHaveValue('New studio'); expect(screen.getByLabelText('Platform')).toHaveValue('Instagram'); expect(screen.getByLabelText('Supplier order reference')).toHaveValue(''); expect(updateDraft).not.toHaveBeenCalled();
 });
-it('keeps supplier details as one-off without carrying the prior reference silently', async () => {
-  // GIVEN an archived linked supplier with transaction details.
-  vi.mocked(getDraft).mockResolvedValue({ ...saved, supplierIsArchived: true, draft: { ...content, supplierId: 'old', supplierName: 'Studio', supplierPhone: '+44 123', platform: 'Retail', supplierOrderReference: 'A-1' } });
-  render(<DraftEditor id={saved.id} {...props()} />); fireEvent.click(await screen.findByRole('button', { name: 'Remove supplier link' }));
-  // WHEN unlinking, explicitly retain the reference and snapshot.
-  fireEvent.click(screen.getByLabelText('Keep supplier order reference')); fireEvent.click(screen.getByRole('button', { name: 'Confirm one-off details' }));
+it('confirms clearing supplier details and the reference while preserving the rest of the PO', async () => {
+  // GIVEN a linked supplier and reference on a saved PO.
+  vi.mocked(getDraft).mockResolvedValue({ ...saved, draft: { ...content, supplierId: 'old', supplierName: 'Studio', supplierPhone: '+44 123', platform: 'Retail', supplierOrderReference: 'A-1', title: 'My order' } });
+  render(<DraftEditor id={saved.id} {...props()} />);
+  await screen.findByDisplayValue('Studio');
+  // WHEN clearing is cancelled THEN the collapsed summary and all input remain unchanged.
+  fireEvent.click(screen.getByRole('button', { name: 'Clear supplier' }));
+  let dialog = screen.getByRole('dialog', { name: 'Clear supplier?' });
+  expect(within(dialog).queryByRole('radio')).not.toBeInTheDocument();
+  fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }));
+  expect(screen.getByLabelText('Supplier name')).toHaveValue('Studio');
+  expect(screen.getByLabelText('Supplier name').closest('details')).not.toHaveAttribute('open');
+  // WHEN clearing is confirmed THEN the snapshot and reference are cleared locally without a save.
+  fireEvent.click(screen.getByRole('button', { name: 'Clear supplier' }));
+  dialog = screen.getByRole('dialog', { name: 'Clear supplier?' });
+  fireEvent.click(within(dialog).getByRole('button', { name: 'Clear supplier' }));
+  expect(screen.getByLabelText('Supplier name')).toHaveValue('');
+  expect(screen.getByLabelText('Supplier phone')).toHaveValue('');
+  expect(screen.getByLabelText('Supplier order reference')).toHaveValue('');
+  expect(screen.getByLabelText('Platform')).toHaveValue('Retail');
+  expect(screen.getByLabelText('Title')).toHaveValue('My order');
+  expect(screen.getByText('Supplier details').closest('summary')).toHaveFocus();
+  expect(updateDraft).not.toHaveBeenCalled();
   vi.mocked(updateDraft).mockRejectedValue(new DraftError(400, 'draft_validation_failed'));
   fireEvent.click(screen.getByRole('button', { name: 'Save draft' }));
-  // THEN the association alone is removed and the full contact/platform/reference snapshot is retained.
-  await waitFor(() => expect(updateDraft).toHaveBeenCalledWith(saved.id, expect.objectContaining({ draft: expect.objectContaining({ supplierId: null, supplierName: 'Studio', supplierPhone: '+44 123', platform: 'Retail', supplierOrderReference: 'A-1' }) })));
-});
-it('clears the order snapshot immediately when supplier refresh loses business access', async () => {
+  await waitFor(() => expect(updateDraft).toHaveBeenCalledWith(saved.id, expect.objectContaining({ draft: expect.objectContaining({ supplierId: null, supplierName: null, supplierPhone: null, supplierOrderReference: null, platform: 'Retail' }) })));
+});it('clears the order snapshot immediately when supplier refresh loses business access', async () => {
   // GIVEN private saved and local contact details and an authorization failure on supplier refresh.
   vi.mocked(getDraft).mockResolvedValue({ ...saved, draft: { ...content, supplierId: 'one', supplierName: 'Private studio', platform: 'Private platform' } });
   vi.mocked(getSuppliers).mockRejectedValueOnce(new DraftError(403));
@@ -508,5 +523,38 @@ it('keeps list-action focus when unrelated validation errors remain', async () =
   expect(screen.getByRole('button', { name: 'Add entry' })).toHaveFocus();
   fireEvent.click(screen.getByRole('button', { name: 'Undo removal' }));
   expect(screen.getByLabelText('Description 1')).toHaveFocus();
+  expect(screen.getByRole('link', { name: 'Review title.' })).toBeInTheDocument();
+});
+it('discards a pending supplier selection when clearing is opened', async () => {
+  // GIVEN a supplier detail request still pending after selection.
+  const supplier = { id: 'new', supplier: { name: 'New studio', contactName: null, email: null, phone: null, website: null, postalAddress: null }, isArchived: false, version: 's1', createdAtUtc: saved.createdAtUtc, updatedAtUtc: saved.updatedAtUtc };
+  let finish!: (value: typeof supplier) => void;
+  vi.mocked(getDraft).mockResolvedValue({ ...saved, draft: { ...content, supplierName: 'Existing', supplierOrderReference: 'REF' } });
+  vi.mocked(getSuppliers).mockResolvedValue({ items: [supplier], nextCursor: null });
+  vi.mocked(getSupplier).mockImplementationOnce(() => new Promise(resolve => { finish = resolve; }));
+  render(<DraftEditor {...props()} id={saved.id} />);
+  await screen.findByDisplayValue('Existing');
+  fireEvent.click(screen.getByRole('button', { name: 'Choose supplier' }));
+  fireEvent.click(await screen.findByRole('button', { name: 'Select New studio' }));
+  // WHEN clearing the one-off details while that read is pending.
+  fireEvent.click(screen.getByRole('button', { name: 'Clear supplier' }));
+  fireEvent.click(within(screen.getByRole('dialog', { name: 'Clear supplier?' })).getByRole('button', { name: 'Clear supplier' }));
+  await act(async () => finish(supplier));
+  // THEN late data cannot repopulate the cleared contact or reopen a decision dialog.
+  expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  expect(screen.getByLabelText('Supplier name')).toHaveValue('');
+  expect(screen.getByLabelText('Supplier order reference')).toHaveValue('');
+});
+it('returns focus to the supplier summary when clearing with unrelated validation errors', async () => {
+  // GIVEN a supplier and a retained title validation error.
+  vi.mocked(createDraft).mockRejectedValue(new DraftError(400, 'draft_validation_failed', { 'draft.title': ['Review title.'] }));
+  render(<DraftEditor {...props()} />);
+  fireEvent.change(screen.getByLabelText('Supplier name'), { target: { value: 'Studio' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Save draft' }));
+  await screen.findByRole('link', { name: 'Review title.' });
+  // WHEN clearing THEN the summary receives focus while the title error remains available.
+  fireEvent.click(screen.getByRole('button', { name: 'Clear supplier' }));
+  fireEvent.click(within(screen.getByRole('dialog', { name: 'Clear supplier?' })).getByRole('button', { name: 'Clear supplier' }));
+  expect(screen.getByText('Supplier details').closest('summary')).toHaveFocus();
   expect(screen.getByRole('link', { name: 'Review title.' })).toBeInTheDocument();
 });

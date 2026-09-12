@@ -105,9 +105,10 @@ confirmation showing populated details. Existing details compare only changed fi
 values that will be cleared. Re-selecting the same supplier handles directory updates through this
 same decision, without a separate refresh action. A failed load preserves all local edits.
 
-**Remove supplier link** offers confirmation to retain the contact snapshot as one-off details.
-Changing supplier or removing its link requires an explicit keep/clear choice for any supplier order
-reference. Platform remains independent in every case.
+**Clear supplier** is a red action aligned to the right of the Supplier details summary. Confirmation
+clears the link, all supplier contact fields, and the supplier order reference; Cancel retains them.
+There is no reference-retention choice when clearing. Selecting a different supplier still requires an
+explicit keep/clear reference choice. Platform stays independent, and saving remains explicit.
 Ordinary directory editing never changes any order version or saved time.
 
 The snapshot is the supplier information deliberately saved on this draft, not a claim that every

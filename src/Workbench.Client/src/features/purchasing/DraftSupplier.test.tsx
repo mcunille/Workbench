@@ -90,7 +90,6 @@ it('links a different supplier while keeping the existing PO details when reques
 it.each([
   ['New supplier', 'New supplier'],
   ['Choose supplier', 'Choose supplier'],
-  ['Remove supplier link', 'Keep details as one-off?'],
 ])('keeps the %s workflow when an earlier supplier refresh arrives late', async (action, title) => {
   // GIVEN a linked order whose current supplier refresh is still pending.
   let finish!: (supplier: Supplier) => void;
