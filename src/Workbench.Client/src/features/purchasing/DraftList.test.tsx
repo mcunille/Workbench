@@ -75,7 +75,7 @@ it('restores loaded pages on return and directs invalid cursors to refresh', asy
   expect(getDrafts).not.toHaveBeenCalled();
   // WHEN continuation is rejected THEN keep rows and offer a first-page refresh.
   fireEvent.click(screen.getByRole('button', { name: 'Load more' }));
-  await screen.findByText('This page reference is no longer valid. Refresh drafts to start again.');
+  await screen.findByText('The next page is no longer available. Select Refresh to start again.');
   expect(screen.getByRole('link', { name: /kept/ })).toBeVisible();
 });
 it('searches the server from page one and displays permanent references and platforms', async () => {
