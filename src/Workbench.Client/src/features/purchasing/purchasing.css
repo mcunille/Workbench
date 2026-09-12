@@ -142,6 +142,13 @@
 .po-search-controls { display: flex; align-items: flex-end; gap: .75rem; flex-wrap: wrap; }
 .po-search-controls > .floating-field { flex: 1 1 16rem; margin-top: 0; }
 .po-search-controls input[type="search"] { min-width: 0; width: 100%; }
+.po-draft-search .po-search-controls { flex-wrap: nowrap; }
+.po-draft-results-toolbar { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: .75rem; min-height: 44px; }
+.po-draft-result-context { min-width: 0; overflow-wrap: anywhere; }
+.po-draft-progress { min-height: 1.5em; color: var(--muted); font-size: .875rem; line-height: 1.5; }
+.po-draft-progress p { margin: 0; }
+.po-draft-clear { align-self: start; }
+.po-draft-clear.is-unavailable { visibility: hidden; }
 .po-archive-filter { display: flex; align-items: center; gap: .625rem; min-height: 44px; width: fit-content; color: var(--muted); font-size: .875rem; margin-top: .5rem; cursor: pointer; }
 .po-archive-filter input { width: 1rem; height: 1rem; min-height: 1rem; margin: 0; flex-shrink: 0; }
 .po-reference { font-variant-numeric: tabular-nums; }
