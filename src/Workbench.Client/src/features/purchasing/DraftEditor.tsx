@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { FloatingField } from '../../FloatingField';
 import { Icon } from '../../Icon';
 import { ApiError } from '../../api/auth';
@@ -26,6 +26,14 @@ const displayDraft = (draft: DraftContent): DraftContent => ({ ...draft, entries
 const emptyDraft = (): DraftContent => ({ title: null, supplierName: null, supplierId: null, supplierContactName: null, supplierEmail: null, supplierPhone: null, supplierWebsite: null, supplierPostalAddress: null, supplierOrderReference: null, platform: null, currency: null, notes: null, sourceLinks: [], entries: [] });
 const fieldId = (path: string) => `po-${path.replace(/[^a-zA-Z0-9]/g, '-')}`;
 const optional = (text: string) => text === '' ? null : text;
+
+function EntryDetails({ populated, invalid, children }: { populated: boolean; invalid: boolean; children: ReactNode }) {
+  const [expanded, setExpanded] = useState(populated);
+  return <details className="po-entry-details" open={expanded || invalid} onToggle={event => setExpanded(event.currentTarget.open)}>
+    <summary>Notes and source</summary>
+    <div className="po-entry-secondary">{children}</div>
+  </details>;
+}
 
 export function DraftEditor({ id: initialId, onDirtyChange, onAuthLost, onSaved, onCreated, onCancel }: Props) {
   const [supplierDirty, setSupplierDirty] = useState(false);
@@ -267,11 +275,8 @@ export function DraftEditor({ id: initialId, onDirtyChange, onAuthLost, onSaved,
             )))}</ul>
           </div>
         ) : null}
-        <section className="po-form-section" aria-labelledby="po-details-heading">
-          <div className="po-section-heading">
-            <h2 id="po-details-heading">Order details</h2>
-          </div>
-          <div className="po-header-fields">
+        <section className="po-form-section" aria-label="Order details">
+          <div className="po-header-fields po-title-fields">
             {field('draft.title', 'Title', draft.title, title => setDraft({ ...draft, title }))}
 
           </div>
@@ -326,15 +331,15 @@ export function DraftEditor({ id: initialId, onDirtyChange, onAuthLost, onSaved,
                 </div>
                 <div className="po-header-fields">
                   {field(`draft.entries[${index}].description`, `Description ${index + 1}`, entry.description, value => updateEntry('description', value))}
-                  <ReferencePriceField id={fieldId(`draft.entries[${index}].indicativePrice`)} index={index + 1}
+                  <div className="po-entry-price"><ReferencePriceField id={fieldId(`draft.entries[${index}].indicativePrice`)} index={index + 1}
                     value={entry.indicativePrice} onChange={value => updateEntry('indicativePrice', value)}
                     disabled={frozen || currencyTransition} error={errors[`draft.entries[${index}].indicativePrice`]?.join(' ')} />
+                  {entry.indicativePrice === null ? <p className="po-price-state">Price: Unknown</p> : null}</div>
                 </div>
-                {entry.indicativePrice === null ? <p className="po-price-state">Price: Unknown</p> : null}
-                <div className="po-entry-secondary">
+                <EntryDetails populated={!!(entry.notes || entry.sourceLink)} invalid={!!(errors[`draft.entries[${index}].notes`] || errors[`draft.entries[${index}].sourceLink`])}>
                   {field(`draft.entries[${index}].notes`, `Entry notes ${index + 1}`, entry.notes, value => updateEntry('notes', value), { multiline: true })}
                   {field(`draft.entries[${index}].sourceLink`, `Entry source link ${index + 1}`, entry.sourceLink, value => updateEntry('sourceLink', value))}
-                </div>
+                </EntryDetails>
               </fieldset>
             );
           })}

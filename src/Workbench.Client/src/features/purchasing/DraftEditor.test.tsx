@@ -10,6 +10,32 @@ const content = { title: null, supplierName: null, supplierId: null, supplierCon
 const saved = { id: 'draft-one', poReference: 'PO-000001', supplierIsArchived: false, draft: content, version: 'v1', createdAtUtc: '2026-09-12T00:00:00Z', updatedAtUtc: '2026-09-12T00:00:00Z' };
 const receipt = { requestId: 'request', replayed: false, draftOrderId: saved.id, savedVersion: saved.version, completedAtUtc: saved.updatedAtUtc };
 const props = () => ({ onDirtyChange: vi.fn(), onAuthLost: vi.fn(), onSaved: vi.fn(), onCancel: vi.fn(), onCreated: vi.fn() });
+it('keeps empty entry details optional and reveals their validation errors', async () => {
+  // GIVEN a new entry whose optional notes and source are empty.
+  vi.mocked(createDraft).mockRejectedValue(new DraftError(400, 'draft_validation_failed', { 'draft.entries[0].sourceLink': ['Check this source link.'] }));
+  render(<DraftEditor {...props()} />);
+  fireEvent.click(screen.getByRole('button', { name: 'Add entry' }));
+  const source = screen.getByLabelText('Entry source link 1');
+  const disclosure = source.closest('details');
+  expect(disclosure).not.toBeNull();
+  expect(disclosure).not.toHaveAttribute('open');
+  // WHEN the server reports an error inside the optional details.
+  fireEvent.click(screen.getByRole('button', { name: 'Save draft' }));
+  await screen.findByRole('link', { name: 'Check this source link.' });
+  // THEN the field is revealed and the summary link can focus it.
+  expect(disclosure).toHaveAttribute('open');
+  fireEvent.click(screen.getByRole('link', { name: 'Check this source link.' }));
+  expect(source).toHaveFocus();
+});
+it('reveals populated entry details when reopening a draft', async () => {
+  // GIVEN an existing entry with research notes.
+  vi.mocked(getDraft).mockResolvedValue({ ...saved, draft: { ...content, entries: [{ id: 'entry', description: 'Sapphire', indicativePrice: null, notes: 'Check inclusions', sourceLink: null }] } });
+  render(<DraftEditor {...props()} id={saved.id} />);
+  // WHEN the draft loads THEN existing details are visible and retained.
+  const notes = await screen.findByDisplayValue('Check inclusions');
+  expect(notes.closest('details')).toHaveAttribute('open');
+  expect(notes).toBeVisible();
+});
 beforeEach(() => { Object.defineProperty(HTMLDialogElement.prototype, 'showModal', { configurable: true, value(this: HTMLDialogElement) { this.setAttribute('open', ''); } }); vi.mocked(deleteDraft).mockReset(); vi.mocked(createDraft).mockReset(); vi.mocked(updateDraft).mockReset(); vi.mocked(getDraft).mockReset(); });
 it('saves an empty draft and enables editing only after loading the confirmed current document', async () => {
   // GIVEN all business fields are optional and the confirmation read has not returned.
