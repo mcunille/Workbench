@@ -208,7 +208,7 @@ export function DraftEditor({ id: initialId, onDirtyChange, onAuthLost, onSaved,
   const saveStatus = mode === 'saving' ? 'Saving draft…'
     : mode.endsWith('loading') ? 'Loading current draft…'
     : savedAt ? `Saved ${new Date(savedAt).toLocaleString()}${dirty ? ' · Unsaved changes' : ''}`
-    : changed ? 'Unsaved changes' : 'Not saved yet';
+    : changed ? 'Unsaved changes' : '';
 
   return (
     <section className="editor po-editor">
@@ -220,8 +220,8 @@ export function DraftEditor({ id: initialId, onDirtyChange, onAuthLost, onSaved,
       }} /> : null}
       <div ref={toolbarStart} className="po-toolbar-start" aria-hidden="true" />
       <div className={`po-editor-toolbar${toolbarPinned ? ' is-pinned' : ''}`}>
-        <button type="button" className="quiet po-back" onClick={onCancel}>
-          <Icon name="back" />Back to purchase orders
+        <button type="button" className="quiet po-back" aria-label="Back to purchase orders" onClick={onCancel}>
+          <Icon name="back" />Purchase orders
         </button>
         <button type="submit" form="po-draft-form" className="primary" disabled={saveDisabled}>
           {saveLabel}
@@ -229,9 +229,9 @@ export function DraftEditor({ id: initialId, onDirtyChange, onAuthLost, onSaved,
       </div>
       <header className="po-editor-header">
         <div className="po-heading">
-          <h1 className="po-accessible-heading">{id ? 'Edit draft' : 'New draft'}</h1><strong className="po-reference">{baseline?.poReference ?? current?.poReference ?? 'Assigned when saved'}</strong><span className="po-badge">Draft</span>
+          <h1>{baseline?.poReference ?? current?.poReference ?? (id ? 'Purchase order' : 'New purchase order')}</h1><span className="po-badge">Draft</span>
         </div>
-        <p className="po-save-status" role="status">{saveStatus}</p>
+        {saveStatus ? <p className="po-save-status" role="status">{saveStatus}</p> : null}
       </header>
       {message && !Object.keys(errors).length ? <p role="alert" className="form-message error">{message}</p> : null}
       {mode === 'delete-uncertain' ? <button type="button" className="secondary" onClick={() => void removeDraft()}>Check and retry deletion</button> : null}
@@ -269,8 +269,7 @@ export function DraftEditor({ id: initialId, onDirtyChange, onAuthLost, onSaved,
         ) : null}
         <section className="po-form-section" aria-labelledby="po-details-heading">
           <div className="po-section-heading">
-            <div><h2 id="po-details-heading">Order details</h2><p>A working title and supplier are enough to get started. Both are optional.</p></div>
-            <span className="po-badge">Draft</span>
+            <h2 id="po-details-heading">Order details</h2>
           </div>
           <div className="po-header-fields">
             {field('draft.title', 'Title', draft.title, title => setDraft({ ...draft, title }))}
@@ -278,11 +277,11 @@ export function DraftEditor({ id: initialId, onDirtyChange, onAuthLost, onSaved,
           </div>
         </section>
         <section className="po-form-section" aria-labelledby="po-supplier-heading">
-          <div className="po-section-heading"><div><h2 id="po-supplier-heading">Supplier</h2><p>Save the details for this purchase. A platform can vary between orders.</p></div></div>
+          <div className="po-section-heading"><h2 id="po-supplier-heading">Supplier</h2></div>
           <DraftSupplier draft={draft} archived={!!baseline?.supplierIsArchived && baseline.draft.supplierId === draft.supplierId} frozen={frozen} onChange={setDraft} onAuthLost={supplierAccessLost} onDirtyChange={reportSupplierDirty} />
           <div className="po-header-fields">
             {field('draft.supplierName', 'Supplier name', draft.supplierName, supplierName => setDraft({ ...draft, supplierName }))}
-            {field('draft.platform', 'Platform', draft.platform, platform => setDraft({ ...draft, platform }), { placeholder: 'Not set' })}
+            {field('draft.platform', 'Platform', draft.platform, platform => setDraft({ ...draft, platform }), { placeholder: 'e.g. Instagram, Retail' })}
             {field('draft.supplierOrderReference', 'Supplier order reference', draft.supplierOrderReference, supplierOrderReference => setDraft({ ...draft, supplierOrderReference }))}
           </div>
           <details className="po-contact-details" open={Object.keys(errors).some(key => /^draft\.supplier(ContactName|Email|Phone|Website|PostalAddress)$/.test(key)) || undefined}>

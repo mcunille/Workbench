@@ -78,9 +78,9 @@ export function SupplierEditor({ id: initialId, inline, onDirtyChange, onAuthLos
     if (!current) return; setBaseline(current); if (!keep) setSupplier(current.supplier); setCurrent(undefined); receipt.current = undefined; submission.current = undefined; setMode('editing'); setMessage('Review the details, then save explicitly.');
   }
   const frozen = mode !== 'editing';
-  return <section className="editor po-editor" aria-label="Supplier editor">
+  return <section className={inline ? 'po-supplier-inline-editor' : 'editor po-editor'} aria-label="Supplier editor">
     {!inline ? <><button className="quiet" type="button" onClick={onCancel}>Back to suppliers</button><h1>{id ? 'Edit supplier' : 'New supplier'}</h1></> : null}
-    <p className="po-field-help">{inline ? 'Saving creates a reusable supplier independently. Your purchase order is saved separately.' : 'Changes apply to the directory. Existing orders keep their own contact details.'}</p>
+    <p className="po-field-help">{inline ? 'Add a supplier to use on this and future orders.' : 'Existing orders keep their own contact details.'}</p>
     {baseline?.isArchived ? <p className="po-badge">Archived supplier</p> : null}
     {message ? <p role={mode === 'editing' && !Object.keys(errors).length ? 'status' : 'alert'}>{message}</p> : null}
     {mode === 'loading' || mode === 'reading' ? <p role="status">Loading current supplier…</p> : null}
@@ -93,7 +93,7 @@ export function SupplierEditor({ id: initialId, inline, onDirtyChange, onAuthLos
         const common = { id: controlId, value: supplier[key] ?? '', disabled: frozen, maxLength: limit, placeholder: ' ', 'aria-invalid': !!error, 'aria-describedby': error ? `${controlId}-error` : undefined, onChange: (event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => setSupplier({ ...supplier, [key]: event.target.value || (key === 'name' ? '' : null) }) };
         return <div className="po-field" key={key}><FloatingField htmlFor={controlId} label={label}>{key === 'postalAddress' ? <textarea {...common} rows={3} /> : <input {...common} required={key === 'name'} />}</FloatingField>{error ? <p className="form-message error" id={`${controlId}-error`}>{error}</p> : null}</div>;
       })}</div>
-      <div className="button-row"><button className="primary" type="submit" disabled={(mode !== 'editing' && mode !== 'uncertain') || (mode === 'editing' && !!baseline && !changed && !inline)}>{mode === 'saving' ? 'Saving supplier…' : mode === 'uncertain' ? 'Check and retry supplier save' : 'Save supplier'}</button>
+      <div className={inline ? 'button-row po-dialog-footer' : 'button-row'}>{inline ? <button className="secondary" type="button" onClick={onCancel}>Cancel</button> : null}<button className="primary" type="submit" disabled={(mode !== 'editing' && mode !== 'uncertain') || (mode === 'editing' && !!baseline && !changed && !inline)}>{mode === 'saving' ? 'Saving supplier…' : mode === 'uncertain' ? 'Check and retry supplier save' : 'Save supplier'}</button>
       {inline && baseline && mode === 'editing' && !changed ? <button className="secondary" type="button" onClick={() => onSelected?.(baseline)}>Select saved supplier</button> : null}
       </div>
     </form>

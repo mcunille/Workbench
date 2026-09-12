@@ -11,6 +11,75 @@ beforeEach(() => {
   vi.mocked(getSuppliers).mockResolvedValue({ items: [], nextCursor: null });
   Object.defineProperty(HTMLDialogElement.prototype, 'showModal', { configurable: true, value(this: HTMLDialogElement) { this.setAttribute('open', ''); } });
 });
+it('offers a compact populated confirmation when an order has no supplier details', async () => {
+  // GIVEN an empty supplier section and an order-specific platform.
+  vi.mocked(getSuppliers).mockResolvedValue({ items: [current], nextCursor: null });
+  const onChange = vi.fn();
+  render(<DraftSupplier draft={{ ...draft, supplierName: null, supplierId: null }} archived={false} frozen={false} onChange={onChange} onAuthLost={vi.fn()} onDirtyChange={vi.fn()} />);
+  // WHEN selecting a directory supplier THEN one populated summary asks for confirmation.
+  fireEvent.click(screen.getByRole('button', { name: 'Choose supplier' }));
+  fireEvent.click(await screen.findByRole('button', { name: 'Select Current supplier' }));
+  const dialog = screen.getByRole('dialog', { name: 'Use supplier?' });
+  expect(within(dialog).getByText('Current supplier')).toBeVisible();
+  expect(within(dialog).queryByText('Not set')).not.toBeInTheDocument();
+  expect(within(dialog).queryByText('On this order')).not.toBeInTheDocument();
+  expect(onChange).not.toHaveBeenCalled();
+  fireEvent.click(within(dialog).getByRole('button', { name: 'Use supplier' }));
+  expect(onChange).toHaveBeenCalledWith(expect.objectContaining({ supplierId: current.id, platform: 'Instagram' }));
+});
+it('requires a reference decision even when the supplier contact section is empty', async () => {
+  // GIVEN a reference-only order with no current supplier details.
+  vi.mocked(getSuppliers).mockResolvedValue({ items: [current], nextCursor: null });
+  const onChange = vi.fn();
+  render(<DraftSupplier draft={{ ...draft, supplierName: null, supplierId: null, supplierOrderReference: 'OLD-1' }} archived={false} frozen={false} onChange={onChange} onAuthLost={vi.fn()} onDirtyChange={vi.fn()} />);
+  // WHEN selecting a supplier THEN the compact confirmation still requires an explicit reference choice.
+  fireEvent.click(screen.getByRole('button', { name: 'Choose supplier' }));
+  fireEvent.click(await screen.findByRole('button', { name: 'Select Current supplier' }));
+  const apply = screen.getByRole('button', { name: 'Use supplier' });
+  expect(apply).toBeDisabled();
+  fireEvent.click(screen.getByLabelText('Clear supplier order reference'));
+  fireEvent.click(apply);
+  expect(onChange).toHaveBeenCalledWith(expect.objectContaining({ supplierOrderReference: null, platform: 'Instagram' }));
+});
+it('compares only changed fields and makes removed contact details explicit', async () => {
+  // GIVEN a linked supplier whose saved email was removed from the directory.
+  vi.mocked(getSupplier).mockResolvedValue(current);
+  render(<DraftSupplier draft={{ ...draft, supplierEmail: 'old@example.test' }} archived={false} frozen={false} onChange={vi.fn()} onAuthLost={vi.fn()} onDirtyChange={vi.fn()} />);
+  // WHEN explicitly refreshing THEN changed names and the email removal are visible, without empty phone rows.
+  fireEvent.click(screen.getByRole('button', { name: 'Use current supplier details' }));
+  const dialog = await screen.findByRole('dialog', { name: 'Review supplier details' });
+  expect(within(dialog).getByText('old@example.test')).toBeVisible();
+  expect(within(dialog).getByText('Will be cleared')).toBeVisible();
+  expect(within(dialog).queryByText('Phone')).not.toBeInTheDocument();
+  expect(within(dialog).queryByText('Not set')).not.toBeInTheDocument();
+});
+it('keeps explicit refresh deliberate even when the contact details already match', async () => {
+  // GIVEN a linked order already using the current supplier name and empty contacts.
+  vi.mocked(getSupplier).mockResolvedValue(current);
+  const onChange = vi.fn();
+  render(<DraftSupplier draft={{ ...draft, supplierName: current.supplier.name }} archived={false} frozen={false} onChange={onChange} onAuthLost={vi.fn()} onDirtyChange={vi.fn()} />);
+  // WHEN requesting a refresh THEN matching details are summarized once without pretending fields changed.
+  fireEvent.click(screen.getByText('Supplier options'));
+  fireEvent.click(screen.getByRole('button', { name: 'Use current supplier details' }));
+  const dialog = await screen.findByRole('dialog', { name: 'Review supplier details' });
+  expect(within(dialog).getByText('Your contact details already match this supplier.')).toBeVisible();
+  expect(within(dialog).queryByText('Not set')).not.toBeInTheDocument();
+  expect(onChange).not.toHaveBeenCalled();
+  fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }));
+  expect(onChange).not.toHaveBeenCalled();
+});
+it('protects inline supplier edits through the single cancel action', () => {
+  // GIVEN local supplier input in the new supplier dialog.
+  render(<DraftSupplier draft={draft} archived={false} frozen={false} onChange={vi.fn()} onAuthLost={vi.fn()} onDirtyChange={vi.fn()} />);
+  fireEvent.click(screen.getByRole('button', { name: 'New supplier' }));
+  const dialog = screen.getByRole('dialog', { name: 'New supplier' });
+  fireEvent.change(within(dialog).getByLabelText('Name'), { target: { value: 'Unsaved studio' } });
+  // WHEN cancelling from the shared footer THEN the discard choice retains input on return.
+  expect(within(dialog).getAllByRole('button', { name: 'Cancel' })).toHaveLength(1);
+  fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Keep editing supplier' }));
+  expect(within(dialog).getByLabelText('Name')).toHaveValue('Unsaved studio');
+});
 it.each([
   ['New supplier', 'New supplier'],
   ['Choose supplier', 'Choose supplier'],

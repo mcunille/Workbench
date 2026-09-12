@@ -341,7 +341,7 @@ it('searches and saves an inline supplier independently without submitting the e
   expect(dialog.closest('#po-draft-form')).toBeNull();
   fireEvent.change(within(dialog).getByLabelText('Name'), { target: { value: 'Gem Studio' } });
   fireEvent.click(within(dialog).getByRole('button', { name: 'Save supplier' }));
-  fireEvent.click(await screen.findByRole('button', { name: 'Replace supplier details' }));
+  fireEvent.click(await screen.findByRole('button', { name: 'Use supplier' }));
   // THEN only the supplier was saved; the order retains its local title and selected snapshot.
   expect(createDraft).not.toHaveBeenCalled(); expect(createSupplier).toHaveBeenCalledTimes(1);
   expect(screen.getByLabelText('Title')).toHaveValue('Unsaved order'); expect(screen.getByLabelText('Supplier name')).toHaveValue('Gem Studio');
@@ -388,4 +388,14 @@ it('clears the order snapshot immediately when supplier refresh loses business a
   await waitFor(() => expect(callbacks.onAuthLost).toHaveBeenCalled());
   expect(screen.getByLabelText('Supplier name')).toHaveValue(''); expect(screen.getByLabelText('Platform')).toHaveValue('');
   expect(screen.getByLabelText('Title')).toBeDisabled();
+});
+it('presents a clear new order heading and one draft state before any details are entered', () => {
+  // GIVEN a new purchase order with no assigned reference.
+  render(<DraftEditor {...props()} />);
+  // WHEN its initial editing view is shown THEN the task is visible without duplicated state copy.
+  expect(screen.getByRole('heading', { name: 'New purchase order', level: 1 })).toBeVisible();
+  expect(screen.getAllByText('Draft', { exact: true })).toHaveLength(1);
+  expect(screen.queryByText('Assigned when saved')).not.toBeInTheDocument();
+  expect(screen.queryByText('Not saved yet')).not.toBeInTheDocument();
+  expect(screen.getByLabelText('Title')).toBeEnabled();
 });
