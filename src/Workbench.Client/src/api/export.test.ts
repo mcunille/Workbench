@@ -3,12 +3,21 @@ import { vi } from 'vitest';
 vi.stubGlobal('window', { location: { origin: 'http://localhost:3000' } });
 vi.mock('./auth', async importOriginal => ({ ...await importOriginal<typeof import('./auth')>(), mutationHeaders: vi.fn(async () => ({ 'X-CSRF-TOKEN': 'csrf' })) }));
 const { prepareExport } = await import('./export');
-const filename = 'workbench-records-v1-all-20260908T123456Z.csv';
+const filename = 'workbench-records-v2-all-20260908T123456Z.csv';
 const headers = { 'Content-Type': 'text/csv; charset=utf-8', 'Content-Length': '8', 'Content-Disposition': `attachment; filename="${filename}"` };
 afterEach(() => vi.unstubAllGlobals());
 beforeEach(() => vi.stubGlobal('window', { location: { origin: 'http://localhost:3000' } }));
 
-const zipHeaders = { ...headers, 'Content-Type': 'application/zip', 'Content-Disposition': 'attachment; filename="workbench-package-v1-all-20260908T123456Z.zip"' };
+const zipHeaders = { ...headers, 'Content-Type': 'application/zip', 'Content-Disposition': 'attachment; filename="workbench-package-v2-all-20260908T123456Z.zip"' };
+it.each(['csv', 'zip'] as const)('rejects an unexpected legacy %s producer version', async format => {
+  // GIVEN a legacy attachment returned to the current version 2 client.
+  const expectedHeaders = format === 'zip' ? zipHeaders : headers;
+  vi.stubGlobal('fetch', vi.fn(async () => new Response('complete', { headers: {
+    ...expectedHeaders, 'Content-Disposition': expectedHeaders['Content-Disposition'].replace('-v2-', '-v1-'),
+  } })));
+  // WHEN preparing THEN mismatched format contracts never become ready files.
+  await expect(prepareExport('all', new AbortController().signal, format)).rejects.toThrow('could not be verified');
+});
 it('accepts ZIP bytes above the standalone CSV bound', async () => {
   // GIVEN a complete package larger than the text-only export limit.
   const bytes = new Uint8Array(32 * 1024 * 1024 + 1);
@@ -24,7 +33,7 @@ it('prepares ZIP through its endpoint with the complete attachment contract', as
   const result = await prepareExport('all', new AbortController().signal, 'zip');
   expect(String(fetchMock.mock.calls[0][0])).toBe('http://localhost:3000/api/items/export-package');
   expect(fetchMock).toHaveBeenCalledWith(expect.any(URL), expect.objectContaining({ headers: expect.objectContaining({ Accept: 'application/zip' }), body: '{"scope":"all"}' }));
-  expect(result?.filename).toBe('workbench-package-v1-all-20260908T123456Z.zip');
+  expect(result?.filename).toBe('workbench-package-v2-all-20260908T123456Z.zip');
   expect(await result?.blob.text()).toBe('complete');
 });
 
@@ -73,7 +82,7 @@ it.each([
   { ...headers, 'Content-Length': '33554433' },
   { ...headers, 'Content-Length': '' },
   { ...headers, 'Content-Disposition': 'attachment; filename="private-name.csv"' },
-  { ...headers, 'Content-Disposition': 'attachment; filename="workbench-records-v1-active-20260908T123456Z.csv"' },
+  { ...headers, 'Content-Disposition': 'attachment; filename="workbench-records-v2-active-20260908T123456Z.csv"' },
 ])('rejects a malformed or incomplete response %#', async invalidHeaders => {
   // GIVEN a response that cannot be verified as the complete export.
   vi.stubGlobal('fetch', vi.fn(async () => new Response('complete', { headers: invalidHeaders })));

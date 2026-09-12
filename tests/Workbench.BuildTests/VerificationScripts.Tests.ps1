@@ -76,6 +76,37 @@ try {
         $verifyContent -match '(?m)^\s*dotnet test ' -or $verifyContent -match 'dotnet run') {
         throw 'Full verification must build once and delegate the complete test inventory to isolated processes.'
     }
+    # GIVEN client tests sharing the gate runner with .NET formatting and compilation
+    $tokens = $null; $parseErrors = $null
+    $ast = [Management.Automation.Language.Parser]::ParseFile($verifyScript, [ref]$tokens, [ref]$parseErrors)
+    $clientStage = $ast.Find({
+        param($node)
+        $node -is [Management.Automation.Language.CommandAst] -and
+        $node.GetCommandName() -eq 'Start-VerificationStage' -and
+        @($node.CommandElements | Where-Object { $_ -is [Management.Automation.Language.StringConstantExpressionAst] -and $_.Value -eq 'client' }).Count -eq 1
+    }, $true)
+    $action = @($clientStage.CommandElements | Where-Object { $_ -is [Management.Automation.Language.ScriptBlockExpressionAst] })
+    if ($action.Count -ne 1) { throw 'Expected one executable client verification stage.' }
+    # The function shim consumes --, but native npm needs it to forward Vitest options.
+    $testCommand = $action[0].ScriptBlock.Find({
+        param($node)
+        $node -is [Management.Automation.Language.CommandAst] -and $node.GetCommandName() -eq 'npm' -and
+        @($node.CommandElements | Where-Object { $_ -is [Management.Automation.Language.StringConstantExpressionAst] -and $_.Value -eq 'test:run' }).Count -eq 1
+    }, $true)
+    if ($null -eq $testCommand -or $testCommand.CommandElements[-2].Extent.Text -cne '--' -or
+        $testCommand.CommandElements[-1].Extent.Text -cne '--maxWorkers=1') {
+        throw 'The client worker budget must be forwarded to Vitest through the npm -- separator.'
+    }
+    $global:workbenchNpmCalls.Clear()
+    # WHEN the real stage action invokes the client runner through the command boundary
+    & ($action[0].ScriptBlock.GetScriptBlock()) 'client-fixture'
+    $clientTestCalls = @($global:workbenchNpmCalls | Where-Object { $_ -like 'run test:run *' })
+    # THEN exactly one test run receives a single-worker budget, without retries or relaxed timeouts.
+    # PowerShell consumes the native -- separator when npm is replaced by the function shim.
+    if ($clientTestCalls.Count -ne 1 -or $clientTestCalls[0] -cne 'run test:run --prefix client-fixture --maxWorkers=1') {
+        throw "Concurrent client tests must receive a single-worker budget without retries or relaxed timeouts; received: $($clientTestCalls -join ' | ')."
+    }
+
     # GIVEN an operator requesting an individual migration drill
     foreach ($scenario in @('Clean', 'Upgrade', 'ReversibleRollback', 'RestoreRollback')) {
         $global:workbenchDotnetCalls.Clear()

@@ -23,7 +23,7 @@ test('H8 packages exact stored photographs, literal names and archived records w
   await page.getByRole('button', { name: 'Search', exact: true }).click();
   await page.getByRole('link', { name: 'Export records', exact: true }).click();
   expect(await page.getByRole('radio', { name: 'Records (CSV)', exact: true }).isChecked()).toBe(true);
-  await page.getByRole('radio', { name: 'Records and photographs (ZIP)', exact: true }).check();
+  await page.getByRole('radio', { name: 'Records, photographs and acquisition documents (ZIP)', exact: true }).check();
   await expect(page.getByRole('button', { name: 'Prepare export', exact: true })).toBeDisabled();
   // WHEN preparing active records THEN every included photograph matches the stored detail bytes.
   await page.getByRole('radio', { name: 'Active records', exact: true }).check();
@@ -53,7 +53,7 @@ test('H8 format and package survive navigation and both appearances with keyboar
   await createExportItem(page, `H8-layout-${crypto.randomUUID()}`);
   await page.getByRole('link', { name: 'Archive', exact: true }).click();
   await page.getByRole('link', { name: 'Export records', exact: true }).click();
-  const format = page.getByRole('radio', { name: 'Records and photographs (ZIP)', exact: true });
+  const format = page.getByRole('radio', { name: 'Records, photographs and acquisition documents (ZIP)', exact: true });
   const scope = page.getByRole('radio', { name: 'Active records', exact: true });
   await format.focus(); await page.keyboard.press('Space');
   await scope.focus(); await page.keyboard.press('Space');
@@ -91,14 +91,14 @@ test('H8 failures and interrupted bodies never expose a partial package; retry a
   await useAuthenticatedSession(page);
   await createExportItem(page, `H8-retry-${crypto.randomUUID()}`);
   await page.getByRole('link', { name: 'Export records', exact: true }).click();
-  await page.getByRole('radio', { name: 'Records and photographs (ZIP)', exact: true }).check();
+  await page.getByRole('radio', { name: 'Records, photographs and acquisition documents (ZIP)', exact: true }).check();
   await page.getByRole('radio', { name: 'Active records', exact: true }).check();
   // WHEN preparation is unavailable THEN recovery explains that photographs cannot be silently omitted.
   await page.route('**/api/items/export-package', route => route.fulfill({ status: 503 }), { times: 1 });
   await page.getByRole('button', { name: 'Prepare export', exact: true }).click();
-  await expect(page.getByRole('alert')).toContainText('photograph storage');
+  await expect(page.getByRole('alert')).toContainText('photograph or document storage');
   // WHEN a successful-looking response has incomplete bytes THEN no download is offered.
-  await page.route('**/api/items/export-package', route => route.fulfill({ status: 200, headers: { 'Content-Type': 'application/zip', 'Content-Length': '100', 'Content-Disposition': 'attachment; filename="workbench-package-v1-active-20260909T120000Z.zip"' }, body: 'partial' }), { times: 1 });
+  await page.route('**/api/items/export-package', route => route.fulfill({ status: 200, headers: { 'Content-Type': 'application/zip', 'Content-Length': '100', 'Content-Disposition': 'attachment; filename="workbench-package-v2-active-20260909T120000Z.zip"' }, body: 'partial' }), { times: 1 });
   await page.getByRole('button', { name: 'Retry', exact: true }).click();
   await expect(page.getByRole('alert')).toBeVisible();
   await expect(page.getByRole('link', { name: 'Download ZIP', exact: true })).toHaveCount(0);

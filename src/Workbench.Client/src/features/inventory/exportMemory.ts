@@ -53,7 +53,7 @@ export class ExportMemory {
   }
   private expire() {
     this.release();
-    this.publish({ status: 'idle', scope: this.state.scope, format: this.state.format, message: 'The prepared file expired. Prepare a new export; records and photographs may have changed.' });
+    this.publish({ status: 'idle', scope: this.state.scope, format: this.state.format, message: 'The prepared file expired. Prepare a new export; records, acquisition facts, photographs and documents may have changed.' });
   }
   startDownload(): boolean {
     if (this.state.status !== 'ready' || !this.state.expiresAt) return false;
@@ -89,13 +89,13 @@ export class ExportMemory {
       const status = error instanceof ApiError ? error.status : 0;
       const message = status === 422
         ? format === 'zip'
-          ? `The package exceeds a limit: 10,000 records, 32 MiB CSV, 16 MiB manifest, or 128 MiB total contents or ZIP.${scope === 'all' ? ' Try Active records.' : ''} Choose Records (CSV) to export text separately.`
+          ? `The package exceeds a limit: 10,000 records, 10,000 documents, 32 MiB CSV, 16 MiB manifest, or 128 MiB total contents or ZIP.${scope === 'all' ? ' Try Active records.' : ''} Choose Records (CSV) for records and acquisition facts; CSV excludes photographs and acquisition documents.`
           : `The export exceeds the limit of 10,000 records or 32 MiB.${scope === 'all' ? ' Try Active records.' : ''}`
         : status === 429
           ? 'Export preparation is busy. Wait briefly, then retry.'
           : status === 401 || status === 403
             ? 'Your session expired or access changed. Sign in again to prepare an export.'
-            : `We could not prepare the complete export. Retry to prepare a new snapshot; records may have changed.${format === 'zip' ? ' Photographs may also have changed. If this keeps happening, ask your operator to investigate photograph storage. You can choose Records (CSV) to export text separately.' : ''}`;
+            : `We could not prepare the complete export. Retry to prepare a new snapshot; records may have changed.${format === 'zip' ? ' Photographs or acquisition documents may also have changed. If this keeps happening, ask your operator to investigate photograph or document storage. You can choose Records (CSV) for records and acquisition facts; CSV excludes photographs and acquisition documents.' : ''}`;
       this.publish({ status: 'failed', scope, format, message });
       if (status === 401 || status === 403) onAuthLost();
     }

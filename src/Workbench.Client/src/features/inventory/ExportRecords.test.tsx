@@ -16,7 +16,10 @@ it('offers accessible package selection, limits, and ZIP download with CSV recov
   const memory = new ExportMemory();
   render(<ExportRecords memory={memory} follow={vi.fn()} onAuthLost={vi.fn()} />);
   expect(screen.getByRole('radio', { name: 'Records (CSV)' })).toBeChecked();
-  fireEvent.click(screen.getByRole('radio', { name: 'Records and photographs (ZIP)' }));
+  expect(screen.getByText(/CSV includes acquisition facts/)).toHaveTextContent('photographs and acquisition documents require ZIP');
+  fireEvent.click(screen.getByRole('radio', { name: 'Records, photographs and acquisition documents (ZIP)' }));
+  expect(screen.getByText(/Shared acquisition documents appear once/)).toHaveTextContent('outside your chosen scope');
+  expect(screen.getByText(/10,000 documents/)).toBeVisible();
   expect(screen.getByText(/128 MiB/)).toBeVisible();
   expect(screen.getByText(/camera originals/)).toBeVisible();
   fireEvent.click(screen.getByRole('radio', { name: 'Active records' }));
@@ -26,7 +29,7 @@ it('offers accessible package selection, limits, and ZIP download with CSV recov
   // WHEN selecting CSV THEN the old package is discarded and CSV facts return.
   fireEvent.click(screen.getByRole('radio', { name: 'Records (CSV)' }));
   expect(screen.queryByRole('link', { name: 'Download ZIP' })).not.toBeInTheDocument();
-  expect(screen.getByText('CSV version 1 · UTF-8')).toBeVisible();
+  expect(screen.getByText('CSV version 2 · UTF-8')).toBeVisible();
   memory.dispose();
 });
 it('requires accessible explicit scope, reports completeness, and preserves a file across page remounts', async () => {

@@ -73,11 +73,12 @@ Archived pieces retain read-only paperwork. Failed loads and unavailable files a
 having no documents. Retry failed downloads; for recovery-unavailable files, contact the administrator
 or add another copy through an active linked piece. An uncertain upload keeps its exact request in
 memory: Check and retry resolves its recorded outcome before resubmission. Browser closure and
-sign-out do not preserve drafts. Existing CSV/ZIP exports do not yet include acquisition documents;
-acquisition-aware exports remain H12.
+sign-out do not preserve drafts.
 
-Open Export records from Collection or Archive to prepare CSV or a ZIP with current stored detail
-photographs. Select active records or active plus archived records; search and loaded pages do not
+Open Export records from Collection or Archive to prepare CSV with acquisition facts, or a ZIP
+with current stored detail photographs and acquisition documents. Shared documents appear once;
+they may describe pieces outside the chosen scope, and their contents are not redacted. Select
+active records or active plus archived records; search and loaded pages do not
 narrow the scope. Follow the [format and spreadsheet guide](collection-export.md) for limits,
 contents, safe decoding and failures. These files cannot restore Workbench.
 
@@ -109,3 +110,4 @@ journey without developer intervention.
 | Acquisition context | [H9](specs/2026-09-09-acquisition-context.md) |
 | Shared acquisition relationships | [H10](specs/2026-09-09-shared-acquisitions.md) |
 | Acquisition documents | [H11](specs/2026-09-11-h11-acquisition-documents.md) |
+| Acquisition-aware exports | [H12](specs/2026-09-11-h12-acquisition-export.md) |

@@ -8,7 +8,7 @@ history, not a backlog and not a substitute for current documentation.
 | Area | Records |
 | --- | --- |
 | Foundation | [Base architecture](2026-08-31-base-application-architecture.md), [application foundation](2026-08-31-application-foundation.md), [data/identity/tenancy](2026-09-01-data-identity-tenancy.md) |
-| Collection | [Scenario and human validation](2026-09-06-first-hobbyist-scenario.md), [inventory foundation](2026-09-06-inventory-domain-foundation.md), [H1–H9 design links](../collection.md#design-records) |
+| Collection | [Scenario and human validation](2026-09-06-first-hobbyist-scenario.md), [inventory foundation](2026-09-06-inventory-domain-foundation.md), [H1–H12 design links](../collection.md#design-records) |
 | Purchasing | [Small-business purchase orders and purchase finances (proposed)](2026-09-11-purchase-orders-and-purchase-finances.md), [PO-01 draft supplier orders](2026-09-11-po-01-draft-supplier-orders.md) |
 | Visual decisions | [UI guidance](2026-09-06-ui-design-guidance.md), [Tanzanite acceptance sequence](2026-09-08-tanzanite-visual-language.md), [floating labels](2026-09-08-floating-label-fields.md), [navigation](2026-09-09-refined-navigation.md) |
 | Providers and recovery | [Blob/operational providers](2026-09-05-blob-operational-providers.md), [online backup/manual recovery](2026-09-07-online-backup-and-manual-recovery.md) |

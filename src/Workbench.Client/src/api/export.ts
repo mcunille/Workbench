@@ -24,7 +24,7 @@ export async function prepareExport(scope: ExportScope, signal: AbortSignal, for
   if (!mediaType.test(response.headers.get('Content-Type') ?? '')
     || !Number.isInteger(length) || length <= 0 || length > (format === 'zip' ? 128 : 32) * 1024 * 1024
     || !disposition.toLowerCase().startsWith('attachment;')
-    || !filename || !new RegExp(`^workbench-${format === 'zip' ? 'package' : 'records'}-v1-${scope}-[0-9TZ.\\-]+\\.${format}$`).test(filename)) {
+    || !filename || !new RegExp(`^workbench-${format === 'zip' ? 'package' : 'records'}-v2-${scope}-[0-9TZ.\\-]+\\.${format}$`).test(filename)) {
     throw new Error('The export response could not be verified.');
   }
   const blob = await response.blob();

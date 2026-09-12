@@ -28,7 +28,9 @@ Before submitting application changes, run:
 The first command performs locked restores, documentation checks, formatting, OpenAPI client drift
 detection, builds, tests (including migration drills in the server suite), browser checks, and
 published-output probes. Full-gate outcomes and stage/partition timings are retained in `artifacts/verification/<run-id>/`.
-The gate uses two isolated server processes by default; adjust
+The concurrent client stage uses one test worker while .NET formatting/build runs, keeping
+DOM test deadlines from competing with additional client workers. Focused client runs retain
+the runner defaults. The gate uses two isolated server processes by default; adjust
 `-ServerPartitions` (2–4) and `-ServerConcurrency` (1–4) for available Docker resources. Browser tests
 still use one worker. Every discovered server case must pass exactly once. See the
 [concurrent gate design](docs/specs/2026-09-09-concurrent-verification-gate.md) for artifact

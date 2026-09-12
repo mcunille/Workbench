@@ -41,7 +41,7 @@ public sealed class ItemPackageEndpointTests(SqlServerFixture sqlServer)
         Assert.Equal("application/zip", response.Content.Headers.ContentType?.MediaType);
         Assert.True(response.Headers.CacheControl?.NoStore);
         Assert.True(response.Headers.CacheControl?.Private);
-        Assert.StartsWith("workbench-package-v1-all-", response.Content.Headers.ContentDisposition?.FileName?.Trim('"'));
+        Assert.StartsWith("workbench-package-v2-all-", response.Content.Headers.ContentDisposition?.FileName?.Trim('"'));
         var bytes = await response.Content.ReadAsByteArrayAsync();
         Assert.Equal(bytes.Length, response.Content.Headers.ContentLength);
         using var zip = new ZipArchive(new MemoryStream(bytes));

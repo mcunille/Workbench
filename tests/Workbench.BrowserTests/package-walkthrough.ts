@@ -32,8 +32,8 @@ test('H8 narrated collection package walkthrough', async ({ browser }) => {
     await narrate('This saved stone has a stored detail photograph. A collection package keeps current text records and their photographs together in an ordinary ZIP.', 11);
     await page.getByRole('link', { name: 'Back to collection', exact: true }).click();
     await page.getByRole('link', { name: 'Export records', exact: true }).click();
-    await narrate('CSV remains the default for text records. Select Records and photographs to include stored WebP images, a manifest, and offline instructions. Camera originals and history are excluded.', 13);
-    await page.getByRole('radio', { name: 'Records and photographs (ZIP)', exact: true }).focus();
+    await narrate('CSV includes acquisition facts. Select the ZIP format to include stored WebP photographs, shared acquisition documents, a manifest, and offline instructions. Camera originals and edit history are excluded.', 13);
+    await page.getByRole('radio', { name: 'Records, photographs and acquisition documents (ZIP)', exact: true }).focus();
     await page.keyboard.press('Space');
     await expect(page.getByRole('button', { name: 'Prepare export', exact: true })).toBeDisabled();
     await page.getByRole('radio', { name: 'Active records', exact: true }).check();

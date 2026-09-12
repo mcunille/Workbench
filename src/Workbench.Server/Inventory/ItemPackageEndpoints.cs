@@ -48,17 +48,17 @@ public static class ItemPackageEndpoints
         {
             var snapshot = await ItemPackageSnapshot.CaptureAsync(database, request.Scope, store.Alias, timeProvider, cancellationToken);
             var bytes = snapshot.Items.Count == 0 ? null : await ItemPackageArchive.EncodeAsync(snapshot.Items,
-                database.TenantContext.RequireTenantId(), request.Scope, snapshot.ExportedAt, store, cancellationToken);
+                database.TenantContext.RequireTenantId(), request.Scope, snapshot.ExportedAt, store, cancellationToken, snapshot.Documents);
             if (!await ItemExportEndpoints.SessionStillValidAsync(http, database, sessions, cookieOptions, timeProvider, cancellationToken))
                 return Results.Unauthorized();
             cancellationToken.ThrowIfCancellationRequested();
             if (bytes is null) return Results.NoContent();
             return Results.File(bytes, "application/zip",
-                $"workbench-package-v1-{request.Scope}-{snapshot.ExportedAt.UtcDateTime:yyyyMMdd'T'HHmmss'Z'}.zip");
+                $"workbench-package-v2-{request.Scope}-{snapshot.ExportedAt.UtcDateTime:yyyyMMdd'T'HHmmss'Z'}.zip");
         }
         catch (ItemExportLimitException)
         {
-            return Failure(422, "export_limit_exceeded", "Package supports 10,000 records, 32 MiB CSV, 16 MiB manifest and 128 MiB content/ZIP. Try Active records if archived records were included, or export records as CSV.");
+            return Failure(422, "export_limit_exceeded", "Package supports 10,000 records, 10,000 documents, 32 MiB CSV, 16 MiB manifest and 128 MiB content/ZIP. Try Active records if archived records were included, or CSV without photographs or document files.");
         }
         catch (OperationCanceledException) when (!http.RequestAborted.IsCancellationRequested)
         {
@@ -71,7 +71,7 @@ public static class ItemPackageEndpoints
         finally { capacity.Release(); }
     }
 
-    private static IResult PreparationFailed() => Failure(503, "export_preparation_failed", "The complete package could not be prepared. Retry a new snapshot. If photograph failures persist, ask the operator to investigate storage recovery.");
+    private static IResult PreparationFailed() => Failure(503, "export_preparation_failed", "The complete package could not be prepared. Retry a new snapshot. If photograph or document failures persist, ask the operator to investigate storage recovery.");
     private static IResult Failure(int status, string code, string title) => Results.Problem(statusCode: status, title: title,
         extensions: new Dictionary<string, object?> { ["code"] = code });
 }
