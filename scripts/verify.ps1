@@ -92,7 +92,8 @@ try {
         param($client)
         npm run lint --prefix $client
         if ($LASTEXITCODE -ne 0) { throw 'Client lint failed.' }
-        npm run test:run --prefix $client
+        # Share CPU with the concurrent .NET build; extra workers slow deadline-bound DOM tests.
+        npm run test:run --prefix $client -- --maxWorkers=1
         if ($LASTEXITCODE -ne 0) { throw 'Client tests failed.' }
     }
     dotnet format Workbench.slnx --verify-no-changes --no-restore
