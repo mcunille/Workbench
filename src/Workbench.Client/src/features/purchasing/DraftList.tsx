@@ -56,7 +56,7 @@ export function DraftList({ memory, follow, onAuthLost }: Props) {
   return (
     <section className="po-list">
       <header className="po-page-heading">
-        <div><h1>Purchase orders</h1><p className="lede">Plan a purchase and pick it up later.</p></div>
+        <h1>Purchase orders</h1>
         <div className="po-page-actions"><a className="quiet button" href="/suppliers" onClick={follow}>Manage suppliers</a><a className="primary button" href="/purchase-orders/new" onClick={follow}><Icon name="plus" />New draft</a></div>
       </header>
       <form className="po-search po-draft-search" onSubmit={event => { event.preventDefault(); void load(true, query.trim()); }}>
@@ -89,7 +89,7 @@ export function DraftList({ memory, follow, onAuthLost }: Props) {
             {page.items.map(item => (
               <li key={item.id}>
                 <a href={`/purchase-orders/${item.id}`} onClick={follow}>
-                  <span className="po-order-identity"><span className="po-reference">{item.poReference}</span><strong>{item.title ?? 'Untitled draft'}</strong><span className="po-draft-state">Draft</span></span>
+                  <span className="po-order-identity"><span className="po-reference">{item.poReference}</span><strong>{item.title ?? 'Untitled draft'}</strong></span>
                   <span className="po-order-supplier">{item.supplierName ?? 'Supplier not set'}{item.platform ? <span className="po-row-detail">{item.platform}</span> : null}{item.supplierOrderReference ? <span className="po-row-detail">Supplier ref: {item.supplierOrderReference}</span> : null}</span>
                   <time className="po-order-saved" dateTime={item.updatedAtUtc} title={new Date(item.updatedAtUtc).toLocaleString()}>
                     {new Date(item.updatedAtUtc).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
