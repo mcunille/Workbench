@@ -7,11 +7,13 @@ import { cameraImage } from './photo-fixture';
 
 type PackageManifest = {
   package_version: number; scope: string; exported_at_utc: string; record_count: number; photo_count: number;
-  items: { item_id: string; name: string; location: string | null; photo: { status: string; path?: string; media_type?: string; byte_length?: number; sha256?: string } }[];
+  acquisition_count: number; document_count: number;
+  acquisitions: { acquisition_id: string; method: string; source: string | null; date_precision: string; year: number | null; month: number | null; day: number | null; notes: string | null; included_item_ids: string[]; documents: { document_id: string; label: string; created_at_utc: string; path: string; media_type: string; byte_length: number; sha256: string }[] }[];
+  items: { item_id: string; name: string; location: string | null; acquisition_id: string | null; photo: { status: string; path?: string; media_type?: string; byte_length?: number; sha256?: string } }[];
 };
 
 // Independent ZIP central-directory reader using only Node primitives. No server encoding helper.
-// Package v1 is bounded below ZIP64 sizes and uses only fixed files and canonical UUID photo paths.
+// Package v2 is bounded below ZIP64 sizes and uses only fixed files and canonical UUID attachment paths.
 export function inspectPackage(bytes: Buffer) {
   let end = bytes.length - 22;
   while (end >= Math.max(0, bytes.length - 65557) && bytes.readUInt32LE(end) !== 0x06054b50) end--;
@@ -27,7 +29,8 @@ export function inspectPackage(bytes: Buffer) {
     const length = bytes.readUInt32LE(cursor + 24);
     const nameLength = bytes.readUInt16LE(cursor + 28);
     const name = bytes.subarray(cursor + 46, cursor + 46 + nameLength).toString('utf8');
-    expect(name).toMatch(/^(README\.txt|records\.csv|manifest\.json|photos\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.webp)$/);
+    const uuid = '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}';
+    expect(name).toMatch(new RegExp(`^(README\\.txt|records\\.csv|manifest\\.json|photos/${uuid}\\.webp|documents/${uuid}/${uuid}\\.(pdf|jpg|png|webp))$`));
     expect(entries.has(name)).toBe(false);
     const local = bytes.readUInt32LE(cursor + 42);
     expect(bytes.readUInt32LE(local)).toBe(0x04034b50);
@@ -41,12 +44,26 @@ export function inspectPackage(bytes: Buffer) {
   expect(cursor).toBe(end);
   const manifest = JSON.parse(entries.get('manifest.json')!.toString('utf8')) as PackageManifest;
   const records = parseExportCsv(entries.get('records.csv')!);
-  expect(manifest.package_version).toBe(1);
+  expect(manifest.package_version).toBe(2);
   expect(manifest.record_count).toBe(records.length);
   expect(manifest.items).toHaveLength(records.length);
   expect(new Set(manifest.items.map(item => item.item_id)).size).toBe(records.length);
   expect(manifest.photo_count).toBe(manifest.items.filter(item => item.photo.status === 'included').length);
-  expect(entries.size).toBe(3 + manifest.photo_count);
+  expect(manifest.acquisition_count).toBe(manifest.acquisitions.length);
+  expect(new Set(manifest.acquisitions.map(acquisition => acquisition.acquisition_id)).size).toBe(manifest.acquisition_count);
+  expect(manifest.document_count).toBe(manifest.acquisitions.reduce((count, acquisition) => count + acquisition.documents.length, 0));
+  expect(entries.size).toBe(3 + manifest.photo_count + manifest.document_count);
+  for (const acquisition of manifest.acquisitions) {
+    expect(acquisition.included_item_ids).toEqual(manifest.items.filter(item => item.acquisition_id === acquisition.acquisition_id).map(item => item.item_id));
+    expect(acquisition.included_item_ids.length).toBeGreaterThan(0);
+    for (const document of acquisition.documents) {
+      expect(document.path).toMatch(new RegExp(`^documents/${acquisition.acquisition_id}/${document.document_id}\\.(pdf|jpg|png|webp)$`));
+      const content = entries.get(document.path)!;
+      expect(content).toBeDefined();
+      expect(content.length).toBe(document.byte_length);
+      expect(createHash('sha256').update(content).digest('hex')).toBe(document.sha256.toLowerCase());
+    }
+  }
   for (const item of manifest.items) {
     const record = records.find(row => row[3] === item.item_id)!;
     expect(record).toBeDefined();
@@ -54,6 +71,16 @@ export function inspectPackage(bytes: Buffer) {
     expect(record[2]).toBe(manifest.scope);
     expect(record[5].slice(1)).toBe(item.name);
     expect(record[7] === '' ? null : record[7].slice(1)).toBe(item.location);
+    expect(record[11] || null).toBe(item.acquisition_id);
+    if (item.acquisition_id) {
+      const acquisition = manifest.acquisitions.find(value => value.acquisition_id === item.acquisition_id)!;
+      expect(acquisition).toBeDefined();
+      expect(record.slice(12)).toEqual([
+        acquisition.method, acquisition.source === null ? '' : `'${acquisition.source}`,
+        acquisition.date_precision, acquisition.year?.toString() ?? '', acquisition.month?.toString() ?? '',
+        acquisition.day?.toString() ?? '', acquisition.notes === null ? '' : `'${acquisition.notes}`,
+      ]);
+    } else expect(record.slice(11)).toEqual(Array(8).fill(''));
     if (item.photo.status === 'included') {
       expect(item.photo.path).toBe(`photos/${item.item_id}.webp`);
       const photo = entries.get(item.photo.path!)!;
@@ -85,7 +112,7 @@ export async function downloadPackage(page: Page, saveAs?: string) {
   const event = page.waitForEvent('download');
   await page.getByRole('link', { name: 'Download ZIP', exact: true }).click();
   const download = await event;
-  expect(download.suggestedFilename()).toMatch(/^workbench-package-v1-(active|all)-[0-9TZ.\-]+\.zip$/);
+  expect(download.suggestedFilename()).toMatch(/^workbench-package-v2-(active|all)-[0-9TZ.\-]+\.zip$/);
   expect(await download.failure()).toBeNull();
   if (saveAs) await download.saveAs(saveAs);
   const path = await download.path(); expect(path).not.toBeNull();

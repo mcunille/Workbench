@@ -55,7 +55,7 @@ public sealed class ItemPackageArchiveTests
         Assert.True(store.Disposed);
         using var manifest = JsonDocument.Parse(await ItemPackageEndpointTests.ReadAsync(zip, "manifest.json"));
         var root = manifest.RootElement;
-        Assert.Equal(1, root.GetProperty("package_version").GetInt32());
+        Assert.Equal(2, root.GetProperty("package_version").GetInt32());
         Assert.Equal(3, root.GetProperty("record_count").GetInt32());
         Assert.Equal(1, root.GetProperty("photo_count").GetInt32());
         Assert.Equal("all", root.GetProperty("scope").GetString());
@@ -243,6 +243,68 @@ public sealed class ItemPackageArchiveTests
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() => ItemPackageArchive.EncodeAsync([new(Record, photo)], Tenant, "all", Timestamp, store, cancellation.Token));
         Assert.NotNull(store.Opened);
         Assert.True(disposed);
+    }
+
+    [Theory]
+    [InlineData("count")]
+    [InlineData("size")]
+    [InlineData("aggregate")]
+    [InlineData("type")]
+    [InlineData("path")]
+    [InlineData("unlinked")]
+    [InlineData("duplicate")]
+    [InlineData("zero")]
+    [InlineData("digest")]
+    [InlineData("provider")]
+    public async Task DocumentBoundsAndMetadataFailBeforeAnyProviderReads(string failure)
+    {
+        // GIVEN captured paperwork with one violated resource or metadata invariant.
+        var store = new TestStore();
+        var acquisition = new ExportAcquisition(Guid.NewGuid(), "Unknown", null, null, null, null, null);
+        var document = new PackageDocument(Guid.NewGuid(), acquisition.Id, "receipt", Timestamp,
+            "image/png", "png", Guid.NewGuid(), store.Alias, 4, Convert.ToHexString(SHA256.HashData(store.Bytes)));
+        document = failure switch
+        {
+            "size" => document with { Length = DocumentValidator.MaximumBytes + 1L },
+            "aggregate" => document with { Length = DocumentValidator.MaximumBytes },
+            "type" => document with { MediaType = "text/html" },
+            "path" => document with { Extension = "../png" },
+            "unlinked" => document with { AcquisitionId = Guid.NewGuid() },
+            "zero" => document with { Length = 0 },
+            "digest" => document with { Sha256 = new string('g', 64) },
+            "provider" => document with { ProviderAlias = "foreign" },
+            _ => document,
+        };
+        var count = failure == "count" ? 10001 : failure == "aggregate" ? 13 : failure == "duplicate" ? 2 : 1;
+        var documents = Enumerable.Range(0, count).Select(_ => failure == "duplicate" ? document : document with { Id = Guid.NewGuid() }).ToArray();
+        // WHEN preparing THEN invalid metadata cannot become a path, partial result or unbounded read.
+        var action = () => ItemPackageArchive.EncodeAsync([new(Record with { Acquisition = acquisition }, null)],
+            Tenant, "all", Timestamp, store, CancellationToken.None, documents);
+        if (failure is "count" or "size" or "aggregate") await Assert.ThrowsAsync<ItemExportLimitException>(action);
+        else await Assert.ThrowsAsync<IOException>(action);
+        Assert.Null(store.Opened);
+    }
+
+    [Theory]
+    [InlineData("application/pdf", "pdf")]
+    [InlineData("image/jpeg", "jpg")]
+    [InlineData("image/png", "png")]
+    [InlineData("image/webp", "webp")]
+    public async Task ValidatedStoredDocumentTypesUseFixedExtensionsAndExactBytes(string mediaType, string extension)
+    {
+        // GIVEN already validated immutable bytes; export does not re-parse or rewrite original paperwork.
+        var store = new TestStore();
+        var acquisition = new ExportAcquisition(Guid.NewGuid(), "Gift", null, null, null, null, null);
+        var document = new PackageDocument(Guid.NewGuid(), acquisition.Id, "../original", Timestamp,
+            mediaType, extension, Guid.NewGuid(), store.Alias, store.Bytes.Length, Convert.ToHexString(SHA256.HashData(store.Bytes)));
+        // WHEN preparing THEN the generated path and bytes match the stored metadata, without using the label as a path.
+        var bytes = await ItemPackageArchive.EncodeAsync([new(Record with { Acquisition = acquisition }, null)],
+            Tenant, "active", Timestamp, store, CancellationToken.None, [document]);
+        using var zip = new ZipArchive(new MemoryStream(bytes));
+        using var output = new MemoryStream();
+        await zip.GetEntry($"documents/{acquisition.Id:D}/{document.Id:D}.{extension}")!.Open().CopyToAsync(output);
+        Assert.Equal(store.Bytes, output.ToArray());
+        Assert.True(store.Disposed);
     }
 
     private sealed class TestStore : IBlobStore

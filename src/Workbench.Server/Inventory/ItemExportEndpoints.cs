@@ -61,10 +61,12 @@ public static class ItemExportEndpoints
                     .Where(item => request.Scope == "all" || item.ArchivedAtUtc == null)
                     .OrderBy(item => item.CreatedAtUtc).ThenBy(item => item.Id)
                     .Select(item => new ExportItem(item.Id, item.TrackingKind, item.Name, item.Notes,
-                        item.StorageLocation, item.CreatedAtUtc, item.ArchivedAtUtc))
+                        item.StorageLocation, item.CreatedAtUtc, item.ArchivedAtUtc, null))
                     .Take(ItemExportCsv.MaximumRows + 1).ToListAsync(cancellationToken);
                 if (items.Count > ItemExportCsv.MaximumRows)
                     throw new ItemExportLimitException();
+                var acquisitions = await ItemExportAcquisitions.CaptureAsync(database, request.Scope, cancellationToken);
+                items = items.Select(item => item with { Acquisition = acquisitions.GetValueOrDefault(item.Id) }).ToList();
                 exportedAt = timeProvider.GetUtcNow();
                 await transaction.CommitAsync(cancellationToken);
             }
@@ -75,7 +77,7 @@ public static class ItemExportEndpoints
             if (bytes is null)
                 return Results.NoContent();
             return Results.File(bytes, "text/csv; charset=utf-8",
-                $"workbench-records-v1-{request.Scope}-{exportedAt.UtcDateTime:yyyyMMdd'T'HHmmss'Z'}.csv");
+                $"workbench-records-v2-{request.Scope}-{exportedAt.UtcDateTime:yyyyMMdd'T'HHmmss'Z'}.csv");
         }
         catch (ItemExportLimitException)
         {

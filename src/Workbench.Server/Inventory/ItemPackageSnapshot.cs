@@ -9,7 +9,7 @@ namespace Workbench.Server.Inventory;
 
 internal static class ItemPackageSnapshot
 {
-    internal static async Task<(List<PackageItem> Items, DateTimeOffset ExportedAt)> CaptureAsync(
+    internal static async Task<(List<PackageItem> Items, List<PackageDocument> Documents, DateTimeOffset ExportedAt)> CaptureAsync(
         WorkbenchDbContext database, string scope, string providerAlias, TimeProvider timeProvider, CancellationToken cancellationToken)
     {
         var tenantId = database.TenantContext.RequireTenantId();
@@ -26,7 +26,7 @@ internal static class ItemPackageSnapshot
                           orderby item.CreatedAtUtc, item.Id
                           select new
                           {
-                              Record = new ExportItem(item.Id, item.TrackingKind, item.Name, item.Notes, item.StorageLocation, item.CreatedAtUtc, item.ArchivedAtUtc),
+                              Record = new ExportItem(item.Id, item.TrackingKind, item.Name, item.Notes, item.StorageLocation, item.CreatedAtUtc, item.ArchivedAtUtc, null),
                               item.CurrentPhotoId,
                               Photo = photo,
                               Attachment = attachment,
@@ -34,6 +34,8 @@ internal static class ItemPackageSnapshot
                               Unavailable = revision != null && unavailable.Contains(revision.Id),
                           }).TagWith("H8 collection package snapshot").Take(ItemExportCsv.MaximumRows + 1).ToListAsync(cancellationToken);
         if (rows.Count > ItemExportCsv.MaximumRows) throw new ItemExportLimitException();
+        var acquisitions = await ItemExportAcquisitions.CaptureAsync(database, scope, cancellationToken);
+        var documents = await ItemPackageDocuments.CaptureAsync(database, scope, providerAlias, cancellationToken);
         var items = new List<PackageItem>(rows.Count);
         foreach (var row in rows)
         {
@@ -51,12 +53,12 @@ internal static class ItemPackageSnapshot
                     throw new IOException("Required photograph metadata is unavailable.");
                 photo = new(row.Revision.Id, row.Revision.ProviderAlias, row.Revision.Length.Value, row.Revision.Sha256);
             }
-            items.Add(new(row.Record, photo));
+            items.Add(new(row.Record with { Acquisition = acquisitions.GetValueOrDefault(row.Record.Id) }, photo));
         }
         var exportedAt = timeProvider.GetUtcNow();
         await transaction.CommitAsync(cancellationToken);
         // Newly retired current attachments retain bytes for seven days, protecting the captured
         // immutable revisions after releasing SQL locks for the two-minute preparation.
-        return (items, exportedAt);
+        return (items, documents, exportedAt);
     }
 }

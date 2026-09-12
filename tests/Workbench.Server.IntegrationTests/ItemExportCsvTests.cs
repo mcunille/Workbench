@@ -29,14 +29,14 @@ public sealed class ItemExportCsvTests(SqlServerFixture sqlServer)
         using var parser = new TextFieldParser(stream, Encoding.UTF8) { HasFieldsEnclosedInQuotes = true, TrimWhiteSpace = false };
         parser.SetDelimiters(",");
         // THEN every field is associated with its row and exactly one safety prefix is reversible.
-        Assert.Equal("schema_version,exported_at_utc,scope,item_id,tracking_kind,name,notes,location,is_archived,created_at_utc,archived_at_utc".Split(','), parser.ReadFields());
+        Assert.Equal("schema_version,exported_at_utc,scope,item_id,tracking_kind,name,notes,location,is_archived,created_at_utc,archived_at_utc,acquisition_id,acquisition_method,acquisition_source,acquisition_date_precision,acquisition_year,acquisition_month,acquisition_day,acquisition_notes".Split(','), parser.ReadFields());
         var exportedAt = new HashSet<string>();
         var decoded = new List<string>();
         while (!parser.EndOfData)
         {
             var row = parser.ReadFields()!;
-            Assert.Equal(11, row.Length);
-            Assert.Equal("1", row[0]);
+            Assert.Equal(19, row.Length);
+            Assert.Equal("2", row[0]);
             exportedAt.Add(row[1]);
             Assert.Matches(@"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{7}Z$", row[1]);
             Assert.Equal("active", row[2]);

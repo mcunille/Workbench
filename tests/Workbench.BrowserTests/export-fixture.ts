@@ -64,8 +64,11 @@ export function parseExportCsv(bytes: Buffer) {
     else field += char;
   }
   expect(quoted).toBe(false); expect(field).toBe(''); expect(row).toEqual([]);
-  expect(rows.shift()).toEqual(['schema_version', 'exported_at_utc', 'scope', 'item_id', 'tracking_kind', 'name', 'notes', 'location', 'is_archived', 'created_at_utc', 'archived_at_utc']);
-  for (const record of rows) expect(record).toHaveLength(11);
+  expect(rows.shift()).toEqual(['schema_version', 'exported_at_utc', 'scope', 'item_id', 'tracking_kind', 'name', 'notes', 'location', 'is_archived', 'created_at_utc', 'archived_at_utc', 'acquisition_id', 'acquisition_method', 'acquisition_source', 'acquisition_date_precision', 'acquisition_year', 'acquisition_month', 'acquisition_day', 'acquisition_notes']);
+  for (const record of rows) {
+    expect(record).toHaveLength(19);
+    expect(record[0]).toBe('2');
+  }
   return rows;
 }
 
@@ -73,7 +76,7 @@ export async function downloadExport(page: Page) {
   const event = page.waitForEvent('download');
   await page.getByRole('link', { name: 'Download CSV', exact: true }).click();
   const download = await event;
-  expect(download.suggestedFilename()).toMatch(/^workbench-records-v1-(active|all)-.+\.csv$/);
+  expect(download.suggestedFilename()).toMatch(/^workbench-records-v2-(active|all)-.+\.csv$/);
   expect(await download.failure()).toBeNull();
   const path = await download.path(); expect(path).not.toBeNull();
   return parseExportCsv(await readFile(path!));
