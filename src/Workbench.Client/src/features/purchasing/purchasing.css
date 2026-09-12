@@ -143,6 +143,7 @@
 .po-search-controls > .floating-field { flex: 1 1 16rem; margin-top: 0; }
 .po-search-controls input[type="search"] { min-width: 0; width: 100%; }
 .po-draft-search .po-search-controls { flex-wrap: nowrap; }
+.po-draft-search .po-search-refresh { min-height: calc(3rem + 2px); }
 .po-draft-results-toolbar { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: .75rem; min-height: 44px; }
 .po-draft-result-context { min-width: 0; overflow-wrap: anywhere; }
 .po-draft-progress { min-height: 1.5em; color: var(--muted); font-size: .875rem; line-height: 1.5; }
