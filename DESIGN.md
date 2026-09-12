@@ -414,9 +414,10 @@ The collection places Add item first in the action group and combines the loaded
 with Grid/List controls in a wrapping toolbar. Keep search and its help together, with
 tighter spacing inside control groups than between the toolbar and the records.
 
-Records without a photograph use a compact icon, name, and location arrangement in
-the grid. Records with a photograph retain their 3:2 image area; loading and unavailable
-photographs retain that space as well. Keep the chosen Grid/List view unchanged.
+Grid cards share the same vertical structure and equal row heights, including when
+names wrap or photographs are missing. Use a consistent 9rem image area with uncropped
+photographs; placeholders, loading, and unavailable photographs retain that same space.
+Keep the chosen Grid/List view unchanged.
 
 Item detail leads with identity, storage location, and notes, followed by maintenance
 controls, photography, acquisition, and record metadata. A missing photograph uses a

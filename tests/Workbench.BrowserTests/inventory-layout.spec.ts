@@ -1,5 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 import { useAuthenticatedSession } from './auth-fixture';
+import { cameraImage } from './photo-fixture';
 
 async function savePiece(page: Page, name: string) {
   await useAuthenticatedSession(page);
@@ -50,4 +51,42 @@ test('saved location and notes lead the item detail reading order', async ({ pag
   const photoBounds = await photograph.boundingBox();
   expect(notesBounds!.y + notesBounds!.height).toBeLessThan(photoBounds!.y);
   expect(notesBounds!.y + notesBounds!.height).toBeLessThan(720);
+});
+
+test('grid cards align across different title lengths and photograph availability', async ({ page }) => {
+  // GIVEN short and long titles, and a third record with a saved photograph.
+  const names = [
+    'Uniform grid stone',
+    'Uniform grid sterling silver pendant with a long descriptive catalog name',
+    'Uniform grid photograph',
+  ];
+  for (const name of names) await savePiece(page, name);
+  await page.getByLabel('Choose photograph', { exact: true }).setInputFiles(await cameraImage(page));
+  await expect(page.getByAltText('Prepared photograph preview')).toBeVisible();
+  await page.getByRole('button', { name: 'Upload photograph', exact: true }).click();
+  await expect(page.getByText('Current saved photograph loaded.', { exact: true })).toBeVisible();
+  await page.getByRole('link', { name: 'Back to collection', exact: true }).click();
+  await page.getByRole('searchbox').fill('Uniform grid');
+  await page.getByRole('button', { name: 'Search', exact: true }).click();
+  await expect(page.getByRole('status')).toContainText('3 matching items loaded');
+
+  // WHEN browsing the same grid on desktop and phone.
+  for (const width of [1280, 390]) {
+    await page.setViewportSize({ width, height: 844 });
+    const cards = names.map(name => page.getByRole('link').filter({ has: page.getByText(name, { exact: true }) }));
+    const bounds = await Promise.all(cards.map(card => card.boundingBox()));
+    const photoBounds = await Promise.all(cards.map(card => card.locator('.item-photo').boundingBox()));
+
+    // THEN every card has the same dimensions and image area, with complete titles.
+    const heights = bounds.map(box => box!.height);
+    const widths = bounds.map(box => box!.width);
+    expect(Math.max(...heights) - Math.min(...heights)).toBeLessThan(1);
+    expect(Math.max(...widths) - Math.min(...widths)).toBeLessThan(1);
+    const photoHeights = photoBounds.map(box => box!.height);
+    expect(Math.max(...photoHeights) - Math.min(...photoHeights)).toBeLessThan(1);
+    const imageBounds = await cards[2].getByRole('img').boundingBox();
+    expect(imageBounds!.height).toBeLessThanOrEqual(photoBounds[2]!.height);
+    expect(imageBounds!.width).toBeLessThanOrEqual(photoBounds[2]!.width);
+    for (const [index, card] of cards.entries()) await expect(card.getByText(names[index], { exact: true })).toBeVisible();
+  }
 });
