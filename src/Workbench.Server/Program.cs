@@ -17,6 +17,7 @@ using Workbench.Server.Http;
 using Workbench.Server.Identity;
 using Workbench.Server.Inventory;
 using Workbench.Server.Persistence;
+using Workbench.Server.Purchasing;
 using Workbench.Server.Security;
 using Workbench.Server.Tenancy;
 using Workbench.Server.Operations;
@@ -255,11 +256,13 @@ app.UseExceptionHandler();
 app.UseDefaultFiles();
 app.UseStaticFiles();
 app.UseRouting();
+app.UseMiddleware<DraftOrderCacheMiddleware>();
 app.UseAuthentication();
 app.UseAuthorization();
 app.UseMiddleware<PhotoUploadLimitsMiddleware>();
 app.UseMiddleware<DocumentUploadLimitsMiddleware>();
 app.UseMiddleware<WorkbenchAntiforgeryMiddleware>();
+app.UseMiddleware<DraftOrderRequestMiddleware>();
 
 app.MapGet(
         "/api/system",
@@ -270,6 +273,7 @@ app.MapGet(
 
 app.MapWorkbenchAuthentication();
 app.MapWorkbenchInventory();
+app.MapPurchaseOrderDrafts();
 app.MapWorkbenchRecovery();
 app.MapTenantUserAdministration();
 

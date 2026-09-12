@@ -1,6 +1,6 @@
 # PO-01: save and resume draft supplier orders
 
-**Status:** Proposed — implementation design awaiting approval.
+**Status:** Accepted — approved for PO-01 implementation; delivery verification is in progress.
 
 ## Scope
 

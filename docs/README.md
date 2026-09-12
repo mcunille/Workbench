@@ -7,6 +7,7 @@ at a particular revision. Neither replaces current instructions.
 | Task | Start here / current owner |
 | --- | --- |
 | Use the collection | [Collection guide](collection.md) |
+| Plan and resume a supplier purchase | [Purchase order drafts](purchasing.md) |
 | Read or decode downloaded files | [CSV and ZIP formats](collection-export.md) |
 | Initialize a developer checkout | [Canonical setup](setup.md) |
 | Run Windows localhost QA | [Local self-host](operations/local-self-host.md) |

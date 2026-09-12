@@ -26,7 +26,7 @@ export function DiscardDialog({
       <h2 id="discard-title">Discard changes?</h2>
       <p>
         {uncertain
-          ? 'Your save may already have completed. Leaving cannot undo it. Check the item before making another change.'
+          ? 'Your save may already have completed. Leaving cannot undo it and loses the retry request kept in memory. Check the saved record before making another change.'
           : 'Your unsaved changes will be discarded.'}
       </p>
       <div className="button-row">

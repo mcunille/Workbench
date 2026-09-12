@@ -55,6 +55,13 @@ export function useNavigation() {
     dirty.current = value;
     uncertain.current = unknownSave;
   }, []);
+  // A confirmed creation adopts its server URL without navigating away from
+  // the editor that owns the receipt and current-document recovery state.
+  const replace = useCallback((next: string) => {
+    window.history.replaceState(window.history.state, '', next);
+    currentPath.current = next;
+    setPath(next);
+  }, []);
   useEffect(() => {
     // Collection restores its in-memory position after mounting the loaded rows.
     const previousScrollRestoration = window.history.scrollRestoration;
@@ -148,6 +155,7 @@ export function useNavigation() {
     path,
     entryId,
     navigate,
+    replace,
     follow,
     request,
     setDirty,

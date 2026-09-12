@@ -1,0 +1,22 @@
+.editor.po-editor { max-width: 66rem; }
+.po-editor .form-stack { gap: 1.25rem; }
+.po-heading, .po-removable { display: flex; align-items: center; gap: 1rem; }
+.po-badge { padding: .2rem .5rem; border: 1px solid var(--border); border-radius: 4px; }
+.po-header-fields, .po-comparison { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
+.po-field { min-width: 0; }
+.po-removable { margin-bottom: 1rem; }
+.po-removable .po-field { flex: 1; }
+.po-entry { min-width: 0; border: 1px solid var(--glass-edge); border-radius: 6px; padding: 1rem; margin: 1rem 0; display: grid; gap: 1rem; }
+.po-entry legend { padding: 0 .5rem; font-weight: 500; }
+.po-editor section > h2 { margin-top: 1.5rem; }
+.po-comparison-content { min-width: 0; border: 1px solid var(--glass-edge); border-radius: 6px; padding: 1rem; }
+.po-comparison-content dd { margin: .25rem 0 1rem; white-space: pre-wrap; overflow-wrap: anywhere; }
+.po-comparison-content dt { font-weight: 600; }
+.po-draft-list { list-style: none; padding: 0; }
+.po-draft-list li { border-bottom: 1px solid var(--glass-edge); }
+.po-draft-list a { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) auto; gap: 1rem; padding: 1rem 0; min-height: 44px; overflow-wrap: anywhere; }
+.po-editor button, .po-list button { min-height: 44px; }
+@media (max-width: 600px) {
+  .po-header-fields, .po-comparison, .po-draft-list a { grid-template-columns: 1fr; }
+  .po-removable { align-items: stretch; flex-direction: column; }
+}

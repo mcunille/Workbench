@@ -125,6 +125,16 @@ public sealed class DatabaseReadinessCheck(
                     AND HAS_PERMS_BY_NAME(N'[Inventory].[AcquisitionDocumentOperations]', N'OBJECT', N'INSERT') = 0
                     AND HAS_PERMS_BY_NAME(N'[Inventory].[AcquisitionDocumentOperations]', N'OBJECT', N'UPDATE') = 0
                     AND HAS_PERMS_BY_NAME(N'[Inventory].[AcquisitionDocumentOperations]', N'OBJECT', N'DELETE') = 0
+                    AND HAS_PERMS_BY_NAME(N'[Purchasing].[CreateDraftOrder]', N'OBJECT', N'EXECUTE') = 1
+                    AND HAS_PERMS_BY_NAME(N'[Purchasing].[UpdateDraftOrder]', N'OBJECT', N'EXECUTE') = 1
+                    AND HAS_PERMS_BY_NAME(N'[Purchasing].[DraftOrders]', N'OBJECT', N'SELECT') = 1
+                    AND HAS_PERMS_BY_NAME(N'[Purchasing].[DraftOrders]', N'OBJECT', N'INSERT') = 0
+                    AND HAS_PERMS_BY_NAME(N'[Purchasing].[DraftOrders]', N'OBJECT', N'UPDATE') = 0
+                    AND HAS_PERMS_BY_NAME(N'[Purchasing].[DraftOrders]', N'OBJECT', N'DELETE') = 0
+                    AND HAS_PERMS_BY_NAME(N'[Purchasing].[DraftOrderRequestReceipts]', N'OBJECT', N'SELECT') = 1
+                    AND HAS_PERMS_BY_NAME(N'[Purchasing].[DraftOrderRequestReceipts]', N'OBJECT', N'INSERT') = 0
+                    AND HAS_PERMS_BY_NAME(N'[Purchasing].[DraftOrderRequestReceipts]', N'OBJECT', N'UPDATE') = 0
+                    AND HAS_PERMS_BY_NAME(N'[Purchasing].[DraftOrderRequestReceipts]', N'OBJECT', N'DELETE') = 0
                     AND HAS_PERMS_BY_NAME(N'[Storage].[RecoveryFiles]', N'OBJECT', N'SELECT') = 1
                     AND HAS_PERMS_BY_NAME(N'[Storage].[RecoveryFiles]', N'OBJECT', N'UPDATE') = 0
                     AND HAS_PERMS_BY_NAME(N'[Storage].[RecoveryFiles]', N'OBJECT', N'DELETE') = 0

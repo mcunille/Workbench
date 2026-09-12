@@ -8,6 +8,57 @@ namespace Workbench.Server.IntegrationTests;
 public sealed class AcquisitionDocumentDatabaseTests(SqlServerFixture sqlServer)
 {
     [Fact]
+    public async Task PurchasingUpgradeRetainsPredecessorDocumentContentAndIdentity()
+    {
+        // GIVEN the immediate predecessor schema containing a published document and its collection context.
+        await using var database = await sqlServer.CreateMigratedDatabaseAsync("AddAcquisitionDocuments");
+        var tenant = Guid.NewGuid(); await database.SeedTenantAuditRowsAsync(tenant, Guid.NewGuid());
+        var web = await database.CreateWebUserAsync();
+        var proof = new Workbench.Server.Tenancy.TenantContextProof(await database.GetTenantContextProofKeyAsync());
+        var root = Path.Combine(Path.GetTempPath(), "workbench-purchasing-upgrade-" + Guid.NewGuid().ToString("N")); Directory.CreateDirectory(root);
+        try
+        {
+            var saved = await AcquisitionDocumentFixture.UploadAsync(database.AdminConnectionString, web, proof, tenant, new Workbench.Server.Storage.FileSystemBlobStore(root));
+            await using var admin = new SqlConnection(database.AdminConnectionString); await admin.OpenAsync();
+            await using (var identity = new SqlCommand("""
+                INSERT [Identity].[Users](Id,TenantId,State,CreatedAtUtc,EmailConfirmed,PhoneNumberConfirmed,TwoFactorEnabled,LockoutEnabled,AccessFailedCount)
+                VALUES(NEWID(),@tenant,1,SYSUTCDATETIME(),0,0,0,0,0)
+                """, admin))
+            {
+                identity.Parameters.AddWithValue("@tenant", tenant); await identity.ExecuteNonQueryAsync();
+            }
+            async Task<string> Snapshot()
+            {
+                await using var read = new SqlCommand("""
+                    SELECT
+                        (SELECT * FROM Tenancy.Tenants ORDER BY Id FOR JSON PATH) Tenants,
+                        (SELECT * FROM [Identity].[Users] ORDER BY Id FOR JSON PATH) Users,
+                        (SELECT * FROM Inventory.Items ORDER BY Id FOR JSON PATH) Items,
+                        (SELECT * FROM Inventory.Acquisitions ORDER BY Id FOR JSON PATH) Acquisitions,
+                        (SELECT * FROM Inventory.AcquisitionItems ORDER BY ItemId FOR JSON PATH) Links,
+                        (SELECT * FROM Inventory.AcquisitionDocuments ORDER BY Id FOR JSON PATH) Documents,
+                        (SELECT * FROM Inventory.AcquisitionDocumentOperations ORDER BY Id FOR JSON PATH) Operations,
+                        (SELECT * FROM Storage.Attachments ORDER BY Id FOR JSON PATH) Attachments,
+                        (SELECT * FROM Storage.Revisions ORDER BY Id FOR JSON PATH) Revisions
+                    FOR JSON PATH,WITHOUT_ARRAY_WRAPPER
+                    """, admin);
+                return (string)(await read.ExecuteScalarAsync())!;
+            }
+            var before = await Snapshot();
+            // WHEN the purchasing migration is applied THEN all existing values, links and row versions survive unchanged.
+            await Workbench.Server.Persistence.DatabaseMigrator.MigrateAsync(database.AdminConnectionString, default);
+            Assert.Equal(before, await Snapshot());
+            await using var count = new SqlCommand("SELECT (SELECT COUNT(*) FROM Purchasing.DraftOrders)+(SELECT COUNT(*) FROM Purchasing.DraftOrderRequestReceipts)", admin);
+            Assert.Equal(0, await count.ExecuteScalarAsync());
+            // AND the previously published document remains readable through its original metadata.
+            await using var document = new SqlCommand("SELECT COUNT(*) FROM Inventory.AcquisitionDocuments WHERE Id=@id AND RevisionId=@revision", admin);
+            document.Parameters.AddWithValue("@id", saved.DocumentId); document.Parameters.AddWithValue("@revision", saved.Revision.Id);
+            Assert.Equal(1, await document.ExecuteScalarAsync());
+        }
+        finally { Directory.Delete(root, true); }
+    }
+
+    [Fact]
     public async Task RestrictedRuntimeCanReadButCannotMutateDocumentEvidenceDirectly()
     {
         // GIVEN the fully migrated database and its restricted runtime principal.

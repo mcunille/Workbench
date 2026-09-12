@@ -53,10 +53,28 @@ public sealed class DatabaseReadinessTests(SqlServerFixture sqlServer) : IAsyncL
     }
 
     [Theory]
+    [InlineData("REVOKE EXECUTE ON [Purchasing].[CreateDraftOrder] FROM [workbench_web]")]
+    [InlineData("REVOKE EXECUTE ON [Purchasing].[UpdateDraftOrder] FROM [workbench_web]")]
+    [InlineData("REVOKE SELECT ON [Purchasing].[DraftOrders] FROM [workbench_web]")]
+    [InlineData("REVOKE SELECT ON [Purchasing].[DraftOrderRequestReceipts] FROM [workbench_web]")]
+    [InlineData("GRANT UPDATE ON [Purchasing].[DraftOrders] TO [workbench_web]")]
+    public async Task MissingDraftOrderBoundariesMakeReadinessUnhealthy(string changeAuthority)
+    {
+        // GIVEN a deployment with a missing purchasing capability or an unsafe direct-write grant.
+        await using var connection = new SqlConnection(_application.AdminConnectionString);
+        await connection.OpenAsync();
+        await using var command = new SqlCommand(changeAuthority, connection);
+        await command.ExecuteNonQueryAsync();
+        // WHEN readiness probes the current deployment THEN it refuses to advertise the incomplete boundary.
+        Assert.Equal(HttpStatusCode.ServiceUnavailable, (await _client.GetAsync("/health/ready")).StatusCode);
+    }
+
+    [Theory]
     [InlineData("AddBlobAndOperationalProviders")]
     [InlineData("AddDeploymentQueueTelemetry")]
     [InlineData("DeferInvitationIdentityClaim")]
     [InlineData("AddProviderRetryDelay")]
+    [InlineData("AddAcquisitionDocuments")]
     public async Task PriorReleaseSchemaIsUnreadyUntilDeploymentMigrationIsApplied(string priorMigration)
     {
         // GIVEN a prior release schema lacks one of this release's required worker or identity capabilities.
