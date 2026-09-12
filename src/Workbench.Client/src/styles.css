@@ -1012,6 +1012,12 @@ html { scroll-padding-top: 1rem; }
   gap: 1rem;
   margin-bottom: 1.5rem;
 }
+.collection-actions > .text-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  font-size: 0.875rem;
+}
 .collection-search {
   margin-block: 0 1.5rem;
 }
@@ -1045,10 +1051,6 @@ html { scroll-padding-top: 1rem; }
 .collection-view {
   display: inline-flex;
   gap: 0.25rem;
-  padding: 0.25rem;
-  background: var(--surface);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-card);
 }
 .collection-view button {
   display: inline-flex;

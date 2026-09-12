@@ -136,13 +136,11 @@ export function Collection({
           <h1 ref={heading} tabIndex={-1}>
             {archived ? 'Archive' : 'Collection'}
           </h1>
-          <p className="lede">
-            {archived
-              ? 'Records set aside, ready to recover when you need them.'
-              : 'A place for the pieces you want to remember.'}
-          </p>
+          {archived ? (
+            <p className="lede">Records set aside, ready to recover when you need them.</p>
+          ) : null}
         </div>
-        <div className="button-row">
+        <div className="button-row collection-actions">
           {!archived ? (
             <a
               className="primary button"
@@ -154,13 +152,13 @@ export function Collection({
             </a>
           ) : null}
           <a
-            className="secondary button"
+            className="text-link"
             href={archived ? '/inventory' : '/inventory/archive'}
             onClick={follow}
           >
             {archived ? 'Collection' : 'Archive'}
           </a>
-          <a className="secondary button" href="/inventory/export" onClick={follow}>Export records</a>
+          <a className="text-link" href="/inventory/export" onClick={follow}>Export records</a>
         </div>
       </div>
       <form
@@ -185,7 +183,7 @@ export function Collection({
               onChange={(event) => setDraft(event.target.value)}
             />
           </FloatingField>
-          <button className="primary" type="submit">
+          <button className="secondary" type="submit">
             Search
           </button>
           <button
