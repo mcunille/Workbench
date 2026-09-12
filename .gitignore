@@ -9,6 +9,7 @@ docs/superpowers/**
 src/Workbench.Server/openapi/
 .vs/
 .idea/
+.github/
 artifacts/
 .env.dev
 .dev-environment/
