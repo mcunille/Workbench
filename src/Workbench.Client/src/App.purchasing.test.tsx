@@ -15,7 +15,7 @@ it('opens purchase orders and replaces a new draft URL after its receipt without
     http.get('*/api/v2/purchase-order-drafts/saved', () => ++reads === 1 ? new HttpResponse(null, { status: 503 }) : HttpResponse.json({ id: 'saved', poReference: 'PO-000001', supplierIsArchived: false, draft, version: 'v1', createdAtUtc: '2026-09-12T00:00:00Z', updatedAtUtc: '2026-09-12T00:00:00Z' })));
   render(<App />);
   // WHEN creating through the application's purchasing navigation.
-  await screen.findByText('No draft orders yet.');
+  await screen.findByRole('heading', { name: 'No draft orders yet.' });
   expect(screen.getByRole('link', { name: 'Purchase orders' })).toHaveAttribute('aria-current', 'page');
   fireEvent.click(screen.getByRole('link', { name: 'New draft' }));
   fireEvent.click(await screen.findByRole('button', { name: 'Save draft' }));
@@ -26,5 +26,5 @@ it('opens purchase orders and replaces a new draft URL after its receipt without
   await waitFor(() => expect(screen.getByLabelText('Title')).not.toBeDisabled());
   expect(writes).toBe(1); expect(reads).toBe(2);
   fireEvent.click(screen.getByRole('button', { name: 'Back to purchase orders' }));
-  await screen.findByText('No draft orders yet.');
+  await screen.findByRole('heading', { name: 'No draft orders yet.' });
 });
