@@ -43,7 +43,7 @@ export function DraftList({ memory, follow, onAuthLost }: Props) {
     return () => window.removeEventListener('scroll', remember);
   }, [memory]);
   return <section className="po-list"><h1>Purchase orders</h1><p className="lede">Plan a purchase and pick it up later.</p>
-    <div className="button-row"><a className="primary" href="/purchase-orders/new" onClick={follow}>New draft</a><button className="secondary" type="button" disabled={pending === 'refresh'} onClick={() => void load(true)}>Refresh</button></div>
+    <div className="button-row"><a className="primary button" href="/purchase-orders/new" onClick={follow}>New draft</a><button className="secondary" type="button" disabled={pending === 'refresh'} onClick={() => void load(true)}>Refresh</button></div>
     {pending ? <p role="status">Loading drafts…</p> : null}
     {message ? <p role="alert">{message}</p> : null}
     {page?.items.length === 0 ? <p>No draft orders yet.</p> : null}

@@ -170,15 +170,15 @@ function SignedInApplication({
             <Icon name="inventory" />
             <span className="navigation-label">Inventory</span>
           </a>
+          <a className="navigation-destination"
+            title={navigationCollapsed ? 'Purchase orders' : undefined}
+            href="/purchase-orders"
+            aria-current={path.startsWith('/purchase-orders') ? 'page' : undefined}
+            onClick={navigation.follow}>
+            <Icon name="cart" />
+            <span className="navigation-label">Purchase orders</span>
+          </a>
           <div className="navigation-secondary">
-            <a className="navigation-destination"
-              title={navigationCollapsed ? 'Purchase orders' : undefined}
-              href="/purchase-orders"
-              aria-current={path.startsWith('/purchase-orders') ? 'page' : undefined}
-              onClick={navigation.follow}>
-              <Icon name="list" />
-              <span className="navigation-label">Purchase orders</span>
-            </a>
             {canManageUsers ? (
               <a
                 className="navigation-destination"

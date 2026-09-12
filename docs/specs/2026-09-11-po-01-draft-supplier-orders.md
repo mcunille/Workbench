@@ -1,6 +1,6 @@
 # PO-01: save and resume draft supplier orders
 
-**Status:** Accepted — approved for PO-01 implementation; delivery verification is in progress.
+**Status:** Implemented
 
 ## Scope
 
@@ -420,8 +420,10 @@ principal grants, replay identity, and cross-tenant UUID collisions against exis
 
 ## Migration and recovery
 
-Add one migration after `AddAcquisitionDocuments` for tables, RLS, commands/grants, and readiness,
-provisioning, and backup schema markers. No existing records are backfilled or synthesized.
+The initial migration after `AddAcquisitionDocuments` adds tables, RLS, commands/grants, and readiness,
+provisioning, and backup schema markers. A subsequent forward correction tightens source-link host
+validation: the initial migration had already been applied to the retained local preview, so it is
+preserved rather than rewritten. No existing records are backfilled or synthesized.
 Verify fresh creation and upgrade retaining identity, collection, acquisition, and document data.
 Block destructive Down to preserve drafts/replay evidence. Recover through forward correction or
 the existing guarded restore procedure; older binaries may reject the new readiness marker.

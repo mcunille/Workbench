@@ -10,6 +10,72 @@ namespace Workbench.Server.IntegrationTests;
 public sealed class DraftOrderDatabaseTests(SqlServerFixture sqlServer)
 {
     [Fact]
+    public async Task ForwardValidationCorrectionPreservesSavedDraftAndRetryReceipt()
+    {
+        // GIVEN the retained purchasing schema with a successful draft save and compact receipt.
+        await using var database = await sqlServer.CreateMigratedDatabaseAsync("AddDraftSupplierOrders");
+        var tenant = Guid.NewGuid(); var actor = Guid.NewGuid(); var request = Guid.NewGuid();
+        await database.SeedTenantAuditRowsAsync(tenant, Guid.NewGuid()); await SeedActor(database, tenant, actor);
+        await using var connection = await Open(database, await database.CreateWebUserAsync(), tenant);
+        var canonical = Canonical("Create", null, null, "Retained draft");
+        var saved = await Save(connection, actor, request, canonical, "Create");
+        async Task<string> Snapshot()
+        {
+            await using var read = new SqlCommand("""
+                SELECT (SELECT * FROM Purchasing.DraftOrders ORDER BY Id FOR JSON PATH) Drafts,
+                    (SELECT * FROM Purchasing.DraftOrderRequestReceipts ORDER BY RequestId FOR JSON PATH) Receipts
+                FOR JSON PATH,WITHOUT_ARRAY_WRAPPER
+                """, connection);
+            return (string)(await read.ExecuteScalarAsync())!;
+        }
+        var before = await Snapshot();
+        // WHEN applying the forward-only validator correction THEN saved values, actors, times and fingerprint evidence remain byte-for-byte intact.
+        await Workbench.Server.Persistence.DatabaseMigrator.MigrateAsync(database.AdminConnectionString, default);
+        Assert.Equal(before, await Snapshot());
+        // AND the original request still resolves to its original successful receipt.
+        var replay = await Save(connection, actor, request, canonical, "Create");
+        Assert.True(replay.Replayed); Assert.Equal(saved.Id, replay.Id); Assert.Equal(saved.Version, replay.Version); Assert.Equal(saved.Completed, replay.Completed);
+    }
+
+    [Theory]
+    [InlineData("https://%zz/")]
+    [InlineData("https://foo^bar/")]
+    [InlineData("https://foo{bar}/")]
+    [InlineData("https://.example/")]
+    [InlineData("https://foo..example/")]
+    [InlineData("https://supplier.example/cart\u0080")]
+    public async Task RestrictedCommandRejectsMalformedHostsAndControlCharactersInBothLinkLocations(string link)
+    {
+        // GIVEN a restricted connection authorized to save a draft.
+        await using var database = await sqlServer.CreateMigratedDatabaseAsync();
+        var tenant = Guid.NewGuid(); var actor = Guid.NewGuid();
+        await database.SeedTenantAuditRowsAsync(tenant, Guid.NewGuid()); await SeedActor(database, tenant, actor);
+        await using var connection = await Open(database, await database.CreateWebUserAsync(), tenant);
+        foreach (var entryLink in new[] { false, true })
+        {
+            var canonical = JsonSerializer.Serialize(new
+            {
+                operation = "Create",
+                targetId = (string?)null,
+                expectedVersion = (string?)null,
+                draft = new
+                {
+                    title = (string?)null,
+                    supplierName = (string?)null,
+                    currency = (string?)null,
+                    notes = (string?)null,
+                    sourceLinks = entryLink ? Array.Empty<string>() : [link],
+                    entries = entryLink ? new[] { new { id = Guid.NewGuid(), description = (string?)null, notes = (string?)null, sourceLink = link, indicativePrice = (string?)null } } : [],
+                },
+            });
+            // WHEN bypassing HTTP with an invalid link in either location THEN SQL rejects the save without durable side effects.
+            Assert.Equal(50400, (await Assert.ThrowsAsync<SqlException>(() => Save(connection, actor, Guid.NewGuid(), canonical, "Create"))).Number);
+        }
+        await using var count = new SqlCommand("SELECT (SELECT COUNT(*) FROM Purchasing.DraftOrders)+(SELECT COUNT(*) FROM Purchasing.DraftOrderRequestReceipts)", connection);
+        Assert.Equal(0, await count.ExecuteScalarAsync());
+    }
+
+    [Fact]
     public async Task RestrictedCommandRejectsMalformedIpv6HostsAndPreservesValidLinks()
     {
         // GIVEN a restricted connection with valid tenant authority.
@@ -28,7 +94,7 @@ public sealed class DraftOrderDatabaseTests(SqlServerFixture sqlServer)
         foreach (var link in new[] { "https://[::::]/", "https://[1:2:3]/", "https://[1:2:3:4:5:6:7:8:9]/", "https://[12345::]/", "https://[::ffff:999.0.0.1]/" })
             Assert.Equal(50400, (await Assert.ThrowsAsync<SqlException>(() => Save(connection, actor, Guid.NewGuid(), Linked(link), "Create"))).Number);
         // AND ordinary DNS, compressed/uncompressed IPv6 and embedded IPv4 remain valid without URL rewriting.
-        foreach (var link in new[] { "https://supplier.example/cart", "https://[::1]:8443/cart", "http://[::]/", "https://[1:2:3:4:5:6:7:8]/", "http://[::ffff:192.0.2.1]/" })
+        foreach (var link in new[] { "https://supplier.example/cart", "https://foo_bar.example./cart?filter=foo%5Ebar&group={items}", "https://münchen.example/cart", "https://192.0.2.1/cart", "https://[::1]:8443/cart", "http://[::]/", "https://[1:2:3:4:5:6:7:8]/", "http://[::ffff:192.0.2.1]/" })
         {
             var saved = await Save(connection, actor, Guid.NewGuid(), Linked(link), "Create");
             await using var read = new SqlCommand("SELECT JSON_VALUE(ContentJson,'$.sourceLinks[0]') FROM Purchasing.DraftOrders WHERE Id=@id", connection);

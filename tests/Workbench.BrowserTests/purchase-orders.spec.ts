@@ -111,8 +111,9 @@ test('competing edits preserve local input until the owner deliberately reconcil
     await other.getByRole('button', { name: 'Save draft', exact: true }).click();
 
     // THEN both versions remain available and no automatic overwrite occurs.
-    await expect(other.getByText('Supplier confirmed availability', { exact: true })).toBeVisible();
-    await expect(other.getByText('My local supplier questions', { exact: true })).toBeVisible();
+    const comparison = other.getByLabel('Compare draft versions');
+    await expect(comparison.getByText('Supplier confirmed availability', { exact: true })).toBeVisible();
+    await expect(comparison.getByText('My local supplier questions', { exact: true })).toBeVisible();
     await other.getByRole('button', { name: 'Continue with my changes', exact: true }).click();
     await expect(other.getByLabel('Notes', { exact: true })).toHaveValue('My local supplier questions');
     await save(other);
