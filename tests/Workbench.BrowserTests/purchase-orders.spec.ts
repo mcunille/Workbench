@@ -27,6 +27,8 @@ test('incomplete shopping list survives reload and another session with unknown 
   await page.getByLabel('Supplier name', { exact: true }).fill('Sample supplier');
   await page.getByLabel('Notes', { exact: true }).fill('Ask about shipping before ordering.');
   await page.getByRole('button', { name: 'Add entry', exact: true }).click();
+  await expect(page.getByLabel('Description 1', { exact: true })).toBeFocused();
+  await expect(page.getByLabel('Description 1', { exact: true })).toBeInViewport();
   await page.getByLabel('Description 1', { exact: true }).fill('Blue sapphires');
   await page.getByRole('button', { name: 'Add entry', exact: true }).click();
   await page.getByLabel('Description 2', { exact: true }).fill('Sample setting');
@@ -62,6 +64,7 @@ test('incomplete shopping list survives reload and another session with unknown 
   } finally { await otherContext.close(); }
 
   // WHEN the toolbar pins over content THEN it gains an opaque background and clears again at the top.
+  await page.evaluate(() => window.scrollTo(0, 0));
   const toolbar = page.locator('.po-editor-toolbar');
   await expect(toolbar).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
   await page.evaluate(() => window.scrollTo(0, 500));

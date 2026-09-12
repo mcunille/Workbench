@@ -55,7 +55,8 @@
 .po-section-heading > .po-badge { align-self: flex-start; flex-shrink: 0; margin-left: auto; }
 .po-header-fields, .po-entry-secondary, .po-order-context, .po-comparison { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
 .po-field { min-width: 0; }
-.po-currency-row { display: grid; grid-template-columns: minmax(10rem, 14rem) minmax(0, 1fr); gap: 1rem; align-items: center; margin-bottom: 1.25rem; }
+.po-currency-row { display: grid; grid-template-columns: minmax(10rem, 14rem) minmax(0, 1fr); gap: 1rem; align-items: start; margin-bottom: 1.25rem; }
+.po-currency-row .floating-field { margin-top: 0; }
 .po-field-help { color: var(--muted); font-size: .875rem; margin: 0; }
 .po-field-help p { margin: 0; }
 .po-field-help .quiet { padding-left: 0; margin-top: .25rem; text-align: left; }
@@ -66,6 +67,7 @@
 .po-entry-heading h3 { margin: 0; font-size: .9375rem; font-weight: 500; }
 .po-entry-heading > button { padding: .375rem .625rem; font-size: .8125rem; }
 .po-entry-secondary { align-items: start; }
+.po-add-entry { display: flex; justify-content: flex-end; margin-top: 1rem; }
 .po-entry .muted { margin: -.25rem 0 0; font-size: .8125rem; }
 .po-order-context { align-items: start; gap: 1.5rem; }
 .po-order-context .po-section-heading { margin-bottom: 1rem; }
@@ -100,6 +102,7 @@
   .po-draft-list li:first-child a { border-radius: var(--radius-card) var(--radius-card) 0 0; }
   .po-draft-list li:only-child a { border-radius: var(--radius-card); }
   .po-header-fields, .po-entry-secondary, .po-order-context, .po-comparison, .po-currency-row { grid-template-columns: 1fr; }
+  .po-currency-row .floating-field { margin-top: .5rem; }
   .po-form-section { padding: 1.125rem; }
   .po-entry { padding: 1rem; }
   .po-removable { flex-direction: column; align-items: stretch; }

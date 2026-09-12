@@ -214,3 +214,21 @@ it('requires confirmation to clear prices and lets cancellation preserve them', 
   expect(updateDraft).not.toHaveBeenCalled();
   expect(screen.getByRole('button', { name: 'Save draft' })).toBeEnabled();
 });
+
+it('adds entries from the end of the list and focuses each new description', () => {
+  // GIVEN an empty draft with an add action below the empty-state message.
+  render(<DraftEditor {...props()} />);
+  const add = screen.getByRole('button', { name: 'Add entry' });
+  // WHEN adding successive entries.
+  fireEvent.click(add);
+  const first = screen.getByLabelText('Description 1');
+  // THEN focus moves into the new entry and the add action follows that entry.
+  expect(first).toHaveFocus();
+  expect(first.compareDocumentPosition(add) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  fireEvent.change(first, { target: { value: 'Keep this description' } });
+  fireEvent.click(add);
+  // THEN another blank entry receives focus while previous input remains intact.
+  expect(screen.getByLabelText('Description 2')).toHaveFocus();
+  expect(first).toHaveValue('Keep this description');
+  expect(screen.getByLabelText('Description 2').compareDocumentPosition(add) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+});

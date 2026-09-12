@@ -38,6 +38,16 @@ export function DraftEditor({ id: initialId, onDirtyChange, onAuthLost, onSaved,
   }, []);
   const [id, setId] = useState(initialId);
   const [draft, setDraft] = useState(emptyDraft);
+  const addedEntry = useRef<string | undefined>(undefined);
+  useEffect(() => {
+    if (!addedEntry.current) return;
+    const index = draft.entries.findIndex(entry => entry.id === addedEntry.current);
+    if (index < 0) return;
+    const description = document.getElementById(fieldId(`draft.entries[${index}].description`));
+    description?.focus({ preventScroll: true });
+    description?.scrollIntoView?.({ block: 'center', behavior: 'instant' });
+    addedEntry.current = undefined;
+  }, [draft.entries]);
   const [baseline, setBaseline] = useState<DraftOrder>();
   const [current, setCurrent] = useState<DraftOrder>();
   const [mode, setMode] = useState<Mode>(initialId ? 'loading' : 'editing');
@@ -226,9 +236,6 @@ export function DraftEditor({ id: initialId, onDirtyChange, onAuthLost, onSaved,
         <section className="po-form-section" aria-labelledby="po-entries-heading">
           <div className="po-section-heading">
             <div><h2 id="po-entries-heading">Shopping list</h2><p>Prices are reference amounts; no total is calculated.</p></div>
-            <button className="secondary" type="button" disabled={frozen} onClick={() => setDraft({
-              ...draft, entries: [...draft.entries, { id: crypto.randomUUID(), description: null, notes: null, sourceLink: null, indicativePrice: null }],
-            })}><Icon name="plus" />Add entry</button>
           </div>
           <div className="po-currency-row">
             {field('draft.currency', 'Currency', draft.currency, currency => setDraft({ ...draft, currency }), {
@@ -269,6 +276,13 @@ export function DraftEditor({ id: initialId, onDirtyChange, onAuthLost, onSaved,
               </fieldset>
             );
           })}
+          <div className="po-add-entry">
+            <button className="secondary" type="button" disabled={frozen} onClick={() => {
+              const entryId = crypto.randomUUID();
+              addedEntry.current = entryId;
+              setDraft({ ...draft, entries: [...draft.entries, { id: entryId, description: null, notes: null, sourceLink: null, indicativePrice: null }] });
+            }}><Icon name="plus" />Add entry</button>
+          </div>
         </section>
         <section className="po-form-section" aria-labelledby="po-context-heading">
           <div className="po-section-heading">
