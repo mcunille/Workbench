@@ -16,7 +16,9 @@ export function SupplierList({ follow, onSelect, onAuthLost }: Props) {
   const [message, setMessage] = useState('');
   const sequence = useRef(0);
   const active = useRef(true);
+  const searchTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const load = useCallback(async (more = false, search = loadedFilter.current.query, includeArchived = loadedFilter.current.archived) => {
+    if (!more) clearTimeout(searchTimer.current);
     const generation = ++sequence.current; setPending(true); setMessage('');
     try {
       const result = await getSuppliers(more ? latestPage.current?.nextCursor ?? undefined : undefined, search || undefined, includeArchived);
@@ -30,14 +32,18 @@ export function SupplierList({ follow, onSelect, onAuthLost }: Props) {
       else setMessage('Suppliers could not be loaded. Loaded suppliers are kept; retry your search or refresh.');
     } finally { if (active.current && generation === sequence.current) setPending(false); }
   }, [onAuthLost]);
-  useEffect(() => { active.current = true; const requests = sequence; let mounted = true; queueMicrotask(() => { if (mounted) void load(); }); return () => { mounted = false; active.current = false; ++requests.current; }; }, [load]);
+  useEffect(() => { active.current = true; const requests = sequence; let mounted = true; queueMicrotask(() => { if (mounted) void load(); }); return () => { clearTimeout(searchTimer.current); mounted = false; active.current = false; ++requests.current; }; }, [load]);
   return <section className="po-list" aria-label="Supplier directory">
     {!onSelect ? <>
     <a className="quiet button po-back" href="/purchase-orders" onClick={follow}><Icon name="back" />Back to purchase orders</a><header className="po-page-heading"><div><h1>Suppliers</h1><p className="lede">Your contacts for future purchases.</p></div><a href="/suppliers/new" onClick={follow} className="primary button"><Icon name="plus" />New supplier</a></header></> : null}
     <form className="po-search" onSubmit={event => { event.preventDefault(); event.stopPropagation(); void load(false, query.trim(), archived); }}>
-      <div className="po-search-controls"><FloatingField htmlFor="supplier-search" label="Search suppliers"><input type="search" id="supplier-search" maxLength={200} value={query} onChange={event => setQuery(event.target.value)} placeholder="Supplier name" /></FloatingField><button className="secondary" type="submit">Search</button>
-      <button type="button" className="quiet po-search-refresh" aria-label="Refresh suppliers" disabled={pending} onClick={() => void load(false, query.trim(), archived)}>Refresh</button>
-      {query || loadedQuery ? <button className="quiet" type="button" onClick={() => { setQuery(''); void load(false, '', archived); }}>Clear search</button> : null}</div>
+      <div className="po-search-controls"><FloatingField htmlFor="supplier-search" label="Search suppliers"><input type="search" id="supplier-search" maxLength={200} value={query} onChange={event => {
+        const value = event.target.value; setQuery(value); clearTimeout(searchTimer.current);
+        ++sequence.current; setPending(true); setMessage('');
+        searchTimer.current = setTimeout(() => void load(false, value.trim(), archived), 300);
+      }} placeholder="Supplier name" /></FloatingField>
+      <button type="button" className="quiet po-search-refresh" aria-label="Refresh suppliers" onClick={() => void load(false, query.trim(), archived)}>Refresh</button>
+      {query || loadedQuery ? <button className="quiet po-search-clear" type="button" onClick={() => { setQuery(''); void load(false, '', archived); }}>Clear search</button> : null}</div>
       {!onSelect ? <label className="po-archive-filter"><input type="checkbox" checked={archived} onChange={event => { setArchived(event.target.checked); void load(false, query.trim(), event.target.checked); }} />Include archived suppliers</label> : null}
     </form>
     {pending ? <p role="status">Loading suppliers…</p> : null}{message ? <p role="alert">{message}</p> : null}

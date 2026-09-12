@@ -59,7 +59,7 @@ it('searches the server from page one and displays permanent references and plat
   render(<DraftList {...props()} />); await screen.findByRole('link', { name: /original/ });
   // WHEN the owner searches by supplier reference.
   fireEvent.change(screen.getByRole('searchbox', { name: 'Search purchase orders' }), { target: { value: ' IG-7 ' } });
-  fireEvent.click(screen.getByRole('button', { name: 'Search' }));
+  fireEvent.submit(screen.getByRole('searchbox').closest('form')!);
   // THEN query-bound server results replace the old page and show identity and platform.
   await screen.findByText('PO-000042');
   expect(getDrafts).toHaveBeenLastCalledWith(undefined, 'IG-7');
@@ -89,7 +89,7 @@ it('continues the retained result query after a different search fails', async (
   const callbacks = props(); callbacks.memory.query = 'A'; callbacks.memory.page = { items: [row('kept')], nextCursor: 'cursor-A' };
   vi.mocked(getDrafts).mockRejectedValueOnce(new TypeError('Network')).mockResolvedValueOnce({ items: [row('more-A')], nextCursor: null });
   render(<DraftList {...callbacks} />);
-  fireEvent.change(screen.getByRole('searchbox'), { target: { value: 'B' } }); fireEvent.click(screen.getByRole('button', { name: 'Search' })); await screen.findByRole('alert');
+  fireEvent.change(screen.getByRole('searchbox'), { target: { value: 'B' } }); fireEvent.submit(screen.getByRole('searchbox').closest('form')!); await screen.findByRole('alert');
   // WHEN continuing the retained results THEN their cursor stays bound to query A.
   fireEvent.click(screen.getByRole('button', { name: 'Load more' })); await screen.findByRole('link', { name: /more-A/ });
   expect(getDrafts).toHaveBeenLastCalledWith('cursor-A', 'A');

@@ -15,7 +15,9 @@ export function DraftList({ memory, follow, onAuthLost }: Props) {
   const sequence = useRef(0);
   const active = useRef(true);
   const inFlight = useRef<'refresh' | 'more' | null>(null);
+  const searchTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const load = useCallback(async (refresh: boolean, search = refresh ? requestedQuery.current : memory.query) => {
+    if (refresh) clearTimeout(searchTimer.current);
     if (!refresh && inFlight.current) return;
     const generation = ++sequence.current; requestedQuery.current = search;
     inFlight.current = refresh ? 'refresh' : 'more'; setPending(inFlight.current); setMessage('');
@@ -38,7 +40,7 @@ export function DraftList({ memory, follow, onAuthLost }: Props) {
     active.current = true;
     const requests = sequence;
     if (!memory.page) void load(true);
-    return () => { active.current = false; ++requests.current; inFlight.current = null; };
+    return () => { clearTimeout(searchTimer.current); active.current = false; ++requests.current; inFlight.current = null; };
   }, [memory, load]);
   useLayoutEffect(() => {
     if (memory.page && memory.scrollY) window.scrollTo(0, memory.scrollY);
@@ -53,9 +55,12 @@ export function DraftList({ memory, follow, onAuthLost }: Props) {
         <div className="po-page-actions"><a className="quiet button" href="/suppliers" onClick={follow}>Manage suppliers</a><a className="primary button" href="/purchase-orders/new" onClick={follow}><Icon name="plus" />New draft</a></div>
       </header>
       <form className="po-search" onSubmit={event => { event.preventDefault(); void load(true, query.trim()); }}>
-        <div className="po-search-controls"><FloatingField htmlFor="po-search" label="Search purchase orders"><input id="po-search" type="search" maxLength={200} value={query} onChange={event => setQuery(event.target.value)} placeholder="Reference, supplier or title" /></FloatingField>
-        <button type="submit" className="secondary">Search</button>
-        <button className="quiet po-search-refresh" type="button" disabled={pending === 'refresh'} onClick={() => void load(true)}>Refresh</button>
+        <div className="po-search-controls"><FloatingField htmlFor="po-search" label="Search purchase orders"><input id="po-search" type="search" maxLength={200} value={query} onChange={event => {
+          const value = event.target.value; setQuery(value); clearTimeout(searchTimer.current);
+          ++sequence.current; inFlight.current = 'refresh'; setPending('refresh'); setMessage('');
+          searchTimer.current = setTimeout(() => void load(true, value.trim()), 300);
+        }} placeholder="Reference, supplier or title" /></FloatingField>
+        <button className="quiet po-search-refresh" type="button" onClick={() => void load(true, query.trim())}>Refresh</button>
         {query || memory.query ? <button type="button" className="quiet po-search-clear" onClick={() => { setQuery(''); void load(true, ''); }}>Clear search</button> : null}</div>
       </form>
       <div className="po-list-toolbar">
