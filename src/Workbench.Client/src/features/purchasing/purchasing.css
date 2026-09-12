@@ -20,7 +20,7 @@
 .po-order-identity, .po-order-supplier, .po-order-saved { min-width: 0; overflow-wrap: anywhere; }
 .po-order-identity { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem .75rem; }
 .po-order-identity strong { font-size: 1rem; font-weight: 500; }
-.po-draft-state, .po-badge { display: inline-flex; align-items: center; width: fit-content; padding: .1875rem .5rem; border: 1px solid var(--border-subtle); border-radius: var(--radius-badge); background: var(--selected); color: var(--muted); font-size: .75rem; line-height: 1.4; font-weight: 500; }
+.po-badge { display: inline-flex; align-items: center; width: fit-content; padding: .1875rem .5rem; border: 1px solid var(--border-subtle); border-radius: var(--radius-badge); background: var(--selected); color: var(--muted); font-size: .75rem; line-height: 1.4; font-weight: 500; }
 .po-order-supplier { color: var(--muted); font-size: .875rem; }
 .po-order-saved { display: grid; gap: .125rem; font-size: .875rem; font-variant-numeric: tabular-nums; }
 .po-order-saved > span { color: var(--muted); font-size: .8125rem; }
