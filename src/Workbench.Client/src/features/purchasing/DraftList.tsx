@@ -57,7 +57,7 @@ export function DraftList({ memory, follow, onAuthLost }: Props) {
     <section className="po-list">
       <header className="po-page-heading">
         <h1>Purchase orders</h1>
-        <div className="po-page-actions"><a className="quiet button" href="/suppliers" onClick={follow}>Manage suppliers</a><a className="primary button" href="/purchase-orders/new" onClick={follow}><Icon name="plus" />New draft</a></div>
+        <div className="po-page-actions"><a className="secondary button" href="/suppliers" onClick={follow}>Manage suppliers</a><a className="primary button" href="/purchase-orders/new" onClick={follow}><Icon name="plus" />New draft</a></div>
       </header>
       <form className="po-search po-draft-search" onSubmit={event => { event.preventDefault(); void load(true, query.trim()); }}>
         <div className="po-search-controls"><FloatingField htmlFor="po-search" label="Search purchase orders"><input ref={searchInput} id="po-search" type="search" maxLength={200} value={query} onChange={event => {
