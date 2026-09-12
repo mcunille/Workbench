@@ -25,11 +25,11 @@ for (const width of [320, 390, 600, 1440]) test(`purchase-order search keeps res
   await expect(page.getByRole('status')).toContainText('Loading drafts');
   await expect.poll(async () => (await panel.boundingBox())!.y).toBeCloseTo(top, 0);
   release();
-  await expect(page.getByRole('status')).toHaveCount(0);
+  await expect(page.getByRole('status')).not.toContainText('Loading drafts');
   await expect.poll(async () => (await panel.boundingBox())!.y).toBeCloseTo(top, 0);
   // WHEN clearing THEN the original position and keyboard path remain intact.
   await page.getByRole('button', { name: 'Clear search' }).click();
-  await expect(page.getByRole('status')).toHaveCount(0);
+  await expect(page.getByRole('status')).not.toContainText('Loading drafts');
   await expect.poll(async () => (await panel.boundingBox())!.y).toBeCloseTo(top, 0);
   // AND enlarged text can grow naturally without clipping or horizontal page overflow.
   await page.evaluate(() => { document.documentElement.style.fontSize = '200%'; });

@@ -7,11 +7,36 @@ vi.mock('../../api/purchaseOrders', async importOriginal => ({ ...await importOr
 const row = (id: string) => ({ id, title: id, supplierName: null, poReference: 'PO-000001', supplierOrderReference: null, platform: null, updatedAtUtc: '2026-09-12T00:00:00Z' });
 const props = () => ({ memory: new DraftMemory(), follow: vi.fn(), onAuthLost: vi.fn() });
 beforeEach(() => { vi.mocked(getDrafts).mockReset(); });
+it('announces completed results and returns focus to search when cleared', async () => {
+  // GIVEN a searched page with further results available.
+  const callbacks = props(); callbacks.memory.save({ items: [row('kept')], nextCursor: 'next' }, 'gem');
+  vi.mocked(getDrafts).mockResolvedValue({ items: [], nextCursor: null });
+  render(<DraftList {...callbacks} />);
+  expect(screen.getByRole('status')).toHaveTextContent('Draft orders shown: 1. More available.');
+  // WHEN the keyboard user clears the search.
+  const clear = screen.getByRole('button', { name: 'Clear search' }); clear.focus(); fireEvent.click(clear);
+  // THEN focus returns to the input and completion is announced without claiming a total.
+  expect(screen.getByRole('searchbox')).toHaveFocus();
+  await screen.findByRole('heading', { name: 'No draft orders yet.' });
+  expect(screen.getByRole('status')).toHaveTextContent('No draft orders yet.');
+});
+it.each([false, true])('explains recovery when refreshing fails with retained results: %s', async retained => {
+  // GIVEN either an initial load or a previously loaded search.
+  const callbacks = props();
+  if (retained) callbacks.memory.save({ items: [row('kept')], nextCursor: null }, 'old');
+  vi.mocked(getDrafts).mockRejectedValue(new TypeError('Network'));
+  render(<DraftList {...callbacks} />);
+  // WHEN the request fails THEN retained results are explicitly identified and Refresh is the recovery action.
+  if (retained) { fireEvent.change(screen.getByRole('searchbox'), { target: { value: 'new' } }); fireEvent.submit(screen.getByRole('searchbox').closest('form')!); }
+  expect(await screen.findByRole('alert')).toHaveTextContent(retained ? 'Showing previous results. Select Refresh to try again.' : 'Drafts could not be loaded. Select Refresh to try again.');
+  expect(screen.getByRole('status')).toBeEmptyDOMElement();
+  if (retained) { expect(screen.getByRole('searchbox')).toHaveValue('new'); expect(screen.getByRole('link', { name: /kept/ })).toBeVisible(); }
+});
 it('distinguishes empty loaded drafts from pending data', async () => {
   // GIVEN the first page is empty.
   vi.mocked(getDrafts).mockResolvedValue({ items: [], nextCursor: null }); render(<DraftList {...props()} />);
   // WHEN loading succeeds THEN the empty state offers creation, with no next page.
-  await screen.findByText('No draft orders yet.');
+  await screen.findByRole('heading', { name: 'No draft orders yet.' });
   expect(screen.getByRole('link', { name: 'New draft' })).toHaveAttribute('href', '/purchase-orders/new');
   expect(screen.queryByRole('button', { name: 'Load more' })).not.toBeInTheDocument();
 });

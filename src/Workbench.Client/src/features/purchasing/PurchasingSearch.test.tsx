@@ -69,7 +69,7 @@ for (const kind of ['orders', 'suppliers'] as const) {
     expect(screen.getByRole('status')).toBeVisible();
     await act(async () => { await vi.advanceTimersByTimeAsync(300); });
     expect(api.mock.calls.at(-1)?.[1]).toBe('new');
-    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+    expect(screen.queryByText(/Loading (drafts|suppliers)/)).not.toBeInTheDocument();
   });
   it(`${kind}: Enter searches immediately and cancels the delayed duplicate`, async () => {
     // GIVEN typing has scheduled a search.

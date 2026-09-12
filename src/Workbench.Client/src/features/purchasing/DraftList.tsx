@@ -12,6 +12,7 @@ export function DraftList({ memory, follow, onAuthLost }: Props) {
   const [message, setMessage] = useState('');
   const [query, setQuery] = useState(memory.query);
   const requestedQuery = useRef(memory.query);
+  const searchInput = useRef<HTMLInputElement>(null);
   const sequence = useRef(0);
   const active = useRef(true);
   const inFlight = useRef<'refresh' | 'more' | null>(null);
@@ -31,7 +32,11 @@ export function DraftList({ memory, follow, onAuthLost }: Props) {
     } catch (error) {
       if (!active.current || generation !== sequence.current) return;
       if (error instanceof ApiError && (error.status === 401 || error.status === 403)) { memory.invalidate(); setPage(undefined); onAuthLost(); }
-      else setMessage(error instanceof DraftError && error.code === 'invalid_cursor' ? 'This page reference is no longer valid. Refresh drafts to start again.' : 'Drafts could not be loaded. Your loaded drafts are kept; try again.');
+      else setMessage(error instanceof DraftError && error.code === 'invalid_cursor'
+        ? 'This page reference is no longer valid. Refresh drafts to start again.'
+        : !refresh ? 'More drafts could not be loaded. Your loaded drafts are kept; select Load more to try again.'
+        : memory.page ? 'Results could not update. Showing previous results. Select Refresh to try again.'
+        : 'Drafts could not be loaded. Select Refresh to try again.');
     } finally {
       if (active.current && generation === sequence.current) { inFlight.current = null; setPending(null); }
     }
@@ -55,7 +60,7 @@ export function DraftList({ memory, follow, onAuthLost }: Props) {
         <div className="po-page-actions"><a className="quiet button" href="/suppliers" onClick={follow}>Manage suppliers</a><a className="primary button" href="/purchase-orders/new" onClick={follow}><Icon name="plus" />New draft</a></div>
       </header>
       <form className="po-search po-draft-search" onSubmit={event => { event.preventDefault(); void load(true, query.trim()); }}>
-        <div className="po-search-controls"><FloatingField htmlFor="po-search" label="Search purchase orders"><input id="po-search" type="search" maxLength={200} value={query} onChange={event => {
+        <div className="po-search-controls"><FloatingField htmlFor="po-search" label="Search purchase orders"><input ref={searchInput} id="po-search" type="search" maxLength={200} value={query} onChange={event => {
           const value = event.target.value; setQuery(value); clearTimeout(searchTimer.current);
           ++sequence.current; inFlight.current = 'refresh'; setPending('refresh'); setMessage('');
           searchTimer.current = setTimeout(() => void load(true, value.trim()), 300);
@@ -65,9 +70,9 @@ export function DraftList({ memory, follow, onAuthLost }: Props) {
       <div className="po-list-toolbar po-draft-results-toolbar">
         <div className="po-draft-result-context">
           <p className="po-list-caption">{memory.query ? 'Matching draft orders' : 'Draft orders'}</p>
-          <div className="po-draft-progress">{pending ? <p role="status">Loading drafts…</p> : null}</div>
+          <div className="po-draft-progress"><p role="status" aria-live="polite" aria-atomic="true" className={pending ? undefined : 'po-accessible-heading'}>{pending ? 'Loading drafts…' : message || !page ? '' : page.items.length === 0 ? (memory.query ? 'No matching purchase orders.' : 'No draft orders yet.') : `Draft orders shown: ${page.items.length.toLocaleString()}.${page.nextCursor ? ' More available.' : ''}`}</p></div>
         </div>
-        <button type="button" className={`quiet po-draft-clear${query || memory.query ? '' : ' is-unavailable'}`} disabled={!query && !memory.query} aria-hidden={!query && !memory.query} onClick={() => { setQuery(''); void load(true, ''); }}>Clear search</button>
+        <button type="button" className={`quiet po-draft-clear${query || memory.query ? '' : ' is-unavailable'}`} disabled={!query && !memory.query} aria-hidden={!query && !memory.query} onClick={() => { searchInput.current?.focus(); setQuery(''); void load(true, ''); }}>Clear search</button>
       </div>
       {message ? <p role="alert" className="po-feedback po-error">{message}</p> : null}
       {page?.items.length === 0 ? (
