@@ -35,7 +35,7 @@ async function selectSupplier(page: Page, name: string) {
   await page.getByRole('button', { name: 'Choose supplier', exact: true }).click();
   await page.getByLabel('Search suppliers', { exact: true }).fill(name);
   await page.getByRole('button', { name: `Select ${name}`, exact: true }).click();
-  await page.getByRole('button', { name: 'Use supplier', exact: true }).click();
+  await page.getByRole('button', { name: 'Use supplier details', exact: true }).click();
 }
 
 test('one supplier has independent order snapshots and platforms with deliberate contact refresh', async ({ page }) => {
@@ -80,10 +80,11 @@ test('one supplier has independent order snapshots and platforms with deliberate
   await expect(page.getByLabel('Platform', { exact: true })).toHaveValue('Instagram');
 
   // WHEN explicitly refreshing one order THEN only that snapshot changes, leaving its platform alone.
-  await page.getByText('Supplier options', { exact: true }).click();
-  await page.getByRole('button', { name: 'Use current supplier details', exact: true }).click();
+  await page.getByRole('button', { name: 'Choose supplier', exact: true }).click();
+  await page.getByLabel('Search suppliers', { exact: true }).fill(supplierName);
+  await page.getByRole('button', { name: `Select ${supplierName}`, exact: true }).click();
   await expect(page.getByRole('dialog')).toContainText('Updated contact');
-  await page.getByRole('button', { name: 'Replace supplier details', exact: true }).click();
+  await page.getByRole('button', { name: 'Use supplier details', exact: true }).click();
   await expect(page.getByLabel('Platform', { exact: true })).toHaveValue('Instagram');
   await saveDraft(page);
   await page.goto(secondPath);
@@ -218,7 +219,7 @@ test('inline supplier creation survives a subsequent draft failure without submi
   const supplierResponse = await supplierSaved;
   expect(supplierResponse.status()).toBe(201);
   const { supplierId } = await supplierResponse.json();
-  await page.getByRole('button', { name: 'Use supplier', exact: true }).click();
+  await page.getByRole('button', { name: 'Use supplier details', exact: true }).click();
   await expect(page.getByLabel('Supplier name', { exact: true })).toHaveValue(name);
   await expect(page.getByLabel('Platform', { exact: true })).toHaveValue('Instagram');
   expect(draftWrites).toBe(0);

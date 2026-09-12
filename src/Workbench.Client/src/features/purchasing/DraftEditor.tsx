@@ -61,16 +61,9 @@ export function DraftEditor({ id: initialId, onDirtyChange, onAuthLost, onSaved,
   }, []);
   const [id, setId] = useState(initialId);
   const [draft, setDraft] = useState(emptyDraft);
+  const [removedEntries, setRemovedEntries] = useState<{ entry: DraftContent['entries'][number]; index: number }[]>([]);
+  const addEntryButton = useRef<HTMLButtonElement>(null);
   const addedEntry = useRef<string | undefined>(undefined);
-  useEffect(() => {
-    if (!addedEntry.current) return;
-    const index = draft.entries.findIndex(entry => entry.id === addedEntry.current);
-    if (index < 0) return;
-    const description = document.getElementById(fieldId(`draft.entries[${index}].description`));
-    description?.focus({ preventScroll: true });
-    description?.scrollIntoView?.({ block: 'center', behavior: 'instant' });
-    addedEntry.current = undefined;
-  }, [draft.entries]);
   const [baseline, setBaseline] = useState<DraftOrder>();
   const [current, setCurrent] = useState<DraftOrder>();
   const [mode, setMode] = useState<Mode>(initialId ? 'loading' : 'editing');
@@ -110,10 +103,25 @@ export function DraftEditor({ id: initialId, onDirtyChange, onAuthLost, onSaved,
   useEffect(() => { onDirtyChange(dirty, uncertain); }, [dirty, uncertain, onDirtyChange]);
   useEffect(() => () => onDirtyChange(false, false), [onDirtyChange]);
   useEffect(() => {
+    if (addedEntry.current) return;
     const first = Object.keys(errors)[0];
     if (first) document.getElementById(fieldId(first))?.focus();
   }, [errors]);
+  useEffect(() => {
+    if (!addedEntry.current) return;
+    const index = draft.entries.findIndex(entry => entry.id === addedEntry.current);
+    if (index < 0) { addEntryButton.current?.focus(); addedEntry.current = undefined; return; }
+    const description = document.getElementById(fieldId(`draft.entries[${index}].description`));
+    description?.focus({ preventScroll: true });
+    description?.scrollIntoView?.({ block: 'center', behavior: 'instant' });
+    addedEntry.current = undefined;
+  }, [draft.entries]);
   const frozen = mode !== 'editing';
+  const [undoBoundary, setUndoBoundary] = useState({ mode, currency: draft.currency });
+  if (undoBoundary.mode !== mode || undoBoundary.currency !== draft.currency) {
+    setUndoBoundary({ mode, currency: draft.currency });
+    if (mode !== 'editing' || undoBoundary.currency !== draft.currency) setRemovedEntries([]);
+  }
   const hasPrices = draft.entries.some(entry => entry.indicativePrice !== null);
   const currencyTransition = !!baseline?.draft.currency && (draft.currency?.trim().toUpperCase() ?? null) !== baseline.draft.currency;
 
@@ -335,9 +343,13 @@ export function DraftEditor({ id: initialId, onDirtyChange, onAuthLost, onSaved,
               <fieldset className="po-entry" key={entry.id} aria-labelledby={`po-entry-title-${entry.id}`}>
                 <div className="po-entry-heading">
                   <h3 id={`po-entry-title-${entry.id}`}>Entry {index + 1}</h3>
-                  <button className="quiet danger" type="button" disabled={frozen} onClick={() => setDraft({
-                    ...draft, entries: draft.entries.filter(old => old.id !== entry.id),
-                  })}>Remove entry {index + 1}</button>
+                  <button className="quiet danger" type="button" disabled={frozen} onClick={() => {
+                    const entries = draft.entries.filter(old => old.id !== entry.id);
+                    setRemovedEntries([...removedEntries, { entry, index }]);
+                    addedEntry.current = entries[Math.min(index, entries.length - 1)]?.id ?? 'add-entry';
+                    setErrors(Object.fromEntries(Object.entries(errors).filter(([path]) => !path.startsWith('draft.entries'))));
+                    setDraft({ ...draft, entries });
+                  }}>Remove entry {index + 1}</button>
                 </div>
                 <div className="po-header-fields">
                   {field(`draft.entries[${index}].description`, `Description ${index + 1}`, entry.description, value => updateEntry('description', value))}
@@ -354,7 +366,15 @@ export function DraftEditor({ id: initialId, onDirtyChange, onAuthLost, onSaved,
             );
           })}
           <div className="po-add-entry">
-            <button className="secondary" type="button" disabled={frozen} onClick={() => {
+            {removedEntries.length ? <div className="po-removal-recovery"><p role="status">Entry removed. Undo is available until you save or change currency.</p><button className="quiet" type="button" disabled={frozen} onClick={() => {
+              const removed = removedEntries[removedEntries.length - 1];
+              const entries = [...draft.entries]; entries.splice(removed.index, 0, removed.entry);
+              addedEntry.current = removed.entry.id;
+              setRemovedEntries(removedEntries.slice(0, -1));
+              setErrors(Object.fromEntries(Object.entries(errors).filter(([path]) => !path.startsWith('draft.entries'))));
+              setDraft({ ...draft, entries });
+            }}>Undo removal</button></div> : null}
+            <button ref={addEntryButton} className="secondary" type="button" disabled={frozen} onClick={() => {
               const entryId = crypto.randomUUID();
               addedEntry.current = entryId;
               setDraft({ ...draft, entries: [...draft.entries, { id: entryId, description: null, notes: null, sourceLink: null, indicativePrice: null }] });

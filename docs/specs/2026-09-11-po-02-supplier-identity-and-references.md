@@ -78,8 +78,7 @@ are illustrative, not a closed list or integrations. An incomplete draft may lea
 as Not set. Do not infer a platform from the supplier's website, source links or previous purchases.
 Requirements at commitment belong to PO-04.
 
-Save the platform independently on each PO. Supplier selection, directory edits and **Use current
-supplier details** must leave it unchanged. Changing the platform must likewise preserve the supplier
+Save the platform independently on each PO. Supplier selection, directory edits and supplier re-selection must leave it unchanged. Changing the platform must likewise preserve the supplier
 link, contact snapshot and supplier order reference. The owner may explicitly edit these fields to
 match the transaction; existing order source links can hold a storefront, listing or conversation URL.
 Platform is not a payment method and does not trigger communication or a marketplace connection.
@@ -95,20 +94,20 @@ automatic name-based merge. An archived supplier may still be viewed and correct
 linked to it may be saved without changing that link, with its archived state visible. New selection
 requires an active supplier.
 
-Selecting a supplier copies its displayed details into local draft state; **Save draft** persists
-the association and snapshot together. Changing an order's contact details changes only that order.
-Editing the directory changes only future selections. Do not silently refresh even an uncommitted
-draft. **Use current supplier details** previews old and new values and replaces the local snapshot
-only after confirmation; saving remains explicit. A failed load leaves the previous snapshot intact.
+Selecting a supplier loads its current directory details. Matching details apply directly unless a
+changed supplier identity requires a reference decision. Differing details open a comparison with
+**Use supplier details**, **Keep existing PO details**, and **Cancel**. Keeping existing details links
+the selected supplier without replacing the PO snapshot. **Save draft** persists the association
+and snapshot together; directory edits never silently refresh an order.
 
 Initial selection with no supplier link or contact details uses a compact **Use supplier?**
-confirmation showing populated details. Existing details use a comparison of changed fields,
-including values that will be cleared. An unchanged refresh shows one populated summary.
-Any existing supplier order reference still requires an explicit keep/clear choice when identity changes.
+confirmation showing populated details. Existing details compare only changed fields, including
+values that will be cleared. Re-selecting the same supplier handles directory updates through this
+same decision, without a separate refresh action. A failed load preserves all local edits.
 
-Changing supplier or switching to one-off entry must explain whether existing local details will be
-replaced or retained. **Keep details as one-off** clears only the supplier link. Never silently carry
-the previous supplier's order reference to a different supplier: prompt to keep or clear it.
+**Remove supplier link** offers confirmation to retain the contact snapshot as one-off details.
+Changing supplier or removing its link requires an explicit keep/clear choice for any supplier order
+reference. Platform remains independent in every case.
 Ordinary directory editing never changes any order version or saved time.
 
 The snapshot is the supplier information deliberately saved on this draft, not a claim that every
@@ -127,8 +126,8 @@ can expand progressively. Preserve PO-01's grouped editor, explicit save, error 
 unsaved-navigation protection, mobile stacking, keyboard operation and light/dark appearance.
 
 The owner approved UI refinement after the 2026-09-12 audit against `DESIGN.md`: use a visible
-order heading and one Draft badge, concise guidance, and **Supplier options** for linked-supplier
-refresh/unlink actions. Group supplier navigation with page actions and search/refresh together.
+order heading and one Draft badge, concise guidance, and supplier selection with an explicit
+snapshot decision when details differ. Group supplier navigation with page actions and search/refresh together.
 Use shared floating fields, 44px action targets, an aligned archive checkbox, and one dialog surface
 with a common Cancel/Save footer for inline supplier creation. These changes preserve explicit saves,
 snapshot independence, and all existing recovery and authorization behavior.
@@ -312,3 +311,10 @@ application verification evidence.
 The owner authorized implementation after requesting early review in PR #107. Implementation follows
 these defaults and the versioned contract above. Merge and production operations remain separately
 authorized actions.
+
+### Entry removal recovery
+
+Removing a shopping-list entry offers Undo and focuses the next entry, the previous entry when
+removing the last, or Add entry when none remain. Undo restores the full entry at its prior position
+without replacing unrelated edits. Removal history ends when saving starts, editing is frozen, or
+currency changes, preventing restoration of old prices under a new currency.
