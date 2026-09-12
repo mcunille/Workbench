@@ -108,7 +108,7 @@ it('allows correcting an unsaved currency after authoritative validation with a 
   await screen.findByRole('link', { name: 'Use a three-letter currency.' });
   expect(screen.getByLabelText('Currency')).not.toBeDisabled();
   fireEvent.change(screen.getByLabelText('Currency'), { target: { value: 'USD' } });
-  expect(screen.getByLabelText('Reference price 1')).toHaveValue('0');
+  expect(screen.getByLabelText('Reference price 1')).toHaveValue('0.00');
 });
 it('keeps navigation guarded after a request-ID conflict and never silently creates another request', async () => {
   // GIVEN the server rejects a changed-input reuse of a request identifier.
@@ -167,6 +167,7 @@ it('requires a clearing save before pricing in a different saved currency and pr
   // THEN only a confirmed current version permits entering the next currency's exact price.
   await waitFor(() => expect(screen.getByLabelText('Reference price 1')).not.toBeDisabled());
   expect(vi.mocked(updateDraft).mock.calls[0][1].draft.entries[0].indicativePrice).toBeNull();
+  fireEvent.click(screen.getByRole('checkbox', { name: 'Use extra precision for entry 1' }));
   fireEvent.change(screen.getByLabelText('Reference price 1'), { target: { value: '999999999999999.9999' } });
   expect(screen.getByLabelText('Reference price 1')).toHaveValue('999999999999999.9999');
 });
@@ -231,4 +232,15 @@ it('adds entries from the end of the list and focuses each new description', () 
   expect(screen.getByLabelText('Description 2')).toHaveFocus();
   expect(first).toHaveValue('Keep this description');
   expect(screen.getByLabelText('Description 2').compareDocumentPosition(add) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+});
+
+it('starts reference prices with an empty 0.00 placeholder and offers extra precision', () => {
+  // GIVEN a new entry with no reference price.
+  render(<DraftEditor {...props()} />);
+  fireEvent.click(screen.getByRole('button', { name: 'Add entry' }));
+  const price = screen.getByLabelText('Reference price 1');
+  // WHEN the price is first shown THEN zero is only a placeholder and precision is optional.
+  expect(price).toHaveValue('');
+  expect(price).toHaveAttribute('placeholder', '0.00');
+  expect(screen.getByRole('checkbox', { name: 'Use extra precision for entry 1' })).not.toBeChecked();
 });

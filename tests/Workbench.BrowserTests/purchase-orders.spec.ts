@@ -166,3 +166,28 @@ test('a confirmed save retries only the failed current-details read', async ({ p
   expect(saves).toBe(1);
   expect(reads).toBe(2);
 });
+
+test('reference prices shift cents by default and retain opt-in extra precision after saving', async ({ page }) => {
+  // GIVEN an unknown reference price on a new draft.
+  await signIn(page);
+  await startDraft(page, 'Price entry check');
+  await page.getByLabel('Currency', { exact: true }).fill('USD');
+  await page.getByRole('button', { name: 'Add entry', exact: true }).click();
+  const price = page.getByLabel('Reference price 1', { exact: true });
+  await expect(price).toHaveValue('');
+  await expect(price).toHaveAttribute('placeholder', '0.00');
+  // WHEN typing digits THEN they shift from hundredths to whole units.
+  await price.pressSequentially('1'); await expect(price).toHaveValue('0.01');
+  await price.pressSequentially('2'); await expect(price).toHaveValue('0.12');
+  await price.pressSequentially('3'); await expect(price).toHaveValue('1.23');
+  await price.pressSequentially('4'); await expect(price).toHaveValue('12.34');
+  await price.press('ControlOrMeta+a'); await price.press('Backspace');
+  await expect(price).toHaveValue('');
+  // WHEN opting into extra precision and saving THEN meaningful digits survive reload.
+  await page.getByRole('checkbox', { name: 'Use extra precision for entry 1' }).check();
+  await price.fill('0.0123');
+  await save(page);
+  await page.reload();
+  await expect(price).toHaveValue('0.0123');
+  await expect(page.getByRole('checkbox', { name: 'Use extra precision for entry 1' })).toBeChecked();
+});

@@ -17,7 +17,12 @@ the application does not calculate a total. To change an existing currency, clea
 save that change before entering amounts in the new currency. No conversion or relabeling is inferred.
 
 Saved prices display at least two decimal places, retaining meaningful third and fourth digits
-without rounding. **Clear all reference prices** asks for confirmation and shows the affected count;
+without rounding. Reference-price entry starts with a `0.00` placeholder: digits fill from the right
+(`1` → `0.01`, `12` → `0.12`, `123` → `1.23`). An untouched or cleared field remains Unknown.
+Choose **Use extra precision** to type a decimal amount directly; saved prices with meaningful
+third or fourth decimal digits automatically use this mode. Remove those digits before returning
+to two-decimal entry; switching modes never rounds. Pasted decimal amounts retain their value.
+**Clear all reference prices** asks for confirmation and shows the affected count;
 Cancel or Escape keeps the prices. Confirming clears them locally, and **Save draft** persists the change.
 The Back/Save toolbar is transparent at the top and gains a background when pinned while scrolling.
 The draft badge sits in Order details, with the saved time above the form and fields

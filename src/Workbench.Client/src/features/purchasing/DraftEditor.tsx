@@ -7,6 +7,7 @@ import { DraftComparison } from './DraftComparison';
 import './purchasing.css';
 import { ClearPricesDialog } from './ClearPricesDialog';
 import { formatReferencePrice } from './referencePrice';
+import { ReferencePriceField } from './ReferencePriceField';
 
 type Mode = 'loading' | 'editing' | 'saving' | 'uncertain' | 'current-loading' | 'current-failed' | 'conflict-loading' | 'conflict-failed' | 'comparison' | 'blocked' | 'load-failed';
 type Submission = { id?: string; body: CreateDraftRequest | UpdateDraftRequest };
@@ -264,9 +265,9 @@ export function DraftEditor({ id: initialId, onDirtyChange, onAuthLost, onSaved,
                 </div>
                 <div className="po-header-fields">
                   {field(`draft.entries[${index}].description`, `Description ${index + 1}`, entry.description, value => updateEntry('description', value))}
-                  {field(`draft.entries[${index}].indicativePrice`, `Reference price ${index + 1}`, entry.indicativePrice, value => updateEntry('indicativePrice', value), {
-                    placeholder: 'Unknown', disabled: currencyTransition,
-                  })}
+                  <ReferencePriceField id={fieldId(`draft.entries[${index}].indicativePrice`)} index={index + 1}
+                    value={entry.indicativePrice} onChange={value => updateEntry('indicativePrice', value)}
+                    disabled={frozen || currencyTransition} error={errors[`draft.entries[${index}].indicativePrice`]?.join(' ')} />
                 </div>
                 {entry.indicativePrice === null ? <p className="po-price-state">Price: Unknown</p> : null}
                 <div className="po-entry-secondary">
