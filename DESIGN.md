@@ -408,6 +408,21 @@ boundaries and an explicit active navigation outline.
 
 See the [application extension specification](docs/specs/2026-09-08-tanzanite-visual-language.md#subsequent-acceptance-application-extension).
 
+## Inventory reading order
+
+The collection places Add item first in the action group and combines the loaded count
+with Grid/List controls in a wrapping toolbar. Keep search and its help together, with
+tighter spacing inside control groups than between the toolbar and the records.
+
+Records without a photograph use a compact icon, name, and location arrangement in
+the grid. Records with a photograph retain their 3:2 image area; loading and unavailable
+photographs retain that space as well. Keep the chosen Grid/List view unchanged.
+
+Item detail leads with identity, storage location, and notes, followed by maintenance
+controls, photography, acquisition, and record metadata. A missing photograph uses a
+small placeholder; an existing photograph keeps its full viewing area. DOM and visual
+reading order must agree, including on narrow screens and with enlarged text.
+
 ## Authenticated navigation
 
 Use a collapsible desktop glass pane and a mobile bottom pill, sharing destinations and
