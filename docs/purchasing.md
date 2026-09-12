@@ -19,7 +19,8 @@ save that change before entering amounts in the new currency. No conversion or r
 Saved prices display at least two decimal places, retaining meaningful third and fourth digits
 without rounding. **Clear all reference prices** asks for confirmation and shows the affected count;
 Cancel or Escape keeps the prices. Confirming clears them locally, and **Save draft** persists the change.
-The editor keeps a transparent Back/Save toolbar above the draft badge and saved time, with fields
+The Back/Save toolbar is transparent at the top and gains a background when pinned while scrolling.
+The draft badge sits in Order details, with the saved time above the form and fields
 grouped into order details, shopping list, and notes and sources.
 
 Drafts allow 100 entries and 20 order-level source links. Links must use HTTP or HTTPS and cannot
