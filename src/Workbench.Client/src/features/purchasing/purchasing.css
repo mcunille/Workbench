@@ -113,6 +113,7 @@
   .po-order-identity { grid-column: 1; }
   .po-order-supplier { grid-column: 1; }
   .po-order-saved { grid-column: 1; display: flex; flex-wrap: wrap; gap: .5rem; color: var(--muted); font-size: .8125rem; }
+  .po-order-saved .po-saved-label { position: static; width: auto; height: auto; overflow: visible; clip-path: none; white-space: normal; }
   .po-draft-list .icon-chevron { grid-column: 2; grid-row: 1 / 4; }
   .po-draft-list li:first-child a { border-radius: var(--radius-card) var(--radius-card) 0 0; }
   .po-draft-list li:only-child a { border-radius: var(--radius-card); }

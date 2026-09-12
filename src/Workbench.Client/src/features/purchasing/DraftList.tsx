@@ -33,7 +33,7 @@ export function DraftList({ memory, follow, onAuthLost }: Props) {
       if (!active.current || generation !== sequence.current) return;
       if (error instanceof ApiError && (error.status === 401 || error.status === 403)) { memory.invalidate(); setPage(undefined); onAuthLost(); }
       else setMessage(error instanceof DraftError && error.code === 'invalid_cursor'
-        ? 'This page reference is no longer valid. Refresh drafts to start again.'
+        ? 'The next page is no longer available. Select Refresh to start again.'
         : !refresh ? 'More drafts could not be loaded. Your loaded drafts are kept; select Load more to try again.'
         : memory.page ? 'Results could not update. Showing previous results. Select Refresh to try again.'
         : 'Drafts could not be loaded. Select Refresh to try again.');
@@ -92,6 +92,7 @@ export function DraftList({ memory, follow, onAuthLost }: Props) {
                   <span className="po-order-identity"><span className="po-reference">{item.poReference}</span><strong>{item.title ?? 'Untitled draft'}</strong></span>
                   <span className="po-order-supplier">{item.supplierName ?? 'Supplier not set'}{item.platform ? <span className="po-row-detail">{item.platform}</span> : null}{item.supplierOrderReference ? <span className="po-row-detail">Supplier ref: {item.supplierOrderReference}</span> : null}</span>
                   <time className="po-order-saved" dateTime={item.updatedAtUtc} title={new Date(item.updatedAtUtc).toLocaleString()}>
+                    <span className="po-accessible-heading po-saved-label">Last saved</span>
                     {new Date(item.updatedAtUtc).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
                     <span>{new Date(item.updatedAtUtc).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}</span>
                   </time>
