@@ -16,6 +16,12 @@ for any prices on the draft. Prices accept up to four decimal places and remain 
 the application does not calculate a total. To change an existing currency, clear the prices and
 save that change before entering amounts in the new currency. No conversion or relabeling is inferred.
 
+Saved prices display at least two decimal places, retaining meaningful third and fourth digits
+without rounding. **Clear all reference prices** asks for confirmation and shows the affected count;
+Cancel or Escape keeps the prices. Confirming clears them locally, and **Save draft** persists the change.
+The editor keeps a transparent Back/Save toolbar above the draft badge and saved time, with fields
+grouped into order details, shopping list, and notes and sources.
+
 Drafts allow 100 entries and 20 order-level source links. Links must use HTTP or HTTPS and cannot
 contain embedded login credentials. Large drafts can reach the overall size limit before individual
 field limits; shorten the text or remove entries if the save reports that limit.

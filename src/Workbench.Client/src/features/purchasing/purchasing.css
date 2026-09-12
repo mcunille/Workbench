@@ -40,7 +40,7 @@
 .po-heading { display: flex; align-items: center; gap: .75rem; }
 .po-heading h1 { margin: 0; }
 .po-save-status { margin: .5rem 0 0; color: var(--muted); font-size: .875rem; }
-.po-editor-description { margin: .5rem 0 0; color: var(--muted); font-size: .875rem; }
+.po-accessible-heading { position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 .editor.po-editor .form-stack { gap: 0; padding: 0; margin-top: 1.25rem; }
 .po-editor .form-stack > [role="alert"] { padding: 1.25rem; margin: 0; }
 .po-form-section { padding: 1.5rem; }

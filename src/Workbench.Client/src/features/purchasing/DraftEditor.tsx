@@ -165,10 +165,9 @@ export function DraftEditor({ id: initialId, onDirtyChange, onAuthLost, onSaved,
       </div>
       <header className="po-editor-header">
         <div className="po-heading">
-          <h1>{id ? 'Edit draft' : 'New draft'}</h1>
+          <h1 className="po-accessible-heading">{id ? 'Edit draft' : 'New draft'}</h1>
           <span className="po-badge">Draft</span>
         </div>
-        <p className="lede po-editor-description">Draft only — no payment or inventory changes.</p>
         <p className="po-save-status" role="status">{saveStatus}</p>
       </header>
       {message ? <p role="alert" className="form-message error">{message}</p> : null}
