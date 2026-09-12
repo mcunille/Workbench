@@ -35,7 +35,7 @@ field limits; shorten the text or remove entries if the save reports that limit.
 Saving or removing a draft entry changes only this shopping list. It creates no collection item,
 acquisition, invoice, payment obligation or accounting entry. Supplier directories, formal PO
 references, quantities and unit pricing, commitments, attachments, receiving and payments are
-separate increments. There is no order deletion or export workflow in this release.
+separate increments. There is no order export workflow in this release.
 
 ## Resume and recover work
 
@@ -61,3 +61,12 @@ state, and leaving an uncertain save loses the browser's retry request even if t
 The [PO-01 design](specs/2026-09-11-po-01-draft-supplier-orders.md) specifies limits, retry receipts,
 versions, and verification requirements. Existing collection and acquisition workflows remain
 independent of purchasing.
+
+## Delete an unwanted draft
+
+Open a saved draft and choose **Delete draft** beneath the form. The confirmation names the saved
+draft and warns that local unsaved edits will be discarded. Cancel or Escape leaves everything
+unchanged. Confirming removes the draft from purchase orders and returns to the list; it cannot
+be restored through the application. If another member changed it, review the current version
+before requesting deletion again. An uncertain deletion offers **Check and retry deletion** with
+the original request; do not create a new request to resolve a lost response.

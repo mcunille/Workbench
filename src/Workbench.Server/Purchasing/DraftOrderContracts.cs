@@ -28,6 +28,10 @@ public sealed record CreateDraftOrderRequest([property: JsonRequired] Guid Reque
 public sealed record UpdateDraftOrderRequest([property: JsonRequired] Guid RequestId,
     [property: JsonRequired] string ExpectedVersion, [property: JsonRequired] DraftContent Draft);
 
+[JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
+public sealed record DeleteDraftOrderRequest([property: JsonRequired] Guid RequestId,
+    [property: JsonRequired] string ExpectedVersion);
+
 public sealed record DraftOrderResponse(Guid Id, DraftContent Draft, string CreatedAtUtc, string UpdatedAtUtc, string Version);
 public sealed record SaveDraftOrderResponse(Guid RequestId, bool Replayed, Guid DraftOrderId, string SavedVersion, string CompletedAtUtc);
 public sealed record DraftOrderSummary(Guid Id, string? Title, string? SupplierName, string UpdatedAtUtc);

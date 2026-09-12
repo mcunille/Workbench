@@ -39,7 +39,7 @@ restricted command compares stored/submitted currencies and returns a 400 curren
 for a disallowed transition. The editor preserves the last saved currency until that clearing save
 succeeds, so clearing locally and immediately re-entering prices cannot bypass the transition rule.
 
-Shopping-list entries can be removed while editing. There is no order deletion, commitment,
+Shopping-list entries can be removed while editing. Saved drafts may also be deleted as specified below. There is no commitment,
 attachment, formal PO numbering, supplier directory, receiving, payment, or export feature here.
 
 ## Database schema
@@ -411,7 +411,7 @@ empty, saving, saved, and failed states. Protect unsaved navigation with the exi
 
 Only saved content survives reload/browser closure. Keep unsaved work in authenticated application
 memory, never local storage; clear it on authentication loss. Saved content and immutable request
-evidence remain in SQL/backups; deletion/retention management is a later contract.
+evidence remain in SQL/backups; retention management is a later contract.
 
 Treat all fields as private business data; do not log bodies or field values. Render text safely,
 validate HTTP(S) links and isolate their opener, and never fetch source links server-side. Bound
@@ -462,3 +462,27 @@ Regenerate API declarations; update living product, architecture, and migration 
 Run `scripts/verify.ps1` and `scripts/smoke-container.ps1`; inspect the current-source preview from
 `scripts/dev-up.ps1` and report its URL and verification limits. Complete internal review, commit the
 scoped changes, and open a ready-for-review PR. This design includes no merge or production action.
+
+## Approved follow-up: delete a draft
+
+The owner may delete an unwanted persisted draft from the editor. A secondary destructive action
+opens a confirmation naming the saved draft and warning that unsaved edits are discarded too.
+Cancel is focused by default; Escape cancels. Success invalidates the list and returns to it.
+Only drafts are covered; issued orders are outside PO-01.
+
+`DELETE /api/purchase-order-drafts/{id}` takes JSON `{ "requestId": "<uuid>", "expectedVersion": "<base64 rowversion>" }`
+with the usual authentication and CSRF headers. It returns the existing save-receipt schema with
+HTTP 200 and the tombstone version. Missing/deleted drafts return 404, stale versions return
+409 `draft_version_conflict`, and changed-input request reuse returns 409 `draft_request_conflict`.
+The client freezes an uncertain deletion and retries the identical request only on explicit action.
+Success needs no detail read. A stale-version conflict requires review of current saved content
+and a fresh confirmation before any new deletion request.
+
+A forward migration adds `IsDeleted` (default false). The restricted delete procedure checks current
+tenant authority, takes the same request lock as saves, locks the draft, validates rowversion, clears
+its title/supplier/currency/notes and replaces its content with empty lists, then records a Delete
+receipt atomically. An empty tombstone retains the draft key and foreign-key integrity of compact
+receipts; this is not a user-visible archive or restore workflow. Exact deletion replay matches
+request, actor, draft, and expected version before evaluating deleted state. Reads/lists exclude
+tombstones, and update commands reject them under the row lock. Receipts remain under the existing
+retention contract. Existing applied migrations are preserved.

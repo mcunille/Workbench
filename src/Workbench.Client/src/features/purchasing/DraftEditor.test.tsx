@@ -1,14 +1,14 @@
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { vi } from 'vitest';
 import { DraftEditor } from './DraftEditor';
-import { createDraft, updateDraft, getDraft, DraftError } from '../../api/purchaseOrders';
+import { createDraft, updateDraft, getDraft, deleteDraft, DraftError } from '../../api/purchaseOrders';
 
-vi.mock('../../api/purchaseOrders', async importOriginal => ({ ...await importOriginal<typeof import('../../api/purchaseOrders')>(), createDraft: vi.fn(), updateDraft: vi.fn(), getDraft: vi.fn() }));
+vi.mock('../../api/purchaseOrders', async importOriginal => ({ ...await importOriginal<typeof import('../../api/purchaseOrders')>(), createDraft: vi.fn(), updateDraft: vi.fn(), getDraft: vi.fn(), deleteDraft: vi.fn() }));
 const content = { title: null, supplierName: null, currency: null, notes: null, sourceLinks: [], entries: [] };
 const saved = { id: 'draft-one', draft: content, version: 'v1', createdAtUtc: '2026-09-12T00:00:00Z', updatedAtUtc: '2026-09-12T00:00:00Z' };
 const receipt = { requestId: 'request', replayed: false, draftOrderId: saved.id, savedVersion: saved.version, completedAtUtc: saved.updatedAtUtc };
 const props = () => ({ onDirtyChange: vi.fn(), onAuthLost: vi.fn(), onSaved: vi.fn(), onCancel: vi.fn(), onCreated: vi.fn() });
-beforeEach(() => { Object.defineProperty(HTMLDialogElement.prototype, 'showModal', { configurable: true, value(this: HTMLDialogElement) { this.setAttribute('open', ''); } }); vi.mocked(createDraft).mockReset(); vi.mocked(updateDraft).mockReset(); vi.mocked(getDraft).mockReset(); });
+beforeEach(() => { Object.defineProperty(HTMLDialogElement.prototype, 'showModal', { configurable: true, value(this: HTMLDialogElement) { this.setAttribute('open', ''); } }); vi.mocked(deleteDraft).mockReset(); vi.mocked(createDraft).mockReset(); vi.mocked(updateDraft).mockReset(); vi.mocked(getDraft).mockReset(); });
 it('saves an empty draft and enables editing only after loading the confirmed current document', async () => {
   // GIVEN all business fields are optional and the confirmation read has not returned.
   let resolve!: (value: typeof saved) => void;
@@ -245,4 +245,61 @@ it('starts reference prices with an empty 0.00 placeholder and offers extra prec
   expect(price).toHaveValue('');
   expect(price).toHaveAttribute('placeholder', '0.00');
   expect(screen.getByRole('checkbox', { name: 'Use extra precision for entry 1' })).not.toBeChecked();
+});
+
+it('confirms a named draft deletion and leaves cancellation unchanged', async () => {
+  // GIVEN a persisted draft with unsaved local edits.
+  vi.mocked(getDraft).mockResolvedValue({ ...saved, draft: { ...content, title: 'Supplier samples' } });
+  vi.mocked(deleteDraft).mockResolvedValue(receipt);
+  const callbacks = props(); render(<DraftEditor id={saved.id} {...callbacks} />);
+  await waitFor(() => expect(screen.getByLabelText('Title')).toBeEnabled());
+  fireEvent.change(screen.getByLabelText('Notes'), { target: { value: 'Unsaved notes' } });
+  // WHEN requesting deletion THEN the confirmation names the saved draft.
+  fireEvent.click(screen.getByRole('button', { name: 'Delete draft' }));
+  const dialog = screen.getByRole('dialog', { name: 'Delete draft?' });
+  expect(within(dialog).getByText(/Supplier samples/)).toBeVisible();
+  fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }));
+  expect(deleteDraft).not.toHaveBeenCalled(); expect(screen.getByLabelText('Notes')).toHaveValue('Unsaved notes');
+  // WHEN confirming THEN delete uses the loaded version, clears navigation guards, and returns to the list without a GET.
+  fireEvent.click(screen.getByRole('button', { name: 'Delete draft' }));
+  fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Delete draft' }));
+  await waitFor(() => expect(callbacks.onCancel).toHaveBeenCalled());
+  expect(deleteDraft).toHaveBeenCalledWith(saved.id, expect.objectContaining({ expectedVersion: 'v1' }));
+  expect(callbacks.onDirtyChange).toHaveBeenLastCalledWith(false, false);
+  expect(getDraft).toHaveBeenCalledTimes(1);
+});
+it('retries an uncertain deletion with the same request and freezes editing', async () => {
+  // GIVEN the deletion response was lost.
+  vi.mocked(getDraft).mockResolvedValue(saved);
+  vi.mocked(deleteDraft).mockRejectedValueOnce(new TypeError('Network')).mockResolvedValueOnce(receipt);
+  render(<DraftEditor id={saved.id} {...props()} />);
+  await waitFor(() => expect(screen.getByLabelText('Title')).toBeEnabled());
+  fireEvent.click(screen.getByRole('button', { name: 'Delete draft' }));
+  fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Delete draft' }));
+  // WHEN explicitly retrying THEN the immutable deletion request is reused.
+  fireEvent.click(await screen.findByRole('button', { name: 'Check and retry deletion' }));
+  expect(screen.getByLabelText('Title')).toBeDisabled();
+  await waitFor(() => expect(deleteDraft).toHaveBeenCalledTimes(2));
+  expect(vi.mocked(deleteDraft).mock.calls[1]).toEqual(vi.mocked(deleteDraft).mock.calls[0]);
+});
+
+it('requires review and a fresh confirmation after a stale deletion', async () => {
+  // GIVEN another member changed the draft after it was opened.
+  vi.mocked(getDraft).mockResolvedValueOnce(saved).mockResolvedValueOnce({ ...saved, version: 'v2', draft: { ...content, title: 'Newer title' } });
+  vi.mocked(deleteDraft).mockRejectedValueOnce(new DraftError(409, 'draft_version_conflict')).mockResolvedValueOnce(receipt);
+  render(<DraftEditor id={saved.id} {...props()} />);
+  await waitFor(() => expect(screen.getByLabelText('Title')).toBeEnabled());
+  fireEvent.click(screen.getByRole('button', { name: 'Delete draft' }));
+  fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Delete draft' }));
+  // THEN current content is reviewed without an automatic deletion retry.
+  await screen.findByRole('region', { name: 'Compare draft versions' });
+  expect(deleteDraft).toHaveBeenCalledTimes(1);
+  fireEvent.click(screen.getByRole('button', { name: 'Use saved version' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Delete draft' }));
+  expect(within(screen.getByRole('dialog')).getByText(/Newer title/)).toBeVisible();
+  // WHEN confirming again THEN a fresh request targets the reviewed version.
+  fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Delete draft' }));
+  await waitFor(() => expect(deleteDraft).toHaveBeenCalledTimes(2));
+  expect(vi.mocked(deleteDraft).mock.calls[1][1].expectedVersion).toBe('v2');
+  expect(vi.mocked(deleteDraft).mock.calls[1][1].requestId).not.toBe(vi.mocked(deleteDraft).mock.calls[0][1].requestId);
 });

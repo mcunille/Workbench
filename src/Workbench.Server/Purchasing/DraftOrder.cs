@@ -6,6 +6,7 @@ public sealed class DraftOrder : ITenantOwned
 {
     public Guid Id { get; init; }
     public Guid TenantId { get; set; }
+    public bool IsDeleted { get; init; }
     public string? Title { get; init; }
     public string? SupplierName { get; init; }
     public string? Currency { get; init; }

@@ -25,6 +25,7 @@ public sealed class BlobRecoveryTests(SqlServerFixture sqlServer)
     [InlineData("20260910071000_AddSharedAcquisitions")]
     [InlineData("20260911184933_AddAcquisitionDocuments")]
     [InlineData("20260912030844_AddDraftSupplierOrders")]
+    [InlineData("20260912033355_TightenDraftSourceLinkValidation")]
     public async Task PairedBackupRestoresContentAndMigrationPreservesIdentity(string priorSchema)
     {
         // GIVEN an offline installation with one retained attachment and dedicated maintenance authority.
@@ -109,7 +110,7 @@ public sealed class BlobRecoveryTests(SqlServerFixture sqlServer)
             }
             // GIVEN a compatible exact-pair manifest produced by a supported release.
             var priorManifest = JsonSerializer.Deserialize<BlobManifest>(await File.ReadAllTextAsync(manifestPath))!;
-            Assert.Equal("20260912033355_TightenDraftSourceLinkValidation", priorManifest.SchemaVersion);
+            Assert.Equal("20260912045432_AddDraftOrderDeletion", priorManifest.SchemaVersion);
             await File.WriteAllTextAsync(manifestPath, JsonSerializer.Serialize(priorManifest with { SchemaVersion = priorSchema }));
             // THEN verification blocks reopening until every referenced object is restored.
             await Assert.ThrowsAsync<FileNotFoundException>(() => StorageMaintenanceCommand.RunAsync("verify", maintenance, databaseName, options, CancellationToken.None));

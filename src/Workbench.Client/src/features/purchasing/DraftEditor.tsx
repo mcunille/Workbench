@@ -8,8 +8,10 @@ import './purchasing.css';
 import { ClearPricesDialog } from './ClearPricesDialog';
 import { formatReferencePrice } from './referencePrice';
 import { ReferencePriceField } from './ReferencePriceField';
+import { deleteDraft, type DeleteDraftRequest } from '../../api/purchaseOrders';
+import { DeleteDraftDialog } from './DeleteDraftDialog';
 
-type Mode = 'loading' | 'editing' | 'saving' | 'uncertain' | 'current-loading' | 'current-failed' | 'conflict-loading' | 'conflict-failed' | 'comparison' | 'blocked' | 'load-failed';
+type Mode = 'loading' | 'editing' | 'saving' | 'uncertain' | 'current-loading' | 'current-failed' | 'conflict-loading' | 'conflict-failed' | 'comparison' | 'blocked' | 'load-failed' | 'deleting' | 'delete-uncertain';
 type Submission = { id?: string; body: CreateDraftRequest | UpdateDraftRequest };
 interface Props {
   id?: string;
@@ -26,6 +28,8 @@ const optional = (text: string) => text === '' ? null : text;
 
 export function DraftEditor({ id: initialId, onDirtyChange, onAuthLost, onSaved, onCreated, onCancel }: Props) {
   const [clearingPrices, setClearingPrices] = useState(false);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const deletion = useRef<DeleteDraftRequest | undefined>(undefined);
   const [toolbarPinned, setToolbarPinned] = useState(false);
   const toolbarStart = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -78,7 +82,7 @@ export function DraftEditor({ id: initialId, onDirtyChange, onAuthLost, onSaved,
     return () => { alive.current = false; currentRead = false; };
   }, [onAuthLost]);
   const changed = JSON.stringify(draft) !== JSON.stringify(baseline?.draft ?? emptyDraft());
-  const uncertain = mode === 'uncertain' || mode === 'saving';
+  const uncertain = mode === 'uncertain' || mode === 'saving' || mode === 'deleting' || mode === 'delete-uncertain';
   const dirty = uncertain || mode === 'comparison' || mode.startsWith('conflict-') || ((mode === 'editing' || mode === 'blocked') && changed);
   useEffect(() => { onDirtyChange(dirty, uncertain); }, [dirty, uncertain, onDirtyChange]);
   useEffect(() => () => onDirtyChange(false, false), [onDirtyChange]);
@@ -92,7 +96,7 @@ export function DraftEditor({ id: initialId, onDirtyChange, onAuthLost, onSaved,
 
   function accessFailure(error: unknown) {
     if (error instanceof ApiError && (error.status === 401 || error.status === 403)) {
-      setDraft(emptyDraft()); submitted.current = undefined; confirmed.current = undefined; setCurrent(undefined); setBaseline(undefined);
+      setDraft(emptyDraft()); submitted.current = undefined; confirmed.current = undefined; deletion.current = undefined; setCurrent(undefined); setBaseline(undefined);
       setMode('blocked'); onDirtyChange(false, false); onAuthLost(); return true;
     }
     if (error instanceof ApiError && error.status === 404) { setMode('blocked'); setMessage('This draft is unavailable.'); return true; }
@@ -158,6 +162,32 @@ export function DraftEditor({ id: initialId, onDirtyChange, onAuthLost, onSaved,
     setBaseline({ ...current, draft: displayDraft(current.draft) }); if (!keepLocal) setDraft(displayDraft(current.draft));
     setSavedAt(current.updatedAtUtc); setCurrent(undefined); submitted.current = undefined; confirmed.current = undefined; setMode('editing');
   }
+  async function removeDraft() {
+    if (busy.current || !id || !baseline || (mode !== 'editing' && mode !== 'delete-uncertain')) return;
+    busy.current = true;
+    const request = deletion.current ?? { requestId: crypto.randomUUID(), expectedVersion: baseline.version };
+    deletion.current = request;
+    setConfirmingDelete(false); setMode('deleting'); setErrors({}); setMessage(''); onDirtyChange(true, true);
+    try {
+      await deleteDraft(id, request);
+      if (!alive.current) return;
+      deletion.current = undefined;
+      setDraft(emptyDraft()); setBaseline(undefined); setCurrent(undefined); setMode('blocked');
+      onDirtyChange(false, false); onSaved(); onCancel();
+    } catch (error) {
+      if (!alive.current || accessFailure(error)) return;
+      if (error instanceof DraftError && error.code === 'draft_version_conflict') {
+        deletion.current = undefined;
+        await loadCurrent('conflict', id);
+      } else if (error instanceof ApiError && error.status >= 400 && error.status < 500) {
+        deletion.current = undefined;
+        setMode(error instanceof DraftError && error.code === 'draft_request_conflict' ? 'blocked' : 'editing');
+        setMessage('The draft could not be deleted. Return to purchase orders and reopen it before trying again.');
+      } else {
+        setMode('delete-uncertain'); setMessage('We couldn’t confirm the deletion. Check and retry to find out whether it completed.');
+      }
+    } finally { busy.current = false; }
+  }
   function field(path: string, label: string, value: string | null, change: (value: string | null) => void, options: { multiline?: boolean; placeholder?: string; disabled?: boolean } = {}) {
     const controlId = fieldId(path);
     const error = errors[path]?.join(' ');
@@ -173,6 +203,8 @@ export function DraftEditor({ id: initialId, onDirtyChange, onAuthLost, onSaved,
 
   return (
     <section className="editor po-editor">
+      {confirmingDelete && baseline && !frozen ? <DeleteDraftDialog title={baseline.draft.title ?? 'Untitled draft'}
+        cancel={() => setConfirmingDelete(false)} confirm={() => void removeDraft()} /> : null}
       {clearingPrices && !frozen ? <ClearPricesDialog count={draft.entries.filter(entry => entry.indicativePrice !== null).length} cancel={() => setClearingPrices(false)} clear={() => {
         setDraft({ ...draft, entries: draft.entries.map(entry => ({ ...entry, indicativePrice: null })) });
         setClearingPrices(false);
@@ -193,6 +225,8 @@ export function DraftEditor({ id: initialId, onDirtyChange, onAuthLost, onSaved,
         <p className="po-save-status" role="status">{saveStatus}</p>
       </header>
       {message && !Object.keys(errors).length ? <p role="alert" className="form-message error">{message}</p> : null}
+      {mode === 'delete-uncertain' ? <button type="button" className="secondary" onClick={() => void removeDraft()}>Check and retry deletion</button> : null}
+      {mode === 'deleting' ? <p role="status">Deleting draft…</p> : null}
       {mode === 'current-failed' || mode === 'conflict-failed' || mode === 'load-failed' ? (
         <button className="secondary" onClick={() => void retryRead()}>Load current draft</button>
       ) : null}
@@ -313,6 +347,8 @@ export function DraftEditor({ id: initialId, onDirtyChange, onAuthLost, onSaved,
           </div>
         </section>
       </form>
+      {baseline ? <div className="button-row"><button type="button" className="quiet danger" disabled={frozen}
+        onClick={() => setConfirmingDelete(true)}>Delete draft</button></div> : null}
     </section>
   );
 }

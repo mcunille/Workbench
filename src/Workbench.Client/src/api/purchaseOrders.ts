@@ -35,3 +35,7 @@ export async function createDraft(body: CreateDraftRequest): Promise<SaveReceipt
 export async function updateDraft(id: string, body: UpdateDraftRequest): Promise<SaveReceipt> {
   return requireDraft(await api.PUT('/api/purchase-order-drafts/{id}', { params: { path: { id } }, body, headers: await mutationHeaders() }));
 }
+export type DeleteDraftRequest = components['schemas']['DeleteDraftOrderRequest'];
+export async function deleteDraft(id: string, body: DeleteDraftRequest): Promise<SaveReceipt> {
+  return requireDraft(await api.DELETE('/api/purchase-order-drafts/{id}', { params: { path: { id } }, body, headers: await mutationHeaders() }));
+}

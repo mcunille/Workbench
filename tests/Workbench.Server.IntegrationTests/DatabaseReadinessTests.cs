@@ -55,6 +55,7 @@ public sealed class DatabaseReadinessTests(SqlServerFixture sqlServer) : IAsyncL
     [Theory]
     [InlineData("REVOKE EXECUTE ON [Purchasing].[CreateDraftOrder] FROM [workbench_web]")]
     [InlineData("REVOKE EXECUTE ON [Purchasing].[UpdateDraftOrder] FROM [workbench_web]")]
+    [InlineData("REVOKE EXECUTE ON [Purchasing].[DeleteDraftOrder] FROM [workbench_web]")]
     [InlineData("REVOKE SELECT ON [Purchasing].[DraftOrders] FROM [workbench_web]")]
     [InlineData("REVOKE SELECT ON [Purchasing].[DraftOrderRequestReceipts] FROM [workbench_web]")]
     [InlineData("GRANT UPDATE ON [Purchasing].[DraftOrders] TO [workbench_web]")]
@@ -75,6 +76,7 @@ public sealed class DatabaseReadinessTests(SqlServerFixture sqlServer) : IAsyncL
     [InlineData("DeferInvitationIdentityClaim")]
     [InlineData("AddProviderRetryDelay")]
     [InlineData("AddAcquisitionDocuments")]
+    [InlineData("TightenDraftSourceLinkValidation")]
     public async Task PriorReleaseSchemaIsUnreadyUntilDeploymentMigrationIsApplied(string priorMigration)
     {
         // GIVEN a prior release schema lacks one of this release's required worker or identity capabilities.

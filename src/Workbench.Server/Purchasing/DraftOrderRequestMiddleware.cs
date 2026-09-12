@@ -19,7 +19,7 @@ public sealed class DraftOrderRequestMiddleware(RequestDelegate next)
     public async Task InvokeAsync(HttpContext context)
     {
         if (!context.Request.Path.StartsWithSegments("/api/purchase-order-drafts") ||
-            context.Request.Method is not ("POST" or "PUT")) { await next(context); return; }
+            context.Request.Method is not ("POST" or "PUT" or "DELETE")) { await next(context); return; }
         if (context.Request.ContentLength > MaximumBodyBytes) { await TooLarge(context); return; }
         // Bound chunked requests as well as Content-Length. Keep private bodies in memory only;
         // bind from the bounded buffer so framework JSON binding cannot read an unbounded stream.

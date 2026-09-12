@@ -295,6 +295,99 @@ public sealed class DraftOrderEndpointTests(SqlServerFixture sqlServer)
         }
     }
 
+    [Fact]
+    public async Task DeleteRemovesDraftFromReadsAndPagesAndReplaysItsOriginalReceipt()
+    {
+        // GIVEN a saved private shopping list and the version deliberately selected for deletion.
+        await using var application = await AuthTestApplication.CreateAsync(sqlServer);
+        using var client = application.CreateClient();
+        await LoginAsync(client);
+        var saved = await Create(client, Empty with { Title = "Remove this draft" });
+        var path = $"{Path}/{saved.DraftOrderId}";
+        var request = new { requestId = Guid.NewGuid(), expectedVersion = saved.SavedVersion };
+        // WHEN the owner deletes that saved version.
+        var deleted = await SendAsync(client, HttpMethod.Delete, path, request);
+        // THEN the receipt confirms a new version, and reads and listing no longer expose the draft.
+        Assert.Equal(HttpStatusCode.OK, deleted.StatusCode);
+        Assert.True(deleted.Headers.CacheControl?.NoStore);
+        var receipt = (await deleted.Content.ReadFromJsonAsync<SaveDraftOrderResponse>())!;
+        Assert.Equal(request.requestId, receipt.RequestId);
+        Assert.Equal(saved.DraftOrderId, receipt.DraftOrderId);
+        Assert.False(receipt.Replayed);
+        Assert.NotEqual(saved.SavedVersion, receipt.SavedVersion);
+        Assert.Equal("draft_not_found", await Code(await client.GetAsync(path), HttpStatusCode.NotFound));
+        Assert.Empty((await client.GetFromJsonAsync<DraftOrderPageResponse>(Path))!.Items);
+        var cursor = DraftOrderCursor.Encode(DateTimeOffset.Parse("2100-01-01T00:00:00+00:00"), Guid.NewGuid());
+        Assert.Empty((await client.GetFromJsonAsync<DraftOrderPageResponse>(Path + "?cursor=" + Uri.EscapeDataString(cursor)))!.Items);
+        // AND an uncertain original retry returns its stable receipt without another mutation.
+        var replay = await SendAsync(client, HttpMethod.Delete, path, request);
+        Assert.Equal(HttpStatusCode.OK, replay.StatusCode);
+        Assert.Equal(receipt with { Replayed = true }, await replay.Content.ReadFromJsonAsync<SaveDraftOrderResponse>());
+        Assert.Equal("draft_request_conflict", await Code(await SendAsync(client, HttpMethod.Delete, path,
+            new { request.requestId, expectedVersion = receipt.SavedVersion }), HttpStatusCode.Conflict));
+        Assert.Equal("draft_not_found", await Code(await SendAsync(client, HttpMethod.Delete, path,
+            new { requestId = Guid.NewGuid(), request.expectedVersion }), HttpStatusCode.NotFound));
+        Assert.Equal("draft_not_found", await Code(await SendAsync(client, HttpMethod.Put, path,
+            new UpdateDraftOrderRequest(Guid.NewGuid(), receipt.SavedVersion, Empty)), HttpStatusCode.NotFound));
+        // AND replaying an older creation receipt cannot recreate the deleted draft.
+        var creationReplay = await SendAsync(client, HttpMethod.Post, Path,
+            new CreateDraftOrderRequest(saved.RequestId, Empty with { Title = "Remove this draft" }));
+        Assert.Equal(HttpStatusCode.OK, creationReplay.StatusCode);
+        Assert.Equal(saved with { Replayed = true }, await creationReplay.Content.ReadFromJsonAsync<SaveDraftOrderResponse>());
+        Assert.Equal("draft_not_found", await Code(await client.GetAsync(path), HttpStatusCode.NotFound));
+        // AND receipt possession does not authorize a replay after the original actor loses access.
+        await using var admin = new SqlConnection(application.AdminConnectionString);
+        await admin.OpenAsync();
+        await using (var disable = new SqlCommand("UPDATE [Identity].[Users] SET State=2 WHERE Id=@id", admin))
+        {
+            disable.Parameters.AddWithValue("@id", AuthTestApplication.MemberUserId);
+            await disable.ExecuteNonQueryAsync();
+        }
+        var revoked = await SendAsync(client, HttpMethod.Delete, path, request);
+        Assert.Equal(HttpStatusCode.Unauthorized, revoked.StatusCode);
+        Assert.True(revoked.Headers.CacheControl?.NoStore);
+    }
+
+    [Fact]
+    public async Task DeleteProtectsCurrentVersionsAuthorityAndAntiforgery()
+    {
+        // GIVEN an anonymous browser and an owner whose saved draft was subsequently edited.
+        await using var application = await AuthTestApplication.CreateAsync(sqlServer);
+        using var owner = application.CreateClient();
+        var anonymous = await owner.SendAsync(new HttpRequestMessage(HttpMethod.Delete, $"{Path}/{Guid.NewGuid()}")
+        { Content = JsonContent.Create(new { requestId = Guid.NewGuid(), expectedVersion = Convert.ToBase64String(new byte[8]) }) });
+        Assert.Equal(HttpStatusCode.Unauthorized, anonymous.StatusCode);
+        Assert.True(anonymous.Headers.CacheControl?.NoStore);
+        await LoginAsync(owner);
+        var saved = await Create(owner, Empty);
+        var path = $"{Path}/{saved.DraftOrderId}";
+        var edit = await SendAsync(owner, HttpMethod.Put, path,
+            new UpdateDraftOrderRequest(Guid.NewGuid(), saved.SavedVersion, Empty with { Notes = "Keep newer work" }));
+        var current = (await edit.Content.ReadFromJsonAsync<SaveDraftOrderResponse>())!;
+        // WHEN stale, malformed or CSRF-invalid requests attempt deletion THEN newer work survives.
+        Assert.Equal("draft_version_conflict", await Code(await SendAsync(owner, HttpMethod.Delete, path,
+            new { requestId = Guid.NewGuid(), expectedVersion = saved.SavedVersion }), HttpStatusCode.Conflict));
+        Assert.Equal("draft_request_conflict", await Code(await SendAsync(owner, HttpMethod.Delete, path,
+            new { requestId = saved.RequestId, expectedVersion = current.SavedVersion }), HttpStatusCode.Conflict));
+        foreach (var invalid in new object[] {
+            new { requestId = Guid.Empty, expectedVersion = current.SavedVersion },
+            new { requestId = Guid.NewGuid(), expectedVersion = "AQ==" },
+            new { requestId = Guid.NewGuid(), expectedVersion = (string?)null },
+            new { requestId = Guid.NewGuid() },
+            new { requestId = Guid.NewGuid(), expectedVersion = current.SavedVersion, tenantId = Guid.NewGuid() },
+        }) Assert.Equal(HttpStatusCode.BadRequest, (await SendAsync(owner, HttpMethod.Delete, path, invalid)).StatusCode);
+        using (var withoutCsrf = new HttpRequestMessage(HttpMethod.Delete, path)
+        { Content = JsonContent.Create(new { requestId = Guid.NewGuid(), expectedVersion = current.SavedVersion }) })
+            Assert.Equal(HttpStatusCode.BadRequest, (await owner.SendAsync(withoutCsrf)).StatusCode);
+        using var other = application.CreateClient();
+        await LoginAsync(other, "other@example.com");
+        // AND a foreign or missing identifier is indistinguishable, even when its version is known.
+        foreach (var id in new[] { saved.DraftOrderId, Guid.NewGuid() })
+            Assert.Equal("draft_not_found", await Code(await SendAsync(other, HttpMethod.Delete, $"{Path}/{id}",
+                new { requestId = Guid.NewGuid(), expectedVersion = current.SavedVersion }), HttpStatusCode.NotFound));
+        Assert.Equal("Keep newer work", (await owner.GetFromJsonAsync<DraftOrderResponse>(path))!.Draft.Notes);
+    }
+
     private static async Task<SaveDraftOrderResponse> Create(HttpClient client, DraftContent draft)
     {
         var response = await SendAsync(client, HttpMethod.Post, Path, new CreateDraftOrderRequest(Guid.NewGuid(), draft));

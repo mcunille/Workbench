@@ -7,7 +7,7 @@ using Workbench.Server.Tenancy;
 namespace Workbench.Server.IntegrationTests;
 
 [Collection(SqlServerCollection.Name)]
-public sealed class DraftOrderDatabaseTests(SqlServerFixture sqlServer)
+public sealed partial class DraftOrderDatabaseTests(SqlServerFixture sqlServer)
 {
     [Fact]
     public async Task ForwardValidationCorrectionPreservesSavedDraftAndRetryReceipt()
@@ -22,7 +22,7 @@ public sealed class DraftOrderDatabaseTests(SqlServerFixture sqlServer)
         async Task<string> Snapshot()
         {
             await using var read = new SqlCommand("""
-                SELECT (SELECT * FROM Purchasing.DraftOrders ORDER BY Id FOR JSON PATH) Drafts,
+                SELECT (SELECT Id,TenantId,Title,SupplierName,Currency,Notes,ContentSchemaVersion,ContentJson,CreatedAtUtc,UpdatedAtUtc,CreatedByUserId,UpdatedByUserId,RowVersion FROM Purchasing.DraftOrders ORDER BY Id FOR JSON PATH) Drafts,
                     (SELECT * FROM Purchasing.DraftOrderRequestReceipts ORDER BY RequestId FOR JSON PATH) Receipts
                 FOR JSON PATH,WITHOUT_ARRAY_WRAPPER
                 """, connection);
@@ -110,7 +110,7 @@ public sealed class DraftOrderDatabaseTests(SqlServerFixture sqlServer)
         await using var worker = new SqlConnection(await database.CreateRoleUserAsync("workbench_worker"));
         await worker.OpenAsync();
         // WHEN worker code attempts to read purchasing data or call its public commands THEN SQL denies access.
-        foreach (var statement in new[] { "SELECT COUNT(*) FROM Purchasing.DraftOrders", "SELECT COUNT(*) FROM Purchasing.DraftOrderRequestReceipts", "EXEC Purchasing.CreateDraftOrder", "EXEC Purchasing.UpdateDraftOrder", "EXEC Purchasing.SaveDraftOrder" })
+        foreach (var statement in new[] { "SELECT COUNT(*) FROM Purchasing.DraftOrders", "SELECT COUNT(*) FROM Purchasing.DraftOrderRequestReceipts", "EXEC Purchasing.CreateDraftOrder", "EXEC Purchasing.UpdateDraftOrder", "EXEC Purchasing.DeleteDraftOrder", "EXEC Purchasing.SaveDraftOrder" })
         {
             await using var denied = new SqlCommand(statement, worker);
             Assert.Equal(229, (await Assert.ThrowsAsync<SqlException>(() => denied.ExecuteNonQueryAsync())).Number);

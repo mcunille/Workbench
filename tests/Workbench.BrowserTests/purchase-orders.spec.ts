@@ -185,6 +185,8 @@ test('reference prices shift cents by default and retain opt-in extra precision 
   await expect(price).toHaveValue('');
   await expect(price).toBeVisible();
   await expect(price).toBeFocused();
+  await page.getByLabel('Description 1', { exact: true }).click();
+  await expect.poll(() => price.evaluate(el => el.parentElement!.querySelector('label')!.getBoundingClientRect().top - el.getBoundingClientRect().top)).toBeGreaterThan(5);
   await price.pressSequentially('5');
   await expect(price).toHaveValue('0.05');
   await price.press('ControlOrMeta+a'); await price.press('Delete');
@@ -196,4 +198,32 @@ test('reference prices shift cents by default and retain opt-in extra precision 
   await page.reload();
   await expect(price).toHaveValue('0.0123');
   await expect(page.getByRole('checkbox', { name: 'Use extra precision for entry 1' })).toBeChecked();
+});
+
+test('deleting a saved draft requires confirmation and removes it from the list', async ({ page }) => {
+  // GIVEN a persisted draft in the disposable browser-test database.
+  await signIn(page);
+  const title = `Delete sample ${Date.now()}`;
+  await startDraft(page, title);
+  await save(page);
+  const path = new URL(page.url()).pathname;
+  // WHEN deletion is cancelled THEN the draft and editor remain available.
+  await page.getByRole('button', { name: 'Delete draft', exact: true }).click();
+  const dialog = page.getByRole('dialog', { name: 'Delete draft?' });
+  await expect(dialog).toContainText(title);
+  await expect(dialog.getByRole('button', { name: 'Cancel', exact: true })).toBeFocused();
+  await page.keyboard.press('Escape');
+  await expect(dialog).toHaveCount(0);
+  await expect(page.getByLabel('Title', { exact: true })).toHaveValue(title);
+  // WHEN explicitly confirming THEN navigation returns to the list without the deleted draft.
+  await page.getByRole('button', { name: 'Delete draft', exact: true }).click();
+  const deleted = page.waitForResponse(response => response.request().method() === 'DELETE' && response.url().includes('/api/purchase-order-drafts/'));
+  await dialog.getByRole('button', { name: 'Delete draft', exact: true }).click();
+  expect((await deleted).status()).toBe(200);
+  await expect(page).toHaveURL(/\/purchase-orders$/);
+  await expect(page.getByRole('heading', { name: 'Purchase orders', exact: true })).toBeVisible();
+  await expect(page.getByRole('link').filter({ hasText: title })).toHaveCount(0);
+  // AND reopening the old URL cannot expose the deleted content.
+  await page.goto(path);
+  await expect(page.getByText('This draft is unavailable.', { exact: true })).toBeVisible();
 });

@@ -14,7 +14,7 @@ public sealed record BlobManifest(int Version, string SchemaVersion, Guid Backup
 // exposes this authority. Stop every replica and worker before invoking it.
 public static class StorageMaintenanceCommand
 {
-    private const string SchemaVersion = "20260912033355_TightenDraftSourceLinkValidation";
+    private const string SchemaVersion = "20260912045432_AddDraftOrderDeletion";
     public static async Task RunAsync(string action, string connectionString, string database,
         IReadOnlyDictionary<string, string> arguments, CancellationToken cancellationToken)
     {
@@ -65,7 +65,7 @@ public static class StorageMaintenanceCommand
             await using var input = File.OpenRead(Required("--manifest-file"));
             var manifest = await JsonSerializer.DeserializeAsync<BlobManifest>(input, cancellationToken: cancellationToken)
                 ?? throw new InvalidDataException("A valid blob manifest is required.");
-            if (manifest.Version != 1 || manifest.SchemaVersion is not (SchemaVersion or "20260912030844_AddDraftSupplierOrders" or "20260911184933_AddAcquisitionDocuments" or "20260910071000_AddSharedAcquisitions" or "20260909034719_AddAcquisitionContext" or "20260908010000_AddItemRestoration" or "20260907225320_AddOnlineRecovery" or "20260907224158_AddItemArchiving" or "20260907194500_AddItemDetailEditing") || manifest.Database != database || manifest.InstallationId != installation ||
+            if (manifest.Version != 1 || manifest.SchemaVersion is not (SchemaVersion or "20260912033355_TightenDraftSourceLinkValidation" or "20260912030844_AddDraftSupplierOrders" or "20260911184933_AddAcquisitionDocuments" or "20260910071000_AddSharedAcquisitions" or "20260909034719_AddAcquisitionContext" or "20260908010000_AddItemRestoration" or "20260907225320_AddOnlineRecovery" or "20260907224158_AddItemArchiving" or "20260907194500_AddItemDetailEditing") || manifest.Database != database || manifest.InstallationId != installation ||
                 manifest.Entries.Count != entries.Count || !entries.SequenceEqual(manifest.Entries))
             {
                 throw new InvalidDataException("The manifest does not match the restored database.");
