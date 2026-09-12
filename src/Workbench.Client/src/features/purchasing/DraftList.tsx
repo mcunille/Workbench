@@ -54,19 +54,21 @@ export function DraftList({ memory, follow, onAuthLost }: Props) {
         <div><h1>Purchase orders</h1><p className="lede">Plan a purchase and pick it up later.</p></div>
         <div className="po-page-actions"><a className="quiet button" href="/suppliers" onClick={follow}>Manage suppliers</a><a className="primary button" href="/purchase-orders/new" onClick={follow}><Icon name="plus" />New draft</a></div>
       </header>
-      <form className="po-search" onSubmit={event => { event.preventDefault(); void load(true, query.trim()); }}>
+      <form className="po-search po-draft-search" onSubmit={event => { event.preventDefault(); void load(true, query.trim()); }}>
         <div className="po-search-controls"><FloatingField htmlFor="po-search" label="Search purchase orders"><input id="po-search" type="search" maxLength={200} value={query} onChange={event => {
           const value = event.target.value; setQuery(value); clearTimeout(searchTimer.current);
           ++sequence.current; inFlight.current = 'refresh'; setPending('refresh'); setMessage('');
           searchTimer.current = setTimeout(() => void load(true, value.trim()), 300);
         }} placeholder="Reference, supplier or title" /></FloatingField>
-        <button className="quiet po-search-refresh" type="button" onClick={() => void load(true, query.trim())}>Refresh</button>
-        {query || memory.query ? <button type="button" className="quiet po-search-clear" onClick={() => { setQuery(''); void load(true, ''); }}>Clear search</button> : null}</div>
+        <button className="quiet po-search-refresh" type="button" onClick={() => void load(true, query.trim())}>Refresh</button></div>
       </form>
-      <div className="po-list-toolbar">
-        <p className="po-list-caption">{memory.query ? 'Matching draft orders' : 'Draft orders'}</p>
+      <div className="po-list-toolbar po-draft-results-toolbar">
+        <div className="po-draft-result-context">
+          <p className="po-list-caption">{memory.query ? 'Matching draft orders' : 'Draft orders'}</p>
+          <div className="po-draft-progress">{pending ? <p role="status">Loading drafts…</p> : null}</div>
+        </div>
+        <button type="button" className={`quiet po-draft-clear${query || memory.query ? '' : ' is-unavailable'}`} disabled={!query && !memory.query} aria-hidden={!query && !memory.query} onClick={() => { setQuery(''); void load(true, ''); }}>Clear search</button>
       </div>
-      {pending ? <p role="status" className="po-feedback">Loading drafts…</p> : null}
       {message ? <p role="alert" className="po-feedback po-error">{message}</p> : null}
       {page?.items.length === 0 ? (
         <div className="po-empty-state">
