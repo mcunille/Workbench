@@ -1,13 +1,13 @@
 import createClient from 'openapi-fetch';
 import type { components, paths } from './generated';
 import { ApiError, mutationHeaders } from './auth';
-export type DraftContent = components['schemas']['DraftContent'];
+export type DraftContent = components['schemas']['DraftContentV2'];
 export type DraftEntry = components['schemas']['DraftEntry'];
-export type DraftOrder = components['schemas']['DraftOrderResponse'];
-export type DraftPage = components['schemas']['DraftOrderPageResponse'];
+export type DraftOrder = components['schemas']['DraftOrderResponseV2'];
+export type DraftPage = components['schemas']['DraftOrderPageResponseV2'];
 export type SaveReceipt = components['schemas']['SaveDraftOrderResponse'];
-export type CreateDraftRequest = components['schemas']['CreateDraftOrderRequest'];
-export type UpdateDraftRequest = components['schemas']['UpdateDraftOrderRequest'];
+export type CreateDraftRequest = components['schemas']['CreateDraftOrderRequestV2'];
+export type UpdateDraftRequest = components['schemas']['UpdateDraftOrderRequestV2'];
 export class DraftError extends ApiError {
   constructor(status: number, public readonly code?: string, public readonly errors: Record<string, string[]> = {}) { super(status); }
 }
@@ -23,19 +23,19 @@ function requireDraft<T>({ response, data, error }: { response: Response; data?:
   }
   return data;
 }
-export async function getDrafts(cursor?: string): Promise<DraftPage> {
-  return requireDraft(await api.GET('/api/purchase-order-drafts', { params: { query: { cursor } } }));
+export async function getDrafts(cursor?: string, query?: string): Promise<DraftPage> {
+  return requireDraft(await api.GET('/api/v2/purchase-order-drafts', { params: { query: { cursor, query } } }));
 }
 export async function getDraft(id: string): Promise<DraftOrder> {
-  return requireDraft(await api.GET('/api/purchase-order-drafts/{id}', { params: { path: { id } } }));
+  return requireDraft(await api.GET('/api/v2/purchase-order-drafts/{id}', { params: { path: { id } } }));
 }
 export async function createDraft(body: CreateDraftRequest): Promise<SaveReceipt> {
-  return requireDraft(await api.POST('/api/purchase-order-drafts', { body, headers: await mutationHeaders() }));
+  return requireDraft(await api.POST('/api/v2/purchase-order-drafts', { body, headers: await mutationHeaders() }));
 }
 export async function updateDraft(id: string, body: UpdateDraftRequest): Promise<SaveReceipt> {
-  return requireDraft(await api.PUT('/api/purchase-order-drafts/{id}', { params: { path: { id } }, body, headers: await mutationHeaders() }));
+  return requireDraft(await api.PUT('/api/v2/purchase-order-drafts/{id}', { params: { path: { id } }, body, headers: await mutationHeaders() }));
 }
 export type DeleteDraftRequest = components['schemas']['DeleteDraftOrderRequest'];
 export async function deleteDraft(id: string, body: DeleteDraftRequest): Promise<SaveReceipt> {
-  return requireDraft(await api.DELETE('/api/purchase-order-drafts/{id}', { params: { path: { id } }, body, headers: await mutationHeaders() }));
+  return requireDraft(await api.DELETE('/api/v2/purchase-order-drafts/{id}', { params: { path: { id } }, body, headers: await mutationHeaders() }));
 }

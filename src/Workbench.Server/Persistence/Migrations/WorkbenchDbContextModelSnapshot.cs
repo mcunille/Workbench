@@ -1057,15 +1057,49 @@ namespace Workbench.Server.Persistence.Migrations
                     b.Property<string>("Notes")
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<string>("Platform")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<long?>("PoNumber")
+                        .HasColumnType("bigint");
+
                     b.Property<byte[]>("RowVersion")
                         .IsConcurrencyToken()
                         .IsRequired()
                         .ValueGeneratedOnAddOrUpdate()
                         .HasColumnType("rowversion");
 
+                    b.Property<string>("SupplierContactName")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("SupplierEmail")
+                        .HasMaxLength(254)
+                        .HasColumnType("nvarchar(254)");
+
+                    b.Property<Guid?>("SupplierId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<string>("SupplierName")
                         .HasMaxLength(200)
                         .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("SupplierOrderReference")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("SupplierPhone")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("SupplierPostalAddress")
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
+
+                    b.Property<string>("SupplierWebsite")
+                        .HasMaxLength(2048)
+                        .HasColumnType("nvarchar(2048)");
 
                     b.Property<Guid>("TenantId")
                         .HasColumnType("uniqueidentifier");
@@ -1084,6 +1118,12 @@ namespace Workbench.Server.Persistence.Migrations
 
                     b.HasIndex("TenantId", "CreatedByUserId");
 
+                    b.HasIndex("TenantId", "PoNumber")
+                        .IsUnique()
+                        .HasFilter("[PoNumber] IS NOT NULL");
+
+                    b.HasIndex("TenantId", "SupplierId");
+
                     b.HasIndex("TenantId", "UpdatedByUserId");
 
                     b.HasIndex("TenantId", "UpdatedAtUtc", "Id")
@@ -1097,7 +1137,7 @@ namespace Workbench.Server.Persistence.Migrations
 
                             t.HasCheckConstraint("CK_DraftOrders_Currency", "[Currency] IS NULL OR (DATALENGTH([Currency])=3 AND [Currency] COLLATE Latin1_General_100_BIN2 NOT LIKE '%[^A-Z]%')");
 
-                            t.HasCheckConstraint("CK_DraftOrders_DeletedContent", "[IsDeleted]=0 OR ([Title] IS NULL AND [SupplierName] IS NULL AND [Currency] IS NULL AND [Notes] IS NULL AND CONVERT(varbinary(max),[ContentJson])=CONVERT(varbinary(max),N'{\"sourceLinks\":[],\"entries\":[]}'))");
+                            t.HasCheckConstraint("CK_DraftOrders_DeletedContent", "[IsDeleted]=0 OR ([SupplierId] IS NULL AND [SupplierContactName] IS NULL AND [SupplierEmail] IS NULL AND [SupplierPhone] IS NULL AND [SupplierWebsite] IS NULL AND [SupplierPostalAddress] IS NULL AND [SupplierOrderReference] IS NULL AND [Platform] IS NULL AND [Title] IS NULL AND [SupplierName] IS NULL AND [Currency] IS NULL AND [Notes] IS NULL AND CONVERT(varbinary(max),[ContentJson])=CONVERT(varbinary(max),N'{\"sourceLinks\":[],\"entries\":[]}'))");
 
                             t.HasCheckConstraint("CK_DraftOrders_Id", "[Id]<>'00000000-0000-0000-0000-000000000000'");
 
@@ -1154,11 +1194,149 @@ namespace Workbench.Server.Persistence.Migrations
                         {
                             t.HasCheckConstraint("CK_DraftOrderRequestReceipts_Completed", "DATEPART(TZOFFSET,[CompletedAtUtc])=0");
 
-                            t.HasCheckConstraint("CK_DraftOrderRequestReceipts_Fingerprint", "[FingerprintVersion]=1");
+                            t.HasCheckConstraint("CK_DraftOrderRequestReceipts_Fingerprint", "[FingerprintVersion] IN (1,2)");
 
                             t.HasCheckConstraint("CK_DraftOrderRequestReceipts_Operation", "([Operation] COLLATE Latin1_General_100_BIN2='Create' AND [ExpectedRowVersion] IS NULL) OR ([Operation] COLLATE Latin1_General_100_BIN2 IN ('Update','Delete') AND [ExpectedRowVersion] IS NOT NULL)");
 
                             t.HasCheckConstraint("CK_DraftOrderRequestReceipts_RequestId", "[RequestId]<>'00000000-0000-0000-0000-000000000000'");
+                        });
+                });
+
+            modelBuilder.Entity("Workbench.Server.Purchasing.PurchaseOrderCounter", b =>
+                {
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<long>("LastNumber")
+                        .HasColumnType("bigint");
+
+                    b.HasKey("TenantId");
+
+                    b.ToTable("PurchaseOrderCounters", "Purchasing", t =>
+                        {
+                            t.HasCheckConstraint("CK_PurchaseOrderCounters_Number", "[LastNumber]>=1");
+                        });
+                });
+
+            modelBuilder.Entity("Workbench.Server.Purchasing.Supplier", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("ContactName")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid>("CreatedByUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Email")
+                        .HasMaxLength(254)
+                        .HasColumnType("nvarchar(254)");
+
+                    b.Property<bool>("IsArchived")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("Phone")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("PostalAddress")
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset>("UpdatedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid>("UpdatedByUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Website")
+                        .HasMaxLength(2048)
+                        .HasColumnType("nvarchar(2048)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TenantId", "CreatedByUserId");
+
+                    b.HasIndex("TenantId", "UpdatedByUserId");
+
+                    b.HasIndex("TenantId", "UpdatedAtUtc", "Id")
+                        .IsDescending(false, true, true);
+
+                    b.ToTable("Suppliers", "Purchasing", t =>
+                        {
+                            t.HasCheckConstraint("CK_Suppliers_Id", "[Id]<>'00000000-0000-0000-0000-000000000000'");
+
+                            t.HasCheckConstraint("CK_Suppliers_Timestamps", "[UpdatedAtUtc]>=[CreatedAtUtc] AND DATEPART(TZOFFSET,[CreatedAtUtc])=0 AND DATEPART(TZOFFSET,[UpdatedAtUtc])=0");
+                        });
+                });
+
+            modelBuilder.Entity("Workbench.Server.Purchasing.SupplierRequestReceipt", b =>
+                {
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("RequestId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("ActorUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset>("CompletedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<byte[]>("ExpectedRowVersion")
+                        .HasColumnType("binary(8)");
+
+                    b.Property<byte[]>("InputFingerprint")
+                        .IsRequired()
+                        .HasColumnType("binary(32)");
+
+                    b.Property<string>("Operation")
+                        .IsRequired()
+                        .HasMaxLength(7)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(7)");
+
+                    b.Property<byte[]>("ResultRowVersion")
+                        .IsRequired()
+                        .HasColumnType("binary(8)");
+
+                    b.Property<Guid>("SupplierId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("TenantId", "RequestId");
+
+                    b.HasIndex("TenantId", "ActorUserId");
+
+                    b.HasIndex("TenantId", "SupplierId");
+
+                    b.ToTable("SupplierRequestReceipts", "Purchasing", t =>
+                        {
+                            t.HasCheckConstraint("CK_SupplierRequestReceipts_Completed", "DATEPART(TZOFFSET,[CompletedAtUtc])=0");
+
+                            t.HasCheckConstraint("CK_SupplierRequestReceipts_Operation", "([Operation] COLLATE Latin1_General_100_BIN2='Create' AND [ExpectedRowVersion] IS NULL) OR ([Operation] COLLATE Latin1_General_100_BIN2 IN ('Update','Archive') AND [ExpectedRowVersion] IS NOT NULL)");
+
+                            t.HasCheckConstraint("CK_SupplierRequestReceipts_RequestId", "[RequestId]<>'00000000-0000-0000-0000-000000000000'");
                         });
                 });
 
@@ -1739,6 +1917,12 @@ namespace Workbench.Server.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
+                    b.HasOne("Workbench.Server.Purchasing.Supplier", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId", "SupplierId")
+                        .HasPrincipalKey("TenantId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("Workbench.Server.Identity.WorkbenchUser", null)
                         .WithMany()
                         .HasForeignKey("TenantId", "UpdatedByUserId")
@@ -1759,6 +1943,55 @@ namespace Workbench.Server.Persistence.Migrations
                     b.HasOne("Workbench.Server.Purchasing.DraftOrder", null)
                         .WithMany()
                         .HasForeignKey("TenantId", "DraftOrderId")
+                        .HasPrincipalKey("TenantId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Workbench.Server.Purchasing.PurchaseOrderCounter", b =>
+                {
+                    b.HasOne("Workbench.Server.Tenancy.Tenant", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Workbench.Server.Purchasing.Supplier", b =>
+                {
+                    b.HasOne("Workbench.Server.Tenancy.Tenant", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Workbench.Server.Identity.WorkbenchUser", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId", "CreatedByUserId")
+                        .HasPrincipalKey("TenantId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Workbench.Server.Identity.WorkbenchUser", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId", "UpdatedByUserId")
+                        .HasPrincipalKey("TenantId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Workbench.Server.Purchasing.SupplierRequestReceipt", b =>
+                {
+                    b.HasOne("Workbench.Server.Identity.WorkbenchUser", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId", "ActorUserId")
+                        .HasPrincipalKey("TenantId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Workbench.Server.Purchasing.Supplier", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId", "SupplierId")
                         .HasPrincipalKey("TenantId", "Id")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();

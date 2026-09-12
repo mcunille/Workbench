@@ -9,6 +9,15 @@ public sealed class DraftOrder : ITenantOwned
     public bool IsDeleted { get; init; }
     public string? Title { get; init; }
     public string? SupplierName { get; init; }
+    public long? PoNumber { get; init; }
+    public Guid? SupplierId { get; init; }
+    public string? SupplierContactName { get; init; }
+    public string? SupplierEmail { get; init; }
+    public string? SupplierPhone { get; init; }
+    public string? SupplierWebsite { get; init; }
+    public string? SupplierPostalAddress { get; init; }
+    public string? SupplierOrderReference { get; init; }
+    public string? Platform { get; init; }
     public string? Currency { get; init; }
     public string? Notes { get; init; }
     public short ContentSchemaVersion { get; init; } = 1;

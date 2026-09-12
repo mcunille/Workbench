@@ -11,7 +11,7 @@ public sealed partial class DraftOrderDatabaseTests
     public async Task DeleteClearsDraftContentAndReplaysWithoutResurrectingIt()
     {
         // GIVEN a saved shopping list containing private business fields.
-        await using var database = await sqlServer.CreateMigratedDatabaseAsync("AddDraftSupplierOrders");
+        await using var database = await sqlServer.CreateMigratedDatabaseAsync();
         var tenant = Guid.NewGuid(); var actor = Guid.NewGuid(); var createRequest = Guid.NewGuid();
         await database.SeedTenantAuditRowsAsync(tenant, Guid.NewGuid()); await SeedActor(database, tenant, actor);
         await using var connection = await Open(database, await database.CreateWebUserAsync(), tenant);
@@ -24,6 +24,14 @@ public sealed partial class DraftOrderDatabaseTests
             {
                 title = "Cart",
                 supplierName = "Supplier",
+                supplierId = (Guid?)null,
+                supplierContactName = (string?)null,
+                supplierEmail = (string?)null,
+                supplierPhone = (string?)null,
+                supplierWebsite = (string?)null,
+                supplierPostalAddress = (string?)null,
+                supplierOrderReference = (string?)null,
+                platform = (string?)null,
                 currency = "USD",
                 notes = "Private notes",
                 sourceLinks = new[] { "https://supplier.example/cart" },
