@@ -25,6 +25,17 @@ const optional = (text: string) => text === '' ? null : text;
 
 export function DraftEditor({ id: initialId, onDirtyChange, onAuthLost, onSaved, onCreated, onCancel }: Props) {
   const [clearingPrices, setClearingPrices] = useState(false);
+  const [toolbarPinned, setToolbarPinned] = useState(false);
+  const toolbarStart = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const marker = toolbarStart.current;
+    if (!marker || typeof IntersectionObserver === 'undefined') return;
+    const observer = new IntersectionObserver(([entry]) => {
+      setToolbarPinned(!entry.isIntersecting && entry.boundingClientRect.top < 0);
+    });
+    observer.observe(marker);
+    return () => observer.disconnect();
+  }, []);
   const [id, setId] = useState(initialId);
   const [draft, setDraft] = useState(emptyDraft);
   const [baseline, setBaseline] = useState<DraftOrder>();
@@ -155,7 +166,8 @@ export function DraftEditor({ id: initialId, onDirtyChange, onAuthLost, onSaved,
         setDraft({ ...draft, entries: draft.entries.map(entry => ({ ...entry, indicativePrice: null })) });
         setClearingPrices(false);
       }} /> : null}
-      <div className="po-editor-toolbar">
+      <div ref={toolbarStart} className="po-toolbar-start" aria-hidden="true" />
+      <div className={`po-editor-toolbar${toolbarPinned ? ' is-pinned' : ''}`}>
         <button type="button" className="quiet po-back" onClick={onCancel}>
           <Icon name="back" />Back to purchase orders
         </button>
@@ -166,7 +178,6 @@ export function DraftEditor({ id: initialId, onDirtyChange, onAuthLost, onSaved,
       <header className="po-editor-header">
         <div className="po-heading">
           <h1 className="po-accessible-heading">{id ? 'Edit draft' : 'New draft'}</h1>
-          <span className="po-badge">Draft</span>
         </div>
         <p className="po-save-status" role="status">{saveStatus}</p>
       </header>
@@ -205,6 +216,7 @@ export function DraftEditor({ id: initialId, onDirtyChange, onAuthLost, onSaved,
         <section className="po-form-section" aria-labelledby="po-details-heading">
           <div className="po-section-heading">
             <div><h2 id="po-details-heading">Order details</h2><p>A working title and supplier are enough to get started. Both are optional.</p></div>
+            <span className="po-badge">Draft</span>
           </div>
           <div className="po-header-fields">
             {field('draft.title', 'Title', draft.title, title => setDraft({ ...draft, title }))}

@@ -61,6 +61,14 @@ test('incomplete shopping list survives reload and another session with unknown 
     await expect(other.getByLabel('Title', { exact: true })).toHaveValue(title);
   } finally { await otherContext.close(); }
 
+  // WHEN the toolbar pins over content THEN it gains an opaque background and clears again at the top.
+  const toolbar = page.locator('.po-editor-toolbar');
+  await expect(toolbar).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
+  await page.evaluate(() => window.scrollTo(0, 500));
+  await expect(toolbar).not.toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
+  await page.evaluate(() => window.scrollTo(0, 0));
+  await expect(toolbar).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
+
   // AND the editor stays usable at a phone width in both appearances.
   await page.setViewportSize({ width: 390, height: 844 });
   for (const dark of [false, true]) {
