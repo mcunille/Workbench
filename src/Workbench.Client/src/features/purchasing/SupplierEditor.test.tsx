@@ -8,6 +8,15 @@ const saved = { id: 'one', supplier, version: 'v1', isArchived: false, createdAt
 const receipt = { requestId: 'request', replayed: false, supplierId: 'one', savedVersion: 'v1', completedAtUtc: saved.updatedAtUtc };
 const props = () => ({ onDirtyChange: vi.fn(), onAuthLost: vi.fn(), onCancel: vi.fn(), onCreated: vi.fn(), onSelected: vi.fn() });
 beforeEach(() => { vi.clearAllMocks(); Object.defineProperty(HTMLDialogElement.prototype, 'showModal', { configurable: true, value(this: HTMLDialogElement) { this.setAttribute('open', ''); } }); });
+it('keeps inline cancel beside save without submitting supplier details', () => {
+  // GIVEN the supplier form inside an order dialog.
+  const callbacks = props(); render(<SupplierEditor inline {...callbacks} />);
+  fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'Unsaved supplier' } });
+  // WHEN cancelling through the form footer THEN the parent handles discard protection and no save occurs.
+  fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+  expect(callbacks.onCancel).toHaveBeenCalledOnce();
+  expect(createSupplier).not.toHaveBeenCalled();
+});
 it('freezes an uncertain independent save and selects only after a current GET confirms its receipt', async () => {
   // GIVEN creation loses its response and the independent supplier form has local contact details.
   vi.mocked(createSupplier).mockRejectedValueOnce(new TypeError('Network')).mockResolvedValueOnce(receipt);

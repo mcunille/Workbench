@@ -41,7 +41,7 @@ automatically converted or linked to a supplier.
 | Finding an order | Search saved drafts by Workbench reference, supplier order reference, supplier snapshot name or draft title. Broader PO-12 filtering remains deferred. |
 
 Assigning a reference does not mean an order was placed. Display **Draft** beside it. Before the
-first save, show “Assigned when saved.” Use at least six digits, expanding rather than truncating
+first save, show “New purchase order” with one Draft indicator. Use at least six digits, expanding rather than truncating
 when the number grows. References are unique within a business, not globally; URLs continue using
 the existing UUID. No custom prefixes, editable numbering or gapless accounting sequence is promised.
 Deleting a draft retires its reference permanently.
@@ -101,6 +101,11 @@ Editing the directory changes only future selections. Do not silently refresh ev
 draft. **Use current supplier details** previews old and new values and replaces the local snapshot
 only after confirmation; saving remains explicit. A failed load leaves the previous snapshot intact.
 
+Initial selection with no supplier link or contact details uses a compact **Use supplier?**
+confirmation showing populated details. Existing details use a comparison of changed fields,
+including values that will be cleared. An unchanged refresh shows one populated summary.
+Any existing supplier order reference still requires an explicit keep/clear choice when identity changes.
+
 Changing supplier or switching to one-off entry must explain whether existing local details will be
 replaced or retained. **Keep details as one-off** clears only the supplier link. Never silently carry
 the previous supplier's order reference to a different supplier: prompt to keep or clear it.
@@ -120,6 +125,13 @@ The draft header shows Workbench reference and Draft status. A Supplier section 
 selection or one-off entry, Platform, optional contact fields, and Supplier order reference. Optional fields
 can expand progressively. Preserve PO-01's grouped editor, explicit save, error summary, comparison,
 unsaved-navigation protection, mobile stacking, keyboard operation and light/dark appearance.
+
+The owner approved UI refinement after the 2026-09-12 audit against `DESIGN.md`: use a visible
+order heading and one Draft badge, concise guidance, and **Supplier options** for linked-supplier
+refresh/unlink actions. Group supplier navigation with page actions and search/refresh together.
+Use shared floating fields, 44px action targets, an aligned archive checkbox, and one dialog surface
+with a common Cancel/Save footer for inline supplier creation. These changes preserve explicit saves,
+snapshot independence, and all existing recovery and authorization behavior.
 
 Inline **New supplier** saves a directory record independently, then selects it locally. Explain
 that saving the supplier does not save the order. If order saving fails or the user discards the

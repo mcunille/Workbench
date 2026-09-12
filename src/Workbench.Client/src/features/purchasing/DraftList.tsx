@@ -3,6 +3,7 @@ import { ApiError } from '../../api/auth';
 import { getDrafts, DraftError, type DraftPage } from '../../api/purchaseOrders';
 import { DraftMemory } from './draftMemory';
 import { Icon } from '../../Icon';
+import { FloatingField } from '../../FloatingField';
 import './purchasing.css';
 interface Props { memory: DraftMemory; follow(event: MouseEvent<HTMLAnchorElement>): void; onAuthLost(): void; }
 export function DraftList({ memory, follow, onAuthLost }: Props) {
@@ -49,17 +50,16 @@ export function DraftList({ memory, follow, onAuthLost }: Props) {
     <section className="po-list">
       <header className="po-page-heading">
         <div><h1>Purchase orders</h1><p className="lede">Plan a purchase and pick it up later.</p></div>
-        <a className="primary button" href="/purchase-orders/new" onClick={follow}><Icon name="plus" />New draft</a>
+        <div className="po-page-actions"><a className="quiet button" href="/suppliers" onClick={follow}>Manage suppliers</a><a className="primary button" href="/purchase-orders/new" onClick={follow}><Icon name="plus" />New draft</a></div>
       </header>
       <form className="po-search" onSubmit={event => { event.preventDefault(); void load(true, query.trim()); }}>
-        <label htmlFor="po-search">Search purchase orders</label>
-        <div className="button-row"><input id="po-search" type="search" maxLength={200} value={query} onChange={event => setQuery(event.target.value)} placeholder="PO reference, supplier reference, name or title" />
+        <div className="po-search-controls"><FloatingField htmlFor="po-search" label="Search purchase orders"><input id="po-search" type="search" maxLength={200} value={query} onChange={event => setQuery(event.target.value)} placeholder="Reference, supplier or title" /></FloatingField>
         <button type="submit" className="secondary">Search</button>
+        <button className="quiet po-search-refresh" type="button" disabled={pending === 'refresh'} onClick={() => void load(true)}>Refresh</button>
         {query || memory.query ? <button type="button" className="quiet" onClick={() => { setQuery(''); void load(true, ''); }}>Clear search</button> : null}</div>
       </form>
       <div className="po-list-toolbar">
-        <p className="po-list-caption">Draft orders</p><a href="/suppliers" onClick={follow}>Manage suppliers</a>
-        <button className="quiet" type="button" disabled={pending === 'refresh'} onClick={() => void load(true)}>Refresh</button>
+        <p className="po-list-caption">{memory.query ? 'Matching draft orders' : 'Draft orders'}</p>
       </div>
       {pending ? <p role="status" className="po-feedback">Loading drafts…</p> : null}
       {message ? <p role="alert" className="po-feedback po-error">{message}</p> : null}
