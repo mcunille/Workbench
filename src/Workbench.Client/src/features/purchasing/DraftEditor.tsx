@@ -29,6 +29,11 @@ const optional = (text: string) => text === '' ? null : text;
 
 function EntryDetails({ populated, invalid, children }: { populated: boolean; invalid: boolean; children: ReactNode }) {
   const [expanded, setExpanded] = useState(populated);
+  const [wasPopulated, setWasPopulated] = useState(populated);
+  if (populated !== wasPopulated) {
+    setWasPopulated(populated);
+    if (populated) setExpanded(true);
+  }
   return <details className="po-entry-details" open={expanded || invalid} onToggle={event => setExpanded(event.currentTarget.open)}>
     <summary>Notes and source</summary>
     <div className="po-entry-secondary">{children}</div>
@@ -269,7 +274,10 @@ export function DraftEditor({ id: initialId, onDirtyChange, onAuthLost, onSaved,
             <ul>{Object.entries(errors).flatMap(([path, messages]) => messages.map((text, index) => (
               <li key={`${path}-${index}`}>
                 <a href={`#${fieldId(path)}`} onClick={event => {
-                  event.preventDefault(); document.getElementById(fieldId(path))?.focus();
+                  event.preventDefault();
+                  const target = document.getElementById(fieldId(path));
+                  target?.closest('details')?.setAttribute('open', '');
+                  target?.focus();
                 }}>{text}</a>
               </li>
             )))}</ul>
