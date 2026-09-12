@@ -92,7 +92,7 @@ SQL must reject rounding conversions. There is no entry table or entry-level con
 whole-document replacement is atomic. Later itemization needs an explicit migration preserving
 reference-price meaning; these entries are not committed order lines.
 
-### Purchasing.DraftOrderMutations
+### Purchasing.DraftOrderRequestReceipts
 
 | Column | SQL type | Rules |
 | --- | --- | --- |
@@ -101,14 +101,17 @@ reference-price meaning; these entries are not committed order lines.
 | Operation | varchar(6) NOT NULL | Binary CHECK: Create or Update. |
 | ActorUserId | uniqueidentifier NOT NULL | Tenant-qualified user FK; original actor. |
 | ExpectedRowVersion | binary(8) NULL | Null exactly for Create; required for Update. |
-| InputSchemaVersion | smallint NOT NULL | CHECK equals 1. |
-| CanonicalInputJson | nvarchar(max) NOT NULL | Valid JSON object; at most 2 MiB UTF-16 storage. |
-| ResultJson | nvarchar(max) NOT NULL | Original DraftOrderResponse; valid object, at most 2 MiB. |
+| FingerprintVersion | smallint NOT NULL | CHECK equals 1; identifies normalization, serialization and hashing rules. |
+| InputFingerprint | binary(32) NOT NULL | Server-computed SHA-256 of canonical operation/target/version/content. |
+| ResultRowVersion | binary(8) NOT NULL | Version produced by the successful save; immutable bytes, not a rowversion column. |
 | CompletedAtUtc | datetimeoffset(7) NOT NULL | Server UTC. |
 
-Retain mutation evidence indefinitely for this increment. Each explicit save retains a snapshot;
-this is a deliberate storage cost for durable retries, not a user-facing audit feature. No autosave
-or unchanged client resubmissions. Pruning requires a later explicit replay-expiry contract.
+Retain compact receipts indefinitely for this increment. They prove a request succeeded and identify
+its draft and resulting version, without retaining historical input or response documents. PO-01
+requires duplicate prevention and changed-input rejection, not historical response reconstruction.
+Receipt storage grows by a fixed amount per successful save; pruning still requires a later explicit
+replay-expiry contract. No autosave or unchanged client resubmissions. These receipts are private
+operational evidence, not an audit-history feature or an anonymization of the draft content.
 
 Both tables get tenant RLS filter/block predicates and EF query filters. Web gets SELECT and
 EXECUTE on `Purchasing.CreateDraftOrder` and `Purchasing.UpdateDraftOrder`, with direct
@@ -116,13 +119,28 @@ INSERT/UPDATE/DELETE denied. Workers receive no purchasing grants. User/tenant a
 from verified session context, never HTTP fields.
 
 In one transaction, acquire a transaction-owned application lock for `(TenantId, RequestId)`;
-check immutable evidence before executing a mutation. An exact normalized operation/target/version/
-content match returns its original result; mismatch returns 409. For a new update, lock the draft,
-check version, validate, update, capture the new rowversion, and insert replay evidence before commit.
+check immutable receipts before executing a mutation. Matching operation, target, expected version
+and fingerprint returns the recorded success receipt; mismatch returns 409. For a new update, lock
+the draft, check version, validate, update, capture the new rowversion, and insert its receipt before commit.
 Different requests targeting the same draft serialize on that row. Failures leave no partial save.
 Revalidate authority for retries; a currently authorized member may resolve a same-business request
 without changing its original actor. Check target visibility before update-conflict details: foreign
 IDs always return 404. Normalization compares exact Unicode content, not SQL linguistic equality.
+
+Fingerprint V1 serializes a fixed-order JSON object containing `operation`, `targetId` (null for
+Create, normalized route UUID for Update), `expectedVersion` (null for Create), and normalized `draft`.
+Use the DTO field order below, explicit nulls, lowercase D-format UUIDs, four-decimal price strings,
+and preserved array order, with the pinned System.Text.Json default escaping and no indentation.
+The restricted command computes SHA-256 over the canonical JSON's UTF-16LE bytes using
+`HASHBYTES('SHA2_256', CONVERT(varbinary(max), @CanonicalInputJson))`; never accept a client digest.
+The server prepares the canonical document and the command uses that same document for validation
+and persistence, not an independently supplied body. Canonical input exists only while processing
+the request and is not stored in the receipt. Request ID and tenant are the receipt key; the actor
+is recorded separately and excluded from the fingerprint to permit authorized same-business retries.
+Retain V1 computation for existing receipts if future normalization changes. A cryptographic hash
+collision is the accepted residual risk of fingerprint comparison; complete input equality would
+require retaining the input. Check receipts before state-dependent currency/version rules so a
+successful retry still resolves after later edits.
 
 ## API contract
 
@@ -162,7 +180,9 @@ type DraftOrderResponse = {
 type SaveDraftOrderResponse = {
   requestId: string;
   replayed: boolean;
-  saved: DraftOrderResponse; // original successful state, not necessarily current
+  draftOrderId: string;
+  savedVersion: string; // version produced by this request, not necessarily current
+  completedAtUtc: string; // original successful operation time
 };
 type DraftOrderSummary = {
   id: string;
@@ -182,12 +202,13 @@ JSON numbers and excess precision. Uppercase currency; trim title, supplier, des
 Whitespace-only optional text becomes null; otherwise preserve notes verbatim. Currency codes are
 notation, not a guarantee of currency conversion support. Links require absolute HTTP(S), a hostname,
 and no embedded username/password. Do not fetch or rewrite them beyond trimming. Maximum HTTP body:
-4 MiB. Canonical request evidence uses deterministic property ordering; array order is significant.
+4 MiB. Fingerprinting uses deterministic property ordering; array order is significant.
 
 Field/count limits and aggregate serialized-size limits both apply. Escaping can enlarge JSON even
-when each field is valid. Validate the UTF-16 byte size of canonical content, request evidence and
-prospective saved response before SQL writes; return 400 `draft_validation_failed` with an error at
-`draft` when any aggregate cap is exceeded. Keep input and explain that the draft needs shortening.
+when each field is valid. Validate the UTF-16 byte size of canonical ContentJson against its 1 MiB
+storage cap before SQL writes; return 400 `draft_validation_failed` with an error at `draft` when
+it is exceeded. Keep input and explain that the draft needs shortening. Canonical fingerprint input
+is bounded by the validated field/count limits and is transient; there are no stored request/response JSON caps.
 SQL repeats these size checks. Test escape-heavy content as well as ordinary maximum-length text.
 
 | Endpoint | Success | Body / headers |
@@ -199,7 +220,8 @@ SQL repeats these size checks. Test escape-heavy content as well as ordinary max
 
 All responses are private/no-store. Existing session cookies and mutation antiforgery apply.
 A new save uses a new request UUID; uncertain retries retain it and the original payload/version.
-After a replay, GET current detail before enabling further editing. A failed GET displays
+After every confirmed save, including replay, GET current detail before enabling further editing.
+The compact success body is not a draft document; never treat it as current content. A failed GET displays
 “Saved; current version could not be loaded” with retry, never starts a second creation.
 
 Example empty creation (valid despite having no supplier or entries):
@@ -220,23 +242,24 @@ Example 201 response, with a Location header ending in the returned ID:
 {
   "requestId": "41375594-5dc9-48ce-bc41-14c1b0ce1f17",
   "replayed": false,
-  "saved": {
-    "id": "48879967-4f0a-4e18-a849-9aa8af387b23",
-    "draft": {
-      "title": null, "supplierName": null, "currency": null, "notes": null,
-      "sourceLinks": [], "entries": []
-    },
-    "createdAtUtc": "2026-09-12T02:00:00.0000000Z",
-    "updatedAtUtc": "2026-09-12T02:00:00.0000000Z",
-    "version": "AAAAAAAAB9E="
-  }
+  "draftOrderId": "48879967-4f0a-4e18-a849-9aa8af387b23",
+  "savedVersion": "AAAAAAAAB9E=",
+  "completedAtUtc": "2026-09-12T02:00:00.0000000Z"
 }
 ```
 
-To update, send a fresh requestId, `expectedVersion: "AAAAAAAAB9E="`, and the complete edited draft.
-Successful update returns the same ID/creation timestamp, a new update timestamp/version and the
-normalized content. Exact replay sets replayed to true and returns the original saved snapshot.
-GET detail returns the object inside saved, reflecting current state, without the mutation envelope.
+GET `/api/purchase-order-drafts/48879967-4f0a-4e18-a849-9aa8af387b23` returns the current
+DraftOrderResponse, including normalized content, creation/update timestamps and current version.
+To update, send a fresh requestId, that GET's version as expectedVersion, and the complete edited draft.
+Successful update returns a receipt with the same draft ID and its new savedVersion/completion time.
+Exact replay sets replayed to true and returns the original receipt identifiers/version/time, without
+re-executing the save or reproducing historical content. Replay after later edits does not change them.
+
+If GET's version equals savedVersion, show the normalized saved document. If it differs, the request
+still succeeded, but somebody edited the draft afterward: retain submitted input and offer comparison
+with the current document before further edits. Use the GET version only after deliberate review,
+never the old receipt version. If GET returns 404 or authentication fails, apply the usual access
+handling; a receipt is not an access grant. Never retry a confirmed creation merely because GET failed.
 
 ### Failure schemas
 
@@ -341,8 +364,13 @@ flowchart TD
   N --> D[Edit incomplete list]
   E --> D
   D --> S[Save draft]
-  S --> OK[Saved confirmation]
-  OK --> L
+  S --> OK[Receipt confirms save]
+  OK --> G[Load current draft]
+  G -->|Version matches receipt| D
+  G --> F[Load failed: retry GET only]
+  F --> G
+  G -->|Version differs from receipt| Q
+  D -->|Back after saving| L
   S --> V[Validation errors: retain input]
   V --> D
   S --> U[Uncertain outcome: freeze request]
@@ -354,8 +382,10 @@ flowchart TD
   Q --> D
 ```
 
-First save replaces the new-editor URL with the saved ID; it keeps the editor open and announces the
-server-confirmed saved time. Later sessions reopen that saved record. Unsaved navigation offers Keep
+First receipt replaces the new-editor URL with draftOrderId; it keeps the editor open and announces
+completedAtUtc as the confirmed saved time while loading current content. Enable editing after the
+GET succeeds and any newer-version comparison is resolved. A failed GET retains a confirmed-save
+state and retries only the read. Later sessions reopen that saved record. Unsaved navigation offers Keep
 editing or Discard changes. Discard never deletes the saved draft. Uncertain-save departure explains
 that the save may have succeeded and departure loses the in-memory retry request. Browser closure
 uses the existing native unsaved-work warning.
@@ -402,7 +432,9 @@ Production migration or restore remains outside implementation authorization.
 Browser-only storage cannot reliably resume across devices and lacks server-enforced business
 ownership. Acquisition reuse misrepresents planned purchases. Full structured PO lines would decide
 PO-03 prematurely. Bounded JSON shopping lists deliver resumable planning, with an explicit migration
-needed when later itemization introduces quantities, units, and pricing bases.
+needed when later itemization introduces quantities, units, and pricing bases. Full request/response
+snapshots would reproduce historical save responses, which PO-01 does not require. Compact receipts
+retain duplicate prevention with bounded per-save storage and require a current-detail GET after success.
 
 ## Acceptance and delivery
 
@@ -412,6 +444,13 @@ after later edits, mismatched retries, concurrent saves, authorization, and anti
 to verify transactions, RLS, restricted principals, and cross-tenant reads/writes. Assert saves create
 no inventory/acquisition or financial records. Run affected mutation tests and document exclusions
 or tooling limitations.
+
+Receipt coverage must prove atomic save/receipt rollback, competing retries producing one mutation,
+stable receipt ID/version/time after later edits, and rejection when operation, target, expected version
+or normalized content changes under the same request ID. Cover equivalent normalized inputs, significant
+array order, tenant isolation, retained fingerprint-version behavior, and absence of stored historical
+bodies. Client tests cover successful-save GET failure without another mutation, newer-version comparison,
+and continued recovery using the original request only while its outcome remains uncertain.
 
 Browser walkthrough: save an incomplete cart with unknown prices, reopen it, sign out/in and resume,
 add notes and a known price, save/reload, and exercise failed-save and conflict recovery. Inspect
