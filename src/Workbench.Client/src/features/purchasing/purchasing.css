@@ -83,6 +83,10 @@
 .po-entry-heading > button { padding: .375rem .625rem; font-size: .8125rem; }
 .po-entry-secondary { align-items: start; }
 .po-title-fields { grid-template-columns: minmax(0, 1fr); }
+.po-supplier-section { margin: 0; }
+.po-supplier-summary { min-height: 44px; align-content: center; overflow-wrap: anywhere; }
+.po-supplier-summary-context { display: block; margin-top: .25rem; color: var(--muted); font-size: .875rem; font-weight: 400; }
+.po-supplier-section[open] > .po-supplier-summary { margin-bottom: 1rem; }
 .po-entry-price { min-width: 0; display: grid; align-content: start; gap: .5rem; }
 .po-entry-details { margin: 0; padding: 0; border: 0; }
 .po-entry-details > summary { align-content: center; color: var(--muted); font-size: .875rem; }
