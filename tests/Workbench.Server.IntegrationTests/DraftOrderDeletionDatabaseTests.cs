@@ -11,7 +11,7 @@ public sealed partial class DraftOrderDatabaseTests
     public async Task DeleteClearsDraftContentAndReplaysWithoutResurrectingIt()
     {
         // GIVEN a saved shopping list containing private business fields.
-        await using var database = await sqlServer.CreateMigratedDatabaseAsync("TightenDraftSourceLinkValidation");
+        await using var database = await sqlServer.CreateMigratedDatabaseAsync("AddDraftSupplierOrders");
         var tenant = Guid.NewGuid(); var actor = Guid.NewGuid(); var createRequest = Guid.NewGuid();
         await database.SeedTenantAuditRowsAsync(tenant, Guid.NewGuid()); await SeedActor(database, tenant, actor);
         await using var connection = await Open(database, await database.CreateWebUserAsync(), tenant);
@@ -31,8 +31,6 @@ public sealed partial class DraftOrderDatabaseTests
             },
         });
         var saved = await Save(connection, actor, createRequest, canonical, "Create"); var request = Guid.NewGuid();
-        // AND the new deletion migration upgrades the retained draft without changing its concurrency token or prior receipts.
-        await Workbench.Server.Persistence.DatabaseMigrator.MigrateAsync(database.AdminConnectionString, default);
         // WHEN deletion succeeds THEN it advances the version, clears content and retains only a tombstone and receipts.
         var deleted = await Delete(connection, actor, request, saved.Id, saved.Version);
         Assert.False(deleted.Replayed); Assert.NotEqual(saved.Version, deleted.Version);

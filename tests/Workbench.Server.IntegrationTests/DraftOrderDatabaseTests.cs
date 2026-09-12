@@ -10,9 +10,9 @@ namespace Workbench.Server.IntegrationTests;
 public sealed partial class DraftOrderDatabaseTests(SqlServerFixture sqlServer)
 {
     [Fact]
-    public async Task ForwardValidationCorrectionPreservesSavedDraftAndRetryReceipt()
+    public async Task ReapplyingConsolidatedMigrationPreservesSavedDraftAndRetryReceipt()
     {
-        // GIVEN the retained purchasing schema with a successful draft save and compact receipt.
+        // GIVEN the consolidated purchasing schema with a successful draft save and compact receipt.
         await using var database = await sqlServer.CreateMigratedDatabaseAsync("AddDraftSupplierOrders");
         var tenant = Guid.NewGuid(); var actor = Guid.NewGuid(); var request = Guid.NewGuid();
         await database.SeedTenantAuditRowsAsync(tenant, Guid.NewGuid()); await SeedActor(database, tenant, actor);
@@ -29,7 +29,7 @@ public sealed partial class DraftOrderDatabaseTests(SqlServerFixture sqlServer)
             return (string)(await read.ExecuteScalarAsync())!;
         }
         var before = await Snapshot();
-        // WHEN applying the forward-only validator correction THEN saved values, actors, times and fingerprint evidence remain byte-for-byte intact.
+        // WHEN migration is invoked again THEN saved values, actors, times and fingerprint evidence remain byte-for-byte intact.
         await Workbench.Server.Persistence.DatabaseMigrator.MigrateAsync(database.AdminConnectionString, default);
         Assert.Equal(before, await Snapshot());
         // AND the original request still resolves to its original successful receipt.

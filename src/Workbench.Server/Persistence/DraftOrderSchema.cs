@@ -30,6 +30,7 @@ internal static class DraftOrderSchema
                 """);
             migrationBuilder.Sql($"GRANT EXECUTE ON [Purchasing].[{operation}DraftOrder] TO [workbench_web];");
         }
+        DraftOrderDeletionSchema.Create(migrationBuilder);
         migrationBuilder.Sql($"""
             DECLARE @Readiness nvarchar(max)=OBJECT_DEFINITION(OBJECT_ID(N'[Security].[ReadDatabaseReadiness]'));
             SET @Readiness=REPLACE(@Readiness,N'CREATE PROCEDURE',N'ALTER PROCEDURE');
@@ -56,7 +57,7 @@ internal static class DraftOrderSchema
             WHILE @I<=DATALENGTH(@Value)/2
             BEGIN
                 SET @Code=UNICODE(SUBSTRING(@Value,@I,1));
-                IF @Code BETWEEN 0 AND 32 OR @Code IN (127,133,160,5760,8232,8233,8239,8287,12288) OR @Code BETWEEN 8192 AND 8202 RETURN 0;
+                IF @Code BETWEEN 0 AND 32 OR @Code BETWEEN 127 AND 159 OR @Code IN (160,5760,8232,8233,8239,8287,12288) OR @Code BETWEEN 8192 AND 8202 RETURN 0;
                 SET @I+=1;
             END;
             IF LEFT(@Authority,1)=N'['
@@ -96,6 +97,15 @@ internal static class DraftOrderSchema
                 SET @End=CHARINDEX(N':',@Authority);
                 SET @Host=CASE WHEN @End=0 THEN @Authority ELSE LEFT(@Authority,@End-1) END;
                 IF DATALENGTH(@Host)=0 OR CHARINDEX(N'[',@Host)>0 OR CHARINDEX(N']',@Host)>0 OR CHARINDEX(N':',@Host)>0 RETURN 0;
+                IF LEFT(@Host,1)=N'.' OR CHARINDEX(N'..',@Host)>0 RETURN 0;
+                SET @I=1;
+                WHILE @I<=DATALENGTH(@Host)/2
+                BEGIN
+                    SET @Code=UNICODE(SUBSTRING(@Host,@I,1));
+                    IF @Code<128 AND NOT (@Code BETWEEN 45 AND 46 OR @Code BETWEEN 48 AND 57
+                        OR @Code BETWEEN 65 AND 90 OR @Code=95 OR @Code BETWEEN 97 AND 122) RETURN 0;
+                    SET @I+=1;
+                END;
                 IF @End>0 SET @Port=SUBSTRING(@Authority,@End+1,20);
             END;
             IF @Port IS NOT NULL AND (DATALENGTH(@Port)=0 OR @Port COLLATE Latin1_General_100_BIN2 LIKE N'%[^0-9]%' OR TRY_CONVERT(int,@Port) IS NULL OR TRY_CONVERT(int,@Port)>65535) RETURN 0;
@@ -151,7 +161,7 @@ internal static class DraftOrderSchema
                 EXEC @LockResult=sys.sp_getapplock @Resource=@Resource,@LockMode='Exclusive',@LockOwner='Transaction',@LockTimeout=15000;
                 IF @LockResult<0 THROW 50411,'The draft request could not acquire its save lock.',1;
                 -- A foreign target remains indistinguishable from a nonexistent draft, including conflicts.
-                IF @Operation='Update' AND NOT EXISTS(SELECT 1 FROM Purchasing.DraftOrders WHERE TenantId=@TenantId AND Id=@TargetId)
+                IF @Operation='Update' AND NOT EXISTS(SELECT 1 FROM Purchasing.DraftOrders WHERE TenantId=@TenantId AND Id=@TargetId AND IsDeleted=0)
                     THROW 50404,'Draft not found.',1;
                 IF EXISTS(SELECT 1 FROM Purchasing.DraftOrderRequestReceipts WHERE TenantId=@TenantId AND RequestId=@RequestId)
                 BEGIN
@@ -210,7 +220,7 @@ internal static class DraftOrderSchema
                 IF @Operation='Update'
                 BEGIN
                     SELECT @CurrentVersion=RowVersion,@CurrentCurrency=Currency,@Created=CreatedAtUtc
-                        FROM Purchasing.DraftOrders WITH(UPDLOCK,HOLDLOCK) WHERE TenantId=@TenantId AND Id=@TargetId;
+                        FROM Purchasing.DraftOrders WITH(UPDLOCK,HOLDLOCK) WHERE TenantId=@TenantId AND Id=@TargetId AND IsDeleted=0;
                     IF @CurrentVersion IS NULL THROW 50404,'Draft not found.',1;
                     IF @CurrentVersion<>@ExpectedVersion THROW 50409,'The draft changed. Review the current version.',1;
                     IF @CurrentCurrency IS NOT NULL AND (@Currency IS NULL OR CONVERT(varbinary(max),CONVERT(nvarchar(3),@CurrentCurrency))<>CONVERT(varbinary(max),@Currency))
@@ -219,7 +229,7 @@ internal static class DraftOrderSchema
                     IF @Now<@Created SET @Now=@Created;
                     UPDATE Purchasing.DraftOrders SET Title=@Title,SupplierName=@Supplier,Currency=@Currency,Notes=@Notes,
                         ContentSchemaVersion=1,ContentJson=@Content,UpdatedAtUtc=@Now,UpdatedByUserId=@ActorUserId
-                        WHERE TenantId=@TenantId AND Id=@TargetId;
+                        WHERE TenantId=@TenantId AND Id=@TargetId AND IsDeleted=0;
                 END
                 ELSE
                 BEGIN
@@ -227,7 +237,7 @@ internal static class DraftOrderSchema
                     INSERT Purchasing.DraftOrders(Id,TenantId,Title,SupplierName,Currency,Notes,ContentSchemaVersion,ContentJson,CreatedAtUtc,UpdatedAtUtc,CreatedByUserId,UpdatedByUserId)
                         VALUES(@TargetId,@TenantId,@Title,@Supplier,@Currency,@Notes,1,@Content,@Now,@Now,@ActorUserId,@ActorUserId);
                 END;
-                SELECT @CurrentVersion=RowVersion FROM Purchasing.DraftOrders WHERE TenantId=@TenantId AND Id=@TargetId;
+                SELECT @CurrentVersion=RowVersion FROM Purchasing.DraftOrders WHERE TenantId=@TenantId AND Id=@TargetId AND IsDeleted=0;
                 INSERT Purchasing.DraftOrderRequestReceipts(TenantId,RequestId,DraftOrderId,Operation,ActorUserId,ExpectedRowVersion,FingerprintVersion,InputFingerprint,ResultRowVersion,CompletedAtUtc)
                     VALUES(@TenantId,@RequestId,@TargetId,@Operation,@ActorUserId,@ExpectedVersion,1,@Fingerprint,@CurrentVersion,@Now);
                 COMMIT;

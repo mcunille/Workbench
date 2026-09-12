@@ -23,6 +23,7 @@ namespace Workbench.Server.Persistence.Migrations
                 {
                     Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
                     TenantId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    IsDeleted = table.Column<bool>(type: "bit", nullable: false, defaultValue: false),
                     Title = table.Column<string>(type: "nvarchar(200)", maxLength: 200, nullable: true),
                     SupplierName = table.Column<string>(type: "nvarchar(200)", maxLength: 200, nullable: true),
                     Currency = table.Column<string>(type: "varchar(3)", unicode: false, maxLength: 3, nullable: true),
@@ -41,6 +42,7 @@ namespace Workbench.Server.Persistence.Migrations
                     table.UniqueConstraint("AK_DraftOrders_TenantId_Id", x => new { x.TenantId, x.Id });
                     table.CheckConstraint("CK_DraftOrders_Content", "[ContentSchemaVersion]=1 AND ISJSON([ContentJson],OBJECT)=1 AND DATALENGTH([ContentJson])<=1048576");
                     table.CheckConstraint("CK_DraftOrders_Currency", "[Currency] IS NULL OR (DATALENGTH([Currency])=3 AND [Currency] COLLATE Latin1_General_100_BIN2 NOT LIKE '%[^A-Z]%')");
+                    table.CheckConstraint("CK_DraftOrders_DeletedContent", "[IsDeleted]=0 OR ([Title] IS NULL AND [SupplierName] IS NULL AND [Currency] IS NULL AND [Notes] IS NULL AND CONVERT(varbinary(max),[ContentJson])=CONVERT(varbinary(max),N'{\"sourceLinks\":[],\"entries\":[]}'))");
                     table.CheckConstraint("CK_DraftOrders_Id", "[Id]<>'00000000-0000-0000-0000-000000000000'");
                     table.CheckConstraint("CK_DraftOrders_Notes", "[Notes] IS NULL OR DATALENGTH([Notes])<=20000");
                     table.CheckConstraint("CK_DraftOrders_Timestamps", "[UpdatedAtUtc]>=[CreatedAtUtc] AND DATEPART(TZOFFSET,[CreatedAtUtc])=0 AND DATEPART(TZOFFSET,[UpdatedAtUtc])=0");
@@ -88,7 +90,7 @@ namespace Workbench.Server.Persistence.Migrations
                     table.PrimaryKey("PK_DraftOrderRequestReceipts", x => new { x.TenantId, x.RequestId });
                     table.CheckConstraint("CK_DraftOrderRequestReceipts_Completed", "DATEPART(TZOFFSET,[CompletedAtUtc])=0");
                     table.CheckConstraint("CK_DraftOrderRequestReceipts_Fingerprint", "[FingerprintVersion]=1");
-                    table.CheckConstraint("CK_DraftOrderRequestReceipts_Operation", "([Operation] COLLATE Latin1_General_100_BIN2='Create' AND [ExpectedRowVersion] IS NULL) OR ([Operation] COLLATE Latin1_General_100_BIN2='Update' AND [ExpectedRowVersion] IS NOT NULL)");
+                    table.CheckConstraint("CK_DraftOrderRequestReceipts_Operation", "([Operation] COLLATE Latin1_General_100_BIN2='Create' AND [ExpectedRowVersion] IS NULL) OR ([Operation] COLLATE Latin1_General_100_BIN2 IN ('Update','Delete') AND [ExpectedRowVersion] IS NOT NULL)");
                     table.CheckConstraint("CK_DraftOrderRequestReceipts_RequestId", "[RequestId]<>'00000000-0000-0000-0000-000000000000'");
                     table.ForeignKey(
                         name: "FK_DraftOrderRequestReceipts_DraftOrders_TenantId_DraftOrderId",

@@ -4,27 +4,10 @@ namespace Workbench.Server.Persistence;
 
 internal static class DraftOrderDeletionSchema
 {
-    internal static void Apply(MigrationBuilder migrationBuilder, string migrationId)
+    internal static void Create(MigrationBuilder migrationBuilder)
     {
-        // Preserve the original migration. Both visibility and the locked update recheck must exclude tombstones.
-        migrationBuilder.Sql("""
-            DECLARE @Definition nvarchar(max)=OBJECT_DEFINITION(OBJECT_ID(N'[Purchasing].[SaveDraftOrder]'));
-            DECLARE @Predicate nvarchar(max)=N'WHERE TenantId=@TenantId AND Id=@TargetId';
-            IF @Definition IS NULL OR CHARINDEX(@Predicate,@Definition)=0
-                OR CHARINDEX(N'WITH(UPDLOCK,HOLDLOCK)',@Definition)=0 OR CHARINDEX(N'CREATE PROCEDURE',@Definition)=0
-                THROW 50020,'The expected purchasing save command is required for deletion support.',1;
-            SET @Definition=REPLACE(@Definition,N'CREATE PROCEDURE',N'ALTER PROCEDURE');
-            SET @Definition=REPLACE(@Definition,@Predicate,@Predicate+N' AND IsDeleted=0');
-            EXEC sys.sp_executesql @Definition;
-            """);
         migrationBuilder.Sql(Delete);
-        migrationBuilder.Sql($"""
-            GRANT EXECUTE ON [Purchasing].[DeleteDraftOrder] TO [workbench_web];
-            DECLARE @Readiness nvarchar(max)=OBJECT_DEFINITION(OBJECT_ID(N'[Security].[ReadDatabaseReadiness]'));
-            SET @Readiness=REPLACE(@Readiness,N'CREATE PROCEDURE',N'ALTER PROCEDURE');
-            SET @Readiness=REPLACE(@Readiness,N'20260912033355_TightenDraftSourceLinkValidation',N'{migrationId}');
-            EXEC sys.sp_executesql @Readiness;
-            """);
+        migrationBuilder.Sql("GRANT EXECUTE ON [Purchasing].[DeleteDraftOrder] TO [workbench_web];");
     }
 
     private const string Delete = """

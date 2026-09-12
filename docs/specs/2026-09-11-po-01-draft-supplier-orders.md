@@ -420,10 +420,12 @@ principal grants, replay identity, and cross-tenant UUID collisions against exis
 
 ## Migration and recovery
 
-The initial migration after `AddAcquisitionDocuments` adds tables, RLS, commands/grants, and readiness,
-provisioning, and backup schema markers. A subsequent forward correction tightens source-link host
-validation: the initial migration had already been applied to the retained local preview, so it is
-preserved rather than rewritten. No existing records are backfilled or synthesized.
+One consolidated `AddDraftSupplierOrders` migration after `AddAcquisitionDocuments` adds the final
+tables, RLS, create/update/delete commands and grants, source-link validation, and readiness,
+provisioning, and backup schema markers. No existing records are backfilled or synthesized.
+Retained previews with the earlier three-migration history remain untouched; that development
+history is not a supported upgrade baseline for this consolidated release. Transitioning those
+previews requires separate handling that preserves their data, rather than automatic history resets.
 Verify fresh creation and upgrade retaining identity, collection, acquisition, and document data.
 Block destructive Down to preserve drafts/replay evidence. Recover through forward correction or
 the existing guarded restore procedure; older binaries may reject the new readiness marker.
@@ -478,11 +480,11 @@ The client freezes an uncertain deletion and retries the identical request only 
 Success needs no detail read. A stale-version conflict requires review of current saved content
 and a fresh confirmation before any new deletion request.
 
-A forward migration adds `IsDeleted` (default false). The restricted delete procedure checks current
+The consolidated migration includes `IsDeleted` (default false). The restricted delete procedure checks current
 tenant authority, takes the same request lock as saves, locks the draft, validates rowversion, clears
 its title/supplier/currency/notes and replaces its content with empty lists, then records a Delete
 receipt atomically. An empty tombstone retains the draft key and foreign-key integrity of compact
 receipts; this is not a user-visible archive or restore workflow. Exact deletion replay matches
 request, actor, draft, and expected version before evaluating deleted state. Reads/lists exclude
 tombstones, and update commands reject them under the row lock. Receipts remain under the existing
-retention contract. Existing applied migrations are preserved.
+retention contract. Existing retained databases are not reset during migration consolidation.
