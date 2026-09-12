@@ -64,7 +64,7 @@
 .po-section-heading > .po-badge { align-self: flex-start; flex-shrink: 0; margin-left: auto; }
 .po-header-fields, .po-entry-secondary, .po-order-context, .po-comparison { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
 .po-field { min-width: 0; }
-.po-currency-row { display: grid; grid-template-columns: minmax(10rem, 14rem) minmax(0, 1fr); gap: 1rem; align-items: start; margin-bottom: 1.25rem; }
+.po-currency-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; align-items: center; margin-bottom: 1.25rem; }
 .po-currency-row .floating-field { margin-top: 0; }
 .po-field-help { color: var(--muted); font-size: .875rem; margin: 0; }
 .po-field-help p { margin: 0; }
