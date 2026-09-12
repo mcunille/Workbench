@@ -394,7 +394,7 @@ it('searches and saves an inline supplier independently without submitting the e
   expect(dialog.closest('#po-draft-form')).toBeNull();
   fireEvent.change(within(dialog).getByLabelText('Name'), { target: { value: 'Gem Studio' } });
   fireEvent.click(within(dialog).getByRole('button', { name: 'Save supplier' }));
-  fireEvent.click(await screen.findByRole('button', { name: 'Use supplier' }));
+  fireEvent.click(await screen.findByRole('button', { name: 'Use supplier details' }));
   // THEN only the supplier was saved; the order retains its local title and selected snapshot.
   expect(createDraft).not.toHaveBeenCalled(); expect(createSupplier).toHaveBeenCalledTimes(1);
   expect(screen.getByLabelText('Title')).toHaveValue('Unsaved order'); expect(screen.getByLabelText('Supplier name')).toHaveValue('Gem Studio');
@@ -403,27 +403,27 @@ it('previews refresh and supplier changes while preserving platform and requirin
   // GIVEN a linked draft with its own snapshot, platform and external reference.
   const linked = { ...saved, draft: { ...content, supplierId: 'old', supplierName: 'Old studio', supplierEmail: 'saved@example.test', platform: 'Instagram', supplierOrderReference: 'OLD-42' } };
   const latest = { id: 'old', supplier: { name: 'Old studio', contactName: 'Current owner', email: 'current@example.test', phone: null, website: null, postalAddress: 'Current address' }, isArchived: false, version: 's2', createdAtUtc: saved.createdAtUtc, updatedAtUtc: saved.updatedAtUtc };
-  vi.mocked(getDraft).mockResolvedValue(linked); vi.mocked(getSupplier).mockResolvedValue(latest);
-  vi.mocked(getSuppliers).mockResolvedValue({ items: [{ ...latest, id: 'new', supplier: { ...latest.supplier, name: 'New studio' } }], nextCursor: null });
+  vi.mocked(getDraft).mockResolvedValue(linked); vi.mocked(getSupplier).mockImplementation(async id => id === 'old' ? latest : { ...latest, id: 'new', supplier: { ...latest.supplier, name: 'New studio' } });
+  vi.mocked(getSuppliers).mockResolvedValue({ items: [latest, { ...latest, id: 'new', supplier: { ...latest.supplier, name: 'New studio' } }], nextCursor: null });
   render(<DraftEditor id={saved.id} {...props()} />); await waitFor(() => expect(screen.getByLabelText('Platform')).toHaveValue('Instagram'));
   // WHEN a refresh is first canceled and then explicitly accepted.
-  fireEvent.click(screen.getByRole('button', { name: 'Use current supplier details' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Choose supplier' })); fireEvent.click(await screen.findByRole('button', { name: 'Select Old studio' }));
   let dialog = await screen.findByRole('dialog', { name: 'Review supplier details' });
   expect(within(dialog).getByText('saved@example.test')).toBeVisible(); expect(within(dialog).getByText('current@example.test')).toBeVisible();
   fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel' })); expect(screen.getByLabelText('Supplier email')).toHaveValue('saved@example.test');
-  fireEvent.click(screen.getByRole('button', { name: 'Use current supplier details' })); fireEvent.click(await screen.findByRole('button', { name: 'Replace supplier details' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Choose supplier' })); fireEvent.click(await screen.findByRole('button', { name: 'Select Old studio' })); fireEvent.click(await screen.findByRole('button', { name: 'Use supplier details' }));
   expect(screen.getByLabelText('Platform')).toHaveValue('Instagram'); expect(screen.getByLabelText('Supplier order reference')).toHaveValue('OLD-42'); expect(screen.getByLabelText('Supplier email')).toHaveValue('current@example.test');
   // WHEN changing identity, the owner must deliberately keep or clear the old supplier reference.
   fireEvent.click(screen.getByRole('button', { name: 'Choose supplier' })); fireEvent.click(await screen.findByRole('button', { name: 'Select New studio' }));
-  dialog = screen.getByRole('dialog', { name: 'Review supplier details' }); expect(within(dialog).getByRole('button', { name: 'Replace supplier details' })).toBeDisabled();
-  fireEvent.click(within(dialog).getByLabelText('Clear supplier order reference')); fireEvent.click(within(dialog).getByRole('button', { name: 'Replace supplier details' }));
+  dialog = await screen.findByRole('dialog', { name: 'Review supplier details' }); expect(within(dialog).getByRole('button', { name: 'Use supplier details' })).toBeDisabled();
+  fireEvent.click(within(dialog).getByLabelText('Clear supplier order reference')); fireEvent.click(within(dialog).getByRole('button', { name: 'Use supplier details' }));
   // THEN platform stays independent and nothing is saved implicitly.
   expect(screen.getByLabelText('Supplier name')).toHaveValue('New studio'); expect(screen.getByLabelText('Platform')).toHaveValue('Instagram'); expect(screen.getByLabelText('Supplier order reference')).toHaveValue(''); expect(updateDraft).not.toHaveBeenCalled();
 });
 it('keeps supplier details as one-off without carrying the prior reference silently', async () => {
   // GIVEN an archived linked supplier with transaction details.
   vi.mocked(getDraft).mockResolvedValue({ ...saved, supplierIsArchived: true, draft: { ...content, supplierId: 'old', supplierName: 'Studio', supplierPhone: '+44 123', platform: 'Retail', supplierOrderReference: 'A-1' } });
-  render(<DraftEditor id={saved.id} {...props()} />); fireEvent.click(await screen.findByRole('button', { name: 'Keep details as one-off' }));
+  render(<DraftEditor id={saved.id} {...props()} />); fireEvent.click(await screen.findByRole('button', { name: 'Remove supplier link' }));
   // WHEN unlinking, explicitly retain the reference and snapshot.
   fireEvent.click(screen.getByLabelText('Keep supplier order reference')); fireEvent.click(screen.getByRole('button', { name: 'Confirm one-off details' }));
   vi.mocked(updateDraft).mockRejectedValue(new DraftError(400, 'draft_validation_failed'));
@@ -434,9 +434,9 @@ it('keeps supplier details as one-off without carrying the prior reference silen
 it('clears the order snapshot immediately when supplier refresh loses business access', async () => {
   // GIVEN private saved and local contact details and an authorization failure on supplier refresh.
   vi.mocked(getDraft).mockResolvedValue({ ...saved, draft: { ...content, supplierId: 'one', supplierName: 'Private studio', platform: 'Private platform' } });
-  vi.mocked(getSupplier).mockRejectedValueOnce(new DraftError(403));
+  vi.mocked(getSuppliers).mockRejectedValueOnce(new DraftError(403));
   const callbacks = props(); render(<DraftEditor id={saved.id} {...callbacks} />);
-  fireEvent.click(await screen.findByRole('button', { name: 'Use current supplier details' }));
+  fireEvent.click(await screen.findByRole('button', { name: 'Choose supplier' }));
   // WHEN the supplier API rejects authority THEN no contact body remains while authentication refresh runs.
   await waitFor(() => expect(callbacks.onAuthLost).toHaveBeenCalled());
   expect(screen.getByLabelText('Supplier name')).toHaveValue(''); expect(screen.getByLabelText('Platform')).toHaveValue('');
@@ -451,4 +451,62 @@ it('presents a clear new order heading and one draft state before any details ar
   expect(screen.queryByText('Assigned when saved')).not.toBeInTheDocument();
   expect(screen.queryByText('Not saved yet')).not.toBeInTheDocument();
   expect(screen.getByLabelText('Title')).toBeEnabled();
+});
+it('restores removed entries in order with their details and moves focus predictably', async () => {
+  // GIVEN two entries with research and an exact reference price.
+  const first = { id: 'first', description: 'Sapphire', notes: 'Keep research', sourceLink: 'https://example.test/gem', indicativePrice: '12.3456' };
+  const second = { ...first, id: 'second', description: 'Ruby', indicativePrice: null };
+  vi.mocked(getDraft).mockResolvedValue({ ...saved, draft: { ...content, currency: 'USD', entries: [first, second] } });
+  render(<DraftEditor {...props()} id={saved.id} />);
+  await screen.findByDisplayValue('Sapphire');
+  // WHEN removing both entries THEN focus follows the remaining entry and then Add entry.
+  fireEvent.click(screen.getByRole('button', { name: 'Remove entry 1' }));
+  expect(screen.getByLabelText('Description 1')).toHaveFocus();
+  fireEvent.click(screen.getByRole('button', { name: 'Remove entry 1' }));
+  expect(screen.getByRole('button', { name: 'Add entry' })).toHaveFocus();
+  fireEvent.change(screen.getByLabelText('Title'), { target: { value: 'Other edit' } });
+  // WHEN undoing both removals THEN all fields, order and unrelated edits survive.
+  fireEvent.click(screen.getByRole('button', { name: 'Undo removal' }));
+  expect(screen.getByLabelText('Description 1')).toHaveValue('Ruby');
+  fireEvent.click(screen.getByRole('button', { name: 'Undo removal' }));
+  expect(screen.getByLabelText('Description 1')).toHaveValue('Sapphire');
+  expect(screen.getByLabelText('Description 1')).toHaveFocus();
+  expect(screen.getByLabelText('Description 2')).toHaveValue('Ruby');
+  expect(screen.getByLabelText('Entry notes 1')).toHaveValue(first.notes);
+  expect(screen.getByLabelText('Entry source link 1')).toHaveValue(first.sourceLink);
+  expect(screen.getByDisplayValue('12.3456')).toBeVisible();
+  expect(screen.getByLabelText('Title')).toHaveValue('Other edit');
+  expect(screen.queryByRole('button', { name: 'Undo removal' })).not.toBeInTheDocument();
+});
+it('ends removal undo when currency changes or a save starts', async () => {
+  // GIVEN an entry removed during editing.
+  vi.mocked(createDraft).mockRejectedValue(new DraftError(400, 'draft_validation_failed'));
+  render(<DraftEditor {...props()} />);
+  fireEvent.click(screen.getByRole('button', { name: 'Add entry' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Remove entry 1' }));
+  expect(screen.getByRole('button', { name: 'Undo removal' })).toBeEnabled();
+  // WHEN currency changes THEN the old entry cannot return under the new currency.
+  fireEvent.change(screen.getByLabelText('Currency'), { target: { value: 'EUR' } });
+  expect(screen.queryByRole('button', { name: 'Undo removal' })).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'Add entry' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Remove entry 1' }));
+  expect(screen.getByRole('button', { name: 'Undo removal' })).toBeEnabled();
+  // WHEN saving THEN the captured removal is final even if validation requires more edits.
+  fireEvent.click(screen.getByRole('button', { name: 'Save draft' }));
+  await screen.findByText('Review the draft fields and save again.');
+  expect(screen.queryByRole('button', { name: 'Undo removal' })).not.toBeInTheDocument();
+});
+it('keeps list-action focus when unrelated validation errors remain', async () => {
+  // GIVEN a title validation error and an existing entry.
+  vi.mocked(createDraft).mockRejectedValue(new DraftError(400, 'draft_validation_failed', { 'draft.title': ['Review title.'] }));
+  render(<DraftEditor {...props()} />);
+  fireEvent.click(screen.getByRole('button', { name: 'Add entry' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Save draft' }));
+  await screen.findByRole('link', { name: 'Review title.' });
+  // WHEN removing and restoring the entry THEN focus follows those actions, not the retained title error.
+  fireEvent.click(screen.getByRole('button', { name: 'Remove entry 1' }));
+  expect(screen.getByRole('button', { name: 'Add entry' })).toHaveFocus();
+  fireEvent.click(screen.getByRole('button', { name: 'Undo removal' }));
+  expect(screen.getByLabelText('Description 1')).toHaveFocus();
+  expect(screen.getByRole('link', { name: 'Review title.' })).toBeInTheDocument();
 });

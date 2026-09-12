@@ -92,7 +92,9 @@
 .po-entry-details > summary { align-content: center; color: var(--muted); font-size: .875rem; }
 .po-entry-details[open] > .po-entry-secondary { margin-top: .5rem; }
 .po-entry-heading { flex-wrap: wrap; }
-.po-add-entry { display: flex; justify-content: flex-end; margin-top: 1rem; }
+.po-add-entry { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: .75rem; margin-top: 1rem; }
+.po-removal-recovery { flex: 1 1 18rem; min-width: 0; display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; }
+.po-removal-recovery p { flex: 1 1 14rem; margin: 0; color: var(--muted); font-size: .875rem; overflow-wrap: anywhere; }
 .po-entry .muted { margin: -.25rem 0 0; font-size: .8125rem; }
 .po-order-context { align-items: start; gap: 1.5rem; }
 .po-order-context .po-section-heading { margin-bottom: 1rem; }
@@ -168,16 +170,13 @@
 .po-row-detail { display: block; margin-top: .25rem; }
 .po-supplier-controls { margin-bottom: 1rem; }
 .po-supplier-controls > p { margin-block: 0 .5rem; }
-.po-supplier-options { margin-top: 0; padding-top: 0; border-top: 0; }
+
 .po-editor .po-supplier-controls .button-row { flex-wrap: wrap; margin-block: .5rem; padding-top: 0; border-top: 0; }
 .po-contact-details { margin-top: 1rem; }
 .po-contact-details > summary { cursor: pointer; min-height: 44px; padding-block: .75rem; }
 .po-supplier-dialog { width: min(48rem, calc(100vw - 2rem)); max-height: calc(100dvh - 2rem); overflow: auto; }
 .po-supplier-dialog .po-comparison { margin-block: 1rem; }
 .po-supplier-dialog:has(> .po-comparison-content) { width: min(32rem, calc(100vw - 2rem)); }
-.po-supplier-options > summary { cursor: pointer; min-height: 44px; display: flex; align-items: center; gap: .5rem; color: var(--muted); font-size: .875rem; width: fit-content; }
-.po-supplier-options > summary::before { content: '›'; font-size: 1.25rem; }
-.po-supplier-options[open] > summary::before { transform: rotate(90deg); }
 .po-supplier-inline-editor > .form-stack { margin-bottom: 0; }
 .po-supplier-inline-editor .po-form-section { padding: 0; }
 .po-dialog-footer, .po-supplier-dialog > .button-row { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: .75rem; padding-top: 1rem; margin-top: 1.25rem; border-top: 1px solid var(--border-subtle); }

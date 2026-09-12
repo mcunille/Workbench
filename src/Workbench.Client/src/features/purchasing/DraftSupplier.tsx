@@ -22,6 +22,8 @@ export function DraftSupplier({ draft, archived, frozen, onChange, onAuthLost, o
     setPreviousFrozen(frozen);
     if (frozen) { setPanel(null); setSelected(undefined); setDiscard(false); setRefreshing(false); }
   }
+  const latestDraft = useRef(draft);
+  useLayoutEffect(() => { latestDraft.current = draft; }, [draft]);
   const supplierDirty = useRef(false);
   const active = useRef(true); const sequence = useRef(0);
   useLayoutEffect(() => { if (frozen) ++sequence.current; }, [frozen]);
@@ -35,16 +37,21 @@ export function DraftSupplier({ draft, archived, frozen, onChange, onAuthLost, o
   const changedFields = selected ? supplierFields.filter(([key]) => (snapshot[key] ?? '') !== (selected.supplier[key] ?? '')).map(([key]) => key) : [];
   function close() { ++sequence.current; if (panel === 'new' && supplierDirty.current) setDiscard(true); else { setPanel(null); setSelected(undefined); } }
   function enter(workflow: 'choose' | 'new' | 'one-off') { ++sequence.current; setRefreshing(false); setSelected(undefined); setReference(''); setMessage(''); setPanel(workflow); }
-  function preview(value: Supplier) { if (frozen) return; ++sequence.current; setRefreshing(false); setSelected(value); setReference(''); setPanel('preview'); setMessage(''); }
-  async function refresh() {
-    if (frozen || !draft.supplierId || refreshing) return; const generation = ++sequence.current; setRefreshing(true); setMessage('');
-    try { const latest = await getSupplier(draft.supplierId); if (active.current && generation === sequence.current) preview(latest); }
+  function preview(value: Supplier) { if (frozen) return;
+    const draft = latestDraft.current;
+    const snapshot = supplierSnapshot(draft);
+    if (value.isArchived && value.id !== draft.supplierId) { setMessage('This supplier is archived. Choose an active supplier.'); return; }
+    const matches = supplierFields.every(([key]) => (snapshot[key] ?? '') === (value.supplier[key] ?? ''));
+    if (matches && !(draft.supplierOrderReference && value.id !== draft.supplierId)) { onChange(copySupplier(draft, value)); setPanel(null); setSelected(undefined); setMessage('Supplier selected. Save your order to keep the change.'); return; } ++sequence.current; setRefreshing(false); setSelected(value); setReference(''); setPanel('preview'); setMessage(''); }
+  async function select(value: Supplier) {
+    if (frozen || refreshing) return; const generation = ++sequence.current; setRefreshing(true); setPanel(null); setMessage('');
+    try { const latest = await getSupplier(value.id); if (active.current && generation === sequence.current) preview(latest); }
     catch (error) { if (!active.current || generation !== sequence.current) return; if (error instanceof ApiError && (error.status === 401 || error.status === 403)) loseAccess(); else setMessage('Current supplier details could not be loaded. Your order details are unchanged.'); }
     finally { if (active.current && generation === sequence.current) setRefreshing(false); }
   }
-  function apply() {
+  function apply(keepDetails = false) {
     if (frozen || (needsReferenceDecision && !reference)) return;
-    const next = panel === 'one-off' ? { ...draft, supplierId: null } : selected ? copySupplier(draft, selected) : draft;
+    const next = panel === 'one-off' ? { ...draft, supplierId: null } : selected ? keepDetails ? { ...draft, supplierId: selected.id } : copySupplier(draft, selected) : draft;
     onChange({ ...next, supplierOrderReference: needsReferenceDecision && reference === 'clear' ? null : draft.supplierOrderReference });
     setPanel(null); setSelected(undefined); setMessage('Supplier details updated. Save your order to keep them.');
   }
@@ -52,16 +59,16 @@ export function DraftSupplier({ draft, archived, frozen, onChange, onAuthLost, o
     {draft.supplierId ? <p className="po-field-help">{archived ? 'Archived supplier · ' : ''}Contact edits apply to this order only.</p> : null}
     <div className="button-row"><button type="button" className="secondary" disabled={frozen} onClick={() => enter('choose')}>Choose supplier</button><button type="button" className="quiet" disabled={frozen} onClick={() => enter('new')}>New supplier</button>
     </div>
-    {draft.supplierId ? <details className="po-supplier-options"><summary>Supplier options</summary><div className="button-row"><button type="button" className="quiet" disabled={frozen || refreshing} onClick={() => void refresh()}>Use current supplier details</button><button type="button" className="quiet" disabled={frozen} onClick={() => enter('one-off')}>Keep details as one-off</button></div></details> : null}
+    {draft.supplierId ? <button type="button" className="quiet" disabled={frozen} onClick={() => enter('one-off')}>Remove supplier link</button> : null}
     {refreshing ? <p role="status">Loading supplier details…</p> : null}{message ? <p role="status">{message}</p> : null}
-    {panel === 'choose' ? <SupplierDialog title="Choose supplier" cancel={close}><SupplierList onSelect={preview} onAuthLost={loseAccess} /><button className="secondary" type="button" onClick={close}>Cancel</button></SupplierDialog> : null}
+    {panel === 'choose' ? <SupplierDialog title="Choose supplier" cancel={close}><SupplierList onSelect={value => void select(value)} onAuthLost={loseAccess} /><button className="secondary" type="button" onClick={close}>Cancel</button></SupplierDialog> : null}
     {panel === 'new' ? <SupplierDialog title="New supplier" cancel={close}><SupplierEditor inline onDirtyChange={reportDirty} onAuthLost={loseAccess} onCancel={close} onSelected={preview} /></SupplierDialog> : null}
     {discard ? <SupplierDialog title="Discard supplier changes?" cancel={() => setDiscard(false)}><p>{uncertainSupplier ? 'The supplier may already have been saved. Leaving loses the in-memory retry request. Check and retry before creating another supplier.' : 'Unsaved supplier edits will be discarded. Any supplier already saved remains in the directory.'}</p><div className="button-row"><button type="button" className="primary" autoFocus onClick={() => setDiscard(false)}>Keep editing supplier</button><button type="button" className="secondary" onClick={() => { setDiscard(false); setPanel(null); }}>Discard supplier changes</button></div></SupplierDialog> : null}
     {panel === 'preview' || panel === 'one-off' ? <SupplierDialog title={panel === 'one-off' ? 'Keep details as one-off?' : compactSelection ? 'Use supplier?' : 'Review supplier details'} cancel={close}>
-      <p>{panel === 'one-off' ? 'Keep these contact details on this order without a directory link.' : compactSelection ? 'Use these contact details for this order.' : changedFields.length ? 'Review the details that will change on this order.' : 'Your contact details already match this supplier.'}</p>
+      <p>{panel === 'one-off' ? 'Keep these contact details on this order without a directory link.' : compactSelection ? 'Use these contact details for this order.' : changedFields.length ? 'This supplier’s details differ from this PO. Choose which details to keep on the order.' : 'Your contact details already match this supplier.'}</p>
       {panel === 'preview' && selected ? compactSelection || !changedFields.length ? <SupplierDetails heading="Supplier" supplier={selected.supplier} archived={selected.isArchived} populatedOnly /> : <div className="po-comparison"><SupplierDetails heading="On this order" supplier={snapshot} fields={changedFields} emptyLabel="—" /><SupplierDetails heading="New details" supplier={selected.supplier} archived={selected.isArchived} fields={changedFields} emptyLabel="Will be cleared" /></div> : null}
       {needsReferenceDecision ? <fieldset><legend>Supplier order reference: {draft.supplierOrderReference}</legend><p>Choose what to do with the previous supplier’s reference.</p><label className="po-precision-toggle"><input type="radio" name="supplier-reference-decision" checked={reference === 'clear'} onChange={() => setReference('clear')} />Clear supplier order reference</label><label className="po-precision-toggle"><input type="radio" name="supplier-reference-decision" checked={reference === 'keep'} onChange={() => setReference('keep')} />Keep supplier order reference</label></fieldset> : null}
-      <div className="button-row po-dialog-footer"><button className="secondary" type="button" autoFocus onClick={close}>Cancel</button><button className="primary" type="button" disabled={!!needsReferenceDecision && !reference} onClick={apply}>{panel === 'one-off' ? 'Confirm one-off details' : compactSelection ? 'Use supplier' : 'Replace supplier details'}</button></div>
+      <div className="button-row po-dialog-footer"><button className="secondary" type="button" autoFocus onClick={close}>Cancel</button>{panel === 'preview' && changedFields.length > 0 ? <button className="secondary" type="button" disabled={!!needsReferenceDecision && !reference} onClick={() => apply(true)}>Keep existing PO details</button> : null}<button className="primary" type="button" disabled={!!needsReferenceDecision && !reference} onClick={() => apply()}>{panel === 'one-off' ? 'Confirm one-off details' : 'Use supplier details'}</button></div>
     </SupplierDialog> : null}
   </div>;
 }
