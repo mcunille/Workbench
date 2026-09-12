@@ -40,7 +40,9 @@ it('supports deliberate decimal entry and preserves pasted decimals and invalid 
   fireEvent.change(field(), { target: { value: '' } });
   fireEvent.click(screen.getByRole('checkbox'));
   // WHEN pasting THEN decimal values and invalid negative signs are never silently reinterpreted.
+  field().focus();
   fireEvent.paste(field(), { clipboardData: { getData: () => '125.5012' } });
+  expect(field()).toHaveFocus();
   expect(field()).toHaveValue('125.5012'); expect(screen.getByRole('checkbox')).toBeChecked();
   fireEvent.paste(field(), { clipboardData: { getData: () => '-12.34' } });
   expect(field()).toHaveValue('-12.34');

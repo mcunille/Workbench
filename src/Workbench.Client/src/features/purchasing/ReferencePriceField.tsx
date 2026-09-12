@@ -18,8 +18,15 @@ export function ReferencePriceField({ id, index, value, onChange, disabled, erro
   const preciseValue = needsPrecision(value);
   const extra = requestedPrecision || preciseValue;
   const input = useRef<HTMLInputElement>(null);
+  const restoreFocus = useRef<HTMLInputElement | null>(null);
   const pinCaret = (element: HTMLInputElement) => element.setSelectionRange(element.value.length, element.value.length);
   useLayoutEffect(() => {
+    if (restoreFocus.current && restoreFocus.current !== input.current && input.current) {
+      input.current.focus({ preventScroll: true });
+      pinCaret(input.current);
+
+    }
+    restoreFocus.current = null;
     if (!extra && input.current === document.activeElement && input.current) pinCaret(input.current);
   });
   return <div className="po-field po-price-field">
@@ -47,12 +54,14 @@ export function ReferencePriceField({ id, index, value, onChange, disabled, erro
         }}
         onPaste={event => {
           event.preventDefault();
+          restoreFocus.current = document.activeElement === input.current ? input.current : null;
           const pasted = event.clipboardData.getData('text').trim();
           if (extra || pasted.includes('.') || !/^\d*$/.test(pasted)) {
             onChange(pasted === '' ? null : formatReferencePrice(pasted));
           } else onChange(fromDigits(pasted));
         }}
         onChange={event => {
+          restoreFocus.current = document.activeElement === input.current ? input.current : null;
           const text = event.target.value;
           const deleting = (event.nativeEvent as InputEvent).inputType?.startsWith('delete');
           onChange(extra ? text || null : deleting && value === '0.00' ? null
