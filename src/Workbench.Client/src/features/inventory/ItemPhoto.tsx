@@ -46,7 +46,7 @@ export function ItemPhoto({
     };
   }, [url, retry, onAuthLost]);
   return (
-    <span className="photo-placeholder item-photo">
+    <span className="photo-placeholder item-photo" data-photo={url ? 'present' : 'absent'}>
       {url && image?.url === url ? (
         <img
           src={image.objectUrl}

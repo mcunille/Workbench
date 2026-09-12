@@ -709,6 +709,10 @@ footer {
   gap: 1.5rem;
   margin: 1.75rem 0 0;
 }
+.item-summary {
+  gap: 1rem;
+  margin-block: 1.5rem;
+}
 .detail-field {
   min-width: 0;
 }
@@ -1004,26 +1008,49 @@ dialog::backdrop {
   .workspace-nav { position: static; height: auto; align-self: stretch; }
 }
 html { scroll-padding-top: 1rem; }
+.collection-page .page-heading {
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+.collection-actions > .text-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  font-size: 0.875rem;
+}
 .collection-search {
-  margin-block: 1.5rem;
+  margin-block: 0 1.5rem;
 }
 .collection-search-controls {
   display: flex;
   flex-wrap: wrap;
   gap: 0.75rem;
-  margin-top: 0.5rem;
+}
+.collection-search .hint {
+  margin-block: 0.5rem 0;
 }
 .collection-search-controls button {
   flex: 0 0 auto;
 }
+@media (max-width: 40rem) {
+  .collection-page .collection-search-controls > .floating-field {
+    flex-basis: 100%;
+  }
+}
+.collection-results-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+.collection-results-toolbar > p {
+  margin: 0;
+}
 .collection-view {
   display: inline-flex;
   gap: 0.25rem;
-  padding: 0.25rem;
-  margin-bottom: 1.5rem;
-  background: var(--surface);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-card);
 }
 .collection-view button {
   display: inline-flex;
@@ -1042,6 +1069,7 @@ html { scroll-padding-top: 1rem; }
 }
 .collection-list[data-view="grid"] {
   display: grid;
+  grid-auto-rows: 1fr;
   grid-template-columns: repeat(auto-fill, minmax(min(100%, 18rem), 1fr));
   gap: 1.5rem;
   background: transparent;
@@ -1063,9 +1091,11 @@ html { scroll-padding-top: 1rem; }
   box-shadow: var(--card-shadow);
 }
 .collection-list[data-view="grid"] .photo-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
   width: 100%;
-  height: auto;
-  aspect-ratio: 3 / 2;
+  height: 9rem;
   border-radius: calc(var(--radius-card) - 1px) calc(var(--radius-card) - 1px) 0 0;
 }
 .collection-list[data-view="grid"] .photo-placeholder .icon {
@@ -1094,6 +1124,7 @@ html { scroll-padding-top: 1rem; }
 .item-photo img, .photo-preview img { width: 100%; height: 100%; object-fit: contain; }
 .photo-editor { margin-block: 1.5rem; }
 .photo-editor > .item-photo { display: flex; justify-content: center; width: 100%; height: min(50vh, 26rem); border-radius: var(--radius-card); }
+.photo-editor > .item-photo[data-photo="absent"] { width: 3.5rem; height: 3.5rem; }
 .photo-preview { margin-block: 1rem; }
 .photo-preview img { display: block; max-height: 24rem; background: var(--placeholder); border-radius: var(--radius-card); }
 .photo-editor input[type="file"] { max-width: 100%; }

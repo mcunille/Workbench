@@ -130,27 +130,17 @@ export function Collection({
     setRequest({});
   }
   return (
-    <section>
+    <section className="collection-page">
       <div className="page-heading">
         <div>
           <h1 ref={heading} tabIndex={-1}>
             {archived ? 'Archive' : 'Collection'}
           </h1>
-          <p className="lede">
-            {archived
-              ? 'Records set aside, ready to recover when you need them.'
-              : 'A place for the pieces you want to remember.'}
-          </p>
+          {archived ? (
+            <p className="lede">Records set aside, ready to recover when you need them.</p>
+          ) : null}
         </div>
-        <div className="button-row">
-          <a className="secondary button" href="/inventory/export" onClick={follow}>Export records</a>
-          <a
-            className="secondary button"
-            href={archived ? '/inventory' : '/inventory/archive'}
-            onClick={follow}
-          >
-            {archived ? 'Collection' : 'Archive'}
-          </a>
+        <div className="button-row collection-actions">
           {!archived ? (
             <a
               className="primary button"
@@ -161,6 +151,14 @@ export function Collection({
               Add item
             </a>
           ) : null}
+          <a
+            className="text-link"
+            href={archived ? '/inventory' : '/inventory/archive'}
+            onClick={follow}
+          >
+            {archived ? 'Collection' : 'Archive'}
+          </a>
+          <a className="text-link" href="/inventory/export" onClick={follow}>Export records</a>
         </div>
       </div>
       <form
@@ -185,7 +183,7 @@ export function Collection({
               onChange={(event) => setDraft(event.target.value)}
             />
           </FloatingField>
-          <button className="primary" type="submit">
+          <button className="secondary" type="submit">
             Search
           </button>
           <button
@@ -269,29 +267,31 @@ export function Collection({
       ) : null}
       {page?.items.length ? (
         <>
-          {!loading && !failed ? (
-            <p role="status">
-              {page.items.length} {query ? 'matching ' : ''}
-              {page.items.length === 1 ? 'item' : 'items'} loaded
-              {page.nextCursor ? '; more available.' : '.'}
-            </p>
-          ) : null}
-          <div
-            className="collection-view"
-            role="group"
-            aria-label={archived ? 'Archive view' : 'Collection view'}
-          >
-            {(['grid', 'list'] as const).map((mode) => (
-              <button
-                key={mode}
-                type="button"
-                aria-pressed={view === mode}
-                onClick={() => setView(mode)}
-              >
-                <Icon name={mode} />
-                {mode === 'grid' ? 'Grid' : 'List'}
-              </button>
-            ))}
+          <div className="collection-results-toolbar">
+            {!loading && !failed ? (
+              <p role="status">
+                {page.items.length} {query ? 'matching ' : ''}
+                {page.items.length === 1 ? 'item' : 'items'} loaded
+                {page.nextCursor ? '; more available.' : '.'}
+              </p>
+            ) : null}
+            <div
+              className="collection-view"
+              role="group"
+              aria-label={archived ? 'Archive view' : 'Collection view'}
+            >
+              {(['grid', 'list'] as const).map((mode) => (
+                <button
+                  key={mode}
+                  type="button"
+                  aria-pressed={view === mode}
+                  onClick={() => setView(mode)}
+                >
+                  <Icon name={mode} />
+                  {mode === 'grid' ? 'Grid' : 'List'}
+                </button>
+              ))}
+            </div>
           </div>
           <ul className="collection-list" data-view={view}>
             {page.items.map((item) => (
@@ -474,6 +474,18 @@ export function ItemDetails({
             </span>
             <h1 className="item-title">{item.name}</h1>
           </div>
+          <dl className="item-details item-summary">
+            <div className="detail-field">
+              <dt>Storage location</dt>
+              <dd>{item.location ?? 'No location recorded'}</dd>
+            </div>
+            <div className="detail-field">
+              <dt>Notes</dt>
+              <dd className="notes">
+                {item.notes ?? 'No notes recorded'}
+              </dd>
+            </div>
+          </dl>
           {savedMessage ? <p role="status">{savedMessage}</p> : null}
           {item.archivedAtUtc ? (
             <p role="status">
@@ -631,16 +643,6 @@ export function ItemDetails({
             }}
           />
           <dl className="item-details">
-            <div className="detail-field">
-              <dt>Storage location</dt>
-              <dd>{item.location ?? 'No location recorded'}</dd>
-            </div>
-            <div className="detail-field">
-              <dt>Notes</dt>
-              <dd className="notes">
-                {item.notes ?? 'No notes recorded'}
-              </dd>
-            </div>
             <div className="detail-field record-metadata">
               <dt>Item identifier</dt>
               <dd className="identifier">{item.id}</dd>
