@@ -227,3 +227,35 @@ test('deleting a saved draft requires confirmation and removes it from the list'
   await page.goto(path);
   await expect(page.getByText('This draft is unavailable.', { exact: true })).toBeVisible();
 });
+
+test('same-draft history jumps preserve unsaved input and the departure warning', async ({ page }) => {
+  // GIVEN history contains the saved draft, the list, and then the same draft again.
+  await signIn(page);
+  const title = `History draft ${Date.now()}`;
+  await startDraft(page, title);
+  await save(page);
+  const path = new URL(page.url()).pathname;
+  const originalEntry = await page.evaluate(() => window.history.state.workbenchEntryId as string);
+  await page.getByRole('button', { name: 'Back to purchase orders', exact: true }).click();
+  await page.getByRole('link').filter({ hasText: title }).click();
+  await expect(page.getByLabel('Title', { exact: true })).toHaveValue(title);
+  const notes = page.getByLabel('Notes', { exact: true });
+  await notes.fill('Unsaved supplier questions');
+
+  // WHEN jumping over the list to the older history entry with the identical URL.
+  await page.evaluate(() => window.history.go(-2));
+  await expect.poll(() => page.evaluate(() => window.history.state.workbenchEntryId)).toBe(originalEntry);
+
+  // THEN the editor keeps its local input rather than reloading the saved document.
+  await expect(page).toHaveURL(new RegExp(`${path}$`));
+  await expect(notes).toHaveValue('Unsaved supplier questions');
+  await expect(notes).toBeFocused();
+  // AND a real departure still asks before discarding that input.
+  await page.getByRole('button', { name: 'Back to purchase orders', exact: true }).click();
+  await expect(page.getByRole('dialog', { name: 'Discard changes?' })).toBeVisible();
+  await page.getByRole('button', { name: 'Keep editing', exact: true }).click();
+  await expect(notes).toHaveValue('Unsaved supplier questions');
+  const current = await page.request.get(`/api/purchase-order-drafts/${path.split('/').at(-1)}`);
+  expect(current.ok()).toBe(true);
+  expect((await current.json()).draft.notes).toBeNull();
+});

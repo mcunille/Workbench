@@ -269,7 +269,7 @@ function SignedInApplication({
           ) : path === '/purchase-orders' ? (
             <DraftList memory={draftMemory} follow={navigation.follow} onAuthLost={authLost} />
           ) : /^\/purchase-orders\/[^/]+$/.test(path) ? (
-            <DraftEditor key={navigation.entryId}
+            <DraftEditor key={navigation.viewId}
               id={path === '/purchase-orders/new' ? undefined : path.slice('/purchase-orders/'.length)}
               onDirtyChange={navigation.setDirty} onAuthLost={authLost}
               onCancel={() => navigation.navigate('/purchase-orders')}

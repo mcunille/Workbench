@@ -129,8 +129,10 @@ internal static class DraftOrderSchema
                 THROW 50400,'Review the draft fields.',1;
             DECLARE @Envelope TABLE([key] nvarchar(4000) COLLATE Latin1_General_100_BIN2,[value] nvarchar(max),[type] int);
             INSERT @Envelope SELECT [key],[value],[type] FROM OPENJSON(@CanonicalInputJson);
+            -- Even BIN2 string equality pads trailing spaces. Check allowed property names as exact UTF-16 bytes.
             IF (SELECT COUNT(*) FROM @Envelope)<>4 OR EXISTS(SELECT [key] FROM @Envelope GROUP BY [key] HAVING COUNT(*)<>1)
-                OR EXISTS(SELECT 1 FROM @Envelope WHERE [key] NOT IN(N'operation',N'targetId',N'expectedVersion',N'draft'))
+                OR EXISTS(SELECT 1 FROM @Envelope WHERE CONVERT(varbinary(max),[key]) NOT IN(
+                    CONVERT(varbinary(max),N'operation'),CONVERT(varbinary(max),N'targetId'),CONVERT(varbinary(max),N'expectedVersion'),CONVERT(varbinary(max),N'draft')))
                 OR NOT EXISTS(SELECT 1 FROM @Envelope WHERE [key]=N'operation' AND [type]=1 AND CONVERT(varbinary(max),[value])=CONVERT(varbinary(max),CONVERT(nvarchar(6),@Operation)))
                 OR NOT EXISTS(SELECT 1 FROM @Envelope WHERE [key]=N'draft' AND [type]=5)
                 THROW 50400,'Review the draft fields.',1;
@@ -177,7 +179,9 @@ internal static class DraftOrderSchema
                 DECLARE @Fields TABLE([key] nvarchar(4000) COLLATE Latin1_General_100_BIN2,[value] nvarchar(max),[type] int);
                 INSERT @Fields SELECT [key],[value],[type] FROM OPENJSON(@Draft);
                 IF (SELECT COUNT(*) FROM @Fields)<>6 OR EXISTS(SELECT [key] FROM @Fields GROUP BY [key] HAVING COUNT(*)<>1)
-                    OR EXISTS(SELECT 1 FROM @Fields WHERE [key] NOT IN(N'title',N'supplierName',N'currency',N'notes',N'sourceLinks',N'entries'))
+                    OR EXISTS(SELECT 1 FROM @Fields WHERE CONVERT(varbinary(max),[key]) NOT IN(
+                        CONVERT(varbinary(max),N'title'),CONVERT(varbinary(max),N'supplierName'),CONVERT(varbinary(max),N'currency'),
+                        CONVERT(varbinary(max),N'notes'),CONVERT(varbinary(max),N'sourceLinks'),CONVERT(varbinary(max),N'entries')))
                     OR EXISTS(SELECT 1 FROM @Fields WHERE ([key] IN(N'sourceLinks',N'entries') AND [type]<>4) OR ([key] NOT IN(N'sourceLinks',N'entries') AND [type] NOT IN(0,1)))
                     THROW 50400,'Review the draft fields.',1;
                 DECLARE @Title nvarchar(max),@Supplier nvarchar(max),@Currency nvarchar(max),@Notes nvarchar(max),@Links nvarchar(max),@Entries nvarchar(max);
@@ -200,7 +204,9 @@ internal static class DraftOrderSchema
                 INSERT @EntryFields SELECT CONVERT(int,e.[key]),p.[key],p.[value],p.[type] FROM OPENJSON(@Entries) e CROSS APPLY OPENJSON(e.[value]) p;
                 IF EXISTS(SELECT 1 FROM OPENJSON(@Entries) e WHERE (SELECT COUNT(*) FROM @EntryFields p WHERE p.EntryIndex=CONVERT(int,e.[key]))<>5)
                     OR EXISTS(SELECT EntryIndex,[key] FROM @EntryFields GROUP BY EntryIndex,[key] HAVING COUNT(*)<>1)
-                    OR EXISTS(SELECT 1 FROM @EntryFields WHERE [key] NOT IN(N'id',N'description',N'notes',N'sourceLink',N'indicativePrice') OR [type] NOT IN(0,1))
+                    OR EXISTS(SELECT 1 FROM @EntryFields WHERE CONVERT(varbinary(max),[key]) NOT IN(
+                        CONVERT(varbinary(max),N'id'),CONVERT(varbinary(max),N'description'),CONVERT(varbinary(max),N'notes'),
+                        CONVERT(varbinary(max),N'sourceLink'),CONVERT(varbinary(max),N'indicativePrice')) OR [type] NOT IN(0,1))
                     OR EXISTS(SELECT 1 FROM @EntryFields WHERE [key]=N'id' AND ([type]<>1 OR DATALENGTH([value])<>72 OR TRY_CONVERT(uniqueidentifier,[value]) IS NULL OR TRY_CONVERT(uniqueidentifier,[value])='00000000-0000-0000-0000-000000000000'))
                     OR EXISTS(SELECT TRY_CONVERT(uniqueidentifier,[value]) FROM @EntryFields WHERE [key]=N'id' GROUP BY TRY_CONVERT(uniqueidentifier,[value]) HAVING COUNT(*)>1)
                     OR EXISTS(SELECT 1 FROM @EntryFields WHERE ([key]=N'description' AND DATALENGTH([value])>1000) OR ([key]=N'notes' AND DATALENGTH([value])>4000)

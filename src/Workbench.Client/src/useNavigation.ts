@@ -12,6 +12,9 @@ export function useNavigation() {
     () => window.history.state?.workbenchEntryId ?? crypto.randomUUID(),
   );
   const currentEntryId = useRef(entryId);
+  // A view owns in-memory edits. Moving between history entries for the same
+  // path changes origin metadata, but must not replace that mounted view.
+  const [viewId, setViewId] = useState(entryId);
   const [confirmation, setConfirmation] = useState(false);
   const dirty = useRef(false);
   const uncertain = useRef(false);
@@ -36,6 +39,7 @@ export function useNavigation() {
         index.current += 1;
         currentEntryId.current = crypto.randomUUID();
         setEntryId(currentEntryId.current);
+        setViewId(currentEntryId.current);
         window.history.pushState(
           {
             workbenchIndex: index.current,
@@ -122,6 +126,7 @@ export function useNavigation() {
           event.state?.workbenchEntryId ?? crypto.randomUUID();
         setEntryId(currentEntryId.current);
         currentPath.current = window.location.pathname;
+        setViewId(currentEntryId.current);
         setPath(window.location.pathname);
       }
     };
@@ -154,6 +159,7 @@ export function useNavigation() {
   return {
     path,
     entryId,
+    viewId,
     navigate,
     replace,
     follow,
