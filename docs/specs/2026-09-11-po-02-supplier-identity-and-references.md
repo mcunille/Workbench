@@ -1,6 +1,6 @@
 # PO-02: supplier identity and purchase references
 
-**Status:** Proposed — for design discussion; not approved for implementation.
+**Status:** Accepted — implementation authorized by the owner on 2026-09-11.
 
 ## Problem and scope
 
@@ -13,10 +13,10 @@ order, during design discussion. One-off suppliers remain supported.
 No accounting configuration is required.
 
 The dependency is [PO-01 PR #105](https://github.com/mcunille/Workbench/pull/105), inspected at
-`fd93dfcd983f9143b62b786e613bcbb45f8799cf`; it was open when this proposal was prepared. Its
+`fd93dfcd983f9143b62b786e613bcbb45f8799cf` and merged into main as `debb61f`. Its
 [PO-01 design](https://github.com/mcunille/Workbench/blob/fd93dfcd983f9143b62b786e613bcbb45f8799cf/docs/specs/2026-09-11-po-01-draft-supplier-orders.md)
-and draft contracts provide the baseline. Reconcile against its final integrated revision before
-implementation. The current checkout does not yet contain that implementation.
+and draft contracts provide the baseline. The integrated PO-01 specification and server purchasing
+contracts match the inspected revision; this implementation is based on the integrated revision.
 
 PO-01 stores nullable provisional supplier text, mutable draft content, tenant-scoped UUIDs,
 rowversion concurrency and compact durable request receipts. It has no supplier directory,
@@ -182,8 +182,41 @@ write representation and fingerprint version. Keep V1 canonicalization for resol
 pre-upgrade receipts. An old request with no matching receipt must fail with a reload-required
 contract response before mutation; never interpret missing supplier fields as permission to clear
 them. Preserve existing receipt bytes and their original versions/times. V1 read compatibility,
-precise version negotiation and error DTOs must be finalized before accepting the implementation
-contract; no rolling mixed-version writer deployment is assumed.
+version negotiation and error DTOs are specified below; no rolling mixed-version writer deployment
+is assumed.
+
+### Versioned wire contract
+
+V2 uses `/api/v2/purchase-order-drafts` for list, create and UUID detail/update/delete routes.
+`DraftContentV2` retains every V1 field and adds required nullable `supplierId`,
+`supplierContactName`, `supplierEmail`, `supplierPhone`, `supplierWebsite`, `supplierPostalAddress`,
+`supplierOrderReference` (maximum 200 code units) and `platform`. Explicit nulls retain incomplete
+drafts; unknown fields remain invalid. Supplier contact validation uses the limits above.
+Create and update envelopes retain requestId and expectedVersion semantics. Save receipts are unchanged.
+Detail adds `poReference` and `supplierIsArchived` (false when unlinked). Summary adds `poReference`,
+`supplierOrderReference` and `platform`; list envelopes retain items and nextCursor. Search uses
+optional `query` and `cursor` parameters. Read-only supplier archive state does not replace snapshot data.
+
+V1 reads remain available at the original routes and retain their original DTOs. V1 create/update
+requests may resolve matching existing receipts; unmatched requests return HTTP 426 with
+`draft_contract_reload_required`, without a write. Changed-input reuse remains a 409 request conflict.
+The V1 deletion request contract remains valid, and its command clears V2 fields as well. Successful
+old receipts retain their original fingerprint/version/time. New V2 writes fingerprint all V2 fields.
+
+Supplier list/detail routes are `/api/suppliers` and `/api/suppliers/{id}`. List accepts `query`,
+`cursor` and `includeArchived`, default false. `SupplierContent` has required `name` and required
+nullable `contactName`, `email`, `phone`, `website`, `postalAddress`. POST takes `{requestId,supplier}`;
+PUT takes `{requestId,expectedVersion,supplier}`. POST `/api/suppliers/{id}/archive` takes
+`{requestId,expectedVersion,isArchived}` for both archive and reactivation. Details contain
+`id`, `supplier`, `isArchived`, `createdAtUtc`, `updatedAtUtc`, `version`; pages contain `items` and
+`nextCursor`. Successful mutations return compact `{requestId,replayed,supplierId,savedVersion,
+completedAtUtc}` receipts, followed by a current-detail read before editing continues.
+
+Use HTTP 400 `supplier_validation_failed` with field-path errors, 404 `supplier_not_found`, and
+409 `supplier_version_conflict` or `supplier_request_conflict`. A draft selecting a now-archived
+supplier returns 409 `supplier_selection_conflict`; retain draft input and allow selection correction.
+Foreign supplier identities remain indistinguishable from missing identities. Existing authentication,
+antiforgery, request-size and uncertain-outcome handling apply to these endpoints.
 
 ## Security, migration and recovery
 
@@ -249,16 +282,17 @@ permission and migration probes, and affected mutation testing. Cover counter ra
 snapshot and platform independence, archive races, old receipts and unknown-outcome retries. Exercise the browser
 workflow with current source, including mobile, keyboard, failed search, supplier save followed by
 draft failure, and concurrency comparison. Run CONTRIBUTING.md's full application gates then.
-This proposal changes documentation only and establishes no application verification evidence.
+Record actual implementation evidence separately; these acceptance criteria alone establish no
+application verification evidence.
 
-## Decisions for design approval
+## Accepted decisions
 
 - Confirmed: reusable supplier directory plus independent order snapshots.
 - Confirmed requirement: each PO records its transaction platform independently of the supplier's
-  other orders. Proposed entry behavior is optional free text, including custom platforms.
-- Confirm automatic permanent numbering at first save, without custom formats or yearly reset.
-- Confirm one contact/address per supplier and the limited reference/name/title search scope.
+  other orders. Entry is optional free text, including custom platforms.
+- Automatic permanent numbering at first save, without custom formats or yearly reset.
+- One contact/address per supplier and the limited reference/name/title search scope.
 
-After these product decisions, finalize wire-version compatibility and precise command/validation
-contracts in this spec before implementation. Acceptance of this proposal must be recorded explicitly;
-no runtime, schema or API changes are authorized by drafting it.
+The owner authorized implementation after requesting early review in PR #107. Implementation follows
+these defaults and the versioned contract above. Merge and production operations remain separately
+authorized actions.

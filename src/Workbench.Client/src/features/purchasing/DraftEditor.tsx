@@ -1,8 +1,9 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { FloatingField } from '../../FloatingField';
 import { Icon } from '../../Icon';
 import { ApiError } from '../../api/auth';
 import { createDraft, updateDraft, getDraft, DraftError, type DraftContent, type DraftOrder, type CreateDraftRequest, type UpdateDraftRequest, type SaveReceipt } from '../../api/purchaseOrders';
+import { DraftSupplier } from './DraftSupplier';
 import { DraftComparison } from './DraftComparison';
 import './purchasing.css';
 import { ClearPricesDialog } from './ClearPricesDialog';
@@ -22,11 +23,14 @@ interface Props {
   onCancel(): void;
 }
 const displayDraft = (draft: DraftContent): DraftContent => ({ ...draft, entries: draft.entries.map(entry => ({ ...entry, indicativePrice: formatReferencePrice(entry.indicativePrice) })) });
-const emptyDraft = (): DraftContent => ({ title: null, supplierName: null, currency: null, notes: null, sourceLinks: [], entries: [] });
+const emptyDraft = (): DraftContent => ({ title: null, supplierName: null, supplierId: null, supplierContactName: null, supplierEmail: null, supplierPhone: null, supplierWebsite: null, supplierPostalAddress: null, supplierOrderReference: null, platform: null, currency: null, notes: null, sourceLinks: [], entries: [] });
 const fieldId = (path: string) => `po-${path.replace(/[^a-zA-Z0-9]/g, '-')}`;
 const optional = (text: string) => text === '' ? null : text;
 
 export function DraftEditor({ id: initialId, onDirtyChange, onAuthLost, onSaved, onCreated, onCancel }: Props) {
+  const [supplierDirty, setSupplierDirty] = useState(false);
+  const [supplierUncertain, setSupplierUncertain] = useState(false);
+  const reportSupplierDirty = useCallback((dirty: boolean, uncertain: boolean) => { setSupplierDirty(dirty); setSupplierUncertain(uncertain); }, []);
   const [clearingPrices, setClearingPrices] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const deletion = useRef<DeleteDraftRequest | undefined>(undefined);
@@ -64,6 +68,11 @@ export function DraftEditor({ id: initialId, onDirtyChange, onAuthLost, onSaved,
   const busy = useRef(false);
   const alive = useRef(true);
   const firstId = useRef(initialId);
+  const supplierAccessLost = useCallback(() => {
+    setDraft(emptyDraft()); setBaseline(undefined); setCurrent(undefined); setSavedAt(undefined);
+    submitted.current = undefined; confirmed.current = undefined; deletion.current = undefined;
+    setSupplierDirty(false); setSupplierUncertain(false); setMode('blocked'); onDirtyChange(false, false); onAuthLost();
+  }, [onAuthLost, onDirtyChange]);
 
   useEffect(() => {
     alive.current = true;
@@ -82,8 +91,8 @@ export function DraftEditor({ id: initialId, onDirtyChange, onAuthLost, onSaved,
     return () => { alive.current = false; currentRead = false; };
   }, [onAuthLost]);
   const changed = JSON.stringify(draft) !== JSON.stringify(baseline?.draft ?? emptyDraft());
-  const uncertain = mode === 'uncertain' || mode === 'saving' || mode === 'deleting' || mode === 'delete-uncertain';
-  const dirty = uncertain || mode === 'comparison' || mode.startsWith('conflict-') || ((mode === 'editing' || mode === 'blocked') && changed);
+  const uncertain = supplierUncertain || mode === 'uncertain' || mode === 'saving' || mode === 'deleting' || mode === 'delete-uncertain';
+  const dirty = supplierDirty || uncertain || mode === 'comparison' || mode.startsWith('conflict-') || ((mode === 'editing' || mode === 'blocked') && changed);
   useEffect(() => { onDirtyChange(dirty, uncertain); }, [dirty, uncertain, onDirtyChange]);
   useEffect(() => () => onDirtyChange(false, false), [onDirtyChange]);
   useEffect(() => {
@@ -151,7 +160,7 @@ export function DraftEditor({ id: initialId, onDirtyChange, onAuthLost, onSaved,
       } else if (error instanceof ApiError && error.status >= 400 && error.status < 500) {
         submitted.current = undefined; setMode('editing');
         setErrors(error instanceof DraftError ? error.errors : {});
-        setMessage(error.status === 413 ? 'This draft is too large. Shorten it and save again.' : 'Review the draft fields and save again.');
+        setMessage(error instanceof DraftError && error.code === 'supplier_selection_conflict' ? 'The selected supplier is no longer available for new orders. Choose an active supplier or keep these details as one-off, then save again.' : error instanceof DraftError && error.code === 'draft_contract_reload_required' ? 'This draft contract has changed. Your input is kept. Reload before submitting again.' : error.status === 413 ? 'This draft is too large. Shorten it and save again.' : 'Review the draft fields and save again.');
       } else {
         setMode('uncertain'); setMessage('We couldn’t confirm your save.');
       }
@@ -220,7 +229,7 @@ export function DraftEditor({ id: initialId, onDirtyChange, onAuthLost, onSaved,
       </div>
       <header className="po-editor-header">
         <div className="po-heading">
-          <h1 className="po-accessible-heading">{id ? 'Edit draft' : 'New draft'}</h1>
+          <h1 className="po-accessible-heading">{id ? 'Edit draft' : 'New draft'}</h1><strong className="po-reference">{baseline?.poReference ?? current?.poReference ?? 'Assigned when saved'}</strong><span className="po-badge">Draft</span>
         </div>
         <p className="po-save-status" role="status">{saveStatus}</p>
       </header>
@@ -265,8 +274,27 @@ export function DraftEditor({ id: initialId, onDirtyChange, onAuthLost, onSaved,
           </div>
           <div className="po-header-fields">
             {field('draft.title', 'Title', draft.title, title => setDraft({ ...draft, title }))}
-            {field('draft.supplierName', 'Supplier name', draft.supplierName, supplierName => setDraft({ ...draft, supplierName }))}
+
           </div>
+        </section>
+        <section className="po-form-section" aria-labelledby="po-supplier-heading">
+          <div className="po-section-heading"><div><h2 id="po-supplier-heading">Supplier</h2><p>Save the details for this purchase. A platform can vary between orders.</p></div></div>
+          <DraftSupplier draft={draft} archived={!!baseline?.supplierIsArchived && baseline.draft.supplierId === draft.supplierId} frozen={frozen} onChange={setDraft} onAuthLost={supplierAccessLost} onDirtyChange={reportSupplierDirty} />
+          <div className="po-header-fields">
+            {field('draft.supplierName', 'Supplier name', draft.supplierName, supplierName => setDraft({ ...draft, supplierName }))}
+            {field('draft.platform', 'Platform', draft.platform, platform => setDraft({ ...draft, platform }), { placeholder: 'Not set' })}
+            {field('draft.supplierOrderReference', 'Supplier order reference', draft.supplierOrderReference, supplierOrderReference => setDraft({ ...draft, supplierOrderReference }))}
+          </div>
+          <details className="po-contact-details" open={Object.keys(errors).some(key => /^draft\.supplier(ContactName|Email|Phone|Website|PostalAddress)$/.test(key)) || undefined}>
+            <summary>Contact details (optional)</summary>
+            <div className="po-header-fields">
+              {field('draft.supplierContactName', 'Supplier contact name', draft.supplierContactName, supplierContactName => setDraft({ ...draft, supplierContactName }))}
+              {field('draft.supplierEmail', 'Supplier email', draft.supplierEmail, supplierEmail => setDraft({ ...draft, supplierEmail }))}
+              {field('draft.supplierPhone', 'Supplier phone', draft.supplierPhone, supplierPhone => setDraft({ ...draft, supplierPhone }))}
+              {field('draft.supplierWebsite', 'Supplier website', draft.supplierWebsite, supplierWebsite => setDraft({ ...draft, supplierWebsite }))}
+              {field('draft.supplierPostalAddress', 'Supplier postal address', draft.supplierPostalAddress, supplierPostalAddress => setDraft({ ...draft, supplierPostalAddress }), { multiline: true })}
+            </div>
+          </details>
         </section>
         <section className="po-form-section" aria-labelledby="po-entries-heading">
           <div className="po-section-heading">

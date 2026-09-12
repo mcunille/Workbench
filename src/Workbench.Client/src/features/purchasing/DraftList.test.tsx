@@ -4,7 +4,7 @@ import { getDrafts, DraftError } from '../../api/purchaseOrders';
 import { DraftList } from './DraftList';
 import { DraftMemory } from './draftMemory';
 vi.mock('../../api/purchaseOrders', async importOriginal => ({ ...await importOriginal<typeof import('../../api/purchaseOrders')>(), getDrafts: vi.fn() }));
-const row = (id: string) => ({ id, title: id, supplierName: null, updatedAtUtc: '2026-09-12T00:00:00Z' });
+const row = (id: string) => ({ id, title: id, supplierName: null, poReference: 'PO-000001', supplierOrderReference: null, platform: null, updatedAtUtc: '2026-09-12T00:00:00Z' });
 const props = () => ({ memory: new DraftMemory(), follow: vi.fn(), onAuthLost: vi.fn() });
 beforeEach(() => { vi.mocked(getDrafts).mockReset(); });
 it('distinguishes empty loaded drafts from pending data', async () => {
@@ -52,4 +52,45 @@ it('restores loaded pages on return and directs invalid cursors to refresh', asy
   fireEvent.click(screen.getByRole('button', { name: 'Load more' }));
   await screen.findByText('This page reference is no longer valid. Refresh drafts to start again.');
   expect(screen.getByRole('link', { name: /kept/ })).toBeVisible();
+});
+it('searches the server from page one and displays permanent references and platforms', async () => {
+  // GIVEN a loaded list and server matches outside its first page.
+  vi.mocked(getDrafts).mockResolvedValueOnce({ items: [row('original')], nextCursor: 'old' }).mockResolvedValueOnce({ items: [{ ...row('matched'), poReference: 'PO-000042', platform: 'Instagram', supplierOrderReference: 'IG-7' }], nextCursor: null });
+  render(<DraftList {...props()} />); await screen.findByRole('link', { name: /original/ });
+  // WHEN the owner searches by supplier reference.
+  fireEvent.change(screen.getByRole('searchbox', { name: 'Search purchase orders' }), { target: { value: ' IG-7 ' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Search' }));
+  // THEN query-bound server results replace the old page and show identity and platform.
+  await screen.findByText('PO-000042');
+  expect(getDrafts).toHaveBeenLastCalledWith(undefined, 'IG-7');
+  expect(screen.getByText(/Instagram/)).toBeVisible();
+  expect(screen.queryByRole('link', { name: /original/ })).not.toBeInTheDocument();
+});
+it('does not let an older search overwrite a newer query and retains rows on a failed search', async () => {
+  // GIVEN two searches whose responses arrive in reverse order.
+  let finish!: (value: { items: ReturnType<typeof row>[]; nextCursor: null }) => void;
+  vi.mocked(getDrafts).mockResolvedValueOnce({ items: [row('kept')], nextCursor: 'kept-cursor' }).mockImplementationOnce(() => new Promise(resolve => { finish = resolve; })).mockResolvedValueOnce({ items: [row('newest')], nextCursor: null }).mockRejectedValueOnce(new TypeError('Network'));
+  render(<DraftList {...props()} />); await screen.findByRole('link', { name: /kept/ });
+  const search = screen.getByRole('searchbox', { name: 'Search purchase orders' });
+  // WHEN a second search supersedes the pending first one.
+  fireEvent.change(search, { target: { value: 'first' } }); fireEvent.submit(search.closest('form')!);
+  fireEvent.change(search, { target: { value: 'second' } }); fireEvent.submit(search.closest('form')!);
+  await screen.findByRole('link', { name: /newest/ });
+  await act(async () => finish({ items: [row('obsolete')], nextCursor: null }));
+  // THEN only the latest results remain, including if the next search fails.
+  expect(screen.queryByRole('link', { name: /obsolete/ })).not.toBeInTheDocument();
+  fireEvent.change(search, { target: { value: 'failed' } }); fireEvent.submit(search.closest('form')!);
+  await screen.findByRole('alert'); expect(screen.getByRole('link', { name: /newest/ })).toBeVisible();
+});
+
+
+it('continues the retained result query after a different search fails', async () => {
+  // GIVEN query A rows remain visible when query B cannot load.
+  const callbacks = props(); callbacks.memory.query = 'A'; callbacks.memory.page = { items: [row('kept')], nextCursor: 'cursor-A' };
+  vi.mocked(getDrafts).mockRejectedValueOnce(new TypeError('Network')).mockResolvedValueOnce({ items: [row('more-A')], nextCursor: null });
+  render(<DraftList {...callbacks} />);
+  fireEvent.change(screen.getByRole('searchbox'), { target: { value: 'B' } }); fireEvent.click(screen.getByRole('button', { name: 'Search' })); await screen.findByRole('alert');
+  // WHEN continuing the retained results THEN their cursor stays bound to query A.
+  fireEvent.click(screen.getByRole('button', { name: 'Load more' })); await screen.findByRole('link', { name: /more-A/ });
+  expect(getDrafts).toHaveBeenLastCalledWith('cursor-A', 'A');
 });

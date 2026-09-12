@@ -51,7 +51,8 @@ public sealed class DatabaseMigrationTests(SqlServerFixture sqlServer)
             migration => Assert.EndsWith("_AddAcquisitionContext", migration, StringComparison.Ordinal),
             migration => Assert.EndsWith("_AddSharedAcquisitions", migration, StringComparison.Ordinal),
             migration => Assert.EndsWith("_AddAcquisitionDocuments", migration, StringComparison.Ordinal),
-            migration => Assert.EndsWith("_AddDraftSupplierOrders", migration, StringComparison.Ordinal));
+            migration => Assert.EndsWith("_AddDraftSupplierOrders", migration, StringComparison.Ordinal),
+            migration => Assert.EndsWith("_AddSupplierIdentityAndPurchaseReferences", migration, StringComparison.Ordinal));
     }
 
     [Theory]
@@ -70,6 +71,7 @@ public sealed class DatabaseMigrationTests(SqlServerFixture sqlServer)
     [InlineData("AddAcquisitionContext")]
     [InlineData("AddSharedAcquisitions")]
     [InlineData("AddAcquisitionDocuments")]
+    [InlineData("AddDraftSupplierOrders")]
     public async Task MigratorUpgradesASeededPriorSchemaWithoutLosingTenantData(string priorMigration)
     {
         // GIVEN tenant data in either the initial schema or the PR base schema.

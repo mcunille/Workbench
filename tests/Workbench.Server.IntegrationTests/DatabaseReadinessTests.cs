@@ -53,6 +53,15 @@ public sealed class DatabaseReadinessTests(SqlServerFixture sqlServer) : IAsyncL
     }
 
     [Theory]
+    [InlineData("REVOKE EXECUTE ON [Purchasing].[CreateDraftOrderV2] FROM [workbench_web]")]
+    [InlineData("REVOKE EXECUTE ON [Purchasing].[UpdateDraftOrderV2] FROM [workbench_web]")]
+    [InlineData("REVOKE EXECUTE ON [Purchasing].[SaveSupplier] FROM [workbench_web]")]
+    [InlineData("REVOKE SELECT ON [Purchasing].[Suppliers] FROM [workbench_web]")]
+    [InlineData("REVOKE SELECT ON [Purchasing].[SupplierRequestReceipts] FROM [workbench_web]")]
+    [InlineData("REVOKE SELECT ON [Purchasing].[PurchaseOrderCounters] FROM [workbench_web]")]
+    [InlineData("GRANT UPDATE ON [Purchasing].[Suppliers] TO [workbench_web]")]
+    [InlineData("GRANT UPDATE ON [Purchasing].[SupplierRequestReceipts] TO [workbench_web]")]
+    [InlineData("GRANT UPDATE ON [Purchasing].[PurchaseOrderCounters] TO [workbench_web]")]
     [InlineData("REVOKE EXECUTE ON [Purchasing].[CreateDraftOrder] FROM [workbench_web]")]
     [InlineData("REVOKE EXECUTE ON [Purchasing].[UpdateDraftOrder] FROM [workbench_web]")]
     [InlineData("REVOKE EXECUTE ON [Purchasing].[DeleteDraftOrder] FROM [workbench_web]")]
@@ -76,6 +85,7 @@ public sealed class DatabaseReadinessTests(SqlServerFixture sqlServer) : IAsyncL
     [InlineData("DeferInvitationIdentityClaim")]
     [InlineData("AddProviderRetryDelay")]
     [InlineData("AddAcquisitionDocuments")]
+    [InlineData("AddDraftSupplierOrders")]
     public async Task PriorReleaseSchemaIsUnreadyUntilDeploymentMigrationIsApplied(string priorMigration)
     {
         // GIVEN a prior release schema lacks one of this release's required worker or identity capabilities.
