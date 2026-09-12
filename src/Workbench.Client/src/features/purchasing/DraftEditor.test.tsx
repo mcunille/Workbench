@@ -24,8 +24,26 @@ it('keeps empty entry details optional and reveals their validation errors', asy
   await screen.findByRole('link', { name: 'Check this source link.' });
   // THEN the field is revealed and the summary link can focus it.
   expect(disclosure).toHaveAttribute('open');
+  // AND a validation link reopens details the user subsequently collapsed.
+  disclosure!.removeAttribute('open');
   fireEvent.click(screen.getByRole('link', { name: 'Check this source link.' }));
+  expect(disclosure).toHaveAttribute('open');
   expect(source).toHaveFocus();
+});
+it('reveals newly populated details when adopting a newer saved version of the same entry', async () => {
+  // GIVEN an existing empty entry and a newer saved version containing research notes.
+  const entry = { id: 'same-entry', description: 'Sapphire', indicativePrice: null, notes: null, sourceLink: null };
+  vi.mocked(getDraft).mockResolvedValueOnce({ ...saved, draft: { ...content, entries: [entry] } }).mockResolvedValueOnce({ ...saved, version: 'v2', draft: { ...content, entries: [{ ...entry, notes: 'New research' }] } });
+  vi.mocked(updateDraft).mockRejectedValue(new DraftError(409, 'draft_version_conflict'));
+  render(<DraftEditor {...props()} id={saved.id} />);
+  await screen.findByDisplayValue('Sapphire');
+  fireEvent.change(screen.getByLabelText('Title'), { target: { value: 'Local title' } });
+  // WHEN conflict recovery adopts the newer saved content.
+  fireEvent.click(screen.getByRole('button', { name: 'Save draft' }));
+  fireEvent.click(await screen.findByRole('button', { name: 'Use saved version' }));
+  // THEN notes added to the same entry are revealed without needing to rediscover them.
+  const notes = await screen.findByDisplayValue('New research');
+  expect(notes.closest('details')).toHaveAttribute('open');
 });
 it('reveals populated entry details when reopening a draft', async () => {
   // GIVEN an existing entry with research notes.
