@@ -183,6 +183,12 @@ test('reference prices shift cents by default and retain opt-in extra precision 
   await price.pressSequentially('4'); await expect(price).toHaveValue('12.34');
   await price.press('ControlOrMeta+a'); await price.press('Backspace');
   await expect(price).toHaveValue('');
+  await expect(price).toBeVisible();
+  await expect(price).toBeFocused();
+  await price.pressSequentially('5');
+  await expect(price).toHaveValue('0.05');
+  await price.press('ControlOrMeta+a'); await price.press('Delete');
+  await expect(price).toBeVisible();
   // WHEN opting into extra precision and saving THEN meaningful digits survive reload.
   await page.getByRole('checkbox', { name: 'Use extra precision for entry 1' }).check();
   await price.fill('0.0123', { timeout: 10000 });

@@ -70,6 +70,8 @@
 .po-section-empty { color: var(--muted); font-size: .875rem; margin: 0; }
 .po-price-state { color: var(--muted); font-size: .8125rem; margin: -.25rem 0 0; }
 .po-price-field .floating-field input::placeholder { color: var(--muted); opacity: .65; }
+/* Inline-size containment collapses this masked input in Chromium when its value becomes empty. */
+.po-price-field .floating-field { container-type: normal; }
 .po-price-field .floating-field > .field-label { top: 0; transform: translateY(-50%); background: var(--field-fill); font-size: .75rem; }
 .po-precision-toggle { display: flex; align-items: center; gap: .5rem; min-height: 44px; color: var(--muted); font-size: .8125rem; }
 .po-precision-toggle input { width: 1rem; height: 1rem; margin: 0; }
