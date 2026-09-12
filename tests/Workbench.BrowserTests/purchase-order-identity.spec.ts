@@ -24,7 +24,14 @@ async function saveSupplier(page: Page) {
   await expect(page).toHaveURL(/\/suppliers\/[a-f0-9-]{36}$/);
 }
 
+async function openSupplierDetails(page: Page) {
+  const details = page.locator('.po-supplier-section');
+  if (!(await details.evaluate(element => element.hasAttribute('open')))) {
+    await details.locator(':scope > summary').click();
+  }
+}
 async function selectSupplier(page: Page, name: string) {
+  await openSupplierDetails(page);
   await page.getByRole('button', { name: 'Choose supplier', exact: true }).click();
   await page.getByLabel('Search suppliers', { exact: true }).fill(name);
   await page.getByRole('button', { name: `Select ${name}`, exact: true }).click();
@@ -45,6 +52,7 @@ test('one supplier has independent order snapshots and platforms with deliberate
   // WHEN purchasing through two platforms THEN both orders keep the same supplier identity.
   await page.goto('/purchase-orders/new');
   await page.getByLabel('Title', { exact: true }).fill(`Instagram ${supplierName}`);
+  await openSupplierDetails(page);
   await page.getByLabel('Platform', { exact: true }).fill('Instagram');
   await selectSupplier(page, supplierName);
   await expect(page.getByLabel('Platform', { exact: true })).toHaveValue('Instagram');
@@ -53,6 +61,7 @@ test('one supplier has independent order snapshots and platforms with deliberate
   await page.goto('/purchase-orders/new');
   await page.getByLabel('Title', { exact: true }).fill(`Auction ${supplierName}`);
   await selectSupplier(page, supplierName);
+  await openSupplierDetails(page);
   await page.getByLabel('Platform', { exact: true }).fill('Gem Rock Auctions');
   const second = await saveDraft(page);
   const secondPath = new URL(page.url()).pathname;
@@ -65,6 +74,7 @@ test('one supplier has independent order snapshots and platforms with deliberate
   await page.getByLabel('Email', { exact: true }).fill('updated@example.test');
   await saveSupplier(page);
   await page.goto(firstPath);
+  await openSupplierDetails(page);
   await page.getByText('Contact details (optional)', { exact: true }).click();
   await expect(page.getByLabel('Supplier contact name', { exact: true })).toHaveValue('Original contact');
   await expect(page.getByLabel('Platform', { exact: true })).toHaveValue('Instagram');
@@ -77,6 +87,7 @@ test('one supplier has independent order snapshots and platforms with deliberate
   await expect(page.getByLabel('Platform', { exact: true })).toHaveValue('Instagram');
   await saveDraft(page);
   await page.goto(secondPath);
+  await openSupplierDetails(page);
   await page.getByText('Contact details (optional)', { exact: true }).click();
   await expect(page.getByLabel('Supplier contact name', { exact: true })).toHaveValue('Original contact');
   await expect(page.getByLabel('Supplier email', { exact: true })).toHaveValue('original@example.test');
@@ -89,6 +100,7 @@ test('one supplier has independent order snapshots and platforms with deliberate
   await expect(page.getByText('Archived supplier', { exact: true })).toBeVisible();
   await page.goto(secondPath);
   await expect(page.getByLabel('Supplier contact name', { exact: true })).toHaveValue('Original contact');
+  await openSupplierDetails(page);
   await page.getByLabel('Platform', { exact: true }).fill('Retail');
   const archivedOrder = await saveDraft(page);
   expect(archivedOrder.draft.supplierId).toBe(first.draft.supplierId);
@@ -113,6 +125,7 @@ test('one-off supplier details and transaction platform persist with a permanent
   await page.goto('/purchase-orders/new');
   await page.getByLabel('Title', { exact: true }).fill(title);
   await page.getByLabel('Supplier name', { exact: true }).fill('Sample multichannel supplier');
+  await openSupplierDetails(page);
   await page.getByLabel('Platform', { exact: true }).fill('Instagram');
   await page.getByLabel('Supplier order reference', { exact: true }).fill(externalReference);
 
@@ -128,6 +141,7 @@ test('one-off supplier details and transaction platform persist with a permanent
   await expect(page.getByLabel('Supplier order reference', { exact: true })).toHaveValue(externalReference);
 
   // WHEN changing only the platform THEN supplier details and the permanent reference remain.
+  await openSupplierDetails(page);
   await page.getByLabel('Platform', { exact: true }).fill('Gem Rock Auctions');
   const updated = await saveDraft(page);
   expect(updated.poReference).toBe(saved.poReference);
@@ -149,6 +163,7 @@ test('an uncertain platform save retries identical content and keeps the assigne
   await signIn(page);
   await page.goto('/purchase-orders/new');
   await page.getByLabel('Title', { exact: true }).fill(`Platform retry ${Date.now()}`);
+  await openSupplierDetails(page);
   await page.getByLabel('Platform', { exact: true }).fill('Retail');
   const requests: unknown[] = [];
   let dropped = false;
@@ -184,6 +199,7 @@ test('inline supplier creation survives a subsequent draft failure without submi
   await page.goto('/purchase-orders/new');
   const name = `Independent supplier ${Date.now()}`;
   await page.getByLabel('Title', { exact: true }).fill('Purchase waiting on confirmation');
+  await openSupplierDetails(page);
   await page.getByLabel('Platform', { exact: true }).fill('Instagram');
   let draftWrites = 0;
   await page.route('**/api/v2/purchase-order-drafts', async route => {

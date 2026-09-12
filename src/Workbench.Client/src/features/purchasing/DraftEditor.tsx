@@ -41,6 +41,7 @@ function EntryDetails({ populated, invalid, children }: { populated: boolean; in
 }
 
 export function DraftEditor({ id: initialId, onDirtyChange, onAuthLost, onSaved, onCreated, onCancel }: Props) {
+  const [supplierExpanded, setSupplierExpanded] = useState(!initialId);
   const [supplierDirty, setSupplierDirty] = useState(false);
   const [supplierUncertain, setSupplierUncertain] = useState(false);
   const reportSupplierDirty = useCallback((dirty: boolean, uncertain: boolean) => { setSupplierDirty(dirty); setSupplierUncertain(uncertain); }, []);
@@ -276,7 +277,8 @@ export function DraftEditor({ id: initialId, onDirtyChange, onAuthLost, onSaved,
                 <a href={`#${fieldId(path)}`} onClick={event => {
                   event.preventDefault();
                   const target = document.getElementById(fieldId(path));
-                  target?.closest('details')?.setAttribute('open', '');
+                  let disclosure = target?.closest('details');
+                  while (disclosure) { disclosure.setAttribute('open', ''); disclosure = disclosure.parentElement?.closest('details'); }
                   target?.focus();
                 }}>{text}</a>
               </li>
@@ -289,8 +291,8 @@ export function DraftEditor({ id: initialId, onDirtyChange, onAuthLost, onSaved,
 
           </div>
         </section>
-        <section className="po-form-section" aria-labelledby="po-supplier-heading">
-          <div className="po-section-heading"><h2 id="po-supplier-heading">Supplier</h2></div>
+        <details className="po-form-section po-supplier-section" open={supplierExpanded || Object.keys(errors).some(key => key.startsWith('draft.supplier') || key === 'draft.platform')} onToggle={event => setSupplierExpanded(event.currentTarget.open)}>
+          <summary className="po-supplier-summary"><span>Supplier details</span><span className="po-supplier-summary-context">{[draft.supplierName, draft.platform].filter(Boolean).join(' · ') || 'Add a supplier or one-off contact'}</span></summary>
           <DraftSupplier draft={draft} archived={!!baseline?.supplierIsArchived && baseline.draft.supplierId === draft.supplierId} frozen={frozen} onChange={setDraft} onAuthLost={supplierAccessLost} onDirtyChange={reportSupplierDirty} />
           <div className="po-header-fields">
             {field('draft.supplierName', 'Supplier name', draft.supplierName, supplierName => setDraft({ ...draft, supplierName }))}
@@ -307,7 +309,7 @@ export function DraftEditor({ id: initialId, onDirtyChange, onAuthLost, onSaved,
               {field('draft.supplierPostalAddress', 'Supplier postal address', draft.supplierPostalAddress, supplierPostalAddress => setDraft({ ...draft, supplierPostalAddress }), { multiline: true })}
             </div>
           </details>
-        </section>
+        </details>
         <section className="po-form-section" aria-labelledby="po-entries-heading">
           <div className="po-section-heading">
             <div><h2 id="po-entries-heading">Shopping list</h2><p>Prices are reference amounts; no total is calculated.</p></div>

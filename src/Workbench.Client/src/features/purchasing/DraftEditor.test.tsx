@@ -10,6 +10,15 @@ const content = { title: null, supplierName: null, supplierId: null, supplierCon
 const saved = { id: 'draft-one', poReference: 'PO-000001', supplierIsArchived: false, draft: content, version: 'v1', createdAtUtc: '2026-09-12T00:00:00Z', updatedAtUtc: '2026-09-12T00:00:00Z' };
 const receipt = { requestId: 'request', replayed: false, draftOrderId: saved.id, savedVersion: saved.version, completedAtUtc: saved.updatedAtUtc };
 const props = () => ({ onDirtyChange: vi.fn(), onAuthLost: vi.fn(), onSaved: vi.fn(), onCancel: vi.fn(), onCreated: vi.fn() });
+it('summarizes saved supplier context and exposes it for editing', async () => {
+  // GIVEN a saved draft with supplier and transaction platform.
+  vi.mocked(getDraft).mockResolvedValue({ ...saved, draft: { ...content, supplierName: 'Gem supplier', platform: 'Instagram' } });
+  render(<DraftEditor {...props()} id={saved.id} />);
+  const name = await screen.findByDisplayValue('Gem supplier');
+  // THEN the supplier remains identifiable while its editing fields are collapsed.
+  expect(name.closest('details')).not.toHaveAttribute('open');
+  expect(screen.getByText('Gem supplier · Instagram')).toBeVisible();
+});
 it('keeps empty entry details optional and reveals their validation errors', async () => {
   // GIVEN a new entry whose optional notes and source are empty.
   vi.mocked(createDraft).mockRejectedValue(new DraftError(400, 'draft_validation_failed', { 'draft.entries[0].sourceLink': ['Check this source link.'] }));
