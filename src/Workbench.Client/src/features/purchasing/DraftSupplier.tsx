@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { DraftContent } from '../../api/purchaseOrders';
 import { ApiError } from '../../api/auth';
 import { getSupplier, type Supplier } from '../../api/suppliers';
@@ -9,6 +9,7 @@ import { SupplierDetails } from './supplierDetails';
 import { copySupplier, supplierSnapshot } from './supplierSnapshot';
 interface Props { draft: DraftContent; archived: boolean; frozen: boolean; onChange(draft: DraftContent): void; onAuthLost(): void; onDirtyChange(dirty: boolean, uncertain: boolean): void; }
 export function DraftSupplier({ draft, archived, frozen, onChange, onAuthLost, onDirtyChange }: Props) {
+  const [previousFrozen, setPreviousFrozen] = useState(frozen);
   const [panel, setPanel] = useState<'choose' | 'new' | 'preview' | 'one-off' | null>(null);
   const [selected, setSelected] = useState<Supplier>();
   const [refreshing, setRefreshing] = useState(false);
@@ -16,31 +17,38 @@ export function DraftSupplier({ draft, archived, frozen, onChange, onAuthLost, o
   const [discard, setDiscard] = useState(false);
   const [uncertainSupplier, setUncertainSupplier] = useState(false);
   const [reference, setReference] = useState<'keep' | 'clear' | ''>('');
+  // Discard supplier workflows when a draft command captures and freezes its input.
+  if (frozen !== previousFrozen) {
+    setPreviousFrozen(frozen);
+    if (frozen) { setPanel(null); setSelected(undefined); setDiscard(false); setRefreshing(false); }
+  }
   const supplierDirty = useRef(false);
   const active = useRef(true); const sequence = useRef(0);
+  useLayoutEffect(() => { if (frozen) ++sequence.current; }, [frozen]);
   useEffect(() => { active.current = true; const requests = sequence; return () => { active.current = false; ++requests.current; }; }, []);
   const loseAccess = useCallback(() => { ++sequence.current; setPanel(null); setSelected(undefined); setDiscard(false); setMessage(''); onAuthLost(); }, [onAuthLost]);
   const reportDirty = useCallback((dirty: boolean, uncertain: boolean) => { supplierDirty.current = dirty; setUncertainSupplier(uncertain); onDirtyChange(dirty, uncertain); }, [onDirtyChange]);
   const changingIdentity = panel === 'one-off' || (selected && selected.id !== draft.supplierId);
   const needsReferenceDecision = !!draft.supplierOrderReference && changingIdentity;
   function close() { ++sequence.current; if (panel === 'new' && supplierDirty.current) setDiscard(true); else { setPanel(null); setSelected(undefined); } }
-  function preview(value: Supplier) { ++sequence.current; setSelected(value); setReference(''); setPanel('preview'); setMessage(''); }
+  function enter(workflow: 'choose' | 'new' | 'one-off') { ++sequence.current; setRefreshing(false); setSelected(undefined); setReference(''); setMessage(''); setPanel(workflow); }
+  function preview(value: Supplier) { if (frozen) return; ++sequence.current; setRefreshing(false); setSelected(value); setReference(''); setPanel('preview'); setMessage(''); }
   async function refresh() {
-    if (!draft.supplierId || refreshing) return; const generation = ++sequence.current; setRefreshing(true); setMessage('');
+    if (frozen || !draft.supplierId || refreshing) return; const generation = ++sequence.current; setRefreshing(true); setMessage('');
     try { const latest = await getSupplier(draft.supplierId); if (active.current && generation === sequence.current) preview(latest); }
     catch (error) { if (!active.current || generation !== sequence.current) return; if (error instanceof ApiError && (error.status === 401 || error.status === 403)) loseAccess(); else setMessage('Current supplier details could not be loaded. Your order details are unchanged.'); }
-    finally { if (active.current) setRefreshing(false); }
+    finally { if (active.current && generation === sequence.current) setRefreshing(false); }
   }
   function apply() {
-    if (needsReferenceDecision && !reference) return;
+    if (frozen || (needsReferenceDecision && !reference)) return;
     const next = panel === 'one-off' ? { ...draft, supplierId: null } : selected ? copySupplier(draft, selected) : draft;
     onChange({ ...next, supplierOrderReference: needsReferenceDecision && reference === 'clear' ? null : draft.supplierOrderReference });
     setPanel(null); setSelected(undefined); setMessage('Supplier details changed locally. Save draft to keep them.');
   }
   return <div className="po-supplier-controls">
     <p className="po-field-help">{draft.supplierId ? `Linked to the supplier directory${archived ? ' · Archived supplier' : ''}. Contact edits here affect only this order.` : 'One-off details. Choose a reusable supplier or enter contact details for this order.'}</p>
-    <div className="button-row"><button type="button" className="secondary" disabled={frozen} onClick={() => setPanel('choose')}>Choose supplier</button><button type="button" className="quiet" disabled={frozen} onClick={() => setPanel('new')}>New supplier</button>
-      {draft.supplierId ? <><button type="button" className="quiet" disabled={frozen || refreshing} onClick={() => void refresh()}>Use current supplier details</button><button type="button" className="quiet" disabled={frozen} onClick={() => { setReference(''); setPanel('one-off'); }}>Keep details as one-off</button></> : null}
+    <div className="button-row"><button type="button" className="secondary" disabled={frozen} onClick={() => enter('choose')}>Choose supplier</button><button type="button" className="quiet" disabled={frozen} onClick={() => enter('new')}>New supplier</button>
+      {draft.supplierId ? <><button type="button" className="quiet" disabled={frozen || refreshing} onClick={() => void refresh()}>Use current supplier details</button><button type="button" className="quiet" disabled={frozen} onClick={() => enter('one-off')}>Keep details as one-off</button></> : null}
     </div>{refreshing ? <p role="status">Loading supplier details…</p> : null}{message ? <p role="status">{message}</p> : null}
     {panel === 'choose' ? <SupplierDialog title="Choose supplier" cancel={close}><SupplierList onSelect={preview} onAuthLost={loseAccess} /><button className="secondary" type="button" onClick={close}>Cancel</button></SupplierDialog> : null}
     {panel === 'new' ? <SupplierDialog title="New supplier" cancel={close}><SupplierEditor inline onDirtyChange={reportDirty} onAuthLost={loseAccess} onCancel={close} onSelected={preview} /><button className="secondary" type="button" onClick={close}>Cancel</button></SupplierDialog> : null}
