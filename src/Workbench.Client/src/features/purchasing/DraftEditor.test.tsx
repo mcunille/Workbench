@@ -8,7 +8,7 @@ const content = { title: null, supplierName: null, currency: null, notes: null, 
 const saved = { id: 'draft-one', draft: content, version: 'v1', createdAtUtc: '2026-09-12T00:00:00Z', updatedAtUtc: '2026-09-12T00:00:00Z' };
 const receipt = { requestId: 'request', replayed: false, draftOrderId: saved.id, savedVersion: saved.version, completedAtUtc: saved.updatedAtUtc };
 const props = () => ({ onDirtyChange: vi.fn(), onAuthLost: vi.fn(), onSaved: vi.fn(), onCancel: vi.fn(), onCreated: vi.fn() });
-beforeEach(() => { vi.mocked(createDraft).mockReset(); vi.mocked(updateDraft).mockReset(); vi.mocked(getDraft).mockReset(); });
+beforeEach(() => { Object.defineProperty(HTMLDialogElement.prototype, 'showModal', { configurable: true, value(this: HTMLDialogElement) { this.setAttribute('open', ''); } }); vi.mocked(createDraft).mockReset(); vi.mocked(updateDraft).mockReset(); vi.mocked(getDraft).mockReset(); });
 it('saves an empty draft and enables editing only after loading the confirmed current document', async () => {
   // GIVEN all business fields are optional and the confirmation read has not returned.
   let resolve!: (value: typeof saved) => void;
@@ -155,10 +155,11 @@ it('requires a clearing save before pricing in a different saved currency and pr
   vi.mocked(getDraft).mockResolvedValueOnce(priced).mockResolvedValueOnce(cleared);
   vi.mocked(updateDraft).mockResolvedValue({ ...receipt, savedVersion: 'v2' });
   render(<DraftEditor id={saved.id} {...props()} />);
-  await waitFor(() => expect(screen.getByLabelText('Reference price 1')).toHaveValue('0.0000'));
+  await waitFor(() => expect(screen.getByLabelText('Reference price 1')).toHaveValue('0.00'));
   // WHEN clearing the price and changing currency THEN a new price cannot be entered before the clearing save.
   expect(screen.getByLabelText('Currency')).toBeDisabled();
   fireEvent.click(screen.getByRole('button', { name: 'Clear all reference prices' }));
+  fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Clear prices' }));
   expect(screen.getByText('Price: Unknown')).toBeVisible();
   fireEvent.change(screen.getByLabelText('Currency'), { target: { value: 'EUR' } });
   expect(screen.getByLabelText('Reference price 1')).toBeDisabled();
@@ -188,4 +189,28 @@ it('clears private editor content on authentication loss and ignores late result
   // WHEN the old response arrives THEN it cannot navigate the new screen or fetch private content.
   await act(async () => resolve(receipt));
   expect(later.onCreated).not.toHaveBeenCalled(); expect(later.onSaved).not.toHaveBeenCalled(); expect(getDraft).not.toHaveBeenCalled();
+});
+
+it('requires confirmation to clear prices and lets cancellation preserve them', async () => {
+  // GIVEN two reference prices, including zero, and one unknown price.
+  const entries = ['125.5000', '0.0000', null].map((indicativePrice, index) => ({ id: String(index), description: null, notes: null, sourceLink: null, indicativePrice }));
+  vi.mocked(getDraft).mockResolvedValue({ ...saved, draft: { ...content, currency: 'USD', entries } });
+  render(<DraftEditor id={saved.id} {...props()} />);
+  await screen.findByRole('button', { name: 'Clear all reference prices' });
+  // WHEN opening the confirmation and cancelling.
+  fireEvent.click(screen.getByRole('button', { name: 'Clear all reference prices' }));
+  const dialog = screen.getByRole('dialog', { name: 'Clear reference prices?' });
+  expect(within(dialog).getByText(/2 reference prices/)).toBeVisible();
+  fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }));
+  // THEN prices are retained and no save is sent.
+  expect(screen.getByLabelText('Reference price 1')).toHaveValue('125.50');
+  expect(screen.getByLabelText('Reference price 2')).toHaveValue('0.00');
+  expect(screen.getByRole('button', { name: 'Save draft' })).toBeDisabled();
+  // WHEN explicitly confirming the clear.
+  fireEvent.click(screen.getByRole('button', { name: 'Clear all reference prices' }));
+  fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Clear prices' }));
+  // THEN all prices become unknown locally; persistence still requires Save.
+  expect(screen.getAllByText('Price: Unknown')).toHaveLength(3);
+  expect(updateDraft).not.toHaveBeenCalled();
+  expect(screen.getByRole('button', { name: 'Save draft' })).toBeEnabled();
 });
