@@ -171,8 +171,7 @@ button,
   text-decoration: none;
   white-space: nowrap;
 }
-button,
-.secondary {
+button {
   background: var(--surface);
   color: var(--text);
 }
@@ -181,6 +180,7 @@ button,
   border-color: var(--accent);
   color: var(--on-accent);
 }
+.secondary,
 .quiet {
   background: transparent;
   border-color: transparent;
@@ -1011,12 +1011,6 @@ html { scroll-padding-top: 1rem; }
 .collection-page .page-heading {
   gap: 1rem;
   margin-bottom: 1.5rem;
-}
-.collection-actions > .text-link {
-  display: inline-flex;
-  align-items: center;
-  min-height: 44px;
-  font-size: 0.875rem;
 }
 .collection-search {
   margin-block: 0 1.5rem;

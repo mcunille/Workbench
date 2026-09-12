@@ -33,13 +33,14 @@ test('a phone shows a photo-free piece and its location before scrolling', async
   expect(location!.y + location!.height).toBeLessThan(dock!.y);
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
 
-  // AND collection actions still fit on one line on a smaller phone.
+  // AND collection actions retain usable touch targets inside a smaller phone viewport.
   await page.setViewportSize({ width: 320, height: 844 });
-  const add = await page.getByRole('link', { name: 'Add item', exact: true }).boundingBox();
-  const archive = await page.getByRole('link', { name: 'Archive', exact: true }).boundingBox();
-  const exportRecords = await page.getByRole('link', { name: 'Export records', exact: true }).boundingBox();
-  expect(Math.abs(archive!.y + archive!.height / 2 - (add!.y + add!.height / 2))).toBeLessThan(2);
-  expect(Math.abs(exportRecords!.y + exportRecords!.height / 2 - (add!.y + add!.height / 2))).toBeLessThan(2);
+  for (const name of ['Add item', 'Archive', 'Export records']) {
+    const action = await page.getByRole('link', { name, exact: true }).boundingBox();
+    expect(action!.height).toBeGreaterThanOrEqual(44);
+    expect(action!.x).toBeGreaterThanOrEqual(0);
+    expect(action!.x + action!.width).toBeLessThanOrEqual(320);
+  }
 });
 
 test('saved location and notes lead the item detail reading order', async ({ page }) => {

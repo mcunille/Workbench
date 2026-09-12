@@ -413,8 +413,11 @@ See the [application extension specification](docs/specs/2026-09-08-tanzanite-vi
 The collection places Add item first in the action group and combines the loaded count
 with Grid/List controls in a wrapping toolbar. Keep search and its help together, with
 tighter spacing inside control groups than between the toolbar and the records.
-Add item is the sole primary action. Archive and Export remain visible as text links
-with full touch targets. The active collection omits introductory prose; the search
+Add item is the sole primary action. Archive and Export use secondary buttons with
+the same transparent surface, muted label, hover fill, padding, and keyboard-focus
+treatment as Purchase Orders' Refresh button. This is the shared secondary style;
+allow action groups to wrap on small screens rather than shrinking touch targets.
+The active collection omits introductory prose; the search
 guidance stays visible. Grid/List uses a selected-button boundary without an outer frame.
 
 Grid cards share the same vertical structure and equal row heights, including when

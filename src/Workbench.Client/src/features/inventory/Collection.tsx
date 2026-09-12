@@ -140,7 +140,7 @@ export function Collection({
             <p className="lede">Records set aside, ready to recover when you need them.</p>
           ) : null}
         </div>
-        <div className="button-row collection-actions">
+        <div className="button-row">
           {!archived ? (
             <a
               className="primary button"
@@ -152,13 +152,13 @@ export function Collection({
             </a>
           ) : null}
           <a
-            className="text-link"
+            className="secondary button"
             href={archived ? '/inventory' : '/inventory/archive'}
             onClick={follow}
           >
             {archived ? 'Collection' : 'Archive'}
           </a>
-          <a className="text-link" href="/inventory/export" onClick={follow}>Export records</a>
+          <a className="secondary button" href="/inventory/export" onClick={follow}>Export records</a>
         </div>
       </div>
       <form
