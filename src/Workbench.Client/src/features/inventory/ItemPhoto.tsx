@@ -46,7 +46,7 @@ export function ItemPhoto({
     };
   }, [url, retry, onAuthLost]);
   return (
-    <span className="photo-placeholder item-photo">
+    <span className="photo-placeholder item-photo" data-photo={url ? 'present' : 'absent'}>
       {url && image?.url === url ? (
         <img
           src={image.objectUrl}
@@ -64,13 +64,14 @@ export function ItemPhoto({
           {interactive && recoveryLossUrl !== url ? (
             <button
               type="button"
+              aria-label="Retry photograph"
               onClick={(event) => {
                 event.preventDefault();
                 event.stopPropagation();
                 setRetry((value) => value + 1);
               }}
             >
-              Retry photograph
+              Retry
             </button>
           ) : null}
         </span>
