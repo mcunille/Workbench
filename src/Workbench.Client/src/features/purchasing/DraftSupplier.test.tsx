@@ -65,16 +65,24 @@ it('applies matching supplier details without another confirmation', async () =>
   expect(onChange).toHaveBeenCalledWith(expect.objectContaining({ supplierId: current.id, platform: 'Instagram' }));
   expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
 });
-it('links a different supplier while keeping the existing PO details when requested', async () => {
-  // GIVEN a one-off snapshot that differs from the directory.
+it('offers only cancel or copying the selected supplier details when contacts differ', async () => {
+  // GIVEN a one-off snapshot that differs from the chosen directory supplier.
   const onChange = vi.fn();
   render(<DraftSupplier draft={{ ...draft, supplierId: null, supplierEmail: 'po@example.test' }} archived={false} frozen={false} onChange={onChange} onAuthLost={vi.fn()} onDirtyChange={vi.fn()} />);
-  // WHEN choosing a supplier and retaining PO details THEN the association changes without overwriting the snapshot.
+  // WHEN reviewing selection THEN the only actions are Cancel and Use supplier details.
   fireEvent.click(screen.getByRole('button', { name: 'Choose supplier' }));
   fireEvent.click(await screen.findByRole('button', { name: 'Select Current supplier' }));
-  fireEvent.click(await screen.findByRole('button', { name: 'Keep existing PO details' }));
-  expect(onChange).toHaveBeenCalledWith({ ...draft, supplierId: current.id, supplierEmail: 'po@example.test' });
-  expect(screen.queryByText('Supplier options')).not.toBeInTheDocument();
+  let dialog = await screen.findByRole('dialog', { name: 'Review supplier details' });
+  expect(within(dialog).getAllByRole('button').map(button => button.textContent)).toEqual(['Cancel', 'Use supplier details']);
+  // WHEN cancelling THEN neither the link nor the snapshot changes.
+  fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }));
+  expect(onChange).not.toHaveBeenCalled();
+  // WHEN accepting the selection THEN both identity and contact snapshot follow the selected supplier.
+  fireEvent.click(screen.getByRole('button', { name: 'Choose supplier' }));
+  fireEvent.click(await screen.findByRole('button', { name: 'Select Current supplier' }));
+  dialog = await screen.findByRole('dialog', { name: 'Review supplier details' });
+  fireEvent.click(within(dialog).getByRole('button', { name: 'Use supplier details' }));
+  expect(onChange).toHaveBeenCalledWith({ ...draft, supplierId: current.id, supplierName: current.supplier.name, supplierEmail: null });
 });it('protects inline supplier edits through the single cancel action', () => {
   // GIVEN local supplier input in the new supplier dialog.
   render(<DraftSupplier draft={draft} archived={false} frozen={false} onChange={vi.fn()} onAuthLost={vi.fn()} onDirtyChange={vi.fn()} />);
@@ -151,23 +159,23 @@ it('preserves edits made while the selected supplier is loading', async () => {
   // WHEN local contact and platform edits arrive before the response.
   view.rerender(<DraftSupplier {...props} draft={{ ...props.draft, supplierPhone: 'New local phone', platform: 'Retail' }} />);
   await act(async () => finish(current));
-  // THEN the changed contact requires a decision and keeping it preserves the latest edits.
+  // THEN the changed contact requires a decision; cancelling does not overwrite local edits.
   expect(props.onChange).not.toHaveBeenCalled();
-  fireEvent.click(screen.getByRole('button', { name: 'Keep existing PO details' }));
-  expect(props.onChange).toHaveBeenCalledWith(expect.objectContaining({ supplierPhone: 'New local phone', platform: 'Retail' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+  expect(props.onChange).not.toHaveBeenCalled();
 });
-it.each(['keep', 'clear'])('requires the reference decision when keeping PO details (%s)', async choice => {
+it.each(['keep', 'clear'])('requires the reference decision when changing supplier (%s)', async choice => {
   // GIVEN a supplier change with an existing external order reference.
   const onChange = vi.fn();
   render(<DraftSupplier draft={{ ...draft, supplierId: 'previous', supplierOrderReference: 'OLD-42' }} archived={false} frozen={false} onChange={onChange} onAuthLost={vi.fn()} onDirtyChange={vi.fn()} />);
   fireEvent.click(screen.getByRole('button', { name: 'Choose supplier' }));
   fireEvent.click(await screen.findByRole('button', { name: 'Select Current supplier' }));
-  const keep = await screen.findByRole('button', { name: 'Keep existing PO details' });
-  // THEN neither snapshot choice can silently carry the old reference.
-  expect(keep).toBeDisabled();
+  const apply = await screen.findByRole('button', { name: 'Use supplier details' });
+  // THEN accepting the supplier cannot silently carry the old reference.
+  expect(apply).toBeDisabled();
   expect(screen.getByRole('button', { name: 'Use supplier details' })).toBeDisabled();
-  // WHEN explicitly choosing the reference policy THEN the snapshot remains and the link changes.
+  // WHEN explicitly choosing the reference policy THEN the snapshot and link both change.
   fireEvent.click(screen.getByLabelText(choice === 'keep' ? 'Keep supplier order reference' : 'Clear supplier order reference'));
-  fireEvent.click(keep);
-  expect(onChange).toHaveBeenCalledWith({ ...draft, supplierId: current.id, supplierOrderReference: choice === 'keep' ? 'OLD-42' : null });
+  fireEvent.click(apply);
+  expect(onChange).toHaveBeenCalledWith({ ...draft, supplierId: current.id, supplierName: current.supplier.name, supplierOrderReference: choice === 'keep' ? 'OLD-42' : null });
 });

@@ -96,10 +96,10 @@ requires an active supplier.
 
 Selecting a supplier loads its current directory details. Matching details apply directly unless a
 changed supplier identity requires a reference decision. Differing details open a comparison with
-**Use supplier details**, **Keep existing PO details**, and **Cancel**. Keeping existing details links
-the selected supplier without replacing the PO snapshot. **Save draft** persists the association
-and snapshot together; directory edits never silently refresh an order.
-
+**Use supplier details** and **Cancel**. Accepting replaces both the supplier identity and contact
+snapshot; Cancel changes neither. There is no option to link a different supplier while retaining
+previous contact details. **Save draft** persists the association and snapshot together; subsequent
+directory edits never silently refresh an order.
 Initial selection with no supplier link or contact details uses a compact **Use supplier?**
 confirmation showing populated details. Existing details compare only changed fields, including
 values that will be cleared. Re-selecting the same supplier handles directory updates through this
