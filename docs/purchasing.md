@@ -33,9 +33,39 @@ contain embedded login credentials. Large drafts can reach the overall size limi
 field limits; shorten the text or remove entries if the save reports that limit.
 
 Saving or removing a draft entry changes only this shopping list. It creates no collection item,
-acquisition, invoice, payment obligation or accounting entry. Supplier directories, formal PO
-references, quantities and unit pricing, commitments, attachments, receiving and payments are
+acquisition, invoice, payment obligation or accounting entry. Quantities and unit pricing,
+commitments, attachments, receiving and payments are
 separate increments. There is no order export workflow in this release.
+
+## Suppliers, platforms and purchase references
+
+The first save assigns a permanent business reference such as **PO-000001**. A reference identifies
+the draft; it does not mean the purchase was placed. Numbers increase within each business, do not
+reset each year, and are never reused after deletion. Supplier order reference is a separate optional
+field for the supplier's own identifier; it is not an invoice number.
+
+Use **Manage suppliers** from Purchase orders to create and maintain reusable suppliers, or enter
+one-off supplier details directly on a draft. Contact name, email, phone, website and postal address
+are optional. Duplicate supplier names are allowed. Archiving a supplier removes it from default
+selection while keeping its saved orders and details; it can be reactivated later.
+
+Selecting a supplier copies their details onto this draft. Editing the directory never rewrites
+saved purchases. **Use current supplier details** previews a refresh for this draft; confirm the
+replacement and then save. **Keep details as one-off** removes the directory link while retaining
+the copied details. Changing supplier asks what to do with an existing supplier order reference.
+An inline supplier creation saves the directory record separately: discarding or failing to save
+the draft does not remove that supplier.
+
+**Platform** records where this purchase happens, for example Retail, Instagram or Gem Rock Auctions.
+It accepts custom text and may be blank on an incomplete draft. Orders for the same supplier can use
+different platforms. Selecting or refreshing a supplier never overwrites the platform, and changing
+platform leaves the supplier details and references intact. Keep storefront, listing or conversation
+URLs in the order's source links. Recording a platform does not send messages or connect an account.
+
+**Search purchase orders** finds saved drafts by Workbench reference, supplier order reference,
+supplier snapshot name or title across the business. Platform is displayed but is not searched in
+this release. Clear the search to return to normal browsing. Supplier search matches names and can
+include archived records. Both lists retain loaded results when a page fails.
 
 ## Resume and recover work
 
@@ -61,6 +91,9 @@ state, and leaving an uncertain save loses the browser's retry request even if t
 The [PO-01 design](specs/2026-09-11-po-01-draft-supplier-orders.md) specifies limits, retry receipts,
 versions, and verification requirements. Existing collection and acquisition workflows remain
 independent of purchasing.
+The [PO-02 design](specs/2026-09-11-po-02-supplier-identity-and-references.md) extends those contracts
+with supplier snapshots, per-order platforms and permanent references. After an upgrade, an older
+client must reload before sending a new save; already successful old requests can still be resolved.
 
 ## Delete an unwanted draft
 

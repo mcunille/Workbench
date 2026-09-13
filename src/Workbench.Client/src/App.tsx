@@ -1,3 +1,5 @@
+import { SupplierList } from './features/purchasing/SupplierList';
+import { SupplierEditor } from './features/purchasing/SupplierEditor';
 import {
   useCallback,
   useEffect,
@@ -173,7 +175,7 @@ function SignedInApplication({
           <a className="navigation-destination"
             title={navigationCollapsed ? 'Purchase orders' : undefined}
             href="/purchase-orders"
-            aria-current={path.startsWith('/purchase-orders') ? 'page' : undefined}
+            aria-current={path.startsWith('/purchase-orders') || path.startsWith('/suppliers') ? 'page' : undefined}
             onClick={navigation.follow}>
             <Icon name="cart" />
             <span className="navigation-label">Purchase orders</span>
@@ -268,6 +270,12 @@ function SignedInApplication({
             />
           ) : path === '/purchase-orders' ? (
             <DraftList memory={draftMemory} follow={navigation.follow} onAuthLost={authLost} />
+          ) : path === '/suppliers' ? (
+            <SupplierList follow={navigation.follow} onAuthLost={authLost} />
+          ) : /^\/suppliers\/[^/]+$/.test(path) ? (
+            <SupplierEditor key={navigation.viewId} id={path === '/suppliers/new' ? undefined : path.slice('/suppliers/'.length)}
+              onDirtyChange={navigation.setDirty} onAuthLost={authLost} onCancel={() => navigation.navigate('/suppliers')}
+              onCreated={id => navigation.replace(`/suppliers/${id}`)} />
           ) : /^\/purchase-orders\/[^/]+$/.test(path) ? (
             <DraftEditor key={navigation.viewId}
               id={path === '/purchase-orders/new' ? undefined : path.slice('/purchase-orders/'.length)}

@@ -20,11 +20,11 @@ public static class DraftOrderEndpoints
         group.MapGet("/{id:guid}", ReadAsync).Produces<DraftOrderResponse>().ProducesProblem(404);
         group.MapPost("", CreateAsync).WithMetadata(WorkbenchAntiforgeryMetadata.Instance)
             .Produces<SaveDraftOrderResponse>(201).Produces<SaveDraftOrderResponse>()
-            .ProducesValidationProblem().ProducesProblem(409).ProducesProblem(413);
+            .ProducesValidationProblem().ProducesProblem(409).ProducesProblem(413).ProducesProblem(426);
         group.MapPut("/{id:guid}", UpdateAsync).WithMetadata(WorkbenchAntiforgeryMetadata.Instance)
-            .Produces<SaveDraftOrderResponse>().ProducesValidationProblem().ProducesProblem(404).ProducesProblem(409).ProducesProblem(413);
+            .Produces<SaveDraftOrderResponse>().ProducesValidationProblem().ProducesProblem(404).ProducesProblem(409).ProducesProblem(413).ProducesProblem(426);
         group.MapDelete("/{id:guid}", DeleteAsync).WithMetadata(WorkbenchAntiforgeryMetadata.Instance)
-            .Produces<SaveDraftOrderResponse>().ProducesValidationProblem().ProducesProblem(404).ProducesProblem(409).ProducesProblem(413);
+            .Produces<SaveDraftOrderResponse>().ProducesValidationProblem().ProducesProblem(404).ProducesProblem(409).ProducesProblem(413).ProducesProblem(426);
     }
 
     private static async Task<IResult> BrowseAsync(string? cursor, WorkbenchDbContext database, CancellationToken cancellationToken)
@@ -61,7 +61,7 @@ public static class DraftOrderEndpoints
         RequestActor actor, HttpContext context, CancellationToken cancellationToken) =>
         SaveAsync(request.RequestId, id, request.ExpectedVersion, request.Draft, database, actor, context, cancellationToken);
 
-    private static async Task<IResult> DeleteAsync(Guid id, [FromBody] DeleteDraftOrderRequest request,
+    internal static async Task<IResult> DeleteAsync(Guid id, [FromBody] DeleteDraftOrderRequest request,
         WorkbenchDbContext database, RequestActor actor, CancellationToken cancellationToken)
     {
         var errors = new Dictionary<string, string[]>();
@@ -85,7 +85,7 @@ public static class DraftOrderEndpoints
                 Convert.ToBase64String((byte[])reader["SavedVersion"]),
                 DraftOrderCursor.Timestamp(reader.GetFieldValue<DateTimeOffset>(reader.GetOrdinal("CompletedAtUtc")))));
         }
-        catch (SqlException exception) when (exception.Number is 50400 or 50403 or 50404 or 50409 or 50410)
+        catch (SqlException exception) when (exception.Number is 50400 or 50403 or 50404 or 50409 or 50410 or 50426)
         {
             return exception.Number switch
             {
@@ -93,6 +93,7 @@ public static class DraftOrderEndpoints
                 50403 => Problem(403, "draft_authority_required", "Current business authority is required."),
                 50404 => Problem(404, "draft_not_found", "Draft not found."),
                 50409 => Problem(409, "draft_version_conflict", "The draft changed. Review the saved version before deleting it."),
+                50426 => Problem(426, "draft_contract_reload_required", "Reload this draft with the current application before saving."),
                 _ => Problem(409, "draft_request_conflict", "This request identifier was already used for different input."),
             };
         }
@@ -128,7 +129,7 @@ public static class DraftOrderEndpoints
             if (id is null) context.Response.Headers.Location = location;
             return id is null && !response.Replayed ? Results.Created(location, response) : Results.Ok(response);
         }
-        catch (SqlException exception) when (exception.Number is 50400 or 50401 or 50403 or 50404 or 50409 or 50410)
+        catch (SqlException exception) when (exception.Number is 50400 or 50401 or 50403 or 50404 or 50409 or 50410 or 50426)
         {
             return exception.Number switch
             {
@@ -137,6 +138,7 @@ public static class DraftOrderEndpoints
                 50403 => Problem(403, "draft_authority_required", "Current business authority is required."),
                 50404 => Problem(404, "draft_not_found", "Draft not found."),
                 50409 => Problem(409, "draft_version_conflict", "The draft changed. Review the saved version before saving again."),
+                50426 => Problem(426, "draft_contract_reload_required", "Reload this draft with the current application before saving."),
                 _ => Problem(409, "draft_request_conflict", "This save identifier was already used for different input."),
             };
         }

@@ -128,6 +128,22 @@ public sealed class DatabaseReadinessCheck(
                     AND HAS_PERMS_BY_NAME(N'[Purchasing].[CreateDraftOrder]', N'OBJECT', N'EXECUTE') = 1
                     AND HAS_PERMS_BY_NAME(N'[Purchasing].[UpdateDraftOrder]', N'OBJECT', N'EXECUTE') = 1
                     AND HAS_PERMS_BY_NAME(N'[Purchasing].[DeleteDraftOrder]', N'OBJECT', N'EXECUTE') = 1
+                    AND HAS_PERMS_BY_NAME(N'[Purchasing].[CreateDraftOrderV2]', N'OBJECT', N'EXECUTE') = 1
+                    AND HAS_PERMS_BY_NAME(N'[Purchasing].[UpdateDraftOrderV2]', N'OBJECT', N'EXECUTE') = 1
+                    AND HAS_PERMS_BY_NAME(N'[Purchasing].[SaveSupplier]', N'OBJECT', N'EXECUTE') = 1
+                    AND COL_LENGTH(N'Purchasing.DraftOrders', N'PoNumber') IS NOT NULL
+                    AND HAS_PERMS_BY_NAME(N'[Purchasing].[Suppliers]', N'OBJECT', N'SELECT') = 1
+                    AND HAS_PERMS_BY_NAME(N'[Purchasing].[Suppliers]', N'OBJECT', N'INSERT') = 0
+                    AND HAS_PERMS_BY_NAME(N'[Purchasing].[Suppliers]', N'OBJECT', N'UPDATE') = 0
+                    AND HAS_PERMS_BY_NAME(N'[Purchasing].[Suppliers]', N'OBJECT', N'DELETE') = 0
+                    AND HAS_PERMS_BY_NAME(N'[Purchasing].[SupplierRequestReceipts]', N'OBJECT', N'SELECT') = 1
+                    AND HAS_PERMS_BY_NAME(N'[Purchasing].[SupplierRequestReceipts]', N'OBJECT', N'INSERT') = 0
+                    AND HAS_PERMS_BY_NAME(N'[Purchasing].[SupplierRequestReceipts]', N'OBJECT', N'UPDATE') = 0
+                    AND HAS_PERMS_BY_NAME(N'[Purchasing].[SupplierRequestReceipts]', N'OBJECT', N'DELETE') = 0
+                    AND HAS_PERMS_BY_NAME(N'[Purchasing].[PurchaseOrderCounters]', N'OBJECT', N'SELECT') = 1
+                    AND HAS_PERMS_BY_NAME(N'[Purchasing].[PurchaseOrderCounters]', N'OBJECT', N'INSERT') = 0
+                    AND HAS_PERMS_BY_NAME(N'[Purchasing].[PurchaseOrderCounters]', N'OBJECT', N'UPDATE') = 0
+                    AND HAS_PERMS_BY_NAME(N'[Purchasing].[PurchaseOrderCounters]', N'OBJECT', N'DELETE') = 0
                     AND COL_LENGTH(N'Purchasing.DraftOrders', N'IsDeleted') IS NOT NULL
                     AND HAS_PERMS_BY_NAME(N'[Purchasing].[DraftOrders]', N'OBJECT', N'SELECT') = 1
                     AND HAS_PERMS_BY_NAME(N'[Purchasing].[DraftOrders]', N'OBJECT', N'INSERT') = 0

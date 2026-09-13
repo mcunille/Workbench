@@ -13,7 +13,7 @@ public sealed partial class DraftOrderDatabaseTests(SqlServerFixture sqlServer)
     public async Task ReapplyingConsolidatedMigrationPreservesSavedDraftAndRetryReceipt()
     {
         // GIVEN the consolidated purchasing schema with a successful draft save and compact receipt.
-        await using var database = await sqlServer.CreateMigratedDatabaseAsync("AddDraftSupplierOrders");
+        await using var database = await sqlServer.CreateMigratedDatabaseAsync();
         var tenant = Guid.NewGuid(); var actor = Guid.NewGuid(); var request = Guid.NewGuid();
         await database.SeedTenantAuditRowsAsync(tenant, Guid.NewGuid()); await SeedActor(database, tenant, actor);
         await using var connection = await Open(database, await database.CreateWebUserAsync(), tenant);
@@ -62,6 +62,14 @@ public sealed partial class DraftOrderDatabaseTests(SqlServerFixture sqlServer)
                 {
                     title = (string?)null,
                     supplierName = (string?)null,
+                    supplierId = (Guid?)null,
+                    supplierContactName = (string?)null,
+                    supplierEmail = (string?)null,
+                    supplierPhone = (string?)null,
+                    supplierWebsite = (string?)null,
+                    supplierPostalAddress = (string?)null,
+                    supplierOrderReference = (string?)null,
+                    platform = (string?)null,
                     currency = (string?)null,
                     notes = (string?)null,
                     sourceLinks = entryLink ? Array.Empty<string>() : [link],
@@ -88,7 +96,7 @@ public sealed partial class DraftOrderDatabaseTests(SqlServerFixture sqlServer)
             operation = "Create",
             targetId = (string?)null,
             expectedVersion = (string?)null,
-            draft = new { title = (string?)null, supplierName = (string?)null, currency = (string?)null, notes = (string?)null, sourceLinks = new[] { link }, entries = Array.Empty<object>() },
+            draft = new { title = (string?)null, supplierName = (string?)null, supplierId = (Guid?)null, supplierContactName = (string?)null, supplierEmail = (string?)null, supplierPhone = (string?)null, supplierWebsite = (string?)null, supplierPostalAddress = (string?)null, supplierOrderReference = (string?)null, platform = (string?)null, currency = (string?)null, notes = (string?)null, sourceLinks = new[] { link }, entries = Array.Empty<object>() },
         });
         // WHEN bypassing HTTP with malformed IPv6 source links THEN the restricted SQL command rejects them.
         foreach (var link in new[] { "https://[::::]/", "https://[1:2:3]/", "https://[1:2:3:4:5:6:7:8:9]/", "https://[12345::]/", "https://[::ffff:999.0.0.1]/" })
@@ -213,6 +221,14 @@ public sealed partial class DraftOrderDatabaseTests(SqlServerFixture sqlServer)
             {
                 title = (string?)null,
                 supplierName = (string?)null,
+                supplierId = (Guid?)null,
+                supplierContactName = (string?)null,
+                supplierEmail = (string?)null,
+                supplierPhone = (string?)null,
+                supplierWebsite = (string?)null,
+                supplierPostalAddress = (string?)null,
+                supplierOrderReference = (string?)null,
+                platform = (string?)null,
                 currency,
                 notes = (string?)null,
                 sourceLinks = Array.Empty<string>(),
@@ -295,12 +311,12 @@ public sealed partial class DraftOrderDatabaseTests(SqlServerFixture sqlServer)
         operation,
         targetId = targetId?.ToString("D"),
         expectedVersion = version is null ? null : Convert.ToBase64String(version),
-        draft = new { title, supplierName = (string?)null, currency = (string?)null, notes = (string?)null, sourceLinks = Array.Empty<string>(), entries = Array.Empty<object>() },
+        draft = new { title, supplierName = (string?)null, supplierId = (Guid?)null, supplierContactName = (string?)null, supplierEmail = (string?)null, supplierPhone = (string?)null, supplierWebsite = (string?)null, supplierPostalAddress = (string?)null, supplierOrderReference = (string?)null, platform = (string?)null, currency = (string?)null, notes = (string?)null, sourceLinks = Array.Empty<string>(), entries = Array.Empty<object>() },
     });
 
     private static async Task<(Guid Id, byte[] Version, DateTimeOffset Completed, bool Replayed)> Save(SqlConnection connection, Guid actor, Guid request, string canonical, string operation)
     {
-        await using var command = new SqlCommand($"Purchasing.{operation}DraftOrder", connection) { CommandType = System.Data.CommandType.StoredProcedure };
+        await using var command = new SqlCommand($"Purchasing.{operation}DraftOrderV2", connection) { CommandType = System.Data.CommandType.StoredProcedure };
         command.Parameters.AddWithValue("@RequestId", request); command.Parameters.AddWithValue("@ActorUserId", actor);
         command.Parameters.AddWithValue("@CanonicalInputJson", canonical);
         await using var reader = await command.ExecuteReaderAsync(); Assert.True(await reader.ReadAsync());

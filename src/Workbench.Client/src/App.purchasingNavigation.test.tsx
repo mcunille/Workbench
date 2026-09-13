@@ -4,8 +4,8 @@ import * as authApi from './api/auth';
 import * as systemApi from './api/system';
 import * as purchasingApi from './api/purchaseOrders';
 
-const draft = { title: 'First draft', supplierName: null, currency: null, notes: null, sourceLinks: [], entries: [] };
-const first: purchasingApi.DraftOrder = { id: 'first', draft, version: 'v1', createdAtUtc: '2026-09-12T00:00:00Z', updatedAtUtc: '2026-09-12T00:00:00Z' };
+const draft = { title: 'First draft', supplierName: null, supplierId: null, supplierContactName: null, supplierEmail: null, supplierPhone: null, supplierWebsite: null, supplierPostalAddress: null, supplierOrderReference: null, platform: null, currency: null, notes: null, sourceLinks: [], entries: [] };
+const first: purchasingApi.DraftOrder = { id: 'first', poReference: 'PO-000001', supplierIsArchived: false, draft, version: 'v1', createdAtUtc: '2026-09-12T00:00:00Z', updatedAtUtc: '2026-09-12T00:00:00Z' };
 const second: purchasingApi.DraftOrder = { ...first, id: 'second', draft: { ...draft, title: 'Second draft', notes: 'Saved second notes' } };
 const originalShowModal = Object.getOwnPropertyDescriptor(HTMLDialogElement.prototype, 'showModal');
 
@@ -16,7 +16,7 @@ beforeEach(() => {
   vi.spyOn(window, 'scrollTo').mockImplementation(() => {});
   vi.spyOn(systemApi, 'getSystem').mockResolvedValue({ name: 'Workbench', version: '1' });
   vi.spyOn(authApi, 'getCurrentIdentity').mockResolvedValue({ userId: 'person', tenantName: 'Studio', email: 'person@example.test', permissions: ['TenantAccess'] });
-  vi.spyOn(purchasingApi, 'getDrafts').mockResolvedValue({ items: [first, second].map(value => ({ id: value.id, title: value.draft.title, supplierName: null, updatedAtUtc: value.updatedAtUtc })), nextCursor: null });
+  vi.spyOn(purchasingApi, 'getDrafts').mockResolvedValue({ items: [first, second].map(value => ({ id: value.id, title: value.draft.title, supplierName: null, poReference: value.poReference, supplierOrderReference: null, platform: null, updatedAtUtc: value.updatedAtUtc })), nextCursor: null });
   vi.spyOn(purchasingApi, 'getDraft').mockImplementation(async id => id === second.id ? second : first);
 });
 afterEach(() => {
