@@ -77,3 +77,15 @@ it('shows authoritative preview errors on order fields and in the linked summary
   expect(screen.getByLabelText('Currency')).toHaveFocus();
   expect(createDraft).not.toHaveBeenCalled();
 });
+
+it('combines native unit selectors with their accessible labels', () => {
+  // GIVEN an empty purchase-order line.
+  render(<DraftEditor {...props()} />);
+  fireEvent.click(screen.getByRole('button', { name: 'Add entry' }));
+  // WHEN choosing units THEN both selectors use the shared combined label control.
+  for (const name of ['Unit 1', 'Pricing unit 1']) {
+    const control = screen.getByLabelText(name);
+    expect(control.closest('.floating-field')).not.toBeNull();
+    expect(control).toHaveAccessibleName(name);
+  }
+});

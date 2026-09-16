@@ -47,3 +47,26 @@ test('itemized pieces, weight and batch pricing persist with explainable draft e
   await page.evaluate(() => { document.documentElement.style.fontSize = '200%'; });
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 });
+
+test('quantity and unit controls keep combined labels at ordinary text sizes', async ({ page }) => {
+  // GIVEN a line with populated quantities and native unit selectors.
+  await useAuthenticatedSession(page);
+  await page.goto('/purchase-orders/new');
+  await page.getByRole('button', { name: 'Add entry', exact: true }).click();
+  await page.getByLabel('Quantity 1', { exact: true }).fill('10');
+  await page.getByLabel('Unit 1', { exact: true }).selectOption('piece');
+  await page.getByRole('heading', { name: 'Order lines', exact: true }).click();
+  // WHEN desktop and mobile layouts render THEN each label crosses its control's top border.
+  for (const width of [1024, 390]) {
+    await page.setViewportSize({ width, height: 900 });
+    for (const name of ['Quantity 1', 'Unit 1', 'Per quantity 1', 'Pricing unit 1']) {
+      const control = page.getByLabel(name, { exact: true });
+      const label = page.locator(`label[for="${await control.getAttribute('id')}"]`);
+      await expect.poll(async () => {
+        const field = (await control.boundingBox())!;
+        const text = (await label.boundingBox())!;
+        return text.y < field.y && text.y + text.height > field.y;
+      }, { message: `${name} has a combined label at ${width}px` }).toBe(true);
+    }
+  }
+});

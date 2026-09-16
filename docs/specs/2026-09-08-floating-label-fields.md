@@ -20,6 +20,11 @@ At field widths of 16rem or less, labels stay above controls in normal flow and 
 wrap. This text-relative fallback also applies when root text is enlarged, preserving
 the full label without overlap in empty, focused, and populated states.
 
+Compact quantity and unit controls use a 10rem fallback threshold because their
+labels are short. Native unit selectors share the same combined control, keeping
+their label raised even when the displayed value is "Not set". Enlarged text still
+moves compact labels into normal flow when they no longer fit.
+
 Motion is CSS-only and disabled for reduced-motion users. Label color changes immediately
 with the theme so text and background never animate out of contrast. Forced colors uses a system
 highlight border. Invalid fields retain their danger color. A neutral opaque field fill
