@@ -1,5 +1,5 @@
 import { expect, test } from './diagnostic-fixture';
-import { cameraImage, photoSignIn, savedPhotoItem } from './photo-fixture';
+import { smallPhotoImage, photoSignIn, savedPhotoItem } from './photo-fixture';
 
 test('a removal finishing after confirmed navigation updates the restored collection', async ({ page }) => {
   test.setTimeout(120_000);
@@ -7,7 +7,7 @@ test('a removal finishing after confirmed navigation updates the restored collec
   await photoSignIn(page);
   const name = `Pending photo ${crypto.randomUUID()}`;
   await savedPhotoItem(page, name);
-  await page.getByLabel('Choose photograph', { exact: true }).setInputFiles(await cameraImage(page));
+  await page.getByLabel('Choose photograph', { exact: true }).setInputFiles(await smallPhotoImage(page));
   await page.getByRole('button', { name: 'Upload photograph', exact: true }).click();
   await expect(page.getByText('Current saved photograph loaded.', { exact: true })).toBeVisible();
   await page.getByRole('link', { name: 'Back to collection', exact: true }).click();

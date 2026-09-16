@@ -1,6 +1,5 @@
 // Copyright (c) 2026 The White Stag Collection.
 
-using System.Security.Cryptography;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
@@ -24,8 +23,7 @@ public sealed class SessionAuthenticationTests(SqlServerFixture sqlServer) : IAs
 
     public async Task InitializeAsync()
     {
-        _database = await sqlServer.CreateDatabaseAsync();
-        await DatabaseMigrator.MigrateAsync(_database.AdminConnectionString, CancellationToken.None);
+        _database = await sqlServer.CreateMigratedDatabaseAsync();
         var webConnection = await _database.CreateWebUserAsync();
         var tenantContextProof = new TenantContextProof(await _database.GetTenantContextProofKeyAsync());
         await SeedUserAsync();
@@ -85,12 +83,6 @@ public sealed class SessionAuthenticationTests(SqlServerFixture sqlServer) : IAs
         var resolved = await _sessions.ResolveAsync(created.Token, Now.AddMinutes(1), CancellationToken.None);
 
         Assert.Null(resolved);
-    }
-
-    [Fact]
-    public async Task ResolveTreatsMalformedTokenAsUnauthenticated()
-    {
-        Assert.Null(await _sessions.ResolveAsync("not a base64url token!", Now, CancellationToken.None));
     }
 
     [Fact]

@@ -1,5 +1,5 @@
 import { expect, test } from './diagnostic-fixture';
-import { useAuthenticatedSession as signIn } from './auth-fixture';
+import { useInterceptedSession as signIn } from './intercepted-auth-fixture';
 
 test('the empty collection card opens item creation by pointer and keyboard', async ({ page }) => {
   // GIVEN an authenticated collection with an empty API response.

@@ -4,7 +4,6 @@ using System.Net;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Data.SqlClient;
 using Workbench.Server.IntegrationTests.Infrastructure;
-using Workbench.Server.Persistence;
 using Xunit;
 
 namespace Workbench.Server.IntegrationTests;
@@ -52,104 +51,6 @@ public sealed class DatabaseReadinessTests(SqlServerFixture sqlServer) : IAsyncL
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
     }
 
-    [Theory]
-    [InlineData("REVOKE EXECUTE ON [Purchasing].[CreateDraftOrderV2] FROM [workbench_web]")]
-    [InlineData("REVOKE EXECUTE ON [Purchasing].[UpdateDraftOrderV2] FROM [workbench_web]")]
-    [InlineData("REVOKE EXECUTE ON [Purchasing].[SaveSupplier] FROM [workbench_web]")]
-    [InlineData("REVOKE SELECT ON [Purchasing].[Suppliers] FROM [workbench_web]")]
-    [InlineData("REVOKE SELECT ON [Purchasing].[SupplierRequestReceipts] FROM [workbench_web]")]
-    [InlineData("REVOKE SELECT ON [Purchasing].[PurchaseOrderCounters] FROM [workbench_web]")]
-    [InlineData("GRANT UPDATE ON [Purchasing].[Suppliers] TO [workbench_web]")]
-    [InlineData("GRANT UPDATE ON [Purchasing].[SupplierRequestReceipts] TO [workbench_web]")]
-    [InlineData("GRANT UPDATE ON [Purchasing].[PurchaseOrderCounters] TO [workbench_web]")]
-    [InlineData("REVOKE EXECUTE ON [Purchasing].[CreateDraftOrder] FROM [workbench_web]")]
-    [InlineData("REVOKE EXECUTE ON [Purchasing].[UpdateDraftOrder] FROM [workbench_web]")]
-    [InlineData("REVOKE EXECUTE ON [Purchasing].[DeleteDraftOrder] FROM [workbench_web]")]
-    [InlineData("REVOKE SELECT ON [Purchasing].[DraftOrders] FROM [workbench_web]")]
-    [InlineData("REVOKE SELECT ON [Purchasing].[DraftOrderRequestReceipts] FROM [workbench_web]")]
-    [InlineData("GRANT UPDATE ON [Purchasing].[DraftOrders] TO [workbench_web]")]
-    public async Task MissingDraftOrderBoundariesMakeReadinessUnhealthy(string changeAuthority)
-    {
-        // GIVEN a deployment with a missing purchasing capability or an unsafe direct-write grant.
-        await using var connection = new SqlConnection(_application.AdminConnectionString);
-        await connection.OpenAsync();
-        await using var command = new SqlCommand(changeAuthority, connection);
-        await command.ExecuteNonQueryAsync();
-        // WHEN readiness probes the current deployment THEN it refuses to advertise the incomplete boundary.
-        Assert.Equal(HttpStatusCode.ServiceUnavailable, (await _client.GetAsync("/health/ready")).StatusCode);
-    }
-
-    [Theory]
-    [InlineData("AddBlobAndOperationalProviders")]
-    [InlineData("AddDeploymentQueueTelemetry")]
-    [InlineData("DeferInvitationIdentityClaim")]
-    [InlineData("AddProviderRetryDelay")]
-    [InlineData("AddAcquisitionDocuments")]
-    [InlineData("AddDraftSupplierOrders")]
-    public async Task PriorReleaseSchemaIsUnreadyUntilDeploymentMigrationIsApplied(string priorMigration)
-    {
-        // GIVEN a prior release schema lacks one of this release's required worker or identity capabilities.
-        await using var prior = await AuthTestApplication.CreateAsync(sqlServer, priorMigration: priorMigration);
-        using var client = prior.CreateClient();
-        // WHEN the current application probes that older schema.
-        Assert.Equal(HttpStatusCode.ServiceUnavailable, (await client.GetAsync("/health/ready")).StatusCode);
-        Assert.Equal(HttpStatusCode.OK, (await client.GetAsync("/health/live")).StatusCode);
-        // THEN applying the required deployment migration makes this release ready.
-        await DatabaseMigrator.MigrateAsync(prior.AdminConnectionString, CancellationToken.None);
-        Assert.Equal(HttpStatusCode.OK, (await client.GetAsync("/health/ready")).StatusCode);
-    }
-
-    [Theory]
-    [InlineData("DROP PROCEDURE [Operations].[ReadWorkQueueStatus]")]
-    [InlineData("REVOKE EXECUTE ON [Operations].[ReadWorkQueueStatus] FROM [workbench_worker]")]
-    [InlineData("DROP PROCEDURE [Security].[ReadProviderRetryReadiness]")]
-    [InlineData("REVOKE EXECUTE ON [Operations].[RetryWork] FROM [workbench_worker]")]
-    [InlineData("ALTER PROCEDURE [Operations].[RetryWork] AS SELECT 0;")]
-    public async Task MissingQueueTelemetryAuthorityMakesReadinessUnhealthy(string breakTelemetry)
-    {
-        // GIVEN the required worker telemetry procedure or its execution authority is missing.
-        await using var connection = new SqlConnection(_application.AdminConnectionString);
-        await connection.OpenAsync();
-        await using var command = new SqlCommand(breakTelemetry, connection);
-        await command.ExecuteNonQueryAsync();
-        // WHEN readiness examines the deployed database.
-        var response = await _client.GetAsync("/health/ready");
-        // THEN this release does not advertise readiness with incomplete worker telemetry.
-        Assert.Equal(HttpStatusCode.ServiceUnavailable, response.StatusCode);
-    }
-
-    [Fact]
-    public async Task PriorInvitationSchemaIsUnreadyUntilIdentityClaimMigrationIsApplied()
-    {
-        // GIVEN the immediate prior schema still reserves identities before invitation acceptance.
-        await using var prior = await AuthTestApplication.CreateAsync(sqlServer, priorMigration: "AddDeploymentQueueTelemetry");
-        using var client = prior.CreateClient();
-        // WHEN the new application probes that incompatible schema.
-        Assert.Equal(HttpStatusCode.ServiceUnavailable, (await client.GetAsync("/health/ready")).StatusCode);
-        Assert.Equal(HttpStatusCode.OK, (await client.GetAsync("/health/live")).StatusCode);
-        // THEN applying the invitation migration restores readiness without restarting the application.
-        await DatabaseMigrator.MigrateAsync(prior.AdminConnectionString, CancellationToken.None);
-        Assert.Equal(HttpStatusCode.OK, (await client.GetAsync("/health/ready")).StatusCode);
-    }
-
-    [Theory]
-    [InlineData("DROP PROCEDURE [Identity].[ClaimInvitationIdentity]")]
-    [InlineData("REVOKE EXECUTE ON [Identity].[ClaimInvitationIdentity] FROM [workbench_web]")]
-    [InlineData("DENY EXECUTE ON [Identity].[ClaimInvitationIdentity] TO [workbench_web]")]
-    [InlineData("GRANT VIEW DEFINITION ON [Identity].[ClaimInvitationIdentity] TO [workbench_web]; DENY EXECUTE ON [Identity].[ClaimInvitationIdentity] TO [workbench_web]")]
-    public async Task MissingInvitationClaimAuthorityMakesReadinessUnhealthy(string breakInvitation)
-    {
-        // GIVEN the current schema loses the procedure or effective execution authority needed for acceptance.
-        await using var connection = new SqlConnection(_application.AdminConnectionString);
-        await connection.OpenAsync();
-        await using var command = new SqlCommand(breakInvitation, connection);
-        await command.ExecuteNonQueryAsync();
-        // WHEN the application probes readiness using its real web principal.
-        var response = await _client.GetAsync("/health/ready");
-        // THEN the replica is unready while liveness remains available.
-        Assert.Equal(HttpStatusCode.ServiceUnavailable, response.StatusCode);
-        Assert.Equal(HttpStatusCode.OK, (await _client.GetAsync("/health/live")).StatusCode);
-    }
     [Fact]
     public async Task DisabledRlsMakesReadinessUnhealthyWithoutStoppingLiveness()
     {

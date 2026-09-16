@@ -1,8 +1,8 @@
+import { captureEvidence } from './evidence-fixture';
 import { setAppearance } from './user-menu-fixture';
 import { browserBaseUrl } from './browser-environment';
 import { expect, test, type Page } from './diagnostic-fixture';
-import { mkdir } from 'node:fs/promises';
-import { cameraImage, photoSignIn } from './photo-fixture';
+import { smallPhotoImage, photoSignIn } from './photo-fixture';
 
 test.setTimeout(180_000);
 async function create(page: Page) {
@@ -24,7 +24,7 @@ test('H5 cancellation and confirmed archive preserve a photographed bookmark acr
   await create(page); // A separate active record keeps both collection views available.
   const url = `/inventory/${item.id}`;
   await page.goto(url);
-  await page.getByLabel('Choose photograph', { exact: true }).setInputFiles(await cameraImage(page));
+  await page.getByLabel('Choose photograph', { exact: true }).setInputFiles(await smallPhotoImage(page));
   await page.getByRole('button', { name: 'Upload photograph', exact: true }).click();
   await expect(page.getByAltText(`Photograph of ${item.name}`)).toBeVisible();
   const before = await (await page.request.get(`/api/items/${item.id}`)).json();
@@ -46,7 +46,7 @@ test('H5 cancellation and confirmed archive preserve a photographed bookmark acr
   expect(after.photo).toEqual(before.photo);
   expect(after.name).toBe(before.name);
   expect(after.createdAtUtc).toBe(before.createdAtUtc);
-  await mkdir('../../artifacts/h5', { recursive: true });
+
   for (const width of [320, 1280]) {
     await page.setViewportSize({ width, height: 900 });
     for (const theme of ['light', 'dark']) {
@@ -60,7 +60,7 @@ test('H5 cancellation and confirmed archive preserve a photographed bookmark acr
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
       for (const control of await page.locator('button:visible, select:visible').all())
         expect((await control.boundingBox())!.height).toBeGreaterThanOrEqual(44);
-      await page.screenshot({ path: `../../artifacts/h5/archived-${width}-${theme}.png`, fullPage: true });
+      await captureEvidence(page, `h5/archived-${width}-${theme}.png`, { fullPage: true });
     }
   }
   // AND neither Grid nor List nor a matching search exposes the archived record.

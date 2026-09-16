@@ -16,8 +16,7 @@ public sealed class WorkQueueTelemetryTests(SqlServerFixture sqlServer)
     public async Task EmptyQueueReturnsZeroCounts()
     {
         // GIVEN an empty migrated database and a dedicated worker principal.
-        await using var database = await sqlServer.CreateDatabaseAsync();
-        await DatabaseMigrator.MigrateAsync(database.AdminConnectionString, CancellationToken.None);
+        await using var database = await sqlServer.CreateMigratedDatabaseAsync();
         var worker = await database.CreateRoleUserAsync("workbench_worker");
         // WHEN the worker reads aggregate queue status.
         var result = await WorkQueueTelemetry.ReadAsync(worker, CancellationToken.None);
@@ -29,8 +28,7 @@ public sealed class WorkQueueTelemetryTests(SqlServerFixture sqlServer)
     public async Task WorkerSeesOnlyOneAggregateRowAcrossTenantsAndPendingStates()
     {
         // GIVEN ready and leased work across two tenants, plus older terminal work.
-        await using var database = await sqlServer.CreateDatabaseAsync();
-        await DatabaseMigrator.MigrateAsync(database.AdminConnectionString, CancellationToken.None);
+        await using var database = await sqlServer.CreateMigratedDatabaseAsync();
         var first = Guid.NewGuid();
         var second = Guid.NewGuid();
         await database.SeedTenantAuditRowsAsync(first, second);
@@ -67,8 +65,7 @@ public sealed class WorkQueueTelemetryTests(SqlServerFixture sqlServer)
     public async Task FutureScheduledWorkDoesNotReportNegativeOrPrematureAge()
     {
         // GIVEN ready work whose retention delay has not elapsed.
-        await using var database = await sqlServer.CreateDatabaseAsync();
-        await DatabaseMigrator.MigrateAsync(database.AdminConnectionString, CancellationToken.None);
+        await using var database = await sqlServer.CreateMigratedDatabaseAsync();
         var tenant = Guid.NewGuid();
         await database.SeedTenantAuditRowsAsync(tenant, Guid.NewGuid());
         await SeedAsync(database.AdminConnectionString, tenant, WorkState.Ready, 3600);
@@ -83,8 +80,7 @@ public sealed class WorkQueueTelemetryTests(SqlServerFixture sqlServer)
     public async Task WebPrincipalCannotReadCrossTenantAggregate()
     {
         // GIVEN a runtime web principal with no worker membership.
-        await using var database = await sqlServer.CreateDatabaseAsync();
-        await DatabaseMigrator.MigrateAsync(database.AdminConnectionString, CancellationToken.None);
+        await using var database = await sqlServer.CreateMigratedDatabaseAsync();
         var web = await database.CreateWebUserAsync();
         // WHEN the web principal attempts the aggregate procedure.
         var error = await Assert.ThrowsAsync<SqlException>(() => WorkQueueTelemetry.ReadAsync(web, CancellationToken.None));

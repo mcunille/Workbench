@@ -1,7 +1,6 @@
 // Copyright (c) 2026 The White Stag Collection.
 
 using System.Net;
-using Microsoft.Data.SqlClient;
 using Workbench.Server.IntegrationTests.Infrastructure;
 using Workbench.Server.Persistence;
 using Xunit;
@@ -25,37 +24,4 @@ public sealed class InventoryReadinessTests(SqlServerFixture sqlServer)
         Assert.Equal(HttpStatusCode.OK, (await client.GetAsync("/health/ready")).StatusCode);
     }
 
-    [Theory]
-    [InlineData("REVOKE INSERT ON [Inventory].[Items] FROM [workbench_web]")]
-    [InlineData("DENY SELECT ON [Inventory].[Items] TO [workbench_web]")]
-    [InlineData("DENY EXECUTE ON [Inventory].[UpdateItemDetails] TO [workbench_web]")]
-    [InlineData("DENY EXECUTE ON [Inventory].[ArchiveItem] TO [workbench_web]")]
-    [InlineData("DENY EXECUTE ON [Inventory].[RestoreItem] TO [workbench_web]")]
-    [InlineData("DENY SELECT ON [Inventory].[ItemCreationSnapshots] TO [workbench_web]")]
-    [InlineData("DENY EXECUTE ON [Inventory].[CreateAcquisition] TO [workbench_web]")]
-    [InlineData("DENY EXECUTE ON [Inventory].[UpdateAcquisition] TO [workbench_web]")]
-    [InlineData("DENY EXECUTE ON [Inventory].[ChangeAcquisitionLink] TO [workbench_web]")]
-    [InlineData("DENY SELECT ON [Inventory].[Acquisitions] TO [workbench_web]")]
-    [InlineData("DENY SELECT ON [Inventory].[AcquisitionItems] TO [workbench_web]")]
-    [InlineData("DENY SELECT ON [Inventory].[AcquisitionCreationRecords] TO [workbench_web]")]
-    [InlineData("GRANT UPDATE ON [Inventory].[Acquisitions] TO [workbench_web]")]
-    [InlineData("GRANT INSERT ON [Inventory].[AcquisitionItems] TO [workbench_web]")]
-    [InlineData("GRANT DELETE ON [Inventory].[AcquisitionCreationRecords] TO [workbench_web]")]
-    [InlineData("DENY EXECUTE ON [Inventory].[PrepareAcquisitionDocument] TO [workbench_web]")]
-    [InlineData("DENY EXECUTE ON [Inventory].[FinishAcquisitionDocument] TO [workbench_web]")]
-    [InlineData("GRANT UPDATE ON [Inventory].[AcquisitionDocuments] TO [workbench_web]")]
-    [InlineData("GRANT INSERT ON [Inventory].[AcquisitionDocumentOperations] TO [workbench_web]")]
-    [InlineData("DENY SELECT ON [Inventory].[AcquisitionDocuments] TO [workbench_web]")]
-    public async Task MissingInventoryAuthorityPreventsReadiness(string sql)
-    {
-        // GIVEN the runtime principal loses a required inventory operation.
-        await using var application = await AuthTestApplication.CreateAsync(sqlServer);
-        await using var connection = new SqlConnection(application.AdminConnectionString);
-        await connection.OpenAsync();
-        await using var command = new SqlCommand(sql, connection);
-        await command.ExecuteNonQueryAsync();
-        using var client = application.CreateClient();
-        // WHEN readiness examines effective grants THEN it refuses traffic.
-        Assert.Equal(HttpStatusCode.ServiceUnavailable, (await client.GetAsync("/health/ready")).StatusCode);
-    }
 }

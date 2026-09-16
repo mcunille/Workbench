@@ -110,9 +110,15 @@ try {
     Set-Content -LiteralPath $operatorConnectionFile -Value $operatorConnection
     & dotnet $databaseAssembly `
         bootstrap --connection-file $operatorConnectionFile --expected-database $database `
-        --tenant-name 'Browser Tenant' --admin-email 'browser-admin@example.test' `
+        --tenant-name 'Browser authentication' --admin-email 'browser-auth@example.test' `
         --password-file $adminPasswordFile
     Assert-CommandSucceeded 'Browser database bootstrap'
+
+    & dotnet $databaseAssembly `
+        tenant create --connection-file $operatorConnectionFile --expected-database $database `
+        --tenant-name 'Browser Tenant' --admin-email 'browser-live-0@example.test' `
+        --password-file $adminPasswordFile
+    Assert-CommandSucceeded 'Browser live worker tenant provisioning'
 
     $photoStorageRoot = Join-Path $temporaryRoot 'blobs'
     New-Item -ItemType Directory -Path $photoStorageRoot -Force | Out-Null

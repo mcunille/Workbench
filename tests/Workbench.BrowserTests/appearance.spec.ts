@@ -1,5 +1,5 @@
+import { captureEvidence } from './evidence-fixture';
 import { expect, test } from './diagnostic-fixture';
-import { mkdir } from 'node:fs/promises';
 
 test('forced colors preserve both icons and a visible selected-theme boundary', async ({ page }) => {
   // GIVEN a visitor using a high-contrast system palette.
@@ -29,8 +29,8 @@ test('forced colors preserve both icons and a visible selected-theme boundary', 
       expect(paint.borderColor).not.toBe(paint.background);
       expect(paint.icons[dark ? 1 : 0]).not.toBe(paint.thumbBackground);
       expect(paint.icons[dark ? 0 : 1]).not.toBe(paint.background);
-      await mkdir('../../artifacts/theme-switch', { recursive: true });
-      await control.screenshot({ path: `../../artifacts/theme-switch/forced-${colorScheme}-${dark ? 'dark' : 'light'}.png` });
+
+      await captureEvidence(control, `theme-switch/forced-${colorScheme}-${dark ? 'dark' : 'light'}.png`);
     }
   }
 });
@@ -52,8 +52,8 @@ for (const width of [320, 1280]) {
     await expect(control).not.toBeChecked();
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
     expect(await page.evaluate(() => localStorage.getItem('workbench.appearance'))).toBeNull();
-    await mkdir('../../artifacts/theme-switch', { recursive: true });
-    await page.screenshot({ path: `../../artifacts/theme-switch/sign-in-${width}-light.png`, fullPage: true });
+
+    await captureEvidence(page, `theme-switch/sign-in-${width}-light.png`, { fullPage: true });
     // WHEN the user activates the switch with the keyboard.
     await control.focus();
     await page.keyboard.press('Space');
@@ -66,7 +66,7 @@ for (const width of [320, 1280]) {
     expect(bounds!.height).toBeGreaterThanOrEqual(44);
     expect(bounds!.width).toBeGreaterThanOrEqual(44);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-    await page.screenshot({ path: `../../artifacts/theme-switch/sign-in-${width}-dark.png`, fullPage: true });
+    await captureEvidence(page, `theme-switch/sign-in-${width}-dark.png`, { fullPage: true });
     // WHEN reloading and changing the system after an explicit choice.
     await page.reload();
     await page.emulateMedia({ colorScheme: 'dark' });

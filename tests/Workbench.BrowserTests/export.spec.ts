@@ -1,6 +1,6 @@
+import { captureEvidence } from './evidence-fixture';
 import { setAppearance } from './user-menu-fixture';
 import { expect, test } from './diagnostic-fixture';
-import { mkdir } from 'node:fs/promises';
 import { useAuthenticatedSession } from './auth-fixture';
 import { lifecycle } from './restoration-fixture';
 import { archiveExportItems, createExportItem, downloadExport } from './export-fixture';
@@ -13,12 +13,13 @@ test.afterEach(async ({ page }) => {
   await archiveExportItems(page);
 });
 
-test('H7 explicit export scopes include records beyond browsing pages and preserve exact encoded text', async ({ page }) => {
-  // GIVEN more than a browsing page, an archived record, and multiline formula-leading text.
+test('H7 explicit export scopes ignore browsing filters and preserve exact downloaded text', async ({ page }) => {
+  // GIVEN an ordinary record, an archived record, and multiline formula-leading text.
+  // ItemExportEndpointTests owns the all-pages boundary for both formats.
   await useAuthenticatedSession(page);
   const prefix = `H7-${crypto.randomUUID()}`;
   const ids: string[] = [];
-  for (let i = 0; i < 51; i++) ids.push((await createExportItem(page, `${prefix}-${i}`)).id);
+  ids.push((await createExportItem(page, `${prefix}-ordinary`)).id);
   const special = await createExportItem(page, `=SUM(1,2) ${prefix}`, "'Original\nQuoted \"detail\", café", '@Tray');
   const archived = await createExportItem(page, `${prefix}-archived`);
   await lifecycle(page, archived.id, 'archive', archived.version);
@@ -33,7 +34,7 @@ test('H7 explicit export scopes include records beyond browsing pages and preser
   await page.getByRole('radio', { name: 'Active records', exact: true }).check();
   await page.getByRole('button', { name: 'Prepare export', exact: true }).click();
   await expect(page.getByRole('link', { name: 'Download CSV', exact: true })).toBeVisible();
-  // THEN CSV includes every seeded active record despite the search and loaded-page boundary.
+  // THEN the native CSV download includes every seeded active record despite the browse filter.
   const active = await downloadExport(page);
   expect(active.map(row => row[3])).toEqual(expect.arrayContaining([...ids, special.id]));
   expect(active.find(row => row[3] === archived.id)).toBeUndefined();
@@ -69,7 +70,7 @@ test('H7 prepared download survives navigation and appearance and remains usable
   await page.goBack(); await page.goForward();
   await expect(scope).toBeChecked();
   await expect(page.getByRole('link', { name: 'Download CSV', exact: true })).toBeVisible();
-  await mkdir('../../artifacts/h7', { recursive: true });
+
   for (const width of [320, 1280]) for (const theme of ['light', 'dark']) {
     await page.setViewportSize({ width, height: 900 });
     await page.emulateMedia({ reducedMotion: 'reduce' });
@@ -79,14 +80,11 @@ test('H7 prepared download survives navigation and appearance and remains usable
     await expect(page.getByRole('link', { name: 'Download CSV', exact: true })).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     for (const control of await page.locator('button:visible, select:visible, a.button:visible, .export-scope label:visible').all()) expect((await control.boundingBox())!.height).toBeGreaterThanOrEqual(44);
-    const cdp = await page.context().newCDPSession(page);
-    await cdp.send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-reduced-transparency', value: 'reduce' }] });
-    expect(await page.evaluate(() => getComputedStyle(document.querySelector('.workspace-nav')!).backdropFilter)).toBe('none');
-    await cdp.detach();
+    // Shared shell transparency is covered by inventory.spec.ts.
     await page.evaluate(() => window.scrollTo(0, 0));
-    await page.screenshot({ path: `../../artifacts/h7/export-${width}-${theme}.png`, fullPage: true });
-    expect((await downloadExport(page)).length).toBeGreaterThan(0);
+    await captureEvidence(page, `h7/export-${width}-${theme}.png`, { fullPage: true });
   }
+  expect((await downloadExport(page)).length).toBeGreaterThan(0);
   // WHEN reloading THEN the old file and scope are cleared.
   await page.reload();
   await expect(page.getByRole('link', { name: 'Download CSV', exact: true })).toHaveCount(0);

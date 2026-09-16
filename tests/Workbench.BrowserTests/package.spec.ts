@@ -1,6 +1,6 @@
+import { captureEvidence } from './evidence-fixture';
 import { expect, test } from './diagnostic-fixture';
 import { setAppearance } from './user-menu-fixture';
-import { mkdir } from 'node:fs/promises';
 import { useAuthenticatedSession } from './auth-fixture';
 import { lifecycle } from './restoration-fixture';
 import { archiveExportItems, createExportItem } from './export-fixture';
@@ -64,8 +64,9 @@ test('H8 format and package survive navigation and both appearances with keyboar
   const originalUrl = await download.getAttribute('href');
   // WHEN navigating and changing appearance THEN the same complete file and choices remain.
   await page.goBack(); await page.goForward();
-  await mkdir('../../artifacts/h8', { recursive: true });
-  for (const width of [320, 1280]) for (const theme of ['light', 'dark']) {
+
+  // CSV owns the shared desktop layout matrix; preserve the longest format label on a phone.
+  for (const width of [320]) for (const theme of ['light', 'dark']) {
     await page.setViewportSize({ width, height: 900 });
     await page.emulateMedia({ reducedMotion: 'reduce' });
     await setAppearance(page, theme === 'dark');
@@ -73,11 +74,8 @@ test('H8 format and package survive navigation and both appearances with keyboar
     await expect(download).toHaveAttribute('href', originalUrl!);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     for (const control of await page.locator('button:visible, a.button:visible, .export-scope label:visible').all()) expect((await control.boundingBox())!.height).toBeGreaterThanOrEqual(44);
-    const cdp = await page.context().newCDPSession(page);
-    await cdp.send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-reduced-transparency', value: 'reduce' }] });
-    expect(await page.evaluate(() => getComputedStyle(document.querySelector('.workspace-nav')!).backdropFilter)).toBe('none');
-    await cdp.detach();
-    await page.screenshot({ path: `../../artifacts/h8/package-${width}-${theme}.png`, fullPage: true });
+    // Shared shell transparency is covered by inventory.spec.ts.
+    await captureEvidence(page, `h8/package-${width}-${theme}.png`, { fullPage: true });
   }
   expect((await downloadPackage(page)).records.length).toBeGreaterThan(0);
   // WHEN reloading THEN both the private file and previous choices are cleared.

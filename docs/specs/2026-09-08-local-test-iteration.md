@@ -37,6 +37,11 @@ Explicit prior-schema requests bypass the template and migrate an empty database
 requested version. Raw `CreateDatabaseAsync` is unchanged: migration, permission, and
 recovery tests that own their setup continue to exercise their explicit migration paths.
 
+The later [test efficiency extension](2026-09-16-test-suite-efficiency.md) also uses isolated
+current-schema copies for selected permission, telemetry, and session matrices. Fresh migration,
+upgrade, rollback, recovery, and migration-to-principal-provisioning evidence remain explicit;
+[test ownership guidance](../../tests/README.md) describes the current boundary.
+
 ## Measurement and tradeoffs
 
 On the local Windows/Docker host on 2026-09-08, a temporary diagnostic test measured

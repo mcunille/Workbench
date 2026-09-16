@@ -1,11 +1,16 @@
 import { openUserMenu } from './user-menu-fixture';
 import { expect, test } from './diagnostic-fixture';
-import { signInThroughUi as signIn } from './auth-fixture';
+import { signInThroughUi, useAuthenticatedSession } from './auth-fixture';
+import { browserBaseUrl } from './browser-environment';
+import { verifyOwnerDataIsolation } from './owner-isolation-fixture';
+import type { Page } from './diagnostic-fixture';
+
+const signIn = (page: Page) => signInThroughUi(page, true, 'auth');
 
 // Dedicated auth sessions share the real login budget with other browser scenarios.
 test.setTimeout(120_000);
 
-const email = 'browser-admin@example.test';
+const email = 'browser-auth@example.test';
 const password = 'Browser Correct Horse 9!';
 
 for (const path of ['/recover', '/invite']) {
@@ -42,45 +47,42 @@ for (const path of ['/recover', '/invite']) {
   });
 }
 
-test('durable authentication survives navigation and supports revocation and sign-out', async ({ page }) => {
+test('durable authentication survives navigation and supports revocation and sign-out', async ({ page, browser }) => {
   // GIVEN an authenticated session alongside any sessions retained by earlier scenarios.
   await signIn(page);
-  await page.reload();
-  await expect(page.getByRole('heading', { name: 'Collection', exact: true })).toBeVisible();
+  const liveContext = await browser.newContext({ baseURL: browserBaseUrl });
+  try {
+    const live = await liveContext.newPage();
+    await useAuthenticatedSession(live);
+    const assertLiveSessionSurvives = await verifyOwnerDataIsolation(live, page);
+    await page.reload();
+    await expect(page.getByRole('heading', { name: 'Collection', exact: true })).toBeVisible();
 
-  await openUserMenu(page);
-  await page.getByRole('link', { name: 'Account', exact: true }).click();
-  // WHEN revoking this session, other browser scenarios may have retained independent sessions.
-  await page.getByRole('listitem').filter({ hasText: 'This session' })
-    .getByRole('button', { name: 'Revoke', exact: true }).click();
-  // THEN revocation signs this browser out without depending on the total session count.
-  await expect(page.getByRole('heading', { name: 'Sign in' })).toBeVisible();
+    await openUserMenu(page);
+    await page.getByRole('link', { name: 'Account', exact: true }).click();
+    // WHEN revoking this session, other browser scenarios may have retained independent sessions.
+    await page.getByRole('listitem').filter({ hasText: 'This session' })
+      .getByRole('button', { name: 'Revoke', exact: true }).click();
+    // THEN revocation signs this browser out without depending on the total session count.
+    await expect(page.getByRole('heading', { name: 'Sign in' })).toBeVisible();
+    await assertLiveSessionSurvives();
 
-  await signIn(page);
-  const logoutResponse = page.waitForResponse((response) => response.url().endsWith('/api/auth/logout'));
-  await openUserMenu(page);
-  await page.getByRole('button', { name: 'Sign out', exact: true }).click();
-  expect((await logoutResponse).status()).toBe(204);
-  await expect(page.getByRole('heading', { name: 'Sign in' })).toBeVisible();
+    await signIn(page);
+    const logoutResponse = page.waitForResponse((response) => response.url().endsWith('/api/auth/logout'));
+    await openUserMenu(page);
+    await page.getByRole('button', { name: 'Sign out', exact: true }).click();
+    expect((await logoutResponse).status()).toBe(204);
+    await expect(page.getByRole('heading', { name: 'Sign in' })).toBeVisible();
+  } finally { await liveContext.close(); }
 });
 
-test('recovery remains generic and tenant identifier substitution is not observable', async ({ page }) => {
+test('recovery shows generic feedback for an eligible account', async ({ page }) => {
   await page.goto('/recover');
   await page.getByLabel('Email').fill(email);
   await page.getByRole('button', { name: 'Recover account' }).click();
   await expect(page.getByRole('status')).toContainText('If the account is eligible');
 
-  await signIn(page);
-  const status = await page.evaluate(async () => {
-    const tokenResponse = await fetch('/api/auth/antiforgery');
-    const { requestToken } = (await tokenResponse.json()) as { requestToken: string };
-    const response = await fetch('/api/tenant/users/bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb', {
-      method: 'DELETE',
-      headers: { 'X-CSRF-TOKEN': requestToken },
-    });
-    return response.status;
-  });
-  expect(status).toBe(404);
+  // Cross-tenant identifier substitution is covered through HTTP by TenantUserAdministrationTests.
 });
 
 for (const flow of [

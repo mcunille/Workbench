@@ -1,7 +1,7 @@
+import { captureEvidence } from './evidence-fixture';
 import { setAppearance } from './user-menu-fixture';
 import { browserBaseUrl } from './browser-environment';
 import { expect, test, type Page } from './diagnostic-fixture';
-import { mkdir } from 'node:fs/promises';
 import { photoSignIn } from './photo-fixture';
 
 test.setTimeout(120_000);
@@ -61,12 +61,12 @@ test('H4 two independent sessions recover stale edits and refresh search', async
     await expect(other.getByRole('button', { name: 'Review my edits', exact: true })).toBeVisible();
     await expect(other.getByText('Display box', { exact: true })).toBeVisible();
     await other.setViewportSize({ width: 320, height: 900 });
-    await mkdir('../../artifacts/h4', { recursive: true });
+
     for (const theme of ['dark', 'light']) {
       await setAppearance(other, theme === 'dark');
       expect(await other.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
       await checkTextContrast(other);
-      await other.screenshot({ path: `../../artifacts/h4/conflict-320-${theme}.png`, fullPage: true });
+      await captureEvidence(other, `h4/conflict-320-${theme}.png`, { fullPage: true });
     }
     await other.getByRole('button', { name: 'Review my edits', exact: true }).click();
     await expect(other.getByLabel('Name', { exact: true })).toHaveValue('Identified blue sapphire');
@@ -106,7 +106,7 @@ test('H4 cancel and failed save preserve truthful state across appearance and la
     ? route.fulfill({ status: 503, json: { title: 'Unavailable' } }) : route.continue(), { times: 1 });
   await page.getByRole('button', { name: 'Save changes', exact: true }).click();
   await expect(page.getByRole('alert')).toBeVisible();
-  await mkdir('../../artifacts/h4', { recursive: true });
+
   for (const width of [320, 1280]) {
     await page.setViewportSize({ width, height: 900 });
     for (const theme of ['dark', 'light', 'system']) {
@@ -118,7 +118,7 @@ test('H4 cancel and failed save preserve truthful state across appearance and la
       for (const control of await page.locator('button:visible, input:visible, select:visible').all())
         expect((await control.boundingBox())!.height).toBeGreaterThanOrEqual(44);
       await page.evaluate(() => window.scrollTo(0, 0));
-      await page.screenshot({ path: `../../artifacts/h4/editor-${width}-${theme}.png`, fullPage: true });
+      await captureEvidence(page, `h4/editor-${width}-${theme}.png`, { fullPage: true });
     }
   }
   const retry = page.getByRole('button', { name: 'Retry save', exact: true });

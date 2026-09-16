@@ -33,8 +33,7 @@ public sealed class PasswordPrincipalProvisioningTests(SqlServerFixture sqlServe
     public async Task DestinationRoleGrantsAreRejectedBeforeProvisioning(string unsafeGrant)
     {
         // GIVEN a destination role with direct authority outside its migration-defined grants.
-        await using var database = await sqlServer.CreateDatabaseAsync();
-        await DatabaseMigrator.MigrateAsync(database.AdminConnectionString, CancellationToken.None);
+        await using var database = await sqlServer.CreateMigratedDatabaseAsync();
         using var inputs = new Inputs();
         await ExecuteAsync(database, unsafeGrant);
         var originalProof = await database.GetTenantContextProofKeyAsync();
@@ -55,8 +54,7 @@ public sealed class PasswordPrincipalProvisioningTests(SqlServerFixture sqlServe
     public async Task DuplicateIdentitiesAreRejectedWithoutWrites(string migrator)
     {
         // GIVEN role names that identify the same SQL user.
-        await using var database = await sqlServer.CreateDatabaseAsync();
-        await DatabaseMigrator.MigrateAsync(database.AdminConnectionString, CancellationToken.None);
+        await using var database = await sqlServer.CreateMigratedDatabaseAsync();
         using var inputs = new Inputs();
         inputs.Principals[2] = inputs.Principals[2] with { User = migrator };
         // WHEN provisioning is attempted, THEN no user or proof changes survive.
@@ -78,8 +76,7 @@ public sealed class PasswordPrincipalProvisioningTests(SqlServerFixture sqlServe
     public async Task ExistingAuthorityIsRejected(string unsafeSetup)
     {
         // GIVEN an existing contained user with authority outside its intended role.
-        await using var database = await sqlServer.CreateDatabaseAsync();
-        await DatabaseMigrator.MigrateAsync(database.AdminConnectionString, CancellationToken.None);
+        await using var database = await sqlServer.CreateMigratedDatabaseAsync();
         using var inputs = new Inputs();
         await ExecuteAsync(database, $"CREATE USER [web_user] WITH PASSWORD=N'{inputs.Password}';");
         await ExecuteAsync(database, unsafeSetup);
@@ -96,8 +93,7 @@ public sealed class PasswordPrincipalProvisioningTests(SqlServerFixture sqlServe
     public async Task OtherPrincipalTypesAreRejected(string setup)
     {
         // GIVEN a name already belonging to something other than a password-authenticated contained user.
-        await using var database = await sqlServer.CreateDatabaseAsync();
-        await DatabaseMigrator.MigrateAsync(database.AdminConnectionString, CancellationToken.None);
+        await using var database = await sqlServer.CreateMigratedDatabaseAsync();
         using var inputs = new Inputs();
         await ExecuteAsync(database, setup);
         // WHEN provisioning is attempted, THEN the identity is not repurposed.
@@ -109,8 +105,7 @@ public sealed class PasswordPrincipalProvisioningTests(SqlServerFixture sqlServe
     public async Task LateFailureRollsBackUsersRolesAndProof()
     {
         // GIVEN a missing proof row, discovered after the principal writes.
-        await using var database = await sqlServer.CreateDatabaseAsync();
-        await DatabaseMigrator.MigrateAsync(database.AdminConnectionString, CancellationToken.None);
+        await using var database = await sqlServer.CreateMigratedDatabaseAsync();
         using var inputs = new Inputs();
         await ExecuteAsync(database, "DELETE FROM [Security].[TenantContextKeys]");
         // WHEN the final write fails, THEN the entire provisioning transaction rolls back.

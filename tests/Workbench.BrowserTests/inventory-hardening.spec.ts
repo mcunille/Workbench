@@ -1,8 +1,6 @@
+import { captureEvidence } from './evidence-fixture';
 import { expect, test, type Locator } from './diagnostic-fixture';
-import { cameraImage, photoSignIn, savedPhotoItem } from './photo-fixture';
-import { mkdtemp } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { smallPhotoImage, photoSignIn, savedPhotoItem } from './photo-fixture';
 
 async function expectNoticeContained(notice: Locator) {
   // Measure the text and frame together so font loading cannot move one between reads.
@@ -15,13 +13,11 @@ async function expectNoticeContained(notice: Locator) {
 }
 
 test('photo failures remain readable in compact lists and enlarged item details', async ({ page }) => {
-  const evidence = await mkdtemp(join(tmpdir(), 'workbench-photo-hardening-'));
-  console.log(`Photo hardening screenshots: ${evidence}`);
   // GIVEN a real saved photograph whose storage later becomes unavailable.
   await photoSignIn(page);
   const name = 'Photo failure boundary sample';
   await savedPhotoItem(page, name);
-  await page.getByLabel('Choose photograph', { exact: true }).setInputFiles(await cameraImage(page));
+  await page.getByLabel('Choose photograph', { exact: true }).setInputFiles(await smallPhotoImage(page));
   await expect(page.getByAltText('Prepared photograph preview')).toBeVisible();
   await page.getByRole('button', { name: 'Upload photograph', exact: true }).click();
   await expect(page.getByAltText(`Photograph of ${name}`, { exact: true })).toBeVisible();
@@ -49,7 +45,7 @@ test('photo failures remain readable in compact lists and enlarged item details'
     await expectNoticeContained(notice);
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(320);
     await card.scrollIntoViewIfNeeded();
-    await card.locator('.item-photo').screenshot({ path: join(evidence, `list-${status}.png`) });
+    await captureEvidence(card.locator('.item-photo'), `photo-hardening/list-${status}.png`);
     await card.click();
     await expect(page).toHaveURL(detailUrl);
     await expect(page.getByRole('heading', { name, exact: true })).toBeVisible();
@@ -61,7 +57,7 @@ test('photo failures remain readable in compact lists and enlarged item details'
     await expectNoticeContained(detailNotice);
     await expect(page.getByRole('button', { name: 'Retry photograph', exact: true })).toHaveCount(status === 410 ? 0 : 1);
     await detailPhoto.scrollIntoViewIfNeeded();
-    await detailPhoto.screenshot({ path: join(evidence, `detail-${status}.png`) });
+    await captureEvidence(detailPhoto, `photo-hardening/detail-${status}.png`);
     if (status === 503) {
       // WHEN storage recovers THEN the visible retry restores the saved photograph.
       unavailable = false;

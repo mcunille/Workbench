@@ -1,14 +1,15 @@
+import { pagedInventory, syntheticItem } from './paged-inventory-fixture';
+import { captureEvidence } from './evidence-fixture';
 import { setAppearance } from './user-menu-fixture';
 import { expect, test, type Page } from './diagnostic-fixture';
-import { mkdir } from 'node:fs/promises';
 import { photoSignIn } from './photo-fixture';
 
 test.setTimeout(180_000);
 
-async function seed(page: Page, name: string, notes: string, location: string) {
-  const token = await (await page.request.get('/api/auth/antiforgery')).json();
+async function seed(page: Page, name: string, notes: string, location: string, requestToken?: string) {
+  const token = requestToken ?? (await (await page.request.get('/api/auth/antiforgery')).json()).requestToken;
   const response = await page.request.post('/api/items', {
-    headers: { 'X-CSRF-TOKEN': token.requestToken },
+    headers: { 'X-CSRF-TOKEN': token },
     data: { creationRequestId: crypto.randomUUID(), name, notes, location },
   });
   expect(response.status()).toBe(201);
@@ -17,12 +18,21 @@ async function seed(page: Page, name: string, notes: string, location: string) {
 
 for (const width of [320, 1280]) {
   test(`searches all pages and restores selected result at ${width}px`, async ({ page }) => {
-    // GIVEN matching records beyond the unfiltered first page in a real tenant collection.
+    // GIVEN a real desktop collection or isolated phone responses beyond the first page.
     await page.setViewportSize({ width, height: 900 });
     await photoSignIn(page);
     const phrase = `Search-${crypto.randomUUID()}`;
-    for (let i = 0; i < 52; i++) await seed(page, `Unrelated ${i}`, '', '');
-    for (let i = 0; i < 53; i++) await seed(page, `Piece ${i} ${phrase}`, `Remember ${phrase}`, 'Tray H3');
+    if (width === 1280) {
+      // One token belongs only to this authenticated setup batch; no cross-session cache.
+      const { requestToken } = await (await page.request.get('/api/auth/antiforgery')).json();
+      for (let i = 0; i < 52; i++) await seed(page, `Unrelated ${i}`, '', '', requestToken);
+      for (let i = 0; i < 53; i++) await seed(page, `Piece ${i} ${phrase}`, `Remember ${phrase}`, 'Tray H3', requestToken);
+    } else {
+      await pagedInventory(page, [
+        ...Array.from({ length: 52 }, (_, i) => syntheticItem(i, `Unrelated ${i}`)),
+        ...Array.from({ length: 53 }, (_, i) => syntheticItem(i + 52, `Piece ${i} ${phrase}`)),
+      ]);
+    }
     await page.reload();
     const search = page.getByRole('searchbox', { name: 'Search collection', exact: true });
     await expect(search).toBeVisible();
@@ -61,8 +71,8 @@ for (const width of [320, 1280]) {
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     }
     await search.scrollIntoViewIfNeeded();
-    await mkdir('../../artifacts/h3', { recursive: true });
-    await page.screenshot({ path: `../../artifacts/h3/search-${width}.png` });
+
+    await captureEvidence(page, `h3/search-${width}.png`);
     // AND no matches is distinct from an empty collection; clearing retains the chosen view.
     await search.fill(`Absent-${crypto.randomUUID()}`);
     await search.press('Enter');

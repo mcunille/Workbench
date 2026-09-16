@@ -1,3 +1,4 @@
+import { captureEvidence } from './evidence-fixture';
 import { openUserMenu, setAppearance } from './user-menu-fixture';
 import { expect, test } from './diagnostic-fixture';
 import { photoSignIn } from './photo-fixture';
@@ -21,7 +22,7 @@ test('enlarged navigation fits with wider platform font metrics', async ({ page 
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });
 
-test('enlarged editor labels remain readable without overlapping fields', async ({ page }, testInfo) => {
+test('enlarged editor labels remain readable without overlapping fields', async ({ page }) => {
   // GIVEN the real item editor with 200% text in a narrow viewport.
   await photoSignIn(page);
   await page.goto('/inventory/new');
@@ -48,7 +49,7 @@ test('enlarged editor labels remain readable without overlapping fields', async 
       await input.fill('');
     }
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-    await page.screenshot({ path: testInfo.outputPath(`enlarged-editor-${theme}.png`), fullPage: true });
+    await captureEvidence(page, `enlarged-editor-${theme}.png`, { fullPage: true });
   }
 });
 

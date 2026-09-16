@@ -3,7 +3,7 @@ import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { inflateRawSync } from 'node:zlib';
 import { parseExportCsv } from './export-fixture';
-import { cameraImage } from './photo-fixture';
+import { smallPhotoImage } from './photo-fixture';
 
 type PackageManifest = {
   package_version: number; scope: string; exported_at_utc: string; record_count: number; photo_count: number;
@@ -98,7 +98,7 @@ export function inspectPackage(bytes: Buffer) {
 
 export async function uploadPackagePhoto(page: Page, id: string) {
   await page.goto(`/inventory/${id}`);
-  await page.getByLabel('Choose photograph', { exact: true }).setInputFiles(await cameraImage(page));
+  await page.getByLabel('Choose photograph', { exact: true }).setInputFiles(await smallPhotoImage(page));
   await expect(page.getByAltText('Prepared photograph preview')).toBeVisible();
   await page.getByRole('button', { name: 'Upload photograph', exact: true }).click();
   await expect(page.getByText('Current saved photograph loaded.', { exact: true })).toBeVisible();

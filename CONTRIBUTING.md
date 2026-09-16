@@ -31,8 +31,9 @@ published-output probes. Full-gate outcomes and stage/partition timings are reta
 The concurrent client stage uses one test worker while .NET formatting/build runs, keeping
 DOM test deadlines from competing with additional client workers. Focused client runs retain
 the runner defaults. The gate uses two isolated server processes by default; adjust
-`-ServerPartitions` (2–4) and `-ServerConcurrency` (1–4) for available Docker resources. Browser tests
-still use one worker. Every discovered server case must pass exactly once. See the
+`-ServerPartitions` (2–4) and `-ServerConcurrency` (1–4) for available Docker resources. Live browser
+tests use one worker; fully intercepted UI tests have their own bounded project. Every discovered
+server case must pass exactly once. See the
 [concurrent gate design](docs/specs/2026-09-09-concurrent-verification-gate.md) for artifact
 provenance and the aggregate CI check.
 The second requires Docker and verifies a SQL-backed runtime image as non-root and read-only with no Node.js,
@@ -52,11 +53,20 @@ For filesystem durability changes, run `bash scripts/test-storage-durability.sh`
 and `strace`. It builds a probe from the current storage source, checks directory sync ordering, and
 injects sync errors and interruptions. This tests syscall behavior, not physical power-loss recovery.
 
-Browser checks reuse two distinct authenticated sessions for ordinary scenarios; authentication,
-sign-out, and revocation scenarios create their own sessions. Cookies live only in the disposable
-browser-run directory and are removed by the parent test command. Tests still run with one worker.
+Browser checks reuse two distinct authenticated sessions in the live worker's tenant. The dedicated
+authentication suite uses a separate tenant and fresh sessions; other UI journeys that sign out
+also use uncached sessions. Cookies live only in the disposable browser-run directory and are
+removed by the parent test command. The
+intercepted project uses synthetic page-owned state and fails on undeclared API requests. Set
+`WORKBENCH_BROWSER_UI_WORKERS` to `1` or `2` to compare its concurrency; live concurrency stays at one.
 If another checkout is using the default browser port, set `WORKBENCH_BROWSER_PORT` to a free port
 before running `npm test --prefix tests/Workbench.BrowserTests` or `./scripts/verify.ps1`.
+
+See [test ownership and cost](tests/README.md) for choosing API, SQL, component, or browser coverage
+and [the efficiency design](docs/specs/2026-09-16-test-suite-efficiency.md) for measured changes.
+Routine evidence screenshots are disabled; set `WORKBENCH_BROWSER_EVIDENCE_DIRECTORY` to an
+external local directory to capture them. Layout assertions and safe failure diagnostics always run.
+Existing navigation/menu captures continue to use `WORKBENCH_MENU_EVIDENCE_DIRECTORY`.
 
 ## Focused local iteration
 
@@ -152,7 +162,15 @@ Capture failures do not replace the test failure, and the parent browser runner 
 SQL/session-file cleanup. Raw CI console assertions retain their existing behavior; they
 are not copied into this diagnostic artifact.
 
-Run the isolated synthetic capture/privacy and deliberate-failure contract checks with:
-`node --test tests/Workbench.BrowserTests/safe-diagnostics.test.mjs` after installing
-browser npm dependencies and Chromium. The deliberate-failure check also requires PowerShell
-and Docker to exercise parent-runner cleanup; it starts no application or database.
+Run the browser isolation, synthetic capture/privacy, and deliberate-failure contracts after
+installing browser npm dependencies and Chromium:
+
+```powershell
+node --test tests/Workbench.BrowserTests/safe-diagnostics.test.mjs `
+  tests/Workbench.BrowserTests/browser-isolation.test.mjs `
+  tests/Workbench.BrowserTests/browser-isolation-wiring.test.mjs `
+  tests/Workbench.BrowserTests/diagnostic-budget.test.mjs
+```
+
+The deliberate-failure cleanup check also requires PowerShell and Docker; it starts no
+application or database. Concurrent capture retains at most ten safe diagnostic directories.

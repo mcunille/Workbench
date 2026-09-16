@@ -19,7 +19,7 @@ test('failure evidence retains overflow geometry but excludes secret-bearing pag
       <input value="SECRET_CANARY"><a href="https://example.test/recover/SECRET_CANARY">SECRET_CANARY</a>
       <img alt="SECRET_CANARY"><script>localStorage</script>`);
     // WHEN collecting diagnostics for the intentionally overflowing layout.
-    const result = await captureLayout(page, root, 'failure-1');
+    const result = await captureLayout(page, root);
     const json = await readFile(join(result, 'layout.json'), 'utf8');
     const layout = JSON.parse(json);
     // THEN the offending element can be identified and its overflow measured.
@@ -44,19 +44,19 @@ test('changing secrets cannot change retained pixels or geometry; budgets and cl
     const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
     for (const [index, secret] of ['CANARY_ONE', 'CANARY_TWO'].entries()) {
       await page.setContent(`<style>div {width:100px;height:50px;overflow:hidden;background:url('https://invalid.test/${secret}')} div::before {content:'${secret}'}</style><div data-secret="${secret}">${secret}</div>`);
-      await captureLayout(page, root, `failure-${index}`);
+      await captureLayout(page, root);
     }
     // THEN both pixel and JSON artifacts are byte-identical despite different secrets.
     for (const file of ['layout.json', 'layout.png']) {
       assert.deepEqual(await readFile(join(root, 'failure-0', file)), await readFile(join(root, 'failure-1', file)));
     }
     // WHEN many failures arrive, only ten bounded captures are retained.
-    for (let index = 2; index < 11; index++) await captureLayout(page, root, `failure-${index}`);
+    for (let index = 2; index < 11; index++) await captureLayout(page, root);
     assert.equal((await readdir(root)).length, 10);
-    assert.equal(await captureLayout(page, root, 'failure-11'), undefined);
+    assert.equal(await captureLayout(page, root), undefined);
     // AND a closed page fails capture without leaving a partial artifact.
     await page.close();
-    await assert.rejects(captureLayout(page, join(root, 'closed'), 'failure-0'));
+    await assert.rejects(captureLayout(page, join(root, 'closed')));
     assert.deepEqual(await readdir(join(root, 'closed')), []);
   } finally { await browser.close(); await rm(root, { recursive: true, force: true }); }
 });

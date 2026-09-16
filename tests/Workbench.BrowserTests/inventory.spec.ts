@@ -1,11 +1,9 @@
+import { captureEvidence } from './evidence-fixture';
 import { openUserMenu, setAppearance } from './user-menu-fixture';
 import { useAuthenticatedSession as signIn, signInThroughUi } from './auth-fixture';
 import { browserBaseUrl } from './browser-environment';
 import { expect, test, type Page } from './diagnostic-fixture';
-import { mkdir } from 'node:fs/promises';
-import { fileURLToPath } from 'node:url';
 
-const screenshotDirectory = fileURLToPath(new URL('../../artifacts/h1/', import.meta.url));
 
 test.setTimeout(120_000);
 
@@ -73,7 +71,7 @@ test('collection grid and list preserve saved links across responsive layouts an
   page.on('request', request => {
     if (new URL(request.url()).pathname === '/api/items' && request.method() === 'GET') reads++;
   });
-  await mkdir(screenshotDirectory, { recursive: true });
+
 
   // WHEN each view is selected by keyboard at phone, tablet and desktop sizes in both themes.
   for (const width of [320, 390, 768, 1440]) {
@@ -92,7 +90,7 @@ test('collection grid and list preserve saved links across responsive layouts an
         const columns = new Set(await Promise.all(names.map(async name => Math.round((await itemLink(page, name).boundingBox())!.x))));
         if (view === 'list' || width === 320) expect(columns.size).toBe(1);
         if (view === 'grid' && width === 1440) expect(columns.size).toBeGreaterThan(1);
-        await page.screenshot({ path: `${screenshotDirectory}/collection-${view}-${width}-${appearance}.png`, fullPage: true });
+        await captureEvidence(page, `h1/collection-${view}-${width}-${appearance}.png`, { fullPage: true });
       }
     }
   }
@@ -121,7 +119,7 @@ test('collection grid and list preserve saved links across responsive layouts an
       const background = await navigation.evaluate(element => getComputedStyle(element).backgroundColor);
       expect(background).toMatch(/^rgb\(/);
       await inspectLayout(page);
-      await page.screenshot({ path: `${screenshotDirectory}/collection-opaque-nav-${appearance}.png`, fullPage: true });
+      await captureEvidence(page, `h1/collection-opaque-nav-${appearance}.png`, { fullPage: true });
     }
   } finally {
     await cdp.detach();
@@ -135,7 +133,7 @@ test('the studio shell reflows with enlarged text and respects reduced motion', 
   // GIVEN a collector entering a draft with the navigation and form surfaces.
   await signIn(page);
   await startItem(page, 'A sapphire to remember');
-  await mkdir(screenshotDirectory, { recursive: true });
+
   for (const width of [390, 768, 1024, 1440]) {
     await page.setViewportSize({ width, height: 1000 });
     for (const appearance of ['light', 'dark']) {
@@ -143,7 +141,7 @@ test('the studio shell reflows with enlarged text and respects reduced motion', 
       await setAppearance(page, appearance === 'dark');
       await expect(page.getByLabel('Name', { exact: true })).toHaveValue('A sapphire to remember');
       await inspectLayout(page);
-      await page.screenshot({ path: `${screenshotDirectory}/form-${width}-${appearance}.png`, fullPage: true });
+      await captureEvidence(page, `h1/form-${width}-${appearance}.png`, { fullPage: true });
     }
   }
   // THEN enlarged text reflows, and reduced motion removes pressed-control travel.
@@ -173,12 +171,12 @@ test('the studio shell reflows with enlarged text and respects reduced motion', 
   await expect(page.getByText('Loading sessions…', { exact: true })).toBeHidden();
   expect(await sessionsTitle.evaluate(element => element.getBoundingClientRect().height <= parseFloat(getComputedStyle(element).lineHeight) + 1)).toBe(true);
   await inspectLayout(page);
-  await page.screenshot({ path: `${screenshotDirectory}/account-320-dark.png`, fullPage: true });
+  await captureEvidence(page, `h1/account-320-dark.png`, { fullPage: true });
   await page.getByRole('link', { name: 'Administration', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Tenant users', exact: true })).toBeVisible();
   await expect(page.getByText('Loading tenant users…', { exact: true })).toBeHidden();
   await inspectLayout(page);
-  await page.screenshot({ path: `${screenshotDirectory}/administration-320-dark.png`, fullPage: true });
+  await captureEvidence(page, `h1/administration-320-dark.png`, { fullPage: true });
 });
 
 test('appearance survives authentication transitions when browser storage is blocked', async ({ page }) => {
@@ -398,13 +396,13 @@ for (const width of [320, 1280]) {
       await expect(page.getByText(notes, { exact: true })).toBeVisible();
       await inspectLayout(page);
       if ((width === 320 && appearance === 'Light') || (width === 1280 && appearance === 'Dark')) {
-        await mkdir(screenshotDirectory, { recursive: true });
-        await page.screenshot({ path: `${screenshotDirectory}/detail-${width}-${appearance.toLowerCase()}.png`, fullPage: true });
+
+        await captureEvidence(page, `h1/detail-${width}-${appearance.toLowerCase()}.png`, { fullPage: true });
         await page.getByRole('link', { name: 'Back to collection', exact: true }).click();
         await expect(itemLink(page, name)).toBeVisible();
         await itemLink(page, name).hover();
         await inspectLayout(page);
-        await page.screenshot({ path: `${screenshotDirectory}/collection-${width}-${appearance.toLowerCase()}.png`, fullPage: true });
+        await captureEvidence(page, `h1/collection-${width}-${appearance.toLowerCase()}.png`, { fullPage: true });
         await itemLink(page, name).click();
         await expect(page.getByRole('heading', { name, exact: true })).toBeVisible();
       }

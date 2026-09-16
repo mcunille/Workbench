@@ -1,5 +1,10 @@
 import { expect, test, type Page } from './diagnostic-fixture';
-import { useAuthenticatedSession as signIn } from './auth-fixture';
+import { useInterceptedSession } from './intercepted-auth-fixture';
+
+async function signIn(page: Page) {
+  await page.route('**/api/items', route => route.fulfill({ json: { items: [], nextCursor: null } }));
+  await useInterceptedSession(page);
+}
 import type { Supplier } from '../../src/Workbench.Client/src/api/suppliers';
 
 function supplier(index: number): Supplier {
