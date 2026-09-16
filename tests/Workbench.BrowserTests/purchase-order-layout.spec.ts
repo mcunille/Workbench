@@ -35,4 +35,14 @@ for (const width of [320, 390, 600, 1440]) test(`purchase-order search keeps res
   await page.evaluate(() => { document.documentElement.style.fontSize = '200%'; });
   await expect(page.getByRole('button', { name: 'Refresh', exact: true })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  // AND wider platform font metrics keep each action inside the page content without clipping.
+  await page.addStyleTag({ content: '.po-page-actions { font-family: monospace; }' });
+  const actions = page.locator('.po-page-actions');
+  const bounds = (await actions.boundingBox())!;
+  for (const action of await actions.getByRole('link').all()) {
+    const box = (await action.boundingBox())!;
+    expect(box.x + box.width, await action.innerText()).toBeLessThanOrEqual(bounds.x + bounds.width);
+    expect(await action.evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
+  }
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });
