@@ -30,10 +30,10 @@ export function ReferencePriceField({ id, index, value, onChange, disabled, erro
     if (!extra && input.current === document.activeElement && input.current) pinCaret(input.current);
   });
   return <div className="po-field po-price-field">
-    <FloatingField htmlFor={id} label={`${label} ${index}`}>
+    <FloatingField htmlFor={id} label={label}>
       {/* Recreate the native input when its keyboard mode changes to avoid collapsed layout in Chromium. */}
       <input key={extra ? 'decimal' : 'cents'} ref={input} id={id} value={value ?? ''} disabled={disabled} placeholder="0.00"
-        inputMode={extra ? 'decimal' : 'numeric'} aria-invalid={!!error}
+        inputMode={extra ? 'decimal' : 'numeric'} aria-label={`${label} ${index}`} aria-invalid={!!error}
         aria-describedby={`${id}-help${error ? ` ${id}-error` : ''}`}
         onFocus={event => { if (!extra) pinCaret(event.currentTarget); }}
         onMouseUp={event => { if (!extra && event.currentTarget.selectionStart === event.currentTarget.selectionEnd) pinCaret(event.currentTarget); }}

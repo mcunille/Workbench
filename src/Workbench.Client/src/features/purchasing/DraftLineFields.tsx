@@ -14,15 +14,15 @@ export function DraftLineFields({ entry, index, errors, disabled, priceDisabled,
   const error = (key: string) => errors[`${path}.${key}`]?.join(' ');
   const [expanded, setExpanded] = useState(false);
   function field(key: keyof DraftEntry, label: string, decimal = false, multiline = false) {
-    const common = { id: id(key), value: entry[key] ?? '', disabled, placeholder: ' ', 'aria-invalid': !!error(key), 'aria-describedby': error(key) ? `${id(key)}-error` : undefined,
+    const common = { id: id(key), value: entry[key] ?? '', disabled, placeholder: ' ', 'aria-label': `${label} ${index}`, 'aria-invalid': !!error(key), 'aria-describedby': error(key) ? `${id(key)}-error` : undefined,
       onChange: (event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => change({ [key]: event.target.value || null }) };
-    return <div className="po-field"><FloatingField htmlFor={id(key)} label={`${label} ${index}`} compact={decimal}>
+    return <div className="po-field"><FloatingField htmlFor={id(key)} label={label} compact={decimal}>
       {multiline ? <textarea {...common} rows={2} /> : <input {...common} inputMode={decimal ? 'decimal' : undefined} list={key === 'itemType' ? `${id(key)}-suggestions` : undefined} />}
     </FloatingField>{key === 'itemType' ? <datalist id={`${id(key)}-suggestions`}>{['Gemstone', 'Finding', 'Material', 'Supply', 'Jewelry', 'Other'].map(value => <option key={value} value={value} />)}</datalist> : null}{error(key) ? <p id={`${id(key)}-error`} className="form-message error">{error(key)}</p> : null}</div>;
   }
   function unit(key: 'unitOfMeasure' | 'pricingUnit', label: string) {
-    return <div className="po-field po-unit-field"><FloatingField htmlFor={id(key)} label={`${label} ${index}`} compact>
-      <select id={id(key)} value={entry[key] ?? ''} disabled={disabled} aria-invalid={!!error(key)} aria-describedby={error(key) ? `${id(key)}-error` : undefined} onChange={event => {
+    return <div className="po-field po-unit-field"><FloatingField htmlFor={id(key)} label={label} compact>
+      <select id={id(key)} aria-label={`${label} ${index}`} value={entry[key] ?? ''} disabled={disabled} aria-invalid={!!error(key)} aria-describedby={error(key) ? `${id(key)}-error` : undefined} onChange={event => {
         const value = event.target.value || null;
         change({ [key]: value });
       }}><option value="">Not set</option>{units.map(([value, title]) => <option key={value} value={value}>{title}</option>)}</select></FloatingField>

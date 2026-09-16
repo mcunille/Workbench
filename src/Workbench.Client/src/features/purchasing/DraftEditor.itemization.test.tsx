@@ -86,10 +86,12 @@ it('combines native unit selectors with their accessible labels', () => {
   render(<DraftEditor {...props()} />);
   fireEvent.click(screen.getAllByRole('button', { name: 'Add line' })[0]);
   // WHEN choosing units THEN both selectors use the shared combined label control.
-  for (const name of ['Unit 1', 'Pricing unit 1']) {
+  for (const name of ['Description 1', 'Quantity 1', 'Unit 1', 'Unit price 1', 'Per quantity 1', 'Pricing unit 1']) {
     const control = screen.getByLabelText(name);
     expect(control.closest('.floating-field')).not.toBeNull();
     expect(control).toHaveAccessibleName(name);
+    // AND the visible label omits redundant numbering while the accessible name keeps context.
+    expect(control.closest('.floating-field')?.querySelector('label')).toHaveTextContent(new RegExp('^' + name.replace(/ 1$/, '') + '$'));
   }
 });
 

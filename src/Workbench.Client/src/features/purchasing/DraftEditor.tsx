@@ -360,13 +360,13 @@ export function DraftEditor({ id: initialId, onDirtyChange, onAuthLost, onSaved,
                 gross={calculation.result?.lines.find(line => line.id === entry.id)?.gross}>
               <fieldset className="po-entry" aria-labelledby={`po-entry-title-${entry.id}`}>
                 <div className="po-entry-heading">
-                  <button className="quiet danger" type="button" disabled={frozen} onClick={() => {
+                  <button className="quiet danger" type="button" aria-label={`Remove line ${index + 1}`} disabled={frozen} onClick={() => {
                     const entries = draft.entries.filter(old => old.id !== entry.id);
                     setRemovedEntries([...removedEntries, { entry, index }]);
                     addedEntry.current = entries[Math.min(index, entries.length - 1)]?.id ?? 'add-entry';
                     setErrors(Object.fromEntries(Object.entries(errors).filter(([path]) => !path.startsWith('draft.entries'))));
                     setDraft({ ...draft, entries });
-                  }}>Remove line {index + 1}</button>
+                  }}>Remove line</button>
                 </div>
                 <DraftLineFields entry={entry} index={index + 1} errors={visibleErrors} disabled={frozen}
                   priceDisabled={frozen || currencyTransition} currency={draft.currency}
