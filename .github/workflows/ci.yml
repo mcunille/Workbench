@@ -116,6 +116,7 @@ jobs:
           path: |
             artifacts/verification/**/gate.json
             artifacts/verification/**/stages.json
+            artifacts/verification/**/duration-dataset.json
             artifacts/verification/**/inventory.json
             artifacts/verification/**/timing.json
             artifacts/verification/**/*.trx

@@ -219,3 +219,7 @@ finally { Remove-Item -LiteralPath $datasetRoot -Recurse -Force }
 # GIVEN individually finite weights whose partition total overflows
 # WHEN scheduled THEN invalid predicted totals are rejected.
 Assert-Rejected { New-ServerTestPartitions -TestNames @('A', 'B', 'C', 'D') -PartitionCount 2 -Durations @{ A = 1.7e308; B = 1.7e308; C = 1.7e308; D = 1.7e308 } } 'duration'
+# GIVEN CI evidence retention WHEN a partition run records its timing dataset
+# THEN the uploaded artifact retains that dataset identity alongside results.
+$workflow = Get-Content (Join-Path $PSScriptRoot '../../.github/workflows/ci.yml') -Raw
+if (-not $workflow.Contains('artifacts/verification/**/duration-dataset.json')) { throw 'CI must retain duration dataset provenance.' }

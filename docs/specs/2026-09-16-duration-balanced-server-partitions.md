@@ -72,3 +72,30 @@ Ten targeted manual mutation probes were killed: reversed sort, count-based plac
 fallback, omitted theory-row weight, case-insensitive identity, accepted failed gate, accepted
 nonzero exit, accepted failed result, omitted per-partition coverage, and incorrect zero clamp.
 An additional regression rejects partition-total overflow from corrupt extreme weights.
+
+## Measured CI comparison
+
+All runs below passed with the same exact 866-test inventory, Ubuntu CI runner class,
+four reported processors, two partitions and concurrency two. The three duration runs
+have identical executable changes; subsequent commits corrected only this specification.
+
+| Run | Partition 1 (s) | Partition 2 (s) | Server stage (s) |
+| --- | ---: | ---: | ---: |
+| [Count baseline](https://github.com/mcunille/Workbench/actions/runs/35072732163) | 492.573 | 433.985 | 498.323 |
+| [Duration run 1](https://github.com/mcunille/Workbench/actions/runs/35076155569) | 490.243 | 486.911 | 496.458 |
+| [Duration run 2](https://github.com/mcunille/Workbench/actions/runs/35076293532) | 489.059 | 485.344 | 494.992 |
+| [Duration run 3](https://github.com/mcunille/Workbench/actions/runs/35076319639) | 457.885 | 402.822 | 462.694 |
+
+The first two duration runs reduced partition skew from 58.588 s to 3.333/3.715 s,
+while server-stage time changed only modestly. The third run was faster overall but
+retained 55.062 s of skew. Median server-stage time was 494.992 s versus the single
+498.323 s baseline (about 0.7% lower). This demonstrates why predicted balance does
+not promise a matching critical-path reduction: runner pressure and fixture costs vary.
+These few observations are not a statistically controlled speedup estimate.
+
+Every duration run used schema 1, source main revision
+`c893643e3d5ab4a9bed75eaae2fbef736539f816`, the committed dataset and zero fallback rows.
+Synthetic contract/replay checks above establish the new-test fallback. The runner logs
+its dataset hash; CI now also retains `duration-dataset.json` with the timing artifact.
+Local full verification and hardened container smoke passed; the full gate included
+866 server tests, 261 client tests, 86 browser tests and published-output checks.
