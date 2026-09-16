@@ -51,8 +51,8 @@ for (const { width, textSize } of [{ width: 1440, textSize: 100 }, { width: 320,
     await page.setViewportSize({ width, height: 900 });
     await page.goto('/suppliers');
     await page.evaluate(size => { document.documentElement.style.fontSize = `${size}%`; }, textSize);
-    // AND wider text metrics cover platforms where completed-result captions wrap.
-    await page.addStyleTag({ content: '.po-supplier-results-toolbar .po-draft-progress { font-family: monospace; } .po-supplier-results-toolbar .po-list-caption { letter-spacing: .08em; }' });
+    // AND wider text metrics expose header actions and loading text that need to wrap across platforms.
+    await page.addStyleTag({ content: '.po-list { font-family: monospace; } .po-empty-state { letter-spacing: .08em; }' });
     const directory = page.getByRole('region', { name: 'Supplier directory' });
     const search = directory.getByRole('searchbox', { name: 'Search suppliers', exact: true });
     const refresh = directory.getByRole('button', { name: 'Refresh suppliers', exact: true });
@@ -93,7 +93,12 @@ for (const { width, textSize } of [{ width: 1440, textSize: 100 }, { width: 320,
     await search.fill('No such supplier');
     await expect(status).toContainText('No matching suppliers');
     await expect(status).toHaveCount(1);
-    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    const overflow = await page.evaluate(() => ({
+      fits: document.documentElement.scrollWidth <= innerWidth,
+      elements: [...document.querySelectorAll('body *')].map(element => ({ tag: element.tagName, class: element.className, right: element.getBoundingClientRect().right, width: element.getBoundingClientRect().width }))
+        .filter(element => element.right > innerWidth + .5).slice(0, 12),
+    }));
+    expect(overflow.fits, JSON.stringify(overflow.elements)).toBe(true);
     expect((await refresh.boundingBox())!.height).toBeGreaterThanOrEqual(44);
   });
 }
