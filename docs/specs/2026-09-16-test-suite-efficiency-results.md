@@ -138,13 +138,32 @@ at one. Two UI workers took 146.799s and 147.654s (midpoint 147.227s), compared 
 145.769s (midpoint 145.780s) for one. The default therefore remains one UI worker. The final
 standalone browser midpoint is 30.1% below the original 208.60s, including the added contracts.
 These two-sample comparisons are observed effects, not statistical confidence intervals.
-Only trailing blank-line cleanup followed the sampled browser source; final verification uses
-the cleaned source.
+The samples above precede trailing blank-line cleanup and the phone-fixture ordering correction
+described below. Final verification and its timings use the corrected source.
 
 Two additional real harness mutations were detected: allowing undeclared traffic through still
 failed the backend-hit assertion (one instead of zero), and weakening exclusive directory
 reservation failed the concurrent-capture assertion (two instead of one). Both files were
 restored byte-for-byte and SHA256-checked; all ten restored contracts passed again in 3.663s.
+
+## Final verification discoveries
+
+Two concurrent full-gate attempts exposed an undeclared inventory request in the phone search
+fixture (141ms and 155ms failures). Installing its interception after login allowed the initial
+live collection request to start before synthetic response ownership. The fixture now registers
+before navigation. A lower-priority sentinel in the existing phone case, synchronized with the
+initial list response, fails deterministically with the old order and passes with the fix. All
+three corrected search cases pass; unknown inventory requests still fail closed. The corrected
+full browser suite passes all 102 cases in 148.05s (130.08s summed case duration), a single sample
+29.0% below the original two-run midpoint. No retries,
+timeouts, or product rate limits were relaxed. These failed gates are excluded from speedup claims.
+
+The second attempt also failed one unchanged export-interruption case: its expected deadline
+collection was empty after the test observed a blocked SQL request. The helper accepts any lock
+wait in the test database rather than correlating it with the export query. The exact triggering
+SQL row was not retained. This test and its production path are unchanged; all 925 server cases
+passed in the first candidate gate. The isolated failure remains a known synchronization limit,
+not evidence of a production timeout regression or a successful gate.
 
 ## Same-host full-gate baseline
 

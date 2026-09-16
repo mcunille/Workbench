@@ -20,18 +20,33 @@ for (const width of [320, 1280]) {
   test(`searches all pages and restores selected result at ${width}px`, async ({ page }) => {
     // GIVEN a real desktop collection or isolated phone responses beyond the first page.
     await page.setViewportSize({ width, height: 900 });
-    await photoSignIn(page);
     const phrase = `Search-${crypto.randomUUID()}`;
+    let unownedCollectionRequests = 0;
+    if (width === 320) {
+      // A lower-priority sentinel exposes any real collection request before fixture ownership.
+      await page.route(url => url.pathname === '/api/items', async route => {
+        unownedCollectionRequests++;
+        await route.fulfill({ json: { items: [], nextCursor: null } });
+      });
+      // Own inventory responses before navigation can start a real list or its thumbnails.
+      await pagedInventory(page, [
+        ...Array.from({ length: 52 }, (_, i) => syntheticItem(i, `Unrelated ${i}`)),
+        ...Array.from({ length: 53 }, (_, i) => syntheticItem(i + 52, `Piece ${i} ${phrase}`)),
+      ]);
+    }
+    const initialCollection = width === 320
+      ? page.waitForResponse(response => new URL(response.url()).pathname === '/api/items')
+      : undefined;
+    await photoSignIn(page);
+    if (initialCollection) await initialCollection;
     if (width === 1280) {
       // One token belongs only to this authenticated setup batch; no cross-session cache.
       const { requestToken } = await (await page.request.get('/api/auth/antiforgery')).json();
       for (let i = 0; i < 52; i++) await seed(page, `Unrelated ${i}`, '', '', requestToken);
       for (let i = 0; i < 53; i++) await seed(page, `Piece ${i} ${phrase}`, `Remember ${phrase}`, 'Tray H3', requestToken);
     } else {
-      await pagedInventory(page, [
-        ...Array.from({ length: 52 }, (_, i) => syntheticItem(i, `Unrelated ${i}`)),
-        ...Array.from({ length: 53 }, (_, i) => syntheticItem(i + 52, `Piece ${i} ${phrase}`)),
-      ]);
+      // THEN the initial page belongs to the synthetic fixture, before any reload.
+      expect(unownedCollectionRequests).toBe(0);
     }
     await page.reload();
     const search = page.getByRole('searchbox', { name: 'Search collection', exact: true });
