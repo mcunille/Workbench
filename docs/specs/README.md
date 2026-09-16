@@ -71,4 +71,4 @@ When implementation makes a spec true, update the appropriate living documentati
 spec status to **Implemented**. Preserve the spec so future contributors can understand why the
 current design exists.
 
-The approved [supplier-based PO pricing follow-up](2026-09-16-supplier-based-po-pricing.md) supersedes the separate ordered/priced quantity interface and adds its V4 compatibility contract.
+The implemented [PO-03 specification](2026-09-16-po-03-itemized-quantities-and-prices.md) consolidates supplier-based line pricing, its V4 compatibility contract and migration requirements.

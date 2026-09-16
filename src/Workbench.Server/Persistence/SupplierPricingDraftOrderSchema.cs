@@ -4,7 +4,7 @@ namespace Workbench.Server.Persistence;
 
 internal static partial class SupplierPricingDraftOrderSchema
 {
-    internal static void Protect(MigrationBuilder migrationBuilder, string migrationId)
+    internal static void Protect(MigrationBuilder migrationBuilder)
     {
         migrationBuilder.Sql(SaveDraftV4);
         foreach (var operation in new[] { "Create", "Update" })
@@ -24,12 +24,6 @@ internal static partial class SupplierPricingDraftOrderSchema
             SET @Old=REPLACE(@Old,N'CREATE PROCEDURE',N'ALTER PROCEDURE');
             SET @Old=REPLACE(@Old,N'IF @CurrentVersion<>@ExpectedVersion',N'IF @Operation=''Update'' AND EXISTS(SELECT 1 FROM Purchasing.DraftOrders WHERE TenantId=@TenantId AND Id=@TargetId AND ContentSchemaVersion=3) THROW 50426,''Reload this draft with the current contract.'',1; IF @CurrentVersion<>@ExpectedVersion');
             EXEC sys.sp_executesql @Old;
-            """);
-        migrationBuilder.Sql($"""
-            DECLARE @Readiness nvarchar(max)=OBJECT_DEFINITION(OBJECT_ID(N'[Security].[ReadDatabaseReadiness]'));
-            SET @Readiness=REPLACE(@Readiness,N'CREATE PROCEDURE',N'ALTER PROCEDURE');
-            SET @Readiness=REPLACE(@Readiness,N'20260916183834_AddStructuredDraftOrderLines',N'{migrationId}');
-            EXEC sys.sp_executesql @Readiness;
             """);
     }
 }

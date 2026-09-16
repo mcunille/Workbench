@@ -9,17 +9,23 @@ namespace Workbench.Server.IntegrationTests;
 public sealed partial class DraftOrderDatabaseTests
 {
     [Fact]
-    public async Task SupplierPricingUpgradePreservesOldReceiptAndGuardsConvertedDraft()
+    public async Task ConsolidatedMigrationPreservesRetainedPreviewHistoryAndGuardsConvertedDraft()
     {
-        // GIVEN a retained PO-03 database and a successful V3 save receipt.
-        await using var database = await sqlServer.CreateMigratedDatabaseAsync("AddStructuredDraftOrderLines");
+        // GIVEN the final PO-03 schema with the earlier two-migration preview history and a V3 receipt.
+        await using var database = await sqlServer.CreateMigratedDatabaseAsync();
+        await using var admin = new SqlConnection(database.AdminConnectionString);
+        await admin.OpenAsync();
+        await using var history = new SqlCommand("INSERT INTO dbo.__EFMigrationsHistory(MigrationId,ProductVersion) VALUES(N'20260916183834_AddStructuredDraftOrderLines',N'10.0.0')", admin);
+        await history.ExecuteNonQueryAsync();
         var tenant = Guid.NewGuid(); var actor = Guid.NewGuid(); var request = Guid.NewGuid();
         await database.SeedTenantAuditRowsAsync(tenant, Guid.NewGuid()); await SeedActor(database, tenant, actor);
         await using var connection = await Open(database, await database.CreateWebUserAsync(), tenant);
         var original = Canonical("Create", null, null, "Retained order");
         var saved = await Save(connection, actor, request, original, "Create");
-        // WHEN migrated THEN the old receipt is still replayable byte for byte.
+        // WHEN the consolidated migrator runs THEN retained history and the old receipt stay intact.
         await Workbench.Server.Persistence.DatabaseMigrator.MigrateAsync(database.AdminConnectionString, default);
+        history.CommandText = "SELECT COUNT(*) FROM dbo.__EFMigrationsHistory";
+        Assert.Equal(19, Convert.ToInt32(await history.ExecuteScalarAsync()));
         var replay = await Save(connection, actor, request, original, "Create");
         Assert.Equal(saved.Version, replay.Version); Assert.True(replay.Replayed);
         // AND a V4 update retains the order identity while older clients cannot overwrite the new content.

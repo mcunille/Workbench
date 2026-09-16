@@ -32,7 +32,8 @@ namespace Workbench.Server.Persistence.Migrations
                 schema: "Purchasing",
                 table: "DraftOrderRequestReceipts",
                 sql: "[FingerprintVersion] IN (1,2,3,4)");
-            SupplierPricingDraftOrderSchema.Protect(migrationBuilder, "20260917010000_AddSupplierBasedDraftPricing");
+            StructuredDraftOrderSchema.Protect(migrationBuilder, "20260917010000_AddSupplierBasedDraftPricing");
+            SupplierPricingDraftOrderSchema.Protect(migrationBuilder);
         }
 
         /// <inheritdoc />

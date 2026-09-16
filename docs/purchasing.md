@@ -99,7 +99,7 @@ The [PO-01 design](specs/2026-09-11-po-01-draft-supplier-orders.md) specifies li
 versions, and verification requirements. Existing collection and acquisition workflows remain
 independent of purchasing.
 The [PO-02 design](specs/2026-09-11-po-02-supplier-identity-and-references.md) extends those contracts
-with supplier snapshots, per-order platforms and permanent references. The [PO-03 design](specs/2026-09-16-po-03-itemized-quantities-and-prices.md) adds structured quantities and draft estimates; the [supplier-based pricing follow-up](specs/2026-09-16-supplier-based-po-pricing.md) simplifies each line to one quantity/unit and per-unit or total-line pricing. After an upgrade, an older
+with supplier snapshots, per-order platforms and permanent references. The [PO-03 design](specs/2026-09-16-po-03-itemized-quantities-and-prices.md) defines structured quantities and draft estimates with one supplier quantity/unit and per-unit or total-line pricing. After an upgrade, an older
 client must reload before sending a new save; already successful old requests can still be resolved.
 
 ## Delete an unwanted draft

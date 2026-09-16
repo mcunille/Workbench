@@ -180,9 +180,9 @@ Legacy V1/V2 writes resolve their existing receipts only; unmatched old saves re
 rather than silently clearing newer fields. Supplier writes use the same compact-receipt and rowversion
 reconciliation principles. See the [PO-02 specification](specs/2026-09-11-po-02-supplier-identity-and-references.md).
 
-PO-03 keeps the JSON aggregate. The supplier-based follow-up writes content schema 3 through restricted V4 commands, with one quantity/unit and a per-unit or total-line amount. Exact decimal arithmetic calculates line amounts; a fixed total does not require quantity. V4 reads project older schema 1/2 entries without writing them. Complete old quotes retain their totals; unresolved references and structured quotes remain explicit until the owner resolves them. V3 still handles old content but cannot read or overwrite schema 3; receipt replay remains available. SQL validates the same numeric, unit, compatibility and gross bounds as the server.
+PO-03 keeps the JSON aggregate. Supplier-based pricing writes content schema 3 through restricted V4 commands, with one quantity/unit and a per-unit or total-line amount. Exact decimal arithmetic calculates line amounts; a fixed total does not require quantity. V4 reads project older schema 1/2 entries without writing them. Complete old quotes retain their totals; unresolved references and structured quotes remain explicit until the owner resolves them. V3 still handles old content but cannot read or overwrite schema 3; receipt replay remains available. SQL validates the same numeric, unit, compatibility and gross bounds as the server.
 
-The authenticated calculation endpoint shares server rules without persisting input; the client cancels obsolete previews and hides stale results. Detail responses include derived line gross and subtotal information. See the [supplier-based pricing specification](specs/2026-09-16-supplier-based-po-pricing.md) and the [historical PO-03 specification](specs/2026-09-16-po-03-itemized-quantities-and-prices.md).
+The authenticated calculation endpoint shares server rules without persisting input; the client cancels obsolete previews and hides stale results. Detail responses include derived line gross and subtotal information. See the [PO-03 specification](specs/2026-09-16-po-03-itemized-quantities-and-prices.md).
 
 ## Architectural invariants
 
