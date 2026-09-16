@@ -5,6 +5,17 @@ import { createDraft, getDraft, calculateDraft, DraftError } from '../../api/pur
 vi.mock('../../api/purchaseOrders', async original => ({ ...await original<typeof import('../../api/purchaseOrders')>(), createDraft: vi.fn(), getDraft: vi.fn(), calculateDraft: vi.fn() }));
 beforeEach(() => { vi.mocked(createDraft).mockReset(); vi.mocked(getDraft).mockReset(); vi.mocked(calculateDraft).mockResolvedValue({ lines: [], incompleteLineCount: 1, merchandiseEstimate: null }); Object.defineProperty(HTMLDialogElement.prototype, 'showModal', { configurable: true, value(this: HTMLDialogElement) { this.setAttribute('open', ''); } }); });
 const props = () => ({ onDirtyChange: vi.fn(), onAuthLost: vi.fn(), onSaved: vi.fn(), onCancel: vi.fn(), onCreated: vi.fn() });
+it('keeps the lower Add line action before the merchandise estimate', () => {
+  // GIVEN a draft editor with an item to price.
+  const { container } = render(<DraftEditor {...props()} />);
+  // WHEN adding a line THEN the next-line action precedes the estimate in reading and tab order.
+  fireEvent.click(screen.getAllByRole('button', { name: 'Add line' })[0]);
+  const addLine = screen.getAllByRole('button', { name: 'Add line' }).at(-1)!;
+  const estimate = container.querySelector('.po-merchandise-estimate')!;
+  expect(estimate).toBeInTheDocument();
+  expect(addLine.compareDocumentPosition(estimate) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+});
+
 it('records supplier quantities once and saves either unit or total line pricing', async () => {
   // GIVEN a supplier quote per carat.
   vi.mocked(createDraft).mockRejectedValue(new DraftError(400));

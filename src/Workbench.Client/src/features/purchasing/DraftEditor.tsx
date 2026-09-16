@@ -376,13 +376,6 @@ export function DraftEditor({ id: initialId, onDirtyChange, onAuthLost, onSaved,
               </DraftLine>
             );
           })}
-          {draft.entries.length ? <div className="po-merchandise-estimate" aria-live="polite">
-            {calculation.result ? <>
-              <h3>{calculation.result.incompleteLineCount ? 'Known line subtotal' : 'Merchandise estimate'}</h3>
-              <p className="po-estimate-value">{calculation.result.merchandiseEstimate === null ? 'Unknown' : `${draft.currency} ${formatReferencePrice(calculation.result.merchandiseEstimate)}`}</p>
-              <p>{calculation.result.incompleteLineCount ? `${calculation.result.incompleteLineCount} ${calculation.result.incompleteLineCount === 1 ? 'line needs' : 'lines need'} quantity or pricing details. ` : ''}Before discounts, shipping and tax.</p>
-            </> : calculation.message ? <><p>{calculation.message}</p><button type="button" className="quiet" disabled={frozen} onClick={calculation.retry}>Retry estimate</button></> : <p>{frozen ? 'Estimates resume when editing is available.' : 'Calculating estimate…'}</p>}
-          </div> : null}
           <div className="po-add-entry">
             {removedEntries.length ? <div className="po-removal-recovery"><p role="status">Line removed. Undo is available until you save or change currency.</p><button className="quiet" type="button" disabled={frozen} onClick={() => {
               const removed = removedEntries[removedEntries.length - 1];
@@ -394,6 +387,13 @@ export function DraftEditor({ id: initialId, onDirtyChange, onAuthLost, onSaved,
             }}>Undo removal</button></div> : null}
             <button ref={addEntryButton} className="secondary" type="button" disabled={frozen} onClick={addLine}><Icon name="plus" />Add line</button>
           </div>
+          {draft.entries.length ? <div className="po-merchandise-estimate" aria-live="polite">
+            {calculation.result ? <>
+              <h3>{calculation.result.incompleteLineCount ? 'Known line subtotal' : 'Merchandise estimate'}</h3>
+              <p className="po-estimate-value">{calculation.result.merchandiseEstimate === null ? 'Unknown' : `${draft.currency} ${formatReferencePrice(calculation.result.merchandiseEstimate)}`}</p>
+              <p>{calculation.result.incompleteLineCount ? `${calculation.result.incompleteLineCount} ${calculation.result.incompleteLineCount === 1 ? 'line needs' : 'lines need'} quantity or pricing details. ` : ''}Before discounts, shipping and tax.</p>
+            </> : calculation.message ? <><p>{calculation.message}</p><button type="button" className="quiet" disabled={frozen} onClick={calculation.retry}>Retry estimate</button></> : <p>{frozen ? 'Estimates resume when editing is available.' : 'Calculating estimate…'}</p>}
+          </div> : null}
         </section>
         <section className="po-form-section" aria-labelledby="po-context-heading">
           <div className="po-section-heading">
