@@ -56,9 +56,7 @@ export function ReferencePriceField({ id, index, value, onChange, disabled, erro
           event.preventDefault();
           restoreFocus.current = document.activeElement === input.current ? input.current : null;
           const pasted = event.clipboardData.getData('text').trim();
-          if (extra || pasted.includes('.') || !/^\d*$/.test(pasted)) {
-            onChange(pasted === '' ? null : formatReferencePrice(pasted));
-          } else onChange(fromDigits(pasted));
+          onChange(pasted === '' ? null : formatReferencePrice(pasted));
         }}
         onChange={event => {
           restoreFocus.current = document.activeElement === input.current ? input.current : null;
@@ -68,12 +66,13 @@ export function ReferencePriceField({ id, index, value, onChange, disabled, erro
             : /^[\d.]*$/.test(text) && (text.match(/\./g)?.length ?? 0) <= 1 ? fromDigits(text) : text || null);
         }} />
     </FloatingField>
+    <span className="po-price-mode">{extra ? 'Full precision · up to 4 decimals' : 'Cents entry · 2 decimals'}</span>
     <label className="po-precision-toggle"><input type="checkbox" checked={extra} disabled={disabled || preciseValue}
-      aria-label={`Use extra precision for entry ${index}`} onChange={event => {
+      aria-label={`Use extra precision for line ${index}`} onChange={event => {
         setRequestedPrecision(event.target.checked);
         if (!event.target.checked) onChange(formatReferencePrice(value));
       }} />Use extra precision</label>
-    <p id={`${id}-help`} className="po-price-help">{extra ? 'Type a decimal amount, up to four decimal places. Remove extra digits to return to two-decimal entry.' : 'Digits fill from the right: 1 → 0.01. Leave blank for an unknown price.'}</p>
+    <p id={`${id}-help`} className="po-price-help">{extra ? 'Type a decimal amount, up to four decimal places. Remove extra digits to return to two-decimal entry.' : 'Cents entry: 1234 → 12.34. Paste a full amount. Leave blank if unknown.'}</p>
     {error ? <p id={`${id}-error`} className="form-message error">{error}</p> : null}
   </div>;
 }

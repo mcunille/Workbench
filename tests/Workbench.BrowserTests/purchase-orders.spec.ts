@@ -26,11 +26,11 @@ test('incomplete shopping list survives reload and another session with unknown 
   await startDraft(page, title);
   await page.getByLabel('Supplier name', { exact: true }).fill('Sample supplier');
   await page.getByLabel('Notes', { exact: true }).fill('Ask about shipping before ordering.');
-  await page.getByRole('button', { name: 'Add entry', exact: true }).click();
+  await page.getByRole('button', { name: 'Add line', exact: true }).first().click();
   await expect(page.getByLabel('Description 1', { exact: true })).toBeFocused();
   await expect(page.getByLabel('Description 1', { exact: true })).toBeInViewport();
   await page.getByLabel('Description 1', { exact: true }).fill('Blue sapphires');
-  await page.getByRole('button', { name: 'Add entry', exact: true }).click();
+  await page.getByRole('button', { name: 'Add line', exact: true }).first().click();
   await page.getByLabel('Description 2', { exact: true }).fill('Sample setting');
   await page.getByLabel('Currency', { exact: true }).fill('USD');
   await page.getByLabel('Unit price 2', { exact: true }).fill('0');
@@ -41,6 +41,8 @@ test('incomplete shopping list survives reload and another session with unknown 
   await page.reload();
 
   // THEN incomplete content persists and unknown is not converted to zero.
+  await page.locator('.po-line-disclosure > summary').nth(0).click();
+  await page.locator('.po-line-disclosure > summary').nth(1).click();
   await expect(page.getByLabel('Description 1', { exact: true })).toHaveValue('Blue sapphires');
   await expect(page.getByLabel('Unit price 1', { exact: true })).toHaveValue('');
   await expect(page.getByLabel('Unit price 2', { exact: true })).toHaveValue('0.00');
@@ -172,7 +174,7 @@ test('unit prices shift cents by default and retain opt-in extra precision after
   await signIn(page);
   await startDraft(page, 'Price entry check');
   await page.getByLabel('Currency', { exact: true }).fill('USD');
-  await page.getByRole('button', { name: 'Add entry', exact: true }).click();
+  await page.getByRole('button', { name: 'Add line', exact: true }).first().click();
   const price = page.getByLabel('Unit price 1', { exact: true });
   await expect(price).toHaveValue('');
   await expect(price).toHaveAttribute('placeholder', '0.00');
@@ -191,13 +193,21 @@ test('unit prices shift cents by default and retain opt-in extra precision after
   await expect(price).toHaveValue('0.05');
   await price.press('ControlOrMeta+a'); await price.press('Delete');
   await expect(price).toBeVisible();
+  // WHEN pasting a whole amount THEN it is formatted as currency without shifting cents.
+  await price.evaluate(element => {
+    const clipboardData = new DataTransfer();
+    clipboardData.setData('text/plain', '20');
+    element.dispatchEvent(new ClipboardEvent('paste', { bubbles: true, cancelable: true, clipboardData }));
+  });
+  await expect(price).toHaveValue('20.00');
   // WHEN opting into extra precision and saving THEN meaningful digits survive reload.
-  await page.getByRole('checkbox', { name: 'Use extra precision for entry 1' }).check();
+  await page.getByRole('checkbox', { name: 'Use extra precision for line 1' }).check();
   await price.fill('0.0123', { timeout: 10000 });
   await save(page);
   await page.reload();
+  await page.locator('.po-line-disclosure > summary').first().click();
   await expect(price).toHaveValue('0.0123');
-  await expect(page.getByRole('checkbox', { name: 'Use extra precision for entry 1' })).toBeChecked();
+  await expect(page.getByRole('checkbox', { name: 'Use extra precision for line 1' })).toBeChecked();
 });
 
 test('deleting a saved draft requires confirmation and removes it from the list', async ({ page }) => {

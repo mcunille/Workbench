@@ -8,13 +8,13 @@ signing out and signing back in. All records belong to the signed-in business.
 ## Itemize a purchase
 
 Keep an optional title, supplier details, notes and source links together. Under **Order lines**, add
-entries with a description, ordered quantity and unit, unit price and pricing basis. Optional line
+lines with a description, ordered quantity and unit, unit price and pricing basis. Optional line
 details include supplier SKU, item type, notes and a source link. Incomplete lines and empty drafts
 remain saveable; they do not commit a purchase.
 
 Quantity and price basis are separate. Ten pieces, ten carats and one parcel do not mean the same
-thing. Choose a unit explicitly. Selecting an initial ordered unit fills a visible price basis of
-one of that unit; later changes do not silently relabel the price. Use **Per quantity** for prices
+thing. Quantities and pricing bases start blank; selecting an ordered unit does not fill them.
+Choose each unit and quantity explicitly. Use **Per quantity** for prices
 such as USD 8 per 100 pieces. If the pricing unit differs, enter **Total quantity priced**: ten
 stones totaling 12.5 carats at USD 20 per carat have a line estimate of USD 250.00. Workbench does
 not infer weight from count or automatically convert units. Ounce and troy ounce are distinct.
@@ -34,7 +34,15 @@ older figures; failed calculations keep input and offer retry. Saving is indepen
 Price entry starts with a `0.00` placeholder: digits fill from the right (`1` → `0.01`, `12` → `0.12`,
 `123` → `1.23`). An untouched or cleared field remains Unknown. Choose **Use extra precision** to
 enter a decimal directly. Saved amounts retain meaningful third and fourth digits without rounding;
-pasted decimal amounts retain their value. Quantities use ordinary decimal entry.
+pasted amounts retain their value, including whole amounts (`20` becomes `20.00`). Prices display
+two decimal places unless meaningful third or fourth digits require full precision. Quantities use
+ordinary decimal entry and omit insignificant trailing zeroes when reopened or summarized.
+
+Saved lines reopen as compact descriptions, quantities and estimates. Expand a line to edit it;
+new and restored lines open automatically. Optional metadata stays collapsed with a short summary,
+and validation reveals fields that need attention. **Add line** is available above and below the
+list. Saved, unsaved, saving and uncertain-save feedback stays beside **Save draft** while scrolling;
+the header retains the last-saved timestamp. Collapsing a line does not save or discard its input.
 
 Older saved reference prices remain labeled **Reference price — basis not recorded**. They do not
 contribute to estimates. **Use as unit price** moves the amount into unit pricing locally; supply

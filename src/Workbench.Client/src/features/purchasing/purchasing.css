@@ -46,6 +46,10 @@
 .po-heading { display: flex; align-items: center; flex-wrap: wrap; gap: .5rem .75rem; }
 .po-heading h1 { margin: 0; font-size: clamp(1.375rem, 2.2vw, 1.75rem); font-weight: 500; letter-spacing: -.025em; }
 .po-save-status { margin: .5rem 0 0; color: var(--muted); font-size: .875rem; }
+.po-save-action { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: .25rem .75rem; min-width: 0; }
+.po-save-action .po-save-status { margin: 0; font-size: .8125rem; }
+.po-save-action > button { max-width: 100%; white-space: normal; }
+.po-saved-time { margin: .5rem 0 0; color: var(--muted); font-size: .8125rem; }
 .editor.po-editor.po-supplier-editor { max-width: 48rem; }
 .po-supplier-editor .po-heading h1 { min-width: 0; overflow-wrap: anywhere; }
 .po-supplier-editor .po-editor-toolbar { flex-wrap: wrap; }
@@ -87,6 +91,7 @@
 .po-precision-toggle { display: flex; align-items: center; gap: .5rem; min-height: 44px; color: var(--muted); font-size: .8125rem; }
 .po-precision-toggle input { width: 1rem; height: 1rem; min-height: 1rem; margin: 0; }
 .po-price-help { margin: 0; color: var(--muted); font-size: .8125rem; }
+.po-price-mode { display: block; margin-top: .375rem; color: var(--muted); font-size: .8125rem; }
 .po-entry { min-width: 0; margin: 1rem 0 0; padding: 1.25rem; border: 1px solid var(--border-subtle); border-radius: var(--radius-card); background: var(--canvas); display: grid; gap: 1rem; }
 .po-entry-heading { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
 .po-entry-heading h3 { margin: 0; font-size: .9375rem; font-weight: 500; }
@@ -102,6 +107,25 @@
 .po-entry-details > summary { align-content: center; color: var(--muted); font-size: .875rem; }
 .po-entry-details[open] > .po-entry-secondary { margin-top: .5rem; }
 .po-entry-heading { flex-wrap: wrap; }
+.po-line-disclosure { border-top: 1px solid var(--border-subtle); margin: 0; }
+.po-line-disclosure:last-of-type { border-bottom: 1px solid var(--border-subtle); }
+.po-line-disclosure > summary { display: flex; align-items: center; gap: .75rem; min-height: 72px; padding-block: 1rem; list-style: none; cursor: pointer; }
+.po-line-disclosure > summary::-webkit-details-marker { display: none; }
+.po-line-disclosure > summary .icon { flex-shrink: 0; width: 1rem; height: 1rem; color: var(--muted); }
+.po-line-disclosure[open] > summary .icon { transform: rotate(90deg); }
+.po-line-summary-copy { display: grid; gap: .25rem; flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.po-line-title { font-size: 1rem; font-weight: 500; }
+.po-line-summary-quantity, .po-line-summary-price { font-size: .875rem; color: var(--muted); font-weight: 400; overflow-wrap: anywhere; }
+.po-line-summary-price { max-width: 40%; text-align: right; font-variant-numeric: tabular-nums; }
+.po-line-disclosure > .po-entry { margin: 0; padding: .5rem 0 1.25rem; border: 0; border-radius: 0; background: transparent; }
+.po-line-disclosure .po-entry-heading { justify-content: flex-end; }
+.po-line-metadata { display: block; margin-top: .25rem; font-size: .8125rem; overflow-wrap: anywhere; font-weight: 400; }
+@media (max-width: 450px) {
+  .po-editor-toolbar { flex-wrap: wrap; }
+  .po-save-action { margin-left: auto; }
+  .po-line-disclosure > summary { flex-wrap: wrap; }
+  .po-line-summary-price { max-width: 100%; }
+}
 .po-add-entry { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: .75rem; margin-top: 1rem; }
 .po-removal-recovery { flex: 1 1 18rem; min-width: 0; display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; }
 .po-removal-recovery p { flex: 1 1 14rem; margin: 0; color: var(--muted); font-size: .875rem; overflow-wrap: anywhere; }

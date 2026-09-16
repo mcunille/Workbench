@@ -1,4 +1,4 @@
-import { units, unitLabel } from './draftLine';
+import { units, unitLabel, quantityLabel } from './draftLine';
 import { useState } from 'react';
 import type { DraftEntry } from '../../api/purchaseOrders';
 import { FloatingField } from '../../FloatingField';
@@ -12,10 +12,7 @@ export function DraftLineFields({ entry, index, errors, disabled, priceDisabled,
   const path = `draft.entries[${index - 1}]`;
   const id = (key: string) => `po-${`${path}.${key}`.replace(/[^a-zA-Z0-9]/g, '-')}`;
   const error = (key: string) => errors[`${path}.${key}`]?.join(' ');
-  const populated = !!(entry.notes || entry.sourceLink || entry.supplierSku || entry.itemType);
-  const [expanded, setExpanded] = useState(populated);
-  const [wasPopulated, setWasPopulated] = useState(populated);
-  if (populated !== wasPopulated) { setWasPopulated(populated); if (populated) setExpanded(true); }
+  const [expanded, setExpanded] = useState(false);
   function field(key: keyof DraftEntry, label: string, decimal = false, multiline = false) {
     const common = { id: id(key), value: entry[key] ?? '', disabled, placeholder: ' ', 'aria-invalid': !!error(key), 'aria-describedby': error(key) ? `${id(key)}-error` : undefined,
       onChange: (event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => change({ [key]: event.target.value || null }) };
@@ -27,7 +24,7 @@ export function DraftLineFields({ entry, index, errors, disabled, priceDisabled,
     return <div className="po-field po-unit-field"><FloatingField htmlFor={id(key)} label={`${label} ${index}`} compact>
       <select id={id(key)} value={entry[key] ?? ''} disabled={disabled} aria-invalid={!!error(key)} aria-describedby={error(key) ? `${id(key)}-error` : undefined} onChange={event => {
         const value = event.target.value || null;
-        change(key === 'unitOfMeasure' && !entry.unitOfMeasure && value ? { unitOfMeasure: value, pricingUnit: entry.pricingUnit ?? value, pricePerQuantity: entry.pricePerQuantity ?? '1' } : { [key]: value });
+        change({ [key]: value });
       }}><option value="">Not set</option>{units.map(([value, title]) => <option key={value} value={value}>{title}</option>)}</select></FloatingField>
       {error(key) ? <p id={`${id(key)}-error`} className="form-message error">{error(key)}</p> : null}</div>;
   }
@@ -48,12 +45,12 @@ export function DraftLineFields({ entry, index, errors, disabled, priceDisabled,
     </div> : null}
     <div className="po-line-estimate">
       <span>{gross === undefined ? 'Estimate pending' : gross === null ? 'Line estimate: Unknown' : `${currency} ${formatReferencePrice(gross)}`}</span>
-      {gross != null ? <p>{differing ? entry.pricingQuantity : entry.quantity} {unitLabel(entry.pricingUnit).toLowerCase()} × {formatReferencePrice(entry.unitPrice)} / {entry.pricePerQuantity} {unitLabel(entry.pricingUnit).toLowerCase()}{differing ? ` · Ordered ${entry.quantity} ${unitLabel(entry.unitOfMeasure).toLowerCase()}` : ''}</p> : null}
+      {gross != null ? <p>{quantityLabel(differing ? entry.pricingQuantity : entry.quantity, entry.pricingUnit)} at {currency} {formatReferencePrice(entry.unitPrice)} per {quantityLabel(entry.pricePerQuantity, entry.pricingUnit)}{differing ? ` · Ordered ${quantityLabel(entry.quantity, entry.unitOfMeasure)}` : ''}</p> : null}
     </div>
     <details className="po-entry-details" open={expanded || ['notes', 'sourceLink', 'supplierSku', 'itemType'].some(key => !!error(key))} onToggle={event => setExpanded(event.currentTarget.open)}>
-      <summary>Line details</summary><div className="po-entry-secondary">
+      <summary onClick={event => { event.preventDefault(); setExpanded(value => !value); }}>Line details{[entry.supplierSku, entry.itemType, entry.notes ? 'Notes' : null, entry.sourceLink ? 'Source link' : null].filter(Boolean).length ? <span className="po-line-metadata">{[entry.supplierSku, entry.itemType, entry.notes ? 'Notes' : null, entry.sourceLink ? 'Source link' : null].filter(Boolean).join(' · ')}</span> : null}</summary><div className="po-entry-secondary">
         {field('supplierSku', 'Supplier SKU')}{field('itemType', 'Item type')}
-        {field('notes', 'Entry notes', false, true)}{field('sourceLink', 'Entry source link')}
+        {field('notes', 'Line notes', false, true)}{field('sourceLink', 'Line source link')}
       </div>
     </details>
   </>;

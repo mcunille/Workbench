@@ -57,3 +57,13 @@ it('deletes selected digits rather than the last digit', () => {
   fireEvent.keyDown(field(), { key: 'Backspace' });
   expect(field()).toHaveValue('0.34');
 });
+
+it('pastes whole monetary amounts without shifting them into cents', () => {
+  // GIVEN ordinary cents-style typing with two-decimal display.
+  render(<Harness />);
+  const field = screen.getByLabelText('Reference price 1');
+  // WHEN pasting a supplier amount THEN its monetary meaning is preserved.
+  fireEvent.paste(field, { clipboardData: { getData: () => '20' } });
+  expect(field).toHaveValue('20.00');
+  expect(screen.getByRole('checkbox')).not.toBeChecked();
+});

@@ -14,13 +14,21 @@ Constraints: preserve explicit saves, conflict/retry recovery, mobile/keyboard a
 THESIS: Make ordered quantity and pricing basis separately legible, with an inspectable formula. Avoid a compressed spreadsheet that hides units or requires horizontal scrolling.
 OWN-WORLD: Inherit DESIGN.md neutral Tanzanite/Quartz surfaces, system typography, existing floating fields and quiet secondary actions; both appearances remain supported.
 STORY: Describe the goods; state quantity and unit; enter price per chosen quantity/unit; supply a separate total weight when needed; inspect the estimate and explicitly save. Unknown values stay visible.
-FIRST VIEWPORT: Keep the sticky Back/Save toolbar and existing order identity/details. In each line use a full-width description, a two-column quantity/unit row, then a three-column pricing row. Put the formula immediately below; optional metadata opens inline. Stack rows in the same reading order on narrow screens.
+FIRST VIEWPORT: Keep Back/Save and concise save state together in the sticky toolbar. Saved lines reopen as compact descriptions, ordered quantities and estimates; expand to edit a full-width description, quantity/unit row and pricing row. New and restored lines open for editing. Keep Add line above and below the list. Optional metadata stays collapsed with a short summary unless invalid. Stack editing rows on narrow screens.
 FORM: Local extension of the existing editor, approved spec composition; no concept seed is required for a local extension. Inline formula is the signature interaction, updated only for the current server-calculated input.
 FINISH: unreviewed and undocumented is unfinished; this build ends with the finish review, the verdict, DESIGN.md, and every shipping raster carrying its provenance
 No shipping rasters are needed. DESIGN.md remains incumbent authority. Test pending/failed/stale calculation, legacy price conversion, full metadata comparison, responsive and focus behavior.
+
+Approved critique follow-up: retain cents-style price typing, make the mode explicit, and preserve
+whole pasted amounts. Default price display is two decimals; significant third/fourth digits remain
+available without rounding. Non-price quantities and pricing bases start blank and accept ordinary
+decimal input. Trim insignificant quantity zeros in summaries and reopened fields. Collapsing a line
+preserves local input and never substitutes for Save.
 
 ## Finish verdict
 2026-09-16: independent finish review cleared the scoped interface for shipping after inspecting
 desktop and mobile in both appearances and 320px-wide enlarged text. Action labels wrap between
 whole words without horizontal overflow. The documentation handoff confirmed that this extension
 adds no design-system rule requiring a change to DESIGN.md. Verification screenshots remain outside Git.
+
+Approved critique follow-up: cents-style typing remains explicit, paste preserves monetary amounts, saved lines are compact disclosures, and save feedback stays beside the action. Desktop/mobile and light/dark browser checks passed, including keyboard expansion and precision persistence. Independent finish review found partial-quantity unit visibility and accessible-name issues; both received regression coverage and corrections. Existing design tokens and patterns remain appropriate.

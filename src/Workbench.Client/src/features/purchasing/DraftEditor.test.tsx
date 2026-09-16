@@ -23,23 +23,25 @@ it('keeps empty entry details optional and reveals their validation errors', asy
   // GIVEN a new entry whose optional notes and source are empty.
   vi.mocked(createDraft).mockRejectedValue(new DraftError(400, 'draft_validation_failed', { 'draft.entries[0].sourceLink': ['Check this source link.'] }));
   render(<DraftEditor {...props()} />);
-  fireEvent.click(screen.getByRole('button', { name: 'Add entry' }));
-  const source = screen.getByLabelText('Entry source link 1');
+  fireEvent.click(screen.getAllByRole('button', { name: 'Add line' })[0]);
+  const source = screen.getByLabelText('Line source link 1');
   const disclosure = source.closest('details');
   expect(disclosure).not.toBeNull();
   expect(disclosure).not.toHaveAttribute('open');
-  // WHEN the server reports an error inside the optional details.
+  // WHEN the server reports an error inside a collapsed line and its optional details.
+  fireEvent.click(screen.getByLabelText(/^Edit line 1:/));
   fireEvent.click(screen.getByRole('button', { name: 'Save draft' }));
   await screen.findByRole('link', { name: 'Check this source link.' });
   // THEN the field is revealed and the summary link can focus it.
   expect(disclosure).toHaveAttribute('open');
+  expect(source).toBeVisible();
   // AND a validation link reopens details the user subsequently collapsed.
   disclosure!.removeAttribute('open');
   fireEvent.click(screen.getByRole('link', { name: 'Check this source link.' }));
   expect(disclosure).toHaveAttribute('open');
   expect(source).toHaveFocus();
 });
-it('reveals newly populated details when adopting a newer saved version of the same entry', async () => {
+it('preserves newly populated details without expanding them when adopting a newer saved version', async () => {
   // GIVEN an existing empty entry and a newer saved version containing research notes.
   const entry = { quantity: null, unitOfMeasure: null, unitPrice: null, pricingUnit: null, pricePerQuantity: null, pricingQuantity: null, supplierSku: null, itemType: null, id: 'same-entry', description: 'Sapphire', indicativePrice: null, notes: null, sourceLink: null };
   vi.mocked(getDraft).mockResolvedValueOnce({ ...saved, draft: { ...content, entries: [entry] } }).mockResolvedValueOnce({ ...saved, version: 'v2', draft: { ...content, entries: [{ ...entry, notes: 'New research' }] } });
@@ -52,15 +54,17 @@ it('reveals newly populated details when adopting a newer saved version of the s
   fireEvent.click(await screen.findByRole('button', { name: 'Use saved version' }));
   // THEN notes added to the same entry are revealed without needing to rediscover them.
   const notes = await screen.findByDisplayValue('New research');
-  expect(notes.closest('details')).toHaveAttribute('open');
+  expect(notes.closest('details')).not.toHaveAttribute('open');
 });
-it('reveals populated entry details when reopening a draft', async () => {
+it('summarizes populated line details when reopening a draft', async () => {
   // GIVEN an existing entry with research notes.
   vi.mocked(getDraft).mockResolvedValue({ ...saved, draft: { ...content, entries: [{ quantity: null, unitOfMeasure: null, unitPrice: null, pricingUnit: null, pricePerQuantity: null, pricingQuantity: null, supplierSku: null, itemType: null, id: 'entry', description: 'Sapphire', indicativePrice: null, notes: 'Check inclusions', sourceLink: null }] } });
   render(<DraftEditor {...props()} id={saved.id} />);
-  // WHEN the draft loads THEN existing details are visible and retained.
+  // WHEN the draft loads THEN populated details remain collapsed and can be opened deliberately.
   const notes = await screen.findByDisplayValue('Check inclusions');
-  expect(notes.closest('details')).toHaveAttribute('open');
+  expect(notes.closest('details')).not.toHaveAttribute('open');
+  fireEvent.click(screen.getByLabelText(/^Edit line 1:/));
+  fireEvent.click(screen.getByText('Line details'));
   expect(notes).toBeVisible();
 });
 beforeEach(() => { vi.mocked(calculateDraft).mockReset().mockImplementation(() => new Promise(() => {})); Object.defineProperty(HTMLDialogElement.prototype, 'showModal', { configurable: true, value(this: HTMLDialogElement) { this.setAttribute('open', ''); } }); vi.mocked(deleteDraft).mockReset(); vi.mocked(createDraft).mockReset(); vi.mocked(updateDraft).mockReset(); vi.mocked(getDraft).mockReset(); });
@@ -158,7 +162,7 @@ it('allows correcting an unsaved currency after authoritative validation with a 
   vi.mocked(createDraft).mockRejectedValue(new DraftError(400, 'draft_validation_failed', { 'draft.currency': ['Use a three-letter currency.'] }));
   render(<DraftEditor {...props()} />);
   fireEvent.change(screen.getByLabelText('Currency'), { target: { value: 'US' } });
-  fireEvent.click(screen.getByRole('button', { name: 'Add entry' }));
+  fireEvent.click(screen.getAllByRole('button', { name: 'Add line' })[0]);
   fireEvent.change(screen.getByLabelText('Unit price 1'), { target: { value: '0' } });
   fireEvent.click(screen.getByRole('button', { name: 'Save draft' }));
   // WHEN the user corrects the rejected currency THEN the entered exact price remains available.
@@ -229,7 +233,7 @@ it('requires a clearing save before pricing in a different saved currency and pr
   fireEvent.click(screen.getByRole('button', { name: 'Save draft' }));
   await waitFor(() => expect(screen.getByLabelText('Unit price 1')).not.toBeDisabled());
   expect(vi.mocked(updateDraft).mock.calls[0][1].draft.entries[0].indicativePrice).toBeNull();
-  fireEvent.click(screen.getByRole('checkbox', { name: 'Use extra precision for entry 1' }));
+  fireEvent.click(screen.getByRole('checkbox', { name: 'Use extra precision for line 1' }));
   fireEvent.change(screen.getByLabelText('Unit price 1'), { target: { value: '999999999999999.9999' } });
   expect(screen.getByLabelText('Unit price 1')).toHaveValue('999999999999999.9999');
 });
@@ -281,7 +285,7 @@ it('requires confirmation to clear prices and lets cancellation preserve them', 
 it('adds entries from the end of the list and focuses each new description', () => {
   // GIVEN an empty draft with an add action below the empty-state message.
   render(<DraftEditor {...props()} />);
-  const add = screen.getByRole('button', { name: 'Add entry' });
+  const add = screen.getAllByRole('button', { name: 'Add line' }).at(-1)!;
   // WHEN adding successive entries.
   fireEvent.click(add);
   const first = screen.getByLabelText('Description 1');
@@ -299,12 +303,12 @@ it('adds entries from the end of the list and focuses each new description', () 
 it('starts unit prices with an empty 0.00 placeholder and offers extra precision', () => {
   // GIVEN a new entry with no reference price.
   render(<DraftEditor {...props()} />);
-  fireEvent.click(screen.getByRole('button', { name: 'Add entry' }));
+  fireEvent.click(screen.getAllByRole('button', { name: 'Add line' })[0]);
   const price = screen.getByLabelText('Unit price 1');
   // WHEN the price is first shown THEN zero is only a placeholder and precision is optional.
   expect(price).toHaveValue('');
   expect(price).toHaveAttribute('placeholder', '0.00');
-  expect(screen.getByRole('checkbox', { name: 'Use extra precision for entry 1' })).not.toBeChecked();
+  expect(screen.getByRole('checkbox', { name: 'Use extra precision for line 1' })).not.toBeChecked();
 });
 
 it('confirms a named draft deletion and leaves cancellation unchanged', async () => {
@@ -479,11 +483,11 @@ it('restores removed entries in order with their details and moves focus predict
   vi.mocked(getDraft).mockResolvedValue({ ...saved, draft: { ...content, currency: 'USD', entries: [first, second] } });
   render(<DraftEditor {...props()} id={saved.id} />);
   await screen.findByDisplayValue('Sapphire');
-  // WHEN removing both entries THEN focus follows the remaining entry and then Add entry.
-  fireEvent.click(screen.getByRole('button', { name: 'Remove entry 1' }));
+  // WHEN removing both entries THEN focus follows the remaining entry and then Add line.
+  fireEvent.click(screen.getByRole('button', { name: 'Remove line 1' }));
   expect(screen.getByLabelText('Description 1')).toHaveFocus();
-  fireEvent.click(screen.getByRole('button', { name: 'Remove entry 1' }));
-  expect(screen.getByRole('button', { name: 'Add entry' })).toHaveFocus();
+  fireEvent.click(screen.getByRole('button', { name: 'Remove line 1' }));
+  expect(screen.getAllByRole('button', { name: 'Add line' }).at(-1)).toHaveFocus();
   fireEvent.change(screen.getByLabelText('Title'), { target: { value: 'Other edit' } });
   // WHEN undoing both removals THEN all fields, order and unrelated edits survive.
   fireEvent.click(screen.getByRole('button', { name: 'Undo removal' }));
@@ -492,8 +496,8 @@ it('restores removed entries in order with their details and moves focus predict
   expect(screen.getByLabelText('Description 1')).toHaveValue('Sapphire');
   expect(screen.getByLabelText('Description 1')).toHaveFocus();
   expect(screen.getByLabelText('Description 2')).toHaveValue('Ruby');
-  expect(screen.getByLabelText('Entry notes 1')).toHaveValue(first.notes);
-  expect(screen.getByLabelText('Entry source link 1')).toHaveValue(first.sourceLink);
+  expect(screen.getByLabelText('Line notes 1')).toHaveValue(first.notes);
+  expect(screen.getByLabelText('Line source link 1')).toHaveValue(first.sourceLink);
   expect(screen.getByDisplayValue('12.3456')).toBeVisible();
   expect(screen.getByLabelText('Title')).toHaveValue('Other edit');
   expect(screen.queryByRole('button', { name: 'Undo removal' })).not.toBeInTheDocument();
@@ -502,14 +506,14 @@ it('ends removal undo when currency changes or a save starts', async () => {
   // GIVEN an entry removed during editing.
   vi.mocked(createDraft).mockRejectedValue(new DraftError(400, 'draft_validation_failed'));
   render(<DraftEditor {...props()} />);
-  fireEvent.click(screen.getByRole('button', { name: 'Add entry' }));
-  fireEvent.click(screen.getByRole('button', { name: 'Remove entry 1' }));
+  fireEvent.click(screen.getAllByRole('button', { name: 'Add line' })[0]);
+  fireEvent.click(screen.getByRole('button', { name: 'Remove line 1' }));
   expect(screen.getByRole('button', { name: 'Undo removal' })).toBeEnabled();
   // WHEN currency changes THEN the old entry cannot return under the new currency.
   fireEvent.change(screen.getByLabelText('Currency'), { target: { value: 'EUR' } });
   expect(screen.queryByRole('button', { name: 'Undo removal' })).not.toBeInTheDocument();
-  fireEvent.click(screen.getByRole('button', { name: 'Add entry' }));
-  fireEvent.click(screen.getByRole('button', { name: 'Remove entry 1' }));
+  fireEvent.click(screen.getAllByRole('button', { name: 'Add line' })[0]);
+  fireEvent.click(screen.getByRole('button', { name: 'Remove line 1' }));
   expect(screen.getByRole('button', { name: 'Undo removal' })).toBeEnabled();
   // WHEN saving THEN the captured removal is final even if validation requires more edits.
   fireEvent.click(screen.getByRole('button', { name: 'Save draft' }));
@@ -520,12 +524,12 @@ it('keeps list-action focus when unrelated validation errors remain', async () =
   // GIVEN a title validation error and an existing entry.
   vi.mocked(createDraft).mockRejectedValue(new DraftError(400, 'draft_validation_failed', { 'draft.title': ['Review title.'] }));
   render(<DraftEditor {...props()} />);
-  fireEvent.click(screen.getByRole('button', { name: 'Add entry' }));
+  fireEvent.click(screen.getAllByRole('button', { name: 'Add line' })[0]);
   fireEvent.click(screen.getByRole('button', { name: 'Save draft' }));
   await screen.findByRole('link', { name: 'Review title.' });
   // WHEN removing and restoring the entry THEN focus follows those actions, not the retained title error.
-  fireEvent.click(screen.getByRole('button', { name: 'Remove entry 1' }));
-  expect(screen.getByRole('button', { name: 'Add entry' })).toHaveFocus();
+  fireEvent.click(screen.getByRole('button', { name: 'Remove line 1' }));
+  expect(screen.getAllByRole('button', { name: 'Add line' }).at(-1)).toHaveFocus();
   fireEvent.click(screen.getByRole('button', { name: 'Undo removal' }));
   expect(screen.getByLabelText('Description 1')).toHaveFocus();
   expect(screen.getByRole('link', { name: 'Review title.' })).toBeInTheDocument();

@@ -47,3 +47,72 @@ for (const width of [320, 1440]) test(`purchasing controls and compact supplier 
   await expect(dialog.getByLabel('Supplier name', { exact: true })).toHaveValue('Keep these edits');
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });
+
+test('saved order lines stay compact and reopen by keyboard with precise quantities and sticky save feedback', async ({ page }) => {
+  // GIVEN a new line whose quantities and pricing basis have not been inferred.
+  await signIn(page);
+  await page.goto('/purchase-orders/new');
+  await page.getByLabel('Title', { exact: true }).fill(`Compact lines ${Date.now()}`);
+  await page.getByLabel('Currency', { exact: true }).fill('USD');
+  await page.getByRole('button', { name: 'Add line', exact: true }).first().click();
+  const disclosure = page.locator('.po-line-disclosure').first();
+  const summary = disclosure.locator(':scope > summary');
+  const quantity = page.getByLabel('Quantity 1', { exact: true });
+  const perQuantity = page.getByLabel('Per quantity 1', { exact: true });
+  await expect(disclosure).toHaveAttribute('open', '');
+  await expect(page.getByLabel('Description 1', { exact: true })).toBeFocused();
+  await expect(quantity).toHaveValue('');
+  await expect(perQuantity).toHaveValue('');
+  await page.getByLabel('Description 1', { exact: true }).fill('Blue sapphires');
+  await page.getByLabel('Unit 1', { exact: true }).selectOption('piece');
+  await expect(page.getByLabel('Pricing unit 1', { exact: true })).toHaveValue('');
+  await expect(perQuantity).toHaveValue('');
+
+  // WHEN entering whole quantities and a separate weight THEN typing preserves the entered magnitudes.
+  await quantity.pressSequentially('250');
+  await expect(quantity).toHaveValue('250');
+  await page.getByLabel('Pricing unit 1', { exact: true }).selectOption('carat');
+  const pricedQuantity = page.getByLabel('Total quantity priced 1', { exact: true });
+  await expect(pricedQuantity).toHaveValue('');
+  await pricedQuantity.pressSequentially('12.5');
+  await expect(pricedQuantity).toHaveValue('12.5');
+  await perQuantity.pressSequentially('1');
+  await expect(perQuantity).toHaveValue('1');
+  await page.getByLabel('Unit price 1', { exact: true }).pressSequentially('2000');
+  await expect(page.getByLabel('Unit price 1', { exact: true })).toHaveValue('20.00');
+  await expect(page.locator('.po-estimate-value')).toHaveText('USD 250.00');
+  const saved = page.waitForResponse(response => /\/api\/v3\/purchase-order-drafts$/.test(response.url()) && response.request().method() === 'POST');
+  await page.getByRole('button', { name: 'Save draft', exact: true }).click();
+  expect((await saved).ok()).toBe(true);
+  await expect(page).toHaveURL(/\/purchase-orders\/[a-f0-9-]{36}$/);
+  await page.reload();
+
+  // THEN the saved line has a readable summary while its editing controls remain collapsed.
+  await expect(disclosure).not.toHaveAttribute('open', '');
+  await expect(summary).toHaveAccessibleName('Edit line 1: Blue sapphires');
+  await expect(summary).toContainText('Blue sapphires');
+  await expect(summary).toContainText('250');
+  await expect(summary).toContainText('USD 250.00');
+  await expect(quantity).not.toBeVisible();
+  const toolbar = page.locator('.po-editor-toolbar');
+  await expect(toolbar.getByRole('status')).toHaveText('Saved');
+
+  // WHEN expanding with Enter THEN stored values show only significant quantity digits.
+  await summary.focus();
+  await summary.press('Enter');
+  await expect(quantity).toBeVisible();
+  await expect(quantity).toHaveValue('250');
+  await expect(pricedQuantity).toHaveValue('12.5');
+  await expect(perQuantity).toHaveValue('1');
+  await expect(page.getByLabel('Unit price 1', { exact: true })).toHaveValue('20.00');
+  await quantity.fill('251');
+
+  // THEN unsaved feedback remains beside Save even after scrolling into the line editor.
+  await expect(toolbar.getByRole('status')).toHaveText('Unsaved changes');
+  await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+  await expect(toolbar.getByRole('status')).toBeInViewport();
+  await expect(toolbar.getByRole('button', { name: 'Save draft', exact: true })).toBeInViewport();
+  await summary.focus();
+  await summary.press('Space');
+  await expect(quantity).not.toBeVisible();
+});

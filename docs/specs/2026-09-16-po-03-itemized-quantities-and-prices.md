@@ -52,9 +52,9 @@ two known, different units, preventing hidden contradictory quantities. Unit cha
 an existing pricing quantity require the owner to clear it; the UI must not silently remove it.
 
 New UI lines start with null quantity, unit, price and basis, leaving the owner to choose the unit.
-Selecting the first ordered unit initializes an otherwise unset pricing unit to the same unit and
-an unset denominator to 1, visibly in the form. Later unit changes never relabel an existing basis.
-Server normalization never invents these defaults. Description remains optional until PO-04 defines
+The approved critique follow-up leaves quantity, pricing quantity, pricing unit and denominator
+blank until supplied explicitly; choosing an ordered unit does not infer a pricing basis.
+Server normalization never invents defaults. Description remains optional until PO-04 defines
 commitment validity.
 
 ## Arithmetic and unknown values
@@ -112,8 +112,8 @@ priced with the chosen pricing unit beside the field. Explain “Enter the total
 used for this price; it is separate from the ordered quantity.” Keep prices in the existing monetary
 entry component with explicit extra-precision mode; quantity and denominator use direct decimal entry.
 
-Supplier SKU, item type, notes and link share a Line details disclosure, automatically opened when
-populated or invalid. On narrow screens, stack the same DOM order rather than squeezing a wide table.
+Supplier SKU, item type, notes and link share a Line details disclosure with a short populated-value
+summary, automatically opened when invalid. On narrow screens, stack the same DOM order rather than squeezing a wide table.
 Preserve accessible per-line labels, inline errors plus linked error summary, focus after add/remove,
 Undo removal, saved/local comparison, unknown-outcome retries and unsaved navigation protection.
 Comparison includes every new field, the legacy amount and explicit units, not just the computed gross.
@@ -212,3 +212,15 @@ The owner approved the unit vocabulary and fractional quantities, separate prici
 four-place rounding, preservation of legacy reference amounts, server-calculated preview and V3
 compatibility strategy. These are new durable contracts beyond the scenario's unapproved story.
 Proceed through implementation and verification without repeating this design gate.
+
+## Approved critique follow-up (2026-09-16)
+
+Saved lines reopen as compact disclosures with description, ordered quantity and current estimate.
+New or restored lines open for editing; validation reveals the affected line and optional fields.
+Metadata is summarized rather than automatically expanded solely because it is populated. Add line
+is available at both ends of the list. Concise saved/unsaved/pending/uncertain state stays beside Save.
+
+The owner explicitly retained cents-style price typing and two-decimal defaults. Pasted monetary
+amounts preserve their magnitude, including whole numbers. Meaningful third/fourth digits enable
+full precision without rounding. Quantity fields use normal input, start blank, and omit insignificant
+trailing zeros when displayed after loading; this does not change the API's canonical four-place format.

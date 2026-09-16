@@ -10,7 +10,8 @@ import './purchasing.css';
 import { ClearPricesDialog } from './ClearPricesDialog';
 import { formatReferencePrice } from './referencePrice';
 import { DraftLineFields } from './DraftLineFields';
-import { emptyLine } from './draftLine';
+import { DraftLine } from './DraftLineDisclosure';
+import { emptyLine, formatQuantity } from './draftLine';
 import { useDraftCalculation } from './useDraftCalculation';
 import { deleteDraft, type DeleteDraftRequest } from '../../api/purchaseOrders';
 import { DeleteDraftDialog } from './DeleteDraftDialog';
@@ -25,7 +26,7 @@ interface Props {
   onCreated(id: string): void;
   onCancel(): void;
 }
-const displayDraft = (draft: DraftContent): DraftContent => ({ ...draft, entries: draft.entries.map(entry => ({ ...entry, indicativePrice: formatReferencePrice(entry.indicativePrice), unitPrice: formatReferencePrice(entry.unitPrice) })) });
+const displayDraft = (draft: DraftContent): DraftContent => ({ ...draft, entries: draft.entries.map(entry => ({ ...entry, quantity: formatQuantity(entry.quantity), pricePerQuantity: formatQuantity(entry.pricePerQuantity), pricingQuantity: formatQuantity(entry.pricingQuantity), indicativePrice: formatReferencePrice(entry.indicativePrice), unitPrice: formatReferencePrice(entry.unitPrice) })) });
 const emptyDraft = (): DraftContent => ({ title: null, supplierName: null, supplierId: null, supplierContactName: null, supplierEmail: null, supplierPhone: null, supplierWebsite: null, supplierPostalAddress: null, supplierOrderReference: null, platform: null, currency: null, notes: null, sourceLinks: [], entries: [] });
 const fieldId = (path: string) => `po-${path.replace(/[^a-zA-Z0-9]/g, '-')}`;
 const optional = (text: string) => text === '' ? null : text;
@@ -106,6 +107,7 @@ export function DraftEditor({ id: initialId, onDirtyChange, onAuthLost, onSaved,
     const index = draft.entries.findIndex(entry => entry.id === addedEntry.current);
     if (index < 0) { addEntryButton.current?.focus(); addedEntry.current = undefined; return; }
     const description = document.getElementById(fieldId(`draft.entries[${index}].description`));
+    description?.closest('details.po-line-disclosure')?.setAttribute('open', '');
     description?.focus({ preventScroll: true });
     description?.scrollIntoView?.({ block: 'center', behavior: 'instant' });
     addedEntry.current = undefined;
@@ -224,10 +226,19 @@ export function DraftEditor({ id: initialId, onDirtyChange, onAuthLost, onSaved,
   }
   const saveDisabled = (mode !== 'editing' && mode !== 'uncertain') || (mode === 'editing' && !!baseline && !changed);
   const saveLabel = mode === 'saving' ? 'Saving…' : mode === 'uncertain' ? 'Check and retry' : 'Save draft';
-  const saveStatus = mode === 'saving' ? 'Saving draft…'
-    : mode.endsWith('loading') ? 'Loading current draft…'
-    : savedAt ? `Saved ${new Date(savedAt).toLocaleString()}${dirty ? ' · Unsaved changes' : ''}`
-    : changed ? 'Unsaved changes' : '';
+  const saveStatus = mode === 'saving' ? 'Saving…'
+    : mode === 'uncertain' ? 'Save unconfirmed'
+    : mode === 'deleting' ? 'Deleting…'
+    : mode === 'delete-uncertain' ? 'Deletion unconfirmed'
+    : mode === 'blocked' ? 'Editing unavailable'
+    : mode === 'current-failed' ? 'Saved · refresh needed'
+    : mode.endsWith('loading') ? 'Loading…'
+    : dirty ? 'Unsaved changes' : savedAt ? 'Saved' : 'Not saved';
+  function addLine() {
+    const entryId = crypto.randomUUID();
+    addedEntry.current = entryId;
+    setDraft({ ...draft, entries: [...draft.entries, emptyLine(entryId)] });
+  }
 
   return (
     <section className="editor po-editor">
@@ -250,15 +261,15 @@ export function DraftEditor({ id: initialId, onDirtyChange, onAuthLost, onSaved,
         <button type="button" className="quiet po-back" aria-label="Back to purchase orders" onClick={onCancel}>
           <Icon name="back" />Purchase orders
         </button>
-        <button type="submit" form="po-draft-form" className="primary" disabled={saveDisabled}>
-          {saveLabel}
-        </button>
+        <div className="po-save-action"><p className="po-save-status" role="status">{saveStatus}</p>
+          <button type="submit" form="po-draft-form" className="primary" disabled={saveDisabled}>{saveLabel}</button>
+        </div>
       </div>
       <header className="po-editor-header">
         <div className="po-heading">
           <h1>{baseline?.poReference ?? current?.poReference ?? (id ? 'Purchase order' : 'New purchase order')}</h1><span className="po-badge">Draft</span>
         </div>
-        {saveStatus ? <p className="po-save-status" role="status">{saveStatus}</p> : null}
+        {savedAt ? <p className="po-saved-time">Last saved {new Date(savedAt).toLocaleString()}</p> : null}
       </header>
       {message && !Object.keys(visibleErrors).length ? <p role="alert" className="form-message error">{message}</p> : null}
       {mode === 'delete-uncertain' ? <button type="button" className="secondary" onClick={() => void removeDraft()}>Check and retry deletion</button> : null}
@@ -325,50 +336,55 @@ export function DraftEditor({ id: initialId, onDirtyChange, onAuthLost, onSaved,
         </details>
         <section className="po-form-section" aria-labelledby="po-entries-heading">
           <div className="po-section-heading">
-            <div><h2 id="po-entries-heading">Order lines</h2><p>Keep what you are ordering separate from how it is priced.</p></div>
+            <div><h2 id="po-entries-heading">Order lines</h2><p>Review each line or expand it to edit.</p></div>
+            <button className="secondary" type="button" disabled={frozen} onClick={addLine}><Icon name="plus" />Add line</button>
           </div>
           <div className="po-currency-row">
             {field('draft.currency', 'Currency', draft.currency, currency => setDraft({ ...draft, currency }), {
               placeholder: 'Not set', disabled: !!baseline?.draft.currency && baseline.draft.entries.some(entry => entry.indicativePrice !== null || entry.unitPrice !== null),
             })}
             <div className="po-field-help">
-              <p>Choose a three-letter currency when entering a price. Clear prices and save before changing currency.</p>
+              <p>Prices use this currency. Clear prices and save before changing it.</p>
               {hasPrices ? (
                 <button className="quiet" type="button" disabled={frozen} onClick={() => setClearingPrices(true)}>Clear all prices</button>
               ) : null}
             </div>
           </div>
           {currencyTransition ? <p role="status">Save the changed currency with all prices cleared before entering new prices.</p> : null}
-          {draft.entries.length === 0 ? <p className="po-section-empty">Add an entry to itemize your purchase. You can save an empty draft too.</p> : null}
+          {draft.entries.length === 0 ? <p className="po-section-empty">Add a line to itemize your purchase. You can save an empty draft too.</p> : null}
           {draft.entries.map((entry, index) => {
             return (
-              <fieldset className="po-entry" key={entry.id} aria-labelledby={`po-entry-title-${entry.id}`}>
+              <DraftLine key={entry.id} entry={entry} index={index + 1} currency={draft.currency}
+                initialOpen={!baseline?.draft.entries.some(saved => saved.id === entry.id)}
+                invalid={Object.keys(visibleErrors).some(path => path.startsWith(`draft.entries[${index}]`))}
+                gross={calculation.result?.lines.find(line => line.id === entry.id)?.gross}>
+              <fieldset className="po-entry" aria-labelledby={`po-entry-title-${entry.id}`}>
                 <div className="po-entry-heading">
-                  <h3 id={`po-entry-title-${entry.id}`}>Entry {index + 1}</h3>
                   <button className="quiet danger" type="button" disabled={frozen} onClick={() => {
                     const entries = draft.entries.filter(old => old.id !== entry.id);
                     setRemovedEntries([...removedEntries, { entry, index }]);
                     addedEntry.current = entries[Math.min(index, entries.length - 1)]?.id ?? 'add-entry';
                     setErrors(Object.fromEntries(Object.entries(errors).filter(([path]) => !path.startsWith('draft.entries'))));
                     setDraft({ ...draft, entries });
-                  }}>Remove entry {index + 1}</button>
+                  }}>Remove line {index + 1}</button>
                 </div>
                 <DraftLineFields entry={entry} index={index + 1} errors={visibleErrors} disabled={frozen}
                   priceDisabled={frozen || currencyTransition} currency={draft.currency}
                   gross={calculation.result?.lines.find(line => line.id === entry.id)?.gross}
                   change={patch => setDraft({ ...draft, entries: draft.entries.map(old => old.id === entry.id ? { ...old, ...patch } : old) })} />
               </fieldset>
+              </DraftLine>
             );
           })}
           {draft.entries.length ? <div className="po-merchandise-estimate" aria-live="polite">
             {calculation.result ? <>
               <h3>{calculation.result.incompleteLineCount ? 'Known line subtotal' : 'Merchandise estimate'}</h3>
               <p className="po-estimate-value">{calculation.result.merchandiseEstimate === null ? 'Unknown' : `${draft.currency} ${formatReferencePrice(calculation.result.merchandiseEstimate)}`}</p>
-              <p>{calculation.result.incompleteLineCount ? `${calculation.result.incompleteLineCount} lines need quantity or pricing details. ` : ''}Before discounts, shipping and tax.</p>
+              <p>{calculation.result.incompleteLineCount ? `${calculation.result.incompleteLineCount} ${calculation.result.incompleteLineCount === 1 ? 'line needs' : 'lines need'} quantity or pricing details. ` : ''}Before discounts, shipping and tax.</p>
             </> : calculation.message ? <><p>{calculation.message}</p><button type="button" className="quiet" disabled={frozen} onClick={calculation.retry}>Retry estimate</button></> : <p>{frozen ? 'Estimates resume when editing is available.' : 'Calculating estimate…'}</p>}
           </div> : null}
           <div className="po-add-entry">
-            {removedEntries.length ? <div className="po-removal-recovery"><p role="status">Entry removed. Undo is available until you save or change currency.</p><button className="quiet" type="button" disabled={frozen} onClick={() => {
+            {removedEntries.length ? <div className="po-removal-recovery"><p role="status">Line removed. Undo is available until you save or change currency.</p><button className="quiet" type="button" disabled={frozen} onClick={() => {
               const removed = removedEntries[removedEntries.length - 1];
               const entries = [...draft.entries]; entries.splice(removed.index, 0, removed.entry);
               addedEntry.current = removed.entry.id;
@@ -376,11 +392,7 @@ export function DraftEditor({ id: initialId, onDirtyChange, onAuthLost, onSaved,
               setErrors(Object.fromEntries(Object.entries(errors).filter(([path]) => !path.startsWith('draft.entries'))));
               setDraft({ ...draft, entries });
             }}>Undo removal</button></div> : null}
-            <button ref={addEntryButton} className="secondary" type="button" disabled={frozen} onClick={() => {
-              const entryId = crypto.randomUUID();
-              addedEntry.current = entryId;
-              setDraft({ ...draft, entries: [...draft.entries, emptyLine(entryId)] });
-            }}><Icon name="plus" />Add entry</button>
+            <button ref={addEntryButton} className="secondary" type="button" disabled={frozen} onClick={addLine}><Icon name="plus" />Add line</button>
           </div>
         </section>
         <section className="po-form-section" aria-labelledby="po-context-heading">

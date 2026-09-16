@@ -1,4 +1,4 @@
-import { unitLabel } from './draftLine';
+import { unitLabel, formatQuantity, quantityLabel } from './draftLine';
 import { SupplierDetails } from './supplierDetails';
 import { supplierSnapshot } from './supplierSnapshot';
 import { formatReferencePrice } from './referencePrice';
@@ -24,13 +24,13 @@ export function DraftComparison({ heading, draft }: { heading: string; draft: Dr
       <SupplierDetails heading="Supplier contact snapshot" supplier={supplierSnapshot(draft)} /><h4>Order lines</h4>
       {draft.entries.length ? draft.entries.map((entry, index) => (
         <section className="po-comparison-entry" key={entry.id}>
-          <h5>Entry {index + 1}</h5>
+          <h5>Line {index + 1}</h5>
           <dl className="po-comparison-details">
             <div><dt>Description</dt><dd>{entry.description ?? 'Not set'}</dd></div>
-            <div><dt>Quantity</dt><dd>{entry.quantity ?? 'Unknown'} · {unitLabel(entry.unitOfMeasure)}</dd></div>
+            <div><dt>Quantity</dt><dd>{quantityLabel(entry.quantity, entry.unitOfMeasure)}</dd></div>
             <div><dt>Unit price</dt><dd>{formatReferencePrice(entry.unitPrice) ?? 'Unknown'} {draft.currency}</dd></div>
-            <div><dt>Pricing basis</dt><dd>Per {entry.pricePerQuantity ?? 'Unknown'} · {unitLabel(entry.pricingUnit)}</dd></div>
-            <div><dt>Total quantity priced</dt><dd>{entry.pricingQuantity ?? 'Not set'}</dd></div>
+            <div><dt>Pricing basis</dt><dd>Per {formatQuantity(entry.pricePerQuantity) ?? 'Unknown'} · {unitLabel(entry.pricingUnit)}</dd></div>
+            <div><dt>Total quantity priced</dt><dd>{formatQuantity(entry.pricingQuantity) ?? 'Not set'}</dd></div>
             <div><dt>Supplier SKU</dt><dd>{entry.supplierSku ?? 'Not set'}</dd></div>
             <div><dt>Item type</dt><dd>{entry.itemType ?? 'Not set'}</dd></div>
             <div><dt>Reference price</dt><dd>{formatReferencePrice(entry.indicativePrice) ?? 'Unknown'}</dd></div>
@@ -38,7 +38,7 @@ export function DraftComparison({ heading, draft }: { heading: string; draft: Dr
             <div><dt>Source link</dt><dd>{entry.sourceLink ? <SafeLink value={entry.sourceLink} /> : 'None'}</dd></div>
           </dl>
         </section>
-      )) : <p className="po-section-empty">No entries</p>}
+      )) : <p className="po-section-empty">No lines</p>}
     </section>
   );
 }
