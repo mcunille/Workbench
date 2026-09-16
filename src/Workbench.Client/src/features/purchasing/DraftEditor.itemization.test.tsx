@@ -64,3 +64,16 @@ it('clears prices after confirmation while preserving quantities, basis and opti
   expect(screen.getByLabelText('Per quantity 1')).toHaveValue('100');
   expect(screen.getByLabelText('Supplier SKU 1')).toHaveValue('SET-9');
 });
+it('shows authoritative preview errors on order fields and in the linked summary', async () => {
+  // GIVEN a unit price without its required order currency.
+  vi.mocked(calculateDraft).mockRejectedValue(new DraftError(400, 'draft_validation_failed', { 'draft.currency': ['Choose a currency when entering a price.'] }));
+  render(<DraftEditor {...props()} />);
+  fireEvent.click(screen.getByRole('button', { name: 'Add entry' }));
+  fireEvent.change(screen.getByLabelText('Unit price 1'), { target: { value: '100' } });
+  // WHEN preview validation returns THEN its exact field error is actionable without first saving.
+  const link = await screen.findByRole('link', { name: 'Choose a currency when entering a price.' });
+  expect(screen.getByLabelText('Currency')).toHaveAttribute('aria-invalid', 'true');
+  fireEvent.click(link);
+  expect(screen.getByLabelText('Currency')).toHaveFocus();
+  expect(createDraft).not.toHaveBeenCalled();
+});

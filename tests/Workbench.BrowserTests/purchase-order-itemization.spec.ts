@@ -42,4 +42,8 @@ test('itemized pieces, weight and batch pricing persist with explainable draft e
   await page.getByRole('button', { name: 'Add entry', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Known line subtotal' })).toBeVisible();
   await expect(page.locator('.po-merchandise-estimate')).toContainText('1 lines need quantity or pricing details');
+  // AND enlarged text on a narrow screen retains readable controls without horizontal scrolling.
+  await page.setViewportSize({ width: 320, height: 900 });
+  await page.evaluate(() => { document.documentElement.style.fontSize = '200%'; });
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 });

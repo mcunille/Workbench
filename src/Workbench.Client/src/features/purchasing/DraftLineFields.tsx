@@ -20,8 +20,8 @@ export function DraftLineFields({ entry, index, errors, disabled, priceDisabled,
     const common = { id: id(key), value: entry[key] ?? '', disabled, placeholder: ' ', 'aria-invalid': !!error(key), 'aria-describedby': error(key) ? `${id(key)}-error` : undefined,
       onChange: (event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => change({ [key]: event.target.value || null }) };
     return <div className="po-field"><FloatingField htmlFor={id(key)} label={`${label} ${index}`}>
-      {multiline ? <textarea {...common} rows={2} /> : <input {...common} inputMode={decimal ? 'decimal' : undefined} />}
-    </FloatingField>{error(key) ? <p id={`${id(key)}-error`} className="form-message error">{error(key)}</p> : null}</div>;
+      {multiline ? <textarea {...common} rows={2} /> : <input {...common} inputMode={decimal ? 'decimal' : undefined} list={key === 'itemType' ? `${id(key)}-suggestions` : undefined} />}
+    </FloatingField>{key === 'itemType' ? <datalist id={`${id(key)}-suggestions`}>{['Gemstone', 'Finding', 'Material', 'Supply', 'Jewelry', 'Other'].map(value => <option key={value} value={value} />)}</datalist> : null}{error(key) ? <p id={`${id(key)}-error`} className="form-message error">{error(key)}</p> : null}</div>;
   }
   function unit(key: 'unitOfMeasure' | 'pricingUnit', label: string) {
     return <div className="po-field po-unit-field"><label htmlFor={id(key)}>{label} {index}</label>

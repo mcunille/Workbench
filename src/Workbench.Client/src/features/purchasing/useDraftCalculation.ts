@@ -16,7 +16,7 @@ export function useDraftCalculation(draft: DraftContent, enabled: boolean, onAut
       }, error => {
         if (!current) return;
         if (error instanceof ApiError && (error.status === 401 || error.status === 403)) { onAuthLost(); return; }
-        setPreview({ draft, message: error instanceof DraftError && error.status === 400 ? 'Review the line fields to calculate an estimate.' : 'The estimate could not be calculated. Your changes are kept.', errors: error instanceof DraftError ? error.errors : undefined });
+        setPreview({ draft, message: error instanceof DraftError && error.status === 400 ? 'Review the draft fields to calculate an estimate.' : 'The estimate could not be calculated. Your changes are kept.', errors: error instanceof DraftError ? error.errors : undefined });
       });
     }, 300);
     return () => { current = false; window.clearTimeout(timer); controller.abort(); };

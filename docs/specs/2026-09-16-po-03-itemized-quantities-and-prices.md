@@ -208,8 +208,7 @@ This design does not authorize production operations or deletion of retained dat
 
 ## Approval boundary
 
-Approval is requested for the unit vocabulary and fractional quantities, separate pricing quantity,
+The owner approved the unit vocabulary and fractional quantities, separate pricing quantity,
 four-place rounding, preservation of legacy reference amounts, server-calculated preview and V3
 compatibility strategy. These are new durable contracts beyond the scenario's unapproved story.
-After approval, proceed through implementation and verification without repeating this design gate.
-
+Proceed through implementation and verification without repeating this design gate.

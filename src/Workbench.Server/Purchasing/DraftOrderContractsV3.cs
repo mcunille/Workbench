@@ -46,4 +46,3 @@ public sealed record DraftLineCalculation(Guid Id, string? Gross);
 public sealed record DraftCalculationResponse(IReadOnlyList<DraftLineCalculation> Lines, int IncompleteLineCount, string? MerchandiseEstimate);
 public sealed record DraftOrderResponseV3(Guid Id, DraftContentV3 Draft, string CreatedAtUtc, string UpdatedAtUtc,
     string Version, string PoReference, bool SupplierIsArchived, DraftCalculationResponse Calculation);
-

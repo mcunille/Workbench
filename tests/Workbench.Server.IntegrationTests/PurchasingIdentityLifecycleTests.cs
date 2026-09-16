@@ -139,4 +139,3 @@ public sealed partial class PurchasingIdentityEndpointTests
         Assert.Equal(contact, (await client.GetFromJsonAsync<SupplierResponse>($"/api/suppliers/{saved.SupplierId}"))!.Supplier);
     }
 }
-

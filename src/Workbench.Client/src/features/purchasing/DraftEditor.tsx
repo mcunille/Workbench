@@ -113,6 +113,7 @@ export function DraftEditor({ id: initialId, onDirtyChange, onAuthLost, onSaved,
   useEffect(() => { if (!clearingSupplier && focusSupplierSummary.current) { supplierSummary.current?.focus(); focusSupplierSummary.current = false; } }, [clearingSupplier]);
   const frozen = mode !== 'editing';
   const calculation = useDraftCalculation(draft, !frozen, supplierAccessLost);
+  const visibleErrors = { ...calculation.errors, ...errors };
   const [undoBoundary, setUndoBoundary] = useState({ mode, currency: draft.currency });
   if (undoBoundary.mode !== mode || undoBoundary.currency !== draft.currency) {
     setUndoBoundary({ mode, currency: draft.currency });
@@ -217,7 +218,7 @@ export function DraftEditor({ id: initialId, onDirtyChange, onAuthLost, onSaved,
   }
   function field(path: string, label: string, value: string | null, change: (value: string | null) => void, options: { multiline?: boolean; placeholder?: string; disabled?: boolean } = {}) {
     const controlId = fieldId(path);
-    const error = errors[path]?.join(' ');
+    const error = visibleErrors[path]?.join(' ');
     const common = { id: controlId, name: path, value: value ?? '', onChange: (event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => change(optional(event.target.value)), disabled: frozen || options.disabled, placeholder: options.placeholder ?? ' ', 'aria-invalid': !!error, 'aria-describedby': error ? `${controlId}-error` : undefined };
     return <div className="po-field" key={path}><FloatingField htmlFor={controlId} label={label}>{options.multiline ? <textarea {...common} rows={2} /> : <input {...common} />}</FloatingField>{error ? <p id={`${controlId}-error`} className="form-message error">{error}</p> : null}</div>;
   }
@@ -259,7 +260,7 @@ export function DraftEditor({ id: initialId, onDirtyChange, onAuthLost, onSaved,
         </div>
         {saveStatus ? <p className="po-save-status" role="status">{saveStatus}</p> : null}
       </header>
-      {message && !Object.keys(errors).length ? <p role="alert" className="form-message error">{message}</p> : null}
+      {message && !Object.keys(visibleErrors).length ? <p role="alert" className="form-message error">{message}</p> : null}
       {mode === 'delete-uncertain' ? <button type="button" className="secondary" onClick={() => void removeDraft()}>Check and retry deletion</button> : null}
       {mode === 'deleting' ? <p role="status">Deleting draft…</p> : null}
       {mode === 'current-failed' || mode === 'conflict-failed' || mode === 'load-failed' ? (
@@ -281,10 +282,10 @@ export function DraftEditor({ id: initialId, onDirtyChange, onAuthLost, onSaved,
         </section>
       ) : null}
       <form id="po-draft-form" className="form-stack" noValidate onSubmit={event => { event.preventDefault(); void save(); }}>
-        {Object.keys(errors).length ? (
+        {Object.keys(visibleErrors).length ? (
           <div role="alert" className="po-validation-summary" tabIndex={-1} id={fieldId('draft')}>
             <h2>Review these fields</h2>
-            <ul>{Object.entries(errors).flatMap(([path, messages]) => messages.map((text, index) => (
+            <ul>{Object.entries(visibleErrors).flatMap(([path, messages]) => messages.map((text, index) => (
               <li key={`${path}-${index}`}>
                 <a href={`#${fieldId(path)}`} onClick={event => {
                   event.preventDefault();
@@ -303,7 +304,7 @@ export function DraftEditor({ id: initialId, onDirtyChange, onAuthLost, onSaved,
 
           </div>
         </section>
-        <details className="po-form-section po-supplier-section" open={supplierExpanded || Object.keys(errors).some(key => key.startsWith('draft.supplier') || key === 'draft.platform')} onToggle={event => setSupplierExpanded(event.currentTarget.open)}>
+        <details className="po-form-section po-supplier-section" open={supplierExpanded || Object.keys(visibleErrors).some(key => key.startsWith('draft.supplier') || key === 'draft.platform')} onToggle={event => setSupplierExpanded(event.currentTarget.open)}>
           <summary ref={supplierSummary} className="po-supplier-summary"><span className="po-supplier-summary-row"><span className="po-supplier-summary-copy"><span>Supplier details</span><span className="po-supplier-summary-context">{[draft.supplierName, draft.platform].filter(Boolean).join(' · ') || 'Add a supplier or one-off contact'}</span></span>{[draft.supplierId, draft.supplierName, draft.supplierContactName, draft.supplierEmail, draft.supplierPhone, draft.supplierWebsite, draft.supplierPostalAddress, draft.supplierOrderReference].some(Boolean) ? <button type="button" className="quiet danger" disabled={frozen} onClick={event => { event.preventDefault(); event.stopPropagation(); setClearingSupplier(true); }}>Clear supplier</button> : null}</span></summary>
           <DraftSupplier draft={draft} archived={!!baseline?.supplierIsArchived && baseline.draft.supplierId === draft.supplierId} frozen={frozen || clearingSupplier} onChange={setDraft} onAuthLost={supplierAccessLost} onDirtyChange={reportSupplierDirty} />
           <div className="po-header-fields">
@@ -311,7 +312,7 @@ export function DraftEditor({ id: initialId, onDirtyChange, onAuthLost, onSaved,
             {field('draft.platform', 'Platform', draft.platform, platform => setDraft({ ...draft, platform }), { placeholder: 'e.g. Instagram, Retail' })}
             {field('draft.supplierOrderReference', 'Supplier order reference', draft.supplierOrderReference, supplierOrderReference => setDraft({ ...draft, supplierOrderReference }))}
           </div>
-          <details className="po-contact-details" open={Object.keys(errors).some(key => /^draft\.supplier(ContactName|Email|Phone|Website|PostalAddress)$/.test(key)) || undefined}>
+          <details className="po-contact-details" open={Object.keys(visibleErrors).some(key => /^draft\.supplier(ContactName|Email|Phone|Website|PostalAddress)$/.test(key)) || undefined}>
             <summary>Contact details (optional)</summary>
             <div className="po-header-fields">
               {field('draft.supplierContactName', 'Supplier contact name', draft.supplierContactName, supplierContactName => setDraft({ ...draft, supplierContactName }))}
@@ -352,7 +353,7 @@ export function DraftEditor({ id: initialId, onDirtyChange, onAuthLost, onSaved,
                     setDraft({ ...draft, entries });
                   }}>Remove entry {index + 1}</button>
                 </div>
-                <DraftLineFields entry={entry} index={index + 1} errors={{ ...calculation.errors, ...errors }} disabled={frozen}
+                <DraftLineFields entry={entry} index={index + 1} errors={visibleErrors} disabled={frozen}
                   priceDisabled={frozen || currencyTransition} currency={draft.currency}
                   gross={calculation.result?.lines.find(line => line.id === entry.id)?.gross}
                   change={patch => setDraft({ ...draft, entries: draft.entries.map(old => old.id === entry.id ? { ...old, ...patch } : old) })} />
