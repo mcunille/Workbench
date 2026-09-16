@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './diagnostic-fixture';
 import { useAuthenticatedSession } from './auth-fixture';
 
 test('itemized pieces, weight and batch pricing persist with explainable draft estimates', async ({ page }) => {
