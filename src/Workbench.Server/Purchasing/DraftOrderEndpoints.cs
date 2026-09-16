@@ -48,7 +48,7 @@ public static class DraftOrderEndpoints
         if (row is null) return Problem(404, "draft_not_found", "Draft not found.");
         using var content = JsonDocument.Parse(row.ContentJson);
         var links = content.RootElement.GetProperty("sourceLinks").Deserialize<string[]>(DraftOrderInput.JsonOptions)!;
-        var entries = content.RootElement.GetProperty("entries").Deserialize<DraftEntry[]>(DraftOrderInput.JsonOptions)!;
+        var entries = DraftOrderInputV3.ReadEntries(content.RootElement, row.ContentSchemaVersion).Select(DraftOrderInputV3.Legacy).ToArray();
         return Results.Ok(new DraftOrderResponse(row.Id, new(row.Title, row.SupplierName, row.Currency, row.Notes, links, entries),
             DraftOrderCursor.Timestamp(row.CreatedAtUtc), DraftOrderCursor.Timestamp(row.UpdatedAtUtc), Convert.ToBase64String(row.RowVersion)));
     }

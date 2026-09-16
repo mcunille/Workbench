@@ -11,8 +11,8 @@ function fromDigits(value: string): string | null {
   const padded = digits.padStart(3, '0');
   return `${padded.slice(0, -2)}.${padded.slice(-2)}`;
 }
-export function ReferencePriceField({ id, index, value, onChange, disabled, error }: {
-  id: string; index: number; value: string | null; onChange(value: string | null): void; disabled: boolean; error?: string;
+export function ReferencePriceField({ id, index, value, onChange, disabled, error, label = 'Reference price' }: {
+  id: string; index: number; value: string | null; onChange(value: string | null): void; disabled: boolean; error?: string; label?: string;
 }) {
   const [requestedPrecision, setRequestedPrecision] = useState(() => needsPrecision(value));
   const preciseValue = needsPrecision(value);
@@ -30,7 +30,7 @@ export function ReferencePriceField({ id, index, value, onChange, disabled, erro
     if (!extra && input.current === document.activeElement && input.current) pinCaret(input.current);
   });
   return <div className="po-field po-price-field">
-    <FloatingField htmlFor={id} label={`Reference price ${index}`}>
+    <FloatingField htmlFor={id} label={`${label} ${index}`}>
       {/* Recreate the native input when its keyboard mode changes to avoid collapsed layout in Chromium. */}
       <input key={extra ? 'decimal' : 'cents'} ref={input} id={id} value={value ?? ''} disabled={disabled} placeholder="0.00"
         inputMode={extra ? 'decimal' : 'numeric'} aria-invalid={!!error}

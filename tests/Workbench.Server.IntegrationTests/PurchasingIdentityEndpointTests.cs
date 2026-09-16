@@ -10,14 +10,14 @@ namespace Workbench.Server.IntegrationTests;
 public sealed partial class PurchasingIdentityEndpointTests(SqlServerFixture sqlServer)
 {
     [Fact]
-    public async Task V2DraftCanSaveAnEmptySupplierSnapshot()
+    public async Task V3DraftCanSaveAnEmptySupplierSnapshot()
     {
         // GIVEN an authenticated owner starting an incomplete purchase.
         await using var application = await AuthTestApplication.CreateAsync(sqlServer);
         using var client = application.CreateClient();
         await LoginAsync(client);
-        // WHEN a V2 draft is saved with explicitly absent supplier details.
-        var result = await SendAsync(client, HttpMethod.Post, "/api/v2/purchase-order-drafts", new
+        // WHEN a V3 draft is saved with explicitly absent supplier details.
+        var result = await SendAsync(client, HttpMethod.Post, "/api/v3/purchase-order-drafts", new
         {
             requestId = Guid.NewGuid(),
             draft = new

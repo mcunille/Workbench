@@ -11,7 +11,7 @@ async function startDraft(page: Page, title: string) {
 }
 
 async function save(page: Page) {
-  const response = page.waitForResponse(r => r.url().includes('/api/v2/purchase-order-drafts') &&
+  const response = page.waitForResponse(r => r.url().includes('/api/v3/purchase-order-drafts') && !r.url().endsWith('/calculate') &&
     ['POST', 'PUT'].includes(r.request().method()));
   await page.getByRole('button', { name: 'Save draft', exact: true }).click();
   expect((await response).ok()).toBe(true);
@@ -33,7 +33,7 @@ test('incomplete shopping list survives reload and another session with unknown 
   await page.getByRole('button', { name: 'Add entry', exact: true }).click();
   await page.getByLabel('Description 2', { exact: true }).fill('Sample setting');
   await page.getByLabel('Currency', { exact: true }).fill('USD');
-  await page.getByLabel('Reference price 2', { exact: true }).fill('0');
+  await page.getByLabel('Unit price 2', { exact: true }).fill('0');
 
   // WHEN the owner saves and reloads the order.
   await save(page);
@@ -42,17 +42,17 @@ test('incomplete shopping list survives reload and another session with unknown 
 
   // THEN incomplete content persists and unknown is not converted to zero.
   await expect(page.getByLabel('Description 1', { exact: true })).toHaveValue('Blue sapphires');
-  await expect(page.getByLabel('Reference price 1', { exact: true })).toHaveValue('');
-  await expect(page.getByLabel('Reference price 2', { exact: true })).toHaveValue('0.00');
+  await expect(page.getByLabel('Unit price 1', { exact: true })).toHaveValue('');
+  await expect(page.getByLabel('Unit price 2', { exact: true })).toHaveValue('0.00');
   await expect(page.getByLabel('Notes', { exact: true })).toHaveValue('Ask about shipping before ordering.');
 
   // WHEN clearing is requested THEN Cancel receives focus and Escape preserves prices.
-  await page.getByRole('button', { name: 'Clear all reference prices' }).click();
+  await page.getByRole('button', { name: 'Clear all prices' }).click();
   await expect(page.getByRole('button', { name: 'Cancel', exact: true })).toBeFocused();
   await page.keyboard.press('Escape');
   await expect(page.getByRole('dialog')).toHaveCount(0);
-  await expect(page.getByLabel('Reference price 2', { exact: true })).toHaveValue('0.00');
-  await expect(page.getByRole('button', { name: 'Clear all reference prices' })).toBeFocused();
+  await expect(page.getByLabel('Unit price 2', { exact: true })).toHaveValue('0.00');
+  await expect(page.getByRole('button', { name: 'Clear all prices' })).toBeFocused();
 
   // AND a distinct authenticated session can resume the same saved draft.
   const otherContext = await browser.newContext({ baseURL: browserBaseUrl });
@@ -88,7 +88,7 @@ test('uncertain creation retries the original request without creating another d
   await startDraft(page, title);
   const requests: unknown[] = [];
   let dropped = false;
-  await page.route('**/api/v2/purchase-order-drafts', async route => {
+  await page.route('**/api/v3/purchase-order-drafts', async route => {
     if (route.request().method() !== 'POST') return route.continue();
     requests.push(route.request().postDataJSON());
     const response = await route.fetch();
@@ -105,7 +105,7 @@ test('uncertain creation retries the original request without creating another d
   // THEN the same complete request was retried and the business has only one matching draft.
   expect(requests).toHaveLength(2);
   expect(requests[1]).toEqual(requests[0]);
-  const response = await page.request.get('/api/v2/purchase-order-drafts');
+  const response = await page.request.get('/api/v3/purchase-order-drafts');
   expect(response.ok()).toBe(true);
   const body = await response.json();
   expect(body.items.filter((item: { title: string }) => item.title === title)).toHaveLength(1);
@@ -147,9 +147,9 @@ test('a confirmed save retries only the failed current-details read', async ({ p
   await startDraft(page, `Read recovery ${Date.now()}`);
   let saves = 0;
   let reads = 0;
-  await page.route('**/api/v2/purchase-order-drafts**', async route => {
-    if (route.request().method() === 'POST') saves++;
-    if (route.request().method() === 'GET' && /\/api\/v2\/purchase-order-drafts\/[a-f0-9-]{36}$/.test(route.request().url())) {
+  await page.route('**/api/v3/purchase-order-drafts**', async route => {
+    if (route.request().method() === 'POST' && !route.request().url().endsWith('/calculate')) saves++;
+    if (route.request().method() === 'GET' && /\/api\/v3\/purchase-order-drafts\/[a-f0-9-]{36}$/.test(route.request().url())) {
       reads++;
       if (reads === 1) return route.fulfill({ status: 503, contentType: 'application/problem+json', body: '{"status":503}' });
     }
@@ -167,13 +167,13 @@ test('a confirmed save retries only the failed current-details read', async ({ p
   expect(reads).toBe(2);
 });
 
-test('reference prices shift cents by default and retain opt-in extra precision after saving', async ({ page }) => {
-  // GIVEN an unknown reference price on a new draft.
+test('unit prices shift cents by default and retain opt-in extra precision after saving', async ({ page }) => {
+  // GIVEN an unknown unit price on a new draft.
   await signIn(page);
   await startDraft(page, 'Price entry check');
   await page.getByLabel('Currency', { exact: true }).fill('USD');
   await page.getByRole('button', { name: 'Add entry', exact: true }).click();
-  const price = page.getByLabel('Reference price 1', { exact: true });
+  const price = page.getByLabel('Unit price 1', { exact: true });
   await expect(price).toHaveValue('');
   await expect(price).toHaveAttribute('placeholder', '0.00');
   // WHEN typing digits THEN they shift from hundredths to whole units.
@@ -217,7 +217,7 @@ test('deleting a saved draft requires confirmation and removes it from the list'
   await expect(page.getByLabel('Title', { exact: true })).toHaveValue(title);
   // WHEN explicitly confirming THEN navigation returns to the list without the deleted draft.
   await page.getByRole('button', { name: 'Delete draft', exact: true }).click();
-  const deleted = page.waitForResponse(response => response.request().method() === 'DELETE' && response.url().includes('/api/v2/purchase-order-drafts/'));
+  const deleted = page.waitForResponse(response => response.request().method() === 'DELETE' && response.url().includes('/api/v3/purchase-order-drafts/'));
   await dialog.getByRole('button', { name: 'Delete draft', exact: true }).click();
   expect((await deleted).status()).toBe(200);
   await expect(page).toHaveURL(/\/purchase-orders$/);
@@ -255,7 +255,7 @@ test('same-draft history jumps preserve unsaved input and the departure warning'
   await expect(page.getByRole('dialog', { name: 'Discard changes?' })).toBeVisible();
   await page.getByRole('button', { name: 'Keep editing', exact: true }).click();
   await expect(notes).toHaveValue('Unsaved supplier questions');
-  const current = await page.request.get(`/api/v2/purchase-order-drafts/${path.split('/').at(-1)}`);
+  const current = await page.request.get(`/api/v3/purchase-order-drafts/${path.split('/').at(-1)}`);
   expect(current.ok()).toBe(true);
   expect((await current.json()).draft.notes).toBeNull();
 });

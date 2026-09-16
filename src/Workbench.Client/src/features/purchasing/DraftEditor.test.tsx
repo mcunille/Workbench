@@ -2,12 +2,12 @@ import { createSupplier, getSupplier, getSuppliers } from '../../api/suppliers';
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { vi } from 'vitest';
 import { DraftEditor } from './DraftEditor';
-import { createDraft, updateDraft, getDraft, deleteDraft, DraftError } from '../../api/purchaseOrders';
+import { createDraft, updateDraft, getDraft, deleteDraft, calculateDraft, DraftError } from '../../api/purchaseOrders';
 
-vi.mock('../../api/purchaseOrders', async importOriginal => ({ ...await importOriginal<typeof import('../../api/purchaseOrders')>(), createDraft: vi.fn(), updateDraft: vi.fn(), getDraft: vi.fn(), deleteDraft: vi.fn() }));
+vi.mock('../../api/purchaseOrders', async importOriginal => ({ ...await importOriginal<typeof import('../../api/purchaseOrders')>(), createDraft: vi.fn(), updateDraft: vi.fn(), getDraft: vi.fn(), deleteDraft: vi.fn(), calculateDraft: vi.fn() }));
 vi.mock('../../api/suppliers', async original => ({ ...await original<typeof import('../../api/suppliers')>(), createSupplier: vi.fn(), getSupplier: vi.fn(), getSuppliers: vi.fn() }));
 const content = { title: null, supplierName: null, supplierId: null, supplierContactName: null, supplierEmail: null, supplierPhone: null, supplierWebsite: null, supplierPostalAddress: null, supplierOrderReference: null, platform: null, currency: null, notes: null, sourceLinks: [], entries: [] };
-const saved = { id: 'draft-one', poReference: 'PO-000001', supplierIsArchived: false, draft: content, version: 'v1', createdAtUtc: '2026-09-12T00:00:00Z', updatedAtUtc: '2026-09-12T00:00:00Z' };
+const saved = { calculation: { lines: [], incompleteLineCount: 0, merchandiseEstimate: null }, id: 'draft-one', poReference: 'PO-000001', supplierIsArchived: false, draft: content, version: 'v1', createdAtUtc: '2026-09-12T00:00:00Z', updatedAtUtc: '2026-09-12T00:00:00Z' };
 const receipt = { requestId: 'request', replayed: false, draftOrderId: saved.id, savedVersion: saved.version, completedAtUtc: saved.updatedAtUtc };
 const props = () => ({ onDirtyChange: vi.fn(), onAuthLost: vi.fn(), onSaved: vi.fn(), onCancel: vi.fn(), onCreated: vi.fn() });
 it('summarizes saved supplier context and exposes it for editing', async () => {
@@ -41,7 +41,7 @@ it('keeps empty entry details optional and reveals their validation errors', asy
 });
 it('reveals newly populated details when adopting a newer saved version of the same entry', async () => {
   // GIVEN an existing empty entry and a newer saved version containing research notes.
-  const entry = { id: 'same-entry', description: 'Sapphire', indicativePrice: null, notes: null, sourceLink: null };
+  const entry = { quantity: null, unitOfMeasure: null, unitPrice: null, pricingUnit: null, pricePerQuantity: null, pricingQuantity: null, supplierSku: null, itemType: null, id: 'same-entry', description: 'Sapphire', indicativePrice: null, notes: null, sourceLink: null };
   vi.mocked(getDraft).mockResolvedValueOnce({ ...saved, draft: { ...content, entries: [entry] } }).mockResolvedValueOnce({ ...saved, version: 'v2', draft: { ...content, entries: [{ ...entry, notes: 'New research' }] } });
   vi.mocked(updateDraft).mockRejectedValue(new DraftError(409, 'draft_version_conflict'));
   render(<DraftEditor {...props()} id={saved.id} />);
@@ -56,14 +56,14 @@ it('reveals newly populated details when adopting a newer saved version of the s
 });
 it('reveals populated entry details when reopening a draft', async () => {
   // GIVEN an existing entry with research notes.
-  vi.mocked(getDraft).mockResolvedValue({ ...saved, draft: { ...content, entries: [{ id: 'entry', description: 'Sapphire', indicativePrice: null, notes: 'Check inclusions', sourceLink: null }] } });
+  vi.mocked(getDraft).mockResolvedValue({ ...saved, draft: { ...content, entries: [{ quantity: null, unitOfMeasure: null, unitPrice: null, pricingUnit: null, pricePerQuantity: null, pricingQuantity: null, supplierSku: null, itemType: null, id: 'entry', description: 'Sapphire', indicativePrice: null, notes: 'Check inclusions', sourceLink: null }] } });
   render(<DraftEditor {...props()} id={saved.id} />);
   // WHEN the draft loads THEN existing details are visible and retained.
   const notes = await screen.findByDisplayValue('Check inclusions');
   expect(notes.closest('details')).toHaveAttribute('open');
   expect(notes).toBeVisible();
 });
-beforeEach(() => { Object.defineProperty(HTMLDialogElement.prototype, 'showModal', { configurable: true, value(this: HTMLDialogElement) { this.setAttribute('open', ''); } }); vi.mocked(deleteDraft).mockReset(); vi.mocked(createDraft).mockReset(); vi.mocked(updateDraft).mockReset(); vi.mocked(getDraft).mockReset(); });
+beforeEach(() => { vi.mocked(calculateDraft).mockReset().mockImplementation(() => new Promise(() => {})); Object.defineProperty(HTMLDialogElement.prototype, 'showModal', { configurable: true, value(this: HTMLDialogElement) { this.setAttribute('open', ''); } }); vi.mocked(deleteDraft).mockReset(); vi.mocked(createDraft).mockReset(); vi.mocked(updateDraft).mockReset(); vi.mocked(getDraft).mockReset(); });
 it('saves an empty draft and enables editing only after loading the confirmed current document', async () => {
   // GIVEN all business fields are optional and the confirmation read has not returned.
   let resolve!: (value: typeof saved) => void;
@@ -159,13 +159,13 @@ it('allows correcting an unsaved currency after authoritative validation with a 
   render(<DraftEditor {...props()} />);
   fireEvent.change(screen.getByLabelText('Currency'), { target: { value: 'US' } });
   fireEvent.click(screen.getByRole('button', { name: 'Add entry' }));
-  fireEvent.change(screen.getByLabelText('Reference price 1'), { target: { value: '0' } });
+  fireEvent.change(screen.getByLabelText('Unit price 1'), { target: { value: '0' } });
   fireEvent.click(screen.getByRole('button', { name: 'Save draft' }));
   // WHEN the user corrects the rejected currency THEN the entered exact price remains available.
   await screen.findByRole('link', { name: 'Use a three-letter currency.' });
   expect(screen.getByLabelText('Currency')).not.toBeDisabled();
   fireEvent.change(screen.getByLabelText('Currency'), { target: { value: 'USD' } });
-  expect(screen.getByLabelText('Reference price 1')).toHaveValue('0.00');
+  expect(screen.getByLabelText('Unit price 1')).toHaveValue('0.00');
 });
 it('keeps navigation guarded after a request-ID conflict and never silently creates another request', async () => {
   // GIVEN the server rejects a changed-input reuse of a request identifier.
@@ -182,7 +182,7 @@ it('keeps navigation guarded after a request-ID conflict and never silently crea
 });
 it('retains every local field across a failed conflict read and adopts only the deliberately reviewed version', async () => {
   // GIVEN a draft conflicts after edits and the first comparison read fails.
-  const latest = { ...saved, version: 'v2', draft: { ...content, title: 'Other title', sourceLinks: ['https://example.test/current'], entries: [{ id: 'different', description: 'Added elsewhere', notes: 'Other entry note', sourceLink: 'https://example.test/entry', indicativePrice: null }] } };
+  const latest = { ...saved, version: 'v2', draft: { ...content, title: 'Other title', sourceLinks: ['https://example.test/current'], entries: [{ quantity: null, unitOfMeasure: null, unitPrice: null, pricingUnit: null, pricePerQuantity: null, pricingQuantity: null, supplierSku: null, itemType: null, id: 'different', description: 'Added elsewhere', notes: 'Other entry note', sourceLink: 'https://example.test/entry', indicativePrice: null }] } };
   vi.mocked(getDraft).mockResolvedValueOnce(saved).mockRejectedValueOnce(new TypeError('Network')).mockResolvedValueOnce(latest);
   vi.mocked(updateDraft).mockRejectedValue(new DraftError(409, 'draft_version_conflict'));
   render(<DraftEditor id={saved.id} {...props()} />); await waitFor(() => expect(screen.getByLabelText('Title')).not.toBeDisabled());
@@ -206,27 +206,32 @@ it('retains every local field across a failed conflict read and adopts only the 
 });
 it('requires a clearing save before pricing in a different saved currency and preserves unknown versus zero', async () => {
   // GIVEN an existing USD reference price of exact zero.
-  const entry = { id: 'entry', description: null, notes: null, sourceLink: null, indicativePrice: '0.0000' };
+  const entry = { quantity: null, unitOfMeasure: null, unitPrice: null, pricingUnit: null, pricePerQuantity: null, pricingQuantity: null, supplierSku: null, itemType: null, id: 'entry', description: null, notes: null, sourceLink: null, indicativePrice: '0.0000' };
   const priced = { ...saved, draft: { ...content, currency: 'USD', entries: [entry] } };
-  const cleared = { ...saved, version: 'v2', draft: { ...priced.draft, currency: 'EUR', entries: [{ ...entry, indicativePrice: null }] } };
-  vi.mocked(getDraft).mockResolvedValueOnce(priced).mockResolvedValueOnce(cleared);
+  const cleared = { ...saved, version: 'v2', draft: { ...priced.draft, currency: 'USD', entries: [{ ...entry, indicativePrice: null }] } };
+  vi.mocked(getDraft).mockResolvedValueOnce(priced).mockResolvedValueOnce(cleared).mockResolvedValueOnce({ ...cleared, version: 'v3', draft: { ...cleared.draft, currency: 'EUR' } });
   vi.mocked(updateDraft).mockResolvedValue({ ...receipt, savedVersion: 'v2' });
   render(<DraftEditor id={saved.id} {...props()} />);
   await waitFor(() => expect(screen.getByLabelText('Reference price 1')).toHaveValue('0.00'));
-  // WHEN clearing the price and changing currency THEN a new price cannot be entered before the clearing save.
+  // WHEN clearing the price THEN currency remains locked until the clearing save.
   expect(screen.getByLabelText('Currency')).toBeDisabled();
-  fireEvent.click(screen.getByRole('button', { name: 'Clear all reference prices' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Clear all prices' }));
   fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Clear prices' }));
-  expect(screen.getByText('Price: Unknown')).toBeVisible();
-  fireEvent.change(screen.getByLabelText('Currency'), { target: { value: 'EUR' } });
-  expect(screen.getByLabelText('Reference price 1')).toBeDisabled();
+  expect(screen.getByLabelText('Unit price 1')).toHaveValue('');
+  expect(screen.getByLabelText('Currency')).toBeDisabled();
   fireEvent.click(screen.getByRole('button', { name: 'Save draft' }));
   // THEN only a confirmed current version permits entering the next currency's exact price.
-  await waitFor(() => expect(screen.getByLabelText('Reference price 1')).not.toBeDisabled());
+  await waitFor(() => expect(screen.getByLabelText('Currency')).not.toBeDisabled());
+  expect(vi.mocked(updateDraft).mock.calls[0][1].draft.currency).toBe('USD');
+  fireEvent.change(screen.getByLabelText('Currency'), { target: { value: 'EUR' } });
+  expect(screen.getByLabelText('Unit price 1')).toBeDisabled();
+  vi.mocked(updateDraft).mockResolvedValue({ ...receipt, savedVersion: 'v3' });
+  fireEvent.click(screen.getByRole('button', { name: 'Save draft' }));
+  await waitFor(() => expect(screen.getByLabelText('Unit price 1')).not.toBeDisabled());
   expect(vi.mocked(updateDraft).mock.calls[0][1].draft.entries[0].indicativePrice).toBeNull();
   fireEvent.click(screen.getByRole('checkbox', { name: 'Use extra precision for entry 1' }));
-  fireEvent.change(screen.getByLabelText('Reference price 1'), { target: { value: '999999999999999.9999' } });
-  expect(screen.getByLabelText('Reference price 1')).toHaveValue('999999999999999.9999');
+  fireEvent.change(screen.getByLabelText('Unit price 1'), { target: { value: '999999999999999.9999' } });
+  expect(screen.getByLabelText('Unit price 1')).toHaveValue('999999999999999.9999');
 });
 it('clears private editor content on authentication loss and ignores late results after navigation', async () => {
   // GIVEN a private draft and an unauthorized save.
@@ -251,24 +256,24 @@ it('clears private editor content on authentication loss and ignores late result
 
 it('requires confirmation to clear prices and lets cancellation preserve them', async () => {
   // GIVEN two reference prices, including zero, and one unknown price.
-  const entries = ['125.5000', '0.0000', null].map((indicativePrice, index) => ({ id: String(index), description: null, notes: null, sourceLink: null, indicativePrice }));
+  const entries = ['125.5000', '0.0000', null].map((indicativePrice, index) => ({ quantity: null, unitOfMeasure: null, unitPrice: null, pricingUnit: null, pricePerQuantity: null, pricingQuantity: null, supplierSku: null, itemType: null, id: String(index), description: null, notes: null, sourceLink: null, indicativePrice }));
   vi.mocked(getDraft).mockResolvedValue({ ...saved, draft: { ...content, currency: 'USD', entries } });
   render(<DraftEditor id={saved.id} {...props()} />);
-  await screen.findByRole('button', { name: 'Clear all reference prices' });
+  await screen.findByRole('button', { name: 'Clear all prices' });
   // WHEN opening the confirmation and cancelling.
-  fireEvent.click(screen.getByRole('button', { name: 'Clear all reference prices' }));
-  const dialog = screen.getByRole('dialog', { name: 'Clear reference prices?' });
-  expect(within(dialog).getByText(/2 reference prices/)).toBeVisible();
+  fireEvent.click(screen.getByRole('button', { name: 'Clear all prices' }));
+  const dialog = screen.getByRole('dialog', { name: 'Clear prices?' });
+  expect(within(dialog).getByText(/2 prices/)).toBeVisible();
   fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }));
   // THEN prices are retained and no save is sent.
   expect(screen.getByLabelText('Reference price 1')).toHaveValue('125.50');
   expect(screen.getByLabelText('Reference price 2')).toHaveValue('0.00');
   expect(screen.getByRole('button', { name: 'Save draft' })).toBeDisabled();
   // WHEN explicitly confirming the clear.
-  fireEvent.click(screen.getByRole('button', { name: 'Clear all reference prices' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Clear all prices' }));
   fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Clear prices' }));
   // THEN all prices become unknown locally; persistence still requires Save.
-  expect(screen.getAllByText('Price: Unknown')).toHaveLength(3);
+  for (const index of [1, 2, 3]) expect(screen.getByLabelText(`Unit price ${index}`)).toHaveValue('');
   expect(updateDraft).not.toHaveBeenCalled();
   expect(screen.getByRole('button', { name: 'Save draft' })).toBeEnabled();
 });
@@ -291,11 +296,11 @@ it('adds entries from the end of the list and focuses each new description', () 
   expect(screen.getByLabelText('Description 2').compareDocumentPosition(add) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
 });
 
-it('starts reference prices with an empty 0.00 placeholder and offers extra precision', () => {
+it('starts unit prices with an empty 0.00 placeholder and offers extra precision', () => {
   // GIVEN a new entry with no reference price.
   render(<DraftEditor {...props()} />);
   fireEvent.click(screen.getByRole('button', { name: 'Add entry' }));
-  const price = screen.getByLabelText('Reference price 1');
+  const price = screen.getByLabelText('Unit price 1');
   // WHEN the price is first shown THEN zero is only a placeholder and precision is optional.
   expect(price).toHaveValue('');
   expect(price).toHaveAttribute('placeholder', '0.00');
@@ -469,7 +474,7 @@ it('presents a clear new order heading and one draft state before any details ar
 });
 it('restores removed entries in order with their details and moves focus predictably', async () => {
   // GIVEN two entries with research and an exact reference price.
-  const first = { id: 'first', description: 'Sapphire', notes: 'Keep research', sourceLink: 'https://example.test/gem', indicativePrice: '12.3456' };
+  const first = { quantity: null, unitOfMeasure: null, unitPrice: null, pricingUnit: null, pricePerQuantity: null, pricingQuantity: null, supplierSku: null, itemType: null, id: 'first', description: 'Sapphire', notes: 'Keep research', sourceLink: 'https://example.test/gem', indicativePrice: '12.3456' };
   const second = { ...first, id: 'second', description: 'Ruby', indicativePrice: null };
   vi.mocked(getDraft).mockResolvedValue({ ...saved, draft: { ...content, currency: 'USD', entries: [first, second] } });
   render(<DraftEditor {...props()} id={saved.id} />);

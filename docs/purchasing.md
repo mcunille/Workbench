@@ -5,37 +5,52 @@ Use **New draft**, record what you know, and select **Save draft**. An empty dra
 its display name is Untitled draft until you give it a title. Saved drafts remain available after
 signing out and signing back in. All records belong to the signed-in business.
 
-## Build a shopping list
+## Itemize a purchase
 
-Keep an optional title, supplier name, notes and source links together. Add shopping-list entries
-with a description, notes, source link and reference price. Use notes for quantities, pricing bases,
-or questions for the supplier. These are planning entries, not committed order lines.
+Keep an optional title, supplier details, notes and source links together. Under **Order lines**, add
+entries with a description, ordered quantity and unit, unit price and pricing basis. Optional line
+details include supplier SKU, item type, notes and a source link. Incomplete lines and empty drafts
+remain saveable; they do not commit a purchase.
 
-A blank price means **Unknown**, while an explicitly entered zero remains zero. Enter one currency
-for any prices on the draft. Prices accept up to four decimal places and remain reference amounts;
-the application does not calculate a total. To change an existing currency, clear the prices and
-save that change before entering amounts in the new currency. No conversion or relabeling is inferred.
+Quantity and price basis are separate. Ten pieces, ten carats and one parcel do not mean the same
+thing. Choose a unit explicitly. Selecting an initial ordered unit fills a visible price basis of
+one of that unit; later changes do not silently relabel the price. Use **Per quantity** for prices
+such as USD 8 per 100 pieces. If the pricing unit differs, enter **Total quantity priced**: ten
+stones totaling 12.5 carats at USD 20 per carat have a line estimate of USD 250.00. Workbench does
+not infer weight from count or automatically convert units. Ounce and troy ounce are distinct.
 
-Saved prices display at least two decimal places, retaining meaningful third and fourth digits
-without rounding. Reference-price entry starts with a `0.00` placeholder: digits fill from the right
-(`1` → `0.01`, `12` → `0.12`, `123` → `1.23`). An untouched or cleared field remains Unknown.
-Choose **Use extra precision** to type a decimal amount directly; saved prices with meaningful
-third or fourth decimal digits automatically use this mode. Remove those digits before returning
-to two-decimal entry; switching modes never rounds. Pasted decimal amounts retain their value.
-**Clear all reference prices** asks for confirmation and shows the affected count;
-Cancel or Escape keeps the prices. Confirming clears them locally, and **Save draft** persists the change.
-The Back/Save toolbar is transparent at the top and gains a background when pinned while scrolling.
-The draft badge sits in Order details, with the saved time above the form and fields
-grouped into order details, shopping list, and notes and sources.
+Quantities and pricing denominators must be positive, with up to nine integer digits and four
+fractional digits. Fractional quantities are allowed, including parcels and packs. Unit prices are
+nonnegative, with up to fifteen integer digits and four fractional digits. Blank means **Unknown**;
+an explicit zero remains zero. Choose one three-letter currency whenever entering a price.
 
-Drafts allow 100 entries and 20 order-level source links. Links must use HTTP or HTTPS and cannot
-contain embedded login credentials. Large drafts can reach the overall size limit before individual
-field limits; shorten the text or remove entries if the save reports that limit.
+The server calculates each complete line as priced quantity × unit price / per quantity, rounded
+once to four decimal places, with exact halfway values rounded up. The **Merchandise estimate**
+sums those line amounts before discounts, shipping and tax. If any line lacks quantity or pricing
+details, **Known line subtotal** identifies the incomplete lines. No known amounts displays Unknown,
+not zero. This is a draft estimate, not an invoice amount or balance due. Pending calculations hide
+older figures; failed calculations keep input and offer retry. Saving is independent of the preview.
 
-Saving or removing a draft entry changes only this shopping list. It creates no collection item,
-acquisition, invoice, payment obligation or accounting entry. Quantities and unit pricing,
-commitments, attachments, receiving and payments are
-separate increments. There is no order export workflow in this release.
+Price entry starts with a `0.00` placeholder: digits fill from the right (`1` → `0.01`, `12` → `0.12`,
+`123` → `1.23`). An untouched or cleared field remains Unknown. Choose **Use extra precision** to
+enter a decimal directly. Saved amounts retain meaningful third and fourth digits without rounding;
+pasted decimal amounts retain their value. Quantities use ordinary decimal entry.
+
+Older saved reference prices remain labeled **Reference price — basis not recorded**. They do not
+contribute to estimates. **Use as unit price** moves the amount into unit pricing locally; supply
+its basis and save explicitly. No quantity or pricing meaning is inferred from old notes.
+
+**Clear all prices** asks for confirmation and retains quantities, bases, metadata and currency.
+Cancel or Escape preserves the amounts. Save the cleared draft before changing its currency, then
+save the changed currency before entering new prices. Workbench never converts or relabels amounts.
+Removal offers Undo until saving begins or the currency changes. Save failures preserve your input.
+
+Drafts allow 100 lines and 20 order-level source links. Links must use HTTP or HTTPS and cannot
+contain embedded credentials. Large drafts can reach the overall size limit before individual
+field limits; shorten text or remove entries if a save reports that limit. Saving or removing a
+line creates no collection item, acquisition, invoice, payment obligation or accounting entry.
+Commitment, attachments, receiving and payments remain separate increments. There is no order export
+workflow in this release.
 
 ## Suppliers, platforms and purchase references
 
@@ -92,7 +107,7 @@ The [PO-01 design](specs/2026-09-11-po-01-draft-supplier-orders.md) specifies li
 versions, and verification requirements. Existing collection and acquisition workflows remain
 independent of purchasing.
 The [PO-02 design](specs/2026-09-11-po-02-supplier-identity-and-references.md) extends those contracts
-with supplier snapshots, per-order platforms and permanent references. After an upgrade, an older
+with supplier snapshots, per-order platforms and permanent references. The [PO-03 design](specs/2026-09-16-po-03-itemized-quantities-and-prices.md) adds structured quantities, pricing bases and draft estimates. After an upgrade, an older
 client must reload before sending a new save; already successful old requests can still be resolved.
 
 ## Delete an unwanted draft

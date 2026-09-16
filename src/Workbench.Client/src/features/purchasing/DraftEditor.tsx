@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { FloatingField } from '../../FloatingField';
 import { Icon } from '../../Icon';
 import { ApiError } from '../../api/auth';
@@ -9,7 +9,9 @@ import { DraftComparison } from './DraftComparison';
 import './purchasing.css';
 import { ClearPricesDialog } from './ClearPricesDialog';
 import { formatReferencePrice } from './referencePrice';
-import { ReferencePriceField } from './ReferencePriceField';
+import { DraftLineFields } from './DraftLineFields';
+import { emptyLine } from './draftLine';
+import { useDraftCalculation } from './useDraftCalculation';
 import { deleteDraft, type DeleteDraftRequest } from '../../api/purchaseOrders';
 import { DeleteDraftDialog } from './DeleteDraftDialog';
 
@@ -23,23 +25,10 @@ interface Props {
   onCreated(id: string): void;
   onCancel(): void;
 }
-const displayDraft = (draft: DraftContent): DraftContent => ({ ...draft, entries: draft.entries.map(entry => ({ ...entry, indicativePrice: formatReferencePrice(entry.indicativePrice) })) });
+const displayDraft = (draft: DraftContent): DraftContent => ({ ...draft, entries: draft.entries.map(entry => ({ ...entry, indicativePrice: formatReferencePrice(entry.indicativePrice), unitPrice: formatReferencePrice(entry.unitPrice) })) });
 const emptyDraft = (): DraftContent => ({ title: null, supplierName: null, supplierId: null, supplierContactName: null, supplierEmail: null, supplierPhone: null, supplierWebsite: null, supplierPostalAddress: null, supplierOrderReference: null, platform: null, currency: null, notes: null, sourceLinks: [], entries: [] });
 const fieldId = (path: string) => `po-${path.replace(/[^a-zA-Z0-9]/g, '-')}`;
 const optional = (text: string) => text === '' ? null : text;
-
-function EntryDetails({ populated, invalid, children }: { populated: boolean; invalid: boolean; children: ReactNode }) {
-  const [expanded, setExpanded] = useState(populated);
-  const [wasPopulated, setWasPopulated] = useState(populated);
-  if (populated !== wasPopulated) {
-    setWasPopulated(populated);
-    if (populated) setExpanded(true);
-  }
-  return <details className="po-entry-details" open={expanded || invalid} onToggle={event => setExpanded(event.currentTarget.open)}>
-    <summary>Notes and source</summary>
-    <div className="po-entry-secondary">{children}</div>
-  </details>;
-}
 
 export function DraftEditor({ id: initialId, onDirtyChange, onAuthLost, onSaved, onCreated, onCancel }: Props) {
   const [clearingSupplier, setClearingSupplier] = useState(false);
@@ -123,12 +112,13 @@ export function DraftEditor({ id: initialId, onDirtyChange, onAuthLost, onSaved,
   }, [draft.entries]);
   useEffect(() => { if (!clearingSupplier && focusSupplierSummary.current) { supplierSummary.current?.focus(); focusSupplierSummary.current = false; } }, [clearingSupplier]);
   const frozen = mode !== 'editing';
+  const calculation = useDraftCalculation(draft, !frozen, supplierAccessLost);
   const [undoBoundary, setUndoBoundary] = useState({ mode, currency: draft.currency });
   if (undoBoundary.mode !== mode || undoBoundary.currency !== draft.currency) {
     setUndoBoundary({ mode, currency: draft.currency });
     if (mode !== 'editing' || undoBoundary.currency !== draft.currency) setRemovedEntries([]);
   }
-  const hasPrices = draft.entries.some(entry => entry.indicativePrice !== null);
+  const hasPrices = draft.entries.some(entry => (entry.indicativePrice !== null || entry.unitPrice !== null));
   const currencyTransition = !!baseline?.draft.currency && (draft.currency?.trim().toUpperCase() ?? null) !== baseline.draft.currency;
 
   function accessFailure(error: unknown) {
@@ -250,8 +240,8 @@ export function DraftEditor({ id: initialId, onDirtyChange, onAuthLost, onSaved,
       </SupplierDialog> : null}
       {confirmingDelete && baseline && !frozen ? <DeleteDraftDialog title={baseline.draft.title ?? 'Untitled draft'}
         cancel={() => setConfirmingDelete(false)} confirm={() => void removeDraft()} /> : null}
-      {clearingPrices && !frozen ? <ClearPricesDialog count={draft.entries.filter(entry => entry.indicativePrice !== null).length} cancel={() => setClearingPrices(false)} clear={() => {
-        setDraft({ ...draft, entries: draft.entries.map(entry => ({ ...entry, indicativePrice: null })) });
+      {clearingPrices && !frozen ? <ClearPricesDialog count={draft.entries.filter(entry => (entry.indicativePrice !== null || entry.unitPrice !== null)).length} cancel={() => setClearingPrices(false)} clear={() => {
+        setDraft({ ...draft, entries: draft.entries.map(entry => ({ ...entry, indicativePrice: null, unitPrice: null })) });
         setClearingPrices(false);
       }} /> : null}
       <div ref={toolbarStart} className="po-toolbar-start" aria-hidden="true" />
@@ -334,25 +324,22 @@ export function DraftEditor({ id: initialId, onDirtyChange, onAuthLost, onSaved,
         </details>
         <section className="po-form-section" aria-labelledby="po-entries-heading">
           <div className="po-section-heading">
-            <div><h2 id="po-entries-heading">Shopping list</h2><p>Prices are reference amounts; no total is calculated.</p></div>
+            <div><h2 id="po-entries-heading">Order lines</h2><p>Keep what you are ordering separate from how it is priced.</p></div>
           </div>
           <div className="po-currency-row">
             {field('draft.currency', 'Currency', draft.currency, currency => setDraft({ ...draft, currency }), {
-              placeholder: 'Not set', disabled: hasPrices && !!baseline?.draft.currency,
+              placeholder: 'Not set', disabled: !!baseline?.draft.currency && baseline.draft.entries.some(entry => entry.indicativePrice !== null || entry.unitPrice !== null),
             })}
             <div className="po-field-help">
-              <p>Choose a three-letter currency when entering a price. Clear reference prices before changing currency.</p>
+              <p>Choose a three-letter currency when entering a price. Clear prices and save before changing currency.</p>
               {hasPrices ? (
-                <button className="quiet" type="button" disabled={frozen} onClick={() => setClearingPrices(true)}>Clear all reference prices</button>
+                <button className="quiet" type="button" disabled={frozen} onClick={() => setClearingPrices(true)}>Clear all prices</button>
               ) : null}
             </div>
           </div>
           {currencyTransition ? <p role="status">Save the changed currency with all prices cleared before entering new prices.</p> : null}
-          {draft.entries.length === 0 ? <p className="po-section-empty">Add an entry to start your shopping list. You can save an empty draft too.</p> : null}
+          {draft.entries.length === 0 ? <p className="po-section-empty">Add an entry to itemize your purchase. You can save an empty draft too.</p> : null}
           {draft.entries.map((entry, index) => {
-            const updateEntry = (key: keyof typeof entry, value: string | null) => setDraft({
-              ...draft, entries: draft.entries.map(old => old.id === entry.id ? { ...old, [key]: value } : old),
-            });
             return (
               <fieldset className="po-entry" key={entry.id} aria-labelledby={`po-entry-title-${entry.id}`}>
                 <div className="po-entry-heading">
@@ -365,20 +352,20 @@ export function DraftEditor({ id: initialId, onDirtyChange, onAuthLost, onSaved,
                     setDraft({ ...draft, entries });
                   }}>Remove entry {index + 1}</button>
                 </div>
-                <div className="po-header-fields">
-                  {field(`draft.entries[${index}].description`, `Description ${index + 1}`, entry.description, value => updateEntry('description', value))}
-                  <div className="po-entry-price"><ReferencePriceField id={fieldId(`draft.entries[${index}].indicativePrice`)} index={index + 1}
-                    value={entry.indicativePrice} onChange={value => updateEntry('indicativePrice', value)}
-                    disabled={frozen || currencyTransition} error={errors[`draft.entries[${index}].indicativePrice`]?.join(' ')} />
-                  {entry.indicativePrice === null ? <p className="po-price-state">Price: Unknown</p> : null}</div>
-                </div>
-                <EntryDetails populated={!!(entry.notes || entry.sourceLink)} invalid={!!(errors[`draft.entries[${index}].notes`] || errors[`draft.entries[${index}].sourceLink`])}>
-                  {field(`draft.entries[${index}].notes`, `Entry notes ${index + 1}`, entry.notes, value => updateEntry('notes', value), { multiline: true })}
-                  {field(`draft.entries[${index}].sourceLink`, `Entry source link ${index + 1}`, entry.sourceLink, value => updateEntry('sourceLink', value))}
-                </EntryDetails>
+                <DraftLineFields entry={entry} index={index + 1} errors={{ ...calculation.errors, ...errors }} disabled={frozen}
+                  priceDisabled={frozen || currencyTransition} currency={draft.currency}
+                  gross={calculation.result?.lines.find(line => line.id === entry.id)?.gross}
+                  change={patch => setDraft({ ...draft, entries: draft.entries.map(old => old.id === entry.id ? { ...old, ...patch } : old) })} />
               </fieldset>
             );
           })}
+          {draft.entries.length ? <div className="po-merchandise-estimate" aria-live="polite">
+            {calculation.result ? <>
+              <h3>{calculation.result.incompleteLineCount ? 'Known line subtotal' : 'Merchandise estimate'}</h3>
+              <p className="po-estimate-value">{calculation.result.merchandiseEstimate === null ? 'Unknown' : `${draft.currency} ${formatReferencePrice(calculation.result.merchandiseEstimate)}`}</p>
+              <p>{calculation.result.incompleteLineCount ? `${calculation.result.incompleteLineCount} lines need quantity or pricing details. ` : ''}Before discounts, shipping and tax.</p>
+            </> : calculation.message ? <><p>{calculation.message}</p><button type="button" className="quiet" disabled={frozen} onClick={calculation.retry}>Retry estimate</button></> : <p>{frozen ? 'Estimates resume when editing is available.' : 'Calculating estimate…'}</p>}
+          </div> : null}
           <div className="po-add-entry">
             {removedEntries.length ? <div className="po-removal-recovery"><p role="status">Entry removed. Undo is available until you save or change currency.</p><button className="quiet" type="button" disabled={frozen} onClick={() => {
               const removed = removedEntries[removedEntries.length - 1];
@@ -391,7 +378,7 @@ export function DraftEditor({ id: initialId, onDirtyChange, onAuthLost, onSaved,
             <button ref={addEntryButton} className="secondary" type="button" disabled={frozen} onClick={() => {
               const entryId = crypto.randomUUID();
               addedEntry.current = entryId;
-              setDraft({ ...draft, entries: [...draft.entries, { id: entryId, description: null, notes: null, sourceLink: null, indicativePrice: null }] });
+              setDraft({ ...draft, entries: [...draft.entries, emptyLine(entryId)] });
             }}><Icon name="plus" />Add entry</button>
           </div>
         </section>

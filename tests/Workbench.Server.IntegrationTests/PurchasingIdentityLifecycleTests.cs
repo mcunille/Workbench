@@ -12,8 +12,8 @@ namespace Workbench.Server.IntegrationTests;
 
 public sealed partial class PurchasingIdentityEndpointTests
 {
-    private const string DraftPath = "/api/v2/purchase-order-drafts";
-    private static DraftContentV2 Empty => new(null, null, null, null, [], [], null, null, null, null, null, null, null, null);
+    private const string DraftPath = "/api/v3/purchase-order-drafts";
+    private static DraftContentV3 Empty => new(null, null, null, null, [], [], null, null, null, null, null, null, null, null);
     private static SupplierContent Contact => new("Supplier", "Contact", "contact@example.test", "+1 555 0100 ext 2", "https://example.test", "Line one\nLine two");
     private static async Task<SaveSupplierResponse> SupplierSave(HttpClient client, SupplierContent? content = null)
     {
@@ -21,13 +21,13 @@ public sealed partial class PurchasingIdentityEndpointTests
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
         return (await response.Content.ReadFromJsonAsync<SaveSupplierResponse>())!;
     }
-    private static async Task<SaveDraftOrderResponse> DraftSave(HttpClient client, DraftContentV2 draft)
+    private static async Task<SaveDraftOrderResponse> DraftSave(HttpClient client, DraftContentV3 draft)
     {
-        var response = await SendAsync(client, HttpMethod.Post, DraftPath, new CreateDraftOrderRequestV2(Guid.NewGuid(), draft));
+        var response = await SendAsync(client, HttpMethod.Post, DraftPath, new CreateDraftOrderRequestV3(Guid.NewGuid(), draft));
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
         return (await response.Content.ReadFromJsonAsync<SaveDraftOrderResponse>())!;
     }
-    private static Task<DraftOrderResponseV2?> Read(HttpClient client, Guid id) => client.GetFromJsonAsync<DraftOrderResponseV2>($"{DraftPath}/{id}");
+    private static Task<DraftOrderResponseV3?> Read(HttpClient client, Guid id) => client.GetFromJsonAsync<DraftOrderResponseV3>($"{DraftPath}/{id}");
     [Fact]
     public async Task DirectoryEditsAndArchiveLeaveSavedSnapshotsAndPlatformsIndependent()
     {
@@ -50,9 +50,9 @@ public sealed partial class PurchasingIdentityEndpointTests
         Assert.Empty((await client.GetFromJsonAsync<SupplierPageResponse>("/api/suppliers"))!.Items);
         Assert.Single((await client.GetFromJsonAsync<SupplierPageResponse>("/api/suppliers?includeArchived=true"))!.Items);
         // AND existing links remain editable, but new links to archived suppliers are refused.
-        var update = await SendAsync(client, HttpMethod.Put, $"{DraftPath}/{first.DraftOrderId}", new UpdateDraftOrderRequestV2(Guid.NewGuid(), saved.Version, draft with { Platform = "Retail" }));
+        var update = await SendAsync(client, HttpMethod.Put, $"{DraftPath}/{first.DraftOrderId}", new UpdateDraftOrderRequestV3(Guid.NewGuid(), saved.Version, draft with { Platform = "Retail" }));
         Assert.Equal(HttpStatusCode.OK, update.StatusCode);
-        var rejected = await SendAsync(client, HttpMethod.Post, DraftPath, new CreateDraftOrderRequestV2(Guid.NewGuid(), draft));
+        var rejected = await SendAsync(client, HttpMethod.Post, DraftPath, new CreateDraftOrderRequestV3(Guid.NewGuid(), draft));
         Assert.Equal(HttpStatusCode.Conflict, rejected.StatusCode);
         Assert.Equal("supplier_selection_conflict", (await rejected.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("code").GetString());
     }
@@ -139,3 +139,4 @@ public sealed partial class PurchasingIdentityEndpointTests
         Assert.Equal(contact, (await client.GetFromJsonAsync<SupplierResponse>($"/api/suppliers/{saved.SupplierId}"))!.Supplier);
     }
 }
+

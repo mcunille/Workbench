@@ -16,7 +16,7 @@ for (const width of [320, 390, 600, 1440]) test(`purchase-order search keeps res
   const top = (await panel.boundingBox())!.y;
   let release!: () => void;
   const delayed = new Promise<void>(resolve => { release = resolve; });
-  await page.route('**/api/v2/purchase-order-drafts?*', async route => {
+  await page.route('**/api/v3/purchase-order-drafts?*', async route => {
     await delayed;
     await route.continue();
   });
