@@ -41,4 +41,44 @@ try {
     Assert-Fails { Complete-VerificationStages -Stages @($jobs[0]) -RequiredNames @('good', 'bad') } 'missing|Missing'
     Assert-Fails { Complete-VerificationStages -Stages @($jobs[0], $jobs[0]) -RequiredNames @('good') } 'Duplicate|duplicate'
 } finally { $jobs | ForEach-Object { Remove-Job -Job $_.Job -Force -ErrorAction SilentlyContinue } }
+# GIVEN a first stage waiting for evidence that a later failure has been reported.
+$coordinationRoot = Join-Path ([IO.Path]::GetTempPath()) ([Guid]::NewGuid().ToString('N'))
+New-Item -ItemType Directory -Path $coordinationRoot | Out-Null
+$releasePath = Join-Path $coordinationRoot 'failure-reported'
+$completionPath = Join-Path $coordinationRoot 'slow-completed'
+$timingPath = Join-Path $coordinationRoot 'timings.json'
+$coordinated = @()
+function Write-Host {
+    param([Parameter(ValueFromRemainingArguments)]$Object)
+    if (($Object -join ' ') -match 'fast_failure: success=False') {
+        Set-Content -LiteralPath $releasePath -Value 'reported'
+    }
+    Microsoft.PowerShell.Utility\Write-Host @Object
+}
+try {
+    $coordinated += Start-VerificationStage -Name slow_first -RepositoryRoot $root -Arguments @($releasePath, $completionPath) -Action {
+        param($release, $completed)
+        $watchdog = [Diagnostics.Stopwatch]::StartNew()
+        while (-not (Test-Path -LiteralPath $release)) {
+            if ($watchdog.Elapsed.TotalSeconds -gt 10) { throw 'Later failure was hidden behind the first stage.' }
+            Start-Sleep -Milliseconds 20
+        }
+        Set-Content -LiteralPath $completed -Value 'completed'
+    }
+    $coordinated += Start-VerificationStage -Name fast_failure -RepositoryRoot $root -Action { throw 'deliberate coordinated failure' }
+    # WHEN joining THEN the failure is reported before waiting for the first stage, without abandoning it.
+    Assert-Fails { Complete-VerificationStages -Stages $coordinated -RequiredNames @('slow_first', 'fast_failure') -TimingPath $timingPath } 'fast_failure'
+    if (-not (Test-Path -LiteralPath $completionPath)) { throw 'Fast failure was not reported while the slow stage was still running.' }
+    # AND complete timing receipts retain both the successful stage and the failed stage.
+    $timings = @(Get-Content -LiteralPath $timingPath -Raw | ConvertFrom-Json)
+    if ($timings.Count -ne 2 -or ($timings | Where-Object Stage -eq 'slow_first').Succeeded -ne $true -or
+        ($timings | Where-Object Stage -eq 'fast_failure').Succeeded -ne $false -or
+        @($coordinated | Where-Object { $_.Job.State -ne 'Completed' }).Count) { throw 'Joining did not preserve all stage completion evidence.' }
+}
+finally {
+    Remove-Item Function:\Write-Host
+    $coordinated | ForEach-Object { Remove-Job -Job $_.Job -Force -ErrorAction SilentlyContinue }
+    Remove-Item -LiteralPath $releasePath, $completionPath, $timingPath -Force -ErrorAction SilentlyContinue
+    Remove-Item -LiteralPath $coordinationRoot -Force
+}
 Write-Host 'Verification stage and aggregate failure contracts passed.'

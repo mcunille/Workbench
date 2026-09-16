@@ -120,6 +120,7 @@ jobs:
             artifacts/verification/**/*.trx
             artifacts/verification/**/test.log
             artifacts/verification/**/discovery.log
+            artifacts/browser/results.json
 
   container-smoke:
     name: Hardened container smoke

@@ -66,7 +66,7 @@ export function SupplierList({ memory: suppliedMemory, follow, onSelect, onAuthL
       {!onSelect ? <label className="po-archive-filter"><input type="checkbox" checked={archived} onChange={event => { setArchived(event.target.checked); void load(false, query.trim(), event.target.checked); }} />Include archived suppliers</label> : null}
     </form>
     <div className="po-list-toolbar po-draft-results-toolbar po-supplier-results-toolbar">
-      <div className="po-draft-result-context"><p className="po-list-caption">{loadedQuery ? 'Matching suppliers' : archived ? 'All suppliers' : 'Active suppliers'}</p>
+      <div className="po-draft-result-context">
         <div className="po-draft-progress"><span className="po-supplier-progress-space" aria-hidden="true">{loadingSuppliers}</span><p role="status" aria-live="polite" aria-atomic="true" className={pending ? undefined : 'po-accessible-heading'}>{pending ? loadingSuppliers : message || !page ? '' : page.items.length === 0 ? loadedQuery ? 'No matching suppliers.' : 'No suppliers yet.' : `Suppliers shown: ${page.items.length.toLocaleString()}.${page.nextCursor ? ' More available.' : ''}`}</p></div>
       </div>
       <button className={`quiet po-draft-clear${query || loadedQuery ? '' : ' is-unavailable'}`} type="button" disabled={!query && !loadedQuery} aria-hidden={!query && !loadedQuery} onClick={() => { searchInput.current?.focus(); setQuery(''); void load(false, '', archived); }}>Clear search</button>
