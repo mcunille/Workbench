@@ -7,29 +7,13 @@ signing out and signing back in. All records belong to the signed-in business.
 
 ## Itemize a purchase
 
-Keep an optional title, supplier details, notes and source links together. Under **Order lines**, add
-lines with a description, ordered quantity and unit, unit price and pricing basis. Optional line
-details include supplier SKU, item type, notes and a source link. Incomplete lines and empty drafts
-remain saveable; they do not commit a purchase.
+Keep an optional title, supplier details, notes and source links together. Under **Order lines**, add a description and one quantity and unit matching how the supplier charges. Optional details include supplier SKU, item type, notes and a source link. Incomplete lines and empty drafts remain saveable; they do not commit a purchase.
 
-Quantity and price basis are separate. Ten pieces, ten carats and one parcel do not mean the same
-thing. Quantities and pricing bases start blank; selecting an ordered unit does not fill them.
-Choose each unit and quantity explicitly. Use **Per quantity** for prices
-such as USD 8 per 100 pieces. If the pricing unit differs, enter **Total quantity priced**: ten
-stones totaling 12.5 carats at USD 20 per carat have a line estimate of USD 250.00. Workbench does
-not infer weight from count or automatically convert units. Ounce and troy ounce are distinct.
+Choose **Per unit** or **Total line** pricing. Per unit multiplies quantity by unit price: 12.5 carats at USD 20 produces USD 250.00. Total line records the supplier's amount directly and does not require quantity or unit to calculate. There is no separate ordered count, pricing unit, batch denominator or priced quantity. A quote of USD 8 per 100 pieces can be entered as USD 0.08 per piece, or as the total for the line. Workbench does not convert between units; ounce and troy ounce are distinct.
 
-Quantities and pricing denominators must be positive, with up to nine integer digits and four
-fractional digits. Fractional quantities are allowed, including parcels and packs. Unit prices are
-nonnegative, with up to fifteen integer digits and four fractional digits. Blank means **Unknown**;
-an explicit zero remains zero. Choose one three-letter currency whenever entering a price.
+New quantities and prices start blank. Quantities must be positive, with up to nine integer digits and four fractional digits, including fractional parcels and packs. Prices are nonnegative; blank means **Unknown**, and explicit zero remains zero. Unit prices allow fifteen integer digits and total-line prices nineteen, each with up to four fractional digits. Choose one three-letter currency whenever entering a price. Switching pricing mode keeps the entered number and changes how it is applied; check the updated line estimate before saving.
 
-The server calculates each complete line as priced quantity × unit price / per quantity, rounded
-once to four decimal places, with exact halfway values rounded up. The **Merchandise estimate**
-sums those line amounts before discounts, shipping and tax. If any line lacks quantity or pricing
-details, **Known line subtotal** identifies the incomplete lines. No known amounts displays Unknown,
-not zero. This is a draft estimate, not an invoice amount or balance due. Pending calculations hide
-older figures; failed calculations keep input and offer retry. Saving is independent of the preview.
+The server calculates line amounts with exact arithmetic, rounding once to four decimal places with halfway values rounded up. **Merchandise estimate** sums known line amounts before discounts, shipping and tax. If any line is incomplete, **Known line subtotal** identifies that limitation. No known amounts displays Unknown, not zero. This is a draft estimate, not an invoice amount or balance due. Pending calculations hide older figures; failed calculations keep input and offer retry. Saving is independent of the preview.
 
 Price entry starts with a `0.00` placeholder: digits fill from the right (`1` → `0.01`, `12` → `0.12`,
 `123` → `1.23`). An untouched or cleared field remains Unknown. Choose **Use extra precision** to
@@ -44,11 +28,11 @@ and validation reveals fields that need attention. **Add line** is available abo
 list. Saved, unsaved, saving and uncertain-save feedback stays beside **Save draft** while scrolling;
 the header retains the last-saved timestamp. Collapsing a line does not save or discard its input.
 
-Older saved reference prices remain labeled **Reference price — basis not recorded**. They do not
-contribute to estimates. **Use as unit price** moves the amount into unit pricing locally; supply
-its basis and save explicitly. No quantity or pricing meaning is inferred from old notes.
+Older complete quotes are presented on the supplier's pricing basis without changing their totals. Exact batch prices become per-unit prices; a rate that cannot be represented exactly becomes a total-line price. Reading a draft does not save these changes.
 
-**Clear all prices** asks for confirmation and retains quantities, bases, metadata and currency.
+Older reference prices remain labelled **Reference price — basis not recorded** and do not contribute to estimates until you choose **Use as unit price** or **Use as total line price**. Incomplete older quotes retain a read-only summary under **Previous pricing needs review**; choose **Replace previous pricing** to enter a new price. Saving unrelated edits retains unresolved quotes.
+
+**Clear all prices** asks for confirmation and clears current prices and retained legacy quotes. It retains the current quantities, units, metadata and currency.
 Cancel or Escape preserves the amounts. Save the cleared draft before changing its currency, then
 save the changed currency before entering new prices. Workbench never converts or relabels amounts.
 Removal offers Undo until saving begins or the currency changes. Save failures preserve your input.
@@ -115,7 +99,7 @@ The [PO-01 design](specs/2026-09-11-po-01-draft-supplier-orders.md) specifies li
 versions, and verification requirements. Existing collection and acquisition workflows remain
 independent of purchasing.
 The [PO-02 design](specs/2026-09-11-po-02-supplier-identity-and-references.md) extends those contracts
-with supplier snapshots, per-order platforms and permanent references. The [PO-03 design](specs/2026-09-16-po-03-itemized-quantities-and-prices.md) adds structured quantities, pricing bases and draft estimates. After an upgrade, an older
+with supplier snapshots, per-order platforms and permanent references. The [PO-03 design](specs/2026-09-16-po-03-itemized-quantities-and-prices.md) adds structured quantities and draft estimates; the [supplier-based pricing follow-up](specs/2026-09-16-supplier-based-po-pricing.md) simplifies each line to one quantity/unit and per-unit or total-line pricing. After an upgrade, an older
 client must reload before sending a new save; already successful old requests can still be resolved.
 
 ## Delete an unwanted draft

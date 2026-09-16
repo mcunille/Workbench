@@ -276,6 +276,7 @@ app.MapWorkbenchInventory();
 app.MapPurchaseOrderDrafts();
 app.MapPurchaseOrderDraftsV2();
 app.MapPurchaseOrderDraftsV3();
+app.MapPurchaseOrderDraftsV4();
 app.MapSuppliers();
 app.MapWorkbenchRecovery();
 app.MapTenantUserAdministration();

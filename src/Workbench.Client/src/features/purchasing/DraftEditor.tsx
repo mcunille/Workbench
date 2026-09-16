@@ -11,7 +11,7 @@ import { ClearPricesDialog } from './ClearPricesDialog';
 import { formatReferencePrice } from './referencePrice';
 import { DraftLineFields } from './DraftLineFields';
 import { DraftLine } from './DraftLineDisclosure';
-import { emptyLine, formatQuantity } from './draftLine';
+import { emptyLine, formatQuantity, hasLinePrice } from './draftLine';
 import { useDraftCalculation } from './useDraftCalculation';
 import { deleteDraft, type DeleteDraftRequest } from '../../api/purchaseOrders';
 import { DeleteDraftDialog } from './DeleteDraftDialog';
@@ -26,7 +26,7 @@ interface Props {
   onCreated(id: string): void;
   onCancel(): void;
 }
-const displayDraft = (draft: DraftContent): DraftContent => ({ ...draft, entries: draft.entries.map(entry => ({ ...entry, quantity: formatQuantity(entry.quantity), pricePerQuantity: formatQuantity(entry.pricePerQuantity), pricingQuantity: formatQuantity(entry.pricingQuantity), indicativePrice: formatReferencePrice(entry.indicativePrice), unitPrice: formatReferencePrice(entry.unitPrice) })) });
+const displayDraft = (draft: DraftContent): DraftContent => ({ ...draft, entries: draft.entries.map(entry => ({ ...entry, quantity: formatQuantity(entry.quantity), indicativePrice: formatReferencePrice(entry.indicativePrice), price: formatReferencePrice(entry.price) })) });
 const emptyDraft = (): DraftContent => ({ title: null, supplierName: null, supplierId: null, supplierContactName: null, supplierEmail: null, supplierPhone: null, supplierWebsite: null, supplierPostalAddress: null, supplierOrderReference: null, platform: null, currency: null, notes: null, sourceLinks: [], entries: [] });
 const fieldId = (path: string) => `po-${path.replace(/[^a-zA-Z0-9]/g, '-')}`;
 const optional = (text: string) => text === '' ? null : text;
@@ -121,7 +121,7 @@ export function DraftEditor({ id: initialId, onDirtyChange, onAuthLost, onSaved,
     setUndoBoundary({ mode, currency: draft.currency });
     if (mode !== 'editing' || undoBoundary.currency !== draft.currency) setRemovedEntries([]);
   }
-  const hasPrices = draft.entries.some(entry => (entry.indicativePrice !== null || entry.unitPrice !== null));
+  const hasPrices = draft.entries.some(hasLinePrice);
   const currencyTransition = !!baseline?.draft.currency && (draft.currency?.trim().toUpperCase() ?? null) !== baseline.draft.currency;
 
   function accessFailure(error: unknown) {
@@ -252,8 +252,8 @@ export function DraftEditor({ id: initialId, onDirtyChange, onAuthLost, onSaved,
       </SupplierDialog> : null}
       {confirmingDelete && baseline && !frozen ? <DeleteDraftDialog title={baseline.draft.title ?? 'Untitled draft'}
         cancel={() => setConfirmingDelete(false)} confirm={() => void removeDraft()} /> : null}
-      {clearingPrices && !frozen ? <ClearPricesDialog count={draft.entries.filter(entry => (entry.indicativePrice !== null || entry.unitPrice !== null)).length} cancel={() => setClearingPrices(false)} clear={() => {
-        setDraft({ ...draft, entries: draft.entries.map(entry => ({ ...entry, indicativePrice: null, unitPrice: null })) });
+      {clearingPrices && !frozen ? <ClearPricesDialog count={draft.entries.filter(hasLinePrice).length} cancel={() => setClearingPrices(false)} clear={() => {
+        setDraft({ ...draft, entries: draft.entries.map(entry => ({ ...entry, indicativePrice: null, price: null, legacyPricing: null })) });
         setClearingPrices(false);
       }} /> : null}
       <div ref={toolbarStart} className="po-toolbar-start" aria-hidden="true" />
@@ -341,7 +341,7 @@ export function DraftEditor({ id: initialId, onDirtyChange, onAuthLost, onSaved,
           </div>
           <div className="po-currency-row">
             {field('draft.currency', 'Currency', draft.currency, currency => setDraft({ ...draft, currency }), {
-              placeholder: 'Not set', disabled: !!baseline?.draft.currency && baseline.draft.entries.some(entry => entry.indicativePrice !== null || entry.unitPrice !== null),
+              placeholder: 'Not set', disabled: !!baseline?.draft.currency && baseline.draft.entries.some(hasLinePrice),
             })}
             <div className="po-field-help">
               <p>Prices use this currency. Clear prices and save before changing it.</p>

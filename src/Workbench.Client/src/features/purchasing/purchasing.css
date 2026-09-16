@@ -253,8 +253,8 @@
 .po-supplier-summary-copy { flex: 1; min-width: 0; }
 .po-supplier-summary-row > button { flex-shrink: 0; }
 
-.po-line-quantity, .po-priced-quantity { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; gap: 1rem; }
-.po-line-pricing { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) minmax(0, 1fr); align-items: start; gap: 1rem; }
+.po-line-quantity { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; gap: 1rem; }
+.po-line-pricing { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; gap: 1rem; }
 .po-unit-field select { min-width: 0; width: 100%; min-height: 3rem; }
 .po-line-quantity .floating-field, .po-line-pricing .floating-field { margin-top: 0; }
 .po-line-estimate { display: flex; justify-content: space-between; align-items: baseline; gap: .5rem 1rem; flex-wrap: wrap; padding-top: .75rem; border-top: 1px solid var(--border-subtle); font-variant-numeric: tabular-nums; }
@@ -264,9 +264,16 @@
 .po-merchandise-estimate h3 { margin: 0; font-size: 1rem; font-weight: 500; }
 .po-merchandise-estimate p { margin: .375rem 0 0; color: var(--muted); font-size: .875rem; }
 .po-merchandise-estimate .po-estimate-value { color: var(--text); font-size: 1.25rem; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
-.po-priced-quantity { align-items: center; }
+
 .po-legacy-price { max-width: 32rem; }
 .po-legacy-price > p { color: var(--muted); font-size: .875rem; margin-block: .5rem; }
 @media (max-width: 700px) {
-  .po-line-quantity, .po-line-pricing, .po-priced-quantity { grid-template-columns: minmax(0, 1fr); }
+  .po-line-quantity, .po-line-pricing { grid-template-columns: minmax(0, 1fr); }
 }
+
+.po-pricing-mode { min-width: 0; margin: 0; padding: 0; border: 0; }
+.po-pricing-mode > legend { padding: 0; font-size: .875rem; font-weight: 500; }
+.po-pricing-options { display: flex; flex-wrap: wrap; gap: .5rem 1rem; margin-block: .25rem; }
+.po-pricing-options > label { display: inline-flex; align-items: center; gap: .5rem; min-height: 44px; cursor: pointer; }
+.po-pricing-options input { width: 1rem; height: 1rem; min-height: 1rem; margin: 0; accent-color: var(--focus); }
+.po-legacy-price .po-comparison-details { margin-block: .75rem; }

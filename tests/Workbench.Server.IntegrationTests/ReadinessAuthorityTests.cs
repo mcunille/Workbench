@@ -14,7 +14,9 @@ public sealed class ReadinessAuthorityTests(SqlServerFixture sqlServer)
 {
     [Theory]
     [InlineData("REVOKE EXECUTE ON [Purchasing].[CreateDraftOrderV3] FROM [workbench_web]")]
+    [InlineData("REVOKE EXECUTE ON [Purchasing].[CreateDraftOrderV4] FROM [workbench_web]")]
     [InlineData("REVOKE EXECUTE ON [Purchasing].[UpdateDraftOrderV3] FROM [workbench_web]")]
+    [InlineData("REVOKE EXECUTE ON [Purchasing].[UpdateDraftOrderV4] FROM [workbench_web]")]
     [InlineData("REVOKE EXECUTE ON [Purchasing].[CreateDraftOrderV2] FROM [workbench_web]")]
     [InlineData("REVOKE EXECUTE ON [Purchasing].[UpdateDraftOrderV2] FROM [workbench_web]")]
     [InlineData("REVOKE EXECUTE ON [Purchasing].[SaveSupplier] FROM [workbench_web]")]

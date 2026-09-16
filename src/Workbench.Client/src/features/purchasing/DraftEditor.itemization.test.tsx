@@ -5,32 +5,48 @@ import { createDraft, getDraft, calculateDraft, DraftError } from '../../api/pur
 vi.mock('../../api/purchaseOrders', async original => ({ ...await original<typeof import('../../api/purchaseOrders')>(), createDraft: vi.fn(), getDraft: vi.fn(), calculateDraft: vi.fn() }));
 beforeEach(() => { vi.mocked(createDraft).mockReset(); vi.mocked(getDraft).mockReset(); vi.mocked(calculateDraft).mockResolvedValue({ lines: [], incompleteLineCount: 1, merchandiseEstimate: null }); Object.defineProperty(HTMLDialogElement.prototype, 'showModal', { configurable: true, value(this: HTMLDialogElement) { this.setAttribute('open', ''); } }); });
 const props = () => ({ onDirtyChange: vi.fn(), onAuthLost: vi.fn(), onSaved: vi.fn(), onCancel: vi.fn(), onCreated: vi.fn() });
-it('keeps ordered pieces separate from the total carat weight used for pricing', async () => {
-  // GIVEN an owner entering ten stones priced by weight.
+it('records supplier quantities once and saves either unit or total line pricing', async () => {
+  // GIVEN a supplier quote per carat.
   vi.mocked(createDraft).mockRejectedValue(new DraftError(400));
   render(<DraftEditor {...props()} />);
   fireEvent.click(screen.getAllByRole('button', { name: 'Add line' })[0]);
-  fireEvent.change(screen.getByLabelText('Description 1'), { target: { value: 'Ten sapphires' } });
-  fireEvent.change(screen.getByLabelText('Quantity 1'), { target: { value: '10' } });
-  fireEvent.change(screen.getByLabelText('Unit 1'), { target: { value: 'piece' } });
-  // THEN the pricing basis stays blank until stated explicitly.
-  expect(screen.getByLabelText('Pricing unit 1')).toHaveValue('');
-  expect(screen.getByLabelText('Per quantity 1')).toHaveValue('');
-  fireEvent.change(screen.getByLabelText('Per quantity 1'), { target: { value: '1' } });
-  // WHEN the owner states a different pricing unit and its total quantity.
-  fireEvent.change(screen.getByLabelText('Pricing unit 1'), { target: { value: 'carat' } });
-  fireEvent.change(screen.getByLabelText('Total quantity priced 1'), { target: { value: '12.5' } });
+  fireEvent.change(screen.getByLabelText('Description 1'), { target: { value: 'Sapphires' } });
+  fireEvent.change(screen.getByLabelText('Quantity 1'), { target: { value: '12.5' } });
+  fireEvent.change(screen.getByLabelText('Unit 1'), { target: { value: 'carat' } });
   fireEvent.change(screen.getByLabelText('Currency'), { target: { value: 'USD' } });
   fireEvent.change(screen.getByLabelText('Unit price 1'), { target: { value: '2000' } });
+  // THEN there is one quantity and unit, with no separate pricing basis.
+  expect(screen.getByRole('radio', { name: 'Per unit 1' })).toBeChecked();
+  for (const name of ['Pricing unit 1', 'Per quantity 1', 'Total quantity priced 1']) expect(screen.queryByLabelText(name)).not.toBeInTheDocument();
+  // WHEN saving THEN the supplier basis is explicit.
   fireEvent.click(screen.getByRole('button', { name: 'Save draft' }));
-  // THEN both meanings survive the save boundary without conversion.
   await waitFor(() => expect(createDraft).toHaveBeenCalled());
-  expect(vi.mocked(createDraft).mock.calls.at(-1)![0].draft.entries[0]).toMatchObject({ quantity: '10', unitOfMeasure: 'piece', pricingUnit: 'carat', pricingQuantity: '12.5', pricePerQuantity: '1', unitPrice: '20.00', indicativePrice: null });
+  expect(vi.mocked(createDraft).mock.calls.at(-1)![0].draft.entries[0]).toMatchObject({ quantity: '12.5', unitOfMeasure: 'carat', priceMode: 'perUnit', price: '20.00', indicativePrice: null, legacyPricing: null });
 });
 
-it('preserves a legacy reference amount until the owner explicitly supplies its meaning', async () => {
+it('allows total line pricing without quantity and retains the amount when switching modes', async () => {
+  // GIVEN a fixed supplier quote whose quantity and unit are unknown.
+  vi.mocked(createDraft).mockRejectedValue(new DraftError(400));
+  render(<DraftEditor {...props()} />);
+  fireEvent.click(screen.getAllByRole('button', { name: 'Add line' })[0]);
+  fireEvent.change(screen.getByLabelText('Currency'), { target: { value: 'USD' } });
+  fireEvent.change(screen.getByLabelText('Unit price 1'), { target: { value: '25000' } });
+  // WHEN changing the interpretation THEN the amount is retained and clearly relabelled.
+  fireEvent.click(screen.getByRole('radio', { name: 'Total line 1' }));
+  expect(screen.getByLabelText('Total line price 1')).toHaveValue('250.00');
+  expect(screen.queryByLabelText('Unit price 1')).not.toBeInTheDocument();
+  expect(screen.getByLabelText('Quantity 1')).toHaveValue('');
+  fireEvent.click(screen.getByRole('button', { name: 'Save draft' }));
+  // THEN a fixed quote can be saved without invented units.
+  await waitFor(() => expect(createDraft).toHaveBeenCalled());
+  expect(vi.mocked(createDraft).mock.calls.at(-1)![0].draft.entries[0]).toMatchObject({ quantity: null, unitOfMeasure: null, priceMode: 'lineTotal', price: '250.00' });
+  fireEvent.click(screen.getByRole('radio', { name: 'Per unit 1' }));
+  expect(screen.getByLabelText('Unit price 1')).toHaveValue('250.00');
+});
+
+it.each(['perUnit', 'lineTotal'])('preserves a legacy reference until the owner explicitly adopts %s pricing', async mode => {
   // GIVEN an older saved line with a basisless reference price.
-  const content = { title: null, supplierName: null, supplierId: null, supplierContactName: null, supplierEmail: null, supplierPhone: null, supplierWebsite: null, supplierPostalAddress: null, supplierOrderReference: null, platform: null, currency: 'USD', notes: null, sourceLinks: [], entries: [{ id: 'line', description: 'Parcel', indicativePrice: '300.0000', notes: null, sourceLink: null, quantity: null, unitOfMeasure: null, unitPrice: null, pricingUnit: null, pricePerQuantity: null, pricingQuantity: null, supplierSku: 'P-31', itemType: 'Gemstone' }] };
+  const content = { title: null, supplierName: null, supplierId: null, supplierContactName: null, supplierEmail: null, supplierPhone: null, supplierWebsite: null, supplierPostalAddress: null, supplierOrderReference: null, platform: null, currency: 'USD', notes: null, sourceLinks: [], entries: [{ id: 'line', description: 'Parcel', indicativePrice: '300.0000', notes: null, sourceLink: null, quantity: null, unitOfMeasure: null, priceMode: 'perUnit', price: null, legacyPricing: null, supplierSku: 'P-31', itemType: 'Gemstone' }] };
   vi.mocked(getDraft).mockResolvedValue({ id: 'draft', draft: content, version: 'version', createdAtUtc: '2026-09-16', updatedAtUtc: '2026-09-16', supplierIsArchived: false, poReference: 'PO-000001', calculation: { lines: [{ id: 'line', gross: null }], incompleteLineCount: 1, merchandiseEstimate: null } });
   render(<DraftEditor {...props()} id="draft" />);
   // THEN the reference is visible without invented quantity or unit price.
@@ -41,9 +57,10 @@ it('preserves a legacy reference amount until the owner explicitly supplies its 
   expect(screen.queryByLabelText('Unit price 1')).not.toBeInTheDocument();
   expect(screen.getByLabelText('Supplier SKU 1')).toBeVisible();
   // WHEN the owner chooses the meaning THEN conversion remains local and incomplete.
-  fireEvent.click(screen.getByRole('button', { name: 'Use as unit price' }));
-  expect(screen.getByLabelText('Unit price 1')).toHaveValue('300.00');
-  expect(screen.getByLabelText('Pricing unit 1')).toHaveValue('');
+  fireEvent.click(screen.getByRole('button', { name: mode === 'perUnit' ? 'Use as unit price' : 'Use as total line price' }));
+  expect(screen.getByLabelText(mode === 'perUnit' ? 'Unit price 1' : 'Total line price 1')).toHaveValue('300.00');
+  await waitFor(() => expect(vi.mocked(calculateDraft).mock.calls.at(-1)![0].entries[0]).toMatchObject({ priceMode: mode, price: '300.00', indicativePrice: null }));
+  expect(screen.getByLabelText('Unit 1')).toHaveValue('');
   expect(screen.queryByLabelText('Reference price 1')).not.toBeInTheDocument();
   expect(createDraft).not.toHaveBeenCalled();
 });
@@ -53,7 +70,6 @@ it('clears prices after confirmation while preserving quantities, basis and opti
   fireEvent.click(screen.getAllByRole('button', { name: 'Add line' })[0]);
   fireEvent.change(screen.getByLabelText('Quantity 1'), { target: { value: '250' } });
   fireEvent.change(screen.getByLabelText('Unit 1'), { target: { value: 'piece' } });
-  fireEvent.change(screen.getByLabelText('Per quantity 1'), { target: { value: '100' } });
   fireEvent.change(screen.getByLabelText('Unit price 1'), { target: { value: '800' } });
   fireEvent.change(screen.getByLabelText('Supplier SKU 1'), { target: { value: 'SET-9' } });
   // WHEN clearing is cancelled THEN the price stays; confirmation clears only the amount.
@@ -64,7 +80,7 @@ it('clears prices after confirmation while preserving quantities, basis and opti
   fireEvent.click(screen.getByRole('button', { name: /^Clear prices$/ }));
   expect(screen.getByLabelText('Unit price 1')).toHaveValue('');
   expect(screen.getByLabelText('Quantity 1')).toHaveValue('250');
-  expect(screen.getByLabelText('Per quantity 1')).toHaveValue('100');
+  expect(screen.getByLabelText('Unit 1')).toHaveValue('piece');
   expect(screen.getByLabelText('Supplier SKU 1')).toHaveValue('SET-9');
 });
 it('shows authoritative preview errors on order fields and in the linked summary', async () => {
@@ -86,7 +102,7 @@ it('combines native unit selectors with their accessible labels', () => {
   render(<DraftEditor {...props()} />);
   fireEvent.click(screen.getAllByRole('button', { name: 'Add line' })[0]);
   // WHEN choosing units THEN both selectors use the shared combined label control.
-  for (const name of ['Description 1', 'Quantity 1', 'Unit 1', 'Unit price 1', 'Per quantity 1', 'Pricing unit 1']) {
+  for (const name of ['Description 1', 'Quantity 1', 'Unit 1', 'Unit price 1']) {
     const control = screen.getByLabelText(name);
     expect(control.closest('.floating-field')).not.toBeNull();
     expect(control).toHaveAccessibleName(name);
@@ -102,13 +118,13 @@ it('keeps quantity inputs blank after a unit is chosen', () => {
   // WHEN its ordered unit is chosen THEN no quantity or pricing basis is invented.
   fireEvent.change(screen.getByLabelText('Unit 1'), { target: { value: 'piece' } });
   expect(screen.getByLabelText('Quantity 1')).toHaveValue('');
-  expect(screen.getByLabelText('Per quantity 1')).toHaveValue('');
-  expect(screen.getByLabelText('Pricing unit 1')).toHaveValue('');
+  expect(screen.queryByLabelText('Per quantity 1')).not.toBeInTheDocument();
+  expect(screen.queryByLabelText('Pricing unit 1')).not.toBeInTheDocument();
 });
 
 it('opens saved lines as readable summaries and keeps save state beside its action', async () => {
   // GIVEN a saved order with populated optional metadata.
-  const entry = { id: 'line', description: 'Blue sapphires', indicativePrice: null, notes: null, sourceLink: null, quantity: '10.0000', unitOfMeasure: 'piece', unitPrice: '20.0000', pricingUnit: 'carat', pricePerQuantity: '1.0000', pricingQuantity: '12.5000', supplierSku: 'SAP-10', itemType: 'Gemstone' };
+  const entry = { id: 'line', description: 'Blue sapphires', indicativePrice: null, notes: null, sourceLink: null, quantity: '12.5000', unitOfMeasure: 'carat', priceMode: 'perUnit', price: '20.0000', legacyPricing: null, supplierSku: 'SAP-10', itemType: 'Gemstone' };
   const content = { title: 'Sample', supplierName: null, supplierId: null, supplierContactName: null, supplierEmail: null, supplierPhone: null, supplierWebsite: null, supplierPostalAddress: null, supplierOrderReference: null, platform: null, currency: 'USD', notes: null, sourceLinks: [], entries: [entry] };
   vi.mocked(getDraft).mockResolvedValue({ id: 'draft', draft: content, version: 'v1', createdAtUtc: '2026-09-16', updatedAtUtc: '2026-09-16', supplierIsArchived: false, poReference: 'PO-000001', calculation: { lines: [{ id: 'line', gross: '250.0000' }], incompleteLineCount: 0, merchandiseEstimate: '250.0000' } });
   render(<DraftEditor {...props()} id="draft" />);
@@ -116,14 +132,55 @@ it('opens saved lines as readable summaries and keeps save state beside its acti
   const summary = await screen.findByLabelText(/^Edit line 1:/);
   expect(summary).toHaveTextContent('Blue sapphires');
   expect(summary).toHaveAccessibleName('Edit line 1: Blue sapphires');
-  expect(summary).toHaveTextContent('10 pieces');
+  expect(summary).toHaveTextContent('12.5 carats');
   expect(screen.getByLabelText('Quantity 1')).not.toBeVisible();
   // WHEN editing THEN quantities drop insignificant zeros, prices retain two decimals, and metadata stays folded.
   fireEvent.click(summary);
   expect(screen.getByLabelText('Quantity 1')).toBeVisible();
-  expect(screen.getByLabelText('Quantity 1')).toHaveValue('10');
+  expect(screen.getByLabelText('Quantity 1')).toHaveValue('12.5');
   expect(screen.getByLabelText('Unit price 1')).toHaveValue('20.00');
   expect(screen.getByLabelText('Supplier SKU 1')).not.toBeVisible();
   fireEvent.change(screen.getByLabelText('Quantity 1'), { target: { value: '10.125' } });
   expect(screen.getByText('Unsaved changes').closest('.po-editor-toolbar')).not.toBeNull();
+});
+
+it('keeps ambiguous previous pricing read-only until explicit replacement', async () => {
+  // GIVEN an older quote whose original basis cannot be converted without guessing.
+  const legacyPricing = { quantity: '10.0000', unitOfMeasure: 'piece', unitPrice: '20.0000', pricingUnit: 'carat', pricePerQuantity: '1.0000', pricingQuantity: null };
+  const entry = { id: 'line', description: 'Parcel', notes: null, sourceLink: null, quantity: null, unitOfMeasure: null, priceMode: 'perUnit', price: null, indicativePrice: null, legacyPricing, supplierSku: null, itemType: null };
+  const content = { title: null, supplierName: null, supplierId: null, supplierContactName: null, supplierEmail: null, supplierPhone: null, supplierWebsite: null, supplierPostalAddress: null, supplierOrderReference: null, platform: null, currency: 'USD', notes: null, sourceLinks: [], entries: [entry] };
+  vi.mocked(getDraft).mockResolvedValue({ id: 'draft', draft: content, version: 'v1', createdAtUtc: '2026-09-16', updatedAtUtc: '2026-09-16', supplierIsArchived: false, poReference: 'PO-000001', calculation: { lines: [{ id: 'line', gross: null }], incompleteLineCount: 1, merchandiseEstimate: null } });
+  render(<DraftEditor {...props()} id="draft" />);
+  fireEvent.click(await screen.findByLabelText(/^Edit line 1:/));
+  // THEN no editable price invents a new interpretation.
+  expect(screen.queryByLabelText('Unit price 1')).not.toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'Replace previous pricing' })).toBeVisible();
+  expect(screen.getByRole('button', { name: 'Save draft' })).toBeDisabled();
+  // WHEN explicitly replacing THEN the owner can enter a new supplier basis without a guessed price.
+  fireEvent.click(screen.getByRole('button', { name: 'Replace previous pricing' }));
+  expect(screen.getByLabelText('Unit price 1')).toHaveValue('');
+  expect(screen.queryByRole('button', { name: 'Replace previous pricing' })).not.toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'Save draft' })).toBeEnabled();
+  expect(createDraft).not.toHaveBeenCalled();
+});
+
+it.each(['perUnit', 'lineTotal'])('shows reference and incomplete previous pricing together and replaces both on %s adoption', async mode => {
+  // GIVEN a valid older reference quote with additional incomplete pricing metadata.
+  const legacyPricing = { quantity: '10.0000', unitOfMeasure: 'piece', unitPrice: null, pricingUnit: 'carat', pricePerQuantity: '1.0000', pricingQuantity: null };
+  const entry = { id: 'line', description: 'Parcel', notes: null, sourceLink: null, quantity: null, unitOfMeasure: null, priceMode: 'perUnit', price: null, indicativePrice: '300.0000', legacyPricing, supplierSku: null, itemType: null };
+  const content = { title: null, supplierName: null, supplierId: null, supplierContactName: null, supplierEmail: null, supplierPhone: null, supplierWebsite: null, supplierPostalAddress: null, supplierOrderReference: null, platform: null, currency: 'USD', notes: null, sourceLinks: [], entries: [entry] };
+  vi.mocked(getDraft).mockResolvedValue({ id: 'draft', draft: content, version: 'v1', createdAtUtc: '2026-09-16', updatedAtUtc: '2026-09-16', supplierIsArchived: false, poReference: 'PO-000001', calculation: { lines: [{ id: 'line', gross: null }], incompleteLineCount: 1, merchandiseEstimate: null } });
+  render(<DraftEditor {...props()} id="draft" />);
+  fireEvent.click(await screen.findByLabelText(/^Edit line 1:/));
+  // THEN both preserved meanings are visible without an editable or guessed price.
+  expect(screen.getByText('Reference price \u2014 basis not recorded')).toBeVisible();
+  expect(screen.getByText('Previous pricing needs review')).toBeVisible();
+  expect(screen.getByRole('button', { name: 'Replace previous pricing' })).toBeVisible();
+  expect(screen.queryByLabelText('Unit price 1')).not.toBeInTheDocument();
+  // WHEN the owner explicitly adopts the reference THEN both legacy representations are replaced.
+  fireEvent.click(screen.getByRole('button', { name: mode === 'perUnit' ? 'Use as unit price' : 'Use as total line price' }));
+  expect(screen.getByLabelText(mode === 'perUnit' ? 'Unit price 1' : 'Total line price 1')).toHaveValue('300.00');
+  await waitFor(() => expect(vi.mocked(calculateDraft).mock.calls.at(-1)![0].entries[0]).toMatchObject({ priceMode: mode, price: '300.00', indicativePrice: null, legacyPricing: null }));
+  expect(screen.queryByText('Previous pricing needs review')).not.toBeInTheDocument();
+  expect(createDraft).not.toHaveBeenCalled();
 });

@@ -49,6 +49,7 @@ public static class DraftOrderEndpointsV3
     {
         var row = await database.DraftOrders.AsNoTracking().SingleOrDefaultAsync(row => row.Id == id && !row.IsDeleted, cancellationToken);
         if (row is null) return Problem(404, "draft_not_found", "Draft not found.");
+        if (row.ContentSchemaVersion >= 3) return Problem(426, "draft_contract_reload_required", "Reload this draft with the current application.");
         using var content = JsonDocument.Parse(row.ContentJson);
         var links = content.RootElement.GetProperty("sourceLinks").Deserialize<string[]>(DraftOrderInput.JsonOptions)!;
         var entries = DraftOrderInputV3.ReadEntries(content.RootElement, row.ContentSchemaVersion);
@@ -93,10 +94,11 @@ public static class DraftOrderEndpointsV3
             if (id is null) context.Response.Headers.Location = location;
             return id is null && !response.Replayed ? Results.Created(location, response) : Results.Ok(response);
         }
-        catch (SqlException exception) when (exception.Number is 50400 or 50401 or 50403 or 50404 or 50409 or 50410 or 50412 or 50413 or 50414)
+        catch (SqlException exception) when (exception.Number is 50400 or 50401 or 50403 or 50404 or 50409 or 50410 or 50412 or 50413 or 50414 or 50426)
         {
             return exception.Number switch
             {
+                50426 => Problem(426, "draft_contract_reload_required", "Reload this draft with the current application before saving."),
                 50400 => Validation(new() { ["draft"] = ["Review the draft fields and limits."] }),
                 50401 => Validation(new() { ["draft.currency"] = ["Clear existing prices and save before entering amounts in a different currency."] }),
                 50403 => Problem(403, "draft_authority_required", "Current business authority is required."),

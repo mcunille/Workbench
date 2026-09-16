@@ -58,30 +58,19 @@ test('saved order lines stay compact and reopen by keyboard with precise quantit
   const disclosure = page.locator('.po-line-disclosure').first();
   const summary = disclosure.locator(':scope > summary');
   const quantity = page.getByLabel('Quantity 1', { exact: true });
-  const perQuantity = page.getByLabel('Per quantity 1', { exact: true });
   await expect(disclosure).toHaveAttribute('open', '');
   await expect(page.getByLabel('Description 1', { exact: true })).toBeFocused();
   await expect(quantity).toHaveValue('');
-  await expect(perQuantity).toHaveValue('');
   await page.getByLabel('Description 1', { exact: true }).fill('Blue sapphires');
-  await page.getByLabel('Unit 1', { exact: true }).selectOption('piece');
-  await expect(page.getByLabel('Pricing unit 1', { exact: true })).toHaveValue('');
-  await expect(perQuantity).toHaveValue('');
+  await page.getByLabel('Unit 1', { exact: true }).selectOption('carat');
 
-  // WHEN entering whole quantities and a separate weight THEN typing preserves the entered magnitudes.
-  await quantity.pressSequentially('250');
-  await expect(quantity).toHaveValue('250');
-  await page.getByLabel('Pricing unit 1', { exact: true }).selectOption('carat');
-  const pricedQuantity = page.getByLabel('Total quantity priced 1', { exact: true });
-  await expect(pricedQuantity).toHaveValue('');
-  await pricedQuantity.pressSequentially('12.5');
-  await expect(pricedQuantity).toHaveValue('12.5');
-  await perQuantity.pressSequentially('1');
-  await expect(perQuantity).toHaveValue('1');
+  // WHEN entering the supplier quantity THEN typing preserves the entered magnitudes.
+  await quantity.pressSequentially('12.5');
+  await expect(quantity).toHaveValue('12.5');
   await page.getByLabel('Unit price 1', { exact: true }).pressSequentially('2000');
   await expect(page.getByLabel('Unit price 1', { exact: true })).toHaveValue('20.00');
   await expect(page.locator('.po-estimate-value')).toHaveText('USD 250.00');
-  const saved = page.waitForResponse(response => /\/api\/v3\/purchase-order-drafts$/.test(response.url()) && response.request().method() === 'POST');
+  const saved = page.waitForResponse(response => /\/api\/v4\/purchase-order-drafts$/.test(response.url()) && response.request().method() === 'POST');
   await page.getByRole('button', { name: 'Save draft', exact: true }).click();
   expect((await saved).ok()).toBe(true);
   await expect(page).toHaveURL(/\/purchase-orders\/[a-f0-9-]{36}$/);
@@ -91,7 +80,7 @@ test('saved order lines stay compact and reopen by keyboard with precise quantit
   await expect(disclosure).not.toHaveAttribute('open', '');
   await expect(summary).toHaveAccessibleName('Edit line 1: Blue sapphires');
   await expect(summary).toContainText('Blue sapphires');
-  await expect(summary).toContainText('250');
+  await expect(summary).toContainText('12.5 carats');
   await expect(summary).toContainText('USD 250.00');
   await expect(quantity).not.toBeVisible();
   const toolbar = page.locator('.po-editor-toolbar');
@@ -101,9 +90,7 @@ test('saved order lines stay compact and reopen by keyboard with precise quantit
   await summary.focus();
   await summary.press('Enter');
   await expect(quantity).toBeVisible();
-  await expect(quantity).toHaveValue('250');
-  await expect(pricedQuantity).toHaveValue('12.5');
-  await expect(perQuantity).toHaveValue('1');
+  await expect(quantity).toHaveValue('12.5');
   await expect(page.getByLabel('Unit price 1', { exact: true })).toHaveValue('20.00');
   await quantity.fill('251');
 

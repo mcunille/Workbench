@@ -70,3 +70,5 @@ Scale the document to the change, but normally cover:
 When implementation makes a spec true, update the appropriate living documentation and change the
 spec status to **Implemented**. Preserve the spec so future contributors can understand why the
 current design exists.
+
+The approved [supplier-based PO pricing follow-up](2026-09-16-supplier-based-po-pricing.md) supersedes the separate ordered/priced quantity interface and adds its V4 compatibility contract.

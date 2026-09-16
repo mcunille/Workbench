@@ -46,6 +46,7 @@ public static class DraftOrderEndpoints
     {
         var row = await database.DraftOrders.AsNoTracking().SingleOrDefaultAsync(row => row.Id == id && !row.IsDeleted, cancellationToken);
         if (row is null) return Problem(404, "draft_not_found", "Draft not found.");
+        if (row.ContentSchemaVersion >= 3) return Problem(426, "draft_contract_reload_required", "Reload this draft with the current application.");
         using var content = JsonDocument.Parse(row.ContentJson);
         var links = content.RootElement.GetProperty("sourceLinks").Deserialize<string[]>(DraftOrderInput.JsonOptions)!;
         var entries = DraftOrderInputV3.ReadEntries(content.RootElement, row.ContentSchemaVersion).Select(DraftOrderInputV3.Legacy).ToArray();

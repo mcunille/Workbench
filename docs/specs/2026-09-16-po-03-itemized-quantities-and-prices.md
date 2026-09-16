@@ -2,6 +2,8 @@
 
 **Status:** Approved for implementation on 2026-09-16. Interface design uses impeccable within the existing Tanzanite surface.
 
+**Superseded pricing model:** The owner approved [supplier-based PO pricing](2026-09-16-supplier-based-po-pricing.md): one supplier quantity/unit and either per-unit or total-line pricing. The V3 design below remains historical context for compatibility.
+
 ## Problem, scope and baseline
 
 Implement PO-03 from the [purchasing scenario](2026-09-11-purchase-orders-and-purchase-finances.md).

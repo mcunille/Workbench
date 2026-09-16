@@ -1,4 +1,5 @@
-import { unitLabel, formatQuantity, quantityLabel } from './draftLine';
+import { quantityLabel } from './draftLine';
+import { LegacyPricingDetails } from './LegacyPricingDetails';
 import { SupplierDetails } from './supplierDetails';
 import { supplierSnapshot } from './supplierSnapshot';
 import { formatReferencePrice } from './referencePrice';
@@ -28,15 +29,15 @@ export function DraftComparison({ heading, draft }: { heading: string; draft: Dr
           <dl className="po-comparison-details">
             <div><dt>Description</dt><dd>{entry.description ?? 'Not set'}</dd></div>
             <div><dt>Quantity</dt><dd>{quantityLabel(entry.quantity, entry.unitOfMeasure)}</dd></div>
-            <div><dt>Unit price</dt><dd>{formatReferencePrice(entry.unitPrice) ?? 'Unknown'} {draft.currency}</dd></div>
-            <div><dt>Pricing basis</dt><dd>Per {formatQuantity(entry.pricePerQuantity) ?? 'Unknown'} · {unitLabel(entry.pricingUnit)}</dd></div>
-            <div><dt>Total quantity priced</dt><dd>{formatQuantity(entry.pricingQuantity) ?? 'Not set'}</dd></div>
+            <div><dt>Pricing</dt><dd>{entry.priceMode === 'lineTotal' ? 'Total line' : 'Per unit'}</dd></div>
+            <div><dt>{entry.priceMode === 'lineTotal' ? 'Total line price' : 'Unit price'}</dt><dd>{formatReferencePrice(entry.price) ?? 'Unknown'} {draft.currency}</dd></div>
             <div><dt>Supplier SKU</dt><dd>{entry.supplierSku ?? 'Not set'}</dd></div>
             <div><dt>Item type</dt><dd>{entry.itemType ?? 'Not set'}</dd></div>
             <div><dt>Reference price</dt><dd>{formatReferencePrice(entry.indicativePrice) ?? 'Unknown'}</dd></div>
             <div><dt>Notes</dt><dd>{entry.notes ?? 'None'}</dd></div>
             <div><dt>Source link</dt><dd>{entry.sourceLink ? <SafeLink value={entry.sourceLink} /> : 'None'}</dd></div>
           </dl>
+          {entry.legacyPricing ? <LegacyPricingDetails pricing={entry.legacyPricing} currency={draft.currency} /> : null}
         </section>
       )) : <p className="po-section-empty">No lines</p>}
     </section>
