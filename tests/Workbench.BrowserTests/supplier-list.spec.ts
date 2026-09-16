@@ -51,6 +51,8 @@ for (const width of [320, 1440]) for (const textSize of [100, 200]) {
     await page.setViewportSize({ width, height: 900 });
     await page.goto('/suppliers');
     await page.evaluate(size => { document.documentElement.style.fontSize = `${size}%`; }, textSize);
+    // AND wider fallback metrics reproduce loading feedback wrapping on Linux.
+    await page.addStyleTag({ content: '.po-supplier-results-toolbar .po-draft-progress { font-family: monospace; }' });
     const directory = page.getByRole('region', { name: 'Supplier directory' });
     const row = directory.getByRole('link', { name: 'Edit Gem supplier 01', exact: true });
     const search = directory.getByRole('searchbox', { name: 'Search suppliers', exact: true });

@@ -200,6 +200,9 @@
 .po-list > .po-back { max-width: 100%; white-space: normal; }
 .po-supplier-results-toolbar { grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr)); }
 .po-supplier-results-toolbar > .po-draft-clear { justify-self: end; }
+.po-supplier-results-toolbar .po-draft-progress { display: grid; }
+.po-supplier-results-toolbar .po-draft-progress > * { grid-area: 1 / 1; min-width: 0; }
+.po-supplier-progress-space { visibility: hidden; }
 .po-supplier-list li.po-supplier-directory-row { padding: 0; }
 .po-supplier-directory-row > a { display: flex; align-items: center; justify-content: space-between; gap: 1rem; width: 100%; min-width: 0; padding: 1rem; color: var(--text); text-decoration: none; }
 .po-supplier-directory-row > a > div { min-width: 0; }

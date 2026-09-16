@@ -5,6 +5,7 @@ import { FloatingField } from '../../FloatingField';
 import { Icon } from '../../Icon';
 import { SupplierMemory } from './supplierMemory';
 import './purchasing.css';
+const loadingSuppliers = 'Loading suppliers…';
 interface Props { memory?: SupplierMemory; follow?(event: MouseEvent<HTMLAnchorElement>): void; onSelect?(supplier: Supplier): void; onAuthLost(): void; }
 export function SupplierList({ memory: suppliedMemory, follow, onSelect, onAuthLost }: Props) {
   const [localMemory] = useState(() => new SupplierMemory());
@@ -66,7 +67,7 @@ export function SupplierList({ memory: suppliedMemory, follow, onSelect, onAuthL
     </form>
     <div className="po-list-toolbar po-draft-results-toolbar po-supplier-results-toolbar">
       <div className="po-draft-result-context"><p className="po-list-caption">{loadedQuery ? 'Matching suppliers' : archived ? 'All suppliers' : 'Active suppliers'}</p>
-        <div className="po-draft-progress"><p role="status" aria-live="polite" aria-atomic="true" className={pending ? undefined : 'po-accessible-heading'}>{pending ? 'Loading suppliers…' : message || !page ? '' : page.items.length === 0 ? loadedQuery ? 'No matching suppliers.' : 'No suppliers yet.' : `Suppliers shown: ${page.items.length.toLocaleString()}.${page.nextCursor ? ' More available.' : ''}`}</p></div>
+        <div className="po-draft-progress"><span className="po-supplier-progress-space" aria-hidden="true">{loadingSuppliers}</span><p role="status" aria-live="polite" aria-atomic="true" className={pending ? undefined : 'po-accessible-heading'}>{pending ? loadingSuppliers : message || !page ? '' : page.items.length === 0 ? loadedQuery ? 'No matching suppliers.' : 'No suppliers yet.' : `Suppliers shown: ${page.items.length.toLocaleString()}.${page.nextCursor ? ' More available.' : ''}`}</p></div>
       </div>
       <button className={`quiet po-draft-clear${query || loadedQuery ? '' : ' is-unavailable'}`} type="button" disabled={!query && !loadedQuery} aria-hidden={!query && !loadedQuery} onClick={() => { searchInput.current?.focus(); setQuery(''); void load(false, '', archived); }}>Clear search</button>
     </div>
