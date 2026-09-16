@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from './diagnostic-fixture';
 import { useAuthenticatedSession as signIn } from './auth-fixture';
 
 for (const width of [320, 1440]) test(`supplier header saves and keeps record context at ${width}px`, async ({ page }) => {

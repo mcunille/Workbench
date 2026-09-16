@@ -1,6 +1,6 @@
 import { setAppearance } from './user-menu-fixture';
 import { browserBaseUrl } from './browser-environment';
-import { expect, test } from '@playwright/test';
+import { expect, test } from './diagnostic-fixture';
 import { mkdir } from 'node:fs/promises';
 import { photoSignIn, cameraImage } from './photo-fixture';
 import { createArchived, lifecycle, restore, confirmRestore, searchArchive } from './restoration-fixture';

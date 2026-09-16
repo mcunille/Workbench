@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from './diagnostic-fixture';
 import { useAuthenticatedSession as signIn } from './auth-fixture';
 
 for (const width of [320, 1440]) test(`purchasing controls and compact supplier selection remain coherent at ${width}px`, async ({ page }) => {

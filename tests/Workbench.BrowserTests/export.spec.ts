@@ -1,5 +1,5 @@
 import { setAppearance } from './user-menu-fixture';
-import { expect, test } from '@playwright/test';
+import { expect, test } from './diagnostic-fixture';
 import { mkdir } from 'node:fs/promises';
 import { useAuthenticatedSession } from './auth-fixture';
 import { lifecycle } from './restoration-fixture';

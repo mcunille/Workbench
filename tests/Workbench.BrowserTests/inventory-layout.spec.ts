@@ -1,4 +1,4 @@
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type Page } from './diagnostic-fixture';
 import { useAuthenticatedSession } from './auth-fixture';
 import { cameraImage } from './photo-fixture';
 

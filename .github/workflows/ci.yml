@@ -103,6 +103,10 @@ jobs:
         run: |
           npm exec --prefix tests/Workbench.BrowserTests -- playwright install --with-deps chromium
 
+      - name: Verify safe browser diagnostics
+        shell: pwsh
+        run: node --test tests/Workbench.BrowserTests/safe-diagnostics.test.mjs
+
       - name: Verify source and published output
         shell: pwsh
         run: ./scripts/verify.ps1 -SkipDependencyInstall
@@ -123,6 +127,26 @@ jobs:
             artifacts/verification/**/test.log
             artifacts/verification/**/discovery.log
             artifacts/browser/results.json
+
+      - name: Retain safe browser failure diagnostics
+        id: browser-diagnostics
+        if: ${{ failure() && hashFiles('artifacts/browser-diagnostics/**/layout.json') != '' }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: browser-failure-diagnostics
+          retention-days: 7
+          if-no-files-found: error
+          path: |
+            artifacts/browser-diagnostics/failure-*/layout.json
+            artifacts/browser-diagnostics/failure-*/layout.png
+
+      - name: Link browser diagnostics
+        if: ${{ always() && steps.browser-diagnostics.outputs.artifact-url != '' }}
+        shell: pwsh
+        env:
+          BROWSER_DIAGNOSTICS_URL: ${{ steps.browser-diagnostics.outputs.artifact-url }}
+        run: |
+          "Browser layout evidence: $env:BROWSER_DIAGNOSTICS_URL" | Tee-Object -FilePath $env:GITHUB_STEP_SUMMARY -Append
 
   container-smoke:
     name: Hardened container smoke

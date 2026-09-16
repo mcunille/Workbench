@@ -1,5 +1,5 @@
 import { openUserMenu } from './user-menu-fixture';
-import { expect, test } from '@playwright/test';
+import { expect, test } from './diagnostic-fixture';
 import { signInThroughUi as signIn } from './auth-fixture';
 
 // Dedicated auth sessions share the real login budget with other browser scenarios.

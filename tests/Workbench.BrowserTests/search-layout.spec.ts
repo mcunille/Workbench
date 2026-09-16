@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from './diagnostic-fixture';
 import { photoSignIn } from './photo-fixture';
 
 for (const width of [320, 1280]) {

@@ -1,5 +1,5 @@
 import { openUserMenu, setAppearance } from './user-menu-fixture';
-import { expect, test } from '@playwright/test';
+import { expect, test } from './diagnostic-fixture';
 import { photoSignIn } from './photo-fixture';
 
 test('enlarged navigation fits with wider platform font metrics', async ({ page }) => {

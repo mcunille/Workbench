@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from './diagnostic-fixture';
 import { useAuthenticatedSession } from './auth-fixture';
 import { createOrigin, createPiece } from './shared-acquisition-fixture';
 import { receiptImage } from './acquisition-document-fixture';

@@ -6,10 +6,11 @@ export default defineConfig({
   testMatch: '*.spec.ts',
   fullyParallel: false,
   workers: 1,
-  reporter: [['line'], ['json', { outputFile: '../../artifacts/browser/results.json' }]],
+  reporter: [['./diagnostic-reporter.ts', { outputFile: '../../artifacts/browser/results.json' }], ['line']],
+  globalSetup: './diagnostic-setup.ts',
   use: {
     baseURL: browserBaseUrl,
-    trace: 'retain-on-failure',
+    trace: 'off',
   },
   webServer: {
     command: 'pwsh -NoProfile -File ../../scripts/run-browser-server.ps1',

@@ -1,4 +1,4 @@
-import { expect, test, type Locator } from '@playwright/test';
+import { expect, test, type Locator } from './diagnostic-fixture';
 import { cameraImage, photoSignIn, savedPhotoItem } from './photo-fixture';
 import { mkdtemp } from 'node:fs/promises';
 import { tmpdir } from 'node:os';

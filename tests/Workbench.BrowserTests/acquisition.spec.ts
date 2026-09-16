@@ -1,4 +1,4 @@
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type Page } from './diagnostic-fixture';
 import { browserBaseUrl } from './browser-environment';
 import { signInThroughUi, useAuthenticatedSession } from './auth-fixture';
 import { lifecycle } from './restoration-fixture';

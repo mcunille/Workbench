@@ -1,4 +1,4 @@
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type Page } from './diagnostic-fixture';
 import { useAuthenticatedSession as signIn } from './auth-fixture';
 import type { Supplier } from '../../src/Workbench.Client/src/api/suppliers';
 

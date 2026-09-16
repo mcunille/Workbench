@@ -120,3 +120,39 @@ By contributing, you agree that your contributions will be licensed under the re
 
 The source-code license does not grant rights to the Workbench name or branding. See the
 [trademark policy](TRADEMARKS.md).
+
+## Browser failure evidence
+
+Failed browser tests print a `Safe browser layout evidence` path. In GitHub Actions,
+open the failed run's **Summary → Artifacts → browser-failure-diagnostics** (also linked
+in the job summary). Each `failure-*` directory contains `layout.json` and `layout.png`.
+Match the directory to the failing test's console output. JSON element indices match
+screenshot labels; structural selectors identify elements without retaining their IDs
+or text. Coordinates are viewport-relative; red outlines indicate horizontal overflow.
+
+The PNG is a reconstructed layout diagram, not a photograph of the application.
+Only standard HTML element types, structural selectors, bounding rectangles, viewport
+size and scroll position are retained. This helps diagnose overlap, clipping and sizing;
+it cannot diagnose colors, typography, image content, or text wrapping within an element.
+Page text, attributes, CSS, images, URLs, raw errors, request/response data, cookies and
+storage state are excluded by construction. Raw Playwright traces are disabled; local
+`test-results` error contexts are never uploaded or advertised as CI evidence by the
+line reporter. Tests use isolated synthetic data.
+The verification-evidence artifact also retains browser/results.json with overall status,
+duration and per-attempt hashed identity, source filename/line, status, retry and timing.
+It excludes titles, raw errors, console output, annotations and attachments.
+
+Capture uses the built-in Playwright page; failures on manually created secondary pages
+may show an unrelated primary page. Capture is best effort: closed/crashed pages can have
+no evidence. At most ten failures, 1,000 visible elements from the first 10,000 DOM nodes, 20 selector ancestors, 1920×1080
+pixels and 2 MiB per failure are retained. The JSON reports truncation of element counts;
+the original viewport remains recorded even when the diagram is clipped. Artifacts expire
+after seven days. Each normal browser run clears the dedicated diagnostic directory first.
+Capture failures do not replace the test failure, and the parent browser runner still owns
+SQL/session-file cleanup. Raw CI console assertions retain their existing behavior; they
+are not copied into this diagnostic artifact.
+
+Run the isolated synthetic capture/privacy and deliberate-failure contract checks with:
+`node --test tests/Workbench.BrowserTests/safe-diagnostics.test.mjs` after installing
+browser npm dependencies and Chromium. The deliberate-failure check also requires PowerShell
+and Docker to exercise parent-runner cleanup; it starts no application or database.

@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from './diagnostic-fixture';
 import { cameraImage, photoSignIn, savedPhotoItem } from './photo-fixture';
 
 test('a removal finishing after confirmed navigation updates the restored collection', async ({ page }) => {

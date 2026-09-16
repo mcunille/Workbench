@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from './diagnostic-fixture';
 import { useAuthenticatedSession as signIn } from './auth-fixture';
 
 for (const width of [320, 390, 600, 1440]) test(`purchase-order search keeps results anchored at ${width}px`, async ({ page }) => {

@@ -1,6 +1,6 @@
 import { setAppearance } from './user-menu-fixture';
 import { browserBaseUrl } from './browser-environment';
-import { expect, test } from '@playwright/test';
+import { expect, test } from './diagnostic-fixture';
 import { mkdir } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { cameraImage, photoSignIn, savedPhotoItem } from './photo-fixture';
