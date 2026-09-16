@@ -4,7 +4,8 @@ param(
     [ValidateRange(1, 4)][int]$MaxConcurrency = 2,
     [ValidateSet('Debug', 'Release')][string]$Configuration = 'Release',
     [switch]$NoBuild,
-    [string]$ResultsDirectory
+    [string]$ResultsDirectory,
+    [string]$TimingDataPath = (Join-Path $PSScriptRoot 'server-test-durations.json')
 )
 
 $ErrorActionPreference = 'Stop'
@@ -44,7 +45,11 @@ try {
     $names = @(Invoke-ServerTestDiscovery -LogPath (Join-Path $runRoot 'discovery.log') -Command {
         dotnet test $project --configuration $Configuration --no-build --no-restore --list-tests
     })
-    $partitions = @(New-ServerTestPartitions -TestNames $names -PartitionCount $PartitionCount)
+    $timings = Read-ServerTestDurations -Path $TimingDataPath
+    $partitions = @(New-ServerTestPartitions -TestNames $names -PartitionCount $PartitionCount -Durations $timings.Durations -FallbackSeconds $timings.FallbackSeconds)
+    $timings | Select-Object SchemaVersion, SourceRevision, SourceRunUrl, Sha256, FallbackSeconds |
+        ConvertTo-Json | Set-Content -LiteralPath (Join-Path $runRoot 'duration-dataset.json')
+    Write-Host "Duration dataset $($timings.Sha256) from $($timings.SourceRunUrl); predicted seconds: $(($partitions.PredictedSeconds | ForEach-Object { [Math]::Round($_, 3) }) -join ', '); fallback tests: $(($partitions.FallbackTests | Measure-Object -Sum).Sum)."
     $partitions | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath (Join-Path $runRoot 'inventory.json')
     Write-Host "Discovered $($names.Count) tests; partition sizes: $(($partitions | ForEach-Object { $_.Tests.Count }) -join ', '); max concurrent SQL containers: $([Math]::Min($PartitionCount, $MaxConcurrency))."
     $pending = [Collections.Generic.Queue[object]]::new()
