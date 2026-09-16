@@ -392,7 +392,7 @@ it('searches and saves an inline supplier independently without submitting the e
   fireEvent.click(screen.getByRole('button', { name: 'New supplier' }));
   const dialog = screen.getByRole('dialog', { name: 'New supplier' });
   expect(dialog.closest('#po-draft-form')).toBeNull();
-  fireEvent.change(within(dialog).getByLabelText('Name'), { target: { value: 'Gem Studio' } });
+  fireEvent.change(within(dialog).getByLabelText('Supplier name'), { target: { value: 'Gem Studio' } });
   fireEvent.click(within(dialog).getByRole('button', { name: 'Save supplier' }));
   fireEvent.click(await screen.findByRole('button', { name: 'Use supplier details' }));
   // THEN only the supplier was saved; the order retains its local title and selected snapshot.

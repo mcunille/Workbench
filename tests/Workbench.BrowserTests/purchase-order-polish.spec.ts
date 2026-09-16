@@ -7,7 +7,7 @@ for (const width of [320, 1440]) test(`purchasing controls and compact supplier 
   await page.setViewportSize({ width, height: 900 });
   const supplier = `Polish sample ${width} ${Date.now()}`;
   await page.goto('/suppliers/new');
-  await page.getByLabel('Name', { exact: true }).fill(supplier);
+  await page.getByLabel('Supplier name', { exact: true }).fill(supplier);
   await page.getByRole('button', { name: 'Save supplier', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Archive supplier', exact: true })).toBeEnabled();
   await page.goto('/suppliers');
@@ -40,10 +40,10 @@ for (const width of [320, 1440]) test(`purchasing controls and compact supplier 
   await page.getByRole('button', { name: 'New supplier', exact: true }).click();
   const dialog = page.getByRole('dialog', { name: 'New supplier', exact: true });
   await expect(dialog.getByRole('button', { name: 'Cancel', exact: true })).toHaveCount(1);
-  expect(await dialog.getByLabel('Name', { exact: true }).evaluate(el => getComputedStyle(el.closest('form')!).borderTopWidth)).toBe('0px');
-  await dialog.getByLabel('Name', { exact: true }).fill('Keep these edits');
+  expect(await dialog.getByLabel('Supplier name', { exact: true }).evaluate(el => getComputedStyle(el.closest('form')!).borderTopWidth)).toBe('0px');
+  await dialog.getByLabel('Supplier name', { exact: true }).fill('Keep these edits');
   await dialog.getByRole('button', { name: 'Cancel', exact: true }).click();
   await page.getByRole('button', { name: 'Keep editing supplier', exact: true }).click();
-  await expect(dialog.getByLabel('Name', { exact: true })).toHaveValue('Keep these edits');
+  await expect(dialog.getByLabel('Supplier name', { exact: true })).toHaveValue('Keep these edits');
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });

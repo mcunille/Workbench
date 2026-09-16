@@ -20,7 +20,7 @@ async function saveSupplier(page: Page) {
     ['POST', 'PUT'].includes(response.request().method()));
   await page.getByRole('button', { name: 'Save supplier', exact: true }).click();
   expect((await saved).ok()).toBe(true);
-  await expect(page.getByLabel('Name', { exact: true })).toBeEnabled();
+  await expect(page.getByLabel('Supplier name', { exact: true })).toBeEnabled();
   await expect(page).toHaveURL(/\/suppliers\/[a-f0-9-]{36}$/);
 }
 
@@ -43,7 +43,7 @@ test('one supplier has independent order snapshots and platforms with deliberate
   await signIn(page);
   const supplierName = `Multichannel sample ${Date.now()}`;
   await page.goto('/suppliers/new');
-  await page.getByLabel('Name', { exact: true }).fill(supplierName);
+  await page.getByLabel('Supplier name', { exact: true }).fill(supplierName);
   await page.getByLabel('Contact name', { exact: true }).fill('Original contact');
   await page.getByLabel('Email', { exact: true }).fill('original@example.test');
   await saveSupplier(page);
@@ -98,7 +98,7 @@ test('one supplier has independent order snapshots and platforms with deliberate
   await page.goto(supplierPath);
   await page.getByRole('button', { name: 'Archive supplier', exact: true }).click();
   await page.getByRole('button', { name: 'Confirm archive', exact: true }).click();
-  await expect(page.getByText('Archived supplier', { exact: true })).toBeVisible();
+  await expect(page.locator('.po-editor-header').getByText('Archived', { exact: true })).toBeVisible();
   await page.goto(secondPath);
   await expect(page.getByLabel('Supplier contact name', { exact: true })).toHaveValue('Original contact');
   await openSupplierDetails(page);
@@ -110,7 +110,7 @@ test('one supplier has independent order snapshots and platforms with deliberate
   // AND the directory hides it by default, but includes it on explicit request and allows reactivation.
   await page.goto('/suppliers');
   await page.getByLabel('Search suppliers', { exact: true }).fill(supplierName);
-  await expect(page.getByText('No matching suppliers.', { exact: true })).toBeVisible();
+  await expect(page.getByRole('status')).toHaveText('No matching suppliers.');
   await page.getByLabel('Include archived suppliers', { exact: true }).check();
   await page.getByRole('link', { name: `Edit ${supplierName}`, exact: true }).click();
   await page.getByRole('button', { name: 'Reactivate supplier', exact: true }).click();
@@ -210,7 +210,7 @@ test('inline supplier creation survives a subsequent draft failure without submi
   });
   await page.getByRole('button', { name: 'New supplier', exact: true }).click();
   const dialog = page.getByRole('dialog', { name: 'New supplier', exact: true });
-  await dialog.getByLabel('Name', { exact: true }).fill(name);
+  await dialog.getByLabel('Supplier name', { exact: true }).fill(name);
   await dialog.getByLabel('Email', { exact: true }).fill('independent@example.test');
 
   // WHEN saving only the supplier THEN its receipt resolves independently of the unsaved PO.

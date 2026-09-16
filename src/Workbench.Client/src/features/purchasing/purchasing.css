@@ -46,6 +46,14 @@
 .po-heading { display: flex; align-items: center; flex-wrap: wrap; gap: .5rem .75rem; }
 .po-heading h1 { margin: 0; font-size: clamp(1.375rem, 2.2vw, 1.75rem); font-weight: 500; letter-spacing: -.025em; }
 .po-save-status { margin: .5rem 0 0; color: var(--muted); font-size: .875rem; }
+.editor.po-editor.po-supplier-editor { max-width: 48rem; }
+.po-supplier-editor .po-heading h1 { min-width: 0; overflow-wrap: anywhere; }
+.po-supplier-editor .po-editor-toolbar { flex-wrap: wrap; }
+.po-supplier-editor .po-editor-toolbar > .primary { margin-left: auto; max-width: 100%; white-space: normal; }
+.po-supplier-address { grid-column: 1 / -1; }
+.po-field-help.po-required-help { margin-top: .5rem; }
+.po-supplier-contact-fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr)); gap: 1rem; }
+.po-supplier-inline-editor .po-form-section + .po-form-section { padding-top: 1.25rem; margin-top: 1.25rem; }
 .po-accessible-heading { position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 .editor.po-editor .form-stack { gap: 0; padding: 0; margin-top: 1.25rem; }
 .po-editor .form-stack > [role="alert"] { padding: 1.25rem; margin: 0; }
@@ -189,6 +197,15 @@
 .po-supplier-list li > div { min-width: 0; }
 .po-supplier-list p { margin: .375rem 0 0; color: var(--muted); font-size: .875rem; }
 .po-supplier-list .po-badge { margin-inline-start: .5rem; }
+.po-list > .po-back { max-width: 100%; white-space: normal; }
+.po-supplier-results-toolbar { grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr)); }
+.po-supplier-results-toolbar > .po-draft-clear { justify-self: end; }
+.po-supplier-list li.po-supplier-directory-row { padding: 0; }
+.po-supplier-directory-row > a { display: flex; align-items: center; justify-content: space-between; gap: 1rem; width: 100%; min-width: 0; padding: 1rem; color: var(--text); text-decoration: none; }
+.po-supplier-directory-row > a > div { min-width: 0; }
+.po-supplier-directory-row > a:hover { background: var(--hover); }
+.po-supplier-directory-row > a:focus-visible { outline: 2px solid var(--focus); outline-offset: -3px; }
+.po-supplier-directory-row .icon-chevron { width: 1rem; height: 1rem; flex-shrink: 0; color: var(--muted); }
 .po-comparison-details dd { white-space: pre-wrap; overflow-wrap: anywhere; }
 @media (width < 600px) {
   .po-supplier-dialog { padding: 1.125rem; }
@@ -200,6 +217,7 @@
   .po-page-actions .button { padding-inline: .75rem; }
   .po-supplier-list li { gap: .5rem; padding: .875rem; }
   .po-supplier-list li > button, .po-supplier-list li > a { flex-shrink: 0; }
+  .po-supplier-directory-row > a { padding: .875rem; gap: .5rem; }
 }
 
 .po-supplier-summary-row { display: inline-flex; width: calc(100% - 1.25rem); align-items: center; gap: 1rem; vertical-align: middle; }

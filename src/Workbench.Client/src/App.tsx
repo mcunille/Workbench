@@ -32,6 +32,7 @@ import { Brand } from './Brand';
 import { DraftList } from './features/purchasing/DraftList';
 import { DraftEditor } from './features/purchasing/DraftEditor';
 import { DraftMemory } from './features/purchasing/draftMemory';
+import { SupplierMemory } from './features/purchasing/supplierMemory';
 
 const narrowNavigationQuery = '(width < 900px)';
 function subscribeToNavigationWidth(update: () => void) {
@@ -83,6 +84,7 @@ function SignedInApplication({
   const [archiveMemory] = useState(() => new CollectionMemory());
   const [exportMemory] = useState(() => new ExportMemory());
   const [draftMemory] = useState(() => new DraftMemory());
+  const [supplierMemory] = useState(() => new SupplierMemory());
   useLayoutEffect(() => () => exportMemory.dispose(), [exportMemory]);
   const [origins] = useState(
     () => new Map<string, 'active' | 'archived'>(),
@@ -124,8 +126,9 @@ function SignedInApplication({
       );
   }
   const authLost = useCallback(() => {
+    supplierMemory.clear();
     void refresh();
-  }, [refresh]);
+  }, [refresh, supplierMemory]);
   if (!identity) return null;
   const canManageUsers = identity.permissions.includes(
     'TenantUsersManage',
@@ -271,7 +274,7 @@ function SignedInApplication({
           ) : path === '/purchase-orders' ? (
             <DraftList memory={draftMemory} follow={navigation.follow} onAuthLost={authLost} />
           ) : path === '/suppliers' ? (
-            <SupplierList follow={navigation.follow} onAuthLost={authLost} />
+            <SupplierList memory={supplierMemory} follow={navigation.follow} onAuthLost={authLost} />
           ) : /^\/suppliers\/[^/]+$/.test(path) ? (
             <SupplierEditor key={navigation.viewId} id={path === '/suppliers/new' ? undefined : path.slice('/suppliers/'.length)}
               onDirtyChange={navigation.setDirty} onAuthLost={authLost} onCancel={() => navigation.navigate('/suppliers')}

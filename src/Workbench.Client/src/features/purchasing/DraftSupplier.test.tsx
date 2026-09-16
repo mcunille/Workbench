@@ -88,12 +88,12 @@ it('offers only cancel or copying the selected supplier details when contacts di
   render(<DraftSupplier draft={draft} archived={false} frozen={false} onChange={vi.fn()} onAuthLost={vi.fn()} onDirtyChange={vi.fn()} />);
   fireEvent.click(screen.getByRole('button', { name: 'New supplier' }));
   const dialog = screen.getByRole('dialog', { name: 'New supplier' });
-  fireEvent.change(within(dialog).getByLabelText('Name'), { target: { value: 'Unsaved studio' } });
+  fireEvent.change(within(dialog).getByLabelText('Supplier name'), { target: { value: 'Unsaved studio' } });
   // WHEN cancelling from the shared footer THEN the discard choice retains input on return.
   expect(within(dialog).getAllByRole('button', { name: 'Cancel' })).toHaveLength(1);
   fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }));
   fireEvent.click(screen.getByRole('button', { name: 'Keep editing supplier' }));
-  expect(within(dialog).getByLabelText('Name')).toHaveValue('Unsaved studio');
+  expect(within(dialog).getByLabelText('Supplier name')).toHaveValue('Unsaved studio');
 });
 it.each([
   ['New supplier', 'New supplier'],
@@ -109,12 +109,12 @@ it.each([
   // WHEN the owner starts a different supplier workflow and enters local details before that read completes.
   fireEvent.click(screen.getByRole('button', { name: action }));
   const dialog = screen.getByRole('dialog', { name: title });
-  if (action === 'New supplier') fireEvent.change(within(dialog).getByLabelText('Name'), { target: { value: 'Unsaved new supplier' } });
+  if (action === 'New supplier') fireEvent.change(within(dialog).getByLabelText('Supplier name'), { target: { value: 'Unsaved new supplier' } });
   await act(async () => finish(current));
   // THEN the chosen workflow and unsaved input survive; the obsolete read never opens a replacement preview.
   expect(screen.getByRole('dialog', { name: title })).toBeVisible();
   expect(screen.queryByRole('dialog', { name: 'Review supplier details' })).not.toBeInTheDocument();
-  if (action === 'New supplier') expect(within(dialog).getByLabelText('Name')).toHaveValue('Unsaved new supplier');
+  if (action === 'New supplier') expect(within(dialog).getByLabelText('Supplier name')).toHaveValue('Unsaved new supplier');
   expect(onChange).not.toHaveBeenCalled();
 });
 it.each([true, false])('does not expose a stale supplier preview after the draft becomes frozen (resume: %s)', async resume => {
