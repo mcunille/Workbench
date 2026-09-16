@@ -105,7 +105,7 @@ jobs:
 
       - name: Verify safe browser diagnostics
         shell: pwsh
-        run: node --test tests/Workbench.BrowserTests/safe-diagnostics.test.mjs
+        run: node --test tests/Workbench.BrowserTests/safe-diagnostics.test.mjs tests/Workbench.BrowserTests/browser-isolation.test.mjs tests/Workbench.BrowserTests/browser-isolation-wiring.test.mjs tests/Workbench.BrowserTests/diagnostic-budget.test.mjs
 
       - name: Verify source and published output
         shell: pwsh

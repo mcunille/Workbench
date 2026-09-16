@@ -1,6 +1,6 @@
 import { expect, test, type Page } from './diagnostic-fixture';
 import { useAuthenticatedSession } from './auth-fixture';
-import { cameraImage } from './photo-fixture';
+import { smallPhotoImage } from './photo-fixture';
 
 async function savePiece(page: Page, name: string) {
   await useAuthenticatedSession(page);
@@ -70,7 +70,7 @@ test('grid cards align across different title lengths and photograph availabilit
     'Uniform grid photograph',
   ];
   for (const name of names) await savePiece(page, name);
-  await page.getByLabel('Choose photograph', { exact: true }).setInputFiles(await cameraImage(page));
+  await page.getByLabel('Choose photograph', { exact: true }).setInputFiles(await smallPhotoImage(page));
   await expect(page.getByAltText('Prepared photograph preview')).toBeVisible();
   await page.getByRole('button', { name: 'Upload photograph', exact: true }).click();
   await expect(page.getByText('Current saved photograph loaded.', { exact: true })).toBeVisible();

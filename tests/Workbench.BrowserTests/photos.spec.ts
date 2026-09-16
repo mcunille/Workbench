@@ -1,10 +1,8 @@
+import { captureEvidence } from './evidence-fixture';
 import { setAppearance } from './user-menu-fixture';
 import { browserBaseUrl } from './browser-environment';
 import { expect, test } from './diagnostic-fixture';
-import { mkdir } from 'node:fs/promises';
-import { fileURLToPath } from 'node:url';
 import { cameraImage, photoSignIn, savedPhotoItem } from './photo-fixture';
-const output = fileURLToPath(new URL('../../artifacts/h2/', import.meta.url));
 test.setTimeout(180_000);
 
 test('prepares a camera image locally and persists uncropped photos across sessions and views', async ({
@@ -61,7 +59,7 @@ test('prepares a camera image locally and persists uncropped photos across sessi
   } finally {
     await second.close();
   }
-  await mkdir(output, { recursive: true });
+
   // AND keyboard controls, both themes and a 320px phone preserve uncropped images.
   for (const width of [320, 1280]) {
     await page.setViewportSize({ width, height: 900 });
@@ -72,10 +70,7 @@ test('prepares a camera image locally and persists uncropped photos across sessi
           () => document.documentElement.scrollWidth <= innerWidth,
         ),
       ).toBe(true);
-      await page.screenshot({
-        path: `${output}/details-${width}-${theme}.png`,
-        fullPage: true,
-      });
+      await captureEvidence(page, `h2/details-${width}-${theme}.png`, { fullPage: true });
       await page
         .getByRole('link', { name: 'Back to collection', exact: true })
         .click();
@@ -92,10 +87,7 @@ test('prepares a camera image locally and persists uncropped photos across sessi
             () => document.documentElement.scrollWidth <= innerWidth,
           ),
         ).toBe(true);
-        await page.screenshot({
-          path: `${output}/${view.toLowerCase()}-${width}-${theme}.png`,
-          fullPage: true,
-        });
+        await captureEvidence(page, `h2/${view.toLowerCase()}-${width}-${theme}.png`, { fullPage: true });
       }
       await page
         .getByRole('link')

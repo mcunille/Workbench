@@ -1,8 +1,9 @@
+import { pagedInventory, syntheticItem } from './paged-inventory-fixture';
+import { captureEvidence } from './evidence-fixture';
 import { setAppearance } from './user-menu-fixture';
 import { browserBaseUrl } from './browser-environment';
 import { expect, test } from './diagnostic-fixture';
-import { mkdir } from 'node:fs/promises';
-import { photoSignIn, cameraImage } from './photo-fixture';
+import { photoSignIn, smallPhotoImage } from './photo-fixture';
 import { createArchived, lifecycle, restore, confirmRestore, searchArchive } from './restoration-fixture';
 test.setTimeout(180_000);
 test('H6 archive navigation and photographed restoration persist in another session at mobile and desktop sizes', async ({ page, browser }) => {
@@ -11,7 +12,7 @@ test('H6 archive navigation and photographed restoration persist in another sess
   let item = await createArchived(page);
   item = await lifecycle(page, item.id, 'restore', item.version);
   await page.goto(`/inventory/${item.id}`);
-  await page.getByLabel('Choose photograph', { exact: true }).setInputFiles(await cameraImage(page));
+  await page.getByLabel('Choose photograph', { exact: true }).setInputFiles(await smallPhotoImage(page));
   await page.getByRole('button', { name: 'Upload photograph', exact: true }).click();
   await expect(page.getByAltText(`Photograph of ${item.name}`)).toBeVisible();
   item = await (await page.request.get(`/api/items/${item.id}`)).json();
@@ -39,7 +40,7 @@ test('H6 archive navigation and photographed restoration persist in another sess
   await page.getByRole('button', { name: 'Cancel', exact: true }).click();
   await expect(restore(page)).toBeFocused();
   expect((await (await page.request.get(`/api/items/${item.id}`)).json()).version).toBe(archived.version);
-  await mkdir('../../artifacts/h6', { recursive: true });
+
   // THEN archived controls stay read-only and usable at 320px/desktop in both appearances.
   for (const width of [320, 1280]) for (const theme of ['light', 'dark']) {
     await page.setViewportSize({ width, height: 900 });
@@ -50,7 +51,7 @@ test('H6 archive navigation and photographed restoration persist in another sess
     await expect(page.getByLabel('Choose photograph', { exact: true })).toHaveCount(0);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     for (const control of await page.locator('button:visible, select:visible').all()) expect((await control.boundingBox())!.height).toBeGreaterThanOrEqual(44);
-    await page.screenshot({ path: `../../artifacts/h6/archived-${width}-${theme}.png`, fullPage: true });
+    await captureEvidence(page, `h6/archived-${width}-${theme}.png`, { fullPage: true });
     await page.getByRole('link', { name: 'Back to archive', exact: true }).click();
     await expect(page.getByRole('searchbox')).toHaveValue(item.name);
     await expect(page.getByRole('button', { name: 'List', exact: true })).toHaveAttribute('aria-pressed', 'true');
@@ -59,7 +60,7 @@ test('H6 archive navigation and photographed restoration persist in another sess
     expect(await page.evaluate(() => getComputedStyle(document.querySelector('.workspace-nav')!).backdropFilter)).toBe('none');
     await cdp.detach();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-    await page.screenshot({ path: `../../artifacts/h6/archive-list-${width}-${theme}.png`, fullPage: true });
+    await captureEvidence(page, `h6/archive-list-${width}-${theme}.png`, { fullPage: true });
     await page.getByRole('link').filter({ has: page.getByText(item.name, { exact: true }) }).click();
   }
   // WHEN restoring THEN identity, photo and saved details return in this and another authorized session.
@@ -147,9 +148,9 @@ test('H6 a competing restore and re-archive requires renewed confirmation after 
   } finally { await context.close(); }
 });
 test('H6 archive searches beyond the first page and distinguishes missing matches from retryable failures', async ({ page }) => {
-  // GIVEN more than one full page of archived records under a unique search prefix.
+  // GIVEN isolated archive pages; real filtering/cursors belong to ItemRestorationTests.
   await photoSignIn(page); const prefix = `H6-pages-${crypto.randomUUID()}`;
-  for (let i = 0; i < 51; i++) await createArchived(page, `${prefix}-${String(i).padStart(2, '0')}`);
+  await pagedInventory(page, Array.from({ length: 51 }, (_, i) => syntheticItem(i, `${prefix}-${String(i).padStart(2, '0')}`, true)), true);
   await page.goto('/inventory/archive'); await searchArchive(page, prefix);
   await expect(page.getByRole('status')).toContainText('50 matching items loaded');
   await page.route('**/api/items/archived?**', route => route.fulfill({ status: 503, json: {} }), { times: 1 });

@@ -80,3 +80,21 @@ export async function savedPhotoItem(page: Page, name: string) {
   await expect(page.getByRole('heading', { name, exact: true })).toBeVisible();
   return page.url();
 }
+
+// A small real 4:3 image for workflows whose subject is not camera-image preparation.
+let smallImageBytes: Buffer | undefined;
+export async function smallPhotoImage(page: Page) {
+  if (!smallImageBytes) {
+    const data = await page.evaluate(() => {
+      const canvas = document.createElement('canvas');
+      canvas.width = 320; canvas.height = 240;
+      const context = canvas.getContext('2d')!;
+      context.fillStyle = '#eee8dc'; context.fillRect(0, 0, 320, 240);
+      context.fillStyle = '#246aa0'; context.beginPath();
+      context.ellipse(160, 120, 90, 100, 0, 0, Math.PI * 2); context.fill();
+      return canvas.toDataURL('image/png').split(',')[1];
+    });
+    smallImageBytes = Buffer.from(data, 'base64');
+  }
+  return { name: 'synthetic-stone-small.png', mimeType: 'image/png', buffer: smallImageBytes };
+}

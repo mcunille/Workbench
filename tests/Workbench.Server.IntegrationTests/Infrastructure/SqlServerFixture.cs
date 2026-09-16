@@ -34,8 +34,9 @@ public sealed class SqlServerFixture : IAsyncLifetime
 
     public Task DisposeAsync() => _container.DisposeAsync().AsTask();
 
-    // Only ordinary current-schema application fixtures use the template. Migration,
-    // permission and recovery drills keep CreateDatabaseAsync and their explicit migrations.
+    // Current-schema behavior and permission matrices may use independent template clones.
+    // Migration, recovery and fresh migration-to-principal-provisioning drills retain
+    // CreateDatabaseAsync and their explicit migrations; clone use never replaces those contracts.
     public async Task<SqlTestDatabase> CreateMigratedDatabaseAsync(string? priorMigration = null)
     {
         if (priorMigration is not null)

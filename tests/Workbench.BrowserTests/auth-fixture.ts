@@ -1,14 +1,14 @@
 import { expect, type Page, type Cookie } from '@playwright/test';
 import { readFile, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { browserOwner, sessionPath } from './browser-isolation.mjs';
 
 // Login, logout and revocation scenarios use their own sessions. Ordinary scenarios
 // reuse two distinct sessions without consuming the shared network login budget.
-export async function signInThroughUi(page: Page, navigate = true) {
+export async function signInThroughUi(page: Page, navigate = true, owner = 'live-0') {
   if (navigate) await page.goto('/');
   await expect(async () => {
-    await page.getByLabel('Email', { exact: true }).fill('browser-admin@example.test');
+    await page.getByLabel('Email', { exact: true }).fill(browserOwner(owner).email);
     await page.getByLabel('Password', { exact: true }).fill('Browser Correct Horse 9!');
     const response = page.waitForResponse(response => new URL(response.url()).pathname === '/api/auth/login');
     await page.getByRole('button', { name: 'Sign in', exact: true }).click();
@@ -17,12 +17,12 @@ export async function signInThroughUi(page: Page, navigate = true) {
   await expect(page.getByRole('heading', { name: 'Collection', exact: true })).toBeVisible();
 }
 
-export async function useAuthenticatedSession(page: Page, session: 'primary' | 'secondary' = 'primary') {
+export async function useAuthenticatedSession(page: Page, session: 'primary' | 'secondary' = 'primary', owner = 'live-0') {
   const run = process.env.WORKBENCH_BROWSER_RUN;
   if (!run || !/^browser-[a-f0-9]{12}$/.test(run)) {
     throw new Error('Run browser tests through npm test so the parent owns session cleanup.');
   }
-  const path = join(tmpdir(), run, `${session}-cookies.json`);
+  const path = sessionPath(tmpdir(), run, owner, session);
   let cookies: Cookie[] | undefined;
   try {
     cookies = JSON.parse(await readFile(path, 'utf8')) as Cookie[];
@@ -34,7 +34,7 @@ export async function useAuthenticatedSession(page: Page, session: 'primary' | '
     await page.goto('/');
     await expect(page.getByRole('heading', { name: 'Collection', exact: true })).toBeVisible();
   } else {
-    await signInThroughUi(page);
+    await signInThroughUi(page, true, owner);
     // Cookies only: each context keeps its own appearance and other local storage.
     await writeFile(path, JSON.stringify(await page.context().cookies()), { mode: 0o600, flag: 'wx' });
   }
