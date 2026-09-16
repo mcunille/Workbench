@@ -12,10 +12,10 @@ It does not convert fixtures, tune caches, cancel superseded CI runs, or increas
 ## Isolation and completeness
 
 `test-server-partitions.ps1` discovers the current built test inventory and assigns
-whole methods, including every theory case, to 2–4 nonempty partitions. Largest groups
-are assigned first to the partition with the fewest test cases, with deterministic ties.
-This initially balances case counts; it does not assume equal test durations. Per-partition
-TRX timings make runtime imbalance visible and permit evidence-driven tuning later.
+whole methods, including every theory case, to 2–4 nonempty partitions. Methods are assigned largest predicted duration first to the partition with the lowest
+predicted total. Ordinal method-name ties and partition-ID ties make assignment reproducible.
+See [duration balancing](2026-09-16-duration-balanced-server-partitions.md) for the versioned
+TRX dataset, refresh procedure, fallback policy, and benchmark evidence.
 Each partition runs in an independent process with sequential xUnit collections and
 one disposable SQL fixture/container. Global connection-pool clearing and native image
 policy therefore cannot interfere across partitions. Existing fixture/security setup

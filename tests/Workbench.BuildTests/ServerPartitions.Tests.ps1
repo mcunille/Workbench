@@ -174,3 +174,52 @@ finally {
     $global:LASTEXITCODE = 0
 }
 Write-Host 'Server partition completeness and failure propagation passed.'
+# GIVEN skewed measured durations and a new test without history
+$skewNames = @('Suite.A', 'Suite.B', 'Suite.C', 'Suite.D', 'Suite.New')
+$weights = @{ 'Suite.A' = 20.0; 'Suite.B' = 18.0; 'Suite.C' = 2.0; 'Suite.D' = 1.0 }
+# WHEN whole methods are scheduled by predicted duration
+$weighted = @(New-ServerTestPartitions -TestNames $skewNames -PartitionCount 2 -Durations $weights -FallbackSeconds 1)
+# THEN the loads are 21 seconds each with one explicitly recorded fallback.
+if (($weighted.PredictedSeconds -join ',') -ne '21,21' -or ($weighted.FallbackTests | Measure-Object -Sum).Sum -ne 1) { throw 'Duration balancing or fallback failed.' }
+Assert-ServerTestPartitions -TestNames $skewNames -Partitions $weighted
+# GIVEN the same inventory in reverse discovery order
+# WHEN scheduled THEN assignment and output order remain byte-for-byte deterministic.
+$reversed = @($skewNames); [array]::Reverse($reversed)
+$again = @(New-ServerTestPartitions -TestNames $reversed -PartitionCount 2 -Durations $weights)
+if (($weighted | ConvertTo-Json -Depth 6 -Compress) -cne ($again | ConvertTo-Json -Depth 6 -Compress)) { throw 'Duration assignment depends on discovery order.' }
+# GIVEN a theory whose total duration exceeds each fact
+# WHEN scheduled THEN its rows remain together and their weights are summed.
+$theory = @(New-ServerTestPartitions -TestNames @('Suite.T(x: 2)', 'Suite.T(x: 1)', 'Suite.F', 'Suite.G') -PartitionCount 2 -Durations @{ 'Suite.T(x: 1)' = 6; 'Suite.T(x: 2)' = 6; 'Suite.F' = 10; 'Suite.G' = 2 })
+if ($theory[0].PredictedSeconds -ne 12 -or $theory[0].Tests.Count -ne 2 -or $theory[1].PredictedSeconds -ne 12) { throw 'Theory duration aggregation failed.' }
+# GIVEN invalid weights WHEN consumed THEN fail closed, including obsolete entries.
+foreach ($bad in @(-1, 0, [double]::NaN, [double]::PositiveInfinity, '5')) {
+    Assert-Rejected { New-ServerTestPartitions -TestNames $skewNames -PartitionCount 2 -Durations @{ 'Obsolete.Test' = $bad } } 'duration'
+}
+Assert-Rejected { New-ServerTestPartitions -TestNames $skewNames -PartitionCount 2 -FallbackSeconds 0 } 'fallback'
+$datasetRoot = Join-Path ([IO.Path]::GetTempPath()) "duration-reader-$([guid]::NewGuid().ToString('N'))"
+New-Item -ItemType Directory $datasetRoot | Out-Null
+try {
+    # GIVEN a versioned timing dataset with a case-sensitive test identity
+    $datasetPath = Join-Path $datasetRoot 'weights.json'
+    $dataset = @{ schemaVersion = 1; sourceRevision = ('a' * 40); sourceRunUrl = 'https://github.com/mcunille/Workbench/actions/runs/123'; fallbackSeconds = 1; durations = @{ 'Suite.Test' = 5 } }
+    $dataset | ConvertTo-Json | Set-Content $datasetPath
+    # WHEN loaded THEN its exact bytes are identified by SHA256 and provenance is retained.
+    $loaded = Read-ServerTestDurations $datasetPath
+    if ($loaded.Sha256 -cne (Get-FileHash $datasetPath -Algorithm SHA256).Hash.ToLowerInvariant() -or $loaded.SourceRevision -cne $dataset.sourceRevision) { throw 'Dataset provenance missing.' }
+    $casePartitions = @(New-ServerTestPartitions -TestNames @('Suite.Test', 'Suite.test') -PartitionCount 2 -Durations $loaded.Durations)
+    if ($casePartitions[1].FallbackTests -ne 1 -or $casePartitions[0].PredictedSeconds -ne 5) { throw 'Duration identity must be ordinal.' }
+    # GIVEN malformed versions/provenance/weights WHEN loaded THEN they cannot silently fall back.
+    foreach ($field in @('schemaVersion', 'sourceRevision', 'sourceRunUrl', 'fallbackSeconds', 'durations')) {
+        $badDataset = $dataset.Clone(); $badDataset[$field] = 'invalid'
+        $badDataset | ConvertTo-Json | Set-Content $datasetPath
+        Assert-Rejected { Read-ServerTestDurations $datasetPath } 'dataset'
+    }
+}
+finally { Remove-Item -LiteralPath $datasetRoot -Recurse -Force }
+# GIVEN individually finite weights whose partition total overflows
+# WHEN scheduled THEN invalid predicted totals are rejected.
+Assert-Rejected { New-ServerTestPartitions -TestNames @('A', 'B', 'C', 'D') -PartitionCount 2 -Durations @{ A = 1.7e308; B = 1.7e308; C = 1.7e308; D = 1.7e308 } } 'duration'
+# GIVEN CI evidence retention WHEN a partition run records its timing dataset
+# THEN the uploaded artifact retains that dataset identity alongside results.
+$workflow = Get-Content (Join-Path $PSScriptRoot '../../.github/workflows/ci.yml') -Raw
+if (-not $workflow.Contains('artifacts/verification/**/duration-dataset.json')) { throw 'CI must retain duration dataset provenance.' }
