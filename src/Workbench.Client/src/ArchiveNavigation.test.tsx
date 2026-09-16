@@ -1,4 +1,5 @@
 import {
+  act,
   fireEvent,
   render,
   screen,
@@ -11,6 +12,10 @@ it('keeps archive and collection traversals independent through appearance and d
   // GIVEN authenticated active and archived records with separate searches.
   window.history.replaceState(null, '', '/inventory');
   let signedIn = true;
+  let markCollectionRequested!: () => void;
+  const collectionRequested = new Promise<void>(resolve => { markCollectionRequested = resolve; });
+  let releaseCollection!: () => void;
+  const collectionResponse = new Promise<void>(resolve => { releaseCollection = resolve; });
   const item = {
     id: 'stone',
     name: 'Archived stone',
@@ -35,8 +40,10 @@ it('keeps archive and collection traversals independent through appearance and d
           })
         : new HttpResponse(null, { status: 401 }),
     ),
-    http.get('*/api/items', () =>
-      HttpResponse.json({
+    http.get('*/api/items', async () => {
+      markCollectionRequested();
+      await collectionResponse;
+      return HttpResponse.json({
         items: [
           {
             ...item,
@@ -46,8 +53,8 @@ it('keeps archive and collection traversals independent through appearance and d
           },
         ],
         nextCursor: null,
-      }),
-    ),
+      });
+    }),
     http.get('*/api/items/archived', () =>
       HttpResponse.json({ items: [item], nextCursor: null }),
     ),
@@ -58,8 +65,16 @@ it('keeps archive and collection traversals independent through appearance and d
     ),
   );
   vi.spyOn(window, 'scrollTo').mockImplementation(() => {});
-  render(<App />);
-  await screen.findByRole('link', { name: /Active stone/ });
+  // AND the initial collection response is held until authenticated startup requests it.
+  try {
+    await act(async () => { render(<App />); });
+    await collectionRequested;
+    expect(screen.getByRole('status')).toHaveTextContent('Loading collection…');
+  } finally {
+    // Release and flush the fixture before asserting navigation, without a wall-clock polling deadline.
+    await act(async () => { releaseCollection(); });
+  }
+  expect(screen.getByRole('link', { name: /Active stone/ })).toBeVisible();
   fireEvent.change(screen.getByRole('searchbox'), {
     target: { value: 'active draft' },
   });

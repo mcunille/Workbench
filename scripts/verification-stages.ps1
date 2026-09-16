@@ -45,24 +45,30 @@ function Complete-VerificationStages {
     if (@($names | Where-Object { $RequiredNames -cnotcontains $_ }).Count) { throw 'Unexpected verification stage.' }
     $results = @()
     $failures = @()
-    foreach ($stage in $Stages) {
-        $stage.Job | Wait-Job | Out-Null
-        $output = @(Receive-Job -Job $stage.Job -Keep -ErrorAction Continue)
-        $result = @($output | Where-Object { $_.PSObject.Properties['VerificationStage'] })
-        $output | Where-Object { -not $_.PSObject.Properties['VerificationStage'] } | ForEach-Object { Write-Host "[$($stage.Name)] $_" }
-        if ($stage.Job.State -ne 'Completed' -or $result.Count -ne 1 -or
-            $result[0].VerificationStage -cne $stage.Name -or $result[0].Succeeded -ne $true) {
-            $failures += $stage.Name
+    $pending = @($Stages)
+    while ($pending.Count) {
+        Wait-Job -Job @($pending.Job) -Any | Out-Null
+        $completed = @($pending | Where-Object { $_.Job.State -notin @('Running', 'NotStarted') })
+        foreach ($stage in $completed) {
+            $output = @(Receive-Job -Job $stage.Job -Keep -ErrorAction Continue)
+            $result = @($output | Where-Object { $_.PSObject.Properties['VerificationStage'] })
+            $output | Where-Object { -not $_.PSObject.Properties['VerificationStage'] } | ForEach-Object { Write-Host "[$($stage.Name)] $_" }
+            if ($stage.Job.State -ne 'Completed' -or $result.Count -ne 1 -or
+                $result[0].VerificationStage -cne $stage.Name -or $result[0].Succeeded -ne $true) {
+                $failures += $stage.Name
+            }
+            $receipt = [pscustomobject]@{
+                Stage = $stage.Name
+                State = [string]$stage.Job.State
+                Succeeded = ($failures -cnotcontains $stage.Name)
+                Seconds = if ($result.Count -eq 1) { $result[0].Seconds } else { $null }
+                Failure = if ($result.Count -eq 1) { $result[0].Failure } else { 'Missing completion receipt' }
+            }
+            $results += $receipt
+            Write-Host ("{0}: success={1}, seconds={2:N2} {3}" -f $receipt.Stage, $receipt.Succeeded, $receipt.Seconds, $receipt.Failure)
         }
-        $results += [pscustomobject]@{
-            Stage = $stage.Name
-            State = [string]$stage.Job.State
-            Succeeded = ($failures -cnotcontains $stage.Name)
-            Seconds = if ($result.Count -eq 1) { $result[0].Seconds } else { $null }
-            Failure = if ($result.Count -eq 1) { $result[0].Failure } else { 'Missing completion receipt' }
-        }
+        $pending = @($pending | Where-Object { $_.Name -cnotin @($completed.Name) })
     }
     if ($TimingPath) { $results | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $TimingPath }
-    $results | ForEach-Object { Write-Host ("{0}: success={1}, seconds={2:N2} {3}" -f $_.Stage, $_.Succeeded, $_.Seconds, $_.Failure) }
     if ($failures.Count) { throw "Required verification stages failed: $($failures -join ', ')." }
 }

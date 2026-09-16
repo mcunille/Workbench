@@ -6,7 +6,7 @@ export default defineConfig({
   testMatch: '*.spec.ts',
   fullyParallel: false,
   workers: 1,
-  reporter: 'line',
+  reporter: [['line'], ['json', { outputFile: '../../artifacts/browser/results.json' }]],
   use: {
     baseURL: browserBaseUrl,
     trace: 'retain-on-failure',

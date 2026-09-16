@@ -6,7 +6,7 @@ public sealed class DraftOrderCacheMiddleware(RequestDelegate next)
 {
     public async Task InvokeAsync(HttpContext context)
     {
-        if (context.Request.Path.StartsWithSegments("/api/purchase-order-drafts"))
+        if ((context.Request.Path.StartsWithSegments("/api/purchase-order-drafts") || context.Request.Path.StartsWithSegments("/api/v2/purchase-order-drafts") || context.Request.Path.StartsWithSegments("/api/suppliers")))
             context.Response.OnStarting(() => { context.Response.Headers.CacheControl = "private, no-store"; return Task.CompletedTask; });
         await next(context);
     }
@@ -18,7 +18,7 @@ public sealed class DraftOrderRequestMiddleware(RequestDelegate next)
 
     public async Task InvokeAsync(HttpContext context)
     {
-        if (!context.Request.Path.StartsWithSegments("/api/purchase-order-drafts") ||
+        if (!(context.Request.Path.StartsWithSegments("/api/purchase-order-drafts") || context.Request.Path.StartsWithSegments("/api/v2/purchase-order-drafts") || context.Request.Path.StartsWithSegments("/api/suppliers")) ||
             context.Request.Method is not ("POST" or "PUT" or "DELETE")) { await next(context); return; }
         if (context.Request.ContentLength > MaximumBodyBytes) { await TooLarge(context); return; }
         // Bound chunked requests as well as Content-Length. Keep private bodies in memory only;
