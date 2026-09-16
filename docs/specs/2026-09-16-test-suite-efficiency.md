@@ -1,6 +1,6 @@
 # Test coverage ownership and efficient verification
 
-**Status:** Accepted. The user approved implementation of all ten audit recommendations on 2026-09-16.
+**Status:** Implemented and locally verified. The user approved implementation of all ten audit recommendations on 2026-09-16.
 
 ## Problem and scope
 

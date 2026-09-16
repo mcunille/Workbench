@@ -165,7 +165,7 @@ SQL row was not retained. This test and its production path are unchanged; all 9
 passed in the first candidate gate. The isolated failure remains a known synchronization limit,
 not evidence of a production timeout regression or a successful gate.
 
-## Same-host full-gate baseline
+## Same-host full-gate comparison
 
 The untouched base revision passed the complete Linux gate in 474.80s. Its prerequisite phase
 took 139.94s, server stage 412.13s, browser stage 253.59s, client stage 58.37s, and published-output
@@ -176,6 +176,29 @@ This successful comparison uses native Linux temporary storage and a numeric Doc
 address. Earlier attempts with incompatible temporary-storage or hostname settings are excluded.
 The unchanged Azure emulator test passed independently after the hostname correction, before
 rerunning the full baseline. No application or test change was needed for that correction.
+
+The corrected implementation at `46b187f` passes the full gate in **389.27s**, compared with
+**474.80s** for the untouched base: **85.53s / 18.0% lower**. This is one successful full run per
+revision, not a statistical estimate. Both use the same Linux runner, host, resource policy, and
+`verify.ps1 -SkipDependencyInstall` command. The additional ignored diagnostic reporter retains
+only allowlisted failure categories and reports no failures in the corrected run.
+
+| Stage | Base | Corrected implementation |
+| --- | ---: | ---: |
+| Gate wall time | 474.80s | 389.27s |
+| Prerequisites | 139.94s | 126.91s |
+| Server | 412.13s | 330.61s |
+| Browser | 253.59s | 182.53s |
+| Client | 58.37s | 54.68s |
+| Published output | 44.27s | 42.70s |
+
+All 925 server cases pass exactly once across partitions of 454 and 471 cases (322.3s and 325.1s).
+All 102 browser cases and 329 client cases pass. The earlier unchanged export-interruption
+failure did not recur; its synchronization limitation above remains documented. Formatting,
+lint, typechecking, generated API drift, Release build, and published-output checks also pass.
+The required hardened-container smoke check also passes on the same implementation in 76.95s,
+including its SQL-backed runtime and Compose/session-persistence checks. Independent review of
+the complete base-to-implementation range found no actionable issues.
 
 ## Exact-base CI baseline
 

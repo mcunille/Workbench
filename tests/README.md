@@ -38,6 +38,10 @@ small representative images for navigation or archival workflows, and determinis
 pages for viewport-specific pagination rendering. Keep at least one real server pagination journey
 and real image preparation/upload coverage.
 
+Install synthetic response routes before the first navigation that can request their data.
+Waiting for a page heading does not establish that its live data and thumbnail requests have
+finished; replacing response ownership afterwards can introduce timing-dependent failures.
+
 Evidence screenshots are opt-in; geometry and accessibility assertions must run regardless of
 capture settings. Safe failure diagnostics remain automatic. Keep destructive authentication
 scenarios separate from reusable sessions and never weaken production rate limits for test speed.
