@@ -1,7 +1,7 @@
 import { openUserMenu, setAppearance } from './user-menu-fixture';
 import { useAuthenticatedSession as signIn, signInThroughUi } from './auth-fixture';
 import { browserBaseUrl } from './browser-environment';
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type Page } from './diagnostic-fixture';
 import { mkdir } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 

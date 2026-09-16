@@ -1,5 +1,5 @@
 import { browserBaseUrl } from './browser-environment';
-import { expect, test } from '@playwright/test';
+import { expect, test } from './diagnostic-fixture';
 import { photoSignIn } from './photo-fixture';
 
 async function sessionId(page: import('@playwright/test').Page) {

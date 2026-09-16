@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from './diagnostic-fixture';
 import { useAuthenticatedSession as signIn } from './auth-fixture';
 
 test('the empty collection card opens item creation by pointer and keyboard', async ({ page }) => {

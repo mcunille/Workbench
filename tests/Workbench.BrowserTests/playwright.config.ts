@@ -6,10 +6,11 @@ export default defineConfig({
   testMatch: '*.spec.ts',
   fullyParallel: false,
   workers: 1,
-  reporter: 'line',
+  reporter: [['./diagnostic-reporter.ts'], ['line']],
+  globalSetup: './diagnostic-setup.ts',
   use: {
     baseURL: browserBaseUrl,
-    trace: 'retain-on-failure',
+    trace: 'off',
   },
   webServer: {
     command: 'pwsh -NoProfile -File ../../scripts/run-browser-server.ps1',

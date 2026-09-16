@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from './diagnostic-fixture';
 import { mkdir } from 'node:fs/promises';
 import { cameraImage, photoSignIn, savedPhotoItem } from './photo-fixture';
 

@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from './diagnostic-fixture';
 import { mkdir } from 'node:fs/promises';
 
 test('forced colors preserve both icons and a visible selected-theme boundary', async ({ page }) => {

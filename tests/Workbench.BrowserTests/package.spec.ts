@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from './diagnostic-fixture';
 import { setAppearance } from './user-menu-fixture';
 import { mkdir } from 'node:fs/promises';
 import { useAuthenticatedSession } from './auth-fixture';
