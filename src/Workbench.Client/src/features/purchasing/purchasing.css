@@ -153,6 +153,7 @@
   .po-editor-toolbar > .primary { margin-left: auto; }
   .po-section-heading { flex-wrap: wrap; gap: .5rem; }
   .po-section-heading > button { margin-left: auto; }
+  .po-editor .po-section-heading > button, .po-editor .po-add-entry > button { padding-inline: .25rem; overflow-wrap: normal; }
 }
 @media (prefers-reduced-motion: reduce) {
   .po-draft-list a { transition: none; }
