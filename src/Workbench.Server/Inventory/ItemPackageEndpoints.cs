@@ -41,8 +41,8 @@ public static class ItemPackageEndpoints
             http.Response.Headers.RetryAfter = "5";
             return Failure(429, "export_busy", "Export preparation is busy. Retry shortly.");
         }
-        using var deadline = CancellationTokenSource.CreateLinkedTokenSource(http.RequestAborted);
-        deadline.CancelAfter(TimeSpan.FromSeconds(120));
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(120), timeProvider);
+        using var deadline = CancellationTokenSource.CreateLinkedTokenSource(http.RequestAborted, timeout.Token);
         var cancellationToken = deadline.Token;
         try
         {
