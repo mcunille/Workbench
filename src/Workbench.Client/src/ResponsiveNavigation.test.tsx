@@ -24,7 +24,9 @@ it.each([false, true])('allows toggling and restores desktop choice when startin
     http.get('*/api/items', () => HttpResponse.json({ items: [], nextCursor: null })),
   );
   const view = render(<App />);
+  // AND the authenticated render, including its resize subscription, has settled.
   await screen.findByRole('heading', { name: 'Collection' });
+  await act(async () => {});
   const resize = (narrow: boolean) => act(() => {
     media.matches = narrow;
     listeners.forEach(listener => listener());

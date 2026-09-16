@@ -138,6 +138,9 @@ Page text, attributes, CSS, images, URLs, raw errors, request/response data, coo
 storage state are excluded by construction. Raw Playwright traces are disabled; local
 `test-results` error contexts are never uploaded or advertised as CI evidence by the
 line reporter. Tests use isolated synthetic data.
+The verification-evidence artifact also retains browser/results.json with overall status,
+duration and per-attempt hashed identity, source filename/line, status, retry and timing.
+It excludes titles, raw errors, console output, annotations and attachments.
 
 Capture uses the built-in Playwright page; failures on manually created secondary pages
 may show an unrelated primary page. Capture is best effort: closed/crashed pages can have

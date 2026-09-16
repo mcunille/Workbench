@@ -85,6 +85,7 @@ jobs:
           ./tests/Workbench.BuildTests/VerificationScripts.Tests.ps1
           ./tests/Workbench.BuildTests/VerificationStages.Tests.ps1
           ./tests/Workbench.BuildTests/ServerPartitions.Tests.ps1
+          ./tests/Workbench.BuildTests/ServerDurations.Tests.ps1
           ./tests/Workbench.BuildTests/ArtifactReuse.Tests.ps1
           ./tests/Workbench.BuildTests/PublishedProcess.Tests.ps1
           ./tests/Workbench.BuildTests/FocusedTests.Tests.ps1
@@ -119,11 +120,13 @@ jobs:
           path: |
             artifacts/verification/**/gate.json
             artifacts/verification/**/stages.json
+            artifacts/verification/**/duration-dataset.json
             artifacts/verification/**/inventory.json
             artifacts/verification/**/timing.json
             artifacts/verification/**/*.trx
             artifacts/verification/**/test.log
             artifacts/verification/**/discovery.log
+            artifacts/browser/results.json
 
       - name: Retain safe browser failure diagnostics
         id: browser-diagnostics

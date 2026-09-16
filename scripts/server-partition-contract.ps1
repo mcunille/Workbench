@@ -42,10 +42,22 @@ function Assert-ServerTestProjects {
 }
 
 function New-ServerTestPartitions {
-    param([AllowEmptyCollection()][string[]]$TestNames, [ValidateRange(2, 4)][int]$PartitionCount)
+    param(
+        [AllowEmptyCollection()][string[]]$TestNames,
+        [ValidateRange(2, 4)][int]$PartitionCount,
+        [System.Collections.IDictionary]$Durations = @{},
+        [double]$FallbackSeconds = 1
+    )
+    if (-not [double]::IsFinite($FallbackSeconds) -or $FallbackSeconds -le 0) { throw 'Invalid fallback duration.' }
+    foreach ($value in $Durations.Values) {
+        if ($value -is [string] -or $value -is [bool] -or $null -eq $value -or
+            -not [double]::IsFinite([double]$value) -or [double]$value -le 0) { throw 'Invalid historical duration.' }
+    }
+    $weights = [Collections.Generic.Dictionary[string, double]]::new([StringComparer]::Ordinal)
+    foreach ($key in $Durations.Keys) { $weights.Add($key, [double]$Durations[$key]) }
     if ($TestNames.Count -eq 0) { throw 'Discovered server test inventory is empty.' }
     $seen = [Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
-    $methods = @{}
+    $methods = [Collections.Generic.Dictionary[string, object]]::new([StringComparer]::Ordinal)
     foreach ($name in $TestNames) {
         if (-not $seen.Add($name)) { throw "Discovered server test inventory contains a duplicate: $name" }
         # xUnit display names contain the fully qualified method followed by optional theory arguments.
@@ -58,13 +70,30 @@ function New-ServerTestPartitions {
     }
     if ($methods.Count -lt $PartitionCount) { throw 'Not enough test methods for nonempty required partitions.' }
     $partitions = @(1..$PartitionCount | ForEach-Object {
-        [pscustomobject]@{ Id = $_; Methods = [Collections.Generic.List[string]]::new(); Tests = [Collections.Generic.List[string]]::new() }
+        [pscustomobject]@{ Id = $_; Methods = [Collections.Generic.List[string]]::new(); Tests = [Collections.Generic.List[string]]::new(); PredictedSeconds = 0.0; FallbackTests = 0 }
     })
-    # Largest-first assignment balances discovered test counts without splitting theory methods.
-    foreach ($group in ($methods.GetEnumerator() | Sort-Object @{ Expression = { $_.Value.Count }; Descending = $true }, Name)) {
-        $partition = $partitions | Sort-Object @{ Expression = { $_.Tests.Count } }, Id | Select-Object -First 1
-        $partition.Methods.Add($group.Key)
-        $partition.Tests.AddRange($group.Value)
+    # Ordinal ties make assignment independent of culture and discovery order.
+    $methodNames = [string[]]@($methods.Keys)
+    [array]::Sort($methodNames, [StringComparer]::Ordinal)
+    $groups = @(foreach ($method in $methodNames) {
+        $rows = $methods[$method].ToArray()
+        [array]::Sort($rows, [StringComparer]::Ordinal)
+        $seconds = 0.0
+        $fallback = 0
+        foreach ($row in $rows) {
+            if ($weights.ContainsKey($row)) { $seconds += $weights[$row] }
+            else { $seconds += $FallbackSeconds; $fallback++ }
+        }
+        if (-not [double]::IsFinite($seconds)) { throw 'Aggregated duration is not finite.' }
+        [pscustomobject]@{ Method = $method; Rows = $rows; Seconds = $seconds; Fallback = $fallback }
+    })
+    foreach ($group in ($groups | Sort-Object -Stable -Property @{ Expression = { $_.Seconds }; Descending = $true })) {
+        $partition = $partitions | Sort-Object PredictedSeconds, Id | Select-Object -First 1
+        $partition.Methods.Add($group.Method)
+        $partition.Tests.AddRange([string[]]$group.Rows)
+        $partition.PredictedSeconds += $group.Seconds
+        if (-not [double]::IsFinite($partition.PredictedSeconds)) { throw 'Partition duration is not finite.' }
+        $partition.FallbackTests += $group.Fallback
     }
     Assert-ServerTestPartitions -TestNames $TestNames -Partitions $partitions
     return $partitions
@@ -103,5 +132,24 @@ function Assert-ServerPartitionResult {
     Assert-ServerTestCoverage -Expected $Partition.Tests -Actual @($results | ForEach-Object { $_.testName })
     foreach ($result in $results) {
         if ($result.outcome -cne 'Passed') { throw "Server partition $($Partition.Id) has non-passing outcome '$($result.outcome)' for '$($result.testName)'." }
+    }
+}
+function Read-ServerTestDurations {
+    param([string]$Path)
+    $bytes = [IO.File]::ReadAllBytes($Path)
+    $data = [Text.Encoding]::UTF8.GetString($bytes) | ConvertFrom-Json -AsHashtable
+    if ($data.schemaVersion -ne 1 -or $data.durations -isnot [System.Collections.IDictionary] -or
+        $data.sourceRevision -cnotmatch '^[a-f0-9]{40}$' -or
+        $data.sourceRunUrl -cnotmatch '^https://github\.com/mcunille/Workbench/actions/runs/[0-9]+$' -or
+        $data.fallbackSeconds -is [string] -or $data.fallbackSeconds -is [bool] -or
+        -not [double]::IsFinite([double]$data.fallbackSeconds) -or $data.fallbackSeconds -le 0) {
+        throw 'Invalid server duration dataset.'
+    }
+    # Validate every weight, including historical tests no longer in discovery.
+    $null = New-ServerTestPartitions -TestNames @('Validation.A', 'Validation.B') -PartitionCount 2 -Durations $data.durations -FallbackSeconds $data.fallbackSeconds
+    return [pscustomobject]@{
+        Durations = $data.durations; FallbackSeconds = $data.fallbackSeconds
+        SchemaVersion = $data.schemaVersion; SourceRevision = $data.sourceRevision; SourceRunUrl = $data.sourceRunUrl
+        Sha256 = [Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($bytes)).ToLowerInvariant()
     }
 }

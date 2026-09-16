@@ -83,14 +83,24 @@ test('an intentional Playwright failure retains safe files and still fails; pass
         await page.setViewportSize({width:390,height:844});
         await page.setContent('<button style="position:absolute;left:380px;width:120px">Synthetic action</button>');
         const bounds = await page.locator('button').boundingBox();
-        expect(bounds.x + bounds.width).toBeLessThanOrEqual(390);
+        console.log('SECRET_CANARY');
+        expect(bounds.x + bounds.width, 'SECRET_CANARY').toBeLessThanOrEqual(390);
       });
       test('passing layout', async ({ page }) => { await page.setContent('<button>OK</button>'); });`);
-    await writeFile(join(root, 'playwright.config.ts'), `export default { testDir: '.', testMatch: '*.spec.ts', workers: 1, reporter: [[${JSON.stringify(fileURLToPath(new URL('./diagnostic-reporter.ts', import.meta.url))) }], ['line']], metadata: {diagnosticsRoot: ${JSON.stringify(evidence)}}, outputDir: ${JSON.stringify(join(root, 'raw'))}, use: {trace:'off'} };`);
+    await writeFile(join(root, 'playwright.config.ts'), `export default { testDir: '.', testMatch: '*.spec.ts', workers: 1, reporter: [[${JSON.stringify(fileURLToPath(new URL('./diagnostic-reporter.ts', import.meta.url))) }, {outputFile: ${JSON.stringify(join(root, 'results.json'))}}], ['line']], metadata: {diagnosticsRoot: ${JSON.stringify(evidence)}}, outputDir: ${JSON.stringify(join(root, 'raw'))}, use: {trace:'off'} };`);
     // WHEN Playwright runs the actual failing assertion and automatic teardown.
     const run = spawnSync('pwsh', ['-NoProfile', '-File', fileURLToPath(new URL('../../scripts/test-browser.ps1', import.meta.url)), '--config', join(root, 'playwright.config.ts')], { encoding: 'utf8', timeout: 60000 });
     // THEN its original failure remains nonzero and the logged artifact path resolves to retained files.
     assert.equal(run.status, 1, run.stdout + run.stderr);
+    // AND retained JSON preserves outcomes and timings without error, console or attachment data.
+    const summaryText = await readFile(join(root, 'results.json'), 'utf8');
+    const summary = JSON.parse(summaryText);
+    assert.equal(summary.status, 'failed');
+    assert.equal(summary.tests.length, 2);
+    assert.deepEqual(summary.tests.map(test => test.status), ['failed', 'passed']);
+    assert.ok(summary.tests.every(test => test.duration >= 0 && test.file === 'contract.spec.ts'));
+    assert.ok(!summaryText.includes('SECRET_CANARY'));
+    assert.deepEqual(Object.keys(summary.tests[0]).sort(), ['column', 'duration', 'expectedStatus', 'file', 'id', 'line', 'retry', 'status']);
     assert.ok(run.stdout.includes('Safe browser layout evidence:'), run.stdout + run.stderr);
     const directories = await readdir(evidence);
     assert.equal(directories.length, 1);

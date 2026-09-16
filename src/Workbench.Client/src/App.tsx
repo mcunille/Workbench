@@ -1,3 +1,5 @@
+import { SupplierList } from './features/purchasing/SupplierList';
+import { SupplierEditor } from './features/purchasing/SupplierEditor';
 import {
   useCallback,
   useEffect,
@@ -30,6 +32,7 @@ import { Brand } from './Brand';
 import { DraftList } from './features/purchasing/DraftList';
 import { DraftEditor } from './features/purchasing/DraftEditor';
 import { DraftMemory } from './features/purchasing/draftMemory';
+import { SupplierMemory } from './features/purchasing/supplierMemory';
 
 const narrowNavigationQuery = '(width < 900px)';
 function subscribeToNavigationWidth(update: () => void) {
@@ -81,6 +84,7 @@ function SignedInApplication({
   const [archiveMemory] = useState(() => new CollectionMemory());
   const [exportMemory] = useState(() => new ExportMemory());
   const [draftMemory] = useState(() => new DraftMemory());
+  const [supplierMemory] = useState(() => new SupplierMemory());
   useLayoutEffect(() => () => exportMemory.dispose(), [exportMemory]);
   const [origins] = useState(
     () => new Map<string, 'active' | 'archived'>(),
@@ -122,8 +126,9 @@ function SignedInApplication({
       );
   }
   const authLost = useCallback(() => {
+    supplierMemory.clear();
     void refresh();
-  }, [refresh]);
+  }, [refresh, supplierMemory]);
   if (!identity) return null;
   const canManageUsers = identity.permissions.includes(
     'TenantUsersManage',
@@ -173,7 +178,7 @@ function SignedInApplication({
           <a className="navigation-destination"
             title={navigationCollapsed ? 'Purchase orders' : undefined}
             href="/purchase-orders"
-            aria-current={path.startsWith('/purchase-orders') ? 'page' : undefined}
+            aria-current={path.startsWith('/purchase-orders') || path.startsWith('/suppliers') ? 'page' : undefined}
             onClick={navigation.follow}>
             <Icon name="cart" />
             <span className="navigation-label">Purchase orders</span>
@@ -268,6 +273,12 @@ function SignedInApplication({
             />
           ) : path === '/purchase-orders' ? (
             <DraftList memory={draftMemory} follow={navigation.follow} onAuthLost={authLost} />
+          ) : path === '/suppliers' ? (
+            <SupplierList memory={supplierMemory} follow={navigation.follow} onAuthLost={authLost} />
+          ) : /^\/suppliers\/[^/]+$/.test(path) ? (
+            <SupplierEditor key={navigation.viewId} id={path === '/suppliers/new' ? undefined : path.slice('/suppliers/'.length)}
+              onDirtyChange={navigation.setDirty} onAuthLost={authLost} onCancel={() => navigation.navigate('/suppliers')}
+              onCreated={id => navigation.replace(`/suppliers/${id}`)} />
           ) : /^\/purchase-orders\/[^/]+$/.test(path) ? (
             <DraftEditor key={navigation.viewId}
               id={path === '/purchase-orders/new' ? undefined : path.slice('/purchase-orders/'.length)}

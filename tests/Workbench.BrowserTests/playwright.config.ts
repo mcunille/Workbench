@@ -6,7 +6,7 @@ export default defineConfig({
   testMatch: '*.spec.ts',
   fullyParallel: false,
   workers: 1,
-  reporter: [['./diagnostic-reporter.ts'], ['line']],
+  reporter: [['./diagnostic-reporter.ts', { outputFile: '../../artifacts/browser/results.json' }], ['line']],
   globalSetup: './diagnostic-setup.ts',
   use: {
     baseURL: browserBaseUrl,
