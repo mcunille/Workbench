@@ -23,7 +23,7 @@ async function directoryFixture(page: Page, size = 2) {
   await page.route('**/api/beta/suppliers**', async route => {
     const request = route.request();
     const url = new URL(request.url());
-    const id = url.pathname.split('/')[3];
+    const id = url.pathname.split('/')[4];
     if (id) {
       const record = records.find(item => item.id === id);
       if (!record) return route.fulfill({ status: 404 });
