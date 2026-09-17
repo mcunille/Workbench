@@ -1,6 +1,5 @@
-import { expect, test } from './diagnostic-fixture';
+import { expect, test, type Page } from './diagnostic-fixture';
 import { useAuthenticatedSession } from './auth-fixture';
-import type { Page } from '@playwright/test';
 
 test.setTimeout(120_000);
 
