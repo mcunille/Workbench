@@ -568,3 +568,25 @@ it('returns focus to the supplier summary when clearing with unrelated validatio
   expect(screen.getByText('Supplier details').closest('summary')).toHaveFocus();
   expect(screen.getByRole('link', { name: 'Review title.' })).toBeInTheDocument();
 });
+it('offers a focusable recovery copy without replacing an uncertain request', async () => {
+  // GIVEN a purchase save whose outcome is unknown.
+  vi.mocked(createDraft).mockRejectedValue(new TypeError('Network'));
+  render(<DraftEditor {...props()} />);
+  fireEvent.change(screen.getByLabelText('Notes'), { target: { value: 'Keep these research notes' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Save draft' }));
+  await screen.findByRole('button', { name: 'Check and retry' });
+  const original = vi.mocked(createDraft).mock.calls[0][0];
+  // WHEN selecting the recovery text THEN native keyboard copying is available.
+  fireEvent.click(screen.getByRole('button', { name: 'Select purchase draft text' }));
+  const recovery = screen.getByRole('textbox', { name: 'Purchase draft recovery text' }) as HTMLTextAreaElement;
+  expect(recovery).toHaveFocus();
+  expect(recovery).toHaveAttribute('readonly');
+  expect(recovery).not.toBeDisabled();
+  expect(recovery.value).toContain('Keep these research notes');
+  expect(recovery.selectionStart).toBe(0);
+  expect(recovery.selectionEnd).toBe(recovery.value.length);
+  // AND retry still uses the original command, including request identity.
+  fireEvent.click(screen.getByRole('button', { name: 'Check and retry' }));
+  await waitFor(() => expect(createDraft).toHaveBeenCalledTimes(2));
+  expect(vi.mocked(createDraft).mock.calls[1][0]).toBe(original);
+});

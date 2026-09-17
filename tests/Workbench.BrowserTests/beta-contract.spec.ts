@@ -30,6 +30,20 @@ test('an incompatible beta API preserves purchase edits and blocks subsequent wr
   await expect(page.getByLabel('Notes', { exact: true })).toHaveValue('Ask the supplier about the blue stones.');
   await expect(page).toHaveURL(/\/purchase-orders\/new$/);
 
+  // AND keyboard users can select all retained edits without unlocking the original form.
+  const recovery = page.getByRole('textbox', { name: 'Purchase draft recovery text' });
+  const selectText = page.getByRole('button', { name: 'Select purchase draft text' });
+  await recovery.focus();
+  await page.keyboard.press('Tab');
+  await expect(selectText).toBeFocused();
+  await page.keyboard.press('Enter');
+  await expect(recovery).toBeFocused();
+  await expect(recovery).toHaveAttribute('readonly', '');
+  await expect(page.getByLabel('Notes', { exact: true })).toBeDisabled();
+  const selection = await recovery.evaluate((node: HTMLTextAreaElement) => ({ value: node.value, start: node.selectionStart, end: node.selectionEnd }));
+  expect(selection.value).toContain('Ask the supplier about the blue stones.');
+  expect(selection.start).toBe(0);
+  expect(selection.end).toBe(selection.value.length);
   // WHEN retry is requested THEN the client blocks all further unsafe API network requests.
   const subsequentWrites: string[] = [];
   page.on('request', request => {

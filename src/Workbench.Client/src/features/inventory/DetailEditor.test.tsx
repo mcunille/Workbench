@@ -211,3 +211,20 @@ it('suppresses duplicate submissions and invalidates after a late completion', a
   await waitFor(() => expect(invalidate).toHaveBeenCalledOnce());
   expect(onSaved).not.toHaveBeenCalled();
 });
+it('exposes item details for keyboard copying without changing an uncertain save', async () => {
+  // GIVEN a failed response after editing item notes.
+  vi.mocked(updateItem).mockRejectedValue(new TypeError('Network'));
+  setup();
+  fireEvent.change(screen.getByLabelText('Notes (optional)'), { target: { value: 'Retain item notes' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
+  // WHEN selecting recovery text THEN the source stays frozen and the copy receives focus.
+  fireEvent.click(await screen.findByRole('button', { name: 'Select item details text' }));
+  expect(screen.getByRole('textbox', { name: 'Item details recovery text' })).toHaveFocus();
+  expect((screen.getByRole('textbox', { name: 'Item details recovery text' }) as HTMLTextAreaElement).value).toContain('Retain item notes');
+  expect(screen.getByLabelText('Notes (optional)')).toBeDisabled();
+  const original = vi.mocked(updateItem).mock.calls[0][1];
+  // AND retry preserves the immutable submitted values and version.
+  fireEvent.click(screen.getByRole('button', { name: 'Retry save' }));
+  await waitFor(() => expect(updateItem).toHaveBeenCalledTimes(2));
+  expect(vi.mocked(updateItem).mock.calls[1][1]).toBe(original);
+});

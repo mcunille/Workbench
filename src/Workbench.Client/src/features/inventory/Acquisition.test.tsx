@@ -127,6 +127,12 @@ it('retries an uncertain creation with the same UUID, versions and frozen input'
   fireEvent.click(screen.getByRole('button', { name: 'Save acquisition' }));
   await screen.findByText(/could not confirm/);
   expect(screen.getByLabelText('Gift from (optional)')).toBeDisabled();
+  // AND the retained business values can be selected with a focusable readonly control.
+  fireEvent.click(screen.getByRole('button', { name: 'Select acquisition text' }));
+  const recovery = screen.getByRole('textbox', { name: 'Acquisition recovery text' }) as HTMLTextAreaElement;
+  expect(recovery).toHaveFocus();
+  expect(recovery).toHaveAttribute('readonly');
+  expect(recovery.value).toContain('Source: Aunt May');
   fireEvent.click(screen.getByRole('button', { name: 'Retry save' }));
   // THEN a retry does not create another request identity.
   await screen.findByRole('button', { name: 'Edit acquisition' });

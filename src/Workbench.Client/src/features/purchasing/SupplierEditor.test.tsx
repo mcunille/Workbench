@@ -168,3 +168,21 @@ it('protects unsaved contact changes while a conflict comparison read is still p
   await waitFor(() => expect(callbacks.onDirtyChange).toHaveBeenLastCalledWith(true, false));
   await act(async () => finish(saved));
 });
+it('keeps supplier edits keyboard-copyable while preserving the uncertain command', async () => {
+  // GIVEN a supplier save with no confirmed response.
+  vi.mocked(createSupplier).mockRejectedValue(new TypeError('Network'));
+  render(<SupplierEditor {...props()} />);
+  fireEvent.change(screen.getByLabelText('Supplier name'), { target: { value: 'Retained supplier' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Save supplier' }));
+  await screen.findByRole('button', { name: 'Retry save' });
+  const original = vi.mocked(createSupplier).mock.calls.at(-1)![0];
+  // WHEN selecting recovery text THEN it is focusable while the source stays frozen.
+  fireEvent.click(screen.getByRole('button', { name: 'Select supplier text' }));
+  const recovery = screen.getByRole('textbox', { name: 'Supplier recovery text' });
+  expect(recovery).toHaveFocus();
+  expect((recovery as HTMLTextAreaElement).value).toContain('Retained supplier');
+  expect(screen.getByLabelText('Supplier name')).toBeDisabled();
+  // AND a retry reuses the same command.
+  fireEvent.click(screen.getByRole('button', { name: 'Retry save' }));
+  await waitFor(() => expect(vi.mocked(createSupplier).mock.calls.at(-1)![0]).toBe(original));
+});

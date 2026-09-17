@@ -1,3 +1,5 @@
+import { RecoveryText } from '../../RecoveryText';
+import { recoveryText } from '../../formatRecoveryText';
 import { FloatingField } from '../../FloatingField';
 import { useEffect, useRef, useState } from 'react';
 import { ApiError } from '../../api/auth';
@@ -161,6 +163,7 @@ export function DetailEditor({
       <h2 id="edit-details-title" ref={heading} tabIndex={-1}>
         {review ? 'Review current record' : 'Edit details'}
       </h2>
+      {submitted && !pending ? <RecoveryText label="Item details" text={recoveryText(draft)} /> : null}
       {review ? (
         <>
           <p>
