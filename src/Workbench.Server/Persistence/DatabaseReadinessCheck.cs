@@ -23,6 +23,9 @@ public sealed class DatabaseReadinessCheck(
             {
                 CommandType = CommandType.StoredProcedure,
             };
+            // An older schema must not certify compatibility with this application revision.
+            command.Parameters.Add("@ExpectedMigration", SqlDbType.NVarChar, 150).Value =
+                "20260918020000_IntegrateBetaDraftFinancialAdjustments";
             DatabaseSecurityState? state;
             await using (var reader = await command.ExecuteReaderAsync(cancellationToken))
             {

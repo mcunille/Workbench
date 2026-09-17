@@ -22,7 +22,7 @@ Choose **Per unit** or **Total line** pricing. Per unit multiplies quantity by u
 
 New quantities and prices start blank. Quantities must be positive, with up to nine integer digits and four fractional digits, including fractional parcels and packs. Prices are nonnegative; blank means **Unknown**, and explicit zero remains zero. Unit prices allow fifteen integer digits and total-line prices nineteen, each with up to four fractional digits. Choose one three-letter currency whenever entering a price. Switching pricing mode keeps the entered number and changes how it is applied; check the updated line estimate before saving.
 
-The server calculates line amounts with exact arithmetic, rounding once to four decimal places with halfway values rounded up. **Merchandise estimate** sums known line amounts before discounts, shipping and tax. If any line is incomplete, **Known line subtotal** identifies that limitation. No known amounts displays Unknown, not zero. This is a draft estimate, not an invoice amount or balance due. Pending calculations hide older figures; failed calculations keep input and offer retry. Saving is independent of the preview.
+The server calculates line amounts with exact arithmetic, rounding once to four decimal places with halfway values rounded up. **Merchandise gross** sums known line amounts before discounts, shipping and tax. If any line is incomplete, **Known line subtotal** identifies that limitation. No known amounts displays Unknown, not zero. This is a draft estimate, not an invoice amount or balance due. Pending calculations hide older figures; failed calculations keep input and offer retry. Saving is independent of the preview.
 
 Price entry starts with a `0.00` placeholder: digits fill from the right (`1` → `0.01`, `12` → `0.12`,
 `123` → `1.23`). An untouched or cleared field remains Unknown. Choose **Use extra precision** to
@@ -41,9 +41,12 @@ Older complete quotes are presented on the supplier's pricing basis without chan
 
 Older reference prices remain labelled **Reference price — basis not recorded** and do not contribute to estimates until you choose **Use as unit price** or **Use as total line price**. Incomplete older quotes retain a read-only summary under **Previous pricing needs review**; choose **Replace previous pricing** to enter a new price. Saving unrelated edits retains unresolved quotes.
 
-**Clear all prices** asks for confirmation and clears current prices and retained legacy quotes. It retains the current quantities, units, metadata and currency.
+**Clear all amounts** asks for confirmation and clears current prices, retained legacy quotes,
+line/order discounts and charge amounts. Charge status becomes estimated; charge labels, payees,
+references and notes stay. It retains quantities, units and currency. Clearing saved confirmed
+charges requires an explanation, appended to each affected charge's notes.
 Cancel or Escape preserves the amounts. Save the cleared draft before changing its currency, then
-save the changed currency before entering new prices. Workbench never converts or relabels amounts.
+save the changed currency before entering new amounts. Workbench never converts or relabels amounts.
 Removal offers Undo until saving begins or the currency changes. Save failures preserve your input.
 
 Drafts allow 100 lines and 20 order-level source links. Links must use HTTP or HTTPS and cannot
@@ -52,6 +55,48 @@ field limits; shorten text or remove entries if a save reports that limit. Savin
 line creates no collection item, acquisition, invoice, payment obligation or accounting entry.
 Commitment, attachments, receiving and payments remain separate increments. There is no order export
 workflow in this release.
+
+## Discounts and additional charges
+
+Use **Add discount** within a line or **Add order discount** under Discounts and charges.
+Choose a fixed amount or percentage. A line discount applies to its gross amount; the order
+discount applies to merchandise after line discounts, excluding all charges. One discount is
+supported at each scope. Enter a combined fixed amount for multiple supplier reductions.
+The editor shows the eligible base and reduction. Percentages allow up to four decimals and
+cannot exceed 100%; fixed reductions cannot exceed a known base. Missing bases stay Unknown,
+and an order discount is not applied to a partial known subtotal.
+
+Use **Add charge** for shipping/freight, handling/packing, shipping insurance, sales tax, VAT/GST,
+customs duty/tariff, other tax, brokerage/clearance, payment/bank/conversion fees,
+testing/certification/inspection, or another labeled charge. Categories describe what the amount
+is for; they do not calculate tax rates or infer accounting treatment. Import VAT belongs under
+VAT/GST, separately from customs duty. Multiple rows can share a category when the source itemizes
+them. Record a combined amount once rather than entering it again under each component.
+
+Each charge keeps its own label, amount, supplier or named third-party payee, estimated/confirmed
+status, supporting reference and notes. Blank amounts stay Unknown. Confirmed means the amount
+is confirmed from a source; the order remains a draft. Changing a saved confirmed amount, payee
+or status requires an updated explanation in notes. Update the same charge when an estimate is
+confirmed rather than adding it twice. Charge removal offers Undo until save or currency change.
+
+Saved charges open as compact rows showing their label, payee, amount and source status. Expand
+a row to edit; new, restored and invalid charges open for entry or correction. Monetary-entry
+guidance is available from **Cents entry help** or **Decimal entry help** beside the precision control. **View purchase estimate**
+near the order identity jumps directly to the full breakdown without changing the draft.
+
+The summary separates supplier charges and third-party costs. Ten stones at USD 20 with a 10%
+line discount, twenty settings at USD 5, a USD 10 order discount, USD 15 supplier shipping and
+USD 21.60 sales tax produce a **Supplier draft estimate** of USD 306.60. A USD 3 third-party bank
+fee raises **Total purchase estimate** to USD 309.60 without changing the supplier estimate.
+No payment or balance due is inferred. Unknown third-party amounts leave the supplier estimate
+available when otherwise complete; the purchase total remains Unknown. Charge-only subtotals do
+not constitute a complete purchase estimate until merchandise is entered.
+
+The [PO-05 design](specs/2026-09-16-po-05-discounts-and-charges.md) defines these rules. This
+increment precedes PO-04: commitment, invoices, payments and permanent amendment history remain
+separate work. The beta contract now requires revision `beta-2`; older open clients must reload
+before making a new save. Current beta retries retain their original request identity and result.
+Retired API requests are unsupported; inspect the saved record before replacing an uncertain old save.
 
 ## Suppliers, platforms and purchase references
 

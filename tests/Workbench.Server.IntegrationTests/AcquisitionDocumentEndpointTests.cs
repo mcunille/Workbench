@@ -114,7 +114,7 @@ public sealed class AcquisitionDocumentEndpointTests(SqlServerFixture sqlServer)
         var requestId = Guid.NewGuid();
 
         // AND uploads without antiforgery proof cannot change saved evidence.
-        client.DefaultRequestHeaders.Add("X-Workbench-Api-Revision", "beta-1");
+        client.DefaultRequestHeaders.Add("X-Workbench-Api-Revision", "beta-2");
         Assert.Equal(HttpStatusCode.BadRequest, (await client.PostAsync(path, new MultipartFormDataContent())).StatusCode);
         Assert.Equal(HttpStatusCode.OK, (await UploadAsync(client, path, context, requestId, bytes)).StatusCode);
         var list = (await client.GetFromJsonAsync<AcquisitionDocumentsResponse>(path))!;
@@ -167,7 +167,7 @@ public sealed class AcquisitionDocumentEndpointTests(SqlServerFixture sqlServer)
     {
         var token = await client.GetFromJsonAsync<JsonElement>("/api/beta/auth/antiforgery");
         using var request = new HttpRequestMessage(HttpMethod.Post, path);
-        request.Headers.TryAddWithoutValidation("X-Workbench-Api-Revision", "beta-1");
+        request.Headers.TryAddWithoutValidation("X-Workbench-Api-Revision", "beta-2");
         request.Headers.Add("X-CSRF-TOKEN", token.GetProperty("requestToken").GetString());
         var multipart = new MultipartFormDataContent();
         multipart.Add(new StringContent(requestId.ToString()), "requestId");

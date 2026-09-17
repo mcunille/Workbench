@@ -4,7 +4,7 @@ import { getSupplier, getSuppliers, type Supplier } from '../../api/suppliers';
 import type { DraftContent } from '../../api/purchaseOrders';
 import { DraftSupplier } from './DraftSupplier';
 vi.mock('../../api/suppliers', async original => ({ ...await original<typeof import('../../api/suppliers')>(), getSupplier: vi.fn(), getSuppliers: vi.fn() }));
-const draft: DraftContent = { title: null, supplierName: 'Saved supplier', supplierId: 'linked', supplierContactName: null, supplierEmail: null, supplierPhone: null, supplierWebsite: null, supplierPostalAddress: null, supplierOrderReference: null, platform: 'Instagram', currency: null, notes: null, sourceLinks: [], entries: [] };
+const draft: DraftContent = { orderDiscount: null, charges: [], title: null, supplierName: 'Saved supplier', supplierId: 'linked', supplierContactName: null, supplierEmail: null, supplierPhone: null, supplierWebsite: null, supplierPostalAddress: null, supplierOrderReference: null, platform: 'Instagram', currency: null, notes: null, sourceLinks: [], entries: [] };
 const current: Supplier = { id: 'linked', supplier: { name: 'Current supplier', contactName: null, email: null, phone: null, website: null, postalAddress: null }, isArchived: false, version: 's1', createdAtUtc: '2026-09-12T00:00:00Z', updatedAtUtc: '2026-09-12T00:00:00Z' };
 beforeEach(() => {
   vi.mocked(getSupplier).mockReset(); vi.mocked(getSupplier).mockResolvedValue(current); vi.mocked(getSuppliers).mockReset();

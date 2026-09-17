@@ -42,7 +42,9 @@ public sealed class DraftOrderEndpointTests(SqlServerFixture sqlServer)
                 currency = (string?)null,
                 notes = (string?)null,
                 sourceLinks = Array.Empty<string>(),
-                entries = Array.Empty<object>()
+                entries = Array.Empty<object>(),
+                orderDiscount = (object?)null,
+                charges = Array.Empty<object>()
             }
         };
         // WHEN the empty draft is explicitly saved.

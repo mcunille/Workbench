@@ -33,7 +33,7 @@ public sealed class LoginHashingTests(SqlServerFixture sqlServer)
             }));
         using var client = factory.CreateClient();
         var token = await client.GetFromJsonAsync<AntiforgeryResponse>("/api/beta/auth/antiforgery");
-        client.DefaultRequestHeaders.TryAddWithoutValidation("X-Workbench-Api-Revision", "beta-1");
+        client.DefaultRequestHeaders.TryAddWithoutValidation("X-Workbench-Api-Revision", "beta-2");
         client.DefaultRequestHeaders.Add("X-CSRF-TOKEN", token!.RequestToken);
         var preparedHashes = hasher.HashCalls;
 
@@ -67,7 +67,7 @@ public sealed class LoginHashingTests(SqlServerFixture sqlServer)
             }));
         using var client = factory.CreateClient();
         var token = await client.GetFromJsonAsync<AntiforgeryResponse>("/api/beta/auth/antiforgery");
-        client.DefaultRequestHeaders.TryAddWithoutValidation("X-Workbench-Api-Revision", "beta-1");
+        client.DefaultRequestHeaders.TryAddWithoutValidation("X-Workbench-Api-Revision", "beta-2");
         client.DefaultRequestHeaders.Add("X-CSRF-TOKEN", token!.RequestToken);
 
         // WHEN separate request scopes concurrently verify credentials

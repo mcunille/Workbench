@@ -54,8 +54,12 @@ public sealed class DatabaseMigrationTests(SqlServerFixture sqlServer)
             migration => Assert.EndsWith("_AddDraftSupplierOrders", migration, StringComparison.Ordinal),
             migration => Assert.EndsWith("_AddSupplierIdentityAndPurchaseReferences", migration, StringComparison.Ordinal),
             migration => Assert.EndsWith("_AddSupplierBasedDraftPricing", migration, StringComparison.Ordinal),
+            migration => Assert.EndsWith("_PrepareRetainedBetaFinancialUpgrade", migration, StringComparison.Ordinal),
+            migration => Assert.EndsWith("_AddDraftFinancialAdjustments", migration, StringComparison.Ordinal),
+            migration => Assert.EndsWith("_ProtectConfirmedSupplierChargeCorrections", migration, StringComparison.Ordinal),
             migration => Assert.EndsWith("_ConsolidateBetaDraftCommands", migration, StringComparison.Ordinal),
-            migration => Assert.EndsWith("_RemoveHistoricalDraftReplay", migration, StringComparison.Ordinal));
+            migration => Assert.EndsWith("_RemoveHistoricalDraftReplay", migration, StringComparison.Ordinal),
+            migration => Assert.EndsWith("_IntegrateBetaDraftFinancialAdjustments", migration, StringComparison.Ordinal));
     }
 
     [Theory]
@@ -77,6 +81,10 @@ public sealed class DatabaseMigrationTests(SqlServerFixture sqlServer)
     [InlineData("AddDraftSupplierOrders")]
     [InlineData("AddSupplierIdentityAndPurchaseReferences")]
     [InlineData("AddSupplierBasedDraftPricing")]
+    [InlineData("PrepareRetainedBetaFinancialUpgrade")]
+    [InlineData("AddDraftFinancialAdjustments")]
+    [InlineData("ProtectConfirmedSupplierChargeCorrections")]
+    [InlineData("RemoveHistoricalDraftReplay")]
     [InlineData("ConsolidateBetaDraftCommands")]
     public async Task MigratorUpgradesASeededPriorSchemaWithoutLosingTenantData(string priorMigration)
     {
@@ -171,12 +179,12 @@ public sealed class DatabaseMigrationTests(SqlServerFixture sqlServer)
         await Task.WhenAll(first, second);
 
         // THEN both complete successfully, history appears once, and the current schema exists.
-        Assert.Equal(20, await CountAsync(database.AdminConnectionString, "[dbo].[__EFMigrationsHistory]"));
+        Assert.Equal(24, await CountAsync(database.AdminConnectionString, "[dbo].[__EFMigrationsHistory]"));
         Assert.Equal(1, await ObjectCountAsync(database.AdminConnectionString, "Storage.Revisions"));
         Assert.Equal(1, await ObjectCountAsync(database.AdminConnectionString, "Operations.WorkItems"));
         // AND another invocation observes the completed schema without applying it again.
         await DatabaseMigrator.MigrateAsync(connectionString, timeout.Token);
-        Assert.Equal(20, await CountAsync(database.AdminConnectionString, "[dbo].[__EFMigrationsHistory]"));
+        Assert.Equal(24, await CountAsync(database.AdminConnectionString, "[dbo].[__EFMigrationsHistory]"));
     }
 
     [Fact]
@@ -215,7 +223,7 @@ public sealed class DatabaseMigrationTests(SqlServerFixture sqlServer)
         await SetMigrationLockAsync(lockConnection, acquire: false);
         using var retryTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(45));
         await DatabaseMigrator.MigrateAsync(connectionString, retryTimeout.Token);
-        Assert.Equal(20, await CountAsync(database.AdminConnectionString, "[dbo].[__EFMigrationsHistory]"));
+        Assert.Equal(24, await CountAsync(database.AdminConnectionString, "[dbo].[__EFMigrationsHistory]"));
         Assert.Equal(1, await ObjectCountAsync(database.AdminConnectionString, "Storage.Revisions"));
     }
 

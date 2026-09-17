@@ -25,11 +25,11 @@ public sealed partial class DraftOrderDatabaseTests
         // WHEN the consolidated migrator runs THEN retained history and the old receipt stay intact.
         await Workbench.Server.Persistence.DatabaseMigrator.MigrateAsync(database.AdminConnectionString, default);
         history.CommandText = "SELECT COUNT(*) FROM dbo.__EFMigrationsHistory";
-        Assert.Equal(21, Convert.ToInt32(await history.ExecuteScalarAsync()));
+        Assert.Equal(25, Convert.ToInt32(await history.ExecuteScalarAsync()));
         var inspection = await Workbench.Server.Administration.DevelopmentDatabaseInspection.InspectAsync(database.AdminConnectionString, default);
         Assert.True(inspection.MigrationHistoryCompatible);
         Assert.True(inspection.SchemaCurrent);
-        Assert.Equal(21, inspection.AppliedMigrations.Length);
+        Assert.Equal(25, inspection.AppliedMigrations.Length);
         var replay = await Save(connection, actor, request, original, "Create");
         Assert.Equal(saved.Version, replay.Version); Assert.True(replay.Replayed);
         // AND a beta update retains the order identity while older clients cannot overwrite the new content.
@@ -61,7 +61,7 @@ public sealed partial class DraftOrderDatabaseTests
         var id = await SavePricing(request, canonical);
         Assert.Equal(id, await SavePricing(request, canonical));
         await using var read = new SqlCommand("SELECT ContentSchemaVersion FROM Purchasing.DraftOrders WHERE Id=@id", connection);
-        read.Parameters.AddWithValue("@id", id); Assert.Equal(3, Convert.ToInt32(await read.ExecuteScalarAsync()));
+        read.Parameters.AddWithValue("@id", id); Assert.Equal(4, Convert.ToInt32(await read.ExecuteScalarAsync()));
         // AND direct SQL callers cannot bypass retained quote validation.
         foreach (var legacy in new[] {
             new DraftLegacyPricing("1.0000", "piece", "1.0000", "piece", "1.0000", "1.0000"),

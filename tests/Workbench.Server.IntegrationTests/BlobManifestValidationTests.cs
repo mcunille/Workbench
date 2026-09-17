@@ -18,9 +18,13 @@ public sealed class BlobManifestValidationTests
     [InlineData("20260912030844_AddDraftSupplierOrders")]
     [InlineData("20260912064156_AddSupplierIdentityAndPurchaseReferences")]
     [InlineData("20260916183834_AddStructuredDraftOrderLines")]
+    [InlineData("20260918020000_IntegrateBetaDraftFinancialAdjustments")]
+    [InlineData("20260917015000_PrepareRetainedBetaFinancialUpgrade")]
     [InlineData("20260917010000_AddSupplierBasedDraftPricing")]
     [InlineData("20260917080000_ConsolidateBetaDraftCommands")]
     [InlineData("20260918010000_RemoveHistoricalDraftReplay")]
+    [InlineData("20260917020000_AddDraftFinancialAdjustments")]
+    [InlineData("20260917030000_ProtectConfirmedSupplierChargeCorrections")]
     [InlineData("20260912033355_TightenDraftSourceLinkValidation")]
     [InlineData("20260912045432_AddDraftOrderDeletion")]
     public void EverySupportedSchemaAcceptsAnExactManifest(string schema)

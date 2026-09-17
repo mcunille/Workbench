@@ -16,7 +16,7 @@ beforeEach(() => {
   Object.defineProperty(HTMLDialogElement.prototype, 'showModal', { configurable: true, value(this: HTMLDialogElement) { this.setAttribute('open', ''); } });
   vi.spyOn(window, 'scrollTo').mockImplementation(() => {});
   // Navigation owns these scenarios; HTTP serialization is covered by the API tests.
-  vi.spyOn(systemApi, 'getSystem').mockResolvedValue({ name: 'Workbench', version: '1', apiRevision: 'beta-1' });
+  vi.spyOn(systemApi, 'getSystem').mockResolvedValue({ name: 'Workbench', version: '1', apiRevision: 'beta-2' });
   vi.spyOn(authApi, 'getCurrentIdentity').mockResolvedValue({ userId: 'person', tenantName: 'Studio', email: 'person@example.test', permissions: ['TenantAccess'] });
   vi.spyOn(itemsApi, 'getItems').mockResolvedValue({ items: [origin, sibling], nextCursor: 'next-page' });
   vi.spyOn(itemsApi, 'getItem').mockImplementation(async id => id === sibling.id ? sibling : origin);

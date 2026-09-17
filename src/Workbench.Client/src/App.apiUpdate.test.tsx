@@ -9,12 +9,12 @@ it('keeps the draft and uncertain save in place when the deployed API changes', 
   let writes = 0;
   let original: unknown;
   server.use(
-    http.get('*/api/beta/system', () => HttpResponse.json({ name: 'Workbench', version: 'beta', apiRevision: 'beta-1' })),
+    http.get('*/api/beta/system', () => HttpResponse.json({ name: 'Workbench', version: 'beta', apiRevision: 'beta-2' })),
     http.get('*/api/beta/auth/me', () => HttpResponse.json({ userId: 'user', tenantName: 'Studio', email: 'person@example.test', permissions: ['TenantAccess'] })),
     http.get('*/api/beta/auth/antiforgery', () => HttpResponse.json({ requestToken: 'test' })),
     http.post('*/api/beta/purchase-order-drafts/calculate', () => HttpResponse.json({ lines: [], incompleteLineCount: 0, merchandiseEstimate: null })),
     http.post('*/api/beta/purchase-order-drafts', async ({ request }) => {
-      expect(request.headers.get('X-Workbench-Api-Revision')).toBe('beta-1');
+      expect(request.headers.get('X-Workbench-Api-Revision')).toBe('beta-2');
       const body = await request.json();
       if (++writes === 1) { original = body; return HttpResponse.error(); }
       expect(body).toEqual(original);

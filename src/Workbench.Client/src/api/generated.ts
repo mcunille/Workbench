@@ -3269,6 +3269,29 @@ export interface components {
             /** Format: int32 */
             incompleteLineCount: number | string;
             merchandiseEstimate: null | string;
+            lineDiscountTotal: null | string;
+            merchandiseNet: null | string;
+            orderDiscountBase: null | string;
+            orderDiscountAmount: null | string;
+            discountedMerchandise: null | string;
+            supplierCharges: null | string;
+            thirdPartyCharges: null | string;
+            supplierEstimate: null | string;
+            purchaseEstimate: null | string;
+            /** Format: int32 */
+            incompleteChargeCount: number | string;
+        };
+        DraftCharge: {
+            /** Format: uuid */
+            id: string;
+            category: string;
+            label: string;
+            amount: null | string;
+            payeeKind: string;
+            payeeName: null | string;
+            amountStatus: string;
+            reference: null | string;
+            notes: null | string;
         };
         DraftContent: {
             title: null | string;
@@ -3286,6 +3309,12 @@ export interface components {
             supplierPostalAddress: null | string;
             supplierOrderReference: null | string;
             platform: null | string;
+            orderDiscount: null | components["schemas"]["DraftDiscount"];
+            charges: components["schemas"]["DraftCharge"][];
+        };
+        DraftDiscount: {
+            mode: string;
+            value: string;
         };
         DraftEntry: {
             /** Format: uuid */
@@ -3301,6 +3330,7 @@ export interface components {
             legacyPricing: null | components["schemas"]["DraftLegacyPricing"];
             supplierSku: null | string;
             itemType: null | string;
+            discount: null | components["schemas"]["DraftDiscount"];
         };
         DraftLegacyPricing: {
             quantity: null | string;
@@ -3314,6 +3344,9 @@ export interface components {
             /** Format: uuid */
             id: string;
             gross: null | string;
+            discountBase: null | string;
+            discountAmount: null | string;
+            net: null | string;
         };
         DraftOrderPageResponse: {
             items: components["schemas"]["DraftOrderSummary"][];

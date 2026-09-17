@@ -181,7 +181,7 @@ adapters remain. Current beta retries retain their compact receipts and cannot s
 fields. Supplier writes use the same compact-receipt and rowversion
 reconciliation principles. See the [PO-02 specification](specs/2026-09-11-po-02-supplier-identity-and-references.md).
 
-PO-03 keeps the JSON aggregate. Supplier-based pricing writes content schema 3 through the single
+PO-03 keeps the JSON aggregate. Supplier-based pricing introduced content schema 3 through the single
 current beta command implementation, with one quantity/unit and a per-unit or total-line amount.
 Exact decimal arithmetic calculates line amounts; a fixed total does not require quantity. Beta
 reads project older schema 1/2 entries without writing them. Complete old quotes retain their
@@ -194,6 +194,18 @@ adapters, and rollout/rollback boundaries. Public contract versions do not deter
 of persisted content or immutable receipts.
 
 The authenticated calculation endpoint shares server rules without persisting input; the client cancels obsolete previews and hides stale results. Detail responses include derived line gross and subtotal information. See the [PO-03 specification](specs/2026-09-16-po-03-itemized-quantities-and-prices.md).
+
+PO-05 extends the beta contract and writes content schema 4 with line/order discounts and categorized
+charge rows in the same aggregate. The server calculates four-place reductions from explicit
+merchandise bases, then supplier and third-party charge totals separately. Unknown inputs never
+become zero or a complete purchase estimate. Restricted current SQL commands independently validate
+the closed shape, amounts, discount bounds, currency transitions and confirmed-charge correction
+notes. New writes require adjustment properties; missing properties cannot erase saved financial
+inputs. The bundled client and server use revision `beta-2`; older clients must reload and retired
+public routes remain unsupported. Stored receipt history remains intact.
+Reads upgrade older content without persisting it, preserving unresolved legacy quotes.
+No commitment, invoice, balance or ledger posting is created. See the
+[PO-05 specification](specs/2026-09-16-po-05-discounts-and-charges.md).
 
 ## Architectural invariants
 

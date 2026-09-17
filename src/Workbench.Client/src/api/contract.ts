@@ -1,4 +1,4 @@
-export const API_REVISION = 'beta-1';
+export const API_REVISION = 'beta-2';
 
 export class ApiContractUnsupportedError extends Error {
   readonly code = 'api_contract_unsupported';

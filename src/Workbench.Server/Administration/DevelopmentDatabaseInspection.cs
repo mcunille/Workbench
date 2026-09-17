@@ -19,7 +19,7 @@ public static class DevelopmentDatabaseInspection
 {
     public static bool IsCompatibleHistory(IReadOnlyList<string> known, IReadOnlyList<string> applied)
     {
-        if (applied.Count <= known.Count && applied.SequenceEqual(known.Take(applied.Count), StringComparer.Ordinal))
+        if (IsCompatibleLineage(known, applied))
             return true;
 
         // Retained previews applied both PO-03 steps before they were consolidated. Accept only
@@ -29,7 +29,35 @@ public static class DevelopmentDatabaseInspection
         if (index < 0 || !applied.Contains(consolidated, StringComparer.Ordinal)) return false;
         var historical = known.Take(index).Append("20260916183834_AddStructuredDraftOrderLines")
             .Concat(known.Skip(index)).ToArray();
-        return applied.Count <= historical.Length && applied.SequenceEqual(historical.Take(applied.Count), StringComparer.Ordinal);
+        return IsCompatibleLineage(historical, applied);
+    }
+
+    private static bool IsCompatibleLineage(IReadOnlyList<string> known, IReadOnlyList<string> applied)
+    {
+        static bool IsPrefix(IReadOnlyList<string> history, IReadOnlyList<string> candidate) =>
+            candidate.Count <= history.Count && candidate.SequenceEqual(history.Take(candidate.Count), StringComparer.Ordinal);
+        if (IsPrefix(known, applied)) return true;
+
+        const string preparation = "20260917015000_PrepareRetainedBetaFinancialUpgrade";
+        const string financial = "20260917020000_AddDraftFinancialAdjustments";
+        const string correction = "20260917030000_ProtectConfirmedSupplierChargeCorrections";
+        const string beta = "20260917080000_ConsolidateBetaDraftCommands";
+        const string removal = "20260918010000_RemoveHistoricalDraftReplay";
+        string[] transition = [preparation, financial, correction, beta, removal, "20260918020000_IntegrateBetaDraftFinancialAdjustments"];
+        var index = Array.IndexOf(known.ToArray(), preparation);
+        if (index < 1 || known[index - 1] != "20260917010000_AddSupplierBasedDraftPricing"
+            || !known.Skip(index).Take(transition.Length).SequenceEqual(transition, StringComparer.Ordinal)) return false;
+
+        // The retained main and beta branches predate the preparatory migration. Accept their
+        // exact histories and ordered intermediate beta upgrades, never arbitrary known subsets.
+        string[][] retainedSuffixes =
+        [
+            [financial, correction],
+            [beta, removal],
+            [preparation, beta, removal],
+            [preparation, financial, beta, removal]
+        ];
+        return retainedSuffixes.Any(suffix => IsPrefix(known.Take(index).Concat(suffix).ToArray(), applied));
     }
 
     public static async Task<DevelopmentDatabaseReport> InspectAsync(

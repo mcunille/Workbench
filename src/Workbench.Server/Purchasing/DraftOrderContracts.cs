@@ -16,8 +16,10 @@ public sealed record DraftEntry(
     [property: JsonRequired] string? Price,
     [property: JsonRequired] DraftLegacyPricing? LegacyPricing,
     [property: JsonRequired, MaxLength(200)] string? SupplierSku,
-    [property: JsonRequired, MaxLength(100)] string? ItemType);
+    [property: JsonRequired, MaxLength(100)] string? ItemType,
+    [property: JsonRequired] DraftDiscount? Discount = null);
 [JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
+[method: JsonConstructor]
 public sealed record DraftContent(
     [property: JsonRequired, MaxLength(200)] string? Title,
     [property: JsonRequired, MaxLength(200)] string? SupplierName,
@@ -32,7 +34,18 @@ public sealed record DraftContent(
     [property: JsonRequired, MaxLength(2048)] string? SupplierWebsite,
     [property: JsonRequired, MaxLength(2000)] string? SupplierPostalAddress,
     [property: JsonRequired, MaxLength(200)] string? SupplierOrderReference,
-    [property: JsonRequired, MaxLength(200)] string? Platform);
+    [property: JsonRequired, MaxLength(200)] string? Platform,
+    [property: JsonRequired] DraftDiscount? OrderDiscount,
+    [property: JsonRequired, MaxLength(50)] IReadOnlyList<DraftCharge> Charges)
+{
+    public DraftContent(string? title, string? supplierName, string? currency, string? notes,
+        IReadOnlyList<string> sourceLinks, IReadOnlyList<DraftEntry> entries, Guid? supplierId,
+        string? supplierContactName, string? supplierEmail, string? supplierPhone, string? supplierWebsite,
+        string? supplierPostalAddress, string? supplierOrderReference, string? platform)
+        : this(title, supplierName, currency, notes, sourceLinks, entries, supplierId, supplierContactName,
+            supplierEmail, supplierPhone, supplierWebsite, supplierPostalAddress, supplierOrderReference, platform, null, [])
+    { }
+}
 
 
 [JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
@@ -54,9 +67,26 @@ public sealed record DraftLegacyPricing(
     [property: JsonRequired] string? PricingQuantity);
 
 [JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
+public sealed record DraftDiscount([property: JsonRequired] string Mode, [property: JsonRequired] string Value);
+[JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
+public sealed record DraftCharge(
+    [property: JsonRequired] Guid Id,
+    [property: JsonRequired] string Category,
+    [property: JsonRequired, MaxLength(200)] string Label,
+    [property: JsonRequired] string? Amount,
+    [property: JsonRequired] string PayeeKind,
+    [property: JsonRequired, MaxLength(200)] string? PayeeName,
+    [property: JsonRequired] string AmountStatus,
+    [property: JsonRequired, MaxLength(200)] string? Reference,
+    [property: JsonRequired, MaxLength(2000)] string? Notes);
+public sealed record DraftLineCalculation(Guid Id, string? Gross, string? DiscountBase, string? DiscountAmount, string? Net);
+public sealed record DraftCalculationResponse(IReadOnlyList<DraftLineCalculation> Lines, int IncompleteLineCount,
+    string? MerchandiseEstimate, string? LineDiscountTotal, string? MerchandiseNet, string? OrderDiscountBase,
+    string? OrderDiscountAmount, string? DiscountedMerchandise, string? SupplierCharges, string? ThirdPartyCharges,
+    string? SupplierEstimate, string? PurchaseEstimate, int IncompleteChargeCount);
+
+[JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
 public sealed record DeleteDraftOrderRequest([property: JsonRequired] Guid RequestId,
     [property: JsonRequired] string ExpectedVersion);
 
 public sealed record SaveDraftOrderResponse(Guid RequestId, bool Replayed, Guid DraftOrderId, string SavedVersion, string CompletedAtUtc);
-public sealed record DraftLineCalculation(Guid Id, string? Gross);
-public sealed record DraftCalculationResponse(IReadOnlyList<DraftLineCalculation> Lines, int IncompleteLineCount, string? MerchandiseEstimate);

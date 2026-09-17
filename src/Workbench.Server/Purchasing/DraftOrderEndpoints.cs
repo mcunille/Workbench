@@ -54,7 +54,9 @@ public static class DraftOrderEndpoints
         var links = content.RootElement.GetProperty("sourceLinks").Deserialize<string[]>(DraftOrderInput.JsonOptions)!;
         var entries = DraftOrderInput.ReadEntries(content.RootElement, row.ContentSchemaVersion);
         var archived = row.SupplierId is { } supplierId && await database.Suppliers.AnyAsync(s => s.Id == supplierId && s.IsArchived, cancellationToken);
-        var draft = new DraftContent(row.Title, row.SupplierName, row.Currency, row.Notes, links, entries, row.SupplierId, row.SupplierContactName, row.SupplierEmail, row.SupplierPhone, row.SupplierWebsite, row.SupplierPostalAddress, row.SupplierOrderReference, row.Platform);
+        var draft = new DraftContent(row.Title, row.SupplierName, row.Currency, row.Notes, links, entries, row.SupplierId, row.SupplierContactName, row.SupplierEmail, row.SupplierPhone, row.SupplierWebsite, row.SupplierPostalAddress, row.SupplierOrderReference, row.Platform,
+            row.ContentSchemaVersion >= 4 ? content.RootElement.GetProperty("orderDiscount").Deserialize<DraftDiscount>(DraftOrderInput.JsonOptions) : null,
+            row.ContentSchemaVersion >= 4 ? content.RootElement.GetProperty("charges").Deserialize<DraftCharge[]>(DraftOrderInput.JsonOptions)! : []);
         return Results.Ok(new DraftOrderResponse(row.Id, draft, DraftOrderCursor.Timestamp(row.CreatedAtUtc), DraftOrderCursor.Timestamp(row.UpdatedAtUtc), Convert.ToBase64String(row.RowVersion), PurchasingIdentityInput.Reference(row.PoNumber), archived, DraftOrderInput.Calculate(draft)));
     }
     private static Task<IResult> CreateAsync(CreateDraftOrderRequest request, WorkbenchDbContext database,
@@ -73,6 +75,18 @@ public static class DraftOrderEndpoints
         if (requestId == Guid.Empty) errors["requestId"] = ["A nonempty save identifier is required."];
         var expectedVersion = id is null ? null : DraftOrderInput.NormalizeVersion(version, errors);
         if (errors.Count > 0) return Validation(errors);
+        if (id is not null)
+        {
+            var saved = await database.DraftOrders.AsNoTracking().SingleOrDefaultAsync(row => row.Id == id && !row.IsDeleted, cancellationToken);
+            if (saved is { ContentSchemaVersion: >= 4 } && Convert.ToBase64String(saved.RowVersion) == expectedVersion)
+            {
+                using var document = JsonDocument.Parse(saved.ContentJson);
+                var charges = document.RootElement.GetProperty("charges").Deserialize<DraftCharge[]>(DraftOrderInput.JsonOptions)!;
+                var corrections = DraftOrderInput.ValidateConfirmedCorrections(charges, draft!.Charges,
+                    saved.SupplierId != draft.SupplierId || saved.SupplierName != draft.SupplierName);
+                if (corrections.Count > 0) return Validation(corrections);
+            }
+        }
         var operation = id is null ? "Create" : "Update";
         await database.Database.OpenConnectionAsync(cancellationToken);
         try
@@ -99,7 +113,7 @@ public static class DraftOrderEndpoints
             return exception.Number switch
             {
                 50400 => Validation(new() { ["draft"] = ["Review the draft fields and limits."] }),
-                50401 => Validation(new() { ["draft.currency"] = ["Clear existing prices and save before entering amounts in a different currency."] }),
+                50401 => Validation(new() { ["draft.currency"] = ["Clear all amounts and save before entering amounts in a different currency."] }),
                 50403 => Problem(403, "draft_authority_required", "Current business authority is required."),
                 50404 => Problem(404, "draft_not_found", "Draft not found."),
                 50409 => Problem(409, "draft_version_conflict", "The draft changed. Review the saved version before saving again."),

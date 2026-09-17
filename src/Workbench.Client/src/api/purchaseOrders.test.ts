@@ -1,7 +1,7 @@
 import { http, HttpResponse } from 'msw';
 import { server } from '../test/server';
 import { createDraft, updateDraft, getDraft, getDrafts, deleteDraft, DraftError } from './purchaseOrders';
-const draft = { title: null, supplierName: null, supplierId: null, supplierContactName: null, supplierEmail: null, supplierPhone: null, supplierWebsite: null, supplierPostalAddress: null, supplierOrderReference: null, platform: null, currency: 'USD', notes: null, sourceLinks: [], entries: [{ quantity: null, unitOfMeasure: null, priceMode: 'perUnit', price: null, legacyPricing: null, supplierSku: null, itemType: null, id: 'entry', description: null, notes: null, sourceLink: null, indicativePrice: '0.0000' }] };
+const draft = { orderDiscount: null, charges: [], title: null, supplierName: null, supplierId: null, supplierContactName: null, supplierEmail: null, supplierPhone: null, supplierWebsite: null, supplierPostalAddress: null, supplierOrderReference: null, platform: null, currency: 'USD', notes: null, sourceLinks: [], entries: [{ discount: null, quantity: null, unitOfMeasure: null, priceMode: 'perUnit', price: null, legacyPricing: null, supplierSku: null, itemType: null, id: 'entry', description: null, notes: null, sourceLink: null, indicativePrice: '0.0000' }] };
 it('sends exact decimal strings and a protected full replacement, returning a compact receipt', async () => {
   // GIVEN a full replacement with a zero reference price and a current version.
   const body = { requestId: 'request', expectedVersion: 'token', draft };

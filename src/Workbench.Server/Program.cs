@@ -245,7 +245,7 @@ builder.Services.AddOpenApi("beta", options => options.AddDocumentTransformer((d
 {
     document.Info.Version = "beta";
     document.Info.Description = "Unreleased beta API. Contracts are expected to change; the first release establishes v1. " +
-        "Writes require X-Workbench-Api-Revision: beta-1. Missing or incompatible revisions return api_contract_unsupported; " +
+        "Writes require X-Workbench-Api-Revision: beta-2. Missing or incompatible revisions return api_contract_unsupported; " +
         "preserve unsaved changes before reloading. Read requests may omit the header for bootstrap and media delivery.";
     return Task.CompletedTask;
 }));

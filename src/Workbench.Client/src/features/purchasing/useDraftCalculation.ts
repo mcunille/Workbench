@@ -7,7 +7,7 @@ export function useDraftCalculation(draft: DraftContent, enabled: boolean, onAut
   const [preview, setPreview] = useState<Preview>();
   const [retry, setRetry] = useState(0);
   useEffect(() => {
-    if (!enabled || !draft.entries.length) return;
+    if (!enabled || (!draft.entries.length && !draft.charges.length && !draft.orderDiscount)) return;
     const controller = new AbortController();
     let current = true;
     const timer = window.setTimeout(() => {

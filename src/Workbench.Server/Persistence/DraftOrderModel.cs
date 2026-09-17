@@ -20,7 +20,7 @@ public partial class WorkbenchDbContext
             table.HasCheckConstraint("CK_DraftOrders_DeletedContent", "[IsDeleted]=0 OR ([SupplierId] IS NULL AND [SupplierContactName] IS NULL AND [SupplierEmail] IS NULL AND [SupplierPhone] IS NULL AND [SupplierWebsite] IS NULL AND [SupplierPostalAddress] IS NULL AND [SupplierOrderReference] IS NULL AND [Platform] IS NULL AND [Title] IS NULL AND [SupplierName] IS NULL AND [Currency] IS NULL AND [Notes] IS NULL AND CONVERT(varbinary(max),[ContentJson])=CONVERT(varbinary(max),N'{\"sourceLinks\":[],\"entries\":[]}'))");
             table.HasCheckConstraint("CK_DraftOrders_Currency", "[Currency] IS NULL OR (DATALENGTH([Currency])=3 AND [Currency] COLLATE Latin1_General_100_BIN2 NOT LIKE '%[^A-Z]%')");
             table.HasCheckConstraint("CK_DraftOrders_Notes", "[Notes] IS NULL OR DATALENGTH([Notes])<=20000");
-            table.HasCheckConstraint("CK_DraftOrders_Content", "[ContentSchemaVersion] IN (1,2,3) AND ISJSON([ContentJson],OBJECT)=1 AND DATALENGTH([ContentJson])<=1048576");
+            table.HasCheckConstraint("CK_DraftOrders_Content", "[ContentSchemaVersion] IN (1,2,3,4) AND ISJSON([ContentJson],OBJECT)=1 AND DATALENGTH([ContentJson])<=1048576");
             table.HasCheckConstraint("CK_DraftOrders_Timestamps", "[UpdatedAtUtc]>=[CreatedAtUtc] AND DATEPART(TZOFFSET,[CreatedAtUtc])=0 AND DATEPART(TZOFFSET,[UpdatedAtUtc])=0");
         });
         draft.HasKey(row => row.Id);

@@ -107,7 +107,7 @@ public sealed class ItemExportEndpointTests(SqlServerFixture sqlServer)
         await using var storageFactory = CreateExportFactory(app);
         using var client = storageFactory.CreateClient();
         // WHEN requesting a private export.
-        client.DefaultRequestHeaders.Add("X-Workbench-Api-Revision", "beta-1");
+        client.DefaultRequestHeaders.Add("X-Workbench-Api-Revision", "beta-2");
         Assert.Equal(HttpStatusCode.Unauthorized, (await client.PostAsJsonAsync(ExportPath(package), new { scope = "all" })).StatusCode);
         await LoginAsync(client);
         // THEN authentication alone does not bypass antiforgery validation.
@@ -139,7 +139,7 @@ public sealed class ItemExportEndpointTests(SqlServerFixture sqlServer)
     {
         var token = await client.GetFromJsonAsync<JsonElement>("/api/beta/auth/antiforgery");
         using var request = new HttpRequestMessage(HttpMethod.Post, path) { Content = JsonContent.Create(body) };
-        request.Headers.TryAddWithoutValidation("X-Workbench-Api-Revision", "beta-1");
+        request.Headers.TryAddWithoutValidation("X-Workbench-Api-Revision", "beta-2");
         request.Headers.Add("X-CSRF-TOKEN", token.GetProperty("requestToken").GetString());
         return await client.SendAsync(request, cancellationToken);
     }

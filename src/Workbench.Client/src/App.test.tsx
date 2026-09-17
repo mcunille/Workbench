@@ -19,7 +19,7 @@ describe('App', () => {
     let signedIn = false;
     server.use(
       http.get('*/api/beta/system', () =>
-        HttpResponse.json({ name: 'Workbench', version: '1.2.3', apiRevision: 'beta-1' }),
+        HttpResponse.json({ name: 'Workbench', version: '1.2.3', apiRevision: 'beta-2' }),
       ),
       http.get('*/api/beta/auth/me', () =>
         signedIn

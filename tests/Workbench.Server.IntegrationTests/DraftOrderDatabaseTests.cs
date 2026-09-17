@@ -19,7 +19,7 @@ public sealed partial class DraftOrderDatabaseTests(SqlServerFixture sqlServer)
         var tenant = Guid.NewGuid(); var actor = Guid.NewGuid(); var request = Guid.NewGuid();
         await database.SeedTenantAuditRowsAsync(tenant, Guid.NewGuid()); await SeedActor(database, tenant, actor);
         await using var connection = await Open(database, await database.CreateWebUserAsync(), tenant);
-        var canonical = Canonical("Create", null, null, "Retained draft");
+        var canonical = LegacyCanonical("Create", null, null, "Retained draft");
         var saved = await Save(connection, actor, request, canonical, "Create");
         async Task<string> Snapshot()
         {
@@ -74,8 +74,10 @@ public sealed partial class DraftOrderDatabaseTests(SqlServerFixture sqlServer)
                     platform = (string?)null,
                     currency = (string?)null,
                     notes = (string?)null,
+                    orderDiscount = (object?)null,
+                    charges = Array.Empty<object>(),
                     sourceLinks = entryLink ? Array.Empty<string>() : [link],
-                    entries = entryLink ? new[] { new { id = Guid.NewGuid(), description = (string?)null, notes = (string?)null, sourceLink = link, indicativePrice = (string?)null, quantity = (string?)null, unitOfMeasure = (string?)null, price = (string?)null, priceMode = "perUnit", legacyPricing = (object?)null, supplierSku = (string?)null, itemType = (string?)null } } : [],
+                    entries = entryLink ? new[] { new { id = Guid.NewGuid(), description = (string?)null, notes = (string?)null, sourceLink = link, indicativePrice = (string?)null, quantity = (string?)null, unitOfMeasure = (string?)null, price = (string?)null, priceMode = "perUnit", legacyPricing = (object?)null, supplierSku = (string?)null, itemType = (string?)null, discount = (object?)null } } : [],
                 },
             });
             // WHEN bypassing HTTP with an invalid link in either location THEN SQL rejects the save without durable side effects.
@@ -98,7 +100,7 @@ public sealed partial class DraftOrderDatabaseTests(SqlServerFixture sqlServer)
             operation = "Create",
             targetId = (string?)null,
             expectedVersion = (string?)null,
-            draft = new { title = (string?)null, supplierName = (string?)null, supplierId = (Guid?)null, supplierContactName = (string?)null, supplierEmail = (string?)null, supplierPhone = (string?)null, supplierWebsite = (string?)null, supplierPostalAddress = (string?)null, supplierOrderReference = (string?)null, platform = (string?)null, currency = (string?)null, notes = (string?)null, sourceLinks = new[] { link }, entries = Array.Empty<object>() },
+            draft = new { title = (string?)null, supplierName = (string?)null, supplierId = (Guid?)null, supplierContactName = (string?)null, supplierEmail = (string?)null, supplierPhone = (string?)null, supplierWebsite = (string?)null, supplierPostalAddress = (string?)null, supplierOrderReference = (string?)null, platform = (string?)null, currency = (string?)null, notes = (string?)null, orderDiscount = (object?)null, charges = Array.Empty<object>(), sourceLinks = new[] { link }, entries = Array.Empty<object>() },
         });
         // WHEN bypassing HTTP with malformed IPv6 source links THEN the restricted SQL command rejects them.
         foreach (var link in new[] { "https://[::::]/", "https://[1:2:3]/", "https://[1:2:3:4:5:6:7:8:9]/", "https://[12345::]/", "https://[::ffff:999.0.0.1]/" })
@@ -233,8 +235,10 @@ public sealed partial class DraftOrderDatabaseTests(SqlServerFixture sqlServer)
                 platform = (string?)null,
                 currency,
                 notes = (string?)null,
+                orderDiscount = (object?)null,
+                charges = Array.Empty<object>(),
                 sourceLinks = Array.Empty<string>(),
-                entries = new[] { new { id = entry, description = (string?)null, notes = (string?)null, sourceLink = (string?)null, indicativePrice = price, quantity = (string?)null, unitOfMeasure = (string?)null, price = (string?)null, priceMode = "perUnit", legacyPricing = (object?)null, supplierSku = (string?)null, itemType = (string?)null } }
+                entries = new[] { new { id = entry, description = (string?)null, notes = (string?)null, sourceLink = (string?)null, indicativePrice = price, quantity = (string?)null, unitOfMeasure = (string?)null, price = (string?)null, priceMode = "perUnit", legacyPricing = (object?)null, supplierSku = (string?)null, itemType = (string?)null, discount = (object?)null } }
             },
         });
         var saved = await Save(connection, actor, Guid.NewGuid(), Priced("Create", null, null, "USD", "0.0000"), "Create");
@@ -316,8 +320,16 @@ public sealed partial class DraftOrderDatabaseTests(SqlServerFixture sqlServer)
         operation,
         targetId = targetId?.ToString("D"),
         expectedVersion = version is null ? null : Convert.ToBase64String(version),
-        draft = new { title, supplierName = (string?)null, supplierId = (Guid?)null, supplierContactName = (string?)null, supplierEmail = (string?)null, supplierPhone = (string?)null, supplierWebsite = (string?)null, supplierPostalAddress = (string?)null, supplierOrderReference = (string?)null, platform = (string?)null, currency = (string?)null, notes = (string?)null, sourceLinks = Array.Empty<string>(), entries = Array.Empty<object>() },
+        draft = new { title, supplierName = (string?)null, supplierId = (Guid?)null, supplierContactName = (string?)null, supplierEmail = (string?)null, supplierPhone = (string?)null, supplierWebsite = (string?)null, supplierPostalAddress = (string?)null, supplierOrderReference = (string?)null, platform = (string?)null, currency = (string?)null, notes = (string?)null, orderDiscount = (object?)null, charges = Array.Empty<object>(), sourceLinks = Array.Empty<string>(), entries = Array.Empty<object>() },
     });
+
+    private static string LegacyCanonical(string operation, Guid? targetId, byte[]? version, string? title)
+    {
+        var input = System.Text.Json.Nodes.JsonNode.Parse(Canonical(operation, targetId, version, title))!;
+        input["draft"]!.AsObject().Remove("orderDiscount");
+        input["draft"]!.AsObject().Remove("charges");
+        return input.ToJsonString();
+    }
 
     private static async Task<(Guid Id, byte[] Version, DateTimeOffset Completed, bool Replayed)> Save(SqlConnection connection, Guid actor, Guid request, string canonical, string operation)
     {

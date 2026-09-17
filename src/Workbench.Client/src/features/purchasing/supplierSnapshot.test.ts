@@ -1,6 +1,6 @@
 import { copySupplier, supplierSnapshot } from './supplierSnapshot';
 import type { DraftContent } from '../../api/purchaseOrders';
-const draft: DraftContent = { title: 'Order', supplierName: 'Old', supplierId: 'old', supplierContactName: 'Previous contact', supplierEmail: 'old@example.test', supplierPhone: '+44 old', supplierWebsite: 'https://old.example.test', supplierPostalAddress: 'Previous address', supplierOrderReference: 'EXT-1', platform: 'Gem Rock Auctions', currency: 'USD', notes: 'Order note', sourceLinks: ['https://example.test/listing'], entries: [] };
+const draft: DraftContent = { orderDiscount: null, charges: [], title: 'Order', supplierName: 'Old', supplierId: 'old', supplierContactName: 'Previous contact', supplierEmail: 'old@example.test', supplierPhone: '+44 old', supplierWebsite: 'https://old.example.test', supplierPostalAddress: 'Previous address', supplierOrderReference: 'EXT-1', platform: 'Gem Rock Auctions', currency: 'USD', notes: 'Order note', sourceLinks: ['https://example.test/listing'], entries: [] };
 const supplier = { id: 'new', supplier: { name: 'New', contactName: 'New contact', email: 'new@example.test', phone: '+44 new', website: 'https://new.example.test', postalAddress: 'New line one\nNew line two' }, isArchived: false, version: 's1', createdAtUtc: '2026-09-12T00:00:00Z', updatedAtUtc: '2026-09-12T00:00:00Z' };
 it('copies all directory contact fields and preserves every independent purchase field', () => {
   // GIVEN reviewed directory details and an existing purchase snapshot.

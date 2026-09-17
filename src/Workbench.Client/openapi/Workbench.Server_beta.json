@@ -2,7 +2,7 @@
   "openapi": "3.1.1",
   "info": {
     "title": "Workbench.Server | beta",
-    "description": "Unreleased beta API. Contracts are expected to change; the first release establishes v1. Writes require X-Workbench-Api-Revision: beta-1. Missing or incompatible revisions return api_contract_unsupported; preserve unsaved changes before reloading. Read requests may omit the header for bootstrap and media delivery.",
+    "description": "Unreleased beta API. Contracts are expected to change; the first release establishes v1. Writes require X-Workbench-Api-Revision: beta-2. Missing or incompatible revisions return api_contract_unsupported; preserve unsaved changes before reloading. Read requests may omit the header for bootstrap and media delivery.",
     "version": "beta"
   },
   "paths": {
@@ -3644,7 +3644,17 @@
         "required": [
           "lines",
           "incompleteLineCount",
-          "merchandiseEstimate"
+          "merchandiseEstimate",
+          "lineDiscountTotal",
+          "merchandiseNet",
+          "orderDiscountBase",
+          "orderDiscountAmount",
+          "discountedMerchandise",
+          "supplierCharges",
+          "thirdPartyCharges",
+          "supplierEstimate",
+          "purchaseEstimate",
+          "incompleteChargeCount"
         ],
         "type": "object",
         "properties": {
@@ -3667,8 +3677,131 @@
               "null",
               "string"
             ]
+          },
+          "lineDiscountTotal": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "merchandiseNet": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "orderDiscountBase": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "orderDiscountAmount": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "discountedMerchandise": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "supplierCharges": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "thirdPartyCharges": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "supplierEstimate": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "purchaseEstimate": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "incompleteChargeCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
           }
         }
+      },
+      "DraftCharge": {
+        "required": [
+          "id",
+          "category",
+          "label",
+          "amount",
+          "payeeKind",
+          "payeeName",
+          "amountStatus",
+          "reference",
+          "notes"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "category": {
+            "type": "string"
+          },
+          "label": {
+            "maxLength": 200,
+            "type": "string"
+          },
+          "amount": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "payeeKind": {
+            "type": "string"
+          },
+          "payeeName": {
+            "maxLength": 200,
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "amountStatus": {
+            "type": "string"
+          },
+          "reference": {
+            "maxLength": 200,
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "notes": {
+            "maxLength": 2000,
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "additionalProperties": false
       },
       "DraftContent": {
         "required": [
@@ -3685,7 +3818,9 @@
           "supplierWebsite",
           "supplierPostalAddress",
           "supplierOrderReference",
-          "platform"
+          "platform",
+          "orderDiscount",
+          "charges"
         ],
         "type": "object",
         "properties": {
@@ -3786,6 +3921,39 @@
               "null",
               "string"
             ]
+          },
+          "orderDiscount": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/DraftDiscount"
+              }
+            ]
+          },
+          "charges": {
+            "maxItems": 50,
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DraftCharge"
+            }
+          }
+        },
+        "additionalProperties": false
+      },
+      "DraftDiscount": {
+        "required": [
+          "mode",
+          "value"
+        ],
+        "type": "object",
+        "properties": {
+          "mode": {
+            "type": "string"
+          },
+          "value": {
+            "type": "string"
           }
         },
         "additionalProperties": false
@@ -3803,7 +3971,8 @@
           "price",
           "legacyPricing",
           "supplierSku",
-          "itemType"
+          "itemType",
+          "discount"
         ],
         "type": "object",
         "properties": {
@@ -3882,6 +4051,16 @@
               "null",
               "string"
             ]
+          },
+          "discount": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/DraftDiscount"
+              }
+            ]
           }
         },
         "additionalProperties": false
@@ -3939,7 +4118,10 @@
       "DraftLineCalculation": {
         "required": [
           "id",
-          "gross"
+          "gross",
+          "discountBase",
+          "discountAmount",
+          "net"
         ],
         "type": "object",
         "properties": {
@@ -3948,6 +4130,24 @@
             "format": "uuid"
           },
           "gross": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "discountBase": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "discountAmount": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "net": {
             "type": [
               "null",
               "string"

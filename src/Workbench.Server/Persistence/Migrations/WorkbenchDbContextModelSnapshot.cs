@@ -1133,7 +1133,7 @@ namespace Workbench.Server.Persistence.Migrations
 
                     b.ToTable("DraftOrders", "Purchasing", t =>
                         {
-                            t.HasCheckConstraint("CK_DraftOrders_Content", "[ContentSchemaVersion] IN (1,2,3) AND ISJSON([ContentJson],OBJECT)=1 AND DATALENGTH([ContentJson])<=1048576");
+                            t.HasCheckConstraint("CK_DraftOrders_Content", "[ContentSchemaVersion] IN (1,2,3,4) AND ISJSON([ContentJson],OBJECT)=1 AND DATALENGTH([ContentJson])<=1048576");
 
                             t.HasCheckConstraint("CK_DraftOrders_Currency", "[Currency] IS NULL OR (DATALENGTH([Currency])=3 AND [Currency] COLLATE Latin1_General_100_BIN2 NOT LIKE '%[^A-Z]%')");
 

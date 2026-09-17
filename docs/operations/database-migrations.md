@@ -98,26 +98,40 @@ This inventory describes checked-in migration behavior, not permission to execut
 | `20260912030844_AddDraftSupplierOrders` | `AddAcquisitionDocuments` | Consolidated tenant-owned draft orders and compact request receipts, RLS, restricted create/update/delete commands, final source-link validation, cleared deletion tombstones, tenant-qualified actor references and checked document replacement. Readiness, provisioning and backup markers advance. Fresh creation and H11 upgrade preserve identity, holdings, acquisitions and documents; draft saves create no inventory or financial records. | Always blocked; retain drafts and retry receipts through forward correction or guarded recovery. |
 | `20260912064156_AddSupplierIdentityAndPurchaseReferences` | `AddDraftSupplierOrders` | Tenant-owned suppliers, compact supplier receipts, purchase counters, contact snapshots and per-order platforms. Backfills permanent numbers for active drafts without inventing suppliers; retains tombstones and V1 receipts. Adds restricted V2 draft/supplier commands and legacy replay-only save behavior; advances readiness and backup markers. Verify fresh creation and PO-01 upgrade preserving content, references and exact replay evidence. | Always blocked; permanent identities and request evidence require forward correction or guarded recovery. |
 | `20260917010000_AddSupplierBasedDraftPricing` | `AddSupplierIdentityAndPurchaseReferences` | Consolidated PO-03: content schemas 1/2/3, fingerprints 1/2/3/4, restricted V3 compatibility and V4 supplier-pricing commands. Preserves legacy content and receipts; advances readiness and backup markers. | Always blocked; pricing content and request evidence require forward correction or guarded recovery. |
-| `20260917080000_ConsolidateBetaDraftCommands` | `AddSupplierBasedDraftPricing` | Retires parallel purchasing writers, installs the single beta write implementation and restricted receipt lookup, preserving content and receipt bytes. Advances readiness and backup markers. Stop prior application instances before migration, then deploy the matching frontend/server together. | Always blocked; retired commands require forward correction or guarded recovery. |
+| `20260917015000_PrepareRetainedBetaFinancialUpgrade` | `AddSupplierBasedDraftPricing` | No-op on the main release lineage. On retained beta-only databases, temporarily reconstructs the internal SQL prerequisites for the immutable pending PO-05 migrations, without altering drafts, receipts or applied history. All application writers must be stopped until the final integration migration completes. | Always blocked; complete the forward transition. |
+| `20260917020000_AddDraftFinancialAdjustments` | `PrepareRetainedBetaFinancialUpgrade` | PO-05 content schema 4 and in-place V4 discount/charge validation. Preserves prior content and receipt fingerprints; protects currency and confirmed corrections; advances readiness/backup markers. | Always blocked (50020); preserve financial draft inputs and replay evidence with a forward correction or guarded recovery. |
+| `20260917030000_ProtectConfirmedSupplierChargeCorrections` | `AddDraftFinancialAdjustments` | Forward correction to the locked V4 save guard: supplier ID/name snapshot changes require new notes for retained confirmed supplier charges. Preserves content, receipts and third-party payees; advances readiness/backup markers. Verify fresh creation and upgrade from the financial schema with receipt replay. | Always blocked (50020); retain correction protection through a forward migration or guarded recovery. |
+| `20260917080000_ConsolidateBetaDraftCommands` | `ProtectConfirmedSupplierChargeCorrections` | Retires parallel purchasing writers, installs the single beta write implementation and restricted receipt lookup, preserving content and receipt bytes. Advances readiness and backup markers. Stop prior application instances before migration, then deploy the matching frontend/server together. | Always blocked; retired commands require forward correction or guarded recovery. |
 | `20260918010000_RemoveHistoricalDraftReplay` | `ConsolidateBetaDraftCommands` | Removes the development-only receipt replay procedure and its grants while retaining draft and receipt rows. Advances readiness and backup markers; current beta retries still use the current write commands. | Always blocked; use forward correction or guarded recovery. |
+| `20260918020000_IntegrateBetaDraftFinancialAdjustments` | `RemoveHistoricalDraftReplay` | Installs PO-05 validation and confirmed supplier correction protection on the single beta writer, removes all temporary V3/V4 prerequisites, and advances readiness/backup markers. Retains schema 1/2/3/4 content and exact receipt bytes. | Always blocked; use forward correction or guarded recovery. |
 
 Product behavior, user-visible concurrency/retry rules and the shipped feature inventory belong in
 [collection documentation](../collection.md). Provider retry/backoff behavior belongs in
 [identity delivery and worker operations](blob-and-service-providers.md#identity-delivery-and-worker).
 The [migration source](../../src/Workbench.Server/Persistence/Migrations) is authoritative for SQL.
 
-The current required migration is `20260918010000_RemoveHistoricalDraftReplay`, following
-`ConsolidateBetaDraftCommands`. The consolidation installs one current purchasing write implementation;
-the follow-up removes historical replay authority. Content schemas 1/2/3 remain readable and stored
-receipts remain intact, but old API routes no longer resolve them. Verify fresh creation and upgrades
-from both the PR base (PO-03) and consolidation schemas, preserving drafts, identities, numbering,
-and immutable receipts. Stop old instances before migration; the previous application is not
-compatible with the retired commands. Down migration is blocked; use a reviewed forward correction
-or guarded restore. See [API lifecycle](../api-lifecycle.md).
+The current required migration is `20260918020000_IntegrateBetaDraftFinancialAdjustments`.
+Stop all application writers before migration and deploy the matching beta API/client together
+only after the entire pending migration set completes. The final schema has one purchasing writer
+with PO-05 financial and confirmed supplier correction validation, no historical replay procedure,
+and no V2/V3/V4 write procedures. Stored content schemas 1/2/3/4 and immutable receipts remain intact.
 
-These two beta migrations remain separate because the consolidation has already been applied to a
-retained preview. Rewriting it would leave that database with obsolete replay authority. The forward
-removal gives fresh installations and retained environments the same final schema without editing
-migration history or deleting data.
+The preparatory migration deliberately sorts before the immutable PO-05 migrations. A retained
+beta database already applied consolidation/removal and therefore lacks their V4 SQL prerequisite;
+EF applies the newly pending preparatory migration without changing any existing history rows.
+It reconstructs only the internal procedure prerequisites needed during this offline transition.
+Fresh and main-line databases already have those prerequisites and require no preparation. The
+final forward migration restores financial validation after the earlier beta consolidation and
+removes the temporary procedures. Do not run an intermediate application or stop the deployment
+at a preparatory schema. Readiness advances only to the completed integration boundary.
+Development preview inspection recognizes these exact retained histories and their ordered
+forward migration stages; it continues to reject unknown migrations or gaps in earlier history.
+
+All four earlier PO-05 and beta migrations remain unchanged because they are base history or were
+applied to retained previews. The two transition migrations serve different required ordering
+boundaries and cannot be consolidated without either rewriting history or breaking retained-beta
+upgrades. Verify fresh creation, main-line PO-05 upgrade, and an actual beta-only applied history,
+including preserved drafts/receipts, current financial saves, retired procedure absence, and
+blocked downgrade. See [API lifecycle](../api-lifecycle.md).
 
 The PO-03 changes were consolidated into `AddSupplierBasedDraftPricing`, retaining the final migration ID and final model. It installs V3 compatibility commands before V4 commands and keeps the destructive-rollback guard. Retained previews that already applied both earlier migrations keep their existing history and data unchanged; the final ID is already applied, so no schema work is repeated. A preview that applied only the removed structured-line migration is not a supported upgrade baseline and needs a separately planned transition; never reset its history automatically.

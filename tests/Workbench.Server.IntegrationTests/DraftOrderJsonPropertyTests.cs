@@ -81,11 +81,13 @@ public sealed partial class DraftOrderDatabaseTests
             platform = (string?)null,
             currency = "USD",
             notes = "Draft notes",
+            orderDiscount = (object?)null,
+            charges = Array.Empty<object>(),
             sourceLinks = new[] { "https://supplier.example/cart" },
             entries = new[]
             {
-                new { id = Guid.Parse("45850e40-50e9-41bd-b14a-cd1d4c352f80"), description = "Stone", notes = "Entry notes", sourceLink = "https://supplier.example/stone", indicativePrice = "1.0000", quantity = (string?)null, unitOfMeasure = (string?)null, price = (string?)null, priceMode = "perUnit", legacyPricing = (object?)null, supplierSku = (string?)null, itemType = (string?)null },
-                new { id = Guid.Parse("45850e40-50e9-41bd-b14a-cd1d4c352f81"), description = "Second stone", notes = "Second entry notes", sourceLink = "https://supplier.example/second", indicativePrice = "0.0000", quantity = (string?)null, unitOfMeasure = (string?)null, price = (string?)null, priceMode = "perUnit", legacyPricing = (object?)null, supplierSku = (string?)null, itemType = (string?)null },
+                new { id = Guid.Parse("45850e40-50e9-41bd-b14a-cd1d4c352f80"), description = "Stone", notes = "Entry notes", sourceLink = "https://supplier.example/stone", indicativePrice = "1.0000", quantity = (string?)null, unitOfMeasure = (string?)null, price = (string?)null, priceMode = "perUnit", legacyPricing = (object?)null, supplierSku = (string?)null, itemType = (string?)null, discount = (object?)null },
+                new { id = Guid.Parse("45850e40-50e9-41bd-b14a-cd1d4c352f81"), description = "Second stone", notes = "Second entry notes", sourceLink = "https://supplier.example/second", indicativePrice = "0.0000", quantity = (string?)null, unitOfMeasure = (string?)null, price = (string?)null, priceMode = "perUnit", legacyPricing = (object?)null, supplierSku = (string?)null, itemType = (string?)null, discount = (object?)null },
             },
         },
     });

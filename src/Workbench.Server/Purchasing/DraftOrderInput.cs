@@ -32,6 +32,8 @@ public static partial class DraftOrderInput
         SupplierPostalAddress = Notes(input.SupplierPostalAddress),
         SupplierOrderReference = Trim(input.SupplierOrderReference),
         Platform = Trim(input.Platform),
+        OrderDiscount = NormalizeDiscount(input.OrderDiscount),
+        Charges = input.Charges?.Select(c => c is null ? null! : c with { Label = c.Label?.Trim()!, Amount = Number(c.Amount), PayeeName = Trim(c.PayeeName), Reference = Trim(c.Reference), Notes = Trim(c.Notes) }).ToArray()!,
         Entries = input.Entries?.Select(e => e is null ? null! : e with
         {
             Description = Trim(e.Description),
@@ -42,6 +44,7 @@ public static partial class DraftOrderInput
             SupplierSku = Trim(e.SupplierSku),
             ItemType = Trim(e.ItemType),
             LegacyPricing = NormalizeLegacy(e.LegacyPricing),
+            Discount = NormalizeDiscount(e.Discount),
             Price = e.Price is not null && PricePattern().IsMatch(e.Price) ? Format(Scaled(e.Price)) : e.Price
         }).ToArray()!
     };
@@ -78,6 +81,7 @@ public static partial class DraftOrderInput
                 if (!errors.Keys.Any(key => key.StartsWith(field, StringComparison.Ordinal)) && Gross(e) is { } gross && gross >= BigInteger.Pow(10, 23))
                     errors[field + ".price"] = ["The line estimate exceeds 19 integer digits."];
             }
+        ValidateAdjustments(input, errors);
         if (errors.Count == 0 && Encoding.Unicode.GetByteCount(ContentJson(input)) > MaximumContentBytes)
             errors["draft"] = ["The draft is too large to save. Shorten its text or remove entries."];
         return errors;
@@ -89,13 +93,6 @@ public static partial class DraftOrderInput
         if (e.Quantity is null || e.UnitOfMeasure is null) return null;
         var result = BigInteger.DivRem(Scaled(e.Quantity) * Scaled(e.Price), 10000, out var remainder);
         return result + (remainder >= 5000 ? 1 : 0);
-    }
-    public static DraftCalculationResponse Calculate(DraftContent draft)
-    {
-        var lines = draft.Entries.Select(e => (e.Id, Gross: Gross(e))).ToArray();
-        var known = lines.Where(e => e.Gross is not null).ToArray();
-        return new(lines.Select(e => new DraftLineCalculation(e.Id, e.Gross is { } gross ? Format(gross) : null)).ToArray(),
-            lines.Length - known.Length, known.Length == 0 ? null : Format(known.Aggregate(BigInteger.Zero, (sum, e) => sum + e.Gross!.Value)));
     }
     internal static DraftEntry Upgrade(StoredDraftEntry e)
     {
@@ -118,9 +115,16 @@ public static partial class DraftOrderInput
             result = result with { LegacyPricing = new(e.Quantity, e.UnitOfMeasure, e.UnitPrice, e.PricingUnit, e.PricePerQuantity, e.PricingQuantity) };
         return result;
     }
-    public static DraftEntry[] ReadEntries(JsonElement content, int schemaVersion) => schemaVersion == 3
-        ? content.GetProperty("entries").Deserialize<DraftEntry[]>(JsonOptions)!
-        : content.GetProperty("entries").Deserialize<StoredDraftEntry[]>(JsonOptions)!.Select(Upgrade).ToArray();
-    public static string ContentJson(DraftContent draft) => JsonSerializer.Serialize(new { draft.SourceLinks, draft.Entries }, JsonOptions);
+    public static DraftEntry[] ReadEntries(JsonElement content, int schemaVersion)
+    {
+        if (schemaVersion >= 3)
+        {
+            var entries = System.Text.Json.Nodes.JsonNode.Parse(content.GetProperty("entries").GetRawText())!;
+            if (schemaVersion == 3) foreach (var entry in entries.AsArray()) entry!["discount"] = null;
+            return entries.Deserialize<DraftEntry[]>(JsonOptions)!;
+        }
+        return content.GetProperty("entries").Deserialize<StoredDraftEntry[]>(JsonOptions)!.Select(Upgrade).ToArray();
+    }
+    public static string ContentJson(DraftContent draft) => JsonSerializer.Serialize(new { draft.SourceLinks, draft.Entries, draft.OrderDiscount, draft.Charges }, JsonOptions);
     public static string Canonical(string operation, Guid? targetId, string? expectedVersion, DraftContent draft) => JsonSerializer.Serialize(new { operation, targetId, expectedVersion, draft }, JsonOptions);
 }

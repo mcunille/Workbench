@@ -22,8 +22,8 @@ test('supplier unit and total line pricing persist with explainable draft estima
   await page.getByRole('radio', { name: 'Total line 2', exact: true }).check();
   await page.getByLabel('Total line price 2', { exact: true }).fill('2000');
   // THEN the subtotal is 250 for stones plus 20 for settings, without inventing a count from weight.
-  await expect(page.getByRole('heading', { name: 'Merchandise estimate' })).toBeVisible();
-  await expect(page.locator('.po-estimate-value')).toHaveText('USD 270.00');
+  await expect(page.getByText('Merchandise gross', { exact: true })).toBeVisible();
+  await expect(page.locator('.po-summary-merchandise dd')).toHaveText('USD 270.00');
   await expect(page.getByRole('radio', { name: 'Per unit 1', exact: true })).toBeChecked();
   await expect(page.getByLabel('Pricing unit 1', { exact: true })).toHaveCount(0);
   // WHEN saving and reopening THEN supplier quantities, price modes and metadata survive.
@@ -36,13 +36,13 @@ test('supplier unit and total line pricing persist with explainable draft estima
   await page.locator('.po-line-disclosure > summary').first().click();
   await expect(page.getByLabel('Quantity 1', { exact: true })).toHaveValue('12.5');
   await expect(page.getByLabel('Supplier SKU 1', { exact: true })).toHaveValue('SAP-10');
-  await expect(page.locator('.po-estimate-value')).toHaveText('USD 270.00');
+  await expect(page.locator('.po-summary-merchandise dd')).toHaveText('USD 270.00');
   await page.locator('.po-line-disclosure > summary').nth(1).click();
   await expect(page.getByRole('radio', { name: 'Total line 2', exact: true })).toBeChecked();
   await expect(page.getByLabel('Total line price 2', { exact: true })).toHaveValue('20.00');
   // WHEN an incomplete line is added THEN the known subtotal is explicit, never a complete total.
   await page.getByRole('button', { name: 'Add line', exact: true }).first().click();
-  await expect(page.getByRole('heading', { name: 'Known line subtotal' })).toBeVisible();
+  await expect(page.getByText('Known line subtotal', { exact: true })).toBeVisible();
   await expect(page.locator('.po-merchandise-estimate')).toContainText('1 line needs quantity or pricing details');
   // AND enlarged text on a narrow screen retains readable controls without horizontal scrolling.
   await page.setViewportSize({ width: 320, height: 900 });
@@ -84,7 +84,7 @@ test('fixed supplier quotes save without quantity and mode changes update the es
   await page.getByLabel('Total line price 1', { exact: true }).fill('25000');
   await expect(page.getByLabel('Quantity 1', { exact: true })).toHaveValue('');
   await expect(page.getByLabel('Unit 1', { exact: true })).toHaveValue('');
-  await expect(page.locator('.po-estimate-value')).toHaveText('USD 250.00');
+  await expect(page.locator('.po-summary-merchandise dd')).toHaveText('USD 250.00');
   // WHEN saved and reopened THEN the quote remains a total without an invented quantity.
   await page.getByRole('button', { name: 'Save draft', exact: true }).click();
   await expect(page).toHaveURL(/\/purchase-orders\/[a-f0-9-]{36}$/);
@@ -98,7 +98,7 @@ test('fixed supplier quotes save without quantity and mode changes update the es
   await expect(page.getByLabel('Unit price 1', { exact: true })).toHaveValue('250.00');
   await page.getByLabel('Quantity 1', { exact: true }).fill('2');
   await page.getByLabel('Unit 1', { exact: true }).selectOption('piece');
-  await expect(page.locator('.po-estimate-value')).toHaveText('USD 500.00');
+  await expect(page.locator('.po-summary-merchandise dd')).toHaveText('USD 500.00');
   await page.getByRole('radio', { name: 'Total line 1', exact: true }).check();
-  await expect(page.locator('.po-estimate-value')).toHaveText('USD 250.00');
+  await expect(page.locator('.po-summary-merchandise dd')).toHaveText('USD 250.00');
 });

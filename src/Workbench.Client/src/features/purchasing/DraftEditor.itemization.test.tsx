@@ -1,9 +1,10 @@
+import { zeroAdjustmentCalculation } from '../../test/draftCalculationFixture';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { vi } from 'vitest';
 import { DraftEditor } from './DraftEditor';
 import { createDraft, getDraft, calculateDraft, DraftError } from '../../api/purchaseOrders';
 vi.mock('../../api/purchaseOrders', async original => ({ ...await original<typeof import('../../api/purchaseOrders')>(), createDraft: vi.fn(), getDraft: vi.fn(), calculateDraft: vi.fn() }));
-beforeEach(() => { vi.mocked(createDraft).mockReset(); vi.mocked(getDraft).mockReset(); vi.mocked(calculateDraft).mockResolvedValue({ lines: [], incompleteLineCount: 1, merchandiseEstimate: null }); Object.defineProperty(HTMLDialogElement.prototype, 'showModal', { configurable: true, value(this: HTMLDialogElement) { this.setAttribute('open', ''); } }); });
+beforeEach(() => { vi.mocked(createDraft).mockReset(); vi.mocked(getDraft).mockReset(); vi.mocked(calculateDraft).mockResolvedValue(zeroAdjustmentCalculation({ lines: [], incompleteLineCount: 1, merchandiseEstimate: null })); Object.defineProperty(HTMLDialogElement.prototype, 'showModal', { configurable: true, value(this: HTMLDialogElement) { this.setAttribute('open', ''); } }); });
 const props = () => ({ onDirtyChange: vi.fn(), onAuthLost: vi.fn(), onSaved: vi.fn(), onCancel: vi.fn(), onCreated: vi.fn() });
 it('keeps the lower Add line action before the merchandise estimate', () => {
   // GIVEN a draft editor with an item to price.
@@ -57,8 +58,8 @@ it('allows total line pricing without quantity and retains the amount when switc
 
 it.each(['perUnit', 'lineTotal'])('preserves a legacy reference until the owner explicitly adopts %s pricing', async mode => {
   // GIVEN an older saved line with a basisless reference price.
-  const content = { title: null, supplierName: null, supplierId: null, supplierContactName: null, supplierEmail: null, supplierPhone: null, supplierWebsite: null, supplierPostalAddress: null, supplierOrderReference: null, platform: null, currency: 'USD', notes: null, sourceLinks: [], entries: [{ id: 'line', description: 'Parcel', indicativePrice: '300.0000', notes: null, sourceLink: null, quantity: null, unitOfMeasure: null, priceMode: 'perUnit', price: null, legacyPricing: null, supplierSku: 'P-31', itemType: 'Gemstone' }] };
-  vi.mocked(getDraft).mockResolvedValue({ id: 'draft', draft: content, version: 'version', createdAtUtc: '2026-09-16', updatedAtUtc: '2026-09-16', supplierIsArchived: false, poReference: 'PO-000001', calculation: { lines: [{ id: 'line', gross: null }], incompleteLineCount: 1, merchandiseEstimate: null } });
+  const content = { orderDiscount: null, charges: [], title: null, supplierName: null, supplierId: null, supplierContactName: null, supplierEmail: null, supplierPhone: null, supplierWebsite: null, supplierPostalAddress: null, supplierOrderReference: null, platform: null, currency: 'USD', notes: null, sourceLinks: [], entries: [{ discount: null, id: 'line', description: 'Parcel', indicativePrice: '300.0000', notes: null, sourceLink: null, quantity: null, unitOfMeasure: null, priceMode: 'perUnit', price: null, legacyPricing: null, supplierSku: 'P-31', itemType: 'Gemstone' }] };
+  vi.mocked(getDraft).mockResolvedValue({ id: 'draft', draft: content, version: 'version', createdAtUtc: '2026-09-16', updatedAtUtc: '2026-09-16', supplierIsArchived: false, poReference: 'PO-000001', calculation: zeroAdjustmentCalculation({ lines: [{ id: 'line', gross: null }], incompleteLineCount: 1, merchandiseEstimate: null }) });
   render(<DraftEditor {...props()} id="draft" />);
   // THEN the reference is visible without invented quantity or unit price.
   fireEvent.click(await screen.findByLabelText(/^Edit line 1:/));
@@ -84,11 +85,11 @@ it('clears prices after confirmation while preserving quantities, basis and opti
   fireEvent.change(screen.getByLabelText('Unit price 1'), { target: { value: '800' } });
   fireEvent.change(screen.getByLabelText('Supplier SKU 1'), { target: { value: 'SET-9' } });
   // WHEN clearing is cancelled THEN the price stays; confirmation clears only the amount.
-  fireEvent.click(screen.getByRole('button', { name: 'Clear all prices' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Clear all amounts' }));
   fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
   expect(screen.getByLabelText('Unit price 1')).toHaveValue('8.00');
-  fireEvent.click(screen.getByRole('button', { name: 'Clear all prices' }));
-  fireEvent.click(screen.getByRole('button', { name: /^Clear prices$/ }));
+  fireEvent.click(screen.getByRole('button', { name: 'Clear all amounts' }));
+  fireEvent.click(screen.getByRole('button', { name: /^Clear amounts$/ }));
   expect(screen.getByLabelText('Unit price 1')).toHaveValue('');
   expect(screen.getByLabelText('Quantity 1')).toHaveValue('250');
   expect(screen.getByLabelText('Unit 1')).toHaveValue('piece');
@@ -135,9 +136,9 @@ it('keeps quantity inputs blank after a unit is chosen', () => {
 
 it('opens saved lines as readable summaries and keeps save state beside its action', async () => {
   // GIVEN a saved order with populated optional metadata.
-  const entry = { id: 'line', description: 'Blue sapphires', indicativePrice: null, notes: null, sourceLink: null, quantity: '12.5000', unitOfMeasure: 'carat', priceMode: 'perUnit', price: '20.0000', legacyPricing: null, supplierSku: 'SAP-10', itemType: 'Gemstone' };
-  const content = { title: 'Sample', supplierName: null, supplierId: null, supplierContactName: null, supplierEmail: null, supplierPhone: null, supplierWebsite: null, supplierPostalAddress: null, supplierOrderReference: null, platform: null, currency: 'USD', notes: null, sourceLinks: [], entries: [entry] };
-  vi.mocked(getDraft).mockResolvedValue({ id: 'draft', draft: content, version: 'v1', createdAtUtc: '2026-09-16', updatedAtUtc: '2026-09-16', supplierIsArchived: false, poReference: 'PO-000001', calculation: { lines: [{ id: 'line', gross: '250.0000' }], incompleteLineCount: 0, merchandiseEstimate: '250.0000' } });
+  const entry = { discount: null, id: 'line', description: 'Blue sapphires', indicativePrice: null, notes: null, sourceLink: null, quantity: '12.5000', unitOfMeasure: 'carat', priceMode: 'perUnit', price: '20.0000', legacyPricing: null, supplierSku: 'SAP-10', itemType: 'Gemstone' };
+  const content = { orderDiscount: null, charges: [], title: 'Sample', supplierName: null, supplierId: null, supplierContactName: null, supplierEmail: null, supplierPhone: null, supplierWebsite: null, supplierPostalAddress: null, supplierOrderReference: null, platform: null, currency: 'USD', notes: null, sourceLinks: [], entries: [entry] };
+  vi.mocked(getDraft).mockResolvedValue({ id: 'draft', draft: content, version: 'v1', createdAtUtc: '2026-09-16', updatedAtUtc: '2026-09-16', supplierIsArchived: false, poReference: 'PO-000001', calculation: zeroAdjustmentCalculation({ lines: [{ id: 'line', gross: '250.0000' }], incompleteLineCount: 0, merchandiseEstimate: '250.0000' }) });
   render(<DraftEditor {...props()} id="draft" />);
   // THEN the item identity is visible and its editing fields remain folded.
   const summary = await screen.findByLabelText(/^Edit line 1:/);
@@ -158,9 +159,9 @@ it('opens saved lines as readable summaries and keeps save state beside its acti
 it('keeps ambiguous previous pricing read-only until explicit replacement', async () => {
   // GIVEN an older quote whose original basis cannot be converted without guessing.
   const legacyPricing = { quantity: '10.0000', unitOfMeasure: 'piece', unitPrice: '20.0000', pricingUnit: 'carat', pricePerQuantity: '1.0000', pricingQuantity: null };
-  const entry = { id: 'line', description: 'Parcel', notes: null, sourceLink: null, quantity: null, unitOfMeasure: null, priceMode: 'perUnit', price: null, indicativePrice: null, legacyPricing, supplierSku: null, itemType: null };
-  const content = { title: null, supplierName: null, supplierId: null, supplierContactName: null, supplierEmail: null, supplierPhone: null, supplierWebsite: null, supplierPostalAddress: null, supplierOrderReference: null, platform: null, currency: 'USD', notes: null, sourceLinks: [], entries: [entry] };
-  vi.mocked(getDraft).mockResolvedValue({ id: 'draft', draft: content, version: 'v1', createdAtUtc: '2026-09-16', updatedAtUtc: '2026-09-16', supplierIsArchived: false, poReference: 'PO-000001', calculation: { lines: [{ id: 'line', gross: null }], incompleteLineCount: 1, merchandiseEstimate: null } });
+  const entry = { discount: null, id: 'line', description: 'Parcel', notes: null, sourceLink: null, quantity: null, unitOfMeasure: null, priceMode: 'perUnit', price: null, indicativePrice: null, legacyPricing, supplierSku: null, itemType: null };
+  const content = { orderDiscount: null, charges: [], title: null, supplierName: null, supplierId: null, supplierContactName: null, supplierEmail: null, supplierPhone: null, supplierWebsite: null, supplierPostalAddress: null, supplierOrderReference: null, platform: null, currency: 'USD', notes: null, sourceLinks: [], entries: [entry] };
+  vi.mocked(getDraft).mockResolvedValue({ id: 'draft', draft: content, version: 'v1', createdAtUtc: '2026-09-16', updatedAtUtc: '2026-09-16', supplierIsArchived: false, poReference: 'PO-000001', calculation: zeroAdjustmentCalculation({ lines: [{ id: 'line', gross: null }], incompleteLineCount: 1, merchandiseEstimate: null }) });
   render(<DraftEditor {...props()} id="draft" />);
   fireEvent.click(await screen.findByLabelText(/^Edit line 1:/));
   // THEN no editable price invents a new interpretation.
@@ -178,9 +179,9 @@ it('keeps ambiguous previous pricing read-only until explicit replacement', asyn
 it.each(['perUnit', 'lineTotal'])('shows reference and incomplete previous pricing together and replaces both on %s adoption', async mode => {
   // GIVEN a valid older reference quote with additional incomplete pricing metadata.
   const legacyPricing = { quantity: '10.0000', unitOfMeasure: 'piece', unitPrice: null, pricingUnit: 'carat', pricePerQuantity: '1.0000', pricingQuantity: null };
-  const entry = { id: 'line', description: 'Parcel', notes: null, sourceLink: null, quantity: null, unitOfMeasure: null, priceMode: 'perUnit', price: null, indicativePrice: '300.0000', legacyPricing, supplierSku: null, itemType: null };
-  const content = { title: null, supplierName: null, supplierId: null, supplierContactName: null, supplierEmail: null, supplierPhone: null, supplierWebsite: null, supplierPostalAddress: null, supplierOrderReference: null, platform: null, currency: 'USD', notes: null, sourceLinks: [], entries: [entry] };
-  vi.mocked(getDraft).mockResolvedValue({ id: 'draft', draft: content, version: 'v1', createdAtUtc: '2026-09-16', updatedAtUtc: '2026-09-16', supplierIsArchived: false, poReference: 'PO-000001', calculation: { lines: [{ id: 'line', gross: null }], incompleteLineCount: 1, merchandiseEstimate: null } });
+  const entry = { discount: null, id: 'line', description: 'Parcel', notes: null, sourceLink: null, quantity: null, unitOfMeasure: null, priceMode: 'perUnit', price: null, indicativePrice: '300.0000', legacyPricing, supplierSku: null, itemType: null };
+  const content = { orderDiscount: null, charges: [], title: null, supplierName: null, supplierId: null, supplierContactName: null, supplierEmail: null, supplierPhone: null, supplierWebsite: null, supplierPostalAddress: null, supplierOrderReference: null, platform: null, currency: 'USD', notes: null, sourceLinks: [], entries: [entry] };
+  vi.mocked(getDraft).mockResolvedValue({ id: 'draft', draft: content, version: 'v1', createdAtUtc: '2026-09-16', updatedAtUtc: '2026-09-16', supplierIsArchived: false, poReference: 'PO-000001', calculation: zeroAdjustmentCalculation({ lines: [{ id: 'line', gross: null }], incompleteLineCount: 1, merchandiseEstimate: null }) });
   render(<DraftEditor {...props()} id="draft" />);
   fireEvent.click(await screen.findByLabelText(/^Edit line 1:/));
   // THEN both preserved meanings are visible without an editable or guessed price.

@@ -80,7 +80,7 @@ test('an incompatible beta API preserves purchase edits and blocks subsequent wr
     if (route.request().method() !== 'POST') return route.continue();
     saves++;
     // The application itself supplies the revision; the browser context does not inject one.
-    expect(route.request().headers()['x-workbench-api-revision']).toBe('beta-1');
+    expect(route.request().headers()['x-workbench-api-revision']).toBe('beta-2');
     await route.fulfill({ status: 409, contentType: 'application/problem+json', body: JSON.stringify({
       title: 'API contract unsupported', code: 'api_contract_unsupported',
     }) });

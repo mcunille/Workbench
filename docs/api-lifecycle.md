@@ -13,7 +13,7 @@ beta. See [design principles](DESIGN-PRINCIPLES.md#13-evolve-apis-deliberately).
 ## Callers and rollout
 
 The bundled frontend and server are deployed together. API writes require
-`X-Workbench-Api-Revision: beta-1`. Increment the revision for an incompatible beta change;
+`X-Workbench-Api-Revision: beta-2`. Increment the revision for an incompatible beta change;
 clients must send the revision they were built against, never automatically adopt one returned
 by a server. Read requests without the header are allowed for bootstrap, images, and downloads;
 an explicitly mismatched revision is rejected even on reads. `/api/beta/system` advertises
@@ -41,8 +41,8 @@ boundary. Promotion does not authorize deletion of stored business data or retry
 | `/api/beta/suppliers` | Current supplier identity operations |
 | Generated OpenAPI and TypeScript | Only beta business endpoints and current public DTOs; regenerated together |
 | Retired `/api/purchase-order-drafts` and `/api/v2`, `/api/v3`, `/api/v4/purchase-order-drafts` | Unsupported, including retries of previously successful requests; no replay adapters or historical request DTOs |
-| Content schema 1/2/3 readers | Project retained drafts into current content without rewriting on read; retained while such data exists |
-| `CreateDraftOrder` / `UpdateDraftOrder` / private `SaveDraftOrder` | Single active SQL business implementation; persisted fingerprint 4 and content schema 3 are independent of API naming |
+| Content schema 1/2/3/4 readers | Project retained drafts into current content without rewriting on read; retained while such data exists |
+| `CreateDraftOrder` / `UpdateDraftOrder` / private `SaveDraftOrder` | Single active SQL business implementation; persisted fingerprint 4 and content schema 4 are independent of API naming |
 | `DeleteDraftOrder` | Current protected deletion with immutable receipts and tombstones |
 | Historical migrations and SQL definitions | Immutable upgrade history, not supported public writers; a forward migration retires obsolete procedures |
 

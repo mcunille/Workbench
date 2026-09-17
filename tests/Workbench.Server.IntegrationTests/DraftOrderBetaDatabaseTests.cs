@@ -23,7 +23,7 @@ public sealed partial class DraftOrderDatabaseTests
         {
             if (format == 2) await DatabaseMigrator.MigrateToAsync(database.AdminConnectionString, "AddSupplierIdentityAndPurchaseReferences", default);
             if (format == 3) await DatabaseMigrator.MigrateToAsync(database.AdminConnectionString, "AddSupplierBasedDraftPricing", default);
-            var input = JsonNode.Parse(Canonical("Create", null, null, $"Format {format}"))!;
+            var input = JsonNode.Parse(LegacyCanonical("Create", null, null, $"Format {format}"))!;
             if (format == 1)
                 foreach (var field in new[] { "supplierId", "supplierContactName", "supplierEmail", "supplierPhone", "supplierWebsite", "supplierPostalAddress", "supplierOrderReference", "platform" })
                     input["draft"]!.AsObject().Remove(field);

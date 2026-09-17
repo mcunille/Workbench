@@ -35,7 +35,9 @@ public sealed partial class PurchasingIdentityEndpointTests(SqlServerFixture sql
                 supplierWebsite = (string?)null,
                 supplierPostalAddress = (string?)null,
                 supplierOrderReference = (string?)null,
-                platform = (string?)null
+                platform = (string?)null,
+                orderDiscount = (object?)null,
+                charges = Array.Empty<object>()
             }
         });
         // THEN its first save creates a durable purchase.
