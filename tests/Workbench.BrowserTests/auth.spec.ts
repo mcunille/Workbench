@@ -19,8 +19,8 @@ for (const path of ['/recover', '/invite']) {
     const token = 'browser-sentinel';
     const requests: import('@playwright/test').Request[] = [];
     page.on('request', (request) => requests.push(request));
-    await page.route('**/api/auth/antiforgery', (route) => route.fulfill({ json: { requestToken: 'csrf' } }));
-    const endpoint = path === '/invite' ? '/api/auth/invitations/consume' : '/api/auth/recovery/consume';
+    await page.route('**/api/beta/auth/antiforgery', (route) => route.fulfill({ json: { requestToken: 'csrf' } }));
+    const endpoint = path === '/invite' ? '/api/beta/auth/invitations/consume' : '/api/beta/auth/recovery/consume';
     await page.route(`**${endpoint}`, async (route) => {
       // THEN the capability travels only in the consumption body
       expect(route.request().postDataJSON()).toEqual({ token, newPassword: password });
@@ -68,7 +68,7 @@ test('durable authentication survives navigation and supports revocation and sig
     await assertLiveSessionSurvives();
 
     await signIn(page);
-    const logoutResponse = page.waitForResponse((response) => response.url().endsWith('/api/auth/logout'));
+    const logoutResponse = page.waitForResponse((response) => response.url().endsWith('/api/beta/auth/logout'));
     await openUserMenu(page);
     await page.getByRole('button', { name: 'Sign out', exact: true }).click();
     expect((await logoutResponse).status()).toBe(204);
@@ -86,8 +86,8 @@ test('recovery shows generic feedback for an eligible account', async ({ page })
 });
 
 for (const flow of [
-  { path: '/recover', title: 'Reset password', endpoint: '/api/auth/recovery/consume' },
-  { path: '/invite', title: 'Accept invitation', endpoint: '/api/auth/invitations/consume' },
+  { path: '/recover', title: 'Reset password', endpoint: '/api/beta/auth/recovery/consume' },
+  { path: '/invite', title: 'Accept invitation', endpoint: '/api/beta/auth/invitations/consume' },
 ]) {
   test(`${flow.title} reads a fragment token without sending it in request URLs`, async ({ page }) => {
     // GIVEN a syntactically valid but unissued token in an email-style fragment link.

@@ -36,7 +36,7 @@ test('H11 narrated paperwork walkthrough', async ({ browser }) => {
     await page.getByLabel('Document label', { exact: true }).fill('Fair supporting record');
     await page.getByLabel('Choose document', { exact: true }).setInputFiles(await receiptImage(page));
     await narrate('Paperwork belongs to the acquisition and is shared by its linked pieces. Give each file an understandable label. The stored report or image is supporting evidence, not a claim of verified authenticity.');
-    const path = `/api/items/${piece.id}/acquisition/${origin.acquisition.id}/documents`;
+    const path = `/api/beta/items/${piece.id}/acquisition/${origin.acquisition.id}/documents`;
     await page.route(`**${path}`, async route => {
       if (route.request().method() !== 'POST') { await route.continue(); return; }
       expect((await route.fetch()).status()).toBe(200); await route.abort('failed');

@@ -9,10 +9,10 @@ it('sends prepared bytes and concurrency command as multipart with CSRF', async 
   let received = '';
   let csrf: string | null = null;
   server.use(
-    http.get('*/api/auth/antiforgery', () =>
+    http.get('*/api/beta/auth/antiforgery', () =>
       HttpResponse.json({ requestToken: 'photo-csrf' }),
     ),
-    http.put('*/api/items/item/photo', async ({ request }) => {
+    http.put('*/api/beta/items/item/photo', async ({ request }) => {
       received = await request.text();
       csrf = request.headers.get('X-CSRF-TOKEN');
       return HttpResponse.json({
@@ -38,11 +38,11 @@ it('sends prepared bytes and concurrency command as multipart with CSRF', async 
 it('preserves conflict and image authentication failure statuses', async () => {
   // GIVEN conflict and an expired image session.
   server.use(
-    http.get('*/api/auth/antiforgery', () =>
+    http.get('*/api/beta/auth/antiforgery', () =>
       HttpResponse.json({ requestToken: 'photo-csrf' }),
     ),
     http.delete(
-      '*/api/items/item/photo',
+      '*/api/beta/items/item/photo',
       () => new HttpResponse(null, { status: 409 }),
     ),
     http.get('*/photo', () => new HttpResponse(null, { status: 401 })),

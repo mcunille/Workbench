@@ -21,16 +21,16 @@ public sealed class RestoreSanitizationTests(SqlServerFixture sqlServer)
         using var admin = application.CreateClient();
         Assert.Equal(HttpStatusCode.NoContent, (await RecoveryTests.PostWithAntiforgeryAsync(
             admin,
-            "/api/auth/login",
+            "/api/beta/auth/login",
             new { email = AuthTestApplication.AdminEmail, password = AuthTestApplication.AdminPassword }))
             .StatusCode);
         Assert.Equal(HttpStatusCode.Accepted, (await RecoveryTests.PostWithAntiforgeryAsync(
             admin,
-            "/api/auth/recovery",
+            "/api/beta/auth/recovery",
             new { email = AuthTestApplication.AdminEmail })).StatusCode);
         Assert.Equal(HttpStatusCode.Accepted, (await RecoveryTests.PostWithAntiforgeryAsync(
             admin,
-            "/api/tenant/users/invitations",
+            "/api/beta/tenant/users/invitations",
             new { email = "restore-invite@example.com" })).StatusCode);
         var operations = application.Factory.Services
             .GetRequiredService<DevelopmentIdentityMessageDelivery>()
@@ -49,13 +49,13 @@ public sealed class RestoreSanitizationTests(SqlServerFixture sqlServer)
         Assert.Equal(0, await CountAsync(application.AdminConnectionString, "[Identity].[Sessions]"));
         Assert.Equal(0, await CountAsync(application.AdminConnectionString, "[Identity].[IdentityOperations]"));
         Assert.Equal(0, await CountAsync(application.AdminConnectionString, "[Identity].[DataProtectionKeys]"));
-        Assert.Equal(HttpStatusCode.Unauthorized, (await admin.GetAsync("/api/auth/me")).StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, (await admin.GetAsync("/api/beta/auth/me")).StatusCode);
         using var anonymous = application.CreateClient();
         foreach (var operation in operations)
         {
             var path = operation.Purpose == IdentityOperationPurpose.Invitation
-                ? "/api/auth/invitations/consume"
-                : "/api/auth/recovery/consume";
+                ? "/api/beta/auth/invitations/consume"
+                : "/api/beta/auth/recovery/consume";
             Assert.Equal(HttpStatusCode.BadRequest, (await RecoveryTests.PostWithAntiforgeryAsync(
                 anonymous,
                 path,

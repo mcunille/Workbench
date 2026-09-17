@@ -17,11 +17,11 @@ it.each([false, true])('allows toggling and restores desktop choice when startin
     query === '(width < 900px)' ? media : { ...media, matches: false },
   );
   server.use(
-    http.get('*/api/system', () => HttpResponse.json({ name: 'Workbench', version: '1' })),
-    http.get('*/api/auth/me', () => HttpResponse.json({
+    http.get('*/api/beta/system', () => HttpResponse.json({ name: 'Workbench', version: '1', apiRevision: 'beta-1' })),
+    http.get('*/api/beta/auth/me', () => HttpResponse.json({
       userId: 'user', tenantName: 'Studio', email: 'person@example.test', permissions: ['TenantAccess'],
     })),
-    http.get('*/api/items', () => HttpResponse.json({ items: [], nextCursor: null })),
+    http.get('*/api/beta/items', () => HttpResponse.json({ items: [], nextCursor: null })),
   );
   const view = render(<App />);
   // AND the authenticated render, including its resize subscription, has settled.

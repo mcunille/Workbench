@@ -160,7 +160,7 @@ public sealed class InventorySearchTests(SqlServerFixture sqlServer)
         await AssertNamesAsync(other, "stone");
     }
 
-    private static string SearchUrl(string? query) => "/api/items" + (query is null ? "" : "?q=" + Uri.EscapeDataString(query));
+    private static string SearchUrl(string? query) => "/api/beta/items" + (query is null ? "" : "?q=" + Uri.EscapeDataString(query));
 
     private sealed class PausedSearch : DbCommandInterceptor
     {
@@ -197,20 +197,21 @@ public sealed class InventorySearchTests(SqlServerFixture sqlServer)
 
     private static async Task CreateAsync(HttpClient client, string name, string? notes, string? location)
     {
-        using var response = await PostAsync(client, "/api/items", new { creationRequestId = Guid.NewGuid(), name, notes, location });
+        using var response = await PostAsync(client, "/api/beta/items", new { creationRequestId = Guid.NewGuid(), name, notes, location });
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
     }
 
     private static async Task LoginAsync(HttpClient client, string email)
     {
-        using var response = await PostAsync(client, "/api/auth/login", new { email, password = AuthTestApplication.AdminPassword });
+        using var response = await PostAsync(client, "/api/beta/auth/login", new { email, password = AuthTestApplication.AdminPassword });
         Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
     }
 
     private static async Task<HttpResponseMessage> PostAsync(HttpClient client, string path, object body)
     {
-        var token = await client.GetFromJsonAsync<JsonElement>("/api/auth/antiforgery");
+        var token = await client.GetFromJsonAsync<JsonElement>("/api/beta/auth/antiforgery");
         using var request = new HttpRequestMessage(HttpMethod.Post, path) { Content = JsonContent.Create(body) };
+        request.Headers.TryAddWithoutValidation("X-Workbench-Api-Revision", "beta-1");
         request.Headers.Add("X-CSRF-TOKEN", token.GetProperty("requestToken").GetString());
         return await client.SendAsync(request);
     }

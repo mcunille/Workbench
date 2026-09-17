@@ -6,7 +6,10 @@ using System.Text.Json;
 using System.Text.RegularExpressions;
 namespace Workbench.Server.Purchasing;
 
-public static partial class DraftOrderInputV3
+// Internal structured-content projection and shared quantity/quote rules. The format-3 canonical
+// envelope is frozen for retained receipts; this is not a versioned public API.
+
+internal static partial class DraftOrderInputV3
 {
     private static readonly HashSet<string> Units = ["piece", "carat", "gram", "kilogram", "ounce", "troyOunce", "millimeter", "centimeter", "meter", "parcel", "pair", "set", "pack", "box", "lot"];
     [GeneratedRegex(@"\A(0|[1-9][0-9]{0,8})(\.[0-9]{1,4})?\z", RegexOptions.CultureInvariant)]
@@ -16,8 +19,8 @@ public static partial class DraftOrderInputV3
     private static string? Number(string? value, Regex pattern) => value is not null && pattern.IsMatch(value)
         ? decimal.Parse(value, CultureInfo.InvariantCulture).ToString("F4", CultureInfo.InvariantCulture) : value;
     private static string? Trim(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
-    public static DraftEntry Legacy(DraftEntryV3 entry) => new(entry.Id, entry.Description, entry.Notes, entry.SourceLink, entry.IndicativePrice);
-    public static DraftEntryV3 Upgrade(DraftEntry entry) => new(entry.Id, entry.Description, entry.Notes, entry.SourceLink, entry.IndicativePrice, null, null, null, null, null, null, null, null);
+    public static ReceiptDraftEntryV1 Legacy(DraftEntryV3 entry) => new(entry.Id, entry.Description, entry.Notes, entry.SourceLink, entry.IndicativePrice);
+    public static DraftEntryV3 Upgrade(ReceiptDraftEntryV1 entry) => new(entry.Id, entry.Description, entry.Notes, entry.SourceLink, entry.IndicativePrice, null, null, null, null, null, null, null, null);
     public static DraftContentV2 Legacy(DraftContentV3 input) => new(input.Title, input.SupplierName, input.Currency, input.Notes, input.SourceLinks,
         input.Entries?.Select(e => e is null ? null! : Legacy(e)).ToArray()!, input.SupplierId, input.SupplierContactName, input.SupplierEmail,
         input.SupplierPhone, input.SupplierWebsite, input.SupplierPostalAddress, input.SupplierOrderReference, input.Platform);
@@ -80,7 +83,7 @@ public static partial class DraftOrderInputV3
                 if (!errors.Keys.Any(key => key.StartsWith(field, StringComparison.Ordinal)) && Gross(e) is { } gross && gross > BigInteger.Pow(10, 23) - 1)
                     errors[field + ".unitPrice"] = ["The line estimate exceeds 19 integer digits. Reduce its quantity or price."];
             }
-        if (errors.Count == 0 && Encoding.Unicode.GetByteCount(ContentJson(input)) > DraftOrderInput.MaximumContentBytes)
+        if (errors.Count == 0 && Encoding.Unicode.GetByteCount(ContentJson(input)) > ReceiptDraftOrderInputV1.MaximumContentBytes)
             errors["draft"] = ["The draft is too large to save. Shorten its text or remove entries."];
         return errors;
     }
@@ -108,9 +111,9 @@ public static partial class DraftOrderInputV3
         return new(lines.Select(e => new DraftLineCalculation(e.Id, e.Gross is { } gross ? Format(gross) : null)).ToArray(),
             lines.Length - known.Length, known.Length == 0 ? null : Format(known.Aggregate(BigInteger.Zero, (sum, e) => sum + e.Gross!.Value)));
     }
-    public static string ContentJson(DraftContentV3 draft) => JsonSerializer.Serialize(new { draft.SourceLinks, draft.Entries }, DraftOrderInput.JsonOptions);
-    public static string Canonical(string operation, Guid? targetId, string? expectedVersion, DraftContentV3 draft) => JsonSerializer.Serialize(new { operation, targetId, expectedVersion, draft }, DraftOrderInput.JsonOptions);
+    public static string ContentJson(DraftContentV3 draft) => JsonSerializer.Serialize(new { draft.SourceLinks, draft.Entries }, ReceiptDraftOrderInputV1.JsonOptions);
+    public static string Canonical(string operation, Guid? targetId, string? expectedVersion, DraftContentV3 draft) => JsonSerializer.Serialize(new { operation, targetId, expectedVersion, draft }, ReceiptDraftOrderInputV1.JsonOptions);
     public static DraftEntryV3[] ReadEntries(JsonElement content, int schemaVersion) => schemaVersion == 1
-        ? content.GetProperty("entries").Deserialize<DraftEntry[]>(DraftOrderInput.JsonOptions)!.Select(Upgrade).ToArray()
-        : content.GetProperty("entries").Deserialize<DraftEntryV3[]>(DraftOrderInput.JsonOptions)!;
+        ? content.GetProperty("entries").Deserialize<ReceiptDraftEntryV1[]>(ReceiptDraftOrderInputV1.JsonOptions)!.Select(Upgrade).ToArray()
+        : content.GetProperty("entries").Deserialize<DraftEntryV3[]>(ReceiptDraftOrderInputV1.JsonOptions)!;
 }

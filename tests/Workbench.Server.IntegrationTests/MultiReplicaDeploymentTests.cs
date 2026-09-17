@@ -29,17 +29,17 @@ public sealed class MultiReplicaDeploymentTests(SqlServerFixture sqlServer)
         using var second = CreateClient(secondHost);
         var cookies = new Dictionary<string, string>(StringComparer.Ordinal);
         using var login = await SendWithAntiforgeryAsync(first, first, cookies, HttpMethod.Post,
-            "/api/auth/login", new { email = AuthTestApplication.AdminEmail, password = AuthTestApplication.AdminPassword });
+            "/api/beta/auth/login", new { email = AuthTestApplication.AdminEmail, password = AuthTestApplication.AdminPassword });
         Assert.Equal(HttpStatusCode.NoContent, login.StatusCode);
         Assert.NotSame(firstHost.Services.GetRequiredService<IDataProtectionProvider>(),
             secondHost.Services.GetRequiredService<IDataProtectionProvider>());
 
         // WHEN the cookie issued by the first host is sent to the second host.
-        using var identity = await SendAsync(second, cookies, HttpMethod.Get, "/api/auth/me");
+        using var identity = await SendAsync(second, cookies, HttpMethod.Get, "/api/beta/auth/me");
         Assert.Equal(HttpStatusCode.OK, identity.StatusCode);
         var me = await identity.Content.ReadFromJsonAsync<JsonElement>();
         Assert.Equal(AuthTestApplication.AdminUserId, me.GetProperty("userId").GetGuid());
-        using var sessionsResponse = await SendAsync(second, cookies, HttpMethod.Get, "/api/auth/sessions");
+        using var sessionsResponse = await SendAsync(second, cookies, HttpMethod.Get, "/api/beta/auth/sessions");
         Assert.Equal(HttpStatusCode.OK, sessionsResponse.StatusCode);
         var sessions = await sessionsResponse.Content.ReadFromJsonAsync<JsonElement>();
         var session = Assert.Single(sessions.EnumerateArray().ToArray());
@@ -47,12 +47,12 @@ public sealed class MultiReplicaDeploymentTests(SqlServerFixture sqlServer)
         var originalSessionCookies = new Dictionary<string, string>(cookies, StringComparer.Ordinal);
         // AND a token issued by the first host authorizes revocation on the second host.
         using var revoked = await SendWithAntiforgeryAsync(first, second, cookies, HttpMethod.Delete,
-            $"/api/auth/sessions/{session.GetProperty("id").GetGuid()}");
+            $"/api/beta/auth/sessions/{session.GetProperty("id").GetGuid()}");
         Assert.Equal(HttpStatusCode.NoContent, revoked.StatusCode);
 
         // THEN both hosts immediately reject the revoked durable session.
-        using var firstRejected = await SendAsync(first, new(originalSessionCookies), HttpMethod.Get, "/api/auth/me");
-        using var secondRejected = await SendAsync(second, new(originalSessionCookies), HttpMethod.Get, "/api/auth/me");
+        using var firstRejected = await SendAsync(first, new(originalSessionCookies), HttpMethod.Get, "/api/beta/auth/me");
+        using var secondRejected = await SendAsync(second, new(originalSessionCookies), HttpMethod.Get, "/api/beta/auth/me");
         Assert.Equal(HttpStatusCode.Unauthorized, firstRejected.StatusCode);
         Assert.Equal(HttpStatusCode.Unauthorized, secondRejected.StatusCode);
         await using var connection = new SqlConnection(application.AdminConnectionString);
@@ -78,7 +78,7 @@ public sealed class MultiReplicaDeploymentTests(SqlServerFixture sqlServer)
             cookies.Clear();
             var host = attempt % 2 == 0 ? first : second;
             using var allowed = await SendWithAntiforgeryAsync(host, host, cookies, HttpMethod.Post,
-                "/api/auth/login", new { email = AuthTestApplication.AdminEmail, password = AuthTestApplication.AdminPassword },
+                "/api/beta/auth/login", new { email = AuthTestApplication.AdminEmail, password = AuthTestApplication.AdminPassword },
                 $"203.0.113.{attempt + 1}");
             Assert.Equal(HttpStatusCode.NoContent, allowed.StatusCode);
         }
@@ -88,7 +88,7 @@ public sealed class MultiReplicaDeploymentTests(SqlServerFixture sqlServer)
         {
             cookies.Clear();
             using var rejected = await SendWithAntiforgeryAsync(host, host, cookies, HttpMethod.Post,
-                "/api/auth/login", new { email = AuthTestApplication.AdminEmail, password = AuthTestApplication.AdminPassword },
+                "/api/beta/auth/login", new { email = AuthTestApplication.AdminEmail, password = AuthTestApplication.AdminPassword },
                 "203.0.113.200");
             Assert.Equal(HttpStatusCode.Unauthorized, rejected.StatusCode);
         }
@@ -117,7 +117,7 @@ public sealed class MultiReplicaDeploymentTests(SqlServerFixture sqlServer)
     private static async Task<HttpResponseMessage> SendWithAntiforgeryAsync(HttpClient issuer, HttpClient receiver,
         Dictionary<string, string> cookies, HttpMethod method, string path, object? body = null, string? forwardedFor = null)
     {
-        using var antiforgery = await SendAsync(issuer, cookies, HttpMethod.Get, "/api/auth/antiforgery");
+        using var antiforgery = await SendAsync(issuer, cookies, HttpMethod.Get, "/api/beta/auth/antiforgery");
         Assert.Equal(HttpStatusCode.OK, antiforgery.StatusCode);
         var token = await antiforgery.Content.ReadFromJsonAsync<JsonElement>();
         return await SendAsync(receiver, cookies, method, path, body, token.GetProperty("requestToken").GetString(), forwardedFor);
@@ -137,6 +137,7 @@ public sealed class MultiReplicaDeploymentTests(SqlServerFixture sqlServer)
         }
         if (token is not null)
         {
+            request.Headers.TryAddWithoutValidation("X-Workbench-Api-Revision", "beta-1");
             request.Headers.Add("X-CSRF-TOKEN", token);
         }
         if (forwardedFor is not null)

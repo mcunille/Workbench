@@ -31,7 +31,7 @@ public sealed class ItemPhotoEndpointTests(SqlServerFixture sqlServer)
         }));
         using var client = factory.CreateClient();
         await LoginAsync(client);
-        var created = await SendJsonAsync(client, HttpMethod.Post, "/api/items", new { creationRequestId = Guid.NewGuid(), name = "Sapphire", location = "Tray A" });
+        var created = await SendJsonAsync(client, HttpMethod.Post, "/api/beta/items", new { creationRequestId = Guid.NewGuid(), name = "Sapphire", location = "Tray A" });
         var path = created.Headers.Location!.ToString();
         var item = await created.Content.ReadFromJsonAsync<JsonElement>();
         var version = await ReadVersionAsync(application, item.GetProperty("id").GetGuid());
@@ -60,7 +60,7 @@ public sealed class ItemPhotoEndpointTests(SqlServerFixture sqlServer)
             Assert.Equal("nosniff", Assert.Single(response.Headers.GetValues("X-Content-Type-Options")));
             Assert.NotEmpty(await response.Content.ReadAsByteArrayAsync());
         }
-        var list = await next.GetFromJsonAsync<JsonElement>("/api/items");
+        var list = await next.GetFromJsonAsync<JsonElement>("/api/beta/items");
         Assert.Equal(photo.GetProperty("id").GetGuid(), list.GetProperty("items")[0].GetProperty("photo").GetProperty("id").GetGuid());
 
         // WHEN removing with the current version THEN delivery stops but the item stays saved.
@@ -78,25 +78,27 @@ public sealed class ItemPhotoEndpointTests(SqlServerFixture sqlServer)
     }
 
     internal static async Task LoginAsync(HttpClient client, string email = "member@example.com") =>
-        Assert.Equal(HttpStatusCode.NoContent, (await SendJsonAsync(client, HttpMethod.Post, "/api/auth/login",
+        Assert.Equal(HttpStatusCode.NoContent, (await SendJsonAsync(client, HttpMethod.Post, "/api/beta/auth/login",
             new { email, password = AuthTestApplication.AdminPassword })).StatusCode);
 
     internal static async Task<HttpResponseMessage> SendJsonAsync(HttpClient client, HttpMethod method, string path, object body)
     {
-        var token = await client.GetFromJsonAsync<JsonElement>("/api/auth/antiforgery");
+        var token = await client.GetFromJsonAsync<JsonElement>("/api/beta/auth/antiforgery");
         using var request = new HttpRequestMessage(method, path) { Content = JsonContent.Create(body) };
+        request.Headers.TryAddWithoutValidation("X-Workbench-Api-Revision", "beta-1");
         request.Headers.Add("X-CSRF-TOKEN", token.GetProperty("requestToken").GetString());
         return await client.SendAsync(request);
     }
 
     internal static async Task<HttpResponseMessage> UploadAsync(HttpClient client, string path, string version, Guid requestId, byte[]? bytes = null)
     {
-        var token = await client.GetFromJsonAsync<JsonElement>("/api/auth/antiforgery");
+        var token = await client.GetFromJsonAsync<JsonElement>("/api/beta/auth/antiforgery");
         using var body = new MultipartFormDataContent();
         body.Add(new ByteArrayContent(bytes ?? Photo), "file", "prepared.png");
         body.Add(new StringContent(requestId.ToString()), "requestId");
         body.Add(new StringContent(version), "expectedVersion");
         using var request = new HttpRequestMessage(HttpMethod.Put, path + "/photo") { Content = body };
+        request.Headers.TryAddWithoutValidation("X-Workbench-Api-Revision", "beta-1");
         request.Headers.Add("X-CSRF-TOKEN", token.GetProperty("requestToken").GetString());
         return await client.SendAsync(request);
     }

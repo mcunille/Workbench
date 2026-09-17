@@ -18,10 +18,10 @@ describe('App', () => {
       });
     let signedIn = false;
     server.use(
-      http.get('*/api/system', () =>
-        HttpResponse.json({ name: 'Workbench', version: '1.2.3' }),
+      http.get('*/api/beta/system', () =>
+        HttpResponse.json({ name: 'Workbench', version: '1.2.3', apiRevision: 'beta-1' }),
       ),
-      http.get('*/api/auth/me', () =>
+      http.get('*/api/beta/auth/me', () =>
         signedIn
           ? HttpResponse.json({
               userId: 'user',
@@ -31,18 +31,18 @@ describe('App', () => {
             })
           : new HttpResponse(null, { status: 401 }),
       ),
-      http.get('*/api/auth/antiforgery', () =>
+      http.get('*/api/beta/auth/antiforgery', () =>
         HttpResponse.json({ requestToken: 'test' }),
       ),
-      http.post('*/api/auth/login', () => {
+      http.post('*/api/beta/auth/login', () => {
         signedIn = true;
         return new HttpResponse(null, { status: 204 });
       }),
-      http.post('*/api/auth/logout', () => {
+      http.post('*/api/beta/auth/logout', () => {
         signedIn = false;
         return new HttpResponse(null, { status: 204 });
       }),
-      http.get('*/api/items', () =>
+      http.get('*/api/beta/items', () =>
         HttpResponse.json({ items: [], nextCursor: null }),
       ),
     );
@@ -76,13 +76,13 @@ describe('App', () => {
   it.each([false, true])('keeps workspace controls in the nav for administrator=%s', async (administrator) => {
     // GIVEN an authenticated workspace with a full build identifier.
     server.use(
-      http.get('*/api/system', () =>
+      http.get('*/api/beta/system', () =>
         HttpResponse.json({
           name: 'Workbench',
           version: '1.2.3+abcdef0123456789',
         }),
       ),
-      http.get('*/api/auth/me', () =>
+      http.get('*/api/beta/auth/me', () =>
         HttpResponse.json({
           userId: '11111111-1111-1111-1111-111111111111',
           email: 'admin@example.com',
@@ -90,7 +90,7 @@ describe('App', () => {
           permissions: administrator ? ['TenantAccess', 'TenantUsersManage'] : ['TenantAccess'],
         }),
       ),
-      http.get('*/api/items', () =>
+      http.get('*/api/beta/items', () =>
         HttpResponse.json({ items: [], nextCursor: null }),
       ),
     );
@@ -149,7 +149,7 @@ describe('App', () => {
 
   it('renders a safe failure state', async () => {
     server.use(
-      http.get('*/api/system', () =>
+      http.get('*/api/beta/system', () =>
         HttpResponse.json(
           {
             type: 'https://www.rfc-editor.org/rfc/rfc9110#section-15.6.1',
@@ -160,7 +160,7 @@ describe('App', () => {
           { status: 500 },
         ),
       ),
-      http.get('*/api/auth/me', () => new HttpResponse(null, { status: 401 })),
+      http.get('*/api/beta/auth/me', () => new HttpResponse(null, { status: 401 })),
     );
 
     render(<App />);

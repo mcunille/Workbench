@@ -11,7 +11,7 @@ test('intercepted project blocks undeclared API requests before reaching the ser
   // GIVEN the real diagnostic fixture against a local server that counts API requests.
   let backendRequests = 0;
   const server = createServer((request, response) => {
-    if (request.url.startsWith('/api/')) backendRequests++;
+    if (request.url.startsWith('/api/beta/')) backendRequests++;
     response.setHeader('Content-Type', 'text/html');
     response.end('<!doctype html><html><body>Guard fixture</body></html>');
   });
@@ -26,12 +26,12 @@ test('intercepted project blocks undeclared API requests before reaching the ser
       import { test, expect } from ${JSON.stringify(fixture)};
       test('undeclared API', async ({ page }) => {
         await page.goto('/');
-        await page.evaluate(() => fetch('/api/undeclared').catch(() => undefined));
+        await page.evaluate(() => fetch('/api/beta/undeclared').catch(() => undefined));
       });
       test('declared API', async ({ page }) => {
-        await page.route('**/api/declared', route => route.fulfill({json: {ok:true}}));
+        await page.route('**/api/beta/declared', route => route.fulfill({json: {ok:true}}));
         await page.goto('/');
-        expect(await page.evaluate(() => fetch('/api/declared').then(r => r.json()))).toEqual({ok:true});
+        expect(await page.evaluate(() => fetch('/api/beta/declared').then(r => r.json()))).toEqual({ok:true});
       });
     `);
     await writeFile(join(root, 'playwright.config.ts'), `export default {

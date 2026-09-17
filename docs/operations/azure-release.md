@@ -110,7 +110,7 @@ if ($LASTEXITCODE -ne 0) { throw 'Traffic change failed; inspect current allocat
 az containerapp show -g $group -n $app --query 'properties.configuration.ingress.traffic'
 Invoke-WebRequest "$publicOrigin/health/ready" -TimeoutSec 60
 Invoke-WebRequest "$publicOrigin/" -TimeoutSec 60
-Invoke-WebRequest "$publicOrigin/api/auth/me" -SkipHttpErrorCheck -TimeoutSec 60
+Invoke-WebRequest "$publicOrigin/api/beta/auth/me" -SkipHttpErrorCheck -TimeoutSec 60
 ```
 
 Require 200 for readiness/home, 401 for unauthenticated identity access, and the five

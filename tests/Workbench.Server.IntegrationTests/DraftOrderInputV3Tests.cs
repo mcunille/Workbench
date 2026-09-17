@@ -63,7 +63,7 @@ public sealed class DraftOrderInputV3Tests
     public void NormalizesWithoutInventingUnknownBasisAndPreservesLegacyMeaning()
     {
         // GIVEN a legacy reference price and an incomplete new entry.
-        var legacy = new DraftEntry(Guid.NewGuid(), " stone ", null, null, "20");
+        var legacy = new ReceiptDraftEntryV1(Guid.NewGuid(), " stone ", null, null, "20");
         var input = Empty with { Entries = [DraftOrderInputV3.Upgrade(legacy), Line with { Quantity = "2.5", PricingUnit = null, PricePerQuantity = null, SupplierSku = " SKU ", ItemType = " Gemstone " }] };
         // WHEN normalized THEN precision and text are canonical but the missing basis remains missing.
         var result = DraftOrderInputV3.Normalize(input);

@@ -73,7 +73,7 @@ public sealed partial class DraftOrderDatabaseTests(SqlServerFixture sqlServer)
                     currency = (string?)null,
                     notes = (string?)null,
                     sourceLinks = entryLink ? Array.Empty<string>() : [link],
-                    entries = entryLink ? new[] { new { id = Guid.NewGuid(), description = (string?)null, notes = (string?)null, sourceLink = link, indicativePrice = (string?)null, quantity = (string?)null, unitOfMeasure = (string?)null, unitPrice = (string?)null, pricingUnit = (string?)null, pricePerQuantity = (string?)null, pricingQuantity = (string?)null, supplierSku = (string?)null, itemType = (string?)null } } : [],
+                    entries = entryLink ? new[] { new { id = Guid.NewGuid(), description = (string?)null, notes = (string?)null, sourceLink = link, indicativePrice = (string?)null, quantity = (string?)null, unitOfMeasure = (string?)null, price = (string?)null, priceMode = "perUnit", legacyPricing = (object?)null, supplierSku = (string?)null, itemType = (string?)null } } : [],
                 },
             });
             // WHEN bypassing HTTP with an invalid link in either location THEN SQL rejects the save without durable side effects.
@@ -232,7 +232,7 @@ public sealed partial class DraftOrderDatabaseTests(SqlServerFixture sqlServer)
                 currency,
                 notes = (string?)null,
                 sourceLinks = Array.Empty<string>(),
-                entries = new[] { new { id = entry, description = (string?)null, notes = (string?)null, sourceLink = (string?)null, indicativePrice = price, quantity = (string?)null, unitOfMeasure = (string?)null, unitPrice = (string?)null, pricingUnit = (string?)null, pricePerQuantity = (string?)null, pricingQuantity = (string?)null, supplierSku = (string?)null, itemType = (string?)null } }
+                entries = new[] { new { id = entry, description = (string?)null, notes = (string?)null, sourceLink = (string?)null, indicativePrice = price, quantity = (string?)null, unitOfMeasure = (string?)null, price = (string?)null, priceMode = "perUnit", legacyPricing = (object?)null, supplierSku = (string?)null, itemType = (string?)null } }
             },
         });
         var saved = await Save(connection, actor, Guid.NewGuid(), Priced("Create", null, null, "USD", "0.0000"), "Create");
@@ -319,7 +319,7 @@ public sealed partial class DraftOrderDatabaseTests(SqlServerFixture sqlServer)
 
     private static async Task<(Guid Id, byte[] Version, DateTimeOffset Completed, bool Replayed)> Save(SqlConnection connection, Guid actor, Guid request, string canonical, string operation)
     {
-        await using var command = new SqlCommand($"Purchasing.{operation}DraftOrderV3", connection) { CommandType = System.Data.CommandType.StoredProcedure };
+        await using var command = new SqlCommand($"Purchasing.{operation}DraftOrder", connection) { CommandType = System.Data.CommandType.StoredProcedure };
         command.Parameters.AddWithValue("@RequestId", request); command.Parameters.AddWithValue("@ActorUserId", actor);
         command.Parameters.AddWithValue("@CanonicalInputJson", canonical);
         await using var reader = await command.ExecuteReaderAsync(); Assert.True(await reader.ReadAsync());

@@ -18,10 +18,10 @@ public sealed class AcquisitionEndpointTests(SqlServerFixture sqlServer)
         // GIVEN an anonymous caller and then a saved private acquisition.
         await using var application = await AuthTestApplication.CreateAsync(sqlServer);
         using var client = application.CreateClient();
-        Assert.Equal(HttpStatusCode.Unauthorized, (await client.GetAsync($"/api/items/{Guid.NewGuid()}/acquisition")).StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, (await client.GetAsync($"/api/beta/items/{Guid.NewGuid()}/acquisition")).StatusCode);
         await LoginAsync(client);
         var item = await CreateItemAsync(client);
-        var path = $"/api/items/{item.Id}/acquisition";
+        var path = $"/api/beta/items/{item.Id}/acquisition";
         var request = new CreateAcquisitionRequest(Guid.NewGuid(), item.Version, "Gift", "Family", 2024, null, null, "Original");
         // WHEN invalid fields, tokens and unknown properties are submitted THEN no row is created.
         foreach (var invalid in new object[] { request with { CreationRequestId = Guid.Empty }, request with { ExpectedItemVersion = "AQ==" },
@@ -40,9 +40,9 @@ public sealed class AcquisitionEndpointTests(SqlServerFixture sqlServer)
         foreach (var id in new[] { item.Id, Guid.NewGuid() })
         {
             // WHEN a foreign or missing identifier is addressed THEN the response is indistinguishable.
-            Assert.Equal(HttpStatusCode.NotFound, (await other.GetAsync($"/api/items/{id}/acquisition")).StatusCode);
-            Assert.Equal(HttpStatusCode.NotFound, (await SendAsync(other, HttpMethod.Post, $"/api/items/{id}/acquisition", request)).StatusCode);
-            Assert.Equal(HttpStatusCode.NotFound, (await SendAsync(other, HttpMethod.Put, $"/api/items/{id}/acquisition/{saved.Acquisition.Id}", update)).StatusCode);
+            Assert.Equal(HttpStatusCode.NotFound, (await other.GetAsync($"/api/beta/items/{id}/acquisition")).StatusCode);
+            Assert.Equal(HttpStatusCode.NotFound, (await SendAsync(other, HttpMethod.Post, $"/api/beta/items/{id}/acquisition", request)).StatusCode);
+            Assert.Equal(HttpStatusCode.NotFound, (await SendAsync(other, HttpMethod.Put, $"/api/beta/items/{id}/acquisition/{saved.Acquisition.Id}", update)).StatusCode);
         }
         Assert.Equal(HttpStatusCode.NotFound, (await SendAsync(client, HttpMethod.Put, $"{path}/{Guid.NewGuid()}", update)).StatusCode);
         Assert.Equal(HttpStatusCode.BadRequest, (await SendAsync(client, HttpMethod.Put, updatePath, update with { ExpectedAcquisitionVersion = "AQ==" })).StatusCode);
@@ -54,14 +54,14 @@ public sealed class AcquisitionEndpointTests(SqlServerFixture sqlServer)
         foreach (var changed in new[] { request with { Notes = "original" }, request with { Notes = "Original " }, request with { Year = null }, request with { Source = "family" } })
             Assert.Equal("acquisition_request_conflict", await ConflictCodeAsync(await SendAsync(client, HttpMethod.Post, path, changed)));
         // AND current-version mutation on archived items is rejected, while saved context remains readable.
-        var archived = await SendAsync(client, HttpMethod.Post, $"/api/items/{item.Id}/archive", new { expectedVersion = saved.ItemVersion });
+        var archived = await SendAsync(client, HttpMethod.Post, $"/api/beta/items/{item.Id}/archive", new { expectedVersion = saved.ItemVersion });
         var archivedItem = (await archived.Content.ReadFromJsonAsync<ItemDetailResponse>())!;
         Assert.Equal("item_archived", await ConflictCodeAsync(await SendAsync(client, HttpMethod.Put, updatePath, update with { ExpectedItemVersion = archivedItem.Version })));
         Assert.Equal(saved.Acquisition, (await client.GetFromJsonAsync<ItemAcquisitionResponse>(path))!.Acquisition);
         var empty = await CreateItemAsync(client);
-        var emptyArchived = await SendAsync(client, HttpMethod.Post, $"/api/items/{empty.Id}/archive", new { expectedVersion = empty.Version });
+        var emptyArchived = await SendAsync(client, HttpMethod.Post, $"/api/beta/items/{empty.Id}/archive", new { expectedVersion = empty.Version });
         var emptyVersion = (await emptyArchived.Content.ReadFromJsonAsync<ItemDetailResponse>())!.Version;
-        Assert.Equal("item_archived", await ConflictCodeAsync(await SendAsync(client, HttpMethod.Post, $"/api/items/{empty.Id}/acquisition", request with { CreationRequestId = Guid.NewGuid(), ExpectedItemVersion = emptyVersion })));
+        Assert.Equal("item_archived", await ConflictCodeAsync(await SendAsync(client, HttpMethod.Post, $"/api/beta/items/{empty.Id}/acquisition", request with { CreationRequestId = Guid.NewGuid(), ExpectedItemVersion = emptyVersion })));
     }
 
     private static async Task<string?> ConflictCodeAsync(HttpResponseMessage response)
@@ -78,7 +78,7 @@ public sealed class AcquisitionEndpointTests(SqlServerFixture sqlServer)
         using var client = application.CreateClient();
         await LoginAsync(client);
         var item = await CreateItemAsync(client);
-        var path = $"/api/items/{item.Id}/acquisition";
+        var path = $"/api/beta/items/{item.Id}/acquisition";
         var empty = await client.GetAsync(path);
         Assert.Equal(HttpStatusCode.OK, empty.StatusCode);
         Assert.Equal(JsonValueKind.Null, (await empty.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("acquisition").ValueKind);
@@ -97,7 +97,7 @@ public sealed class AcquisitionEndpointTests(SqlServerFixture sqlServer)
         var corrected = await edited.Content.ReadFromJsonAsync<JsonElement>();
         Assert.Equal(acquisition.GetProperty("id").GetGuid(), corrected.GetProperty("acquisition").GetProperty("id").GetGuid());
         // THEN an original retry returns the current context, even after archive.
-        Assert.Equal(HttpStatusCode.OK, (await SendAsync(client, HttpMethod.Post, $"/api/items/{item.Id}/archive", new { expectedVersion = corrected.GetProperty("itemVersion").GetString() })).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await SendAsync(client, HttpMethod.Post, $"/api/beta/items/{item.Id}/archive", new { expectedVersion = corrected.GetProperty("itemVersion").GetString() })).StatusCode);
         var replay = await SendAsync(client, HttpMethod.Post, path, request);
         Assert.Equal(HttpStatusCode.OK, replay.StatusCode);
         Assert.Equal("Unknown", (await replay.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("acquisition").GetProperty("method").GetString());
@@ -108,15 +108,17 @@ public sealed class AcquisitionEndpointTests(SqlServerFixture sqlServer)
     }
 
     internal static async Task<ItemDetailResponse> CreateItemAsync(HttpClient client) =>
-        (await (await SendAsync(client, HttpMethod.Post, "/api/items", new { creationRequestId = Guid.NewGuid(), name = "Acquisition test piece" })).Content.ReadFromJsonAsync<ItemDetailResponse>())!;
+        (await (await SendAsync(client, HttpMethod.Post, "/api/beta/items", new { creationRequestId = Guid.NewGuid(), name = "Acquisition test piece" })).Content.ReadFromJsonAsync<ItemDetailResponse>())!;
 
     internal static async Task LoginAsync(HttpClient client, string email = "member@example.com") =>
-        Assert.Equal(HttpStatusCode.NoContent, (await SendAsync(client, HttpMethod.Post, "/api/auth/login", new { email, password = AuthTestApplication.AdminPassword })).StatusCode);
+        Assert.Equal(HttpStatusCode.NoContent, (await SendAsync(client, HttpMethod.Post, "/api/beta/auth/login", new { email, password = AuthTestApplication.AdminPassword })).StatusCode);
 
     internal static async Task<HttpResponseMessage> SendAsync(HttpClient client, HttpMethod method, string path, object body)
     {
-        var token = await client.GetFromJsonAsync<JsonElement>("/api/auth/antiforgery");
+        var token = await client.GetFromJsonAsync<JsonElement>("/api/beta/auth/antiforgery");
         using var request = new HttpRequestMessage(method, path) { Content = JsonContent.Create(body) };
+        if (path.StartsWith("/api/beta/", StringComparison.Ordinal))
+            request.Headers.TryAddWithoutValidation("X-Workbench-Api-Revision", "beta-1");
         request.Headers.Add("X-CSRF-TOKEN", token.GetProperty("requestToken").GetString());
         return await client.SendAsync(request);
     }

@@ -3,7 +3,7 @@ import { useInterceptedSession as signIn } from './intercepted-auth-fixture';
 
 test('the empty collection card opens item creation by pointer and keyboard', async ({ page }) => {
   // GIVEN an authenticated collection with an empty API response.
-  await page.route('**/api/items', route => route.fulfill({
+  await page.route('**/api/beta/items', route => route.fulfill({
     json: { items: [], nextCursor: null },
   }));
   await signIn(page);

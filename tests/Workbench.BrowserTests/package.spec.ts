@@ -92,18 +92,18 @@ test('H8 failures and interrupted bodies never expose a partial package; retry a
   await page.getByRole('radio', { name: 'Records, photographs and acquisition documents (ZIP)', exact: true }).check();
   await page.getByRole('radio', { name: 'Active records', exact: true }).check();
   // WHEN preparation is unavailable THEN recovery explains that photographs cannot be silently omitted.
-  await page.route('**/api/items/export-package', route => route.fulfill({ status: 503 }), { times: 1 });
+  await page.route('**/api/beta/items/export-package', route => route.fulfill({ status: 503 }), { times: 1 });
   await page.getByRole('button', { name: 'Prepare export', exact: true }).click();
   await expect(page.getByRole('alert')).toContainText('photograph or document storage');
   // WHEN a successful-looking response has incomplete bytes THEN no download is offered.
-  await page.route('**/api/items/export-package', route => route.fulfill({ status: 200, headers: { 'Content-Type': 'application/zip', 'Content-Length': '100', 'Content-Disposition': 'attachment; filename="workbench-package-v2-active-20260909T120000Z.zip"' }, body: 'partial' }), { times: 1 });
+  await page.route('**/api/beta/items/export-package', route => route.fulfill({ status: 200, headers: { 'Content-Type': 'application/zip', 'Content-Length': '100', 'Content-Disposition': 'attachment; filename="workbench-package-v2-active-20260909T120000Z.zip"' }, body: 'partial' }), { times: 1 });
   await page.getByRole('button', { name: 'Retry', exact: true }).click();
   await expect(page.getByRole('alert')).toBeVisible();
   await expect(page.getByRole('link', { name: 'Download ZIP', exact: true })).toHaveCount(0);
   let release!: () => void; const held = new Promise<void>(resolve => { release = resolve; });
   let received!: () => void; const ready = new Promise<void>(resolve => { received = resolve; });
   let delivered!: () => void; const settled = new Promise<void>(resolve => { delivered = resolve; });
-  await page.route('**/api/items/export-package', async route => {
+  await page.route('**/api/beta/items/export-package', async route => {
     try { const response = await route.fetch(); received(); await held; await route.fulfill({ response }); }
     finally { delivered(); }
   }, { times: 1 });

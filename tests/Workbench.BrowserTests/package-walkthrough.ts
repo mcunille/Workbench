@@ -53,7 +53,7 @@ test('H8 narrated collection package walkthrough', async ({ browser }) => {
     await narrate('Navigation and appearance changes retain the selected format and prepared file in private memory. Reload, sign out, identity changes, or ten minutes clear the file. Download started does not confirm a disk save.', 15);
     // WHEN the scope changes and preparation fails THEN retry produces a fresh complete snapshot.
     await page.getByRole('radio', { name: 'Active and archived records', exact: true }).check();
-    await page.route('**/api/items/export-package', route => route.fulfill({ status: 503 }), { times: 1 });
+    await page.route('**/api/beta/items/export-package', route => route.fulfill({ status: 503 }), { times: 1 });
     await page.getByRole('button', { name: 'Prepare export', exact: true }).click();
     await expect(page.getByRole('alert')).toBeVisible();
     await narrate('Changing scope discards the old file. Here preparation deliberately fails. Required photographs are never silently omitted. Retry captures a new snapshot; persistent failures need storage investigation, or a separate text CSV.', 15);

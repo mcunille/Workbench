@@ -4,7 +4,7 @@ using System.Text;
 using System.Text.Json;
 namespace Workbench.Server.Purchasing;
 
-public static class PurchasingIdentityInput
+internal static class PurchasingIdentityInput
 {
     private static string? Trim(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
     public static SupplierContent Normalize(SupplierContent input) => input with
@@ -16,10 +16,10 @@ public static class PurchasingIdentityInput
         Website = Trim(input.Website),
         PostalAddress = string.IsNullOrWhiteSpace(input.PostalAddress) ? null : input.PostalAddress
     };
-    public static DraftContent Legacy(DraftContentV2 input) => new(input.Title, input.SupplierName, input.Currency, input.Notes, input.SourceLinks, input.Entries);
+    public static ReceiptDraftContentV1 Legacy(DraftContentV2 input) => new(input.Title, input.SupplierName, input.Currency, input.Notes, input.SourceLinks, input.Entries);
     public static DraftContentV2 Normalize(DraftContentV2 input)
     {
-        var old = DraftOrderInput.Normalize(Legacy(input));
+        var old = ReceiptDraftOrderInputV1.Normalize(Legacy(input));
         var contact = Normalize(new SupplierContent(input.SupplierName!, input.SupplierContactName, input.SupplierEmail, input.SupplierPhone, input.SupplierWebsite, input.SupplierPostalAddress));
         return input with
         {
@@ -59,7 +59,7 @@ public static class PurchasingIdentityInput
     public static Dictionary<string, string[]> Validate(DraftContentV2? input)
     {
         if (input is null) return new() { ["draft"] = ["Supply a draft."] };
-        var errors = DraftOrderInput.Validate(Legacy(input));
+        var errors = ReceiptDraftOrderInputV1.Validate(Legacy(input));
         var contact = Validate(new(input.SupplierName!, input.SupplierContactName, input.SupplierEmail, input.SupplierPhone, input.SupplierWebsite, input.SupplierPostalAddress), false);
         foreach (var pair in contact) errors["draft.supplier" + char.ToUpperInvariant(pair.Key[9]) + pair.Key[10..]] = pair.Value;
         if (input.SupplierId == Guid.Empty) errors["draft.supplierId"] = ["Choose an existing supplier."];
@@ -68,7 +68,7 @@ public static class PurchasingIdentityInput
         return errors;
     }
     public static string Canonical(string operation, Guid? targetId, string? expectedVersion, DraftContentV2 draft) =>
-        JsonSerializer.Serialize(new { operation, targetId, expectedVersion, draft }, DraftOrderInput.JsonOptions);
+        JsonSerializer.Serialize(new { operation, targetId, expectedVersion, draft }, ReceiptDraftOrderInputV1.JsonOptions);
     public static string? Query(string? query) => Trim(query)?.ToUpperInvariant();
     private static string QueryHash(string? query) => Convert.ToHexString(SHA256.HashData(Encoding.Unicode.GetBytes(query ?? "")));
     public static string Cursor(DateTimeOffset time, Guid id, string? query) => "v2" + DraftOrderCursor.Encode(time, id)[2..] + "_" + QueryHash(query);

@@ -275,12 +275,12 @@ public sealed class ItemPackagePhotoTests(SqlServerFixture sqlServer)
         }
 
         public Task<HttpResponseMessage> ExportAsync(string scope = "all") =>
-            SendJsonAsync(Client, HttpMethod.Post, "/api/items/export-package", new { scope });
+            SendJsonAsync(Client, HttpMethod.Post, "/api/beta/items/export-package", new { scope });
 
         public async Task<(string Path, JsonElement Item)> CreateAsync(string name, bool photo, bool blue = false, HttpClient? client = null)
         {
             client ??= Client;
-            using var created = await SendJsonAsync(client, HttpMethod.Post, "/api/items", new { creationRequestId = Guid.NewGuid(), name });
+            using var created = await SendJsonAsync(client, HttpMethod.Post, "/api/beta/items", new { creationRequestId = Guid.NewGuid(), name });
             Assert.Equal(HttpStatusCode.Created, created.StatusCode);
             var path = created.Headers.Location!.ToString();
             var item = await client.GetFromJsonAsync<JsonElement>(path);

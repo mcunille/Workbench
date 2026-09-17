@@ -28,7 +28,7 @@ public sealed class SessionCookieSecurityTests(SqlServerFixture sqlServer)
             });
 
         using var client = factory.CreateClient();
-        Assert.Equal(System.Net.HttpStatusCode.OK, (await client.GetAsync("/api/system")).StatusCode);
+        Assert.Equal(System.Net.HttpStatusCode.OK, (await client.GetAsync("/api/beta/system")).StatusCode);
 
         await using var connection = new SqlConnection(database.AdminConnectionString);
         await connection.OpenAsync();

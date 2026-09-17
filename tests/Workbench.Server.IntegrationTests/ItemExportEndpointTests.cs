@@ -52,16 +52,16 @@ public sealed class ItemExportEndpointTests(SqlServerFixture sqlServer)
         var ids = new List<string>();
         for (var index = 0; index < 51; index++)
         {
-            var created = await PostAsync(client, "/api/items", new { creationRequestId = Guid.NewGuid(), name = $"Stone {index}" });
+            var created = await PostAsync(client, "/api/beta/items", new { creationRequestId = Guid.NewGuid(), name = $"Stone {index}" });
             var item = await created.Content.ReadFromJsonAsync<JsonElement>();
             ids.Add(item.GetProperty("id").GetString()!);
             if (index == 0)
-                Assert.Equal(HttpStatusCode.OK, (await PostAsync(client, $"/api/items/{ids[0]}/archive", new { expectedVersion = item.GetProperty("version").GetString() })).StatusCode);
+                Assert.Equal(HttpStatusCode.OK, (await PostAsync(client, $"/api/beta/items/{ids[0]}/archive", new { expectedVersion = item.GetProperty("version").GetString() })).StatusCode);
         }
-        var foreignResponse = await PostAsync(other, "/api/items", new { creationRequestId = Guid.NewGuid(), name = "Foreign secret" });
+        var foreignResponse = await PostAsync(other, "/api/beta/items", new { creationRequestId = Guid.NewGuid(), name = "Foreign secret" });
         var foreign = await foreignResponse.Content.ReadFromJsonAsync<JsonElement>();
         var foreignId = foreign.GetProperty("id").GetString()!;
-        Assert.Equal(HttpStatusCode.OK, (await PostAsync(other, $"/api/items/{foreignId}/archive",
+        Assert.Equal(HttpStatusCode.OK, (await PostAsync(other, $"/api/beta/items/{foreignId}/archive",
             new { expectedVersion = foreign.GetProperty("version").GetString() })).StatusCode);
         // WHEN exporting each explicit scope without pagination or search parameters.
         var active = await PostAsync(client, ExportPath(package), new { scope = "active" });
@@ -113,7 +113,7 @@ public sealed class ItemExportEndpointTests(SqlServerFixture sqlServer)
         Assert.Equal(HttpStatusCode.BadRequest, (await client.PostAsJsonAsync(ExportPath(package), new { scope = "all" })).StatusCode);
     }
 
-    internal static string ExportPath(bool package) => package ? "/api/items/export-package" : "/api/items/export";
+    internal static string ExportPath(bool package) => package ? "/api/beta/items/export-package" : "/api/beta/items/export";
 
     internal static WebApplicationFactory<Program> CreateExportFactory(AuthTestApplication application) =>
         application.Factory.WithWebHostBuilder(builder => builder.ConfigureServices(services =>
@@ -132,12 +132,13 @@ public sealed class ItemExportEndpointTests(SqlServerFixture sqlServer)
     }
 
     internal static async Task LoginAsync(HttpClient client, string email = "member@example.com") =>
-        Assert.Equal(HttpStatusCode.NoContent, (await PostAsync(client, "/api/auth/login", new { email, password = AuthTestApplication.AdminPassword })).StatusCode);
+        Assert.Equal(HttpStatusCode.NoContent, (await PostAsync(client, "/api/beta/auth/login", new { email, password = AuthTestApplication.AdminPassword })).StatusCode);
 
     internal static async Task<HttpResponseMessage> PostAsync(HttpClient client, string path, object body, CancellationToken cancellationToken = default)
     {
-        var token = await client.GetFromJsonAsync<JsonElement>("/api/auth/antiforgery");
+        var token = await client.GetFromJsonAsync<JsonElement>("/api/beta/auth/antiforgery");
         using var request = new HttpRequestMessage(HttpMethod.Post, path) { Content = JsonContent.Create(body) };
+        request.Headers.TryAddWithoutValidation("X-Workbench-Api-Revision", "beta-1");
         request.Headers.Add("X-CSRF-TOKEN", token.GetProperty("requestToken").GetString());
         return await client.SendAsync(request, cancellationToken);
     }

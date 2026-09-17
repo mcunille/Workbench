@@ -7,9 +7,9 @@ import { photoSignIn } from './photo-fixture';
 test.setTimeout(180_000);
 
 async function seed(page: Page, name: string, notes: string, location: string, requestToken?: string) {
-  const token = requestToken ?? (await (await page.request.get('/api/auth/antiforgery')).json()).requestToken;
-  const response = await page.request.post('/api/items', {
-    headers: { 'X-CSRF-TOKEN': token },
+  const token = requestToken ?? (await (await page.request.get('/api/beta/auth/antiforgery')).json()).requestToken;
+  const response = await page.request.post('/api/beta/items', {
+    headers: { 'X-Workbench-Api-Revision': 'beta-1', 'X-CSRF-TOKEN': token },
     data: { creationRequestId: crypto.randomUUID(), name, notes, location },
   });
   expect(response.status()).toBe(201);
@@ -24,7 +24,7 @@ for (const width of [320, 1280]) {
     let unownedCollectionRequests = 0;
     if (width === 320) {
       // A lower-priority sentinel exposes any real collection request before fixture ownership.
-      await page.route(url => url.pathname === '/api/items', async route => {
+      await page.route(url => url.pathname === '/api/beta/items', async route => {
         unownedCollectionRequests++;
         await route.fulfill({ json: { items: [], nextCursor: null } });
       });
@@ -35,13 +35,13 @@ for (const width of [320, 1280]) {
       ]);
     }
     const initialCollection = width === 320
-      ? page.waitForResponse(response => new URL(response.url()).pathname === '/api/items')
+      ? page.waitForResponse(response => new URL(response.url()).pathname === '/api/beta/items')
       : undefined;
     await photoSignIn(page);
     if (initialCollection) await initialCollection;
     if (width === 1280) {
       // One token belongs only to this authenticated setup batch; no cross-session cache.
-      const { requestToken } = await (await page.request.get('/api/auth/antiforgery')).json();
+      const { requestToken } = await (await page.request.get('/api/beta/auth/antiforgery')).json();
       for (let i = 0; i < 52; i++) await seed(page, `Unrelated ${i}`, '', '', requestToken);
       for (let i = 0; i < 53; i++) await seed(page, `Piece ${i} ${phrase}`, `Remember ${phrase}`, 'Tray H3', requestToken);
     } else {
@@ -110,7 +110,7 @@ test('search failure retries the submitted query rather than showing an empty co
   const phrase = `Retry-${crypto.randomUUID()}`;
   await seed(page, 'Found after retry', phrase, 'Retry tray');
   let fail = true;
-  await page.route('**/api/items?*', async route => {
+  await page.route('**/api/beta/items?*', async route => {
     if (new URL(route.request().url()).searchParams.get('q') === phrase && fail) {
       fail = false;
       await route.fulfill({ status: 503, contentType: 'application/problem+json', body: '{}' });

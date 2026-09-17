@@ -23,7 +23,7 @@ it('preserves document drafts through appearance changes and guards navigation',
   Object.defineProperty(HTMLDialogElement.prototype, 'showModal', { configurable: true, value(this: HTMLDialogElement) { this.setAttribute('open', ''); } });
   const item = { id: 'stone', name: 'Sapphire', location: null, notes: null, photo: null, version: 'i1', createdAtUtc: '2026-01-01T00:00:00Z', archivedAtUtc: null };
   // Mock the feature boundary so startup depends on React effects, not HTTP scheduling.
-  vi.spyOn(systemApi, 'getSystem').mockResolvedValue({ name: 'Workbench', version: '1' });
+  vi.spyOn(systemApi, 'getSystem').mockResolvedValue({ name: 'Workbench', version: '1', apiRevision: 'beta-1' });
   vi.spyOn(authApi, 'getCurrentIdentity').mockResolvedValue({ userId: 'person', tenantName: 'Studio', email: 'person@example.test', permissions: ['TenantAccess'] });
   vi.spyOn(itemsApi, 'getItem').mockResolvedValue(item);
   vi.spyOn(acquisitionsApi, 'getAcquisition').mockResolvedValue({ itemVersion: 'i1', acquisition: { id: 'fair', method: 'Purchase', source: null, year: null, month: null, day: null, notes: null, version: 'a1' } });

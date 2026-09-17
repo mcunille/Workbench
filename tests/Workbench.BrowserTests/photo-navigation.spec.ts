@@ -18,7 +18,7 @@ test('a removal finishing after confirmed navigation updates the restored collec
   let entered!: () => void;
   const pending = new Promise<void>(resolve => { release = resolve; });
   const requestEntered = new Promise<void>(resolve => { entered = resolve; });
-  await page.route('**/api/items/*/photo', async route => {
+  await page.route('**/api/beta/items/*/photo', async route => {
     if (route.request().method() === 'DELETE') {
       entered();
       await pending;

@@ -192,7 +192,7 @@ public sealed class PublicEndpointTests
         await using var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
             builder.UseSetting("AllowedHosts", "workbench.example").UseSetting("ReverseProxy:Mode", mode));
         using var client = factory.CreateClient();
-        using var request = new HttpRequestMessage(HttpMethod.Get, "/api/system");
+        using var request = new HttpRequestMessage(HttpMethod.Get, "/api/beta/system");
         request.Headers.Host = host;
         // THEN an unrecognized host never reaches application handlers.
         Assert.Equal(expected, (await client.SendAsync(request)).StatusCode);
@@ -205,7 +205,7 @@ public sealed class PublicEndpointTests
         await using var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
             builder.UseSetting("ReverseProxy:Mode", "AzureContainerApps"));
         using var client = factory.CreateClient();
-        using var request = new HttpRequestMessage(HttpMethod.Get, "/api/auth/me");
+        using var request = new HttpRequestMessage(HttpMethod.Get, "/api/beta/auth/me");
         request.Headers.Add("X-Forwarded-For", "127.0.0.1");
         request.Headers.Add("X-Forwarded-Proto", "https");
         // WHEN a caller claims internal metadata, THEN authentication is still required.

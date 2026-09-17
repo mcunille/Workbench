@@ -27,7 +27,7 @@ test('supplier unit and total line pricing persist with explainable draft estima
   await expect(page.getByRole('radio', { name: 'Per unit 1', exact: true })).toBeChecked();
   await expect(page.getByLabel('Pricing unit 1', { exact: true })).toHaveCount(0);
   // WHEN saving and reopening THEN supplier quantities, price modes and metadata survive.
-  const saved = page.waitForResponse(response => /\/api\/v4\/purchase-order-drafts(?:\/[a-f0-9-]+)?$/.test(response.url()) && response.request().method() === 'POST');
+  const saved = page.waitForResponse(response => /\/api\/beta\/purchase-order-drafts(?:\/[a-f0-9-]+)?$/.test(response.url()) && response.request().method() === 'POST');
   await page.getByRole('button', { name: 'Save draft', exact: true }).click();
   expect((await saved).ok()).toBeTruthy();
   await expect(page).toHaveURL(/\/purchase-orders\/[a-f0-9-]{36}$/);

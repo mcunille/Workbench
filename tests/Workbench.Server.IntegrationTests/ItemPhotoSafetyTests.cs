@@ -317,7 +317,7 @@ public sealed class ItemPhotoSafetyTests(SqlServerFixture sqlServer)
 
         public async Task<(string Path, JsonElement Item)> CreateItemAsync()
         {
-            var response = await SendJsonAsync(Client, HttpMethod.Post, "/api/items",
+            var response = await SendJsonAsync(Client, HttpMethod.Post, "/api/beta/items",
                 new { creationRequestId = Guid.NewGuid(), name = "Safety sapphire", location = "Tray A" });
             Assert.Equal(HttpStatusCode.Created, response.StatusCode);
             var path = response.Headers.Location!.ToString();

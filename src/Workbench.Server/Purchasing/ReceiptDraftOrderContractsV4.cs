@@ -3,8 +3,10 @@ using System.ComponentModel.DataAnnotations;
 using System.Text.Json.Serialization;
 namespace Workbench.Server.Purchasing;
 
+// Frozen historical fingerprint-4 declaration order and required fields.
+
 [JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
-public sealed record DraftEntryV4(
+internal sealed record ReceiptDraftEntryV4(
     [property: JsonRequired] Guid Id,
     [property: JsonRequired, MaxLength(500)] string? Description,
     [property: JsonRequired, MaxLength(2000)] string? Notes,
@@ -14,17 +16,17 @@ public sealed record DraftEntryV4(
     [property: JsonRequired] string? UnitOfMeasure,
     [property: JsonRequired] string PriceMode,
     [property: JsonRequired] string? Price,
-    [property: JsonRequired] DraftLegacyPricingV4? LegacyPricing,
+    [property: JsonRequired] ReceiptDraftLegacyPricingV4? LegacyPricing,
     [property: JsonRequired, MaxLength(200)] string? SupplierSku,
     [property: JsonRequired, MaxLength(100)] string? ItemType);
 [JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
-public sealed record DraftContentV4(
+internal sealed record ReceiptDraftContentV4(
     [property: JsonRequired, MaxLength(200)] string? Title,
     [property: JsonRequired, MaxLength(200)] string? SupplierName,
     [property: JsonRequired, MaxLength(3)] string? Currency,
     [property: JsonRequired, MaxLength(10000)] string? Notes,
     [property: JsonRequired, MaxLength(20)] IReadOnlyList<string> SourceLinks,
-    [property: JsonRequired, MaxLength(100)] IReadOnlyList<DraftEntryV4> Entries,
+    [property: JsonRequired, MaxLength(100)] IReadOnlyList<ReceiptDraftEntryV4> Entries,
     [property: JsonRequired] Guid? SupplierId,
     [property: JsonRequired, MaxLength(200)] string? SupplierContactName,
     [property: JsonRequired, MaxLength(254)] string? SupplierEmail,
@@ -36,16 +38,7 @@ public sealed record DraftContentV4(
 
 
 [JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
-public sealed record CreateDraftOrderRequestV4([property: JsonRequired] Guid RequestId, [property: JsonRequired] DraftContentV4 Draft);
-[JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
-public sealed record UpdateDraftOrderRequestV4([property: JsonRequired] Guid RequestId, [property: JsonRequired] string ExpectedVersion, [property: JsonRequired] DraftContentV4 Draft);
-[JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
-public sealed record CalculateDraftOrderRequestV4([property: JsonRequired] DraftContentV4 Draft);
-public sealed record DraftOrderResponseV4(Guid Id, DraftContentV4 Draft, string CreatedAtUtc, string UpdatedAtUtc,
-    string Version, string PoReference, bool SupplierIsArchived, DraftCalculationResponse Calculation);
-
-[JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
-public sealed record DraftLegacyPricingV4(
+internal sealed record ReceiptDraftLegacyPricingV4(
     [property: JsonRequired] string? Quantity,
     [property: JsonRequired] string? UnitOfMeasure,
     [property: JsonRequired] string? UnitPrice,

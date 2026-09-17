@@ -20,38 +20,39 @@ public sealed class ItemRestorationTests(SqlServerFixture sqlServer, ITestOutput
         // GIVEN an edited record archived after its original creation.
         await using var app = await AuthTestApplication.CreateAsync(sqlServer);
         using var client = app.CreateClient();
-        await SendAsync(client, "/api/auth/login", new { email = "member@example.com", password = AuthTestApplication.AdminPassword });
+        await SendAsync(client, "/api/beta/auth/login", new { email = "member@example.com", password = AuthTestApplication.AdminPassword });
         var creation = new { creationRequestId = Guid.NewGuid(), name = "Original" };
-        var original = (await (await SendAsync(client, "/api/items", creation)).Content.ReadFromJsonAsync<ItemDetailResponse>())!;
-        var token = await client.GetFromJsonAsync<JsonElement>("/api/auth/antiforgery");
-        using var editRequest = new HttpRequestMessage(HttpMethod.Put, $"/api/items/{original.Id}")
+        var original = (await (await SendAsync(client, "/api/beta/items", creation)).Content.ReadFromJsonAsync<ItemDetailResponse>())!;
+        var token = await client.GetFromJsonAsync<JsonElement>("/api/beta/auth/antiforgery");
+        using var editRequest = new HttpRequestMessage(HttpMethod.Put, $"/api/beta/items/{original.Id}")
         { Content = JsonContent.Create(new { expectedVersion = original.Version, name = "Original edited", notes = "Retained", location = "Tray" }) };
+        editRequest.Headers.TryAddWithoutValidation("X-Workbench-Api-Revision", "beta-1");
         editRequest.Headers.Add("X-CSRF-TOKEN", token.GetProperty("requestToken").GetString());
         var edited = (await (await client.SendAsync(editRequest)).Content.ReadFromJsonAsync<ItemDetailResponse>())!;
-        var archived = (await (await SendAsync(client, $"/api/items/{original.Id}/archive", new { expectedVersion = edited.Version })).Content.ReadFromJsonAsync<ItemDetailResponse>())!;
-        Assert.Single((await client.GetFromJsonAsync<ItemPageResponse>("/api/items/archived?q=original"))!.Items);
+        var archived = (await (await SendAsync(client, $"/api/beta/items/{original.Id}/archive", new { expectedVersion = edited.Version })).Content.ReadFromJsonAsync<ItemDetailResponse>())!;
+        Assert.Single((await client.GetFromJsonAsync<ItemPageResponse>("/api/beta/items/archived?q=original"))!.Items);
         // WHEN restoring the displayed archived version.
-        var response = await SendAsync(client, $"/api/items/{original.Id}/restore", new { expectedVersion = archived.Version });
+        var response = await SendAsync(client, $"/api/beta/items/{original.Id}/restore", new { expectedVersion = archived.Version });
         // THEN the same identity returns to active browsing with a new version.
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var restored = (await response.Content.ReadFromJsonAsync<ItemDetailResponse>())!;
         Assert.Null(restored.ArchivedAtUtc);
         Assert.NotEqual(archived.Version, restored.Version);
         Assert.Equal(edited with { Version = restored.Version }, restored);
-        Assert.Empty((await client.GetFromJsonAsync<ItemPageResponse>("/api/items/archived"))!.Items);
-        Assert.Single((await client.GetFromJsonAsync<ItemPageResponse>("/api/items?q=original"))!.Items);
-        Assert.Equal(restored, await (await SendAsync(client, "/api/items", creation)).Content.ReadFromJsonAsync<ItemDetailResponse>());
+        Assert.Empty((await client.GetFromJsonAsync<ItemPageResponse>("/api/beta/items/archived"))!.Items);
+        Assert.Single((await client.GetFromJsonAsync<ItemPageResponse>("/api/beta/items?q=original"))!.Items);
+        Assert.Equal(restored, await (await SendAsync(client, "/api/beta/items", creation)).Content.ReadFromJsonAsync<ItemDetailResponse>());
         // AND replay of a different creation payload remains a conflict after restoration.
-        Assert.Equal(HttpStatusCode.Conflict, (await SendAsync(client, "/api/items", new { creation.creationRequestId, name = "Different" })).StatusCode);
+        Assert.Equal(HttpStatusCode.Conflict, (await SendAsync(client, "/api/beta/items", new { creation.creationRequestId, name = "Different" })).StatusCode);
         // AND retry never attributes an active record to this request.
-        var retry = await SendAsync(client, $"/api/items/{original.Id}/restore", new { expectedVersion = archived.Version });
+        var retry = await SendAsync(client, $"/api/beta/items/{original.Id}/restore", new { expectedVersion = archived.Version });
         Assert.Equal(HttpStatusCode.Conflict, retry.StatusCode);
         Assert.Equal("item_active", (await retry.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("code").GetString());
-        var rearchived = (await (await SendAsync(client, $"/api/items/{original.Id}/archive", new { expectedVersion = restored.Version })).Content.ReadFromJsonAsync<ItemDetailResponse>())!;
-        var delayed = await SendAsync(client, $"/api/items/{original.Id}/restore", new { expectedVersion = archived.Version });
+        var rearchived = (await (await SendAsync(client, $"/api/beta/items/{original.Id}/archive", new { expectedVersion = restored.Version })).Content.ReadFromJsonAsync<ItemDetailResponse>())!;
+        var delayed = await SendAsync(client, $"/api/beta/items/{original.Id}/restore", new { expectedVersion = archived.Version });
         Assert.Equal(HttpStatusCode.Conflict, delayed.StatusCode);
         Assert.Equal("item_version_conflict", (await delayed.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("code").GetString());
-        Assert.Equal(rearchived, await client.GetFromJsonAsync<ItemDetailResponse>($"/api/items/{original.Id}"));
+        Assert.Equal(rearchived, await client.GetFromJsonAsync<ItemDetailResponse>($"/api/beta/items/{original.Id}"));
     }
 
     [Fact]
@@ -62,16 +63,16 @@ public sealed class ItemRestorationTests(SqlServerFixture sqlServer, ITestOutput
         using var owner = app.CreateClient();
         using var other = app.CreateClient();
         using var anonymous = app.CreateClient();
-        await SendAsync(owner, "/api/auth/login", new { email = "member@example.com", password = AuthTestApplication.AdminPassword });
-        await SendAsync(other, "/api/auth/login", new { email = "other@example.com", password = AuthTestApplication.AdminPassword });
-        var item = (await (await SendAsync(owner, "/api/items", new { creationRequestId = Guid.NewGuid(), name = "Private" })).Content.ReadFromJsonAsync<ItemDetailResponse>())!;
-        using var archive = await SendAsync(owner, $"/api/items/{item.Id}/archive", new { expectedVersion = item.Version });
+        await SendAsync(owner, "/api/beta/auth/login", new { email = "member@example.com", password = AuthTestApplication.AdminPassword });
+        await SendAsync(other, "/api/beta/auth/login", new { email = "other@example.com", password = AuthTestApplication.AdminPassword });
+        var item = (await (await SendAsync(owner, "/api/beta/items", new { creationRequestId = Guid.NewGuid(), name = "Private" })).Content.ReadFromJsonAsync<ItemDetailResponse>())!;
+        using var archive = await SendAsync(owner, $"/api/beta/items/{item.Id}/archive", new { expectedVersion = item.Version });
         Assert.Equal(HttpStatusCode.OK, archive.StatusCode);
         Assert.True(archive.Headers.CacheControl?.Private);
         Assert.True(archive.Headers.CacheControl?.NoStore);
         item = (await archive.Content.ReadFromJsonAsync<ItemDetailResponse>())!;
         Assert.NotNull(item.ArchivedAtUtc);
-        var path = $"/api/items/{item.Id}/restore";
+        var path = $"/api/beta/items/{item.Id}/restore";
         // WHEN invalid or unauthorized restoration requests arrive.
         foreach (var body in new object[] { new { }, new { expectedVersion = "bad" }, new { expectedVersion = "AQ==" }, new { expectedVersion = item.Version, name = "Injection" } })
             Assert.Equal(HttpStatusCode.BadRequest, (await SendAsync(owner, path, body)).StatusCode);
@@ -79,16 +80,16 @@ public sealed class ItemRestorationTests(SqlServerFixture sqlServer, ITestOutput
         Assert.Equal(HttpStatusCode.Unauthorized, (await SendAsync(anonymous, path, new { expectedVersion = item.Version })).StatusCode);
         // THEN missing and foreign records have indistinguishable outcomes.
         foreach (var id in new[] { item.Id, Guid.NewGuid() })
-            Assert.Equal(HttpStatusCode.NotFound, (await SendAsync(other, $"/api/items/{id}/restore", new { expectedVersion = item.Version })).StatusCode);
-        Assert.Equal(HttpStatusCode.NotFound, (await other.GetAsync($"/api/items/{item.Id}")).StatusCode);
-        Assert.Equal(HttpStatusCode.Unauthorized, (await anonymous.GetAsync("/api/items/archived")).StatusCode);
-        using var archivedPage = await other.GetAsync("/api/items/archived");
+            Assert.Equal(HttpStatusCode.NotFound, (await SendAsync(other, $"/api/beta/items/{id}/restore", new { expectedVersion = item.Version })).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await other.GetAsync($"/api/beta/items/{item.Id}")).StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, (await anonymous.GetAsync("/api/beta/items/archived")).StatusCode);
+        using var archivedPage = await other.GetAsync("/api/beta/items/archived");
         Assert.Equal(HttpStatusCode.OK, archivedPage.StatusCode);
         Assert.True(archivedPage.Headers.CacheControl?.Private);
         Assert.True(archivedPage.Headers.CacheControl?.NoStore);
         Assert.Empty((await archivedPage.Content.ReadFromJsonAsync<ItemPageResponse>())!.Items);
         foreach (var query in new[] { "cursor=bad", "q=" + new string('x', 201), "q=%00" })
-            Assert.Equal(HttpStatusCode.BadRequest, (await owner.GetAsync("/api/items/archived?" + query)).StatusCode);
+            Assert.Equal(HttpStatusCode.BadRequest, (await owner.GetAsync("/api/beta/items/archived?" + query)).StatusCode);
     }
 
     [Fact]
@@ -118,15 +119,15 @@ public sealed class ItemRestorationTests(SqlServerFixture sqlServer, ITestOutput
         seed.Parameters.AddWithValue("@tenant", AuthTestApplication.TenantId);
         await seed.ExecuteNonQueryAsync();
         using var client = app.CreateClient();
-        await SendAsync(client, "/api/auth/login", new { email = "member@example.com", password = AuthTestApplication.AdminPassword });
+        await SendAsync(client, "/api/beta/auth/login", new { email = "member@example.com", password = AuthTestApplication.AdminPassword });
         // WHEN ordinary and searched collection pages are traversed.
         foreach (var query in new[] { "", "q=100%25_%5B%5D&" })
         {
-            var first = (await client.GetFromJsonAsync<ItemPageResponse>("/api/items/archived?" + query))!;
+            var first = (await client.GetFromJsonAsync<ItemPageResponse>("/api/beta/items/archived?" + query))!;
             // THEN the full first page and final page contain exactly the 51 archived identities.
             Assert.Equal(50, first.Items.Count);
             Assert.NotNull(first.NextCursor);
-            var second = (await client.GetFromJsonAsync<ItemPageResponse>("/api/items/archived?" + query + "cursor=" + Uri.EscapeDataString(first.NextCursor)))!;
+            var second = (await client.GetFromJsonAsync<ItemPageResponse>("/api/beta/items/archived?" + query + "cursor=" + Uri.EscapeDataString(first.NextCursor)))!;
             Assert.Single(second.Items);
             Assert.Null(second.NextCursor);
             Assert.Equal(51, first.Items.Concat(second.Items).Select(row => row.Id).Distinct().Count());
@@ -141,23 +142,23 @@ public sealed class ItemRestorationTests(SqlServerFixture sqlServer, ITestOutput
         await using var app = await AuthTestApplication.CreateAsync(sqlServer);
         using var owner = app.CreateClient();
         using var foreign = app.CreateClient();
-        await SendAsync(owner, "/api/auth/login", new { email = "member@example.com", password = AuthTestApplication.AdminPassword });
-        await SendAsync(foreign, "/api/auth/login", new { email = "other@example.com", password = AuthTestApplication.AdminPassword });
+        await SendAsync(owner, "/api/beta/auth/login", new { email = "member@example.com", password = AuthTestApplication.AdminPassword });
+        await SendAsync(foreign, "/api/beta/auth/login", new { email = "other@example.com", password = AuthTestApplication.AdminPassword });
         foreach (var client in new[] { owner, foreign })
         {
-            var item = (await (await SendAsync(client, "/api/items", new { creationRequestId = Guid.NewGuid(), name = "Café specimen", notes = "100%_[] retained", location = "Tray A" })).Content.ReadFromJsonAsync<ItemDetailResponse>())!;
-            await SendAsync(client, $"/api/items/{item.Id}/archive", new { expectedVersion = item.Version });
+            var item = (await (await SendAsync(client, "/api/beta/items", new { creationRequestId = Guid.NewGuid(), name = "Café specimen", notes = "100%_[] retained", location = "Tray A" })).Content.ReadFromJsonAsync<ItemDetailResponse>())!;
+            await SendAsync(client, $"/api/beta/items/{item.Id}/archive", new { expectedVersion = item.Version });
         }
         // WHEN the tenant searches any one field THEN literal matching preserves case/accent rules and isolation.
         foreach (var query in new[] { " CAFÉ ", "TRAY a", "%_[]", "retained" })
         {
-            using var response = await owner.GetAsync("/api/items/archived?q=" + Uri.EscapeDataString(query));
+            using var response = await owner.GetAsync("/api/beta/items/archived?q=" + Uri.EscapeDataString(query));
             Assert.True(response.Headers.CacheControl?.Private);
             Assert.True(response.Headers.CacheControl?.NoStore);
             Assert.Single((await response.Content.ReadFromJsonAsync<ItemPageResponse>())!.Items);
         }
         foreach (var query in new[] { "cafe", "absent", "' OR 1=1--", "specimen100" })
-            Assert.Empty((await owner.GetFromJsonAsync<ItemPageResponse>("/api/items/archived?q=" + Uri.EscapeDataString(query)))!.Items);
+            Assert.Empty((await owner.GetFromJsonAsync<ItemPageResponse>("/api/beta/items/archived?q=" + Uri.EscapeDataString(query)))!.Items);
     }
     [Fact]
     public async Task SparseArchiveQueriesRetainCorrectPagesAndRecordRepresentativeLatency()
@@ -179,16 +180,16 @@ public sealed class ItemRestorationTests(SqlServerFixture sqlServer, ITestOutput
             await seed.ExecuteNonQueryAsync();
         }
         using var client = app.CreateClient();
-        await SendAsync(client, "/api/auth/login", new { email = "member@example.com", password = AuthTestApplication.AdminPassword });
+        await SendAsync(client, "/api/beta/auth/login", new { email = "member@example.com", password = AuthTestApplication.AdminPassword });
         // WHEN representative first, later, and no-match searches execute against real SQL.
         var watch = System.Diagnostics.Stopwatch.StartNew();
-        var first = (await client.GetFromJsonAsync<ItemPageResponse>("/api/items/archived?q=specimen"))!;
+        var first = (await client.GetFromJsonAsync<ItemPageResponse>("/api/beta/items/archived?q=specimen"))!;
         output.WriteLine("Sparse archive first page (includes initial query compilation): {0} ms", watch.Elapsed.TotalMilliseconds);
         watch.Restart();
-        var second = (await client.GetFromJsonAsync<ItemPageResponse>("/api/items/archived?q=specimen&cursor=" + Uri.EscapeDataString(first.NextCursor!)))!;
+        var second = (await client.GetFromJsonAsync<ItemPageResponse>("/api/beta/items/archived?q=specimen&cursor=" + Uri.EscapeDataString(first.NextCursor!)))!;
         output.WriteLine("Sparse archive later page: {0} ms", watch.Elapsed.TotalMilliseconds);
         watch.Restart();
-        var missing = (await client.GetFromJsonAsync<ItemPageResponse>("/api/items/archived?q=absent"))!;
+        var missing = (await client.GetFromJsonAsync<ItemPageResponse>("/api/beta/items/archived?q=absent"))!;
         output.WriteLine("Sparse archive no matches: {0} ms", watch.Elapsed.TotalMilliseconds);
         // THEN the archive predicate precedes pagination and all 100 identities occur exactly once.
         Assert.Equal(50, first.Items.Count);
@@ -200,8 +201,9 @@ public sealed class ItemRestorationTests(SqlServerFixture sqlServer, ITestOutput
     }
     private static async Task<HttpResponseMessage> SendAsync(HttpClient client, string path, object body)
     {
-        var token = await client.GetFromJsonAsync<JsonElement>("/api/auth/antiforgery");
+        var token = await client.GetFromJsonAsync<JsonElement>("/api/beta/auth/antiforgery");
         using var request = new HttpRequestMessage(HttpMethod.Post, path) { Content = JsonContent.Create(body) };
+        request.Headers.TryAddWithoutValidation("X-Workbench-Api-Revision", "beta-1");
         request.Headers.Add("X-CSRF-TOKEN", token.GetProperty("requestToken").GetString());
         return await client.SendAsync(request);
     }

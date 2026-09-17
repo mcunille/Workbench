@@ -1,3 +1,4 @@
+import { apiFetch } from './contract';
 import createClient from 'openapi-fetch';
 import type { components, paths } from './generated';
 
@@ -11,11 +12,11 @@ export class ApiError extends Error {
   }
 }
 
-const api = createClient<paths>({ baseUrl: window.location.origin });
+const api = createClient<paths>({ fetch: apiFetch, baseUrl: window.location.origin });
 let antiforgeryToken: Promise<string> | undefined;
 
 async function getAntiforgeryToken(): Promise<string> {
-  antiforgeryToken ??= api.GET('/api/auth/antiforgery').then(({ data, response }) => {
+  antiforgeryToken ??= api.GET('/api/beta/auth/antiforgery').then(({ data, response }) => {
     if (!response.ok || !data) {
       antiforgeryToken = undefined;
       throw new ApiError(response.status);
@@ -41,7 +42,7 @@ function identityChanged(): void {
 }
 
 export async function getCurrentIdentity(): Promise<CurrentIdentity | null> {
-  const { data, response } = await api.GET('/api/auth/me');
+  const { data, response } = await api.GET('/api/beta/auth/me');
   if (response.status === 401) {
     return null;
   }
@@ -53,7 +54,7 @@ export async function getCurrentIdentity(): Promise<CurrentIdentity | null> {
 }
 
 export async function signIn(email: string, password: string): Promise<void> {
-  const { response } = await api.POST('/api/auth/login', {
+  const { response } = await api.POST('/api/beta/auth/login', {
     body: { email, password },
     headers: await mutationHeaders(),
   });
@@ -62,7 +63,7 @@ export async function signIn(email: string, password: string): Promise<void> {
 }
 
 export async function signOut(): Promise<void> {
-  const { response } = await api.POST('/api/auth/logout', {
+  const { response } = await api.POST('/api/beta/auth/logout', {
     headers: await mutationHeaders(),
   });
   requireSuccess(response);
@@ -73,7 +74,7 @@ export async function changePassword(
   currentPassword: string,
   newPassword: string,
 ): Promise<void> {
-  const { response } = await api.POST('/api/auth/change-password', {
+  const { response } = await api.POST('/api/beta/auth/change-password', {
     body: { currentPassword, newPassword },
     headers: await mutationHeaders(),
   });
@@ -82,13 +83,13 @@ export async function changePassword(
 }
 
 export async function getSessions(): Promise<Session[]> {
-  const { data, response } = await api.GET('/api/auth/sessions');
+  const { data, response } = await api.GET('/api/beta/auth/sessions');
   requireSuccess(response);
   return data ?? [];
 }
 
 export async function revokeSession(sessionId: string): Promise<void> {
-  const { response } = await api.DELETE('/api/auth/sessions/{sessionId}', {
+  const { response } = await api.DELETE('/api/beta/auth/sessions/{sessionId}', {
     params: { path: { sessionId } },
     headers: await mutationHeaders(),
   });
@@ -97,7 +98,7 @@ export async function revokeSession(sessionId: string): Promise<void> {
 }
 
 export async function revokeAllSessions(): Promise<void> {
-  const { response } = await api.DELETE('/api/auth/sessions', {
+  const { response } = await api.DELETE('/api/beta/auth/sessions', {
     headers: await mutationHeaders(),
   });
   requireSuccess(response);
@@ -105,7 +106,7 @@ export async function revokeAllSessions(): Promise<void> {
 }
 
 export async function requestRecovery(email: string): Promise<void> {
-  const { response } = await api.POST('/api/auth/recovery', {
+  const { response } = await api.POST('/api/beta/auth/recovery', {
     body: { email },
     headers: await mutationHeaders(),
   });
@@ -113,7 +114,7 @@ export async function requestRecovery(email: string): Promise<void> {
 }
 
 export async function consumeRecovery(token: string, newPassword: string): Promise<void> {
-  const { response } = await api.POST('/api/auth/recovery/consume', {
+  const { response } = await api.POST('/api/beta/auth/recovery/consume', {
     body: { token, newPassword },
     headers: await mutationHeaders(),
   });
@@ -121,7 +122,7 @@ export async function consumeRecovery(token: string, newPassword: string): Promi
 }
 
 export async function consumeInvitation(token: string, newPassword: string): Promise<void> {
-  const { response } = await api.POST('/api/auth/invitations/consume', {
+  const { response } = await api.POST('/api/beta/auth/invitations/consume', {
     body: { token, newPassword },
     headers: await mutationHeaders(),
   });
@@ -129,13 +130,13 @@ export async function consumeInvitation(token: string, newPassword: string): Pro
 }
 
 export async function getTenantUsers(): Promise<TenantUser[]> {
-  const { data, response } = await api.GET('/api/tenant/users');
+  const { data, response } = await api.GET('/api/beta/tenant/users');
   requireSuccess(response);
   return data ?? [];
 }
 
 export async function inviteTenantUser(email: string): Promise<void> {
-  const { response } = await api.POST('/api/tenant/users/invitations', {
+  const { response } = await api.POST('/api/beta/tenant/users/invitations', {
     body: { email },
     headers: await mutationHeaders(),
   });
@@ -143,7 +144,7 @@ export async function inviteTenantUser(email: string): Promise<void> {
 }
 
 export async function disableTenantUser(userId: string): Promise<void> {
-  const { response } = await api.DELETE('/api/tenant/users/{userId}', {
+  const { response } = await api.DELETE('/api/beta/tenant/users/{userId}', {
     params: { path: { userId } },
     headers: await mutationHeaders(),
   });
@@ -151,7 +152,7 @@ export async function disableTenantUser(userId: string): Promise<void> {
 }
 
 export async function reactivateTenantUser(userId: string): Promise<void> {
-  const { response } = await api.POST('/api/tenant/users/{userId}/reactivate', {
+  const { response } = await api.POST('/api/beta/tenant/users/{userId}/reactivate', {
     params: { path: { userId } },
     headers: await mutationHeaders(),
   });
@@ -159,7 +160,7 @@ export async function reactivateTenantUser(userId: string): Promise<void> {
 }
 
 export async function initiateTenantUserRecovery(userId: string): Promise<void> {
-  const { response } = await api.POST('/api/tenant/users/{userId}/recovery', {
+  const { response } = await api.POST('/api/beta/tenant/users/{userId}/recovery', {
     params: { path: { userId } },
     headers: await mutationHeaders(),
   });
@@ -167,7 +168,7 @@ export async function initiateTenantUserRecovery(userId: string): Promise<void> 
 }
 
 export async function revokeTenantUserSessions(userId: string): Promise<void> {
-  const { response } = await api.DELETE('/api/tenant/users/{userId}/sessions', {
+  const { response } = await api.DELETE('/api/beta/tenant/users/{userId}/sessions', {
     params: { path: { userId } },
     headers: await mutationHeaders(),
   });

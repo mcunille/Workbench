@@ -17,10 +17,10 @@ public sealed class BrowserSecurityHeadersTests
     [InlineData("/", HttpStatusCode.OK, "text/html")]
     [InlineData("/index.html", HttpStatusCode.OK, "text/html")]
     [InlineData("/inventory/items", HttpStatusCode.OK, "text/html")]
-    [InlineData("/api/system", HttpStatusCode.OK, "application/json")]
-    [InlineData("/api/not-a-route", HttpStatusCode.NotFound, "application/problem+json")]
-    [InlineData("/api/auth/me", HttpStatusCode.Unauthorized, null)]
-    [InlineData("/api/items/aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa/photo/bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb/thumbnail", HttpStatusCode.Unauthorized, null)]
+    [InlineData("/api/beta/system", HttpStatusCode.OK, "application/json")]
+    [InlineData("/api/beta/not-a-route", HttpStatusCode.NotFound, "application/problem+json")]
+    [InlineData("/api/beta/auth/me", HttpStatusCode.Unauthorized, null)]
+    [InlineData("/api/beta/items/aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa/photo/bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb/thumbnail", HttpStatusCode.Unauthorized, null)]
     public async Task ResponsesKeepTheirContractsAndDenyFraming(string path, HttpStatusCode status, string? contentType)
     {
         // GIVEN the real application pipeline and an HTTPS browser request.
@@ -47,7 +47,7 @@ public sealed class BrowserSecurityHeadersTests
             }));
         using var client = factory.CreateClient(new() { BaseAddress = new Uri("https://workbench.example") });
         // WHEN the handler replaces the response, THEN its Problem Details retain every protection.
-        using var response = await client.GetAsync("/api/system");
+        using var response = await client.GetAsync("/api/beta/system");
         Assert.Equal(HttpStatusCode.InternalServerError, response.StatusCode);
         Assert.Equal("application/problem+json", response.Content.Headers.ContentType?.MediaType);
         AssertBaseline(response);

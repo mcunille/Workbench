@@ -1,3 +1,4 @@
+import { apiFetch } from './contract';
 import { ApiError, mutationHeaders } from './auth';
 import { ItemValidationError } from './items';
 import type { components } from './generated';
@@ -13,9 +14,9 @@ export class DocumentConflictError extends ApiError {
     this.reason = typeof reason === 'string' ? reason.slice(0, 1000) : 'The item, acquisition or document changed. Reload before trying again.';
   }
 }
-function base(itemId: string, acquisitionId: string) { return `/api/items/${encodeURIComponent(itemId)}/acquisition/${encodeURIComponent(acquisitionId)}/documents`; }
+function base(itemId: string, acquisitionId: string) { return `/api/beta/items/${encodeURIComponent(itemId)}/acquisition/${encodeURIComponent(acquisitionId)}/documents`; }
 async function request(path: string, init?: RequestInit) {
-  const response = await fetch(new URL(path, window.location.origin), { credentials: 'same-origin', cache: 'no-store', ...init });
+  const response = await apiFetch(new URL(path, window.location.origin), { credentials: 'same-origin', cache: 'no-store', ...init });
   if (response.status === 409) {
     const problem = await response.json().catch(() => null);
     throw new DocumentConflictError(problem?.title);

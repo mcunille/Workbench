@@ -13,7 +13,7 @@ test('explains a recovery loss on an otherwise usable item', async ({ page }) =>
   await expect(page.getByAltText('Prepared photograph preview')).toBeVisible();
   await page.getByRole('button', { name: 'Upload photograph', exact: true }).click();
   await expect(page.getByAltText(`Photograph of ${name}`, { exact: true })).toBeVisible();
-  await page.route('**/api/items/*/photo/*/*', route => route.fulfill({
+  await page.route('**/api/beta/items/*/photo/*/*', route => route.fulfill({
     status: 410,
     contentType: 'application/problem+json',
     body: JSON.stringify({ status: 410, code: 'file_unavailable_after_recovery' }),

@@ -3,7 +3,7 @@ import { expect, test } from './diagnostic-fixture';
 import { photoSignIn } from './photo-fixture';
 
 async function sessionId(page: import('@playwright/test').Page) {
-  const response = await page.request.get('/api/auth/sessions');
+  const response = await page.request.get('/api/beta/auth/sessions');
   expect(response.ok()).toBe(true);
   const sessions = await response.json() as { id: string; isCurrent: boolean }[];
   const current = sessions.find(session => session.isCurrent);
@@ -26,7 +26,7 @@ test('ordinary contexts reuse authentication while competing contexts have disti
     // WHEN another fresh cookie jar opens an ordinary scenario.
     let logins = 0;
     pages[2].on('request', request => {
-      if (new URL(request.url()).pathname === '/api/auth/login') logins++;
+      if (new URL(request.url()).pathname === '/api/beta/auth/login') logins++;
     });
     await photoSignIn(pages[2]);
     const reused = await sessionId(pages[2]);

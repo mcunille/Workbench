@@ -15,7 +15,7 @@ beforeEach(() => {
   window.history.replaceState(null, '', '/purchase-orders/first');
   Object.defineProperty(HTMLDialogElement.prototype, 'showModal', { configurable: true, value(this: HTMLDialogElement) { this.setAttribute('open', ''); } });
   vi.spyOn(window, 'scrollTo').mockImplementation(() => {});
-  vi.spyOn(systemApi, 'getSystem').mockResolvedValue({ name: 'Workbench', version: '1' });
+  vi.spyOn(systemApi, 'getSystem').mockResolvedValue({ name: 'Workbench', version: '1', apiRevision: 'beta-1' });
   vi.spyOn(authApi, 'getCurrentIdentity').mockResolvedValue({ userId: 'person', tenantName: 'Studio', email: 'person@example.test', permissions: ['TenantAccess'] });
   vi.spyOn(purchasingApi, 'getDrafts').mockResolvedValue({ items: [first, second].map(value => ({ id: value.id, title: value.draft.title, supplierName: null, poReference: value.poReference, supplierOrderReference: null, platform: null, updatedAtUtc: value.updatedAtUtc })), nextCursor: null });
   vi.spyOn(purchasingApi, 'getDraft').mockImplementation(async id => id === second.id ? second : first);

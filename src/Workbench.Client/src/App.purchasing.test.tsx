@@ -7,13 +7,13 @@ it('opens purchase orders and replaces a new draft URL after its receipt without
   window.history.replaceState(null, '', '/purchase-orders');
   const draft = { title: null, supplierName: null, supplierId: null, supplierContactName: null, supplierEmail: null, supplierPhone: null, supplierWebsite: null, supplierPostalAddress: null, supplierOrderReference: null, platform: null, currency: null, notes: null, sourceLinks: [], entries: [] };
   let reads = 0; let writes = 0;
-  server.use(http.get('*/api/system', () => HttpResponse.json({ name: 'Workbench', version: '1' })),
-    http.get('*/api/auth/me', () => HttpResponse.json({ userId: 'user', tenantName: 'Studio', email: 'person@example.test', permissions: ['TenantAccess'] })),
-    http.get('*/api/v4/purchase-order-drafts', () => HttpResponse.json({ items: [], nextCursor: null })),
-    http.get('*/api/auth/antiforgery', () => HttpResponse.json({ requestToken: 'test' })),
-    http.post('*/api/v4/purchase-order-drafts/calculate', () => HttpResponse.json({ lines: [], incompleteLineCount: 0, merchandiseEstimate: null })),
-    http.post('*/api/v4/purchase-order-drafts', () => { writes++; return HttpResponse.json({ requestId: 'request', replayed: false, draftOrderId: 'saved', savedVersion: 'v1', completedAtUtc: '2026-09-12T00:00:00Z' }, { status: 201 }); }),
-    http.get('*/api/v4/purchase-order-drafts/saved', () => ++reads === 1 ? new HttpResponse(null, { status: 503 }) : HttpResponse.json({ calculation: { lines: [], incompleteLineCount: 0, merchandiseEstimate: null }, id: 'saved', poReference: 'PO-000001', supplierIsArchived: false, draft, version: 'v1', createdAtUtc: '2026-09-12T00:00:00Z', updatedAtUtc: '2026-09-12T00:00:00Z' })));
+  server.use(http.get('*/api/beta/system', () => HttpResponse.json({ name: 'Workbench', version: '1', apiRevision: 'beta-1' })),
+    http.get('*/api/beta/auth/me', () => HttpResponse.json({ userId: 'user', tenantName: 'Studio', email: 'person@example.test', permissions: ['TenantAccess'] })),
+    http.get('*/api/beta/purchase-order-drafts', () => HttpResponse.json({ items: [], nextCursor: null })),
+    http.get('*/api/beta/auth/antiforgery', () => HttpResponse.json({ requestToken: 'test' })),
+    http.post('*/api/beta/purchase-order-drafts/calculate', () => HttpResponse.json({ lines: [], incompleteLineCount: 0, merchandiseEstimate: null })),
+    http.post('*/api/beta/purchase-order-drafts', () => { writes++; return HttpResponse.json({ requestId: 'request', replayed: false, draftOrderId: 'saved', savedVersion: 'v1', completedAtUtc: '2026-09-12T00:00:00Z' }, { status: 201 }); }),
+    http.get('*/api/beta/purchase-order-drafts/saved', () => ++reads === 1 ? new HttpResponse(null, { status: 503 }) : HttpResponse.json({ calculation: { lines: [], incompleteLineCount: 0, merchandiseEstimate: null }, id: 'saved', poReference: 'PO-000001', supplierIsArchived: false, draft, version: 'v1', createdAtUtc: '2026-09-12T00:00:00Z', updatedAtUtc: '2026-09-12T00:00:00Z' })));
   render(<App />);
   // WHEN creating through the application's purchasing navigation.
   await screen.findByRole('heading', { name: 'No draft orders yet.' });

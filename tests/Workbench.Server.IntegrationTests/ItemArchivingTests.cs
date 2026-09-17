@@ -47,11 +47,11 @@ public sealed class ItemArchivingTests(SqlServerFixture sqlServer)
         // WHEN ordinary and searched collection pages are traversed.
         foreach (var query in new[] { "", "q=specimen&" })
         {
-            var first = (await client.GetFromJsonAsync<ItemPageResponse>("/api/items?" + query))!;
+            var first = (await client.GetFromJsonAsync<ItemPageResponse>("/api/beta/items?" + query))!;
             // THEN the full first page and final page contain exactly the 51 active identities.
             Assert.Equal(50, first.Items.Count);
             Assert.NotNull(first.NextCursor);
-            var second = (await client.GetFromJsonAsync<ItemPageResponse>("/api/items?" + query + "cursor=" + Uri.EscapeDataString(first.NextCursor)))!;
+            var second = (await client.GetFromJsonAsync<ItemPageResponse>("/api/beta/items?" + query + "cursor=" + Uri.EscapeDataString(first.NextCursor)))!;
             Assert.Single(second.Items);
             Assert.Null(second.NextCursor);
             Assert.Equal(51, first.Items.Concat(second.Items).Select(row => row.Id).Distinct().Count());
@@ -73,19 +73,19 @@ public sealed class ItemArchivingTests(SqlServerFixture sqlServer)
         using var client = factory.CreateClient();
         await LoginAsync(client, "member@example.com");
         var creation = new { creationRequestId = Guid.NewGuid(), name = "Sapphire", notes = "Original", location = "Tray" };
-        var item = (await (await SendAsync(client, HttpMethod.Post, "/api/items", creation)).Content.ReadFromJsonAsync<ItemDetailResponse>())!;
+        var item = (await (await SendAsync(client, HttpMethod.Post, "/api/beta/items", creation)).Content.ReadFromJsonAsync<ItemDetailResponse>())!;
         var photoRequest = Guid.NewGuid();
         var photoVersion = item.Version;
-        var uploaded = await ItemPhotoEndpointTests.UploadAsync(client, $"/api/items/{item.Id}", photoVersion, photoRequest);
+        var uploaded = await ItemPhotoEndpointTests.UploadAsync(client, $"/api/beta/items/{item.Id}", photoVersion, photoRequest);
         Assert.Equal(HttpStatusCode.OK, uploaded.StatusCode);
-        item = (await client.GetFromJsonAsync<ItemDetailResponse>($"/api/items/{item.Id}"))!;
+        item = (await client.GetFromJsonAsync<ItemDetailResponse>($"/api/beta/items/{item.Id}"))!;
         // WHEN archiving with the displayed version.
-        var response = await SendAsync(client, HttpMethod.Post, $"/api/items/{item.Id}/archive", new { expectedVersion = item.Version });
+        var response = await SendAsync(client, HttpMethod.Post, $"/api/beta/items/{item.Id}/archive", new { expectedVersion = item.Version });
         // THEN the commit retains the identity and details while advancing the version.
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var json = await response.Content.ReadFromJsonAsync<JsonElement>();
         Assert.Equal(JsonValueKind.String, json.GetProperty("archivedAtUtc").ValueKind);
-        var archived = (await client.GetFromJsonAsync<ItemDetailResponse>($"/api/items/{item.Id}"))!;
+        var archived = (await client.GetFromJsonAsync<ItemDetailResponse>($"/api/beta/items/{item.Id}"))!;
         Assert.Equal(item.Id, archived.Id);
         Assert.Equal(item.Name, archived.Name);
         Assert.Equal(item.Notes, archived.Notes);
@@ -100,40 +100,40 @@ public sealed class ItemArchivingTests(SqlServerFixture sqlServer)
             Assert.Equal(HttpStatusCode.OK, photo.StatusCode);
             Assert.NotEmpty(await photo.Content.ReadAsByteArrayAsync());
         }
-        var replayPhoto = await ItemPhotoEndpointTests.UploadAsync(client, $"/api/items/{item.Id}", photoVersion, photoRequest);
+        var replayPhoto = await ItemPhotoEndpointTests.UploadAsync(client, $"/api/beta/items/{item.Id}", photoVersion, photoRequest);
         Assert.Equal(HttpStatusCode.OK, replayPhoto.StatusCode);
         Assert.Equal(await uploaded.Content.ReadAsStringAsync(), await replayPhoto.Content.ReadAsStringAsync());
         using var foreign = factory.CreateClient();
         await LoginAsync(foreign, "other@example.com");
-        foreach (var url in new[] { $"/api/items/{item.Id}", item.Photo.DetailUrl, item.Photo.ThumbnailUrl })
+        foreach (var url in new[] { $"/api/beta/items/{item.Id}", item.Photo.DetailUrl, item.Photo.ThumbnailUrl })
             Assert.Equal(HttpStatusCode.NotFound, (await foreign.GetAsync(url)).StatusCode);
         // AND browsing/search exclude it, while original creation replay returns the same record.
-        foreach (var path in new[] { "/api/items", "/api/items?q=Sapphire" })
+        foreach (var path in new[] { "/api/beta/items", "/api/beta/items?q=Sapphire" })
             Assert.Empty((await client.GetFromJsonAsync<ItemPageResponse>(path))!.Items);
-        Assert.Equal(archived, await (await SendAsync(client, HttpMethod.Post, "/api/items", creation)).Content.ReadFromJsonAsync<ItemDetailResponse>());
-        Assert.Equal(HttpStatusCode.Conflict, (await SendAsync(client, HttpMethod.Post, "/api/items", new { creation.creationRequestId, name = "Different" })).StatusCode);
+        Assert.Equal(archived, await (await SendAsync(client, HttpMethod.Post, "/api/beta/items", creation)).Content.ReadFromJsonAsync<ItemDetailResponse>());
+        Assert.Equal(HttpStatusCode.Conflict, (await SendAsync(client, HttpMethod.Post, "/api/beta/items", new { creation.creationRequestId, name = "Different" })).StatusCode);
         // AND old retries and new mutations with even the archived version cannot change it.
         foreach (var version in new[] { item.Version, archived.Version })
         {
-            var retry = await SendAsync(client, HttpMethod.Post, $"/api/items/{item.Id}/archive", new { expectedVersion = version });
+            var retry = await SendAsync(client, HttpMethod.Post, $"/api/beta/items/{item.Id}/archive", new { expectedVersion = version });
             Assert.Equal(HttpStatusCode.Conflict, retry.StatusCode);
             Assert.Equal("item_archived", (await retry.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("code").GetString());
-            Assert.Equal(HttpStatusCode.Conflict, (await SendAsync(client, HttpMethod.Put, $"/api/items/{item.Id}", new { expectedVersion = version, name = "Changed" })).StatusCode);
-            Assert.Equal(HttpStatusCode.Conflict, (await SendAsync(client, HttpMethod.Delete, $"/api/items/{item.Id}/photo", new { expectedVersion = version, requestId = Guid.NewGuid() })).StatusCode);
+            Assert.Equal(HttpStatusCode.Conflict, (await SendAsync(client, HttpMethod.Put, $"/api/beta/items/{item.Id}", new { expectedVersion = version, name = "Changed" })).StatusCode);
+            Assert.Equal(HttpStatusCode.Conflict, (await SendAsync(client, HttpMethod.Delete, $"/api/beta/items/{item.Id}/photo", new { expectedVersion = version, requestId = Guid.NewGuid() })).StatusCode);
         }
-        Assert.Equal(archived, await client.GetFromJsonAsync<ItemDetailResponse>($"/api/items/{item.Id}"));
+        Assert.Equal(archived, await client.GetFromJsonAsync<ItemDetailResponse>($"/api/beta/items/{item.Id}"));
         // WHEN the record is restored with its archived version.
-        var restoredResponse = await SendAsync(client, HttpMethod.Post, $"/api/items/{item.Id}/restore", new { expectedVersion = archived.Version });
+        var restoredResponse = await SendAsync(client, HttpMethod.Post, $"/api/beta/items/{item.Id}/restore", new { expectedVersion = archived.Version });
         Assert.Equal(HttpStatusCode.OK, restoredResponse.StatusCode);
         var restored = (await restoredResponse.Content.ReadFromJsonAsync<ItemDetailResponse>())!;
         // THEN the same photograph and creation replay survive, including another authenticated session.
         Assert.Equal(archived with { Version = restored.Version, ArchivedAtUtc = null }, restored);
-        Assert.Equal(restored, await (await SendAsync(client, HttpMethod.Post, "/api/items", creation)).Content.ReadFromJsonAsync<ItemDetailResponse>());
-        var replayRestored = await ItemPhotoEndpointTests.UploadAsync(client, $"/api/items/{item.Id}", photoVersion, photoRequest);
+        Assert.Equal(restored, await (await SendAsync(client, HttpMethod.Post, "/api/beta/items", creation)).Content.ReadFromJsonAsync<ItemDetailResponse>());
+        var replayRestored = await ItemPhotoEndpointTests.UploadAsync(client, $"/api/beta/items/{item.Id}", photoVersion, photoRequest);
         Assert.Equal(await uploaded.Content.ReadAsStringAsync(), await replayRestored.Content.ReadAsStringAsync());
         using var anotherSession = factory.CreateClient();
         await LoginAsync(anotherSession, "member@example.com");
-        Assert.Equal(restored, await anotherSession.GetFromJsonAsync<ItemDetailResponse>($"/api/items/{item.Id}"));
+        Assert.Equal(restored, await anotherSession.GetFromJsonAsync<ItemDetailResponse>($"/api/beta/items/{item.Id}"));
         Assert.Equal(HttpStatusCode.OK, (await anotherSession.GetAsync(restored.Photo!.DetailUrl)).StatusCode);
     }
 
@@ -147,33 +147,34 @@ public sealed class ItemArchivingTests(SqlServerFixture sqlServer)
         using var anonymous = app.CreateClient();
         await LoginAsync(client, "member@example.com");
         await LoginAsync(other, "other@example.com");
-        var item = (await (await SendAsync(client, HttpMethod.Post, "/api/items", new { creationRequestId = Guid.NewGuid(), name = "Original" })).Content.ReadFromJsonAsync<ItemDetailResponse>())!;
-        var path = $"/api/items/{item.Id}/archive";
+        var item = (await (await SendAsync(client, HttpMethod.Post, "/api/beta/items", new { creationRequestId = Guid.NewGuid(), name = "Original" })).Content.ReadFromJsonAsync<ItemDetailResponse>())!;
+        var path = $"/api/beta/items/{item.Id}/archive";
         // WHEN malformed, unprotected, or unauthorized requests attempt archival.
         foreach (var body in new object[] { new { }, new { expectedVersion = "bad" }, new { expectedVersion = "AQ==" }, new { expectedVersion = item.Version, archivedAtUtc = DateTimeOffset.UtcNow } })
             Assert.Equal(HttpStatusCode.BadRequest, (await SendAsync(client, HttpMethod.Post, path, body)).StatusCode);
         Assert.Equal(HttpStatusCode.BadRequest, (await client.PostAsJsonAsync(path, new { expectedVersion = item.Version })).StatusCode);
         Assert.Equal(HttpStatusCode.Unauthorized, (await SendAsync(anonymous, HttpMethod.Post, path, new { expectedVersion = item.Version })).StatusCode);
         foreach (var id in new[] { item.Id, Guid.NewGuid() })
-            Assert.Equal(HttpStatusCode.NotFound, (await SendAsync(other, HttpMethod.Post, $"/api/items/{id}/archive", new { expectedVersion = item.Version })).StatusCode);
+            Assert.Equal(HttpStatusCode.NotFound, (await SendAsync(other, HttpMethod.Post, $"/api/beta/items/{id}/archive", new { expectedVersion = item.Version })).StatusCode);
         // AND a newer edit commits before archive is confirmed.
-        var edit = await SendAsync(client, HttpMethod.Put, $"/api/items/{item.Id}", new { expectedVersion = item.Version, name = "Newer" });
+        var edit = await SendAsync(client, HttpMethod.Put, $"/api/beta/items/{item.Id}", new { expectedVersion = item.Version, name = "Newer" });
         Assert.Equal(HttpStatusCode.OK, edit.StatusCode);
         var conflict = await SendAsync(client, HttpMethod.Post, path, new { expectedVersion = item.Version });
         // THEN the stale request cannot archive or overwrite the newer record.
         Assert.Equal(HttpStatusCode.Conflict, conflict.StatusCode);
         Assert.Equal("item_version_conflict", (await conflict.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("code").GetString());
-        Assert.Equal("Newer", (await client.GetFromJsonAsync<ItemDetailResponse>($"/api/items/{item.Id}"))!.Name);
-        Assert.Single((await client.GetFromJsonAsync<ItemPageResponse>("/api/items"))!.Items);
+        Assert.Equal("Newer", (await client.GetFromJsonAsync<ItemDetailResponse>($"/api/beta/items/{item.Id}"))!.Name);
+        Assert.Single((await client.GetFromJsonAsync<ItemPageResponse>("/api/beta/items"))!.Items);
     }
 
     private static async Task LoginAsync(HttpClient client, string email) =>
-        Assert.Equal(HttpStatusCode.NoContent, (await SendAsync(client, HttpMethod.Post, "/api/auth/login", new { email, password = AuthTestApplication.AdminPassword })).StatusCode);
+        Assert.Equal(HttpStatusCode.NoContent, (await SendAsync(client, HttpMethod.Post, "/api/beta/auth/login", new { email, password = AuthTestApplication.AdminPassword })).StatusCode);
 
     private static async Task<HttpResponseMessage> SendAsync(HttpClient client, HttpMethod method, string path, object body)
     {
-        var token = await client.GetFromJsonAsync<JsonElement>("/api/auth/antiforgery");
+        var token = await client.GetFromJsonAsync<JsonElement>("/api/beta/auth/antiforgery");
         using var request = new HttpRequestMessage(method, path) { Content = JsonContent.Create(body) };
+        request.Headers.TryAddWithoutValidation("X-Workbench-Api-Revision", "beta-1");
         request.Headers.Add("X-CSRF-TOKEN", token.GetProperty("requestToken").GetString());
         return await client.SendAsync(request);
     }

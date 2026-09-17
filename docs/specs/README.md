@@ -5,6 +5,9 @@ history, not a backlog and not a substitute for current documentation.
 
 ## Find a decision
 
+[Beta API lifecycle and purchasing consolidation](2026-09-16-beta-api-lifecycle.md)
+records the approved transition for issue #120.
+
 | Area | Records |
 | --- | --- |
 | Foundation | [Base architecture](2026-08-31-base-application-architecture.md), [application foundation](2026-08-31-application-foundation.md), [data/identity/tenancy](2026-09-01-data-identity-tenancy.md) |

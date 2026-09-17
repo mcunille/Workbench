@@ -18,8 +18,15 @@ public sealed partial class DraftOrderDatabaseTests
         legacy["draft"]!["currency"] = "USD";
         legacy["draft"]!["entries"] = new JsonArray(JsonNode.Parse("""{"id":"3923d8c7-b0ad-4765-9de7-7d6619f00fd4","description":null,"notes":null,"sourceLink":null,"indicativePrice":"12.0000"}"""));
         var json = legacy.ToJsonString();
+        var migrated = false;
         async Task<Guid> LegacySave(Guid requestId, string body)
         {
+            if (migrated)
+            {
+                await using var replay = ReplayCommand(connection, actor, requestId, "Create", null, null, 2, body);
+                await using var receipt = await replay.ExecuteReaderAsync(); Assert.True(await receipt.ReadAsync());
+                return (Guid)receipt["DraftOrderId"];
+            }
             await using var command = new SqlCommand("Purchasing.CreateDraftOrderV2", connection) { CommandType = System.Data.CommandType.StoredProcedure };
             command.Parameters.AddWithValue("@RequestId", requestId); command.Parameters.AddWithValue("@ActorUserId", actor); command.Parameters.AddWithValue("@CanonicalInputJson", body);
             await using var reader = await command.ExecuteReaderAsync(); Assert.True(await reader.ReadAsync()); return reader.GetGuid(reader.GetOrdinal("DraftOrderId"));
@@ -27,10 +34,11 @@ public sealed partial class DraftOrderDatabaseTests
         var id = await LegacySave(request, json);
         // WHEN the forward migration runs THEN original successful retries remain valid.
         await Workbench.Server.Persistence.DatabaseMigrator.MigrateAsync(database.AdminConnectionString, default);
+        migrated = true;
         Assert.Equal(id, await LegacySave(request, json));
         // AND changed request bytes conflict while unmatched legacy writes demand reload.
         Assert.Equal(50410, (await Assert.ThrowsAsync<SqlException>(() => LegacySave(request, Canonical("Create", null, null, "Changed")))).Number);
-        Assert.Equal(50426, (await Assert.ThrowsAsync<SqlException>(() => LegacySave(Guid.NewGuid(), json))).Number);
+        Assert.Equal(50427, (await Assert.ThrowsAsync<SqlException>(() => LegacySave(Guid.NewGuid(), json))).Number);
         // AND converting and deleting a draft preserve its permanent number and original receipts.
         await using var read = new SqlCommand("SELECT RowVersion FROM Purchasing.DraftOrders WHERE Id=@id", connection);
         read.Parameters.AddWithValue("@id", id); var version = (byte[])(await read.ExecuteScalarAsync())!;
@@ -44,8 +52,8 @@ public sealed partial class DraftOrderDatabaseTests
     [Fact]
     public async Task StructuredLinesPersistAndRejectInvalidQuantitiesAtRestrictedBoundary()
     {
-        // GIVEN a tenant-authorized restricted writer and an explicitly priced line.
-        await using var database = await sqlServer.CreateMigratedDatabaseAsync();
+        // GIVEN the frozen historical schema, a tenant-authorized writer and an explicitly priced line.
+        await using var database = await sqlServer.CreateMigratedDatabaseAsync("AddSupplierBasedDraftPricing");
         var tenant = Guid.NewGuid(); var actor = Guid.NewGuid();
         await database.SeedTenantAuditRowsAsync(tenant, Guid.NewGuid()); await SeedActor(database, tenant, actor);
         await using var connection = await Open(database, await database.CreateWebUserAsync(), tenant);

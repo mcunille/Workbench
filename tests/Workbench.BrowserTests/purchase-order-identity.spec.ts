@@ -4,19 +4,19 @@ import { useAuthenticatedSession as signIn } from './auth-fixture';
 test.setTimeout(120_000);
 
 async function saveDraft(page: Page) {
-  const saved = page.waitForResponse(response => response.url().includes('/api/v4/purchase-order-drafts') && !response.url().endsWith('/calculate') &&
+  const saved = page.waitForResponse(response => response.url().includes('/api/beta/purchase-order-drafts') && !response.url().endsWith('/calculate') &&
     ['POST', 'PUT'].includes(response.request().method()));
   await page.getByRole('button', { name: 'Save draft', exact: true }).click();
   expect((await saved).ok()).toBe(true);
   await expect(page).toHaveURL(/\/purchase-orders\/[a-f0-9-]{36}$/);
   await expect(page.getByLabel('Title', { exact: true })).toBeEnabled();
-  const detail = await page.request.get(`/api/v4/purchase-order-drafts/${page.url().split('/').at(-1)}`);
+  const detail = await page.request.get(`/api/beta/purchase-order-drafts/${page.url().split('/').at(-1)}`);
   expect(detail.ok()).toBe(true);
   return detail.json();
 }
 
 async function saveSupplier(page: Page) {
-  const saved = page.waitForResponse(response => /\/api\/suppliers(?:\/[a-f0-9-]{36})?$/.test(response.url()) &&
+  const saved = page.waitForResponse(response => /\/api\/beta\/suppliers(?:\/[a-f0-9-]{36})?$/.test(response.url()) &&
     ['POST', 'PUT'].includes(response.request().method()));
   await page.getByRole('button', { name: 'Save supplier', exact: true }).click();
   expect((await saved).ok()).toBe(true);
@@ -168,7 +168,7 @@ test('an uncertain platform save retries identical content and keeps the assigne
   await page.getByLabel('Platform', { exact: true }).fill('Retail');
   const requests: unknown[] = [];
   let dropped = false;
-  await page.route('**/api/v4/purchase-order-drafts', async route => {
+  await page.route('**/api/beta/purchase-order-drafts', async route => {
     if (route.request().method() !== 'POST') return route.continue();
     requests.push(route.request().postDataJSON());
     if (!dropped) {
@@ -188,7 +188,7 @@ test('an uncertain platform save retries identical content and keeps the assigne
   expect(requests).toHaveLength(2);
   expect(requests[1]).toEqual(requests[0]);
   await expect(page.getByLabel('Platform', { exact: true })).toHaveValue('Retail');
-  const detail = await page.request.get(`/api/v4/purchase-order-drafts/${page.url().split('/').at(-1)}`);
+  const detail = await page.request.get(`/api/beta/purchase-order-drafts/${page.url().split('/').at(-1)}`);
   const { poReference } = await detail.json();
   await page.reload();
   await expect(page.getByText(poReference, { exact: true })).toBeVisible();
@@ -203,7 +203,7 @@ test('inline supplier creation survives a subsequent draft failure without submi
   await openSupplierDetails(page);
   await page.getByLabel('Platform', { exact: true }).fill('Instagram');
   let draftWrites = 0;
-  await page.route('**/api/v4/purchase-order-drafts', async route => {
+  await page.route('**/api/beta/purchase-order-drafts', async route => {
     if (route.request().method() !== 'POST') return route.continue();
     draftWrites++;
     await route.fulfill({ status: 503, contentType: 'application/problem+json', body: '{"status":503}' });
@@ -214,7 +214,7 @@ test('inline supplier creation survives a subsequent draft failure without submi
   await dialog.getByLabel('Email', { exact: true }).fill('independent@example.test');
 
   // WHEN saving only the supplier THEN its receipt resolves independently of the unsaved PO.
-  const supplierSaved = page.waitForResponse(response => response.url().endsWith('/api/suppliers') && response.request().method() === 'POST');
+  const supplierSaved = page.waitForResponse(response => response.url().endsWith('/api/beta/suppliers') && response.request().method() === 'POST');
   await dialog.getByRole('button', { name: 'Save supplier', exact: true }).click();
   const supplierResponse = await supplierSaved;
   expect(supplierResponse.status()).toBe(201);
@@ -229,7 +229,7 @@ test('inline supplier creation survives a subsequent draft failure without submi
   await expect(page.getByRole('button', { name: 'Check and retry', exact: true })).toBeVisible();
   expect(draftWrites).toBe(1);
   await expect(page.getByLabel('Title', { exact: true })).toHaveValue('Purchase waiting on confirmation');
-  const supplier = await page.request.get(`/api/suppliers/${supplierId}`);
+  const supplier = await page.request.get(`/api/beta/suppliers/${supplierId}`);
   expect(supplier.ok()).toBe(true);
   expect((await supplier.json()).supplier.name).toBe(name);
 });

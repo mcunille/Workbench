@@ -12,13 +12,13 @@ it.each(['csv', 'zip'] as const)('retains %s format, scope and download across n
   window.history.replaceState(null, '', '/inventory');
   let signedIn = true;
   server.use(
-    http.get('*/api/system', () => HttpResponse.json({ name: 'Workbench', version: '1' })),
-    http.get('*/api/auth/me', () => signedIn ? HttpResponse.json({ userId: 'person', tenantName: 'Studio', email: 'person@example.test', permissions: ['TenantAccess'] }) : new HttpResponse(null, { status: 401 })),
-    http.get('*/api/items', () => HttpResponse.json({ items: [], nextCursor: null })),
-    http.get('*/api/items/archived', () => HttpResponse.json({ items: [], nextCursor: null })),
-    http.get('*/api/auth/antiforgery', () => HttpResponse.json({ requestToken: 'csrf' })),
-    http.post('*/api/auth/logout', () => { signedIn = false; return new HttpResponse(null, { status: 204 }); }),
-    http.post('*/api/auth/login', () => { signedIn = true; return new HttpResponse(null, { status: 204 }); }),
+    http.get('*/api/beta/system', () => HttpResponse.json({ name: 'Workbench', version: '1', apiRevision: 'beta-1' })),
+    http.get('*/api/beta/auth/me', () => signedIn ? HttpResponse.json({ userId: 'person', tenantName: 'Studio', email: 'person@example.test', permissions: ['TenantAccess'] }) : new HttpResponse(null, { status: 401 })),
+    http.get('*/api/beta/items', () => HttpResponse.json({ items: [], nextCursor: null })),
+    http.get('*/api/beta/items/archived', () => HttpResponse.json({ items: [], nextCursor: null })),
+    http.get('*/api/beta/auth/antiforgery', () => HttpResponse.json({ requestToken: 'csrf' })),
+    http.post('*/api/beta/auth/logout', () => { signedIn = false; return new HttpResponse(null, { status: 204 }); }),
+    http.post('*/api/beta/auth/login', () => { signedIn = true; return new HttpResponse(null, { status: 204 }); }),
   );
   vi.spyOn(window, 'scrollTo').mockImplementation(() => {});
   URL.createObjectURL = vi.fn(() => 'blob:export');

@@ -1,3 +1,4 @@
+import { apiFetch } from './contract';
 import createClient from 'openapi-fetch';
 import type { components, paths } from './generated';
 import { ApiError, mutationHeaders } from './auth';
@@ -11,7 +12,7 @@ export type ArchiveSupplierRequest = components['schemas']['ArchiveSupplierReque
 export class SupplierError extends ApiError {
   constructor(status: number, public readonly code?: string, public readonly errors: Record<string, string[]> = {}) { super(status); }
 }
-const api = createClient<paths>({ baseUrl: window.location.origin, cache: 'no-store', credentials: 'same-origin' });
+const api = createClient<paths>({ fetch: apiFetch, baseUrl: window.location.origin, cache: 'no-store', credentials: 'same-origin' });
 function requireSupplier<T>({ response, data, error }: { response: Response; data?: T; error?: unknown }): T {
   if (!response.ok || data === undefined) {
     const problem = error && typeof error === 'object' ? error as { code?: unknown; errors?: unknown } : {};
@@ -24,17 +25,17 @@ function requireSupplier<T>({ response, data, error }: { response: Response; dat
   return data;
 }
 export async function getSuppliers(cursor?: string, query?: string, includeArchived = false): Promise<SupplierPage> {
-  return requireSupplier(await api.GET('/api/suppliers', { params: { query: { cursor, query, includeArchived } } }));
+  return requireSupplier(await api.GET('/api/beta/suppliers', { params: { query: { cursor, query, includeArchived } } }));
 }
 export async function getSupplier(id: string): Promise<Supplier> {
-  return requireSupplier(await api.GET('/api/suppliers/{id}', { params: { path: { id } } }));
+  return requireSupplier(await api.GET('/api/beta/suppliers/{id}', { params: { path: { id } } }));
 }
 export async function createSupplier(body: CreateSupplierRequest): Promise<SupplierReceipt> {
-  return requireSupplier(await api.POST('/api/suppliers', { body, headers: await mutationHeaders() }));
+  return requireSupplier(await api.POST('/api/beta/suppliers', { body, headers: await mutationHeaders() }));
 }
 export async function updateSupplier(id: string, body: UpdateSupplierRequest): Promise<SupplierReceipt> {
-  return requireSupplier(await api.PUT('/api/suppliers/{id}', { params: { path: { id } }, body, headers: await mutationHeaders() }));
+  return requireSupplier(await api.PUT('/api/beta/suppliers/{id}', { params: { path: { id } }, body, headers: await mutationHeaders() }));
 }
 export async function archiveSupplier(id: string, body: ArchiveSupplierRequest): Promise<SupplierReceipt> {
-  return requireSupplier(await api.POST('/api/suppliers/{id}/archive', { params: { path: { id } }, body, headers: await mutationHeaders() }));
+  return requireSupplier(await api.POST('/api/beta/suppliers/{id}/archive', { params: { path: { id } }, body, headers: await mutationHeaders() }));
 }

@@ -3,8 +3,10 @@ using System.ComponentModel.DataAnnotations;
 using System.Text.Json.Serialization;
 namespace Workbench.Server.Purchasing;
 
+// Persisted structured entries and historical fingerprint-3 shape, never exposed by OpenAPI.
+
 [JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
-public sealed record DraftEntryV3(
+internal sealed record DraftEntryV3(
     [property: JsonRequired] Guid Id,
     [property: JsonRequired, MaxLength(500)] string? Description,
     [property: JsonRequired, MaxLength(2000)] string? Notes,
@@ -19,7 +21,7 @@ public sealed record DraftEntryV3(
     [property: JsonRequired, MaxLength(200)] string? SupplierSku,
     [property: JsonRequired, MaxLength(100)] string? ItemType);
 [JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
-public sealed record DraftContentV3(
+internal sealed record DraftContentV3(
     [property: JsonRequired, MaxLength(200)] string? Title,
     [property: JsonRequired, MaxLength(200)] string? SupplierName,
     [property: JsonRequired, MaxLength(3)] string? Currency,
@@ -34,15 +36,3 @@ public sealed record DraftContentV3(
     [property: JsonRequired, MaxLength(2000)] string? SupplierPostalAddress,
     [property: JsonRequired, MaxLength(200)] string? SupplierOrderReference,
     [property: JsonRequired, MaxLength(200)] string? Platform);
-
-
-[JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
-public sealed record CreateDraftOrderRequestV3([property: JsonRequired] Guid RequestId, [property: JsonRequired] DraftContentV3 Draft);
-[JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
-public sealed record UpdateDraftOrderRequestV3([property: JsonRequired] Guid RequestId, [property: JsonRequired] string ExpectedVersion, [property: JsonRequired] DraftContentV3 Draft);
-[JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
-public sealed record CalculateDraftOrderRequest([property: JsonRequired] DraftContentV3 Draft);
-public sealed record DraftLineCalculation(Guid Id, string? Gross);
-public sealed record DraftCalculationResponse(IReadOnlyList<DraftLineCalculation> Lines, int IncompleteLineCount, string? MerchandiseEstimate);
-public sealed record DraftOrderResponseV3(Guid Id, DraftContentV3 Draft, string CreatedAtUtc, string UpdatedAtUtc,
-    string Version, string PoReference, bool SupplierIsArchived, DraftCalculationResponse Calculation);

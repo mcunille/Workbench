@@ -70,7 +70,7 @@ test('saved order lines stay compact and reopen by keyboard with precise quantit
   await page.getByLabel('Unit price 1', { exact: true }).pressSequentially('2000');
   await expect(page.getByLabel('Unit price 1', { exact: true })).toHaveValue('20.00');
   await expect(page.locator('.po-estimate-value')).toHaveText('USD 250.00');
-  const saved = page.waitForResponse(response => /\/api\/v4\/purchase-order-drafts$/.test(response.url()) && response.request().method() === 'POST');
+  const saved = page.waitForResponse(response => /\/api\/beta\/purchase-order-drafts$/.test(response.url()) && response.request().method() === 'POST');
   await page.getByRole('button', { name: 'Save draft', exact: true }).click();
   expect((await saved).ok()).toBe(true);
   await expect(page).toHaveURL(/\/purchase-orders\/[a-f0-9-]{36}$/);

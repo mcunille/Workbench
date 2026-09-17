@@ -58,14 +58,14 @@ RLS captures one collection state, releasing locks before encoding and delivery.
 may briefly wait. Preparation fails without a file above 10,000 records or 32 MiB, after a 30-second
 preparation deadline, or on database failure. Each application instance admits two preparations.
 
-The authenticated, antiforgery-protected POST `/api/items/export` buffers a complete private CSV
+The authenticated, antiforgery-protected POST `/api/beta/items/export` buffers a complete private CSV
 attachment and revalidates the session before returning it. No job, shared link, server export file,
 or schema change is introduced. The browser offers Download only after the complete body arrives;
 its private file and selected scope survive ordinary navigation and appearance changes. Prepared
 files expire after ten minutes and clear on sign-out, identity change, or reload. This is a text
 portability feature, not a restorable backup. See the [CSV contract](collection-export.md).
 
-The H8 package endpoint, POST `/api/items/export-package`, adds a bounded ZIP containing records.csv,
+The H8 package endpoint, POST `/api/beta/items/export-package`, adds a bounded ZIP containing records.csv,
 manifest.json, README.txt and exact stored current detail photographs. It captures tenant-scoped SQL
 metadata before reading immutable provider bytes, verifies required photo lengths/digests, and prepares
 the complete archive in memory before session revalidation and delivery. A missing or corrupt required
@@ -115,7 +115,7 @@ tenant-unique creation request UUID makes concurrent submissions and uncertain-s
 idempotent. SQL rowversion establishes a concurrency token for subsequent edit workflows.
 
 The runtime has SELECT/INSERT access with RLS; direct collection UPDATE/DELETE remains denied.
-`/api/items` exposes create and chronological cursor-paged browsing; item details return only
+`/api/beta/items` exposes create and chronological cursor-paged browsing; item details return only
 the public contract. Responses are private and not stored in HTTP caches. Drafts stay in browser
 memory; only the System/Light/Dark appearance preference is persisted locally. Authentication
 loss clears protected client state.
@@ -175,12 +175,22 @@ Supplier archival prevents new selections while preserving existing links and sn
 
 Permanent business PO numbers are assigned by a transactional tenant counter on first save and
 retained on deletion tombstones. Reference/name/title search runs within the tenant, with query-bound
-forward cursors. V4 draft writes fingerprint supplier, platform and supplier-based line pricing.
-Legacy V1/V2 writes resolve their existing receipts only; unmatched old saves require reloading
+forward cursors. Beta draft writes fingerprint supplier, platform and supplier-based line pricing.
+Retired V1–V4 writes resolve their existing receipts only; unmatched old saves require reloading
 rather than silently clearing newer fields. Supplier writes use the same compact-receipt and rowversion
 reconciliation principles. See the [PO-02 specification](specs/2026-09-11-po-02-supplier-identity-and-references.md).
 
-PO-03 keeps the JSON aggregate. Supplier-based pricing writes content schema 3 through restricted V4 commands, with one quantity/unit and a per-unit or total-line amount. Exact decimal arithmetic calculates line amounts; a fixed total does not require quantity. V4 reads project older schema 1/2 entries without writing them. Complete old quotes retain their totals; unresolved references and structured quotes remain explicit until the owner resolves them. V3 still handles old content but cannot read or overwrite schema 3; receipt replay remains available. SQL validates the same numeric, unit, compatibility and gross bounds as the server.
+PO-03 keeps the JSON aggregate. Supplier-based pricing writes content schema 3 through the single
+current beta command implementation, with one quantity/unit and a per-unit or total-line amount.
+Exact decimal arithmetic calculates line amounts; a fixed total does not require quantity. Beta
+reads project older schema 1/2 entries without writing them. Complete old quotes retain their
+totals; unresolved references and structured quotes remain explicit until the owner resolves them.
+SQL validates the same numeric, unit, compatibility and gross bounds as the server.
+
+All application APIs use `/api/beta/...` until the first release establishes v1. The
+[API lifecycle](api-lifecycle.md) owns version support, client revision checks, retired receipt
+adapters, and rollout/rollback boundaries. Public contract versions do not determine the lifetime
+of persisted content or immutable receipts.
 
 The authenticated calculation endpoint shares server rules without persisting input; the client cancels obsolete previews and hides stale results. Detail responses include derived line gross and subtotal information. See the [PO-03 specification](specs/2026-09-16-po-03-itemized-quantities-and-prices.md).
 

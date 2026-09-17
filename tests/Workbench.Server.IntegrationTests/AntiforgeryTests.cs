@@ -29,7 +29,7 @@ public sealed class AntiforgeryTests(SqlServerFixture sqlServer) : IAsyncLifetim
     [Fact]
     public async Task LoginRequiresAntiforgery()
     {
-        var response = await _client.PostAsJsonAsync("/api/auth/login", ValidLogin());
+        var response = await _client.PostAsJsonAsync("/api/beta/auth/login", ValidLogin());
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
@@ -38,7 +38,7 @@ public sealed class AntiforgeryTests(SqlServerFixture sqlServer) : IAsyncLifetim
     public async Task LoginNeverAcceptsTenantIdentifier()
     {
         var response = await PostWithAntiforgeryAsync(
-            "/api/auth/login",
+            "/api/beta/auth/login",
             new
             {
                 email = AuthTestApplication.AdminEmail,
@@ -52,7 +52,7 @@ public sealed class AntiforgeryTests(SqlServerFixture sqlServer) : IAsyncLifetim
     [Fact]
     public async Task AntiforgeryCookieIsHttpOnlyAndStrictSameSite()
     {
-        var response = await _client.GetAsync("/api/auth/antiforgery");
+        var response = await _client.GetAsync("/api/beta/auth/antiforgery");
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Contains(response.Headers.GetValues("Set-Cookie"), value =>
@@ -64,13 +64,13 @@ public sealed class AntiforgeryTests(SqlServerFixture sqlServer) : IAsyncLifetim
     public async Task LogoutWithoutAntiforgeryDoesNotRevokeSession()
     {
         Assert.Equal(HttpStatusCode.NoContent, (await PostWithAntiforgeryAsync(
-            "/api/auth/login",
+            "/api/beta/auth/login",
             ValidLogin())).StatusCode);
 
-        var logout = await _client.PostAsync("/api/auth/logout", content: null);
+        var logout = await _client.PostAsync("/api/beta/auth/logout", content: null);
 
         Assert.Equal(HttpStatusCode.BadRequest, logout.StatusCode);
-        Assert.Equal(HttpStatusCode.OK, (await _client.GetAsync("/api/auth/me")).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await _client.GetAsync("/api/beta/auth/me")).StatusCode);
     }
 
     private static object ValidLogin() => new
@@ -81,11 +81,12 @@ public sealed class AntiforgeryTests(SqlServerFixture sqlServer) : IAsyncLifetim
 
     private async Task<HttpResponseMessage> PostWithAntiforgeryAsync(string path, object body)
     {
-        var tokenResponse = await _client.GetFromJsonAsync<JsonElement>("/api/auth/antiforgery");
+        var tokenResponse = await _client.GetFromJsonAsync<JsonElement>("/api/beta/auth/antiforgery");
         using var request = new HttpRequestMessage(HttpMethod.Post, path)
         {
             Content = JsonContent.Create(body),
         };
+        request.Headers.TryAddWithoutValidation("X-Workbench-Api-Revision", "beta-1");
         request.Headers.Add("X-CSRF-TOKEN", tokenResponse.GetProperty("requestToken").GetString());
         return await _client.SendAsync(request);
     }

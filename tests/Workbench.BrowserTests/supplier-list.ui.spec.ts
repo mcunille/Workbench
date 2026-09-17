@@ -2,7 +2,7 @@ import { expect, test, type Page } from './diagnostic-fixture';
 import { useInterceptedSession } from './intercepted-auth-fixture';
 
 async function signIn(page: Page) {
-  await page.route('**/api/items', route => route.fulfill({ json: { items: [], nextCursor: null } }));
+  await page.route('**/api/beta/items', route => route.fulfill({ json: { items: [], nextCursor: null } }));
   await useInterceptedSession(page);
 }
 import type { Supplier } from '../../src/Workbench.Client/src/api/suppliers';
@@ -20,7 +20,7 @@ async function directoryFixture(page: Page, size = 2) {
   const records = Array.from({ length: size }, (_, index) => supplier(index + 1));
   let pending: Promise<void> | undefined;
   let release: (() => void) | undefined;
-  await page.route('**/api/suppliers**', async route => {
+  await page.route('**/api/beta/suppliers**', async route => {
     const request = route.request();
     const url = new URL(request.url());
     const id = url.pathname.split('/')[3];

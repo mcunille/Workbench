@@ -36,7 +36,7 @@ public sealed class AuthEndpointTests(SqlServerFixture sqlServer) : IAsyncLifeti
     public async Task LoginFailuresHaveSameContract(string email, string password)
     {
         var response = await PostWithAntiforgeryAsync(
-            "/api/auth/login",
+            "/api/beta/auth/login",
             new { email, password });
 
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
@@ -54,7 +54,7 @@ public sealed class AuthEndpointTests(SqlServerFixture sqlServer) : IAsyncLifeti
             value.Contains("HttpOnly", StringComparison.OrdinalIgnoreCase) &&
             value.Contains("SameSite=Lax", StringComparison.OrdinalIgnoreCase));
 
-        var me = await _client.GetAsync("/api/auth/me");
+        var me = await _client.GetAsync("/api/beta/auth/me");
         var json = await me.Content.ReadAsStringAsync();
         using var document = JsonDocument.Parse(json);
 
@@ -70,7 +70,7 @@ public sealed class AuthEndpointTests(SqlServerFixture sqlServer) : IAsyncLifeti
     [Fact]
     public async Task MeRejectsAnonymousRequestWithoutRedirect()
     {
-        var response = await _client.GetAsync("/api/auth/me");
+        var response = await _client.GetAsync("/api/beta/auth/me");
 
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
         Assert.Null(response.Headers.Location);
@@ -89,7 +89,7 @@ public sealed class AuthEndpointTests(SqlServerFixture sqlServer) : IAsyncLifeti
             await command.ExecuteNonQueryAsync();
         }
 
-        var response = await _client.GetAsync("/api/auth/me");
+        var response = await _client.GetAsync("/api/beta/auth/me");
 
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }
@@ -98,7 +98,7 @@ public sealed class AuthEndpointTests(SqlServerFixture sqlServer) : IAsyncLifeti
     public async Task SessionsExposeSafeMetadataAndCurrentSessionCanBeRevoked()
     {
         Assert.Equal(HttpStatusCode.NoContent, (await LoginAsync()).StatusCode);
-        var sessions = await _client.GetFromJsonAsync<JsonElement>("/api/auth/sessions");
+        var sessions = await _client.GetFromJsonAsync<JsonElement>("/api/beta/auth/sessions");
         var current = Assert.Single(sessions.EnumerateArray().ToArray());
 
         Assert.True(current.GetProperty("isCurrent").GetBoolean());
@@ -107,10 +107,10 @@ public sealed class AuthEndpointTests(SqlServerFixture sqlServer) : IAsyncLifeti
 
         var revoke = await SendWithAntiforgeryAsync(
             HttpMethod.Delete,
-            $"/api/auth/sessions/{current.GetProperty("id").GetGuid()}");
+            $"/api/beta/auth/sessions/{current.GetProperty("id").GetGuid()}");
 
         Assert.Equal(HttpStatusCode.NoContent, revoke.StatusCode);
-        Assert.Equal(HttpStatusCode.Unauthorized, (await _client.GetAsync("/api/auth/me")).StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, (await _client.GetAsync("/api/beta/auth/me")).StatusCode);
     }
 
     [Fact]
@@ -138,7 +138,7 @@ public sealed class AuthEndpointTests(SqlServerFixture sqlServer) : IAsyncLifeti
 
         var response = await SendWithAntiforgeryAsync(
             HttpMethod.Delete,
-            $"/api/auth/sessions/{otherSessionId}");
+            $"/api/beta/auth/sessions/{otherSessionId}");
 
         Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
         await using var verifyConnection = new SqlConnection(_application.AdminConnectionString);
@@ -157,7 +157,7 @@ public sealed class AuthEndpointTests(SqlServerFixture sqlServer) : IAsyncLifeti
         Assert.Equal(HttpStatusCode.NoContent, (await LoginAsync()).StatusCode);
 
         var changed = await PostWithAntiforgeryAsync(
-            "/api/auth/change-password",
+            "/api/beta/auth/change-password",
             new
             {
                 currentPassword = AuthTestApplication.AdminPassword,
@@ -185,13 +185,13 @@ public sealed class AuthEndpointTests(SqlServerFixture sqlServer) : IAsyncLifeti
             Assert.True(reader.IsDBNull(6));
             Assert.False(await reader.ReadAsync());
         }
-        Assert.Equal(HttpStatusCode.Unauthorized, (await _client.GetAsync("/api/auth/me")).StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, (await _client.GetAsync("/api/beta/auth/me")).StatusCode);
         Assert.Equal(HttpStatusCode.Unauthorized, (await PostWithAntiforgeryAsync(
-            "/api/auth/login",
+            "/api/beta/auth/login",
             new { email = AuthTestApplication.AdminEmail, password = AuthTestApplication.AdminPassword }))
             .StatusCode);
         Assert.Equal(HttpStatusCode.NoContent, (await PostWithAntiforgeryAsync(
-            "/api/auth/login",
+            "/api/beta/auth/login",
             new { email = AuthTestApplication.AdminEmail, password = newPassword }))
             .StatusCode);
     }
@@ -212,17 +212,17 @@ public sealed class AuthEndpointTests(SqlServerFixture sqlServer) : IAsyncLifeti
         if (recovery)
         {
             Assert.Equal(HttpStatusCode.Accepted, (await PostWithAntiforgeryAsync(
-                "/api/auth/recovery", new { email = AuthTestApplication.AdminEmail })).StatusCode);
+                "/api/beta/auth/recovery", new { email = AuthTestApplication.AdminEmail })).StatusCode);
             var token = Assert.Single(_application.Factory.Services
                 .GetRequiredService<DevelopmentIdentityMessageDelivery>().Messages).Token;
             Assert.Equal(HttpStatusCode.NoContent, (await PostWithAntiforgeryAsync(
-                "/api/auth/recovery/consume", new { token, newPassword })).StatusCode);
+                "/api/beta/auth/recovery/consume", new { token, newPassword })).StatusCode);
         }
         else
         {
             Assert.Equal(HttpStatusCode.NoContent, (await LoginAsync()).StatusCode);
             Assert.Equal(HttpStatusCode.NoContent, (await PostWithAntiforgeryAsync(
-                "/api/auth/change-password",
+                "/api/beta/auth/change-password",
                 new { currentPassword = AuthTestApplication.AdminPassword, newPassword })).StatusCode);
         }
 
@@ -234,7 +234,7 @@ public sealed class AuthEndpointTests(SqlServerFixture sqlServer) : IAsyncLifeti
             "SELECT COUNT(*) FROM [Identity].[Sessions] WHERE [RevokedAtUtc] IS NULL", connection);
         Assert.Equal(0, Convert.ToInt32(await command.ExecuteScalarAsync()));
         Assert.Equal(HttpStatusCode.NoContent, (await PostWithAntiforgeryAsync(
-            "/api/auth/login", new { email = AuthTestApplication.AdminEmail, password = newPassword }))
+            "/api/beta/auth/login", new { email = AuthTestApplication.AdminEmail, password = newPassword }))
             .StatusCode);
     }
 
@@ -254,11 +254,11 @@ public sealed class AuthEndpointTests(SqlServerFixture sqlServer) : IAsyncLifeti
         }
 
         var response = await PostWithAntiforgeryAsync(
-            "/api/auth/change-password",
+            "/api/beta/auth/change-password",
             new { currentPassword = AuthTestApplication.AdminPassword, newPassword = "New Password 123!" });
 
         Assert.Equal(HttpStatusCode.InternalServerError, response.StatusCode);
-        Assert.Equal(HttpStatusCode.OK, (await _client.GetAsync("/api/auth/me")).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await _client.GetAsync("/api/beta/auth/me")).StatusCode);
         Assert.Equal(HttpStatusCode.NoContent, (await LoginAsync()).StatusCode);
         await using var verify = new SqlCommand("""
             SELECT [SecurityVersion] FROM [Identity].[Users] WHERE [Id] = @id;
@@ -284,7 +284,7 @@ public sealed class AuthEndpointTests(SqlServerFixture sqlServer) : IAsyncLifeti
         var oversized = new string('x', WorkbenchPasswordPolicy.MaximumLength + 1);
 
         var response = await PostWithAntiforgeryAsync(
-            "/api/auth/change-password",
+            "/api/beta/auth/change-password",
             new { currentPassword = oversized, newPassword = oversized });
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
@@ -297,7 +297,7 @@ public sealed class AuthEndpointTests(SqlServerFixture sqlServer) : IAsyncLifeti
     {
         Assert.Equal(HttpStatusCode.NoContent, (await LoginAsync()).StatusCode);
         var response = await PostWithAntiforgeryAsync(
-            "/api/auth/change-password",
+            "/api/beta/auth/change-password",
             nullCurrentPassword
                 ? new ChangePasswordRequest(null!, "Valid New Password 2@")
                 : new ChangePasswordRequest(AuthTestApplication.AdminPassword, null!));
@@ -311,7 +311,7 @@ public sealed class AuthEndpointTests(SqlServerFixture sqlServer) : IAsyncLifeti
         for (var attempt = 0; attempt < 5; attempt++)
         {
             var failure = await PostWithAntiforgeryAsync(
-                "/api/auth/login",
+                "/api/beta/auth/login",
                 new { email = AuthTestApplication.AdminEmail, password = $"wrong-{attempt}" });
             Assert.Equal(HttpStatusCode.Unauthorized, failure.StatusCode);
         }
@@ -322,7 +322,7 @@ public sealed class AuthEndpointTests(SqlServerFixture sqlServer) : IAsyncLifeti
     }
 
     private Task<HttpResponseMessage> LoginAsync() => PostWithAntiforgeryAsync(
-        "/api/auth/login",
+        "/api/beta/auth/login",
         new
         {
             email = AuthTestApplication.AdminEmail,
@@ -331,19 +331,21 @@ public sealed class AuthEndpointTests(SqlServerFixture sqlServer) : IAsyncLifeti
 
     private async Task<HttpResponseMessage> PostWithAntiforgeryAsync(string path, object body)
     {
-        var tokenResponse = await _client.GetFromJsonAsync<JsonElement>("/api/auth/antiforgery");
+        var tokenResponse = await _client.GetFromJsonAsync<JsonElement>("/api/beta/auth/antiforgery");
         using var request = new HttpRequestMessage(HttpMethod.Post, path)
         {
             Content = JsonContent.Create(body),
         };
+        request.Headers.TryAddWithoutValidation("X-Workbench-Api-Revision", "beta-1");
         request.Headers.Add("X-CSRF-TOKEN", tokenResponse.GetProperty("requestToken").GetString());
         return await _client.SendAsync(request);
     }
 
     private async Task<HttpResponseMessage> SendWithAntiforgeryAsync(HttpMethod method, string path)
     {
-        var tokenResponse = await _client.GetFromJsonAsync<JsonElement>("/api/auth/antiforgery");
+        var tokenResponse = await _client.GetFromJsonAsync<JsonElement>("/api/beta/auth/antiforgery");
         using var request = new HttpRequestMessage(method, path);
+        request.Headers.TryAddWithoutValidation("X-Workbench-Api-Revision", "beta-1");
         request.Headers.Add("X-CSRF-TOKEN", tokenResponse.GetProperty("requestToken").GetString());
         return await _client.SendAsync(request);
     }

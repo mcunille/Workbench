@@ -27,7 +27,7 @@ public sealed class ErrorAndRoutingTests
             }));
         using var client = factory.CreateClient();
         // WHEN a dependent endpoint is called, THEN it fails closed with stable Problem Details.
-        var response = await client.GetAsync("/api/system");
+        var response = await client.GetAsync("/api/beta/system");
         Assert.Equal(HttpStatusCode.ServiceUnavailable, response.StatusCode);
         Assert.Equal("A required service is temporarily unavailable.",
             (await response.Content.ReadFromJsonAsync<ProblemDetails>())!.Title);
@@ -44,7 +44,7 @@ public sealed class ErrorAndRoutingTests
         await using var factory = new WebApplicationFactory<Program>();
         using var client = factory.CreateClient();
 
-        var response = await client.GetAsync("/api/not-a-route");
+        var response = await client.GetAsync("/api/beta/not-a-route");
         var content = await response.Content.ReadAsStringAsync();
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
@@ -101,7 +101,7 @@ public sealed class ErrorAndRoutingTests
             });
         using var client = factory.CreateClient();
 
-        var response = await client.GetAsync("/api/system");
+        var response = await client.GetAsync("/api/beta/system");
         var content = await response.Content.ReadAsStringAsync();
 
         Assert.Equal(HttpStatusCode.InternalServerError, response.StatusCode);

@@ -17,8 +17,8 @@ public sealed partial class DraftOrderDatabaseTests
         await using var reader = await command.ExecuteReaderAsync(); Assert.True(await reader.ReadAsync());
         return (reader.GetGuid(reader.GetOrdinal("SupplierId")), (byte[])reader["SavedVersion"], reader.GetBoolean(reader.GetOrdinal("Replayed")));
     }
-    private static DraftContentV2 Snapshot(Guid? supplier = null) => new(null, "Snapshot", null, null, [], [], supplier, null, "snapshot@example.test", null, null, null, "External", "Instagram");
-    private static string Purchase(string operation, Guid? target, byte[]? version, DraftContentV2 draft) => PurchasingIdentityInput.Canonical(operation, target, version is null ? null : Convert.ToBase64String(version), draft);
+    private static DraftContent Snapshot(Guid? supplier = null) => new(null, "Snapshot", null, null, [], [], supplier, null, "snapshot@example.test", null, null, null, "External", "Instagram");
+    private static string Purchase(string operation, Guid? target, byte[]? version, DraftContent draft) => DraftOrderInput.Canonical(operation, target, version is null ? null : Convert.ToBase64String(version), draft);
     [Fact]
     public async Task CounterAndSupplierTransactionsSerializeAndTenantNumbersRemainIndependent()
     {

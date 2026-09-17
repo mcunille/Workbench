@@ -5,11 +5,11 @@ test('initially collapsed navigation can expand below 900px', async ({ page }) =
   // GIVEN a signed-in workspace first loaded at a narrow desktop width.
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.setViewportSize({ width: 899, height: 900 });
-  await page.route('**/api/system', route => route.fulfill({ json: { name: 'Workbench', version: 'test' } }));
-  await page.route('**/api/auth/me', route => route.fulfill({ json: {
+  await page.route('**/api/beta/system', route => route.fulfill({ json: { name: 'Workbench', version: 'test' } }));
+  await page.route('**/api/beta/auth/me', route => route.fulfill({ json: {
     userId: 'sample', tenantName: 'Sample Studio', email: 'preview@example.test', permissions: ['TenantAccess'],
   } }));
-  await page.route('**/api/items{,?*}', route => route.fulfill({ json: { items: [], nextCursor: null } }));
+  await page.route('**/api/beta/items{,?*}', route => route.fulfill({ json: { items: [], nextCursor: null } }));
   await page.goto('/');
   const nav = page.getByRole('navigation', { name: 'Workspace' });
   const expand = nav.getByRole('button', { name: 'Expand navigation' });
@@ -37,12 +37,12 @@ test('initially collapsed navigation can expand below 900px', async ({ page }) =
 test('content stays centered beside the viewport-aligned navigation', async ({ page }) => {
   // GIVEN a wide workspace with sample data and deterministic layout transitions.
   await page.emulateMedia({ reducedMotion: 'reduce' });
-  await page.route('**/api/system', route => route.fulfill({ json: { name: 'Workbench', version: 'test' } }));
-  await page.route('**/api/auth/me', route => route.fulfill({ json: {
+  await page.route('**/api/beta/system', route => route.fulfill({ json: { name: 'Workbench', version: 'test' } }));
+  await page.route('**/api/beta/auth/me', route => route.fulfill({ json: {
     userId: 'sample', tenantName: 'Sample Studio', email: 'preview@example.test', permissions: ['TenantAccess'],
   } }));
-  await page.route('**/api/items?*', route => route.fulfill({ json: { items: [], nextCursor: null } }));
-  await page.route('**/api/items', route => route.fulfill({ json: { items: [], nextCursor: null } }));
+  await page.route('**/api/beta/items?*', route => route.fulfill({ json: { items: [], nextCursor: null } }));
+  await page.route('**/api/beta/items', route => route.fulfill({ json: { items: [], nextCursor: null } }));
   await page.setViewportSize({ width: 2400, height: 1000 });
   await page.goto('/');
   await expect(page.getByRole('heading', { name: 'Collection', exact: true })).toBeVisible();

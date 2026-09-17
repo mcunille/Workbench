@@ -1,5 +1,12 @@
 # Purchase order drafts
 
+The purchasing API is beta, as are all unreleased Workbench APIs. The current application uses
+`/api/beta/purchase-order-drafts` and `/api/beta/suppliers`; older API paths cannot create or
+change drafts. Exact successful retries remain recoverable through receipt-only adapters.
+See [API lifecycle](api-lifecycle.md) for compatibility and rollout rules. If Workbench asks
+you to reload after an update, copy unsaved changes first and preserve any uncertain save's
+request identity rather than starting a duplicate save.
+
 Purchase orders lets members of a business plan a supplier purchase and return to it later.
 Use **New draft**, record what you know, and select **Save draft**. An empty draft is valid;
 its display name is Untitled draft until you give it a title. Saved drafts remain available after

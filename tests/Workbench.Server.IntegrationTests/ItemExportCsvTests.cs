@@ -21,9 +21,9 @@ public sealed class ItemExportCsvTests(SqlServerFixture sqlServer)
         await LoginAsync(client);
         string[] values = ["=1+2", "+cmd", "-1", "@SUM(1)", "'existing", "Stone, \"蓝\"\r\nNext", "a\t=1", "\u0001=1"];
         foreach (var value in values)
-            Assert.Equal(HttpStatusCode.Created, (await PostAsync(client, "/api/items", new { creationRequestId = Guid.NewGuid(), name = value, notes = value, location = value })).StatusCode);
+            Assert.Equal(HttpStatusCode.Created, (await PostAsync(client, "/api/beta/items", new { creationRequestId = Guid.NewGuid(), name = value, notes = value, location = value })).StatusCode);
         // WHEN parsing the complete export with a CSV reader, not by splitting lines or commas.
-        var response = await PostAsync(client, "/api/items/export", new { scope = "active" });
+        var response = await PostAsync(client, "/api/beta/items/export", new { scope = "active" });
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         using var stream = new MemoryStream(await response.Content.ReadAsByteArrayAsync());
         using var parser = new TextFieldParser(stream, Encoding.UTF8) { HasFieldsEnclosedInQuotes = true, TrimWhiteSpace = false };

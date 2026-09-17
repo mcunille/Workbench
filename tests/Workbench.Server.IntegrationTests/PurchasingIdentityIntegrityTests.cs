@@ -28,11 +28,11 @@ public sealed partial class PurchasingIdentityEndpointTests
         await DraftSave(client, Empty with { Title = "Unrelated purchase" });
 
         // WHEN a normalized search advances through both pages THEN every match appears exactly once.
-        var first = (await client.GetFromJsonAsync<DraftOrderPageResponseV2>(DraftPath + "?query=%20matching%20"))!;
+        var first = (await client.GetFromJsonAsync<DraftOrderPageResponse>(DraftPath + "?query=%20matching%20"))!;
         Assert.Equal(50, first.Items.Count);
         Assert.NotNull(first.NextCursor);
         var cursor = Uri.EscapeDataString(first.NextCursor);
-        var second = (await client.GetFromJsonAsync<DraftOrderPageResponseV2>(DraftPath + "?query=MATCHING&cursor=" + cursor))!;
+        var second = (await client.GetFromJsonAsync<DraftOrderPageResponse>(DraftPath + "?query=MATCHING&cursor=" + cursor))!;
         Assert.Single(second.Items);
         Assert.Null(second.NextCursor);
         var actual = first.Items.Concat(second.Items).Select(row => row.Id).ToArray();
@@ -42,7 +42,7 @@ public sealed partial class PurchasingIdentityEndpointTests
         // AND changing the query or business cannot reuse a continuation from the original search.
         await AssertInvalidIdentityCursor(client, DraftPath + "?query=unrelated&cursor=" + cursor);
         await AssertInvalidIdentityCursor(foreign, DraftPath + "?query=matching&cursor=" + cursor);
-        Assert.Empty((await foreign.GetFromJsonAsync<DraftOrderPageResponseV2>(DraftPath + "?query=matching"))!.Items);
+        Assert.Empty((await foreign.GetFromJsonAsync<DraftOrderPageResponse>(DraftPath + "?query=matching"))!.Items);
     }
 
     [Fact]
@@ -59,15 +59,15 @@ public sealed partial class PurchasingIdentityEndpointTests
             expected.Add((await SupplierSave(client, Contact with { Name = $"Directory match {index}" })).SupplierId);
         var archived = await SupplierSave(client, Contact with { Name = "Directory match archived" });
         Assert.Equal(HttpStatusCode.OK, (await SendAsync(client, HttpMethod.Post,
-            $"/api/suppliers/{archived.SupplierId}/archive",
+            $"/api/beta/suppliers/{archived.SupplierId}/archive",
             new ArchiveSupplierRequest(Guid.NewGuid(), archived.SavedVersion, true))).StatusCode);
 
         // WHEN paging active matches THEN the archived supplier is absent and every active match occurs once.
-        var first = (await client.GetFromJsonAsync<SupplierPageResponse>("/api/suppliers?query=%20directory%20"))!;
+        var first = (await client.GetFromJsonAsync<SupplierPageResponse>("/api/beta/suppliers?query=%20directory%20"))!;
         Assert.Equal(50, first.Items.Count);
         Assert.NotNull(first.NextCursor);
         var cursor = Uri.EscapeDataString(first.NextCursor);
-        var second = (await client.GetFromJsonAsync<SupplierPageResponse>("/api/suppliers?query=DIRECTORY&cursor=" + cursor))!;
+        var second = (await client.GetFromJsonAsync<SupplierPageResponse>("/api/beta/suppliers?query=DIRECTORY&cursor=" + cursor))!;
         Assert.Single(second.Items);
         Assert.Null(second.NextCursor);
         var actual = first.Items.Concat(second.Items).Select(row => row.Id).ToArray();
@@ -75,11 +75,11 @@ public sealed partial class PurchasingIdentityEndpointTests
         Assert.True(expected.SetEquals(actual));
 
         // AND changed query, archive scope or business requires restarting pagination.
-        await AssertInvalidIdentityCursor(client, "/api/suppliers?query=other&cursor=" + cursor);
-        await AssertInvalidIdentityCursor(client, "/api/suppliers?query=directory&includeArchived=true&cursor=" + cursor);
-        await AssertInvalidIdentityCursor(foreign, "/api/suppliers?query=directory&cursor=" + cursor);
-        Assert.Empty((await foreign.GetFromJsonAsync<SupplierPageResponse>("/api/suppliers?query=directory"))!.Items);
-        Assert.Equal(HttpStatusCode.NotFound, (await foreign.GetAsync($"/api/suppliers/{archived.SupplierId}")).StatusCode);
+        await AssertInvalidIdentityCursor(client, "/api/beta/suppliers?query=other&cursor=" + cursor);
+        await AssertInvalidIdentityCursor(client, "/api/beta/suppliers?query=directory&includeArchived=true&cursor=" + cursor);
+        await AssertInvalidIdentityCursor(foreign, "/api/beta/suppliers?query=directory&cursor=" + cursor);
+        Assert.Empty((await foreign.GetFromJsonAsync<SupplierPageResponse>("/api/beta/suppliers?query=directory"))!.Items);
+        Assert.Equal(HttpStatusCode.NotFound, (await foreign.GetAsync($"/api/beta/suppliers/{archived.SupplierId}")).StatusCode);
     }
 
     private static async Task AssertInvalidIdentityCursor(HttpClient client, string path)
@@ -96,13 +96,10 @@ public sealed partial class PurchasingIdentityEndpointTests
         await using var application = await AuthTestApplication.CreateAsync(sqlServer, priorMigration: "AddDraftSupplierOrders");
         using var client = application.CreateClient();
         await LoginAsync(client);
-        var create = new CreateDraftOrderRequest(Guid.NewGuid(), new("Before upgrade", "Supplier", null, null, [], []));
-        using var created = await SendAsync(client, HttpMethod.Post, "/api/purchase-order-drafts", create);
-        Assert.Equal(HttpStatusCode.Created, created.StatusCode);
-        var receipt = (await created.Content.ReadFromJsonAsync<SaveDraftOrderResponse>())!;
-        var update = new UpdateDraftOrderRequest(Guid.NewGuid(), receipt.SavedVersion, create.Draft with { Title = "Reviewed before upgrade" });
-        using var updated = await SendAsync(client, HttpMethod.Put, $"/api/purchase-order-drafts/{receipt.DraftOrderId}", update);
-        Assert.Equal(HttpStatusCode.OK, updated.StatusCode);
+        var create = new HistoricalCreateRequest(Guid.NewGuid(), new("Before upgrade", "Supplier", null, null, [], []));
+        var receipt = await HistoricalSave(application, "Create", create.RequestId, null, null, create.Draft);
+        var update = new HistoricalUpdateRequest(Guid.NewGuid(), receipt.SavedVersion, create.Draft with { Title = "Reviewed before upgrade" });
+        await HistoricalSave(application, "Update", update.RequestId, receipt.DraftOrderId, receipt.SavedVersion, update.Draft);
         await using var admin = new SqlConnection(application.AdminConnectionString);
         await admin.OpenAsync();
         async Task<string> Evidence()

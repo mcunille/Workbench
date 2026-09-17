@@ -1,17 +1,18 @@
+import { apiFetch } from './contract';
 import createClient from 'openapi-fetch';
 import type { components, paths } from './generated';
 import { ApiError, mutationHeaders } from './auth';
-export type DraftContent = components['schemas']['DraftContentV4'];
-export type DraftEntry = components['schemas']['DraftEntryV4'];
-export type DraftOrder = components['schemas']['DraftOrderResponseV4'];
-export type DraftPage = components['schemas']['DraftOrderPageResponseV2'];
+export type DraftContent = components['schemas']['DraftContent'];
+export type DraftEntry = components['schemas']['DraftEntry'];
+export type DraftOrder = components['schemas']['DraftOrderResponse'];
+export type DraftPage = components['schemas']['DraftOrderPageResponse'];
 export type SaveReceipt = components['schemas']['SaveDraftOrderResponse'];
-export type CreateDraftRequest = components['schemas']['CreateDraftOrderRequestV4'];
-export type UpdateDraftRequest = components['schemas']['UpdateDraftOrderRequestV4'];
+export type CreateDraftRequest = components['schemas']['CreateDraftOrderRequest'];
+export type UpdateDraftRequest = components['schemas']['UpdateDraftOrderRequest'];
 export class DraftError extends ApiError {
   constructor(status: number, public readonly code?: string, public readonly errors: Record<string, string[]> = {}) { super(status); }
 }
-const api = createClient<paths>({ baseUrl: window.location.origin, cache: 'no-store', credentials: 'same-origin' });
+const api = createClient<paths>({ fetch: apiFetch, baseUrl: window.location.origin, cache: 'no-store', credentials: 'same-origin' });
 function requireDraft<T>({ response, data, error }: { response: Response; data?: T; error?: unknown }): T {
   if (!response.ok || data === undefined) {
     const problem = error && typeof error === 'object' ? error as { code?: unknown; errors?: unknown } : {};
@@ -24,23 +25,23 @@ function requireDraft<T>({ response, data, error }: { response: Response; data?:
   return data;
 }
 export async function getDrafts(cursor?: string, query?: string): Promise<DraftPage> {
-  return requireDraft(await api.GET('/api/v4/purchase-order-drafts', { params: { query: { cursor, query } } }));
+  return requireDraft(await api.GET('/api/beta/purchase-order-drafts', { params: { query: { cursor, query } } }));
 }
 export async function getDraft(id: string): Promise<DraftOrder> {
-  return requireDraft(await api.GET('/api/v4/purchase-order-drafts/{id}', { params: { path: { id } } }));
+  return requireDraft(await api.GET('/api/beta/purchase-order-drafts/{id}', { params: { path: { id } } }));
 }
 export async function createDraft(body: CreateDraftRequest): Promise<SaveReceipt> {
-  return requireDraft(await api.POST('/api/v4/purchase-order-drafts', { body, headers: await mutationHeaders() }));
+  return requireDraft(await api.POST('/api/beta/purchase-order-drafts', { body, headers: await mutationHeaders() }));
 }
 export async function updateDraft(id: string, body: UpdateDraftRequest): Promise<SaveReceipt> {
-  return requireDraft(await api.PUT('/api/v4/purchase-order-drafts/{id}', { params: { path: { id } }, body, headers: await mutationHeaders() }));
+  return requireDraft(await api.PUT('/api/beta/purchase-order-drafts/{id}', { params: { path: { id } }, body, headers: await mutationHeaders() }));
 }
 export type DeleteDraftRequest = components['schemas']['DeleteDraftOrderRequest'];
 export async function deleteDraft(id: string, body: DeleteDraftRequest): Promise<SaveReceipt> {
-  return requireDraft(await api.DELETE('/api/v4/purchase-order-drafts/{id}', { params: { path: { id } }, body, headers: await mutationHeaders() }));
+  return requireDraft(await api.DELETE('/api/beta/purchase-order-drafts/{id}', { params: { path: { id } }, body, headers: await mutationHeaders() }));
 }
 
 export type DraftCalculation = components['schemas']['DraftCalculationResponse'];
 export async function calculateDraft(draft: DraftContent, signal?: AbortSignal): Promise<DraftCalculation> {
-  return requireDraft(await api.POST('/api/v4/purchase-order-drafts/calculate', { body: { draft }, signal, headers: await mutationHeaders() }));
+  return requireDraft(await api.POST('/api/beta/purchase-order-drafts/calculate', { body: { draft }, signal, headers: await mutationHeaders() }));
 }

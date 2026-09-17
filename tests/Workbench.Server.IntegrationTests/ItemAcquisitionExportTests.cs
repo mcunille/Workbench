@@ -91,22 +91,22 @@ public sealed class ItemAcquisitionExportTests(SqlServerFixture sqlServer)
         var saved = await context.CreateAcquisitionAsync(first, "Gift", "=Family", 2020, null, null, "Literal\nnotes");
         foreach (var item in new[] { second, archived })
         {
-            saved = (await context.Client.GetFromJsonAsync<ItemAcquisitionResponse>($"/api/items/{first.Id}/acquisition"))!;
-            using var link = await SendAsync(context.Client, HttpMethod.Put, $"/api/items/{item.Id}/acquisition-link",
+            saved = (await context.Client.GetFromJsonAsync<ItemAcquisitionResponse>($"/api/beta/items/{first.Id}/acquisition"))!;
+            using var link = await SendAsync(context.Client, HttpMethod.Put, $"/api/beta/items/{item.Id}/acquisition-link",
                 new LinkAcquisitionRequest(item.Version, null, null, saved.Acquisition!.Id, saved.Acquisition.Version));
             Assert.Equal(HttpStatusCode.OK, link.StatusCode);
         }
         var document = await context.UploadAsync(first.Id, "../蓝 receipt.pdf");
-        var currentArchived = (await context.Client.GetFromJsonAsync<ItemDetailResponse>($"/api/items/{archived.Id}"))!;
-        Assert.Equal(HttpStatusCode.OK, (await SendAsync(context.Client, HttpMethod.Post, $"/api/items/{archived.Id}/archive", new { expectedVersion = currentArchived.Version })).StatusCode);
+        var currentArchived = (await context.Client.GetFromJsonAsync<ItemDetailResponse>($"/api/beta/items/{archived.Id}"))!;
+        Assert.Equal(HttpStatusCode.OK, (await SendAsync(context.Client, HttpMethod.Post, $"/api/beta/items/{archived.Id}/archive", new { expectedVersion = currentArchived.Version })).StatusCode);
         using var other = context.Factory.CreateClient();
         await LoginAsync(other, "other@example.com");
         var foreign = await CreateItemAsync(other);
-        using var foreignCreated = await SendAsync(other, HttpMethod.Post, $"/api/items/{foreign.Id}/acquisition",
+        using var foreignCreated = await SendAsync(other, HttpMethod.Post, $"/api/beta/items/{foreign.Id}/acquisition",
             new CreateAcquisitionRequest(Guid.NewGuid(), foreign.Version, "Purchase", "Foreign private source", null, null, null, null));
         Assert.Equal(HttpStatusCode.Created, foreignCreated.StatusCode);
         var foreignSaved = (await foreignCreated.Content.ReadFromJsonAsync<ItemAcquisitionResponse>())!;
-        var foreignPath = $"/api/items/{foreign.Id}/acquisition/{foreignSaved.Acquisition!.Id}/documents";
+        var foreignPath = $"/api/beta/items/{foreign.Id}/acquisition/{foreignSaved.Acquisition!.Id}/documents";
         using var foreignUpload = await AcquisitionDocumentEndpointTests.UploadAsync(other, foreignPath, foreignSaved, Guid.NewGuid(), PhotoFixture.Png(red: 0, blue: 255), "Foreign private receipt");
         Assert.Equal(HttpStatusCode.OK, foreignUpload.StatusCode);
 
@@ -264,19 +264,19 @@ public sealed class ItemAcquisitionExportTests(SqlServerFixture sqlServer)
         var orphanItem = await CreateItemAsync(context.Client);
         var orphan = await context.CreateAcquisitionAsync(orphanItem, source: "Orphan source");
         var orphanDocument = await context.UploadAsync(orphanItem.Id);
-        orphan = (await context.Client.GetFromJsonAsync<ItemAcquisitionResponse>($"/api/items/{orphanItem.Id}/acquisition"))!;
-        Assert.Equal(HttpStatusCode.OK, (await SendAsync(context.Client, HttpMethod.Put, $"/api/items/{orphanItem.Id}/acquisition-link",
+        orphan = (await context.Client.GetFromJsonAsync<ItemAcquisitionResponse>($"/api/beta/items/{orphanItem.Id}/acquisition"))!;
+        Assert.Equal(HttpStatusCode.OK, (await SendAsync(context.Client, HttpMethod.Put, $"/api/beta/items/{orphanItem.Id}/acquisition-link",
             new LinkAcquisitionRequest(orphan.ItemVersion, orphan.Acquisition!.Id, orphan.Acquisition.Version, null, null))).StatusCode);
         var item = await CreateItemAsync(context.Client);
         var saved = await context.CreateAcquisitionAsync(item);
         var removed = await context.UploadAsync(item.Id);
-        var path = $"/api/items/{item.Id}/acquisition/{saved.Acquisition!.Id}/documents";
+        var path = $"/api/beta/items/{item.Id}/acquisition/{saved.Acquisition!.Id}/documents";
         var listing = (await context.Client.GetFromJsonAsync<AcquisitionDocumentsResponse>(path))!;
         Assert.Equal(HttpStatusCode.OK, (await SendAsync(context.Client, HttpMethod.Delete, $"{path}/{removed.Id}",
             new ChangeAcquisitionDocumentRequest(Guid.NewGuid(), listing.ItemVersion, listing.AcquisitionVersion, removed.Version, null))).StatusCode);
 
         // AND provider publication loses its response, leaving a real upload reservation pending.
-        saved = (await context.Client.GetFromJsonAsync<ItemAcquisitionResponse>($"/api/items/{item.Id}/acquisition"))!;
+        saved = (await context.Client.GetFromJsonAsync<ItemAcquisitionResponse>($"/api/beta/items/{item.Id}/acquisition"))!;
         context.Store.FailPublication = true;
         var requestId = Guid.NewGuid();
         using var pending = await AcquisitionDocumentEndpointTests.UploadAsync(context.Client, path, saved, requestId, PhotoFixture.Png());
@@ -314,7 +314,7 @@ public sealed class ItemAcquisitionExportTests(SqlServerFixture sqlServer)
         var document = await context.UploadAsync(item.Id);
         using var writer = context.Factory.CreateClient();
         await LoginAsync(writer);
-        var path = $"/api/items/{item.Id}/acquisition/{saved.Acquisition!.Id}/documents";
+        var path = $"/api/beta/items/{item.Id}/acquisition/{saved.Acquisition!.Id}/documents";
         var listing = (await writer.GetFromJsonAsync<AcquisitionDocumentsResponse>(path))!;
         context.Store.Pause = true;
         var exporting = context.ExportAsync();
@@ -370,19 +370,19 @@ public sealed class ItemAcquisitionExportTests(SqlServerFixture sqlServer)
             return new(application, store, factory, client);
         }
         public Task<HttpResponseMessage> ExportAsync(bool package = true, string scope = "all") =>
-            SendAsync(Client, HttpMethod.Post, package ? "/api/items/export-package" : "/api/items/export", new { scope });
+            SendAsync(Client, HttpMethod.Post, package ? "/api/beta/items/export-package" : "/api/beta/items/export", new { scope });
         public async Task<ItemAcquisitionResponse> CreateAcquisitionAsync(ItemDetailResponse item, string method = "Unknown", string? source = null,
             int? year = null, int? month = null, int? day = null, string? notes = null)
         {
-            using var response = await SendAsync(Client, HttpMethod.Post, $"/api/items/{item.Id}/acquisition",
+            using var response = await SendAsync(Client, HttpMethod.Post, $"/api/beta/items/{item.Id}/acquisition",
                 new CreateAcquisitionRequest(Guid.NewGuid(), item.Version, method, source, year, month, day, notes));
             Assert.Equal(HttpStatusCode.Created, response.StatusCode);
             return (await response.Content.ReadFromJsonAsync<ItemAcquisitionResponse>())!;
         }
         public async Task<AcquisitionDocumentResponse> UploadAsync(Guid item, string label = "Receipt")
         {
-            var acquisition = (await Client.GetFromJsonAsync<ItemAcquisitionResponse>($"/api/items/{item}/acquisition"))!;
-            var path = $"/api/items/{item}/acquisition/{acquisition.Acquisition!.Id}/documents";
+            var acquisition = (await Client.GetFromJsonAsync<ItemAcquisitionResponse>($"/api/beta/items/{item}/acquisition"))!;
+            var path = $"/api/beta/items/{item}/acquisition/{acquisition.Acquisition!.Id}/documents";
             using var response = await AcquisitionDocumentEndpointTests.UploadAsync(Client, path, acquisition, Guid.NewGuid(), PhotoFixture.Png(), label);
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
             return Assert.Single((await Client.GetFromJsonAsync<AcquisitionDocumentsResponse>(path))!.Documents);

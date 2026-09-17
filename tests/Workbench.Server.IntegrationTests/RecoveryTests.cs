@@ -28,11 +28,11 @@ public sealed class RecoveryTests(SqlServerFixture sqlServer) : IAsyncLifetime
         using var unknownClient = _application.CreateClient();
         var known = await PostWithAntiforgeryAsync(
             knownClient,
-            "/api/auth/recovery",
+            "/api/beta/auth/recovery",
             new { email = AuthTestApplication.AdminEmail });
         var unknown = await PostWithAntiforgeryAsync(
             unknownClient,
-            "/api/auth/recovery",
+            "/api/beta/auth/recovery",
             new { email = "unknown@example.com" });
 
         Assert.Equal(HttpStatusCode.Accepted, known.StatusCode);
@@ -56,13 +56,13 @@ public sealed class RecoveryTests(SqlServerFixture sqlServer) : IAsyncLifetime
         using var signedInClient = _application.CreateClient();
         Assert.Equal(HttpStatusCode.NoContent, (await PostWithAntiforgeryAsync(
             signedInClient,
-            "/api/auth/login",
+            "/api/beta/auth/login",
             new { email = AuthTestApplication.AdminEmail, password = AuthTestApplication.AdminPassword }))
             .StatusCode);
         using var requestClient = _application.CreateClient();
         await PostWithAntiforgeryAsync(
             requestClient,
-            "/api/auth/recovery",
+            "/api/beta/auth/recovery",
             new { email = AuthTestApplication.AdminEmail });
         var token = Assert.Single(_application.Factory.Services
             .GetRequiredService<DevelopmentIdentityMessageDelivery>().Messages).Token;
@@ -75,7 +75,7 @@ public sealed class RecoveryTests(SqlServerFixture sqlServer) : IAsyncLifetime
 
         Assert.Equal(1, results.Count(response => response.StatusCode == HttpStatusCode.NoContent));
         Assert.Equal(1, results.Count(response => response.StatusCode == HttpStatusCode.BadRequest));
-        Assert.Equal(HttpStatusCode.Unauthorized, (await signedInClient.GetAsync("/api/auth/me")).StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, (await signedInClient.GetAsync("/api/beta/auth/me")).StatusCode);
     }
 
     [Fact]
@@ -84,14 +84,14 @@ public sealed class RecoveryTests(SqlServerFixture sqlServer) : IAsyncLifetime
         using var client = _application.CreateClient();
         await PostWithAntiforgeryAsync(
             client,
-            "/api/auth/recovery",
+            "/api/beta/auth/recovery",
             new { email = AuthTestApplication.AdminEmail });
         var token = Assert.Single(_application.Factory.Services
             .GetRequiredService<DevelopmentIdentityMessageDelivery>().Messages).Token;
 
         var response = await PostWithAntiforgeryAsync(
             client,
-            "/api/auth/recovery/consume",
+            "/api/beta/auth/recovery/consume",
             new { token, newPassword = $"Aa1!{new string('x', WorkbenchPasswordPolicy.MaximumLength)}" });
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
@@ -106,10 +106,10 @@ public sealed class RecoveryTests(SqlServerFixture sqlServer) : IAsyncLifetime
     }
 
     [Theory]
-    [InlineData("/api/auth/recovery/consume", true)]
-    [InlineData("/api/auth/recovery/consume", false)]
-    [InlineData("/api/auth/invitations/consume", true)]
-    [InlineData("/api/auth/invitations/consume", false)]
+    [InlineData("/api/beta/auth/recovery/consume", true)]
+    [InlineData("/api/beta/auth/recovery/consume", false)]
+    [InlineData("/api/beta/auth/invitations/consume", true)]
+    [InlineData("/api/beta/auth/invitations/consume", false)]
     public async Task IdentityOperationConsumptionRejectsNullCredentials(string path, bool nullToken)
     {
         using var client = _application.CreateClient();
@@ -126,7 +126,7 @@ public sealed class RecoveryTests(SqlServerFixture sqlServer) : IAsyncLifetime
     private static Task<HttpResponseMessage> ConsumeAsync(HttpClient client, string token) =>
         PostWithAntiforgeryAsync(
             client,
-            "/api/auth/recovery/consume",
+            "/api/beta/auth/recovery/consume",
             new { token, newPassword = "Recovered Correct Horse 3#" });
 
     internal static async Task<HttpResponseMessage> PostWithAntiforgeryAsync(
@@ -134,11 +134,12 @@ public sealed class RecoveryTests(SqlServerFixture sqlServer) : IAsyncLifetime
         string path,
         object body)
     {
-        var tokens = await client.GetFromJsonAsync<JsonElement>("/api/auth/antiforgery");
+        var tokens = await client.GetFromJsonAsync<JsonElement>("/api/beta/auth/antiforgery");
         using var request = new HttpRequestMessage(HttpMethod.Post, path)
         {
             Content = JsonContent.Create(body),
         };
+        request.Headers.TryAddWithoutValidation("X-Workbench-Api-Revision", "beta-1");
         request.Headers.Add("X-CSRF-TOKEN", tokens.GetProperty("requestToken").GetString());
         return await client.SendAsync(request);
     }

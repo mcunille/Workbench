@@ -31,11 +31,11 @@ public sealed class ItemPackageEndpointTests(SqlServerFixture sqlServer)
         await LoginAsync(client);
         await LoginAsync(other, "other@example.com");
         const string name = "=蓝../stone";
-        var created = await PostAsync(client, "/api/items", new { creationRequestId = Guid.NewGuid(), name, location = "Tray A" });
+        var created = await PostAsync(client, "/api/beta/items", new { creationRequestId = Guid.NewGuid(), name, location = "Tray A" });
         var item = await created.Content.ReadFromJsonAsync<JsonElement>();
-        await PostAsync(other, "/api/items", new { creationRequestId = Guid.NewGuid(), name = "Foreign secret" });
+        await PostAsync(other, "/api/beta/items", new { creationRequestId = Guid.NewGuid(), name = "Foreign secret" });
         // WHEN preparing the complete package.
-        var response = await PostAsync(client, "/api/items/export-package", new { scope = "all" });
+        var response = await PostAsync(client, "/api/beta/items/export-package", new { scope = "all" });
         // THEN the ZIP is private, complete and independently readable with explicit photo absence.
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Equal("application/zip", response.Content.Headers.ContentType?.MediaType);
@@ -69,14 +69,14 @@ public sealed class ItemPackageEndpointTests(SqlServerFixture sqlServer)
         }));
         using var client = factory.CreateClient();
         // WHEN attempting the package with missing authority or invalid intent.
-        Assert.Equal(HttpStatusCode.Unauthorized, (await client.PostAsJsonAsync("/api/items/export-package", new { scope = "all" })).StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, (await client.PostAsJsonAsync("/api/beta/items/export-package", new { scope = "all" })).StatusCode);
         await LoginAsync(client);
         // THEN ordinary authentication, antiforgery and validation contracts apply; empty is not a ZIP.
-        Assert.Equal(HttpStatusCode.BadRequest, (await client.PostAsJsonAsync("/api/items/export-package", new { scope = "all" })).StatusCode);
-        Assert.Equal(HttpStatusCode.BadRequest, (await PostAsync(client, "/api/items/export-package", new { })).StatusCode);
-        Assert.Equal(HttpStatusCode.BadRequest, (await PostAsync(client, "/api/items/export-package", new { scope = "archived" })).StatusCode);
-        Assert.Equal(HttpStatusCode.NoContent, (await PostAsync(client, "/api/items/export-package", new { scope = "all" })).StatusCode);
-        Assert.Equal(HttpStatusCode.NotFound, (await client.GetAsync($"/api/items/export-package/{Guid.NewGuid()}")).StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, (await client.PostAsJsonAsync("/api/beta/items/export-package", new { scope = "all" })).StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, (await PostAsync(client, "/api/beta/items/export-package", new { })).StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, (await PostAsync(client, "/api/beta/items/export-package", new { scope = "archived" })).StatusCode);
+        Assert.Equal(HttpStatusCode.NoContent, (await PostAsync(client, "/api/beta/items/export-package", new { scope = "all" })).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await client.GetAsync($"/api/beta/items/export-package/{Guid.NewGuid()}")).StatusCode);
     }
 
     [Theory]
@@ -96,7 +96,7 @@ public sealed class ItemPackageEndpointTests(SqlServerFixture sqlServer)
         using var client = factory.CreateClient();
         await LoginAsync(client);
         // WHEN requesting a package with a guessed identifier THEN binding rejects the request.
-        var response = await PostAsync(client, "/api/items/export-package", new Dictionary<string, object> { ["scope"] = "all", [field] = Guid.NewGuid() });
+        var response = await PostAsync(client, "/api/beta/items/export-package", new Dictionary<string, object> { ["scope"] = "all", [field] = Guid.NewGuid() });
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
         Assert.Null(response.Content.Headers.ContentDisposition);
     }

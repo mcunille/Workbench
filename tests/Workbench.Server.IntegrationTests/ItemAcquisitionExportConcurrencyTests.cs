@@ -32,7 +32,7 @@ public sealed class ItemAcquisitionExportConcurrencyTests(SqlServerFixture sqlSe
         using var writer = storageFactory.CreateClient();
         await LoginAsync(writer);
         var item = await CreateItemAsync(writer);
-        using var created = await SendAsync(writer, HttpMethod.Post, $"/api/items/{item.Id}/acquisition",
+        using var created = await SendAsync(writer, HttpMethod.Post, $"/api/beta/items/{item.Id}/acquisition",
             new CreateAcquisitionRequest(Guid.NewGuid(), item.Version, "Gift", "Before acquisition", 2020, null, null, "Before notes"));
         Assert.Equal(HttpStatusCode.Created, created.StatusCode);
         var saved = (await created.Content.ReadFromJsonAsync<ItemAcquisitionResponse>())!;
@@ -40,7 +40,7 @@ public sealed class ItemAcquisitionExportConcurrencyTests(SqlServerFixture sqlSe
         if (change == "relink")
         {
             var targetItem = await CreateItemAsync(writer);
-            using var targetCreated = await SendAsync(writer, HttpMethod.Post, $"/api/items/{targetItem.Id}/acquisition",
+            using var targetCreated = await SendAsync(writer, HttpMethod.Post, $"/api/beta/items/{targetItem.Id}/acquisition",
                 new CreateAcquisitionRequest(Guid.NewGuid(), targetItem.Version, "Trade", "Target event", 2019, null, null, null));
             Assert.Equal(HttpStatusCode.Created, targetCreated.StatusCode);
             target = (await targetCreated.Content.ReadFromJsonAsync<ItemAcquisitionResponse>())!;
@@ -55,9 +55,9 @@ public sealed class ItemAcquisitionExportConcurrencyTests(SqlServerFixture sqlSe
 
         // WHEN an independent SQL session edits, removes or replaces the captured relationship.
         var writing = change != "edit"
-            ? SendAsync(writer, HttpMethod.Put, $"/api/items/{item.Id}/acquisition-link",
+            ? SendAsync(writer, HttpMethod.Put, $"/api/beta/items/{item.Id}/acquisition-link",
                 new LinkAcquisitionRequest(saved.ItemVersion, saved.Acquisition!.Id, saved.Acquisition.Version, target?.Acquisition!.Id, target?.Acquisition!.Version))
-            : SendAsync(writer, HttpMethod.Put, $"/api/items/{item.Id}/acquisition/{saved.Acquisition!.Id}",
+            : SendAsync(writer, HttpMethod.Put, $"/api/beta/items/{item.Id}/acquisition/{saved.Acquisition!.Id}",
                 new UpdateAcquisitionRequest(saved.ItemVersion, saved.Acquisition.Version, "Purchase", "After acquisition", 2021, 2, 3, "After notes"));
         try { await ItemExportConcurrencyTests.AssertBlockedWriterAsync(app.AdminConnectionString); }
         finally { barrier.Release.TrySetResult(); }

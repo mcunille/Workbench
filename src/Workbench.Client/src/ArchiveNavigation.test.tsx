@@ -27,10 +27,10 @@ it('keeps archive and collection traversals independent through appearance and d
     createdAtUtc: '2026-09-06T00:00:00Z',
   };
   server.use(
-    http.get('*/api/system', () =>
-      HttpResponse.json({ name: 'Workbench', version: '1' }),
+    http.get('*/api/beta/system', () =>
+      HttpResponse.json({ name: 'Workbench', version: '1', apiRevision: 'beta-1' }),
     ),
-    http.get('*/api/auth/me', () =>
+    http.get('*/api/beta/auth/me', () =>
       signedIn
         ? HttpResponse.json({
             userId: 'person',
@@ -40,7 +40,7 @@ it('keeps archive and collection traversals independent through appearance and d
           })
         : new HttpResponse(null, { status: 401 }),
     ),
-    http.get('*/api/items', async () => {
+    http.get('*/api/beta/items', async () => {
       markCollectionRequested();
       await collectionResponse;
       return HttpResponse.json({
@@ -55,10 +55,10 @@ it('keeps archive and collection traversals independent through appearance and d
         nextCursor: null,
       });
     }),
-    http.get('*/api/items/archived', () =>
+    http.get('*/api/beta/items/archived', () =>
       HttpResponse.json({ items: [item], nextCursor: null }),
     ),
-    http.get('*/api/items/stone', () =>
+    http.get('*/api/beta/items/stone', () =>
       signedIn
         ? HttpResponse.json(item)
         : new HttpResponse(null, { status: 401 }),
@@ -104,10 +104,10 @@ it('keeps archive and collection traversals independent through appearance and d
   fireEvent.click(screen.getByRole('link', { name: /Archived stone/ }));
   await screen.findByRole('heading', { name: 'Sign in' });
   server.use(
-    http.get('*/api/auth/antiforgery', () =>
+    http.get('*/api/beta/auth/antiforgery', () =>
       HttpResponse.json({ requestToken: 'test' }),
     ),
-    http.post('*/api/auth/login', () => {
+    http.post('*/api/beta/auth/login', () => {
       signedIn = true;
       return new HttpResponse(null, { status: 204 });
     }),
@@ -148,10 +148,10 @@ it('does not reuse an old archive origin when browser history is truncated by cr
     createdAtUtc: '2026-09-06T00:00:00Z',
   };
   server.use(
-    http.get('*/api/system', () =>
-      HttpResponse.json({ name: 'Workbench', version: '1' }),
+    http.get('*/api/beta/system', () =>
+      HttpResponse.json({ name: 'Workbench', version: '1', apiRevision: 'beta-1' }),
     ),
-    http.get('*/api/auth/me', () =>
+    http.get('*/api/beta/auth/me', () =>
       HttpResponse.json({
         userId: 'person',
         tenantName: 'Studio',
@@ -159,13 +159,13 @@ it('does not reuse an old archive origin when browser history is truncated by cr
         permissions: ['TenantAccess'],
       }),
     ),
-    http.get('*/api/auth/antiforgery', () =>
+    http.get('*/api/beta/auth/antiforgery', () =>
       HttpResponse.json({ requestToken: 'test' }),
     ),
-    http.get('*/api/items', () =>
+    http.get('*/api/beta/items', () =>
       HttpResponse.json({ items: [], nextCursor: null }),
     ),
-    http.get('*/api/items/archived', () =>
+    http.get('*/api/beta/items/archived', () =>
       HttpResponse.json({
         items: [
           { ...summary, id: 'a', name: 'Archive A' },
@@ -174,7 +174,7 @@ it('does not reuse an old archive origin when browser history is truncated by cr
         nextCursor: null,
       }),
     ),
-    http.get('*/api/items/:id', ({ params }) =>
+    http.get('*/api/beta/items/:id', ({ params }) =>
       HttpResponse.json({
         ...summary,
         id: params.id,
@@ -183,7 +183,7 @@ it('does not reuse an old archive origin when browser history is truncated by cr
           params.id === 'created' ? null : summary.archivedAtUtc,
       }),
     ),
-    http.post('*/api/items', () =>
+    http.post('*/api/beta/items', () =>
       HttpResponse.json(
         {
           ...summary,
@@ -239,10 +239,10 @@ it('keeps the archive return origin through a native skip-link entry and appeara
     createdAtUtc: '2026-09-06T00:00:00Z',
   };
   server.use(
-    http.get('*/api/system', () =>
-      HttpResponse.json({ name: 'Workbench', version: '1' }),
+    http.get('*/api/beta/system', () =>
+      HttpResponse.json({ name: 'Workbench', version: '1', apiRevision: 'beta-1' }),
     ),
-    http.get('*/api/auth/me', () =>
+    http.get('*/api/beta/auth/me', () =>
       HttpResponse.json({
         userId: 'person',
         tenantName: 'Studio',
@@ -250,14 +250,14 @@ it('keeps the archive return origin through a native skip-link entry and appeara
         permissions: ['TenantAccess'],
       }),
     ),
-    http.get('*/api/auth/antiforgery', () =>
+    http.get('*/api/beta/auth/antiforgery', () =>
       HttpResponse.json({ requestToken: 'test' }),
     ),
-    http.get('*/api/items/archived', () =>
+    http.get('*/api/beta/items/archived', () =>
       HttpResponse.json({ items: [item], nextCursor: null }),
     ),
-    http.get('*/api/items/stone', () => HttpResponse.json(item)),
-    http.post('*/api/items/stone/restore', () =>
+    http.get('*/api/beta/items/stone', () => HttpResponse.json(item)),
+    http.post('*/api/beta/items/stone/restore', () =>
       HttpResponse.json({
         ...item,
         version: 'restored',
@@ -316,10 +316,10 @@ it('refreshes the return origin on backward and forward jumps between the same r
     createdAtUtc: '2026-09-06T00:00:00Z',
   };
   server.use(
-    http.get('*/api/system', () =>
-      HttpResponse.json({ name: 'Workbench', version: '1' }),
+    http.get('*/api/beta/system', () =>
+      HttpResponse.json({ name: 'Workbench', version: '1', apiRevision: 'beta-1' }),
     ),
-    http.get('*/api/auth/me', () =>
+    http.get('*/api/beta/auth/me', () =>
       HttpResponse.json({
         userId: 'person',
         tenantName: 'Studio',
@@ -327,17 +327,17 @@ it('refreshes the return origin on backward and forward jumps between the same r
         permissions: ['TenantAccess'],
       }),
     ),
-    http.get('*/api/auth/antiforgery', () =>
+    http.get('*/api/beta/auth/antiforgery', () =>
       HttpResponse.json({ requestToken: 'test' }),
     ),
-    http.get('*/api/items', () =>
+    http.get('*/api/beta/items', () =>
       HttpResponse.json({ items: [item], nextCursor: null }),
     ),
-    http.get('*/api/items/archived', () =>
+    http.get('*/api/beta/items/archived', () =>
       HttpResponse.json({ items: [item], nextCursor: null }),
     ),
-    http.get('*/api/items/stone', () => HttpResponse.json(item)),
-    http.post('*/api/items/stone/restore', () => {
+    http.get('*/api/beta/items/stone', () => HttpResponse.json(item)),
+    http.post('*/api/beta/items/stone/restore', () => {
       item = { ...item, version: 'restored', archivedAtUtc: null };
       return HttpResponse.json(item);
     }),
