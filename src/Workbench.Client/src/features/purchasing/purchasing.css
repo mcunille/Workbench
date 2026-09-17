@@ -91,7 +91,6 @@
 .po-precision-toggle { display: flex; align-items: center; gap: .5rem; min-height: 44px; color: var(--muted); font-size: .8125rem; }
 .po-precision-toggle input { width: 1rem; height: 1rem; min-height: 1rem; margin: 0; }
 .po-price-help { margin: 0; color: var(--muted); font-size: .8125rem; }
-.po-price-mode { display: block; margin-top: .375rem; color: var(--muted); font-size: .8125rem; }
 .po-entry { min-width: 0; margin: 1rem 0 0; padding: 1.25rem; border: 1px solid var(--border-subtle); border-radius: var(--radius-card); background: var(--canvas); display: grid; gap: 1rem; }
 .po-entry-heading { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
 .po-entry-heading h3 { margin: 0; font-size: .9375rem; font-weight: 500; }
@@ -285,7 +284,12 @@
 .po-charge-party { display: grid; gap: 1rem; }
 .po-adjustment-fields .floating-field, .po-charge-primary .floating-field { margin-top: 0; }
 .po-charges { margin-top: 1.5rem; }
-.po-charge + .po-charge { padding-top: 1.5rem; border-top: 1px solid var(--border-subtle); }
+.po-charge-disclosure > .po-charge { margin: 0; padding: .5rem 0 1.25rem; }
+.po-price-options { display: flex; flex-wrap: wrap; align-items: start; gap: .25rem 1rem; }
+.po-price-guidance { flex: 1 1 9rem; min-width: 0; margin: 0; padding: 0; border: 0; }
+.po-price-guidance > summary { min-height: 44px; align-content: center; color: var(--muted); font-size: .8125rem; cursor: pointer; }
+.po-estimate-jump { display: inline-flex; align-items: center; min-height: 44px; font-size: .875rem; }
+#po-purchase-estimate { scroll-margin-top: 6rem; }
 .po-charge-details > summary { cursor: pointer; min-height: 44px; padding-block: .75rem; overflow-wrap: anywhere; }
 .po-charge-details > .po-charge-primary { margin-top: .75rem; }
 .po-line-net { font-weight: 500; font-variant-numeric: tabular-nums; }

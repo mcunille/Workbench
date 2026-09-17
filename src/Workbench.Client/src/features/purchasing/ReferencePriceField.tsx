@@ -66,13 +66,15 @@ export function ReferencePriceField({ id, index, value, onChange, disabled, erro
             : /^[\d.]*$/.test(text) && (text.match(/\./g)?.length ?? 0) <= 1 ? fromDigits(text) : text || null);
         }} />
     </FloatingField>
-    <span className="po-price-mode">{extra ? 'Full precision · up to 4 decimals' : 'Cents entry · 2 decimals'}</span>
+    <div className="po-price-options"><details className="po-price-guidance">
+      <summary>{extra ? 'Decimal entry help' : 'Cents entry help'}</summary>
+      <p id={`${id}-help`} className="po-price-help">{extra ? 'Type a decimal amount, up to four decimal places. Remove extra digits to return to two-decimal entry.' : 'Cents entry: 1234 → 12.34. Paste a full amount.'} {emptyHint}</p>
+    </details>
     <label className="po-precision-toggle"><input type="checkbox" checked={extra} disabled={disabled || preciseValue}
       aria-label={`Use extra precision for ${precisionLabel ?? (index === undefined ? label.toLowerCase() : `line ${index}`)}`} onChange={event => {
         setRequestedPrecision(event.target.checked);
         if (!event.target.checked) onChange(formatReferencePrice(value));
-      }} />Use extra precision</label>
-    <p id={`${id}-help`} className="po-price-help">{extra ? 'Type a decimal amount, up to four decimal places. Remove extra digits to return to two-decimal entry.' : 'Cents entry: 1234 → 12.34. Paste a full amount.'} {emptyHint}</p>
+      }} />Use extra precision</label></div>
     {error ? <p id={`${id}-error`} className="form-message error">{error}</p> : null}
   </div>;
 }

@@ -122,6 +122,12 @@ Each row leads with its label and amount; payee and estimated/confirmed status r
 Supporting reference and notes use progressive disclosure. Remove offers Undo until save or a
 currency transition, consistent with line removal. Errors reveal and focus affected controls.
 
+The owner's 2026-09-17 distillation request makes saved charges compact expandable rows, preserving
+label, amount, payee and source status. New, restored and invalid charges open for editing.
+Keep the existing monetary-entry semantics and precision controls; display detailed entry guidance
+in a named help disclosure. Discount removal uses the same danger treatment as line and charge removal.
+Provide a keyboard-accessible **View purchase estimate** jump near the order identity.
+
 Place an inspectable summary directly below the charges: merchandise gross, line discounts,
 merchandise net, order discount, supplier charges, supplier draft estimate, third-party charges,
 and total purchase estimate. Omit absent adjustment rows. Show the currency on amounts and base

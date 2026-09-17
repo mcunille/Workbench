@@ -70,6 +70,11 @@ is confirmed from a source; the order remains a draft. Changing a saved confirme
 or status requires an updated explanation in notes. Update the same charge when an estimate is
 confirmed rather than adding it twice. Charge removal offers Undo until save or currency change.
 
+Saved charges open as compact rows showing their label, payee, amount and source status. Expand
+a row to edit; new, restored and invalid charges open for entry or correction. Monetary-entry
+guidance is available from **Cents entry help** or **Decimal entry help** beside the precision control. **View purchase estimate**
+near the order identity jumps directly to the full breakdown without changing the draft.
+
 The summary separates supplier charges and third-party costs. Ten stones at USD 20 with a 10%
 line discount, twenty settings at USD 5, a USD 10 order discount, USD 15 supplier shipping and
 USD 21.60 sales tax produce a **Supplier draft estimate** of USD 306.60. A USD 3 third-party bank

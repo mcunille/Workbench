@@ -15,3 +15,5 @@ FIRST VIEWPORT: Existing sticky Back/Save toolbar and draft identity remain. Lin
 FORM: Local extension of the existing editor per approved PO-05 design; no concept seed required. Inline authoritative calculation is the signature interaction.
 FINISH: unreviewed and undocumented is unfinished; this build ends with the finish review, the verdict, DESIGN.md, and every shipping raster carrying its provenance
 No shipping rasters. DESIGN.md remains incumbent authority. Critique desktop/mobile and light/dark, keyboard/error recovery and third-party totals.
+
+2026-09-17 distillation: saved charges follow the existing line-disclosure pattern with label, payee, status and amount visible. New, undone and invalid charges reveal their fields. A named estimate jump near the order identity shortens review without adding a sticky total. Monetary tutorials use explicit help disclosures; precision controls and entry semantics remain. Discount removals share the existing danger style. All fields and categories remain available; source-link actions are outside this distillation.

@@ -42,6 +42,19 @@ test('discounts and source charges reconcile and persist without combining suppl
   await expect(page.locator('.po-summary-total dd')).toHaveText('USD 309.60');
   await expect(page.getByLabel('Payee name 3', { exact: true })).toHaveValue('Sample bank');
   await expect(page.locator('.po-line-disclosure > summary').first()).toContainText('USD 180.00');
+  // AND saved charges are concise; the estimate is one keyboard-accessible jump away.
+  await expect(page.locator('.po-charge-disclosure[open]')).toHaveCount(0);
+  await expect(page.locator('.po-charge-disclosure > summary').last()).toContainText('Sample bank');
+  await page.getByRole('link', { name: 'View purchase estimate', exact: true }).click();
+  await expect(page.locator('#po-purchase-estimate')).toBeFocused();
+  const orderHelpToggle = page.locator('.po-discount').last().getByText('Cents entry help', { exact: true });
+  const orderHelp = page.locator('.po-discount').last().locator('.po-price-help');
+  await expect(orderHelp).toBeHidden();
+  await orderHelpToggle.click();
+  await expect(orderHelp).toBeVisible();
+  await orderHelpToggle.click();
+  await expect(page.getByRole('button', { name: 'Remove order discount', exact: true })).toHaveClass(/danger/);
+  await page.getByRole('link', { name: 'View purchase estimate', exact: true }).focus();
 
   // AND both appearances and supported screen sizes retain accessible controls without overflow.
   const evidence = process.env.WORKBENCH_BROWSER_EVIDENCE_DIRECTORY;
@@ -61,14 +74,19 @@ test('discounts and source charges reconcile and persist without combining suppl
   await page.evaluate(() => { document.documentElement.style.fontSize = ''; });
 
   // WHEN a confirmed amount changes THEN the save preserves edits until a correction explanation is supplied.
+  await page.getByLabel('Edit charge 1: Shipping / freight', { exact: true }).click();
   const shipping = page.getByLabel('Charge amount 1', { exact: true });
   await shipping.focus();
   await shipping.press('ControlOrMeta+A');
   await shipping.press('Backspace');
   await shipping.pressSequentially('1600');
+  await page.getByLabel('Edit charge 1: Shipping / freight', { exact: true }).click();
   await page.getByRole('button', { name: 'Save draft', exact: true }).click();
   await expect(page.getByRole('alert')).toContainText('explanation');
   await expect(page.getByLabel('Charge amount 1', { exact: true })).toHaveValue('16.00');
+  await page.getByLabel('Charge notes 1', { exact: true }).pressSequentially('U');
+  await expect(page.getByLabel('Charge notes 1', { exact: true })).toBeVisible();
+  await expect(page.getByLabel('Charge notes 1', { exact: true })).toBeFocused();
   await page.getByLabel('Charge notes 1', { exact: true }).fill('Updated shipping quote from supplier.');
   await page.getByRole('button', { name: 'Save draft', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Save draft', exact: true })).toBeDisabled();

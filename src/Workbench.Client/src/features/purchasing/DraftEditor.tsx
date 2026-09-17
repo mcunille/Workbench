@@ -275,6 +275,7 @@ export function DraftEditor({ id: initialId, onDirtyChange, onAuthLost, onSaved,
           <h1>{baseline?.poReference ?? current?.poReference ?? (id ? 'Purchase order' : 'New purchase order')}</h1><span className="po-badge">Draft</span>
         </div>
         {savedAt ? <p className="po-saved-time">Last saved {new Date(savedAt).toLocaleString()}</p> : null}
+        {draft.entries.length || draft.charges.length || draft.orderDiscount ? <a className="po-estimate-jump" href="#po-purchase-estimate" onClick={() => document.getElementById('po-purchase-estimate')?.focus({ preventScroll: true })}>View purchase estimate</a> : null}
       </header>
       {message && !Object.keys(visibleErrors).length ? <p role="alert" className="form-message error">{message}</p> : null}
       {mode === 'delete-uncertain' ? <button type="button" className="secondary" onClick={() => void removeDraft()}>Check and retry deletion</button> : null}
@@ -399,7 +400,7 @@ export function DraftEditor({ id: initialId, onDirtyChange, onAuthLost, onSaved,
           <div className="po-section-heading"><div><h2 id="po-adjustments-heading">Discounts and charges</h2><p>Apply order discounts to merchandise. Add shipping, taxes and other costs separately.</p></div></div>
           <DiscountFields label="Order discount" path="draft.orderDiscount" discount={draft.orderDiscount} base={calculation.result?.orderDiscountBase} amount={calculation.result?.orderDiscountAmount} currency={draft.currency} disabled={frozen || currencyTransition} errors={visibleErrors} change={orderDiscount => setDraft({ ...draft, orderDiscount })} />
           <DraftCharges draft={draft} baseline={baseline?.draft} disabled={frozen} amountDisabled={frozen || currencyTransition} errors={visibleErrors} change={charges => { setErrors(Object.fromEntries(Object.entries(errors).filter(([path]) => !path.startsWith('draft.charges')))); setDraft({ ...draft, charges }); }} />
-          {draft.entries.length || draft.charges.length || draft.orderDiscount ? <div className="po-merchandise-estimate" aria-live="polite">
+          {draft.entries.length || draft.charges.length || draft.orderDiscount ? <div id="po-purchase-estimate" tabIndex={-1} className="po-merchandise-estimate" aria-live="polite">
             {calculation.result ? <DraftFinancialSummary draft={draft} result={calculation.result} /> : calculation.message ? <><p>{calculation.message}</p><button type="button" className="quiet" disabled={frozen} onClick={calculation.retry}>Retry estimate</button></> : <p>{frozen ? 'Estimates resume when editing is available.' : 'Calculating estimate…'}</p>}
           </div> : null}
         </section>
