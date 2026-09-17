@@ -13,6 +13,37 @@ function setup(archived = false) {
   return { ...render(<AcquisitionDocumentsPanel {...props} />), props };
 }
 beforeEach(() => { vi.resetAllMocks(); vi.mocked(api.getDocuments).mockResolvedValue(listing); });
+it.each(['upload', 'rename', 'conflict'] as const)('keeps the frozen %s label selectable without replacing the document command', async kind => {
+  // GIVEN an entered document label and a failed upload or rename response.
+  vi.mocked(api.uploadDocument).mockRejectedValue(new TypeError('Network'));
+  vi.mocked(api.changeDocument).mockRejectedValue(kind === 'conflict' ? new ApiError(409) : new TypeError('Network'));
+  vi.mocked(api.getDocumentOperation).mockResolvedValue({ ...done, state: 'Pending' });
+  setup();
+  fireEvent.click(await screen.findByRole('button', { name: kind === 'upload' ? 'Add document' : 'Rename Receipt' }));
+  fireEvent.change(screen.getByLabelText('Document label'), { target: { value: 'Retained receipt label' } });
+  if (kind === 'upload') fireEvent.change(screen.getByLabelText('Choose document'), { target: { files: [new File(['paperwork'], 'receipt.pdf', { type: 'application/pdf' })] } });
+  fireEvent.submit(screen.getByRole('button', { name: kind === 'upload' ? 'Upload document' : 'Save label' }).closest('form')!);
+  await screen.findByText(kind === 'conflict' ? /This acquisition changed or is no longer available/ : /We could not confirm this change/);
+  const mutation = kind === 'upload' ? vi.mocked(api.uploadDocument) : vi.mocked(api.changeDocument);
+  const original = mutation.mock.calls[0];
+  // WHEN selecting recovery text THEN the label is readonly and selectable while its original input stays frozen.
+  fireEvent.click(screen.getByRole('button', { name: 'Select document label text' }));
+  const recovery = screen.getByRole('textbox', { name: 'Document label recovery text' }) as HTMLTextAreaElement;
+  expect(recovery).toHaveFocus();
+  expect(recovery).toHaveAttribute('readonly');
+  expect(recovery).toHaveValue('Retained receipt label');
+  expect(recovery.selectionStart).toBe(0);
+  expect(recovery.selectionEnd).toBe(recovery.value.length);
+  expect(screen.getByLabelText('Document label')).toBeDisabled();
+  expect(mutation).toHaveBeenCalledOnce();
+  // AND recoverable retries retain the exact original payload; conflicts stay blocked.
+  if (kind !== 'conflict') {
+    fireEvent.click(screen.getByRole('button', { name: 'Check and retry' }));
+    await screen.findByText(/We could not confirm this change/);
+    expect(mutation).toHaveBeenCalledTimes(2);
+    expect(mutation.mock.calls[1][kind === 'upload' ? 2 : 3]).toBe(original[kind === 'upload' ? 2 : 3]);
+  } else expect(screen.queryByRole('button', { name: 'Check and retry' })).not.toBeInTheDocument();
+});
 it('lists truthful metadata and permits archived downloads without mutation controls', async () => {
   // GIVEN an archived item with acquisition paperwork.
   setup(true);

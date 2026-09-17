@@ -90,4 +90,31 @@ describe('Add item', () => {
     await waitFor(() => expect(screen.getByLabelText('Name')).toHaveFocus());
     expect(screen.getByLabelText('Name')).not.toBeDisabled();
   });
+  it('makes unconfirmed item details selectable without exposing or replacing the retry command', async () => {
+    // GIVEN a lost creation response with locally entered business fields.
+    vi.mocked(createItem).mockRejectedValueOnce(new TypeError('Network')).mockResolvedValueOnce(saved);
+    const callbacks = props();
+    render(<AddItem {...callbacks} />);
+    fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'Sapphire' } });
+    fireEvent.change(screen.getByLabelText('Notes (optional)'), { target: { value: 'Keep provenance' } });
+    fireEvent.change(screen.getByLabelText('Storage location (optional)'), { target: { value: 'Tray A' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save item' }));
+    await screen.findByRole('alert');
+    const original = vi.mocked(createItem).mock.calls[0][0];
+    // WHEN selecting recovery text THEN all entered text is readonly and selected, without command metadata.
+    fireEvent.click(screen.getByRole('button', { name: 'Select item text' }));
+    const recovery = screen.getByRole('textbox', { name: 'Item recovery text' }) as HTMLTextAreaElement;
+    expect(recovery).toHaveFocus();
+    expect(recovery).toHaveAttribute('readonly');
+    expect(recovery).toHaveValue('Name: Sapphire\nNotes: Keep provenance\nLocation: Tray A');
+    expect(recovery.selectionStart).toBe(0);
+    expect(recovery.selectionEnd).toBe(recovery.value.length);
+    expect(recovery.value).not.toContain(original.creationRequestId);
+    expect(screen.getByLabelText('Name')).toBeDisabled();
+    // AND retry sends precisely the same submitted object.
+    fireEvent.click(screen.getByRole('button', { name: 'Retry save' }));
+    await waitFor(() => expect(createItem).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(callbacks.onSaved).toHaveBeenCalledWith(saved));
+    expect(vi.mocked(createItem).mock.calls[1][0]).toBe(original);
+  });
 });

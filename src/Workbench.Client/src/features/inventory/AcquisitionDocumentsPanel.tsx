@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { RecoveryText } from '../../RecoveryText';
 import { ApiError } from '../../api/auth';
 import { ItemValidationError } from '../../api/items';
 import { DocumentConflictError, changeDocument, downloadDocument, getDocumentOperation, getDocuments, uploadDocument, type AcquisitionDocument, type DocumentChange, type DocumentList, type DocumentOperation, type DocumentUpload } from '../../api/acquisitionDocuments';
@@ -126,6 +127,7 @@ export function AcquisitionDocumentsPanel({ itemId, acquisitionId, itemVersion, 
       </li>)}</ul> : <p>No documents yet.</p>}
       {!archived && !draft ? <>{list.documents.length >= 20 ? <p>Document limit reached. Remove a document before adding another.</p> : null}<button className="secondary" disabled={readOnly || list.documents.length >= 20} onClick={() => begin({ kind: 'upload' })}>Add document</button></> : null}
     </>}
+    {command && !busy && draft?.kind !== 'remove' ? <RecoveryText label="Document label" text={label} /> : null}
     {draft ? <form onSubmit={event => { event.preventDefault(); submit(); }} className="document-form">
       {draft.kind === 'remove' ? <p>Remove “{draft.document?.label}” from all linked pieces? Application access ends immediately; retained copies follow the seven-day retention policy and any holds.</p> : <label>Document label<input ref={labelInput} required maxLength={200} value={label} disabled={busy || Boolean(command)} onChange={event => setLabel(event.target.value)} /></label>}
       {draft.kind === 'upload' ? <><label>Choose document<input type="file" accept=".pdf,.jpg,.jpeg,.png,.webp" required disabled={busy || Boolean(command)} onChange={event => setFile(event.target.files?.[0])} /></label><p className="hint">PDF, JPEG, PNG or WebP, up to 10 MiB. Files are preserved as supplied and may contain embedded metadata. Format checks are not antivirus certification.</p></> : null}

@@ -91,22 +91,34 @@ test('H8 failures and interrupted bodies never expose a partial package; retry a
   await page.getByRole('link', { name: 'Export records', exact: true }).click();
   await page.getByRole('radio', { name: 'Records, photographs and acquisition documents (ZIP)', exact: true }).check();
   await page.getByRole('radio', { name: 'Active records', exact: true }).check();
-  // WHEN preparation is unavailable THEN recovery explains that photographs cannot be silently omitted.
-  await page.route('**/api/beta/items/export-package', route => route.fulfill({ status: 503 }), { times: 1 });
-  await page.getByRole('button', { name: 'Prepare export', exact: true }).click();
-  await expect(page.getByRole('alert')).toContainText('photograph or document storage');
-  // WHEN a successful-looking response has incomplete bytes THEN no download is offered.
-  await page.route('**/api/beta/items/export-package', route => route.fulfill({ status: 200, headers: { 'Content-Type': 'application/zip', 'Content-Length': '100', 'Content-Disposition': 'attachment; filename="workbench-package-v2-active-20260909T120000Z.zip"' }, body: 'partial' }), { times: 1 });
-  await page.getByRole('button', { name: 'Retry', exact: true }).click();
-  await expect(page.getByRole('alert')).toBeVisible();
-  await expect(page.getByRole('link', { name: 'Download ZIP', exact: true })).toHaveCount(0);
   let release!: () => void; const held = new Promise<void>(resolve => { release = resolve; });
   let received!: () => void; const ready = new Promise<void>(resolve => { received = resolve; });
   let delivered!: () => void; const settled = new Promise<void>(resolve => { delivered = resolve; });
+  let attempts = 0;
+  // Keep interception installed between phases: replacing one-shot handlers can race its teardown.
   await page.route('**/api/beta/items/export-package', async route => {
-    try { const response = await route.fetch(); received(); await held; await route.fulfill({ response }); }
-    finally { delivered(); }
-  }, { times: 1 });
+    attempts++;
+    if (attempts === 1) return route.fulfill({ status: 503 });
+    if (attempts === 2) return route.fulfill({ status: 200, headers: { 'Content-Type': 'application/zip', 'Content-Length': '100', 'Content-Disposition': 'attachment; filename="workbench-package-v2-active-20260909T120000Z.zip"' }, body: 'partial' });
+    if (attempts === 3) {
+      try { const response = await route.fetch(); received(); await held; await route.fulfill({ response }); }
+      finally { delivered(); }
+      return;
+    }
+    await route.continue();
+  });
+  // WHEN preparation is unavailable THEN recovery explains that photographs cannot be silently omitted.
+  await page.getByRole('button', { name: 'Prepare export', exact: true }).click();
+  await expect(page.getByRole('alert')).toContainText('photograph or document storage');
+  // WHEN a successful-looking response has incomplete bytes THEN no download is offered.
+  const partialResponse = page.waitForResponse('**/api/beta/items/export-package');
+  await page.getByRole('button', { name: 'Retry', exact: true }).click();
+  const partial = await partialResponse;
+  expect(partial.status()).toBe(200);
+  expect(partial.headers()['content-length']).toBe('100');
+  expect(attempts).toBe(2);
+  await expect(page.getByRole('alert')).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Download ZIP', exact: true })).toHaveCount(0);
   await page.getByRole('button', { name: 'Retry', exact: true }).click();
   await ready;
   // WHEN cancelling a pending complete response THEN late bytes cannot become a download.
@@ -118,4 +130,5 @@ test('H8 failures and interrupted bodies never expose a partial package; retry a
   await page.getByRole('button', { name: 'Prepare export', exact: true }).click();
   await expect(page.getByRole('link', { name: 'Download ZIP', exact: true })).toBeVisible();
   expect((await downloadPackage(page)).records.length).toBeGreaterThan(0);
+  expect(attempts).toBe(4);
 });

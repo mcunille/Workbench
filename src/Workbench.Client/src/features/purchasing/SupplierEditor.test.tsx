@@ -186,3 +186,29 @@ it('keeps supplier edits keyboard-copyable while preserving the uncertain comman
   fireEvent.click(screen.getByRole('button', { name: 'Retry save' }));
   await waitFor(() => expect(vi.mocked(createSupplier).mock.calls.at(-1)![0]).toBe(original));
 });
+it.each(['conflict-read-failed', 'saved-read-failed', 'blocked', 'comparison'] as const)('keeps frozen supplier text selectable after %s without resubmitting', async state => {
+  // GIVEN local contact edits whose save conflicts, is blocked, or needs a confirmation read.
+  vi.mocked(getSupplier).mockResolvedValueOnce(saved);
+  if (state === 'comparison') vi.mocked(getSupplier).mockResolvedValueOnce({ ...saved, version: 'v2' });
+  else vi.mocked(getSupplier).mockRejectedValueOnce(new TypeError('Network'));
+  if (state === 'saved-read-failed') vi.mocked(updateSupplier).mockResolvedValueOnce(receipt);
+  else vi.mocked(updateSupplier).mockRejectedValueOnce(new SupplierError(409, state === 'blocked' ? 'supplier_request_conflict' : 'supplier_version_conflict'));
+  render(<SupplierEditor id="one" {...props()} />);
+  await waitFor(() => expect(screen.getByLabelText('Supplier name')).toBeEnabled());
+  fireEvent.change(screen.getByLabelText('Phone'), { target: { value: 'Retain local phone' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Save supplier' }));
+  if (state === 'comparison') await screen.findByRole('region', { name: 'Compare supplier versions' });
+  else await screen.findByRole('alert');
+  // WHEN selecting retained text THEN all contact details remain keyboard-accessible and readonly.
+  fireEvent.click(screen.getByRole('button', { name: 'Select supplier text' }));
+  const recovery = screen.getByRole('textbox', { name: 'Supplier recovery text' }) as HTMLTextAreaElement;
+  expect(recovery).toHaveFocus();
+  expect(recovery).toHaveAttribute('readonly');
+  expect(recovery.value).toContain('Retain local phone');
+  expect(recovery.selectionStart).toBe(0);
+  expect(recovery.selectionEnd).toBe(recovery.value.length);
+  expect(screen.getByLabelText('Phone')).toBeDisabled();
+  // AND selecting text does not mutate or bypass conflict reconciliation.
+  expect(screen.getByRole('button', { name: 'Save supplier' })).toBeDisabled();
+  expect(updateSupplier).toHaveBeenCalledOnce();
+});

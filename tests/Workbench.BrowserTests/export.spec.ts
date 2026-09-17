@@ -98,17 +98,23 @@ test('H7 empty, failed and disconnected preparations never offer a partial downl
   await page.getByRole('link', { name: 'Export records', exact: true }).click();
   await page.getByRole('radio', { name: 'Active records', exact: true }).check();
   const prepare = page.getByRole('button', { name: 'Prepare export', exact: true });
+  let attempts = 0;
+  // Keep a single handler installed while advancing through failure and recovery.
+  await page.route('**/api/beta/items/export', route => {
+    attempts++;
+    if (attempts === 1) return route.fulfill({ status: 204 });
+    if (attempts === 2) return route.fulfill({ status: 503, contentType: 'application/problem+json', json: { title: 'Preparation failed', code: 'export_preparation_failed' } });
+    if (attempts === 3) return route.abort('failed');
+    return route.continue();
+  });
   // WHEN the selected scope is empty THEN no file is offered.
-  await page.route('**/api/beta/items/export', route => route.fulfill({ status: 204 }), { times: 1 });
   await prepare.click();
   await expect(page.getByRole('status')).toContainText(/no records/i);
   await expect(page.getByRole('link', { name: 'Download CSV', exact: true })).toHaveCount(0);
   // WHEN preparation fails THEN retry is explicit and there is no stale file.
-  await page.route('**/api/beta/items/export', route => route.fulfill({ status: 503, contentType: 'application/problem+json', json: { title: 'Preparation failed', code: 'export_preparation_failed' } }), { times: 1 });
   await page.getByRole('button', { name: 'Prepare new export', exact: true }).click();
   await expect(page.getByRole('alert')).toBeVisible();
   await expect(page.getByRole('link', { name: 'Download CSV', exact: true })).toHaveCount(0);
-  await page.route('**/api/beta/items/export', route => route.abort('failed'), { times: 1 });
   await page.getByRole('button', { name: /retry/i }).click();
   await expect(page.getByRole('alert')).toBeVisible();
   await expect(page.getByRole('link', { name: 'Download CSV', exact: true })).toHaveCount(0);
@@ -116,6 +122,7 @@ test('H7 empty, failed and disconnected preparations never offer a partial downl
   await page.getByRole('button', { name: /retry/i }).click();
   await expect(page.getByRole('link', { name: 'Download CSV', exact: true })).toBeVisible();
   expect((await downloadExport(page)).length).toBeGreaterThan(0);
+  expect(attempts).toBe(4);
 });
 
 test('H7 cancelling preparation rejects a late complete response and lets the collector prepare again', async ({ page }) => {

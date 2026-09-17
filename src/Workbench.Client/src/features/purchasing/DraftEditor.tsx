@@ -294,7 +294,7 @@ export function DraftEditor({ id: initialId, onDirtyChange, onAuthLost, onSaved,
           </div>
         </section>
       ) : null}
-      {mode === 'uncertain' || mode === 'delete-uncertain' ? <RecoveryText label="Purchase draft" text={recoveryText(draft)} /> : null}
+      {['uncertain', 'delete-uncertain', 'current-failed', 'conflict-failed', 'comparison', 'blocked'].includes(mode) && recoveryText(draft) ? <RecoveryText label="Purchase draft" text={recoveryText(draft)} /> : null}
       <form id="po-draft-form" className="form-stack" noValidate onSubmit={event => { event.preventDefault(); void save(); }}>
         {Object.keys(visibleErrors).length ? (
           <div role="alert" className="po-validation-summary" tabIndex={-1} id={fieldId('draft')}>

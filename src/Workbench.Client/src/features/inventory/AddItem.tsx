@@ -1,4 +1,6 @@
 import { FloatingField } from '../../FloatingField';
+import { RecoveryText } from '../../RecoveryText';
+import { recoveryText } from '../../formatRecoveryText';
 import { useEffect, useRef, useState } from 'react';
 import { ApiError } from '../../api/auth';
 import {
@@ -96,6 +98,7 @@ export function AddItem({
       <p className="lede">
         Start with a name. Add whatever helps you recognize and find this piece.
       </p>
+      {submitted && !pending ? <RecoveryText label="Item" text={recoveryText({ name: submitted.name, notes: submitted.notes, location: submitted.location })} /> : null}
       <form
         ref={form}
         className="form-stack"
