@@ -71,6 +71,8 @@ it('adds a gift with unknown date and source without inventing facts or another 
     }),
   );
   const { onDirtyChange } = setup();
+  // AND the item has loaded before its acquisition request can complete.
+  await screen.findByRole('heading', { name: 'Stone', level: 1 });
   // WHEN adding only the known method.
   fireEvent.click(
     await screen.findByRole('button', { name: 'Add acquisition' }),
