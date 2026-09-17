@@ -3304,7 +3304,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/DraftCalculationResponse"
+                  "$ref": "#/components/schemas/DraftCalculationResponseV4"
                 }
               }
             }
@@ -4768,6 +4768,169 @@
           }
         }
       },
+      "DraftCalculationResponseV4": {
+        "required": [
+          "lines",
+          "incompleteLineCount",
+          "merchandiseEstimate",
+          "lineDiscountTotal",
+          "merchandiseNet",
+          "orderDiscountBase",
+          "orderDiscountAmount",
+          "discountedMerchandise",
+          "supplierCharges",
+          "thirdPartyCharges",
+          "supplierEstimate",
+          "purchaseEstimate",
+          "incompleteChargeCount"
+        ],
+        "type": "object",
+        "properties": {
+          "lines": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DraftLineCalculationV4"
+            }
+          },
+          "incompleteLineCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "merchandiseEstimate": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "lineDiscountTotal": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "merchandiseNet": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "orderDiscountBase": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "orderDiscountAmount": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "discountedMerchandise": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "supplierCharges": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "thirdPartyCharges": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "supplierEstimate": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "purchaseEstimate": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "incompleteChargeCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        }
+      },
+      "DraftCharge": {
+        "required": [
+          "id",
+          "category",
+          "label",
+          "amount",
+          "payeeKind",
+          "payeeName",
+          "amountStatus",
+          "reference",
+          "notes"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "category": {
+            "type": "string"
+          },
+          "label": {
+            "maxLength": 200,
+            "type": "string"
+          },
+          "amount": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "payeeKind": {
+            "type": "string"
+          },
+          "payeeName": {
+            "maxLength": 200,
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "amountStatus": {
+            "type": "string"
+          },
+          "reference": {
+            "maxLength": 200,
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "notes": {
+            "maxLength": 2000,
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "additionalProperties": false
+      },
       "DraftContent": {
         "required": [
           "title",
@@ -5073,7 +5236,9 @@
           "supplierWebsite",
           "supplierPostalAddress",
           "supplierOrderReference",
-          "platform"
+          "platform",
+          "orderDiscount",
+          "charges"
         ],
         "type": "object",
         "properties": {
@@ -5174,6 +5339,39 @@
               "null",
               "string"
             ]
+          },
+          "orderDiscount": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/DraftDiscount"
+              }
+            ]
+          },
+          "charges": {
+            "maxItems": 50,
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DraftCharge"
+            }
+          }
+        },
+        "additionalProperties": false
+      },
+      "DraftDiscount": {
+        "required": [
+          "mode",
+          "value"
+        ],
+        "type": "object",
+        "properties": {
+          "mode": {
+            "type": "string"
+          },
+          "value": {
+            "type": "string"
           }
         },
         "additionalProperties": false
@@ -5346,7 +5544,8 @@
           "price",
           "legacyPricing",
           "supplierSku",
-          "itemType"
+          "itemType",
+          "discount"
         ],
         "type": "object",
         "properties": {
@@ -5425,6 +5624,16 @@
               "null",
               "string"
             ]
+          },
+          "discount": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/DraftDiscount"
+              }
+            ]
           }
         },
         "additionalProperties": false
@@ -5491,6 +5700,46 @@
             "format": "uuid"
           },
           "gross": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "DraftLineCalculationV4": {
+        "required": [
+          "id",
+          "gross",
+          "discountBase",
+          "discountAmount",
+          "net"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "gross": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "discountBase": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "discountAmount": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "net": {
             "type": [
               "null",
               "string"
@@ -5680,7 +5929,7 @@
             "type": "boolean"
           },
           "calculation": {
-            "$ref": "#/components/schemas/DraftCalculationResponse"
+            "$ref": "#/components/schemas/DraftCalculationResponseV4"
           }
         }
       },

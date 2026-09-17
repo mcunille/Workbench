@@ -67,3 +67,17 @@ it('pastes whole monetary amounts without shifting them into cents', () => {
   expect(field).toHaveValue('20.00');
   expect(screen.getByRole('checkbox')).not.toBeChecked();
 });
+
+it('keeps a selected amount selected when a calculation response rerenders the editor', () => {
+  // GIVEN a saved amount selected for replacement.
+  const { rerender } = render(<Harness initial="15.00" />);
+  const field = screen.getByLabelText('Reference price 1') as HTMLInputElement;
+  field.focus(); field.setSelectionRange(0, field.value.length);
+  // WHEN unrelated parent state updates THEN it must not collapse the user's selection.
+  rerender(<Harness initial="15.00" />);
+  expect(field.selectionStart).toBe(0);
+  expect(field.selectionEnd).toBe(field.value.length);
+  // AND replacement deletion clears the entire amount rather than just its last digit.
+  fireEvent.keyDown(field, { key: 'Backspace' });
+  expect(field).toHaveValue('');
+});

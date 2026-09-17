@@ -5,10 +5,11 @@ import { FloatingField } from '../../FloatingField';
 import { ReferencePriceField } from './ReferencePriceField';
 import { formatReferencePrice } from './referencePrice';
 import { LegacyPricingDetails } from './LegacyPricingDetails';
+import { DiscountFields } from './DiscountFields';
 
-export function DraftLineFields({ entry, index, errors, disabled, priceDisabled, change, gross, currency }: {
+export function DraftLineFields({ entry, index, errors, disabled, priceDisabled, change, gross, net, discountAmount, currency }: {
   entry: DraftEntry; index: number; errors: Record<string, string[]>; disabled: boolean; priceDisabled: boolean;
-  change(patch: Partial<DraftEntry>): void; gross?: string | null; currency: string | null;
+  change(patch: Partial<DraftEntry>): void; gross?: string | null; net?: string | null; discountAmount?: string | null; currency: string | null;
 }) {
   const path = `draft.entries[${index - 1}]`;
   const id = (key: string) => `po-${`${path}.${key}`.replace(/[^a-zA-Z0-9]/g, '-')}`;
@@ -70,6 +71,8 @@ export function DraftLineFields({ entry, index, errors, disabled, priceDisabled,
       <span>{gross === undefined ? 'Estimate pending' : gross === null ? 'Line estimate: Unknown' : `${currency} ${formatReferencePrice(gross)}`}</span>
       {gross != null ? <p>{entry.priceMode === 'lineTotal' ? 'Total line price' : `${quantityLabel(entry.quantity, entry.unitOfMeasure)} × ${currency} ${formatReferencePrice(entry.price)}`}</p> : null}
     </div>
+    <DiscountFields label={`Line discount ${index}`} path={`${path}.discount`} discount={entry.discount} base={gross} amount={discountAmount} currency={currency} disabled={priceDisabled} errors={errors} change={discount => change({ discount })} />
+    {entry.discount ? <p className="po-line-net">Line net: {net === undefined ? 'Calculating…' : net === null ? 'Unknown' : `${currency} ${formatReferencePrice(net)}`}</p> : null}
     <details className="po-entry-details" open={expanded || ['notes', 'sourceLink', 'supplierSku', 'itemType'].some(key => !!error(key))} onToggle={event => setExpanded(event.currentTarget.open)}>
       <summary onClick={event => { event.preventDefault(); setExpanded(value => !value); }}>Line details{[entry.supplierSku, entry.itemType, entry.notes ? 'Notes' : null, entry.sourceLink ? 'Source link' : null].filter(Boolean).length ? <span className="po-line-metadata">{[entry.supplierSku, entry.itemType, entry.notes ? 'Notes' : null, entry.sourceLink ? 'Source link' : null].filter(Boolean).join(' · ')}</span> : null}</summary><div className="po-entry-secondary">
         {field('supplierSku', 'Supplier SKU')}{field('itemType', 'Item type')}

@@ -40,7 +40,7 @@ export async function deleteDraft(id: string, body: DeleteDraftRequest): Promise
   return requireDraft(await api.DELETE('/api/v4/purchase-order-drafts/{id}', { params: { path: { id } }, body, headers: await mutationHeaders() }));
 }
 
-export type DraftCalculation = components['schemas']['DraftCalculationResponse'];
+export type DraftCalculation = components['schemas']['DraftCalculationResponseV4'];
 export async function calculateDraft(draft: DraftContent, signal?: AbortSignal): Promise<DraftCalculation> {
   return requireDraft(await api.POST('/api/v4/purchase-order-drafts/calculate', { body: { draft }, signal, headers: await mutationHeaders() }));
 }

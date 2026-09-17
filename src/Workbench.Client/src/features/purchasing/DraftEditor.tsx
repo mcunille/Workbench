@@ -15,6 +15,10 @@ import { emptyLine, formatQuantity, hasLinePrice } from './draftLine';
 import { useDraftCalculation } from './useDraftCalculation';
 import { deleteDraft, type DeleteDraftRequest } from '../../api/purchaseOrders';
 import { DeleteDraftDialog } from './DeleteDraftDialog';
+import { DraftCharges } from './DraftCharges';
+import { DiscountFields } from './DiscountFields';
+import { DraftFinancialSummary } from './DraftFinancialSummary';
+import { clearDraftAmounts, hasAdjustments, hasMonetaryAmounts, type Discount } from './draftFinances';
 
 type Mode = 'loading' | 'editing' | 'saving' | 'uncertain' | 'current-loading' | 'current-failed' | 'conflict-loading' | 'conflict-failed' | 'comparison' | 'blocked' | 'load-failed' | 'deleting' | 'delete-uncertain';
 type Submission = { id?: string; body: CreateDraftRequest | UpdateDraftRequest };
@@ -26,8 +30,9 @@ interface Props {
   onCreated(id: string): void;
   onCancel(): void;
 }
-const displayDraft = (draft: DraftContent): DraftContent => ({ ...draft, entries: draft.entries.map(entry => ({ ...entry, quantity: formatQuantity(entry.quantity), indicativePrice: formatReferencePrice(entry.indicativePrice), price: formatReferencePrice(entry.price) })) });
-const emptyDraft = (): DraftContent => ({ title: null, supplierName: null, supplierId: null, supplierContactName: null, supplierEmail: null, supplierPhone: null, supplierWebsite: null, supplierPostalAddress: null, supplierOrderReference: null, platform: null, currency: null, notes: null, sourceLinks: [], entries: [] });
+const displayDiscount = (discount: Discount | null | undefined): Discount | null => discount ? { ...discount, value: (discount.mode === 'fixed' ? formatReferencePrice(discount.value) : formatQuantity(discount.value)) ?? '' } : null;
+const displayDraft = (draft: DraftContent): DraftContent => ({ ...draft, orderDiscount: displayDiscount(draft.orderDiscount), charges: (draft.charges ?? []).map(charge => ({ ...charge, amount: formatReferencePrice(charge.amount) })), entries: draft.entries.map(entry => ({ ...entry, discount: displayDiscount(entry.discount), quantity: formatQuantity(entry.quantity), indicativePrice: formatReferencePrice(entry.indicativePrice), price: formatReferencePrice(entry.price) })) });
+const emptyDraft = (): DraftContent => ({ title: null, supplierName: null, supplierId: null, supplierContactName: null, supplierEmail: null, supplierPhone: null, supplierWebsite: null, supplierPostalAddress: null, supplierOrderReference: null, platform: null, currency: null, notes: null, sourceLinks: [], entries: [], orderDiscount: null, charges: [] });
 const fieldId = (path: string) => `po-${path.replace(/[^a-zA-Z0-9]/g, '-')}`;
 const optional = (text: string) => text === '' ? null : text;
 
@@ -121,7 +126,7 @@ export function DraftEditor({ id: initialId, onDirtyChange, onAuthLost, onSaved,
     setUndoBoundary({ mode, currency: draft.currency });
     if (mode !== 'editing' || undoBoundary.currency !== draft.currency) setRemovedEntries([]);
   }
-  const hasPrices = draft.entries.some(hasLinePrice);
+  const hasPrices = hasMonetaryAmounts(draft) || hasAdjustments(draft);
   const currencyTransition = !!baseline?.draft.currency && (draft.currency?.trim().toUpperCase() ?? null) !== baseline.draft.currency;
 
   function accessFailure(error: unknown) {
@@ -252,8 +257,8 @@ export function DraftEditor({ id: initialId, onDirtyChange, onAuthLost, onSaved,
       </SupplierDialog> : null}
       {confirmingDelete && baseline && !frozen ? <DeleteDraftDialog title={baseline.draft.title ?? 'Untitled draft'}
         cancel={() => setConfirmingDelete(false)} confirm={() => void removeDraft()} /> : null}
-      {clearingPrices && !frozen ? <ClearPricesDialog count={draft.entries.filter(hasLinePrice).length} cancel={() => setClearingPrices(false)} clear={() => {
-        setDraft({ ...draft, entries: draft.entries.map(entry => ({ ...entry, indicativePrice: null, price: null, legacyPricing: null })) });
+      {clearingPrices && !frozen ? <ClearPricesDialog count={draft.entries.filter(hasLinePrice).length} confirmedCharges={draft.charges.some(charge => baseline?.draft.charges.some(saved => saved.id === charge.id && saved.amountStatus === 'confirmed'))} cancel={() => setClearingPrices(false)} clear={reason => {
+        setDraft(clearDraftAmounts(draft, baseline?.draft, reason));
         setClearingPrices(false);
       }} /> : null}
       <div ref={toolbarStart} className="po-toolbar-start" aria-hidden="true" />
@@ -270,6 +275,7 @@ export function DraftEditor({ id: initialId, onDirtyChange, onAuthLost, onSaved,
           <h1>{baseline?.poReference ?? current?.poReference ?? (id ? 'Purchase order' : 'New purchase order')}</h1><span className="po-badge">Draft</span>
         </div>
         {savedAt ? <p className="po-saved-time">Last saved {new Date(savedAt).toLocaleString()}</p> : null}
+        {draft.entries.length || draft.charges.length || draft.orderDiscount ? <a className="po-estimate-jump" href="#po-purchase-estimate" onClick={() => document.getElementById('po-purchase-estimate')?.focus({ preventScroll: true })}>View purchase estimate</a> : null}
       </header>
       {message && !Object.keys(visibleErrors).length ? <p role="alert" className="form-message error">{message}</p> : null}
       {mode === 'delete-uncertain' ? <button type="button" className="secondary" onClick={() => void removeDraft()}>Check and retry deletion</button> : null}
@@ -341,23 +347,23 @@ export function DraftEditor({ id: initialId, onDirtyChange, onAuthLost, onSaved,
           </div>
           <div className="po-currency-row">
             {field('draft.currency', 'Currency', draft.currency, currency => setDraft({ ...draft, currency }), {
-              placeholder: 'Not set', disabled: !!baseline?.draft.currency && baseline.draft.entries.some(hasLinePrice),
+              placeholder: 'Not set', disabled: !!baseline?.draft.currency && hasMonetaryAmounts(baseline.draft),
             })}
             <div className="po-field-help">
-              <p>Prices use this currency. Clear prices and save before changing it.</p>
+              <p>Prices, discounts and charges use this currency. To change it, clear all amounts and save first.</p>
               {hasPrices ? (
-                <button className="quiet" type="button" disabled={frozen} onClick={() => setClearingPrices(true)}>Clear all prices</button>
+                <button className="quiet" type="button" disabled={frozen} onClick={() => setClearingPrices(true)}>Clear all amounts</button>
               ) : null}
             </div>
           </div>
-          {currencyTransition ? <p role="status">Save the changed currency with all prices cleared before entering new prices.</p> : null}
+          {currencyTransition ? <p role="status">Save the new currency before entering amounts.</p> : null}
           {draft.entries.length === 0 ? <p className="po-section-empty">Add a line to itemize your purchase. You can save an empty draft too.</p> : null}
           {draft.entries.map((entry, index) => {
             return (
               <DraftLine key={entry.id} entry={entry} index={index + 1} currency={draft.currency}
                 initialOpen={!baseline?.draft.entries.some(saved => saved.id === entry.id)}
                 invalid={Object.keys(visibleErrors).some(path => path.startsWith(`draft.entries[${index}]`))}
-                gross={calculation.result?.lines.find(line => line.id === entry.id)?.gross}>
+                gross={entry.discount ? calculation.result?.lines.find(line => line.id === entry.id)?.net : calculation.result?.lines.find(line => line.id === entry.id)?.gross}>
               <fieldset className="po-entry" aria-labelledby={`po-entry-title-${entry.id}`}>
                 <div className="po-entry-heading">
                   <button className="quiet danger" type="button" aria-label={`Remove line ${index + 1}`} disabled={frozen} onClick={() => {
@@ -371,6 +377,8 @@ export function DraftEditor({ id: initialId, onDirtyChange, onAuthLost, onSaved,
                 <DraftLineFields entry={entry} index={index + 1} errors={visibleErrors} disabled={frozen}
                   priceDisabled={frozen || currencyTransition} currency={draft.currency}
                   gross={calculation.result?.lines.find(line => line.id === entry.id)?.gross}
+                  net={calculation.result?.lines.find(line => line.id === entry.id)?.net}
+                  discountAmount={calculation.result?.lines.find(line => line.id === entry.id)?.discountAmount}
                   change={patch => setDraft({ ...draft, entries: draft.entries.map(old => old.id === entry.id ? { ...old, ...patch } : old) })} />
               </fieldset>
               </DraftLine>
@@ -387,12 +395,13 @@ export function DraftEditor({ id: initialId, onDirtyChange, onAuthLost, onSaved,
             }}>Undo removal</button></div> : null}
             <button ref={addEntryButton} className="secondary" type="button" disabled={frozen} onClick={addLine}><Icon name="plus" />Add line</button>
           </div>
-          {draft.entries.length ? <div className="po-merchandise-estimate" aria-live="polite">
-            {calculation.result ? <>
-              <h3>{calculation.result.incompleteLineCount ? 'Known line subtotal' : 'Merchandise estimate'}</h3>
-              <p className="po-estimate-value">{calculation.result.merchandiseEstimate === null ? 'Unknown' : `${draft.currency} ${formatReferencePrice(calculation.result.merchandiseEstimate)}`}</p>
-              <p>{calculation.result.incompleteLineCount ? `${calculation.result.incompleteLineCount} ${calculation.result.incompleteLineCount === 1 ? 'line needs' : 'lines need'} quantity or pricing details. ` : ''}Before discounts, shipping and tax.</p>
-            </> : calculation.message ? <><p>{calculation.message}</p><button type="button" className="quiet" disabled={frozen} onClick={calculation.retry}>Retry estimate</button></> : <p>{frozen ? 'Estimates resume when editing is available.' : 'Calculating estimate…'}</p>}
+        </section>
+        <section className="po-form-section" aria-labelledby="po-adjustments-heading">
+          <div className="po-section-heading"><div><h2 id="po-adjustments-heading">Discounts and charges</h2><p>Apply order discounts to merchandise. Add shipping, taxes and other costs separately.</p></div></div>
+          <DiscountFields label="Order discount" path="draft.orderDiscount" discount={draft.orderDiscount} base={calculation.result?.orderDiscountBase} amount={calculation.result?.orderDiscountAmount} currency={draft.currency} disabled={frozen || currencyTransition} errors={visibleErrors} change={orderDiscount => setDraft({ ...draft, orderDiscount })} />
+          <DraftCharges draft={draft} baseline={baseline?.draft} disabled={frozen} amountDisabled={frozen || currencyTransition} errors={visibleErrors} change={charges => { setErrors(Object.fromEntries(Object.entries(errors).filter(([path]) => !path.startsWith('draft.charges')))); setDraft({ ...draft, charges }); }} />
+          {draft.entries.length || draft.charges.length || draft.orderDiscount ? <div id="po-purchase-estimate" tabIndex={-1} className="po-merchandise-estimate" aria-live="polite">
+            {calculation.result ? <DraftFinancialSummary draft={draft} result={calculation.result} /> : calculation.message ? <><p>{calculation.message}</p><button type="button" className="quiet" disabled={frozen} onClick={calculation.retry}>Retry estimate</button></> : <p>{frozen ? 'Estimates resume when editing is available.' : 'Calculating estimate…'}</p>}
           </div> : null}
         </section>
         <section className="po-form-section" aria-labelledby="po-context-heading">

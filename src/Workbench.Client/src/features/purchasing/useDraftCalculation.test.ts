@@ -1,17 +1,18 @@
+import { zeroAdjustmentCalculation } from '../../test/draftCalculationFixture';
 import { act, renderHook } from '@testing-library/react';
 import { vi } from 'vitest';
 import { calculateDraft, DraftError, type DraftContent, type DraftCalculation } from '../../api/purchaseOrders';
 import { useDraftCalculation } from './useDraftCalculation';
 import { emptyLine } from './draftLine';
 vi.mock('../../api/purchaseOrders', async original => ({ ...await original<typeof import('../../api/purchaseOrders')>(), calculateDraft: vi.fn() }));
-const draft: DraftContent = { title: null, supplierName: null, supplierId: null, supplierContactName: null, supplierEmail: null, supplierPhone: null, supplierWebsite: null, supplierPostalAddress: null, supplierOrderReference: null, platform: null, currency: 'USD', notes: null, sourceLinks: [], entries: [emptyLine('line')] };
-const result: DraftCalculation = { lines: [{ id: 'line', gross: '200.0000' }], incompleteLineCount: 0, merchandiseEstimate: '200.0000' };
+const draft: DraftContent = { orderDiscount: null, charges: [], title: null, supplierName: null, supplierId: null, supplierContactName: null, supplierEmail: null, supplierPhone: null, supplierWebsite: null, supplierPostalAddress: null, supplierOrderReference: null, platform: null, currency: 'USD', notes: null, sourceLinks: [], entries: [emptyLine('line')] };
+const result: DraftCalculation = zeroAdjustmentCalculation({ lines: [{ id: 'line', gross: '200.0000' }], incompleteLineCount: 0, merchandiseEstimate: '200.0000' });
 beforeEach(() => { vi.useFakeTimers(); vi.mocked(calculateDraft).mockReset(); });
 afterEach(() => vi.useRealTimers());
 it('aborts obsolete requests and never displays their results for newer input', async () => {
   // GIVEN a calculation whose response will arrive after a subsequent edit.
   let resolveOld!: (value: DraftCalculation) => void;
-  vi.mocked(calculateDraft).mockImplementationOnce(() => new Promise(resolve => { resolveOld = resolve; })).mockResolvedValueOnce({ ...result, merchandiseEstimate: '250.0000' });
+  vi.mocked(calculateDraft).mockImplementationOnce(() => new Promise(resolve => { resolveOld = resolve; })).mockResolvedValueOnce(zeroAdjustmentCalculation({ lines: [{ id: 'line', gross: '250.0000' }], incompleteLineCount: 0, merchandiseEstimate: '250.0000' }));
   const lost = vi.fn();
   const view = renderHook(({ content }) => useDraftCalculation(content, true, lost), { initialProps: { content: draft } });
   await act(() => vi.advanceTimersByTimeAsync(300));

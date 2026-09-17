@@ -11,8 +11,8 @@ function fromDigits(value: string): string | null {
   const padded = digits.padStart(3, '0');
   return `${padded.slice(0, -2)}.${padded.slice(-2)}`;
 }
-export function ReferencePriceField({ id, index, value, onChange, disabled, error, label = 'Reference price' }: {
-  id: string; index: number; value: string | null; onChange(value: string | null): void; disabled: boolean; error?: string; label?: string;
+export function ReferencePriceField({ id, index, value, onChange, disabled, error, label = 'Reference price', precisionLabel, required = false, emptyHint = 'Leave blank if unknown.' }: {
+  id: string; index?: number; value: string | null; onChange(value: string | null): void; disabled: boolean; error?: string; label?: string; precisionLabel?: string; required?: boolean; emptyHint?: string;
 }) {
   const [requestedPrecision, setRequestedPrecision] = useState(() => needsPrecision(value));
   const preciseValue = needsPrecision(value);
@@ -27,13 +27,13 @@ export function ReferencePriceField({ id, index, value, onChange, disabled, erro
 
     }
     restoreFocus.current = null;
-    if (!extra && input.current === document.activeElement && input.current) pinCaret(input.current);
+    if (!extra && input.current === document.activeElement && input.current && input.current.selectionStart === input.current.selectionEnd) pinCaret(input.current);
   });
   return <div className="po-field po-price-field">
     <FloatingField htmlFor={id} label={label}>
       {/* Recreate the native input when its keyboard mode changes to avoid collapsed layout in Chromium. */}
-      <input key={extra ? 'decimal' : 'cents'} ref={input} id={id} value={value ?? ''} disabled={disabled} placeholder="0.00"
-        inputMode={extra ? 'decimal' : 'numeric'} aria-label={`${label} ${index}`} aria-invalid={!!error}
+      <input key={extra ? 'decimal' : 'cents'} ref={input} id={id} value={value ?? ''} disabled={disabled} required={required} placeholder="0.00"
+        inputMode={extra ? 'decimal' : 'numeric'} aria-label={index === undefined ? label : `${label} ${index}`} aria-invalid={!!error}
         aria-describedby={`${id}-help${error ? ` ${id}-error` : ''}`}
         onFocus={event => { if (!extra) pinCaret(event.currentTarget); }}
         onMouseUp={event => { if (!extra && event.currentTarget.selectionStart === event.currentTarget.selectionEnd) pinCaret(event.currentTarget); }}
@@ -66,13 +66,15 @@ export function ReferencePriceField({ id, index, value, onChange, disabled, erro
             : /^[\d.]*$/.test(text) && (text.match(/\./g)?.length ?? 0) <= 1 ? fromDigits(text) : text || null);
         }} />
     </FloatingField>
-    <span className="po-price-mode">{extra ? 'Full precision · up to 4 decimals' : 'Cents entry · 2 decimals'}</span>
+    <div className="po-price-options"><details className="po-price-guidance">
+      <summary>{extra ? 'Decimal entry help' : 'Cents entry help'}</summary>
+      <p id={`${id}-help`} className="po-price-help">{extra ? 'Type a decimal amount, up to four decimal places. Remove extra digits to return to two-decimal entry.' : 'Cents entry: 1234 → 12.34. Paste a full amount.'} {emptyHint}</p>
+    </details>
     <label className="po-precision-toggle"><input type="checkbox" checked={extra} disabled={disabled || preciseValue}
-      aria-label={`Use extra precision for line ${index}`} onChange={event => {
+      aria-label={`Use extra precision for ${precisionLabel ?? (index === undefined ? label.toLowerCase() : `line ${index}`)}`} onChange={event => {
         setRequestedPrecision(event.target.checked);
         if (!event.target.checked) onChange(formatReferencePrice(value));
-      }} />Use extra precision</label>
-    <p id={`${id}-help`} className="po-price-help">{extra ? 'Type a decimal amount, up to four decimal places. Remove extra digits to return to two-decimal entry.' : 'Cents entry: 1234 → 12.34. Paste a full amount. Leave blank if unknown.'}</p>
+      }} />Use extra precision</label></div>
     {error ? <p id={`${id}-error`} className="form-message error">{error}</p> : null}
   </div>;
 }

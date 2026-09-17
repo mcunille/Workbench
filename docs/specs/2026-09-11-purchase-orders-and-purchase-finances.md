@@ -115,7 +115,9 @@ Capture these charges when applicable, with a label, amount, payee, and supporti
 A charge owed to a carrier, bank, or customs broker contributes to the purchase's recorded cost but
 must not increase the supplier's invoice balance. Each charge is counted once, even if it appears
 in both an order estimate and an invoice. Mark estimated versus confirmed amounts and retain the
-source of a correction. Do not infer tax rates, recoverability, tax treatment, or capitalization
+source of a correction. For a confirmed supplier-paid charge, changing or clearing the order's
+supplier ID or supplier-name snapshot changes its effective payee and requires new explanatory
+charge notes. Contact-only edits do not change that payee. Do not infer tax rates, recoverability, tax treatment, or capitalization
 from a fee label; accounting and automated tax policies require a separate design.
 
 Discounts may be a fixed amount or percentage at line or order level. Record the applicable base,

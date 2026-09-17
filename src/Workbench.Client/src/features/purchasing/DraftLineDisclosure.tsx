@@ -16,6 +16,7 @@ export function DraftLine({ entry, index, initialOpen, invalid, gross, currency,
       <span className="po-line-summary-copy">
         <span id={`po-entry-title-${entry.id}`} className="po-line-title">{entry.description?.trim() || `Line ${index}`}</span>
         <span className="po-line-summary-quantity">{quantityLabel(entry.quantity, entry.unitOfMeasure)}</span>
+        {entry.discount ? <span className="po-line-summary-quantity">Net after {entry.discount.mode === 'percentage' ? `${entry.discount.value}%` : `${currency} ${formatReferencePrice(entry.discount.value)}`} discount</span> : null}
       </span>
       <span className="po-line-summary-price">{invalid ? 'Review line' : gross === undefined ? 'Estimate pending' : gross === null ? 'Estimate unknown' : `${currency} ${formatReferencePrice(gross)}`}</span>
     </summary>

@@ -49,12 +49,12 @@ test('incomplete shopping list survives reload and another session with unknown 
   await expect(page.getByLabel('Notes', { exact: true })).toHaveValue('Ask about shipping before ordering.');
 
   // WHEN clearing is requested THEN Cancel receives focus and Escape preserves prices.
-  await page.getByRole('button', { name: 'Clear all prices' }).click();
+  await page.getByRole('button', { name: 'Clear all amounts' }).click();
   await expect(page.getByRole('button', { name: 'Cancel', exact: true })).toBeFocused();
   await page.keyboard.press('Escape');
   await expect(page.getByRole('dialog')).toHaveCount(0);
   await expect(page.getByLabel('Unit price 2', { exact: true })).toHaveValue('0.00');
-  await expect(page.getByRole('button', { name: 'Clear all prices' })).toBeFocused();
+  await expect(page.getByRole('button', { name: 'Clear all amounts' })).toBeFocused();
 
   // AND a distinct authenticated session can resume the same saved draft.
   const otherContext = await browser.newContext({ baseURL: browserBaseUrl });
