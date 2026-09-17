@@ -32,6 +32,19 @@ test('discounts and source charges reconcile and persist without combining suppl
   }
   await page.getByLabel('Payee 3', { exact: true }).selectOption('thirdParty');
   await page.getByLabel('Payee name 3', { exact: true }).fill('Sample bank');
+  // GIVEN an expanded third-party charge at tablet width.
+  await page.setViewportSize({ width: 820, height: 900 });
+  // THEN the amount and its status share a row, followed by the payee and its name.
+  const chargeFieldTop = async (label: string) => {
+    const control = page.getByLabel(label, { exact: true });
+    await expect(control).toBeVisible();
+    return (await control.boundingBox())!.y;
+  };
+  await expect.poll(async () => Math.abs(await chargeFieldTop('Charge amount 3') - await chargeFieldTop('Amount status 3'))).toBeLessThan(2);
+  await expect.poll(async () => Math.abs(await chargeFieldTop('Payee 3') - await chargeFieldTop('Payee name 3'))).toBeLessThan(2);
+  expect(await chargeFieldTop('Payee 3')).toBeGreaterThan(await chargeFieldTop('Charge amount 3'));
+  await page.getByLabel('Amount status 3', { exact: true }).press('Tab');
+  await expect(page.getByLabel('Payee 3', { exact: true })).toBeFocused();
   // THEN supplier and whole-purchase estimates reconcile independently with inspectable bases.
   await expect(page.locator('.po-summary-subtotal dd')).toHaveText('USD 306.60');
   await expect(page.locator('.po-summary-total dd')).toHaveText('USD 309.60');
@@ -61,17 +74,41 @@ test('discounts and source charges reconcile and persist without combining suppl
   if (evidence) await mkdir(evidence, { recursive: true });
   for (const appearance of ['light', 'dark'] as const) {
     await setAppearance(page, appearance === 'dark');
-    for (const width of [1440, 390]) {
+    for (const width of [1440, 1265, 820, 390]) {
       await page.setViewportSize({ width, height: 960 });
       await page.evaluate(() => window.scrollTo(0, 0));
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
       if (evidence) await page.screenshot({ path: path.join(evidence, `po05-${appearance}-${width}.png`), fullPage: true });
+      await page.getByLabel('Edit charge 3: Payment / bank / currency-conversion fee', { exact: true }).click();
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+      if (evidence && width === 820) {
+        await page.evaluate(() => window.scrollTo(0, 0));
+        await page.screenshot({ path: path.join(evidence, `po05-${appearance}-${width}-expanded.png`), fullPage: true });
+      }
+      await page.getByLabel('Edit charge 3: Payment / bank / currency-conversion fee', { exact: true }).click();
     }
   }
   await page.setViewportSize({ width: 320, height: 960 });
+  // GIVEN long payee text and a large monetary amount at the narrowest supported width.
+  await page.getByLabel('Edit charge 3: Payment / bank / currency-conversion fee', { exact: true }).click();
+  await page.getByLabel('Payee name 3', { exact: true }).fill('International payment processing and currency conversion department');
+  const replaceBankAmount = async (digits: string) => {
+    const amount = page.getByLabel('Charge amount 3', { exact: true });
+    await amount.focus();
+    await amount.press('ControlOrMeta+A');
+    await amount.press('Backspace');
+    await amount.pressSequentially(digits);
+  };
+  await replaceBankAmount('99999999999');
+  await expect(page.locator('.po-summary-total dd')).toHaveText('USD 1000000306.59');
+  // THEN enlarged text and the expanded editor remain within the viewport.
   await page.evaluate(() => { document.documentElement.style.fontSize = '200%'; });
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await page.evaluate(() => { document.documentElement.style.fontSize = ''; });
+  await page.getByLabel('Payee name 3', { exact: true }).fill('Sample bank');
+  await replaceBankAmount('300');
+  await page.getByLabel('Edit charge 3: Payment / bank / currency-conversion fee', { exact: true }).click();
+  await expect(page.locator('.po-summary-total dd')).toHaveText('USD 309.60');
 
   // WHEN a confirmed amount changes THEN the save preserves edits until a correction explanation is supplied.
   await page.getByLabel('Edit charge 1: Shipping / freight', { exact: true }).click();

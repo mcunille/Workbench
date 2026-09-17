@@ -78,7 +78,7 @@
 .po-section-heading > .po-badge { align-self: flex-start; flex-shrink: 0; margin-left: auto; }
 .po-header-fields, .po-entry-secondary, .po-order-context, .po-comparison { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
 .po-field { min-width: 0; }
-.po-currency-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; align-items: center; margin-bottom: 1.25rem; }
+.po-currency-row { display: grid; grid-template-columns: minmax(0, 10rem) minmax(0, 1fr); gap: 1rem; align-items: start; margin-bottom: 1.25rem; }
 .po-currency-row .floating-field { margin-top: 0; }
 .po-field-help { color: var(--muted); font-size: .875rem; margin: 0; }
 .po-field-help p { margin: 0; }
@@ -163,7 +163,7 @@
   .po-draft-list li:first-child a { border-radius: var(--radius-card) var(--radius-card) 0 0; }
   .po-draft-list li:only-child a { border-radius: var(--radius-card); }
   .po-header-fields, .po-entry-secondary, .po-order-context, .po-comparison, .po-currency-row { grid-template-columns: 1fr; }
-  .po-currency-row .floating-field { margin-top: .5rem; }
+  .po-currency-row > .po-field { max-width: 10rem; }
   .po-form-section { padding: 1.125rem; }
   .po-entry { padding: 1rem; }
   .po-removable { flex-direction: column; align-items: stretch; }
@@ -248,8 +248,8 @@
   .po-supplier-directory-row > a { padding: .875rem; gap: .5rem; }
 }
 
-.po-supplier-summary-row { display: inline-flex; flex-wrap: wrap; width: calc(100% - 1.25rem); align-items: center; gap: 1rem; vertical-align: middle; }
-.po-supplier-summary-copy { flex: 1; min-width: 0; }
+.po-supplier-summary-row { display: inline-flex; flex-wrap: wrap; width: calc(100% - 1.25rem); align-items: center; gap: 1rem; vertical-align: top; }
+.po-supplier-summary-copy { flex: 1 1 12rem; min-width: 0; }
 .po-supplier-summary-row > button { flex-shrink: 0; max-width: 100%; white-space: normal; }
 
 .po-line-quantity { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; gap: 1rem; }
@@ -281,7 +281,10 @@
 .po-discount > legend, .po-charge > legend { padding: 0; margin-bottom: .75rem; font-weight: 500; }
 .po-adjustment-fields, .po-charge-primary { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; align-items: start; }
 .po-charge-primary + .po-charge-primary { margin-top: 1rem; }
-.po-charge-party { display: grid; gap: 1rem; }
+/* Keep responsive labels aligned without containing the masked input itself. */
+.po-charge-primary > .po-price-field { container: text-field / inline-size; }
+/* Containing this pair discards the select's layout when the name appears in Chromium. */
+.po-charge-party .floating-field { container-type: normal; }
 .po-adjustment-fields .floating-field, .po-charge-primary .floating-field { margin-top: 0; }
 .po-charges { margin-top: 1.5rem; }
 .po-charge-disclosure > .po-charge { margin: 0; padding: .5rem 0 1.25rem; }
@@ -293,8 +296,9 @@
 .po-charge-details > summary { cursor: pointer; min-height: 44px; padding-block: .75rem; overflow-wrap: anywhere; }
 .po-charge-details > .po-charge-primary { margin-top: .75rem; }
 .po-line-net { font-weight: 500; font-variant-numeric: tabular-nums; }
+.po-financial-summary { max-width: 40rem; }
 .po-financial-summary dl { margin: 1rem 0 0; }
-.po-financial-summary dl > div { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: .75rem; padding-block: .5rem; }
+.po-financial-summary dl > div { display: grid; grid-template-columns: minmax(0, 1fr) fit-content(50%); gap: .75rem; padding-block: .5rem; }
 .po-financial-summary dt { color: var(--muted); }
 .po-financial-summary dd { margin: 0; text-align: right; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
 .po-financial-summary .po-summary-subtotal { border-top: 1px solid var(--border-subtle); margin-top: .5rem; }
@@ -302,4 +306,5 @@
 .po-summary-total dt { color: var(--text); }
 @media (max-width: 700px) {
   .po-adjustment-fields, .po-charge-primary { grid-template-columns: minmax(0, 1fr); }
+  .po-charge-party .field-label { position: static; transform: none; max-width: 100%; margin-bottom: .5rem; padding: 0; font-size: 1rem; overflow-wrap: anywhere; background: transparent; }
 }
