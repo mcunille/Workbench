@@ -47,6 +47,8 @@ public sealed class ItemExportInterruptionTests(SqlServerFixture sqlServer)
         var pending = PostAsync(client, ExportPath(package), new { scope = "all" }, cancellation.Token);
         try
         {
+            // AND the export deadline is registered before inspecting SQL blocking or advancing time.
+            await clock.DeadlineRegistered.WaitAsync(TimeSpan.FromSeconds(10));
             await ItemExportConcurrencyTests.AssertBlockedWriterAsync(app.AdminConnectionString);
             // AND production still schedules the full 30-second CSV / 120-second package deadline.
             var expectedDeadline = TimeSpan.FromSeconds(package ? 120 : 30);
@@ -99,17 +101,21 @@ public sealed class ItemExportInterruptionTests(SqlServerFixture sqlServer)
 
     private sealed class ExportClock() : FakeTimeProvider(DateTimeOffset.UtcNow)
     {
+        private readonly TaskCompletionSource deadlineRegistered = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public Task DeadlineRegistered => deadlineRegistered.Task;
         public List<TimeSpan> Deadlines { get; } = [];
         public int DeadlinesFired { get; private set; }
 
         public override ITimer CreateTimer(TimerCallback callback, object? state, TimeSpan dueTime, TimeSpan period)
         {
             Deadlines.Add(dueTime);
-            return base.CreateTimer(value =>
+            var timer = base.CreateTimer(value =>
             {
                 DeadlinesFired++;
                 callback(value);
             }, state, dueTime, period);
+            deadlineRegistered.TrySetResult();
+            return timer;
         }
     }
 }
