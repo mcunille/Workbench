@@ -15,7 +15,7 @@ test('H6 narrated archive recovery walkthrough', async ({ browser }) => {
   await seed.getByLabel('Choose photograph', { exact: true }).setInputFiles(await cameraImage(seed));
   await seed.getByRole('button', { name: 'Upload photograph', exact: true }).click();
   await expect(seed.getByAltText(`Photograph of ${item.name}`)).toBeVisible();
-  item = await (await seed.request.get(`/api/items/${item.id}`)).json();
+  item = await (await seed.request.get(`/api/beta/items/${item.id}`)).json();
   item = await lifecycle(seed, item.id, 'archive', item.version);
   const context = await browser.newContext({ baseURL: browserBaseUrl, storageState: await setup.storageState(), viewport: { width: 1280, height: 900 }, recordVideo: { dir: root, size: { width: 1280, height: 900 } } });
   const page = await context.newPage();
@@ -42,7 +42,7 @@ test('H6 narrated archive recovery walkthrough', async ({ browser }) => {
     await page.getByRole('button', { name: 'Cancel', exact: true }).click();
     await expect(restore(page)).toBeFocused();
     const bodies: unknown[] = [];
-    await page.route(`**/api/items/${item.id}/restore`, async route => {
+    await page.route(`**/api/beta/items/${item.id}/restore`, async route => {
       bodies.push(route.request().postDataJSON());
       if (bodies.length === 1) { expect((await route.fetch()).status()).toBe(200); await route.abort('failed'); } else await route.continue();
     });
@@ -66,7 +66,7 @@ test('H6 narrated archive recovery walkthrough', async ({ browser }) => {
     await page.reload();
     await expect(page.getByRole('button', { name: 'Edit details', exact: true })).toBeVisible();
     await expect(page.getByAltText(`Photograph of ${item.name}`)).toBeVisible();
-    const saved = await (await page.request.get(`/api/items/${item.id}`)).json();
+    const saved = await (await page.request.get(`/api/beta/items/${item.id}`)).json();
     expect(saved.id).toBe(item.id); expect(saved.photo).toEqual(item.photo); expect(saved.archivedAtUtc).toBeNull();
     await narrate('After reload, the same identifier, notes, location, and photograph are back in the active collection. These automated checks do not establish collector usability.', 12);
   } finally {

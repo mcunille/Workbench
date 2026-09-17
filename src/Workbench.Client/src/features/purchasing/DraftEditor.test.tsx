@@ -569,3 +569,51 @@ it('returns focus to the supplier summary when clearing with unrelated validatio
   expect(screen.getByText('Supplier details').closest('summary')).toHaveFocus();
   expect(screen.getByRole('link', { name: 'Review title.' })).toBeInTheDocument();
 });
+it('offers a focusable recovery copy without replacing an uncertain request', async () => {
+  // GIVEN a purchase save whose outcome is unknown.
+  vi.mocked(createDraft).mockRejectedValue(new TypeError('Network'));
+  render(<DraftEditor {...props()} />);
+  fireEvent.change(screen.getByLabelText('Notes'), { target: { value: 'Keep these research notes' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Save draft' }));
+  await screen.findByRole('button', { name: 'Check and retry' });
+  const original = vi.mocked(createDraft).mock.calls[0][0];
+  // WHEN selecting the recovery text THEN native keyboard copying is available.
+  fireEvent.click(screen.getByRole('button', { name: 'Select purchase draft text' }));
+  const recovery = screen.getByRole('textbox', { name: 'Purchase draft recovery text' }) as HTMLTextAreaElement;
+  expect(recovery).toHaveFocus();
+  expect(recovery).toHaveAttribute('readonly');
+  expect(recovery).not.toBeDisabled();
+  expect(recovery.value).toContain('Keep these research notes');
+  expect(recovery.selectionStart).toBe(0);
+  expect(recovery.selectionEnd).toBe(recovery.value.length);
+  // AND retry still uses the original command, including request identity.
+  fireEvent.click(screen.getByRole('button', { name: 'Check and retry' }));
+  await waitFor(() => expect(createDraft).toHaveBeenCalledTimes(2));
+  expect(vi.mocked(createDraft).mock.calls[1][0]).toBe(original);
+});
+it.each(['conflict-failed', 'current-failed', 'blocked', 'comparison'] as const)('keeps frozen draft text selectable after %s without resubmitting', async state => {
+  // GIVEN local edits whose save either conflicts, is blocked, or needs a confirmation read.
+  vi.mocked(getDraft).mockResolvedValueOnce(saved);
+  if (state === 'comparison') vi.mocked(getDraft).mockResolvedValueOnce({ ...saved, version: 'v2' });
+  else vi.mocked(getDraft).mockRejectedValueOnce(new TypeError('Network'));
+  if (state === 'current-failed') vi.mocked(updateDraft).mockResolvedValueOnce(receipt);
+  else vi.mocked(updateDraft).mockRejectedValueOnce(new DraftError(409, state === 'blocked' ? 'draft_request_conflict' : 'draft_version_conflict'));
+  render(<DraftEditor id={saved.id} {...props()} />);
+  await waitFor(() => expect(screen.getByLabelText('Title')).toBeEnabled());
+  fireEvent.change(screen.getByLabelText('Notes'), { target: { value: 'Retain all local research' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Save draft' }));
+  if (state === 'comparison') await screen.findByRole('region', { name: 'Compare draft versions' });
+  else await screen.findByRole('alert');
+  // WHEN selecting the retained text THEN the frozen input is available to keyboard users.
+  fireEvent.click(screen.getByRole('button', { name: 'Select purchase draft text' }));
+  const recovery = screen.getByRole('textbox', { name: 'Purchase draft recovery text' }) as HTMLTextAreaElement;
+  expect(recovery).toHaveFocus();
+  expect(recovery).toHaveAttribute('readonly');
+  expect(recovery.value).toContain('Retain all local research');
+  expect(recovery.selectionStart).toBe(0);
+  expect(recovery.selectionEnd).toBe(recovery.value.length);
+  expect(screen.getByLabelText('Notes')).toBeDisabled();
+  // AND selection never submits another mutation or bypasses conflict reconciliation.
+  expect(screen.getByRole('button', { name: 'Save draft' })).toBeDisabled();
+  expect(updateDraft).toHaveBeenCalledOnce();
+});

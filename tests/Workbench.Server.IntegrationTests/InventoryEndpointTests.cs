@@ -26,10 +26,10 @@ public sealed class InventoryEndpointTests(SqlServerFixture sqlServer)
         var request = new { creationRequestId = Guid.NewGuid(), name = "  Sapphire  ", notes = "First line\nSecond line", location = "  Tray A  " };
 
         // WHEN saving and replaying the same operation.
-        var created = await PostAsync(client, "/api/items", request);
+        var created = await PostAsync(client, "/api/beta/items", request);
         Assert.Equal(HttpStatusCode.Created, created.StatusCode);
         var detail = await created.Content.ReadFromJsonAsync<JsonElement>();
-        var replay = await PostAsync(client, "/api/items", request);
+        var replay = await PostAsync(client, "/api/beta/items", request);
 
         // THEN the normalized durable record is returned without creating a second item.
         Assert.Equal(HttpStatusCode.OK, replay.StatusCode);
@@ -41,7 +41,7 @@ public sealed class InventoryEndpointTests(SqlServerFixture sqlServer)
         await LoginAsync(nextSession, "member@example.com");
         var reopened = await nextSession.GetFromJsonAsync<JsonElement>(created.Headers.Location);
         Assert.Equal(detail.GetProperty("id").GetGuid(), reopened.GetProperty("id").GetGuid());
-        var list = await nextSession.GetFromJsonAsync<JsonElement>("/api/items");
+        var list = await nextSession.GetFromJsonAsync<JsonElement>("/api/beta/items");
         Assert.Single(list.GetProperty("items").EnumerateArray());
     }
 
@@ -59,17 +59,17 @@ public sealed class InventoryEndpointTests(SqlServerFixture sqlServer)
         await LoginAsync(second, "member@example.com");
         var request = new { creationRequestId = Guid.NewGuid(), name = "Ring" };
         // WHEN independent HTTP requests compete for its creation identifier.
-        var results = await Task.WhenAll(PostAsync(first, "/api/items", request), PostAsync(second, "/api/items", request));
+        var results = await Task.WhenAll(PostAsync(first, "/api/beta/items", request), PostAsync(second, "/api/beta/items", request));
         // THEN exactly one creates and the other replays the same durable identity.
         Assert.Single(results, response => response.StatusCode == HttpStatusCode.Created);
         Assert.Single(results, response => response.StatusCode == HttpStatusCode.OK);
         var firstId = (await results[0].Content.ReadFromJsonAsync<JsonElement>()).GetProperty("id").GetGuid();
         Assert.Equal(firstId, (await results[1].Content.ReadFromJsonAsync<JsonElement>()).GetProperty("id").GetGuid());
-        var conflict = await PostAsync(first, "/api/items", new { request.creationRequestId, name = "Different ring" });
+        var conflict = await PostAsync(first, "/api/beta/items", new { request.creationRequestId, name = "Different ring" });
         Assert.Equal(HttpStatusCode.Conflict, conflict.StatusCode);
         // AND a different operation can intentionally create an identically named object.
-        Assert.Equal(HttpStatusCode.Created, (await PostAsync(first, "/api/items", new { creationRequestId = Guid.NewGuid(), name = "Ring" })).StatusCode);
-        var list = await first.GetFromJsonAsync<JsonElement>("/api/items");
+        Assert.Equal(HttpStatusCode.Created, (await PostAsync(first, "/api/beta/items", new { creationRequestId = Guid.NewGuid(), name = "Ring" })).StatusCode);
+        var list = await first.GetFromJsonAsync<JsonElement>("/api/beta/items");
         Assert.Equal(2, list.GetProperty("items").GetArrayLength());
     }
 
@@ -83,15 +83,15 @@ public sealed class InventoryEndpointTests(SqlServerFixture sqlServer)
         await LoginAsync(first, "member@example.com");
         await LoginAsync(other, "other@example.com");
         var request = new { creationRequestId = Guid.NewGuid(), name = "Private stone" };
-        var created = await PostAsync(first, "/api/items", request);
+        var created = await PostAsync(first, "/api/beta/items", request);
         // WHEN the other tenant addresses that item or browses its collection.
         var foreign = await other.GetAsync(created.Headers.Location);
-        var missing = await other.GetAsync($"/api/items/{Guid.NewGuid()}");
+        var missing = await other.GetAsync($"/api/beta/items/{Guid.NewGuid()}");
         // THEN neither exposes the foreign record and the other tenant can reuse its own request identity.
         Assert.Equal(HttpStatusCode.NotFound, foreign.StatusCode);
         Assert.Equal(missing.StatusCode, foreign.StatusCode);
-        Assert.Empty((await other.GetFromJsonAsync<JsonElement>("/api/items")).GetProperty("items").EnumerateArray());
-        Assert.Equal(HttpStatusCode.Created, (await PostAsync(other, "/api/items", request)).StatusCode);
+        Assert.Empty((await other.GetFromJsonAsync<JsonElement>("/api/beta/items")).GetProperty("items").EnumerateArray());
+        Assert.Equal(HttpStatusCode.Created, (await PostAsync(other, "/api/beta/items", request)).StatusCode);
     }
 
     [Fact]
@@ -100,11 +100,11 @@ public sealed class InventoryEndpointTests(SqlServerFixture sqlServer)
         // GIVEN an anonymous client followed by an authenticated member.
         await using var application = await AuthTestApplication.CreateAsync(sqlServer);
         using var client = application.CreateClient();
-        Assert.Equal(HttpStatusCode.Unauthorized, (await client.GetAsync("/api/items")).StatusCode);
-        Assert.Equal(HttpStatusCode.Unauthorized, (await client.GetAsync($"/api/items/{Guid.NewGuid()}")).StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, (await client.GetAsync("/api/beta/items")).StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, (await client.GetAsync($"/api/beta/items/{Guid.NewGuid()}")).StatusCode);
         await LoginAsync(client, "member@example.com");
         // WHEN missing CSRF, invalid fields, or server-owned fields are submitted.
-        Assert.Equal(HttpStatusCode.BadRequest, (await client.PostAsJsonAsync("/api/items", new { creationRequestId = Guid.NewGuid(), name = "Ring" })).StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, (await client.PostAsJsonAsync("/api/beta/items", new { creationRequestId = Guid.NewGuid(), name = "Ring" })).StatusCode);
         foreach (var body in new object[]
         {
             new { creationRequestId = Guid.Empty, name = "Ring" },
@@ -115,13 +115,13 @@ public sealed class InventoryEndpointTests(SqlServerFixture sqlServer)
             new { creationRequestId = Guid.NewGuid(), name = "Ring", tenantId = Guid.NewGuid() },
             new { creationRequestId = Guid.NewGuid(), name = "Ring", trackingKind = "Lot" },
         })
-            Assert.Equal(HttpStatusCode.BadRequest, (await PostAsync(client, "/api/items", body)).StatusCode);
+            Assert.Equal(HttpStatusCode.BadRequest, (await PostAsync(client, "/api/beta/items", body)).StatusCode);
         // THEN no invalid request creates data and responses prohibit private caching.
-        var response = await client.GetAsync("/api/items");
+        var response = await client.GetAsync("/api/beta/items");
         Assert.True(response.Headers.CacheControl?.NoStore);
         Assert.True(response.Headers.CacheControl?.Private);
         Assert.Empty((await response.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("items").EnumerateArray());
-        Assert.Equal(HttpStatusCode.BadRequest, (await client.GetAsync("/api/items?cursor=invalid")).StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, (await client.GetAsync("/api/beta/items?cursor=invalid")).StatusCode);
     }
 
     [Fact]
@@ -150,7 +150,7 @@ public sealed class InventoryEndpointTests(SqlServerFixture sqlServer)
         var counts = new List<int>();
         do
         {
-            var page = await client.GetFromJsonAsync<JsonElement>("/api/items" + (cursor is null ? "" : "?cursor=" + Uri.EscapeDataString(cursor)));
+            var page = await client.GetFromJsonAsync<JsonElement>("/api/beta/items" + (cursor is null ? "" : "?cursor=" + Uri.EscapeDataString(cursor)));
             var rows = page.GetProperty("items").EnumerateArray().ToList();
             counts.Add(rows.Count);
             ids.AddRange(rows.Select(row => row.GetProperty("id").GetGuid()));
@@ -174,15 +174,15 @@ public sealed class InventoryEndpointTests(SqlServerFixture sqlServer)
         await using var deny = new Microsoft.Data.SqlClient.SqlCommand("DENY INSERT ON [Inventory].[Items] TO [workbench_web]", connection);
         await deny.ExecuteNonQueryAsync();
         // WHEN persistence fails THEN the response is an error and no record has been accepted.
-        Assert.Equal(HttpStatusCode.InternalServerError, (await PostAsync(client, "/api/items", request)).StatusCode);
-        Assert.Empty((await client.GetFromJsonAsync<JsonElement>("/api/items")).GetProperty("items").EnumerateArray());
+        Assert.Equal(HttpStatusCode.InternalServerError, (await PostAsync(client, "/api/beta/items", request)).StatusCode);
+        Assert.Empty((await client.GetFromJsonAsync<JsonElement>("/api/beta/items")).GetProperty("items").EnumerateArray());
         // WHEN the database recovers and the frozen draft is explicitly retried.
         await using var grant = new Microsoft.Data.SqlClient.SqlCommand("GRANT INSERT ON [Inventory].[Items] TO [workbench_web]", connection);
         await grant.ExecuteNonQueryAsync();
-        Assert.Equal(HttpStatusCode.Created, (await PostAsync(client, "/api/items", request)).StatusCode);
+        Assert.Equal(HttpStatusCode.Created, (await PostAsync(client, "/api/beta/items", request)).StatusCode);
         // THEN repeating the same uncertain save remains duplicate-safe.
-        Assert.Equal(HttpStatusCode.OK, (await PostAsync(client, "/api/items", request)).StatusCode);
-        Assert.Single((await client.GetFromJsonAsync<JsonElement>("/api/items")).GetProperty("items").EnumerateArray());
+        Assert.Equal(HttpStatusCode.OK, (await PostAsync(client, "/api/beta/items", request)).StatusCode);
+        Assert.Single((await client.GetFromJsonAsync<JsonElement>("/api/beta/items")).GetProperty("items").EnumerateArray());
     }
 
     private sealed class CompetingCreationReads : DbCommandInterceptor
@@ -207,14 +207,15 @@ public sealed class InventoryEndpointTests(SqlServerFixture sqlServer)
     }
     private static async Task LoginAsync(HttpClient client, string email)
     {
-        var response = await PostAsync(client, "/api/auth/login", new { email, password = AuthTestApplication.AdminPassword });
+        var response = await PostAsync(client, "/api/beta/auth/login", new { email, password = AuthTestApplication.AdminPassword });
         Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
     }
 
     private static async Task<HttpResponseMessage> PostAsync(HttpClient client, string path, object body)
     {
-        var token = await client.GetFromJsonAsync<JsonElement>("/api/auth/antiforgery");
+        var token = await client.GetFromJsonAsync<JsonElement>("/api/beta/auth/antiforgery");
         using var request = new HttpRequestMessage(HttpMethod.Post, path) { Content = JsonContent.Create(body) };
+        request.Headers.TryAddWithoutValidation("X-Workbench-Api-Revision", "beta-2");
         request.Headers.Add("X-CSRF-TOKEN", token.GetProperty("requestToken").GetString());
         return await client.SendAsync(request);
     }

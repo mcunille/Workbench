@@ -1,3 +1,5 @@
+import { RecoveryText } from '../../RecoveryText';
+import { recoveryText } from '../../formatRecoveryText';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { FloatingField } from '../../FloatingField';
 import { Icon } from '../../Icon';
@@ -298,6 +300,7 @@ export function DraftEditor({ id: initialId, onDirtyChange, onAuthLost, onSaved,
           </div>
         </section>
       ) : null}
+      {['uncertain', 'delete-uncertain', 'current-failed', 'conflict-failed', 'comparison', 'blocked'].includes(mode) && recoveryText(draft) ? <RecoveryText label="Purchase draft" text={recoveryText(draft)} /> : null}
       <form id="po-draft-form" className="form-stack" noValidate onSubmit={event => { event.preventDefault(); void save(); }}>
         {Object.keys(visibleErrors).length ? (
           <div role="alert" className="po-validation-summary" tabIndex={-1} id={fieldId('draft')}>

@@ -15,10 +15,10 @@ describe('Inventory API', () => {
     );
     let status = 200;
     server.use(
-      http.get('*/api/auth/antiforgery', () =>
+      http.get('*/api/beta/auth/antiforgery', () =>
         HttpResponse.json({ requestToken: 'csrf-test' }),
       ),
-      http.post('*/api/items/stone/archive', async ({ request }) => {
+      http.post('*/api/beta/items/stone/archive', async ({ request }) => {
         expect(await request.json()).toEqual({
           expectedVersion: 'AAAAAAAAAAA=',
         });
@@ -32,7 +32,7 @@ describe('Inventory API', () => {
           { status },
         );
       }),
-      http.put('*/api/items/stone', () =>
+      http.put('*/api/beta/items/stone', () =>
         HttpResponse.json({ code: 'item_archived' }, { status: 409 }),
       ),
     );
@@ -61,7 +61,7 @@ describe('Inventory API', () => {
   it('encodes literal search text and the page cursor independently', async () => {
     // GIVEN literal punctuation that would be special in a query string.
     server.use(
-      http.get('*/api/items', ({ request }) => {
+      http.get('*/api/beta/items', ({ request }) => {
         const query = new URL(request.url).searchParams;
         expect(query.get('q')).toBe('stone %_[]\\ &+#');
         expect(query.get('cursor')).toBe('opaque+/=');
@@ -76,10 +76,10 @@ describe('Inventory API', () => {
     let received: unknown;
     let csrf: string | null = null;
     server.use(
-      http.get('*/api/auth/antiforgery', () =>
+      http.get('*/api/beta/auth/antiforgery', () =>
         HttpResponse.json({ requestToken: 'csrf-test' }),
       ),
-      http.post('*/api/items', async ({ request: incoming }) => {
+      http.post('*/api/beta/items', async ({ request: incoming }) => {
         received = await incoming.json();
         csrf = incoming.headers.get('X-CSRF-TOKEN');
         return HttpResponse.json(
@@ -102,13 +102,13 @@ describe('Inventory API', () => {
   it('preserves field validation and passes the opaque page cursor unchanged', async () => {
     // GIVEN authoritative validation and a cursor containing reserved characters
     server.use(
-      http.post('*/api/items', () =>
+      http.post('*/api/beta/items', () =>
         HttpResponse.json(
           { errors: { Name: ['Name is required.'] } },
           { status: 400 },
         ),
       ),
-      http.get('*/api/items', ({ request }) => {
+      http.get('*/api/beta/items', ({ request }) => {
         expect(new URL(request.url).searchParams.get('cursor')).toBe(
           'opaque+/=',
         );
@@ -137,10 +137,10 @@ it('sends a checked update with antiforgery and preserves validation and conflic
   };
   let status = 200;
   server.use(
-    http.get('*/api/auth/antiforgery', () =>
+    http.get('*/api/beta/auth/antiforgery', () =>
       HttpResponse.json({ requestToken: 'csrf-test' }),
     ),
-    http.put('*/api/items/item', async ({ request }) => {
+    http.put('*/api/beta/items/item', async ({ request }) => {
       expect(await request.json()).toEqual(body);
       expect(request.headers.get('X-CSRF-TOKEN')).toBe('csrf-test');
       return HttpResponse.json(
@@ -174,10 +174,10 @@ it('encodes archived traversal and sends only a checked restore with antiforgery
     await import('./items');
   let status = 200;
   server.use(
-    http.get('*/api/auth/antiforgery', () =>
+    http.get('*/api/beta/auth/antiforgery', () =>
       HttpResponse.json({ requestToken: 'csrf-test' }),
     ),
-    http.get('*/api/items/archived', ({ request }) => {
+    http.get('*/api/beta/items/archived', ({ request }) => {
       expect(new URL(request.url).searchParams.get('cursor')).toBe(
         'opaque+/=',
       );
@@ -186,7 +186,7 @@ it('encodes archived traversal and sends only a checked restore with antiforgery
       );
       return HttpResponse.json({ items: [], nextCursor: null });
     }),
-    http.post('*/api/items/stone/restore', async ({ request }) => {
+    http.post('*/api/beta/items/stone/restore', async ({ request }) => {
       expect(await request.json()).toEqual({
         expectedVersion: 'AAAAAAAAAAA=',
       });

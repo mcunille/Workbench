@@ -15,7 +15,7 @@ test('prepares a camera image locally and persists uncropped photos across sessi
   const url = await savedPhotoItem(page, name);
   const file = await cameraImage(page);
   const uploads: number[] = [];
-  await page.route('**/api/items/*/photo', async (route) => {
+  await page.route('**/api/beta/items/*/photo', async (route) => {
     if (route.request().method() === 'PUT')
       uploads.push(route.request().postDataBuffer()!.length);
     await route.continue();
@@ -44,7 +44,7 @@ test('prepares a camera image locally and persists uncropped photos across sessi
   expect(uploads[0]).toBeLessThan(file.buffer.length / 2);
   expect(uploads[0]).toBeLessThan(4 * 1024 * 1024 + 4096);
   const id = url.split('/').at(-1)!;
-  const detail = await (await page.request.get(`/api/items/${id}`)).json();
+  const detail = await (await page.request.get(`/api/beta/items/${id}`)).json();
   expect(detail.photo.width).toBe(2048);
   expect(detail.photo.height).toBe(1536);
   await page.reload();
@@ -109,7 +109,7 @@ test('retains exact prepared bytes after a lost response and confirms removal af
     expectedVersion: string;
     bytes: string;
   }[] = [];
-  await page.route('**/api/items/*/photo', async (route) => {
+  await page.route('**/api/beta/items/*/photo', async (route) => {
     if (route.request().method() !== 'PUT') return route.continue();
     const request = route.request();
     const form = await new Response(request.postDataBuffer(), {
@@ -140,9 +140,9 @@ test('retains exact prepared bytes after a lost response and confirms removal af
   ).toBeVisible();
   expect(commands).toHaveLength(2);
   expect(commands[0]).toEqual(commands[1]);
-  await page.unroute('**/api/items/*/photo');
+  await page.unroute('**/api/beta/items/*/photo');
   const before = await (
-    await page.request.get(`/api/items/${page.url().split('/').at(-1)}`)
+    await page.request.get(`/api/beta/items/${page.url().split('/').at(-1)}`)
   ).json();
   // WHEN a replacement is prepared THEN the existing image remains until explicit save.
   await page
@@ -162,7 +162,7 @@ test('retains exact prepared bytes after a lost response and confirms removal af
     page.getByText('Current saved photograph loaded.', { exact: true }),
   ).toBeVisible();
   const after = await (
-    await page.request.get(`/api/items/${page.url().split('/').at(-1)}`)
+    await page.request.get(`/api/beta/items/${page.url().split('/').at(-1)}`)
   ).json();
   expect(after.photo.id).not.toBe(before.photo.id);
   // THEN removal is confirmed accessibly and preserves the saved item itself.

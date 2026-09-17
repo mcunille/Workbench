@@ -112,6 +112,13 @@ real SMTP delivery, and hosted recovery still require their documented operation
 
 Small corrections and documentation improvements do not require a spec.
 
+API changes follow [the API evolution principle](docs/DESIGN-PRINCIPLES.md#13-evolve-apis-deliberately).
+All APIs are beta until the first release establishes v1. Prefer compatible changes when they
+do not complicate the code. A breaking change requires a clear rationale and explicit approval
+before implementation, including during beta. Record affected callers, compatibility alternatives,
+stored-data and retry implications, rollout, and rollback in the design. Do not treat approval of
+general cleanup as approval of an unstated breaking change.
+
 ## Pull requests
 
 - Submit changes through a pull request; do not push directly to the protected default branch.

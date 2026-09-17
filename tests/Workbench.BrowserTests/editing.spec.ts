@@ -27,9 +27,9 @@ async function checkTextContrast(page: Page) {
 }
 
 async function create(page: Page) {
-  const csrf = await (await page.request.get('/api/auth/antiforgery')).json();
-  const response = await page.request.post('/api/items', {
-    headers: { 'X-CSRF-TOKEN': csrf.requestToken },
+  const csrf = await (await page.request.get('/api/beta/auth/antiforgery')).json();
+  const response = await page.request.post('/api/beta/items', {
+    headers: { 'X-Workbench-Api-Revision': 'beta-2', 'X-CSRF-TOKEN': csrf.requestToken },
     data: { creationRequestId: crypto.randomUUID(), name: `H4 ${crypto.randomUUID()}`, notes: 'September fair', location: 'Tray A' },
   });
   expect(response.status()).toBe(201);
@@ -102,7 +102,7 @@ test('H4 cancel and failed save preserve truthful state across appearance and la
   await page.getByLabel('Name', { exact: true }).fill('Recovered correction');
 
   // WHEN a save fails before reaching the server.
-  await page.route(`**/api/items/${item.id}`, route => route.request().method() === 'PUT'
+  await page.route(`**/api/beta/items/${item.id}`, route => route.request().method() === 'PUT'
     ? route.fulfill({ status: 503, json: { title: 'Unavailable' } }) : route.continue(), { times: 1 });
   await page.getByRole('button', { name: 'Save changes', exact: true }).click();
   await expect(page.getByRole('alert')).toBeVisible();
@@ -140,7 +140,7 @@ test('H4 a lost success response cannot overwrite a later save on retry', async 
   await page.goto(`/inventory/${item.id}`);
   await page.getByRole('button', { name: 'Edit details', exact: true }).click();
   await page.getByLabel('Name', { exact: true }).fill('First saved correction');
-  await page.route(`**/api/items/${item.id}`, async route => {
+  await page.route(`**/api/beta/items/${item.id}`, async route => {
     const response = await route.fetch();
     expect(response.status()).toBe(200);
     await route.abort('failed');
@@ -149,11 +149,11 @@ test('H4 a lost success response cannot overwrite a later save on retry', async 
   await expect(page.getByRole('button', { name: 'Retry save', exact: true })).toBeVisible();
   await expect(page.getByRole('alert')).toBeVisible();
   await expect(page.getByRole('button', { name: 'Retry save', exact: true })).toBeEnabled();
-  const current = await (await page.request.get(`/api/items/${item.id}`)).json();
+  const current = await (await page.request.get(`/api/beta/items/${item.id}`)).json();
   expect(current.name).toBe('First saved correction');
-  const csrf = await (await page.request.get('/api/auth/antiforgery')).json();
-  const later = await page.request.put(`/api/items/${item.id}`, {
-    headers: { 'X-CSRF-TOKEN': csrf.requestToken },
+  const csrf = await (await page.request.get('/api/beta/auth/antiforgery')).json();
+  const later = await page.request.put(`/api/beta/items/${item.id}`, {
+    headers: { 'X-Workbench-Api-Revision': 'beta-2', 'X-CSRF-TOKEN': csrf.requestToken },
     data: { expectedVersion: current.version, name: 'Later correction', notes: current.notes, location: current.location },
   });
   expect(later.status()).toBe(200);
@@ -173,7 +173,7 @@ test('H4 a lost creation response retries successfully after another session edi
   const name = `Unconfirmed creation ${crypto.randomUUID()}`;
   const editedName = `Identified sapphire ${crypto.randomUUID()}`;
   const payloads: unknown[] = [];
-  await page.route('**/api/items', async route => {
+  await page.route('**/api/beta/items', async route => {
     if (route.request().method() !== 'POST') return route.continue();
     payloads.push(route.request().postDataJSON());
     if (payloads.length === 1) {
@@ -209,7 +209,7 @@ test('H4 a lost creation response retries successfully after another session edi
     await expect(other.getByRole('heading', { name: editedName, exact: true })).toBeVisible();
 
     // WHEN the original browser retries its unchanged creation request.
-    const replayResponse = page.waitForResponse(response => response.url().endsWith('/api/items') && response.request().method() === 'POST');
+    const replayResponse = page.waitForResponse(response => response.url().endsWith('/api/beta/items') && response.request().method() === 'POST');
     await page.getByRole('button', { name: 'Retry save', exact: true }).click();
 
     // THEN the retry resolves to the same item with all current details and no duplicate.

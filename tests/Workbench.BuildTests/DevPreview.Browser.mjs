@@ -60,7 +60,7 @@ try {
     await page.reload();
     await expect(page.getByAltText(`Photograph of ${saved[index].name}`)).toBeVisible();
     const foreignId = saved[1 - index].url.split('/').at(-1);
-    const denied = await page.request.get(`${previews[index].Url}/api/items/${foreignId}`);
+    const denied = await page.request.get(`${previews[index].Url}/api/beta/items/${foreignId}`);
     if (denied.status() !== 404) throw new Error('Foreign preview item was not isolated.');
   }
   const cookies = await context.cookies();

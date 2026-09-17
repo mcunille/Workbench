@@ -1,3 +1,5 @@
+import { RecoveryText } from '../../RecoveryText';
+import { recoveryText } from '../../formatRecoveryText';
 import { useEffect, useRef, useState } from 'react';
 import { ApiError } from '../../api/auth';
 import { getItem, ItemValidationError, type ItemDetail } from '../../api/items';
@@ -185,6 +187,7 @@ export function AcquisitionEditor({
             : 'Add acquisition'}
       </h3>
       {base.acquisition ? <p>Changes apply to every associated piece, including archived pieces.</p> : null}
+      {submitted && !pending ? <RecoveryText label="Acquisition" text={recoveryText(draft)} /> : null}
       {review ? (
         <>
           <p>

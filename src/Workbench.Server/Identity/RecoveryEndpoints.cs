@@ -15,18 +15,18 @@ public static class RecoveryEndpoints
 {
     public static IEndpointRouteBuilder MapWorkbenchRecovery(this IEndpointRouteBuilder endpoints)
     {
-        endpoints.MapPost("/api/auth/recovery", RequestAsync)
+        endpoints.MapPost("/api/beta/auth/recovery", RequestAsync)
             .AllowAnonymous()
             .WithMetadata(WorkbenchAntiforgeryMetadata.Instance)
             .Produces(StatusCodes.Status202Accepted)
             .ProducesProblem(StatusCodes.Status503ServiceUnavailable);
-        endpoints.MapPost("/api/auth/recovery/consume", ConsumeAsync)
+        endpoints.MapPost("/api/beta/auth/recovery/consume", ConsumeAsync)
             .AllowAnonymous()
             .WithMetadata(WorkbenchAntiforgeryMetadata.Instance)
             .Produces(StatusCodes.Status204NoContent)
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status503ServiceUnavailable);
-        endpoints.MapPost("/api/auth/invitations/consume", ConsumeInvitationAsync)
+        endpoints.MapPost("/api/beta/auth/invitations/consume", ConsumeInvitationAsync)
             .AllowAnonymous()
             .WithMetadata(WorkbenchAntiforgeryMetadata.Instance)
             .Produces(StatusCodes.Status204NoContent)

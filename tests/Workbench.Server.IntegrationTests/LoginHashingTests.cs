@@ -32,14 +32,15 @@ public sealed class LoginHashingTests(SqlServerFixture sqlServer)
                 services.AddSingleton<ISensitiveRequestRateLimiter>(new LimitedAttempts(permits));
             }));
         using var client = factory.CreateClient();
-        var token = await client.GetFromJsonAsync<AntiforgeryResponse>("/api/auth/antiforgery");
+        var token = await client.GetFromJsonAsync<AntiforgeryResponse>("/api/beta/auth/antiforgery");
+        client.DefaultRequestHeaders.TryAddWithoutValidation("X-Workbench-Api-Revision", "beta-2");
         client.DefaultRequestHeaders.Add("X-CSRF-TOKEN", token!.RequestToken);
         var preparedHashes = hasher.HashCalls;
 
         // WHEN multiple independent request scopes submit rejected login attempts
         for (var attempt = 0; attempt < 3; attempt++)
         {
-            using var response = await client.PostAsJsonAsync("/api/auth/login", new { email, password = "wrong" });
+            using var response = await client.PostAsJsonAsync("/api/beta/auth/login", new { email, password = "wrong" });
             Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
         }
 
@@ -65,12 +66,13 @@ public sealed class LoginHashingTests(SqlServerFixture sqlServer)
                 services.AddSingleton<ISensitiveRequestRateLimiter>(new LimitedAttempts(2));
             }));
         using var client = factory.CreateClient();
-        var token = await client.GetFromJsonAsync<AntiforgeryResponse>("/api/auth/antiforgery");
+        var token = await client.GetFromJsonAsync<AntiforgeryResponse>("/api/beta/auth/antiforgery");
+        client.DefaultRequestHeaders.TryAddWithoutValidation("X-Workbench-Api-Revision", "beta-2");
         client.DefaultRequestHeaders.Add("X-CSRF-TOKEN", token!.RequestToken);
 
         // WHEN separate request scopes concurrently verify credentials
         var responses = await Task.WhenAll(Enumerable.Range(0, 3).Select(_ =>
-            client.PostAsJsonAsync("/api/auth/login", new { email, password = AuthTestApplication.AdminPassword })));
+            client.PostAsJsonAsync("/api/beta/auth/login", new { email, password = AuthTestApplication.AdminPassword })));
 
         // THEN every admitted request compares a password and missing accounts share one dummy hash
         foreach (var response in responses)

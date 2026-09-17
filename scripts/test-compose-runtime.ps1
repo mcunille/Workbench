@@ -118,6 +118,7 @@ public sealed class WorkbenchComposeTlsClient : IDisposable
         var handler = new HttpClientHandler { CookieContainer = new CookieContainer(), AllowAutoRedirect = false };
         handler.ServerCertificateCustomValidationCallback = (request, certificate, suppliedChain, errors) => Validate(certificate, suppliedChain, errors);
         client = new HttpClient(handler) { BaseAddress = new Uri(origin), Timeout = TimeSpan.FromSeconds(8) };
+        client.DefaultRequestHeaders.Add("X-Workbench-Api-Revision", "beta-2");
     }
     private bool Validate(X509Certificate2 certificate, X509Chain suppliedChain, SslPolicyErrors errors)
     {
@@ -141,7 +142,7 @@ public sealed class WorkbenchComposeTlsClient : IDisposable
         stream.ReadTimeout = 8000;
         stream.WriteTimeout = 8000;
         stream.AuthenticateAsClient(client.BaseAddress.Host);
-        var bytes = Encoding.ASCII.GetBytes("GET /api/system HTTP/1.1\r\nHost: attacker.example\r\nConnection: close\r\n\r\n");
+        var bytes = Encoding.ASCII.GetBytes("GET /api/beta/system HTTP/1.1\r\nHost: attacker.example\r\nConnection: close\r\n\r\n");
         stream.Write(bytes);
         using var reader = new System.IO.StreamReader(stream);
         return int.Parse(reader.ReadLine().Split(' ')[1]);
@@ -166,13 +167,13 @@ public sealed class WorkbenchComposeTlsClient : IDisposable
     }
     $client = [WorkbenchComposeTlsClient]::new("https://localhost:$port", $caFile)
     Wait-Ready
-    $antiforgery = $client.Send('GET', '/api/auth/antiforgery', $null, $null)
+    $antiforgery = $client.Send('GET', '/api/beta/auth/antiforgery', $null, $null)
     if ([int]$antiforgery.StatusCode -ne 200) { throw 'Compose antiforgery request failed.' }
     $token = ($antiforgery.Content.ReadAsStringAsync().GetAwaiter().GetResult() | ConvertFrom-Json).requestToken
     $antiforgery.Dispose()
     # WHEN login succeeds through TLS, THEN its session survives app replacement.
     $body = @{ email = $AdminEmail; password = ([IO.File]::ReadAllText($AdminPasswordFile).TrimEnd("`r", "`n")) } | ConvertTo-Json -Compress
-    $login = $client.Send('POST', '/api/auth/login', $body, $token)
+    $login = $client.Send('POST', '/api/beta/auth/login', $body, $token)
     $body = $null
     if ([int]$login.StatusCode -ne 204) { throw 'Compose TLS login failed.' }
     $cookies = $login.Headers.GetValues('Set-Cookie') -join ';'
@@ -183,11 +184,11 @@ public sealed class WorkbenchComposeTlsClient : IDisposable
             Invoke-Compose -Arguments @('up', '--detach', '--force-recreate', '--no-deps', 'app') | Out-Null
             Wait-Ready
         }
-        $identity = $client.Send('GET', '/api/auth/me', $null, $null)
+        $identity = $client.Send('GET', '/api/beta/auth/me', $null, $null)
         if ([int]$identity.StatusCode -ne 200) { throw "Compose session failed $phase app replacement." }
         $identity.Dispose()
     }
-    $forged = $client.SendForwarded('GET', '/api/auth/me', $null, $null, $true)
+    $forged = $client.SendForwarded('GET', '/api/beta/auth/me', $null, $null, $true)
     if ([int]$forged.StatusCode -ne 200) { throw 'Forged forwarding headers disrupted the canonical authenticated route.' }
     $forged.Dispose()
     $unknownHost = $client.UnknownHostStatus()

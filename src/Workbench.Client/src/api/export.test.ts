@@ -31,8 +31,9 @@ it('prepares ZIP through its endpoint with the complete attachment contract', as
   vi.stubGlobal('fetch', fetchMock);
   // WHEN selecting ZIP THEN the package endpoint and accept type are used.
   const result = await prepareExport('all', new AbortController().signal, 'zip');
-  expect(String(fetchMock.mock.calls[0][0])).toBe('http://localhost:3000/api/items/export-package');
-  expect(fetchMock).toHaveBeenCalledWith(expect.any(URL), expect.objectContaining({ headers: expect.objectContaining({ Accept: 'application/zip' }), body: '{"scope":"all"}' }));
+  expect(String(fetchMock.mock.calls[0][0])).toBe('http://localhost:3000/api/beta/items/export-package');
+  expect(fetchMock).toHaveBeenCalledWith(expect.any(URL), expect.objectContaining({ body: '{"scope":"all"}' }));
+  expect(new Headers(fetchMock.mock.calls[0][1]?.headers).get('Accept')).toBe('application/zip');
   expect(result?.filename).toBe('workbench-package-v2-all-20260908T123456Z.zip');
   expect(await result?.blob.text()).toBe('complete');
 });
@@ -52,12 +53,13 @@ it.each([
 
 it('posts explicit scope with antiforgery and accepts only the fully read file', async () => {
   // GIVEN a complete CSV attachment.
-  const fetchMock = vi.fn(async () => new Response('complete', { headers }));
+  const fetchMock = vi.fn<typeof fetch>(async () => new Response('complete', { headers }));
   vi.stubGlobal('fetch', fetchMock);
   const signal = new AbortController().signal;
   // WHEN preparing all records THEN transport carries scope and cancellation and returns intact bytes.
   const result = await prepareExport('all', signal);
-  expect(fetchMock).toHaveBeenCalledWith(expect.any(URL), expect.objectContaining({ method: 'POST', body: '{"scope":"all"}', signal, cache: 'no-store', credentials: 'same-origin', headers: expect.objectContaining({ 'X-CSRF-TOKEN': 'csrf' }) }));
+  expect(fetchMock).toHaveBeenCalledWith(expect.any(URL), expect.objectContaining({ method: 'POST', body: '{"scope":"all"}', signal, cache: 'no-store', credentials: 'same-origin' }));
+  expect(new Headers(fetchMock.mock.calls[0][1]?.headers).get('X-CSRF-TOKEN')).toBe('csrf');
   expect(await result?.blob.text()).toBe('complete');
   expect(result?.filename).toBe(filename);
 });

@@ -40,7 +40,7 @@ public sealed class GraphWorkRetryTests(SqlServerFixture sqlServer)
             });
         });
         using var client = factory.CreateClient();
-        var response = await RecoveryTests.PostWithAntiforgeryAsync(client, "/api/auth/recovery",
+        var response = await RecoveryTests.PostWithAntiforgeryAsync(client, "/api/beta/auth/recovery",
             new { email = AuthTestApplication.AdminEmail });
         Assert.Equal(HttpStatusCode.Accepted, response.StatusCode);
         await using var connection = new SqlConnection(application.AdminConnectionString);

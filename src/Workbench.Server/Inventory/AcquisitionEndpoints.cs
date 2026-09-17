@@ -104,7 +104,7 @@ public static partial class AcquisitionEndpoints
         if (status is not (1 or 4)) return Failure(status);
         var response = await ReadSavedAsync(id, database, cancellationToken);
         await transaction.CommitAsync(cancellationToken);
-        return acquisitionId is null && status == 1 ? Results.Created($"/api/items/{id}/acquisition", response) : Results.Ok(response);
+        return acquisitionId is null && status == 1 ? Results.Created($"/api/beta/items/{id}/acquisition", response) : Results.Ok(response);
     }
 
     private static IResult Failure(int status)

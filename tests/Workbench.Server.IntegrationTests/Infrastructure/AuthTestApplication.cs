@@ -73,11 +73,16 @@ public sealed class AuthTestApplication : IAsyncDisposable
         return new AuthTestApplication(database, webConnection, factory);
     }
 
-    public HttpClient CreateClient() => Factory.CreateClient(new WebApplicationFactoryClientOptions
+    public HttpClient CreateClient()
     {
-        AllowAutoRedirect = false,
-        HandleCookies = true,
-    });
+        var client = Factory.CreateClient(new WebApplicationFactoryClientOptions
+        {
+            AllowAutoRedirect = false,
+            HandleCookies = true,
+        });
+        client.DefaultRequestHeaders.Add("X-Workbench-Api-Revision", "beta-2");
+        return client;
+    }
 
     public async ValueTask DisposeAsync()
     {

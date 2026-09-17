@@ -8,7 +8,7 @@ describe('TenantUsers', () => {
     let invitation: unknown;
     let revokedUserId: string | undefined;
     server.use(
-      http.get('*/api/tenant/users', () =>
+      http.get('*/api/beta/tenant/users', () =>
         HttpResponse.json([
           {
             id: '11111111-1111-1111-1111-111111111111',
@@ -17,14 +17,14 @@ describe('TenantUsers', () => {
           },
         ]),
       ),
-      http.get('*/api/auth/antiforgery', () =>
+      http.get('*/api/beta/auth/antiforgery', () =>
         HttpResponse.json({ requestToken: 'request-token' }),
       ),
-      http.post('*/api/tenant/users/invitations', async ({ request }) => {
+      http.post('*/api/beta/tenant/users/invitations', async ({ request }) => {
         invitation = await request.json();
         return new HttpResponse(null, { status: 202 });
       }),
-      http.delete('*/api/tenant/users/:userId/sessions', ({ params }) => {
+      http.delete('*/api/beta/tenant/users/:userId/sessions', ({ params }) => {
         revokedUserId = String(params.userId);
         return new HttpResponse(null, { status: 204 });
       }),

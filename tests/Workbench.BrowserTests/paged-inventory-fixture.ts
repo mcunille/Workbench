@@ -12,8 +12,8 @@ export function syntheticItem(index: number, name: string, archived = false): It
 
 // These synthetic responses own UI traversal only, never server search/cursor correctness.
 export async function pagedInventory(page: Page, items: ItemDetail[], archived = false) {
-  const listPath = archived ? '/api/items/archived' : '/api/items';
-  await page.route(archived ? '**/api/items/archived**' : '**/api/items**', async route => {
+  const listPath = archived ? '/api/beta/items/archived' : '/api/beta/items';
+  await page.route(archived ? '**/api/beta/items/archived**' : '**/api/beta/items**', async route => {
     const request = route.request();
     const url = new URL(request.url());
     expect(request.method()).toBe('GET');
@@ -25,7 +25,7 @@ export async function pagedInventory(page: Page, items: ItemDetail[], archived =
       const offset = cursor === null ? 0 : 50;
       return route.fulfill({ json: { items: matching.slice(offset, offset + 50), nextCursor: matching.length > offset + 50 ? 'page-2' : null } });
     }
-    const item = items.find(item => url.pathname === '/api/items/' + item.id || url.pathname === '/api/items/' + item.id + '/acquisition');
+    const item = items.find(item => url.pathname === '/api/beta/items/' + item.id || url.pathname === '/api/beta/items/' + item.id + '/acquisition');
     if (item) return route.fulfill({ json: url.pathname.endsWith('/acquisition') ? { acquisition: null, itemVersion: item.version } : item });
     await route.fulfill({ status: 501, json: { title: 'Undeclared synthetic inventory request' } });
     expect(url.pathname, 'Synthetic inventory tests must declare every inventory request').toBe(listPath);

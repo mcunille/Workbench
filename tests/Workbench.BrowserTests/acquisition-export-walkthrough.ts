@@ -47,7 +47,7 @@ test('H12 narrated acquisition history and paperwork export journey', async ({ b
       await page.getByRole('searchbox', { name: 'Search acquisitions', exact: true }).fill(source);
       await page.getByRole('button', { name: 'Search', exact: true }).click();
       await page.getByRole('button', { name: new RegExp(`^Select ${source}`) }).click();
-      const savedLink = page.waitForResponse(response => response.request().method() === 'PUT' && new URL(response.url()).pathname === `/api/items/${piece.id}/acquisition-link`);
+      const savedLink = page.waitForResponse(response => response.request().method() === 'PUT' && new URL(response.url()).pathname === `/api/beta/items/${piece.id}/acquisition-link`);
       await page.getByRole('button', { name: 'Save connection', exact: true }).click();
       expect((await savedLink).status()).toBe(200);
       await expect(page.getByRole('button', { name: 'Save connection', exact: true })).toHaveCount(0);
@@ -84,7 +84,7 @@ test('H12 narrated acquisition history and paperwork export journey', async ({ b
     await page.screenshot({ path: `${root}/paperwork-desktop.png`, fullPage: true });
     await narrate('A receipt and a supporting report belong to the shared acquisition. These sample documents preserve their uploaded bytes and labels. They are collector records, not proof of authenticity.');
 
-    const archived = await (await seed.request.get(`/api/items/${pieces[2].id}`)).json();
+    const archived = await (await seed.request.get(`/api/beta/items/${pieces[2].id}`)).json();
     await lifecycle(seed, pieces[2].id, 'archive', archived.version);
     await page.goto(`/inventory/${pieces[2].id}`);
     await expect(page.getByRole('button', { name: 'Download Fair receipt', exact: true })).toBeVisible();
@@ -163,7 +163,7 @@ test('H12 narrated acquisition history and paperwork export journey', async ({ b
     await writeFile(`${root}/README.txt`, all.entries.get('README.txt')!);
 
     // WHEN storage preparation fails (simulated) THEN no partial package is offered and a new snapshot can recover.
-    await page.route('**/api/items/export-package', route => route.fulfill({ status: 503 }), { times: 1 });
+    await page.route('**/api/beta/items/export-package', route => route.fulfill({ status: 503 }), { times: 1 });
     await page.getByRole('button', { name: 'Prepare new export', exact: true }).click();
     await expect(page.getByRole('alert')).toContainText('photograph or document storage');
     await expect(ready).toHaveCount(0);

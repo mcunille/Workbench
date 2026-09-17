@@ -13,7 +13,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
-    "generate:api": "openapi-typescript openapi/Workbench.Server.json -o src/api/generated.ts",
+    "generate:api": "openapi-typescript openapi/Workbench.Server_beta.json -o src/api/generated.ts",
     "lint": "eslint .",
     "test": "node --no-experimental-webstorage ./node_modules/vitest/vitest.mjs",
     "test:run": "node --no-experimental-webstorage ./node_modules/vitest/vitest.mjs run",

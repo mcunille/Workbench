@@ -36,19 +36,19 @@ public sealed class SharedAcquisitionConcurrencyTests(SqlServerFixture sqlServer
         async Task<HttpResponseMessage> Replace()
         {
             await gate.Task;
-            return await SendAsync(first, HttpMethod.Put, $"/api/items/{a.Id}/acquisition-link", request);
+            return await SendAsync(first, HttpMethod.Put, $"/api/beta/items/{a.Id}/acquisition-link", request);
         }
         async Task<HttpResponseMessage> Compete()
         {
             await gate.Task;
             return scenario switch
             {
-                "archive" => await SendAsync(second, HttpMethod.Post, $"/api/items/{a.Id}/archive", new { expectedVersion = contextA.ItemVersion }),
-                "shared-edit" => await SendAsync(second, HttpMethod.Put, $"/api/items/{b.Id}/acquisition/{contextB.Acquisition!.Id}",
+                "archive" => await SendAsync(second, HttpMethod.Post, $"/api/beta/items/{a.Id}/archive", new { expectedVersion = contextA.ItemVersion }),
+                "shared-edit" => await SendAsync(second, HttpMethod.Put, $"/api/beta/items/{b.Id}/acquisition/{contextB.Acquisition!.Id}",
                     new UpdateAcquisitionRequest(contextB.ItemVersion, contextB.Acquisition.Version, "Trade", "Edited", null, null, null, null)),
-                "opposite-replacement" => await SendAsync(second, HttpMethod.Put, $"/api/items/{b.Id}/acquisition-link", Link(contextB, contextA.Acquisition)),
-                "duplicate" => await SendAsync(second, HttpMethod.Put, $"/api/items/{a.Id}/acquisition-link", request),
-                _ => await SendAsync(second, HttpMethod.Put, $"/api/items/{a.Id}/acquisition-link", Link(contextA, null)),
+                "opposite-replacement" => await SendAsync(second, HttpMethod.Put, $"/api/beta/items/{b.Id}/acquisition-link", Link(contextB, contextA.Acquisition)),
+                "duplicate" => await SendAsync(second, HttpMethod.Put, $"/api/beta/items/{a.Id}/acquisition-link", request),
+                _ => await SendAsync(second, HttpMethod.Put, $"/api/beta/items/{a.Id}/acquisition-link", Link(contextA, null)),
             };
         }
         // WHEN commands race on real transactional SQL sessions THEN one succeeds and one gets a recoverable conflict.
@@ -73,8 +73,8 @@ public sealed class SharedAcquisitionConcurrencyTests(SqlServerFixture sqlServer
         else if (scenario == "competing-target") Assert.Null(currentA.Acquisition);
         else Assert.Equal(scenario == "duplicate" ? contextB.Acquisition!.Id : contextA.Acquisition!.Id, currentA.Acquisition!.Id);
         // AND both records and contexts survive, and a stale retry cannot silently rebase.
-        Assert.Equal(2, (await first.GetFromJsonAsync<AcquisitionPageResponse>("/api/acquisitions"))!.Items.Count);
-        Assert.Equal(HttpStatusCode.Conflict, (await SendAsync(first, HttpMethod.Put, $"/api/items/{a.Id}/acquisition-link", request)).StatusCode);
+        Assert.Equal(2, (await first.GetFromJsonAsync<AcquisitionPageResponse>("/api/beta/acquisitions"))!.Items.Count);
+        Assert.Equal(HttpStatusCode.Conflict, (await SendAsync(first, HttpMethod.Put, $"/api/beta/items/{a.Id}/acquisition-link", request)).StatusCode);
     }
 
     [Fact]
@@ -92,7 +92,7 @@ public sealed class SharedAcquisitionConcurrencyTests(SqlServerFixture sqlServer
         var saved = await CreateContext(owner, item);
         var other = await CreateContext(foreign, otherItem);
         var valid = Link(saved, null);
-        var path = $"/api/items/{item.Id}/acquisition-link";
+        var path = $"/api/beta/items/{item.Id}/acquisition-link";
         // WHEN anonymous or malformed requests arrive THEN they are rejected before mutation.
         Assert.Equal(HttpStatusCode.Unauthorized, (await anonymous.PutAsJsonAsync(path, valid)).StatusCode);
         foreach (var invalid in new object[] { valid with { ExpectedItemVersion = "AQ==" }, valid with { ExpectedAcquisitionVersion = null },

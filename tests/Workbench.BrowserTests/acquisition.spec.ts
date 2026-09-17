@@ -7,9 +7,9 @@ import { setAppearance } from './user-menu-fixture';
 test.setTimeout(120_000);
 
 async function createItem(page: Page) {
-  const csrf = await (await page.request.get('/api/auth/antiforgery')).json();
-  const response = await page.request.post('/api/items', {
-    headers: { 'X-CSRF-TOKEN': csrf.requestToken },
+  const csrf = await (await page.request.get('/api/beta/auth/antiforgery')).json();
+  const response = await page.request.post('/api/beta/items', {
+    headers: { 'X-Workbench-Api-Revision': 'beta-2', 'X-CSRF-TOKEN': csrf.requestToken },
     data: { creationRequestId: crypto.randomUUID(), name: `H9 ${crypto.randomUUID()}` },
   });
   expect(response.status()).toBe(201);
@@ -61,7 +61,7 @@ test('H9 optional facts, explicit methods and partial dates survive a new login 
       await expect(panel(reader).locator('dd').filter({ hasText: new RegExp(`^${item.date}$`) }).first()).toBeVisible();
     }
     const item = items[1];
-    const current = await (await reader.request.get(`/api/items/${item.id}`)).json();
+    const current = await (await reader.request.get(`/api/beta/items/${item.id}`)).json();
     await lifecycle(reader, item.id, 'archive', current.version);
     await reader.goto(`/inventory/${item.id}`);
     await expect(panel(reader).getByText('Gift', { exact: true })).toBeVisible();
@@ -90,7 +90,7 @@ test('H9 competing sessions preserve drafts through failed conflict reads and de
     await other.getByLabel('Provenance notes (optional)', { exact: true }).fill('My retained recollection');
     await save(page);
     await expect(panel(page).getByText('Aunt Mira', { exact: true })).toBeVisible();
-    await other.route(`**/api/items/${item.id}/acquisition`, route => route.request().method() === 'GET'
+    await other.route(`**/api/beta/items/${item.id}/acquisition`, route => route.request().method() === 'GET'
       ? route.fulfill({ status: 503 }) : route.continue(), { times: 1 });
     // WHEN a stale edit conflicts and its comparison read fails THEN retry retains the draft.
     await save(other);
@@ -141,7 +141,7 @@ test('H9 a lost creation response retries the identical request without a duplic
   await page.getByLabel('Acquisition method', { exact: true }).selectOption('Trade');
   await page.getByLabel('Traded with (optional)', { exact: true }).fill('Local collector');
   const payloads: unknown[] = [];
-  await page.route(`**/api/items/${item.id}/acquisition`, async route => {
+  await page.route(`**/api/beta/items/${item.id}/acquisition`, async route => {
     if (route.request().method() !== 'POST') return route.continue();
     payloads.push(route.request().postDataJSON());
     if (payloads.length > 1) return route.continue();
@@ -151,19 +151,19 @@ test('H9 a lost creation response retries the identical request without a duplic
   await save(page);
   await expect(page.getByRole('alert')).toContainText('could not confirm');
   await expect(page.getByLabel('Traded with (optional)', { exact: true })).toBeDisabled();
-  const committed = await (await page.request.get(`/api/items/${item.id}/acquisition`)).json();
+  const committed = await (await page.request.get(`/api/beta/items/${item.id}/acquisition`)).json();
   // WHEN retrying THEN the immutable request resolves to the same persisted acquisition.
-  const replay = page.waitForResponse(response => response.url().endsWith(`/api/items/${item.id}/acquisition`) && response.request().method() === 'POST');
+  const replay = page.waitForResponse(response => response.url().endsWith(`/api/beta/items/${item.id}/acquisition`) && response.request().method() === 'POST');
   await page.getByRole('button', { name: 'Retry save', exact: true }).click();
   expect((await replay).status()).toBe(200);
   expect(payloads).toHaveLength(2); expect(payloads[1]).toEqual(payloads[0]);
   await expect(panel(page).getByText('Local collector', { exact: true })).toBeVisible();
-  const saved = await (await page.request.get(`/api/items/${item.id}/acquisition`)).json();
+  const saved = await (await page.request.get(`/api/beta/items/${item.id}/acquisition`)).json();
   expect(saved.acquisition.id).toBe(committed.acquisition.id);
   // AND an edit with a lost response uses its original version and explicitly resolves the conflict.
   await page.getByRole('button', { name: 'Edit acquisition', exact: true }).click();
   await page.getByLabel('Provenance notes (optional)', { exact: true }).fill('Corrected recollection');
-  await page.route(`**/api/items/${item.id}/acquisition/${saved.acquisition.id}`, async route => {
+  await page.route(`**/api/beta/items/${item.id}/acquisition/${saved.acquisition.id}`, async route => {
     expect((await route.fetch()).status()).toBe(200);
     await route.abort('failed');
   }, { times: 1 });

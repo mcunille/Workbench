@@ -155,16 +155,16 @@ try {
         throw "Published SPA shell contract failed at $baseUrl/client/route."
     }
 
-    $system = Invoke-WebRequest -Uri "$baseUrl/api/system" -SkipHttpErrorCheck
+    $system = Invoke-WebRequest -Uri "$baseUrl/api/beta/system" -SkipHttpErrorCheck
     $systemBody = $system.Content | ConvertFrom-Json
     if ($system.StatusCode -ne 200 -or $systemBody.name -ne 'Workbench' -or
         [string]::IsNullOrWhiteSpace($systemBody.version)) {
-        throw "Published system API contract failed at $baseUrl/api/system."
+        throw "Published system API contract failed at $baseUrl/api/beta/system."
     }
 
-    $apiMiss = Invoke-WebRequest -Uri "$baseUrl/api/not-a-route" -SkipHttpErrorCheck
+    $apiMiss = Invoke-WebRequest -Uri "$baseUrl/api/beta/not-a-route" -SkipHttpErrorCheck
     if ($apiMiss.StatusCode -ne 404 -or $apiMiss.Headers.'Content-Type' -notmatch '^application/problem\+json') {
-        throw "Published API miss contract failed at $baseUrl/api/not-a-route."
+        throw "Published API miss contract failed at $baseUrl/api/beta/not-a-route."
     }
 
     $publishedVerified = $true

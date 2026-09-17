@@ -106,7 +106,7 @@ try {
     $stages[0].Job | Wait-Job | Out-Null
     npm run generate:api --prefix $clientRoot
     Assert-NativeCommandSucceeded 'TypeScript API generation'
-    git diff --exit-code -- src/Workbench.Client/openapi/Workbench.Server.json src/Workbench.Client/src/api/generated.ts
+    git diff --exit-code -- src/Workbench.Client/openapi/Workbench.Server_beta.json src/Workbench.Client/src/api/generated.ts
     Assert-NativeCommandSucceeded 'generated API drift check'
 
     # Each child owns a SQL container; process-wide pool and image state never cross partitions.

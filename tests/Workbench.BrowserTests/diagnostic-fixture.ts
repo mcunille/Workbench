@@ -9,7 +9,7 @@ export const test = base.extend<{ failureDiagnostics: void; interceptedApiGuard:
     void failureDiagnostics;
     if (testInfo.project.name !== 'intercepted') { await use(); return; }
     const guard = createApiGuard();
-    await context.route('**/api/**', route => guard.handle(route));
+    await context.route('**/api/beta/**', route => guard.handle(route));
     try { await use(); } finally { guard.assertClean(); }
   }, { auto: true }],
   failureDiagnostics: [async ({ page }, use, testInfo) => {

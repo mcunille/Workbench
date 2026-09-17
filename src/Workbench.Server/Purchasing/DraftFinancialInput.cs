@@ -2,9 +2,8 @@
 using System.Numerics;
 namespace Workbench.Server.Purchasing;
 
-public static partial class DraftOrderInputV4
+public static partial class DraftOrderInput
 {
-    private static string? Trim(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
     private static string? Number(string? value) => value is not null && PricePattern().IsMatch(value) ? Format(Scaled(value)) : value;
     private static DraftDiscount? NormalizeDiscount(DraftDiscount? discount) => discount is null ? null : discount with { Value = Number(discount.Value)! };
     private static BigInteger? Reduction(BigInteger? basis, DraftDiscount? discount)
@@ -16,7 +15,7 @@ public static partial class DraftOrderInputV4
         return result + (remainder >= 500000 ? 1 : 0);
     }
     private static string? Amount(BigInteger? value) => value is { } amount ? Format(amount) : null;
-    public static DraftCalculationResponseV4 Calculate(DraftContentV4 draft)
+    public static DraftCalculationResponse Calculate(DraftContent draft)
     {
         var lines = draft.Entries.Select(e => { var gross = Gross(e); var discount = Reduction(gross, e.Discount); return (e.Id, Gross: gross, Discount: discount, Net: gross - discount); }).ToArray();
         var known = lines.Where(e => e.Gross is not null).ToArray();
@@ -32,7 +31,7 @@ public static partial class DraftOrderInputV4
             return rows.Any(c => c.Amount is null) ? null : rows.Aggregate(BigInteger.Zero, (sum, c) => sum + Scaled(c.Amount!));
         }
         var supplier = ChargeTotal("supplier"); var thirdParty = ChargeTotal("thirdParty");
-        return new(lines.Select(e => new DraftLineCalculationV4(e.Id, Amount(e.Gross), Amount(e.Gross), Amount(e.Discount), Amount(e.Net))).ToArray(),
+        return new(lines.Select(e => new DraftLineCalculation(e.Id, Amount(e.Gross), Amount(e.Gross), Amount(e.Discount), Amount(e.Net))).ToArray(),
             lines.Length - known.Length, Amount(grossTotal), Amount(lineDiscounts), Amount(net), Amount(net), Amount(orderReduction),
             Amount(discounted), Amount(supplier), Amount(thirdParty), Amount(discounted + supplier), Amount(discounted + supplier + thirdParty), draft.Charges.Count(c => c.Amount is null));
     }
@@ -49,7 +48,7 @@ public static partial class DraftOrderInputV4
             if (basis is not null && value > basis) errors[field + ".value"] = ["The discount cannot exceed its eligible base."];
         }
     }
-    private static void ValidateAdjustments(DraftContentV4 draft, Dictionary<string, string[]> errors)
+    private static void ValidateAdjustments(DraftContent draft, Dictionary<string, string[]> errors)
     {
         BigInteger? net = draft.Entries?.Count > 0 ? BigInteger.Zero : null;
         if (draft.Entries is not null)

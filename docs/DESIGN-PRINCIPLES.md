@@ -82,3 +82,15 @@ at clear boundaries so that one provider does not define the whole product.
 When requirements are still emerging, prefer decisions that are easy to revisit and data that can
 be migrated. A spec proposing an expensive or difficult-to-reverse commitment must identify the
 evidence for it, the exit strategy, and the cost of being wrong.
+
+## 13. Evolve APIs deliberately
+
+Until the first release, all Workbench APIs are beta and are expected to change. The first
+release establishes the stable v1 contract; development iterations do not each earn a permanent
+public version. Support at most the current stable contract and an optional beta for the next release.
+
+Prefer non-breaking changes when they keep the implementation simple. Do not accumulate adapters,
+parallel business rules, or speculative abstractions solely to preserve unreleased APIs. When a
+breaking change is necessary, clearly state the reason, affected callers and data, alternatives,
+and transition and recovery behavior, and obtain explicit approval before implementing it.
+Beta status does not waive this approval or the obligation to preserve stored business data.

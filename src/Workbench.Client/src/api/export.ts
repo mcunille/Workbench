@@ -1,3 +1,4 @@
+import { apiFetch } from './contract';
 import type { components } from './generated';
 import { ApiError, mutationHeaders } from './auth';
 
@@ -9,7 +10,7 @@ export async function prepareExport(scope: ExportScope, signal: AbortSignal, for
   const headers = await mutationHeaders();
   signal.throwIfAborted();
   // Use fetch for the binary attachment; JSON requests remain generated-contract typed.
-  const response = await fetch(new URL(format === 'zip' ? '/api/items/export-package' : '/api/items/export', window.location.origin), {
+  const response = await apiFetch(new URL(format === 'zip' ? '/api/beta/items/export-package' : '/api/beta/items/export', window.location.origin), {
     method: 'POST', credentials: 'same-origin', cache: 'no-store', signal,
     headers: { ...headers, 'Content-Type': 'application/json', Accept: format === 'zip' ? 'application/zip' : 'text/csv' },
     body: JSON.stringify(body),

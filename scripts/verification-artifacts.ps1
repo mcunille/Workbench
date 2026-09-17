@@ -4,7 +4,7 @@ function Get-VerificationSourceHash {
     $paths = @(git -C $RepositoryRoot -c core.quotepath=false ls-files --cached --others --exclude-standard)
     if ($LASTEXITCODE -ne 0) { throw 'Cannot inventory current source for artifact provenance.' }
     $entries = foreach ($relative in ($paths | Sort-Object -Unique)) {
-        if ($BeforeGeneration -and $relative -in @('src/Workbench.Client/openapi/Workbench.Server.json', 'src/Workbench.Client/src/api/generated.ts')) { continue }
+        if ($BeforeGeneration -and $relative -in @('src/Workbench.Client/openapi/Workbench.Server_beta.json', 'src/Workbench.Client/src/api/generated.ts')) { continue }
         $path = Join-Path $RepositoryRoot $relative
         if (Test-Path -LiteralPath $path -PathType Leaf) { "$relative=$((Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash)" }
         else { "$relative=MISSING" }

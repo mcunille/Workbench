@@ -47,7 +47,7 @@ test('H10 narrated shared acquisition walkthrough', async ({ browser }) => {
       await page.getByRole('button', { name: /^Select Autumn mineral fair/ }).click();
       if (!index) {
         await narrate('Choose the saved acquisition and review the intended connection. This action changes the relationship only. It does not create a second acquisition or replace the physical item.');
-        await page.route(`**/api/items/${piece.id}/acquisition-link`, async route => {
+        await page.route(`**/api/beta/items/${piece.id}/acquisition-link`, async route => {
           expect((await route.fetch()).status()).toBe(200);
           await route.abort('failed');
         }, { times: 1 });
@@ -80,7 +80,7 @@ test('H10 narrated shared acquisition walkthrough', async ({ browser }) => {
     await narrate('A mistaken connection can be removed explicitly, even on a narrow screen. The confirmation preserves both identities. Removing a connection does not delete a stone or its acquisition.');
     await page.getByRole('button', { name: 'Remove connection', exact: true }).click();
     await expect(acquisitionPanel(page).getByText('No acquisition recorded.', { exact: true })).toBeVisible();
-    const current = await (await seed.request.get(`/api/items/${pieces[1].id}`)).json();
+    const current = await (await seed.request.get(`/api/beta/items/${pieces[1].id}`)).json();
     await lifecycle(seed, pieces[1].id, 'archive', current.version);
     await page.goto(`/inventory/${pieces[1].id}`);
     await acquisitionPanel(page).scrollIntoViewIfNeeded();

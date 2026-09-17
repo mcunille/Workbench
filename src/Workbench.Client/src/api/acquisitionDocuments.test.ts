@@ -6,9 +6,9 @@ vi.stubGlobal('window', { location: { origin: 'http://localhost:3000' } });
 const { changeDocument, downloadDocument, getDocumentOperation, uploadDocument } = await import('./acquisitionDocuments');
 const { ApiError } = await import('./auth');
 const { ItemValidationError } = await import('./items');
-const url = '*/api/items/item/acquisition/acq/documents';
+const url = '*/api/beta/items/item/acquisition/acq/documents';
 const command = { requestId: 'request', expectedItemVersion: 'i1', expectedAcquisitionVersion: 'a1', expectedDocumentVersion: 'd1', label: 'Receipt' };
-beforeEach(() => { server.use(http.get('*/api/auth/antiforgery', () => HttpResponse.json({ requestToken: 'csrf' }))); });
+beforeEach(() => { server.use(http.get('*/api/beta/auth/antiforgery', () => HttpResponse.json({ requestToken: 'csrf' }))); });
 it('sends multipart bytes with CSRF and immutable command evidence', async () => {
   // GIVEN a document upload with deliberately misleading MIME information.
   let captured: FormData | undefined;

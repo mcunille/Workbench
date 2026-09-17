@@ -9,7 +9,7 @@ public sealed class DraftOrderCacheMiddleware(RequestDelegate next)
 {
     public async Task InvokeAsync(HttpContext context)
     {
-        if ((context.Request.Path.StartsWithSegments("/api/purchase-order-drafts") || context.Request.Path.StartsWithSegments("/api/v2/purchase-order-drafts") || context.Request.Path.StartsWithSegments("/api/v3/purchase-order-drafts") || context.Request.Path.StartsWithSegments("/api/v4/purchase-order-drafts") || context.Request.Path.StartsWithSegments("/api/suppliers")))
+        if ((context.Request.Path.StartsWithSegments("/api/beta/purchase-order-drafts") || context.Request.Path.StartsWithSegments("/api/beta/suppliers")))
             context.Response.OnStarting(() => { context.Response.Headers.CacheControl = "private, no-store"; return Task.CompletedTask; });
         await next(context);
     }
@@ -17,12 +17,11 @@ public sealed class DraftOrderCacheMiddleware(RequestDelegate next)
 
 public sealed class DraftOrderRequestMiddleware(RequestDelegate next)
 {
-    public const string LegacyV4Key = "purchasing.legacyV4Receipt";
     public const int MaximumBodyBytes = 4 * 1024 * 1024;
 
     public async Task InvokeAsync(HttpContext context)
     {
-        if (!(context.Request.Path.StartsWithSegments("/api/purchase-order-drafts") || context.Request.Path.StartsWithSegments("/api/v2/purchase-order-drafts") || context.Request.Path.StartsWithSegments("/api/v3/purchase-order-drafts") || context.Request.Path.StartsWithSegments("/api/v4/purchase-order-drafts") || context.Request.Path.StartsWithSegments("/api/suppliers")) ||
+        if (!(context.Request.Path.StartsWithSegments("/api/beta/purchase-order-drafts") || context.Request.Path.StartsWithSegments("/api/beta/suppliers")) ||
             context.Request.Method is not ("POST" or "PUT" or "DELETE")) { await next(context); return; }
         if (context.Request.ContentLength > MaximumBodyBytes) { await TooLarge(context); return; }
         // Bound chunked requests as well as Content-Length. Keep private bodies in memory only;
@@ -38,25 +37,13 @@ public sealed class DraftOrderRequestMiddleware(RequestDelegate next)
             if (bounded.Length > MaximumBodyBytes) { await TooLarge(context); return; }
         }
         bounded.Position = 0;
-        // A wholly old V4 document may resolve an existing receipt, but remains old-shaped in
-        // its SQL canonical input. SQL checks receipts before rejecting new old-shaped writes.
-        if (context.Request.Path.StartsWithSegments("/api/v4/purchase-order-drafts"))
+        // Reject duplicate fields before JSON binding can discard conflicting financial inputs.
+        if (context.Request.Path.StartsWithSegments("/api/beta/purchase-order-drafts"))
         {
             try
             {
                 var body = await JsonNode.ParseAsync(bounded, documentOptions: new JsonDocumentOptions { AllowDuplicateProperties = false }, cancellationToken: context.RequestAborted);
-                if (body is not JsonObject envelope) { await InvalidBody(context); return; }
-                if (!context.Request.Path.Value!.EndsWith("/calculate", StringComparison.Ordinal) && context.Request.Method is "POST" or "PUT" &&
-                    envelope["draft"] is JsonObject draft && !draft.ContainsKey("orderDiscount") && !draft.ContainsKey("charges") &&
-                    draft["entries"] is JsonArray entries && entries.All(entry => entry is JsonObject line && !line.ContainsKey("discount")))
-                {
-                    draft["orderDiscount"] = null; draft["charges"] = new JsonArray();
-                    foreach (var entry in entries) entry!["discount"] = null;
-                    var bytes = JsonSerializer.SerializeToUtf8Bytes(body, DraftOrderInput.JsonOptions);
-                    if (bytes.Length > MaximumBodyBytes) { await TooLarge(context); return; }
-                    bounded.SetLength(0); await bounded.WriteAsync(bytes, context.RequestAborted);
-                    context.Items[LegacyV4Key] = true;
-                }
+                if (body is not JsonObject) { await InvalidBody(context); return; }
             }
             catch (JsonException) { await InvalidBody(context); return; }
             bounded.Position = 0;

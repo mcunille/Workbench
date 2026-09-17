@@ -172,9 +172,9 @@ public sealed class AcquisitionDocumentInterruptionTests(SqlServerFixture sqlSer
         { services.RemoveAll<IBlobStore>(); services.AddSingleton(store); }));
         using var client = factory.CreateClient(); await LoginAsync(client);
         var item = await CreateItemAsync(client);
-        using var created = await SendAsync(client, HttpMethod.Post, $"/api/items/{item.Id}/acquisition", new CreateAcquisitionRequest(Guid.NewGuid(), item.Version, "Gift", null, null, null, null, null));
+        using var created = await SendAsync(client, HttpMethod.Post, $"/api/beta/items/{item.Id}/acquisition", new CreateAcquisitionRequest(Guid.NewGuid(), item.Version, "Gift", null, null, null, null, null));
         var context = (await created.Content.ReadFromJsonAsync<ItemAcquisitionResponse>())!;
-        await action(client, $"/api/items/{item.Id}/acquisition/{context.Acquisition!.Id}/documents", context, application);
+        await action(client, $"/api/beta/items/{item.Id}/acquisition/{context.Acquisition!.Id}/documents", context, application);
     }
     private static async Task<int> Count(AuthTestApplication application, string table)
     {

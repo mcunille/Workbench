@@ -42,13 +42,13 @@ public sealed class ItemExportConcurrencyTests(SqlServerFixture sqlServer)
         await using var storageFactory = CreateExportFactory(app);
         using var writer = storageFactory.CreateClient();
         await LoginAsync(writer);
-        var created = await PostAsync(writer, "/api/items", new { creationRequestId = Guid.NewGuid(), name = "Before snapshot" });
+        var created = await PostAsync(writer, "/api/beta/items", new { creationRequestId = Guid.NewGuid(), name = "Before snapshot" });
         var item = await created.Content.ReadFromJsonAsync<JsonElement>();
         var id = item.GetProperty("id").GetGuid();
         var version = item.GetProperty("version").GetString();
         if (change == "restore")
         {
-            var archived = await PostAsync(writer, $"/api/items/{id}/archive", new { expectedVersion = version });
+            var archived = await PostAsync(writer, $"/api/beta/items/{id}/archive", new { expectedVersion = version });
             version = (await archived.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("version").GetString();
         }
         var barrier = new BeforeCommit();
@@ -61,9 +61,9 @@ public sealed class ItemExportConcurrencyTests(SqlServerFixture sqlServer)
         // WHEN an independent real HTTP/SQL session attempts a conflicting write.
         Task<HttpResponseMessage> writing = change switch
         {
-            "insert" => PostAsync(writer, "/api/items", new { creationRequestId = Guid.NewGuid(), name = "After snapshot" }),
-            "edit" => PutAsync(writer, $"/api/items/{id}", new { expectedVersion = version, name = "After snapshot" }),
-            _ => PostAsync(writer, $"/api/items/{id}/{change}", new { expectedVersion = version }),
+            "insert" => PostAsync(writer, "/api/beta/items", new { creationRequestId = Guid.NewGuid(), name = "After snapshot" }),
+            "edit" => PutAsync(writer, $"/api/beta/items/{id}", new { expectedVersion = version, name = "After snapshot" }),
+            _ => PostAsync(writer, $"/api/beta/items/{id}/{change}", new { expectedVersion = version }),
         };
         try
         {
@@ -102,7 +102,7 @@ public sealed class ItemExportConcurrencyTests(SqlServerFixture sqlServer)
         await using var storageFactory = CreateExportFactory(app);
         using var client = storageFactory.CreateClient();
         await LoginAsync(client);
-        await PostAsync(client, "/api/items", new { creationRequestId = Guid.NewGuid(), name = "Private text" });
+        await PostAsync(client, "/api/beta/items", new { creationRequestId = Guid.NewGuid(), name = "Private text" });
         var barrier = new BeforeCommit();
         await using var factory = storageFactory.WithWebHostBuilder(builder => builder.ConfigureServices(services =>
             services.AddDbContext<WorkbenchDbContext>(options => options.AddInterceptors(barrier))));
@@ -142,8 +142,9 @@ public sealed class ItemExportConcurrencyTests(SqlServerFixture sqlServer)
 
     private static async Task<HttpResponseMessage> PutAsync(HttpClient client, string path, object body)
     {
-        var token = await client.GetFromJsonAsync<JsonElement>("/api/auth/antiforgery");
+        var token = await client.GetFromJsonAsync<JsonElement>("/api/beta/auth/antiforgery");
         using var request = new HttpRequestMessage(HttpMethod.Put, path) { Content = JsonContent.Create(body) };
+        request.Headers.TryAddWithoutValidation("X-Workbench-Api-Revision", "beta-2");
         request.Headers.Add("X-CSRF-TOKEN", token.GetProperty("requestToken").GetString());
         return await client.SendAsync(request);
     }

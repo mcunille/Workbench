@@ -1,5 +1,14 @@
 # Purchase order drafts
 
+The purchasing API is beta, as are all unreleased Workbench APIs. The current application uses
+`/api/beta/purchase-order-drafts` and `/api/beta/suppliers`; older API paths cannot create or
+change drafts or replay historical requests. Exact successful retries remain supported by the current beta API.
+See [API lifecycle](api-lifecycle.md) for compatibility and rollout rules. If Workbench asks
+you to reload after an update, copy unsaved changes first. For an unconfirmed save, use
+**Select purchase draft text** (or **Select supplier text**) to focus and select the read-only
+recovery text, then copy it with your usual keyboard shortcut. This does not confirm the save;
+keep the page open and check the saved record before starting another save.
+
 Purchase orders lets members of a business plan a supplier purchase and return to it later.
 Use **New draft**, record what you know, and select **Save draft**. An empty draft is valid;
 its display name is Untitled draft until you give it a title. Saved drafts remain available after
@@ -85,8 +94,9 @@ not constitute a complete purchase estimate until merchandise is entered.
 
 The [PO-05 design](specs/2026-09-16-po-05-discounts-and-charges.md) defines these rules. This
 increment precedes PO-04: commitment, invoices, payments and permanent amendment history remain
-separate work. V4 is extended in place; older open clients must reload before making a new save.
-Already successful requests can still be resolved using their original retry information.
+separate work. The beta contract now requires revision `beta-2`; older open clients must reload
+before making a new save. Current beta retries retain their original request identity and result.
+Retired API requests are unsupported; inspect the saved record before replacing an uncertain old save.
 
 ## Suppliers, platforms and purchase references
 

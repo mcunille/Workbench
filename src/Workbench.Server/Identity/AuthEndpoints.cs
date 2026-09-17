@@ -17,7 +17,7 @@ public static class AuthEndpoints
 {
     public static IEndpointRouteBuilder MapWorkbenchAuthentication(this IEndpointRouteBuilder endpoints)
     {
-        var group = endpoints.MapGroup("/api/auth").WithTags("Authentication");
+        var group = endpoints.MapGroup("/api/beta/auth").WithTags("Authentication");
 
         group.MapGet("/antiforgery", (IAntiforgery antiforgery, HttpContext context) =>
             {

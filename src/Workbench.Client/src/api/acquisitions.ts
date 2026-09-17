@@ -1,3 +1,4 @@
+import { apiFetch } from './contract';
 import { ApiError, mutationHeaders } from './auth';
 import { ItemValidationError } from './items';
 
@@ -18,7 +19,7 @@ async function request<T = AcquisitionContext>(
   url: string,
   init?: RequestInit,
 ): Promise<T> {
-  const response = await fetch(new URL(url, window.location.origin), {
+  const response = await apiFetch(new URL(url, window.location.origin), {
     credentials: 'same-origin',
     cache: 'no-store',
     ...init,
@@ -43,24 +44,24 @@ export type LinkAcquisitionCommand = components['schemas']['LinkAcquisitionReque
 export function findAcquisitions(search = '', cursor?: string) {
   const query = new URLSearchParams({ search });
   if (cursor) query.set('cursor', cursor);
-  return request<AcquisitionPage>(`/api/acquisitions?${query}`);
+  return request<AcquisitionPage>(`/api/beta/acquisitions?${query}`);
 }
 export function getSharedAcquisition(id: string) {
-  return request<Acquisition>(`/api/acquisitions/${encodeURIComponent(id)}`);
+  return request<Acquisition>(`/api/beta/acquisitions/${encodeURIComponent(id)}`);
 }
 export function getAcquisitionItems(id: string, includeArchived = false, cursor?: string) {
   const query = new URLSearchParams({ includeArchived: String(includeArchived) });
   if (cursor) query.set('cursor', cursor);
-  return request<AcquisitionItems>(`/api/acquisitions/${encodeURIComponent(id)}/items?${query}`);
+  return request<AcquisitionItems>(`/api/beta/acquisitions/${encodeURIComponent(id)}/items?${query}`);
 }
 export async function saveAcquisitionLink(itemId: string, command: LinkAcquisitionCommand) {
-  return request(`/api/items/${encodeURIComponent(itemId)}/acquisition-link`, {
+  return request(`/api/beta/items/${encodeURIComponent(itemId)}/acquisition-link`, {
     method: 'PUT', headers: { ...(await mutationHeaders()), 'Content-Type': 'application/json' },
     body: JSON.stringify(command),
   });
 }
 export function getAcquisition(itemId: string) {
-  return request(`/api/items/${encodeURIComponent(itemId)}/acquisition`);
+  return request(`/api/beta/items/${encodeURIComponent(itemId)}/acquisition`);
 }
 export async function saveAcquisition(
   itemId: string,
@@ -68,7 +69,7 @@ export async function saveAcquisition(
   command: AcquisitionCommand,
 ) {
   return request(
-    `/api/items/${encodeURIComponent(itemId)}/acquisition${acquisitionId ? '/' + encodeURIComponent(acquisitionId) : ''}`,
+    `/api/beta/items/${encodeURIComponent(itemId)}/acquisition${acquisitionId ? '/' + encodeURIComponent(acquisitionId) : ''}`,
     {
       method: acquisitionId ? 'PUT' : 'POST',
       headers: {

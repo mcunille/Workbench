@@ -31,7 +31,7 @@ it('retains search through details and discards it when authentication is lost',
     id: 'stone', name: 'Stone', location: null, photo: null,
     notes: null, version: 'v', createdAtUtc: '2026-09-06T00:00:00Z',
   };
-  vi.mocked(getSystem).mockResolvedValue({ name: 'Workbench', version: '1' });
+  vi.mocked(getSystem).mockResolvedValue({ name: 'Workbench', version: '1', apiRevision: 'beta-2' });
   vi.mocked(getCurrentIdentity).mockImplementation(async () => signedIn ? {
     userId: 'user', tenantName: 'Studio', email: 'person@example.test',
     permissions: ['TenantAccess'],

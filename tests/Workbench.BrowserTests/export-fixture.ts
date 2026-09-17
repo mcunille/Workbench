@@ -5,9 +5,9 @@ import { readFile } from 'node:fs/promises';
 const ownedExportItems = new WeakMap<Page, Set<string>>();
 
 export async function createExportItem(page: Page, name: string, notes = 'First line\nQuoted "detail", café', location = 'Tray A') {
-  const csrf = await (await page.request.get('/api/auth/antiforgery')).json();
-  const response = await page.request.post('/api/items', {
-    headers: { 'X-CSRF-TOKEN': csrf.requestToken },
+  const csrf = await (await page.request.get('/api/beta/auth/antiforgery')).json();
+  const response = await page.request.post('/api/beta/items', {
+    headers: { 'X-Workbench-Api-Revision': 'beta-2', 'X-CSRF-TOKEN': csrf.requestToken },
     data: { creationRequestId: crypto.randomUUID(), name, notes, location },
   });
   expect(response.status()).toBe(201);
@@ -24,18 +24,18 @@ export async function archiveExportItems(page: Page) {
   if (!ids?.size) return;
   const failures: unknown[] = [];
   try {
-    const csrfResponse = await page.request.get('/api/auth/antiforgery');
+    const csrfResponse = await page.request.get('/api/beta/auth/antiforgery');
     expect(csrfResponse.status()).toBe(200);
     const csrf = await csrfResponse.json();
     for (const id of ids) {
       try {
         // Read the saved version because the test may have edited or archived its own record.
-        const detail = await page.request.get(`/api/items/${id}`);
+        const detail = await page.request.get(`/api/beta/items/${id}`);
         expect(detail.status()).toBe(200);
         const item = await detail.json();
         if (item.archivedAtUtc !== null) continue;
-        const response = await page.request.post(`/api/items/${id}/archive`, {
-          headers: { 'X-CSRF-TOKEN': csrf.requestToken },
+        const response = await page.request.post(`/api/beta/items/${id}/archive`, {
+          headers: { 'X-Workbench-Api-Revision': 'beta-2', 'X-CSRF-TOKEN': csrf.requestToken },
           data: { expectedVersion: item.version },
         });
         expect(response.status()).toBe(200);

@@ -30,10 +30,10 @@ public sealed class AcquisitionDocumentEndpointTests(SqlServerFixture sqlServer)
         using var client = factory.CreateClient();
         await LoginAsync(client);
         var item = await CreateItemAsync(client);
-        var created = await SendAsync(client, HttpMethod.Post, $"/api/items/{item.Id}/acquisition",
+        var created = await SendAsync(client, HttpMethod.Post, $"/api/beta/items/{item.Id}/acquisition",
             new CreateAcquisitionRequest(Guid.NewGuid(), item.Version, "Gift", null, null, null, null, null));
         var context = (await created.Content.ReadFromJsonAsync<ItemAcquisitionResponse>())!;
-        var path = $"/api/items/{item.Id}/acquisition/{context.Acquisition!.Id}/documents";
+        var path = $"/api/beta/items/{item.Id}/acquisition/{context.Acquisition!.Id}/documents";
         Assert.Equal(HttpStatusCode.OK, (await client.GetAsync(path)).StatusCode);
         var content = PhotoFixture.Png();
         var requestId = Guid.NewGuid();
@@ -75,7 +75,7 @@ public sealed class AcquisitionDocumentEndpointTests(SqlServerFixture sqlServer)
         Assert.Equal(HttpStatusCode.NotFound, (await SendAsync(other, HttpMethod.Delete, $"{path}/{document.Id}", foreignChange with { Label = null })).StatusCode);
 
         // WHEN the item is archived THEN documents remain readable but fresh mutations are rejected.
-        var archived = await SendAsync(later, HttpMethod.Post, $"/api/items/{item.Id}/archive", new { expectedVersion = listing.ItemVersion });
+        var archived = await SendAsync(later, HttpMethod.Post, $"/api/beta/items/{item.Id}/archive", new { expectedVersion = listing.ItemVersion });
         Assert.Equal(HttpStatusCode.OK, archived.StatusCode);
         Assert.Equal(HttpStatusCode.OK, (await later.GetAsync(downloadPath)).StatusCode);
         var currentItem = (await archived.Content.ReadFromJsonAsync<ItemDetailResponse>())!;
@@ -86,7 +86,7 @@ public sealed class AcquisitionDocumentEndpointTests(SqlServerFixture sqlServer)
         };
         Assert.Equal(HttpStatusCode.Conflict, (await UploadAsync(later, path, archivedContext, Guid.NewGuid(), content)).StatusCode);
         // AND restoration keeps the same stored document accessible.
-        Assert.Equal(HttpStatusCode.OK, (await SendAsync(later, HttpMethod.Post, $"/api/items/{item.Id}/restore",
+        Assert.Equal(HttpStatusCode.OK, (await SendAsync(later, HttpMethod.Post, $"/api/beta/items/{item.Id}/restore",
             new { expectedVersion = currentItem.Version })).StatusCode);
         Assert.Equal(content, await later.GetByteArrayAsync(downloadPath));
     }
@@ -103,17 +103,18 @@ public sealed class AcquisitionDocumentEndpointTests(SqlServerFixture sqlServer)
             services.AddSingleton<IBlobStore>(storage.Store);
         }));
         using var client = factory.CreateClient();
-        Assert.Equal(HttpStatusCode.Unauthorized, (await client.GetAsync($"/api/items/{Guid.NewGuid()}/acquisition/{Guid.NewGuid()}/documents")).StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, (await client.GetAsync($"/api/beta/items/{Guid.NewGuid()}/acquisition/{Guid.NewGuid()}/documents")).StatusCode);
         await LoginAsync(client);
         var item = await CreateItemAsync(client);
-        var created = await SendAsync(client, HttpMethod.Post, $"/api/items/{item.Id}/acquisition",
+        var created = await SendAsync(client, HttpMethod.Post, $"/api/beta/items/{item.Id}/acquisition",
             new CreateAcquisitionRequest(Guid.NewGuid(), item.Version, "Unknown", null, null, null, null, null));
         var context = (await created.Content.ReadFromJsonAsync<ItemAcquisitionResponse>())!;
-        var path = $"/api/items/{item.Id}/acquisition/{context.Acquisition!.Id}/documents";
+        var path = $"/api/beta/items/{item.Id}/acquisition/{context.Acquisition!.Id}/documents";
         var bytes = PhotoFixture.Png();
         var requestId = Guid.NewGuid();
 
         // AND uploads without antiforgery proof cannot change saved evidence.
+        client.DefaultRequestHeaders.Add("X-Workbench-Api-Revision", "beta-2");
         Assert.Equal(HttpStatusCode.BadRequest, (await client.PostAsync(path, new MultipartFormDataContent())).StatusCode);
         Assert.Equal(HttpStatusCode.OK, (await UploadAsync(client, path, context, requestId, bytes)).StatusCode);
         var list = (await client.GetFromJsonAsync<AcquisitionDocumentsResponse>(path))!;
@@ -164,8 +165,9 @@ public sealed class AcquisitionDocumentEndpointTests(SqlServerFixture sqlServer)
     internal static async Task<HttpResponseMessage> UploadAsync(HttpClient client, string path, ItemAcquisitionResponse context,
         Guid requestId, byte[] bytes, string label = "Receipt")
     {
-        var token = await client.GetFromJsonAsync<JsonElement>("/api/auth/antiforgery");
+        var token = await client.GetFromJsonAsync<JsonElement>("/api/beta/auth/antiforgery");
         using var request = new HttpRequestMessage(HttpMethod.Post, path);
+        request.Headers.TryAddWithoutValidation("X-Workbench-Api-Revision", "beta-2");
         request.Headers.Add("X-CSRF-TOKEN", token.GetProperty("requestToken").GetString());
         var multipart = new MultipartFormDataContent();
         multipart.Add(new StringContent(requestId.ToString()), "requestId");

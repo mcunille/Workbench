@@ -49,7 +49,7 @@ test('H7 narrated collection export walkthrough', async ({ browser }) => {
     await narrate('Ordinary navigation and appearance changes retain the prepared file in private application memory. Reload, sign out, an identity change, or ten minutes clears it.', 12);
     await page.getByRole('radio', { name: 'Active and archived records', exact: true }).check();
     await expect(page.getByRole('link', { name: 'Download CSV', exact: true })).toHaveCount(0);
-    await page.route('**/api/items/export', route => route.abort('failed'), { times: 1 });
+    await page.route('**/api/beta/items/export', route => route.abort('failed'), { times: 1 });
     await page.getByRole('button', { name: 'Prepare export', exact: true }).click();
     await expect(page.getByRole('alert')).toBeVisible();
     await narrate('Changing scope discards the previous file. Here we deliberately interrupt preparation. No partial download is offered. Retry prepares a new snapshot; records may have changed.', 13);

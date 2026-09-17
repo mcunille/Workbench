@@ -22,7 +22,7 @@ public sealed partial class DraftOrderDatabaseTests
         var charge = FinancialCharge(); charge["amountStatus"] = "confirmed"; charge["notes"] = "Original source";
         input["draft"]!["charges"]!.AsArray().Add(charge);
         var creationRequest = Guid.NewGuid();
-        var saved = await SaveFinancial(connection, actor, creationRequest, input);
+        var saved = await SaveFinancial(connection, actor, creationRequest, input, historical: upgrade);
         // AND upgrading retained financial content preserves the original receipt and draft.
         if (upgrade) await Workbench.Server.Persistence.DatabaseMigrator.MigrateAsync(database.AdminConnectionString, default);
         var replay = await SaveFinancial(connection, actor, creationRequest, input);
@@ -66,8 +66,8 @@ public sealed partial class DraftOrderDatabaseTests
 
     private static JsonNode FinancialInput()
     {
-        var input = JsonNode.Parse(DraftOrderInputV4.Canonical("Create", null, null,
-            DraftOrderInputV4.Normalize(DraftOrderInputV4Tests.Empty with { Entries = [DraftOrderInputV4Tests.Line with { PriceMode = "lineTotal", Price = "100.0000" }] })))!;
+        var input = JsonNode.Parse(DraftOrderInput.Canonical("Create", null, null,
+            DraftOrderInput.Normalize(DraftOrderPricingTests.Empty with { Entries = [DraftOrderPricingTests.Line with { PriceMode = "lineTotal", Price = "100.0000" }] })))!;
         input["draft"]!["orderDiscount"] = null; input["draft"]!["charges"] = new JsonArray();
         input["draft"]!["entries"]![0]!["discount"] = null;
         return input;
@@ -86,9 +86,9 @@ public sealed partial class DraftOrderDatabaseTests
         ["notes"] = null
     };
 
-    private static async Task<(Guid Id, byte[] Version, bool Replayed)> SaveFinancial(SqlConnection connection, Guid actor, Guid request, JsonNode input)
+    private static async Task<(Guid Id, byte[] Version, bool Replayed)> SaveFinancial(SqlConnection connection, Guid actor, Guid request, JsonNode input, bool historical = false)
     {
-        await using var command = new SqlCommand("Purchasing." + input["operation"]!.GetValue<string>() + "DraftOrderV4", connection) { CommandType = CommandType.StoredProcedure };
+        await using var command = new SqlCommand("Purchasing." + input["operation"]!.GetValue<string>() + "DraftOrder" + (historical ? "V4" : ""), connection) { CommandType = CommandType.StoredProcedure };
         command.Parameters.AddWithValue("@RequestId", request); command.Parameters.AddWithValue("@ActorUserId", actor);
         command.Parameters.AddWithValue("@CanonicalInputJson", input.ToJsonString());
         await using var reader = await command.ExecuteReaderAsync(); Assert.True(await reader.ReadAsync());
@@ -108,7 +108,7 @@ public sealed partial class DraftOrderDatabaseTests
         await using var connection = await Open(database, await database.CreateWebUserAsync(), tenant);
         var input = FinancialInput(); input["draft"]!["charges"]!.AsArray().Add(FinancialCharge());
         input["draft"]!["orderDiscount"] = JsonNode.Parse("{\"mode\":\"fixed\",\"value\":\"1.0000\"}");
-        await using var command = new SqlCommand("Purchasing.CreateDraftOrderV4", connection) { CommandType = CommandType.StoredProcedure };
+        await using var command = new SqlCommand("Purchasing.CreateDraftOrder", connection) { CommandType = CommandType.StoredProcedure };
         command.Parameters.AddWithValue("@RequestId", Guid.NewGuid()); command.Parameters.AddWithValue("@ActorUserId", actor);
         command.Parameters.AddWithValue("@CanonicalInputJson", input.ToJsonString().Replace(before, after, StringComparison.Ordinal));
         // WHEN the restricted command validates the raw document THEN duplicates are rejected rather than resolved first/last.
@@ -229,13 +229,13 @@ public sealed partial class DraftOrderDatabaseTests
     [Fact]
     public async Task FinancialMigrationPreservesOldContentAndReceiptsAndRefusesDestructiveRollback()
     {
-        // GIVEN an actual predecessor database with an old-shape V4 successful request.
+        // GIVEN an actual predecessor database with an old-shape historical successful request.
         await using var database = await sqlServer.CreateMigratedDatabaseAsync("AddSupplierBasedDraftPricing");
         var tenant = Guid.NewGuid(); var actor = Guid.NewGuid(); var request = Guid.NewGuid();
         await database.SeedTenantAuditRowsAsync(tenant, Guid.NewGuid()); await SeedActor(database, tenant, actor);
         await using var connection = await Open(database, await database.CreateWebUserAsync(), tenant);
         var old = FinancialInput(); old["draft"]!.AsObject().Remove("orderDiscount"); old["draft"]!.AsObject().Remove("charges"); old["draft"]!["entries"]![0]!.AsObject().Remove("discount");
-        var original = await SaveFinancial(connection, actor, request, old);
+        var original = await SaveFinancial(connection, actor, request, old, historical: true);
         // WHEN upgraded THEN immutable old receipt replay still returns its original version.
         await Workbench.Server.Persistence.DatabaseMigrator.MigrateAsync(database.AdminConnectionString, default);
         var replay = await SaveFinancial(connection, actor, request, old);
@@ -256,14 +256,14 @@ public sealed partial class DraftOrderDatabaseTests
         var tenant = Guid.NewGuid(); var actor = Guid.NewGuid();
         await database.SeedTenantAuditRowsAsync(tenant, Guid.NewGuid()); await SeedActor(database, tenant, actor);
         await using var connection = await Open(database, await database.CreateWebUserAsync(), tenant);
-        var input = JsonNode.Parse(DraftOrderInputV4.Canonical("Create", null, null,
-            DraftOrderInputV4.Normalize(DraftOrderInputV4Tests.Empty with { Entries = [DraftOrderInputV4Tests.Line] })))!;
+        var input = JsonNode.Parse(DraftOrderInput.Canonical("Create", null, null,
+            DraftOrderInput.Normalize(DraftOrderPricingTests.Empty with { Entries = [DraftOrderPricingTests.Line] })))!;
         var draft = input["draft"]!;
         draft["orderDiscount"] = JsonNode.Parse("{\"mode\":\"percentage\",\"value\":\"10.0000\"}");
         draft["charges"] = new JsonArray();
         draft["entries"]![0]!["discount"] = null;
         // WHEN saved through the restricted command THEN all adjustments survive in schema four.
-        await using var command = new SqlCommand("Purchasing.CreateDraftOrderV4", connection) { CommandType = CommandType.StoredProcedure };
+        await using var command = new SqlCommand("Purchasing.CreateDraftOrder", connection) { CommandType = CommandType.StoredProcedure };
         command.Parameters.AddWithValue("@RequestId", Guid.NewGuid()); command.Parameters.AddWithValue("@ActorUserId", actor);
         command.Parameters.AddWithValue("@CanonicalInputJson", input.ToJsonString());
         Guid id;

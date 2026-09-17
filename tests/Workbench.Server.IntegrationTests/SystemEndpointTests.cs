@@ -15,7 +15,7 @@ public sealed class SystemEndpointTests
         await using var factory = new WebApplicationFactory<Program>();
         using var client = factory.CreateClient();
 
-        var response = await client.GetAsync("/api/system");
+        var response = await client.GetAsync("/api/beta/system");
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
 

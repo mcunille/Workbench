@@ -25,7 +25,7 @@ describe('authentication bootstrap', () => {
     });
     let calls = 0;
     server.use(
-      http.get('*/api/auth/me', async () => {
+      http.get('*/api/beta/auth/me', async () => {
         if (++calls > 1) {
           await pending;
           return new HttpResponse(null, { status: 401 });
@@ -55,10 +55,10 @@ describe('authentication bootstrap', () => {
   });
   it('never mounts protected content before durable identity succeeds', async () => {
     server.use(
-      http.get('*/api/system', () =>
-        HttpResponse.json({ name: 'Workbench', version: '1.2.3' }),
+      http.get('*/api/beta/system', () =>
+        HttpResponse.json({ name: 'Workbench', version: '1.2.3', apiRevision: 'beta-2' }),
       ),
-      http.get('*/api/auth/me', () => new HttpResponse(null, { status: 401 })),
+      http.get('*/api/beta/auth/me', () => new HttpResponse(null, { status: 401 })),
     );
 
     render(<App />);

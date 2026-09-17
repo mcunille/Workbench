@@ -1,3 +1,4 @@
+import { apiFetch } from './contract';
 import createClient from 'openapi-fetch';
 import type { components, paths } from './generated';
 import { ApiError, mutationHeaders } from './auth';
@@ -17,12 +18,12 @@ export class ItemValidationError extends ApiError {
     super(400);
   }
 }
-const api = createClient<paths>({ baseUrl: window.location.origin });
+const api = createClient<paths>({ fetch: apiFetch, baseUrl: window.location.origin });
 export async function updateItem(
   id: string,
   body: UpdateItemRequest,
 ): Promise<ItemDetail> {
-  const { data, response, error } = await api.PUT('/api/items/{id}', {
+  const { data, response, error } = await api.PUT('/api/beta/items/{id}', {
     params: { path: { id } },
     body,
     headers: await mutationHeaders(),
@@ -50,7 +51,7 @@ export async function archiveItem(
   body: components['schemas']['ArchiveItemRequest'],
 ): Promise<ItemDetail> {
   const { data, response, error } = await api.POST(
-    '/api/items/{id}/archive',
+    '/api/beta/items/{id}/archive',
     {
       params: { path: { id } },
       body,
@@ -73,7 +74,7 @@ export async function restoreItem(
   body: components['schemas']['RestoreItemRequest'],
 ): Promise<ItemDetail> {
   const { data, response, error } = await api.POST(
-    '/api/items/{id}/restore',
+    '/api/beta/items/{id}/restore',
     {
       params: { path: { id } },
       body,
@@ -94,7 +95,7 @@ export async function restoreItem(
 export async function createItem(
   body: CreateItemRequest,
 ): Promise<ItemDetail> {
-  const { data, response, error } = await api.POST('/api/items', {
+  const { data, response, error } = await api.POST('/api/beta/items', {
     body,
     headers: await mutationHeaders(),
   });
@@ -112,7 +113,7 @@ export async function getItems(
   cursor?: string,
   q?: string,
 ): Promise<ItemPage> {
-  const { data, response } = await api.GET('/api/items', {
+  const { data, response } = await api.GET('/api/beta/items', {
     params: { query: { cursor, q } },
   });
   if (!response.ok || !data) throw new ApiError(response.status);
@@ -122,14 +123,14 @@ export async function getArchivedItems(
   cursor?: string,
   q?: string,
 ): Promise<ItemPage> {
-  const { data, response } = await api.GET('/api/items/archived', {
+  const { data, response } = await api.GET('/api/beta/items/archived', {
     params: { query: { cursor, q } },
   });
   if (!response.ok || !data) throw new ApiError(response.status);
   return data;
 }
 export async function getItem(id: string): Promise<ItemDetail> {
-  const { data, response } = await api.GET('/api/items/{id}', {
+  const { data, response } = await api.GET('/api/beta/items/{id}', {
     params: { path: { id } },
   });
   if (!response.ok || !data) throw new ApiError(response.status);
@@ -144,7 +145,7 @@ export async function putItemPhoto(
   requestId: string,
   expectedVersion: string,
 ): Promise<PhotoMutationResponse> {
-  const { data, response } = await api.PUT('/api/items/{id}/photo', {
+  const { data, response } = await api.PUT('/api/beta/items/{id}/photo', {
     params: { path: { id } },
     // OpenAPI represents binary as string; the serializer below sends the actual Blob.
     body: { file: '', requestId, expectedVersion },
@@ -171,7 +172,7 @@ export async function removeItemPhoto(
   requestId: string,
   expectedVersion: string,
 ): Promise<PhotoMutationResponse> {
-  const { data, response } = await api.DELETE('/api/items/{id}/photo', {
+  const { data, response } = await api.DELETE('/api/beta/items/{id}/photo', {
     params: { path: { id } },
     body: { requestId, expectedVersion },
     headers: await mutationHeaders(),
@@ -183,7 +184,7 @@ export async function getPhoto(
   url: string,
   signal?: AbortSignal,
 ): Promise<Blob> {
-  const response = await fetch(new URL(url, window.location.origin), {
+  const response = await apiFetch(new URL(url, window.location.origin), {
     credentials: 'same-origin',
     signal,
     cache: 'no-store',

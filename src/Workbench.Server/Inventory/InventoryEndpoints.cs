@@ -14,7 +14,7 @@ public static class InventoryEndpoints
 {
     public static IEndpointRouteBuilder MapWorkbenchInventory(this IEndpointRouteBuilder endpoints)
     {
-        var group = endpoints.MapGroup("/api/items").WithTags("Inventory").RequireAuthorization();
+        var group = endpoints.MapGroup("/api/beta/items").WithTags("Inventory").RequireAuthorization();
         group.AddEndpointFilter(async (context, next) =>
         {
             context.HttpContext.Response.Headers.CacheControl = "private, no-store";
@@ -94,7 +94,7 @@ public static class InventoryEndpoints
                 throw;
             return await ReplayAsync(database, existing, request, cancellationToken);
         }
-        return Results.Created($"/api/items/{item.Id}", Detail(item));
+        return Results.Created($"/api/beta/items/{item.Id}", Detail(item));
     }
 
     private static async Task<IResult> ReplayAsync(WorkbenchDbContext database, InventoryItem item,
@@ -266,5 +266,5 @@ public static class InventoryEndpoints
     }
 
     private static ItemPhotoResponse? Photo(ItemPhoto? photo) => photo is null ? null : new(photo.Id,
-        $"/api/items/{photo.ItemId}/photo/{photo.Id}/thumbnail", $"/api/items/{photo.ItemId}/photo/{photo.Id}/detail", photo.Width, photo.Height);
+        $"/api/beta/items/{photo.ItemId}/photo/{photo.Id}/thumbnail", $"/api/beta/items/{photo.ItemId}/photo/{photo.Id}/detail", photo.Width, photo.Height);
 }

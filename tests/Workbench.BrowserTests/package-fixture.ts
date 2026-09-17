@@ -102,7 +102,7 @@ export async function uploadPackagePhoto(page: Page, id: string) {
   await expect(page.getByAltText('Prepared photograph preview')).toBeVisible();
   await page.getByRole('button', { name: 'Upload photograph', exact: true }).click();
   await expect(page.getByText('Current saved photograph loaded.', { exact: true })).toBeVisible();
-  const detail = await (await page.request.get(`/api/items/${id}`)).json();
+  const detail = await (await page.request.get(`/api/beta/items/${id}`)).json();
   const response = await page.request.get(detail.photo.detailUrl);
   expect(response.ok()).toBe(true);
   return { detail, bytes: await response.body() };

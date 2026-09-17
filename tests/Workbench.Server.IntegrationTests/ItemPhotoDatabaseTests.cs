@@ -103,7 +103,7 @@ public sealed class ItemPhotoDatabaseTests(SqlServerFixture sqlServer)
         // THEN readiness succeeds and the saved item remains intact with no invented photograph.
         Assert.Equal(HttpStatusCode.OK, (await client.GetAsync("/health/ready")).StatusCode);
         await LoginAsync(client);
-        var item = await client.GetFromJsonAsync<JsonElement>("/api/items/" + id);
+        var item = await client.GetFromJsonAsync<JsonElement>("/api/beta/items/" + id);
         Assert.Equal("Existing sapphire", item.GetProperty("name").GetString());
         Assert.Equal("Original notes", item.GetProperty("notes").GetString());
         Assert.Equal("Tray A", item.GetProperty("location").GetString());
@@ -150,7 +150,7 @@ public sealed class ItemPhotoDatabaseTests(SqlServerFixture sqlServer)
         }
 
         // AND an owner tries to attach another owned item's photo through both the SQL constraint and runtime procedure.
-        var created = await SendJsonAsync(context.Client, HttpMethod.Post, "/api/items",
+        var created = await SendJsonAsync(context.Client, HttpMethod.Post, "/api/beta/items",
             new { creationRequestId = Guid.NewGuid(), name = "Other sapphire" });
         var second = await context.Client.GetFromJsonAsync<JsonElement>(created.Headers.Location!.ToString());
         await using var admin = new SqlConnection(context.Application.AdminConnectionString);
@@ -389,12 +389,12 @@ public sealed class ItemPhotoDatabaseTests(SqlServerFixture sqlServer)
             seed.Parameters.AddWithValue("@width", processed.Width);
             seed.Parameters.AddWithValue("@height", processed.Height);
             var version = (byte[])(await seed.ExecuteScalarAsync())!;
-            return ("/api/items/" + itemId, Convert.ToBase64String(version), photoId, processed.Detail);
+            return ("/api/beta/items/" + itemId, Convert.ToBase64String(version), photoId, processed.Detail);
         }
 
         public async Task<(string Path, JsonElement Item)> CreatePhotoAsync()
         {
-            var created = await SendJsonAsync(Client, HttpMethod.Post, "/api/items",
+            var created = await SendJsonAsync(Client, HttpMethod.Post, "/api/beta/items",
                 new { creationRequestId = Guid.NewGuid(), name = "Recovery sapphire" });
             Assert.Equal(HttpStatusCode.Created, created.StatusCode);
             var path = created.Headers.Location!.ToString();

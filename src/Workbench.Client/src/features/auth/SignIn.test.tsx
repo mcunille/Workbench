@@ -41,7 +41,7 @@ describe('SignIn', () => {
     let antiforgeryHeader: string | null = null;
     let identityRequests = 0;
     server.use(
-      http.get('*/api/auth/me', () => {
+      http.get('*/api/beta/auth/me', () => {
         identityRequests++;
         return identityRequests === 1
           ? new HttpResponse(null, { status: 401 })
@@ -52,10 +52,10 @@ describe('SignIn', () => {
               permissions: ['TenantAccess'],
             });
       }),
-      http.get('*/api/auth/antiforgery', () =>
+      http.get('*/api/beta/auth/antiforgery', () =>
         HttpResponse.json({ requestToken: 'request-token' }),
       ),
-      http.post('*/api/auth/login', ({ request }) => {
+      http.post('*/api/beta/auth/login', ({ request }) => {
         antiforgeryHeader = request.headers.get('X-CSRF-TOKEN');
         return new HttpResponse(null, { status: 204 });
       }),

@@ -9,7 +9,7 @@ test('H11 retained paperwork survives response loss and remains usable at 320px'
   await useAuthenticatedSession(page);
   const piece = await createPiece(page, `Paperwork ${crypto.randomUUID()}`);
   const context = await createOrigin(page, piece.id, 'Autumn mineral fair');
-  const path = `/api/items/${piece.id}/acquisition/${context.acquisition.id}/documents`;
+  const path = `/api/beta/items/${piece.id}/acquisition/${context.acquisition.id}/documents`;
   await page.goto(`/inventory/${piece.id}`);
   await page.getByRole('button', { name: 'Add document', exact: true }).click();
   await page.getByLabel('Document label', { exact: true }).fill('Fair receipt');

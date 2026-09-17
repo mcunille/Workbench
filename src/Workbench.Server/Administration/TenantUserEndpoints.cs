@@ -18,7 +18,7 @@ public static class TenantUserEndpoints
 {
     public static IEndpointRouteBuilder MapTenantUserAdministration(this IEndpointRouteBuilder endpoints)
     {
-        var group = endpoints.MapGroup("/api/tenant/users")
+        var group = endpoints.MapGroup("/api/beta/tenant/users")
             .WithTags("Tenant users")
             .RequireAuthorization(WorkbenchPermissions.TenantUsersManage);
         group.MapGet(string.Empty, GetUsersAsync).Produces<IReadOnlyList<TenantUserResponse>>();

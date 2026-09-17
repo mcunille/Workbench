@@ -14,7 +14,7 @@ public static partial class AcquisitionEndpoints
 {
     public static void MapAcquisitionBrowsing(this IEndpointRouteBuilder endpoints)
     {
-        var group = endpoints.MapGroup("/api/acquisitions").WithTags("Inventory").RequireAuthorization();
+        var group = endpoints.MapGroup("/api/beta/acquisitions").WithTags("Inventory").RequireAuthorization();
         group.AddEndpointFilter(async (context, next) =>
         {
             context.HttpContext.Response.Headers.CacheControl = "private, no-store";

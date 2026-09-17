@@ -1,11 +1,12 @@
 {
   "openapi": "3.1.1",
   "info": {
-    "title": "Workbench.Server | v1",
-    "version": "1.0.0"
+    "title": "Workbench.Server | beta",
+    "description": "Unreleased beta API. Contracts are expected to change; the first release establishes v1. Writes require X-Workbench-Api-Revision: beta-2. Missing or incompatible revisions return api_contract_unsupported; preserve unsaved changes before reloading. Read requests may omit the header for bootstrap and media delivery.",
+    "version": "beta"
   },
   "paths": {
-    "/api/system": {
+    "/api/beta/system": {
       "get": {
         "tags": [
           "Workbench.Server"
@@ -25,7 +26,7 @@
         }
       }
     },
-    "/api/auth/recovery": {
+    "/api/beta/auth/recovery": {
       "post": {
         "tags": [
           "RecoveryEndpoints"
@@ -57,7 +58,7 @@
         }
       }
     },
-    "/api/auth/recovery/consume": {
+    "/api/beta/auth/recovery/consume": {
       "post": {
         "tags": [
           "RecoveryEndpoints"
@@ -99,7 +100,7 @@
         }
       }
     },
-    "/api/auth/invitations/consume": {
+    "/api/beta/auth/invitations/consume": {
       "post": {
         "tags": [
           "RecoveryEndpoints"
@@ -141,7 +142,7 @@
         }
       }
     },
-    "/api/auth/antiforgery": {
+    "/api/beta/auth/antiforgery": {
       "get": {
         "tags": [
           "Authentication"
@@ -160,7 +161,7 @@
         }
       }
     },
-    "/api/auth/login": {
+    "/api/beta/auth/login": {
       "post": {
         "tags": [
           "Authentication"
@@ -202,7 +203,7 @@
         }
       }
     },
-    "/api/auth/me": {
+    "/api/beta/auth/me": {
       "get": {
         "tags": [
           "Authentication"
@@ -224,7 +225,7 @@
         }
       }
     },
-    "/api/auth/logout": {
+    "/api/beta/auth/logout": {
       "post": {
         "tags": [
           "Authentication"
@@ -236,7 +237,7 @@
         }
       }
     },
-    "/api/auth/change-password": {
+    "/api/beta/auth/change-password": {
       "post": {
         "tags": [
           "Authentication"
@@ -268,7 +269,7 @@
         }
       }
     },
-    "/api/auth/sessions": {
+    "/api/beta/auth/sessions": {
       "get": {
         "tags": [
           "Authentication"
@@ -300,7 +301,7 @@
         }
       }
     },
-    "/api/auth/sessions/{sessionId}": {
+    "/api/beta/auth/sessions/{sessionId}": {
       "delete": {
         "tags": [
           "Authentication"
@@ -323,7 +324,7 @@
         }
       }
     },
-    "/api/items": {
+    "/api/beta/items": {
       "post": {
         "tags": [
           "Inventory"
@@ -425,7 +426,7 @@
         }
       }
     },
-    "/api/items/archived": {
+    "/api/beta/items/archived": {
       "get": {
         "tags": [
           "Inventory"
@@ -470,7 +471,7 @@
         }
       }
     },
-    "/api/items/{id}": {
+    "/api/beta/items/{id}": {
       "get": {
         "tags": [
           "Inventory"
@@ -578,7 +579,7 @@
         }
       }
     },
-    "/api/items/{id}/photo": {
+    "/api/beta/items/{id}/photo": {
       "put": {
         "tags": [
           "Inventory"
@@ -836,7 +837,7 @@
         }
       }
     },
-    "/api/items/{id}/photo/{photoId}/{variant}": {
+    "/api/beta/items/{id}/photo/{photoId}/{variant}": {
       "get": {
         "tags": [
           "Inventory"
@@ -914,7 +915,7 @@
         }
       }
     },
-    "/api/items/{id}/acquisition": {
+    "/api/beta/items/{id}/acquisition": {
       "get": {
         "tags": [
           "Inventory"
@@ -1032,7 +1033,7 @@
         }
       }
     },
-    "/api/items/{id}/acquisition/{acquisitionId}": {
+    "/api/beta/items/{id}/acquisition/{acquisitionId}": {
       "put": {
         "tags": [
           "Inventory"
@@ -1111,7 +1112,7 @@
         }
       }
     },
-    "/api/items/{id}/acquisition-link": {
+    "/api/beta/items/{id}/acquisition-link": {
       "put": {
         "tags": [
           "Inventory"
@@ -1181,7 +1182,7 @@
         }
       }
     },
-    "/api/items/export": {
+    "/api/beta/items/export": {
       "post": {
         "tags": [
           "Inventory"
@@ -1256,7 +1257,7 @@
         }
       }
     },
-    "/api/items/export-package": {
+    "/api/beta/items/export-package": {
       "post": {
         "tags": [
           "Inventory"
@@ -1331,7 +1332,7 @@
         }
       }
     },
-    "/api/items/{id}/archive": {
+    "/api/beta/items/{id}/archive": {
       "post": {
         "tags": [
           "Inventory"
@@ -1401,7 +1402,7 @@
         }
       }
     },
-    "/api/items/{id}/restore": {
+    "/api/beta/items/{id}/restore": {
       "post": {
         "tags": [
           "Inventory"
@@ -1471,7 +1472,7 @@
         }
       }
     },
-    "/api/items/{id}/acquisition/{acquisitionId}/documents": {
+    "/api/beta/items/{id}/acquisition/{acquisitionId}/documents": {
       "get": {
         "tags": [
           "Inventory"
@@ -1657,7 +1658,7 @@
         }
       }
     },
-    "/api/items/{id}/acquisition/{acquisitionId}/documents/operations/{requestId}": {
+    "/api/beta/items/{id}/acquisition/{acquisitionId}/documents/operations/{requestId}": {
       "get": {
         "tags": [
           "Inventory"
@@ -1725,7 +1726,7 @@
         }
       }
     },
-    "/api/items/{id}/acquisition/{acquisitionId}/documents/{documentId}/download": {
+    "/api/beta/items/{id}/acquisition/{acquisitionId}/documents/{documentId}/download": {
       "get": {
         "tags": [
           "Inventory"
@@ -1804,7 +1805,7 @@
         }
       }
     },
-    "/api/items/{id}/acquisition/{acquisitionId}/documents/{documentId}": {
+    "/api/beta/items/{id}/acquisition/{acquisitionId}/documents/{documentId}": {
       "put": {
         "tags": [
           "Inventory"
@@ -2098,7 +2099,7 @@
         }
       }
     },
-    "/api/acquisitions": {
+    "/api/beta/acquisitions": {
       "get": {
         "tags": [
           "Inventory"
@@ -2143,7 +2144,7 @@
         }
       }
     },
-    "/api/acquisitions/{id}": {
+    "/api/beta/acquisitions/{id}": {
       "get": {
         "tags": [
           "Inventory"
@@ -2183,7 +2184,7 @@
         }
       }
     },
-    "/api/acquisitions/{id}/items": {
+    "/api/beta/acquisitions/{id}/items": {
       "get": {
         "tags": [
           "Inventory"
@@ -2247,7 +2248,56 @@
         }
       }
     },
-    "/api/purchase-order-drafts": {
+    "/api/beta/purchase-order-drafts/calculate": {
+      "post": {
+        "tags": [
+          "Purchasing"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CalculateDraftOrderRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DraftCalculationResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Payload Too Large",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/beta/purchase-order-drafts": {
       "get": {
         "tags": [
           "Purchasing"
@@ -2255,6 +2305,13 @@
         "parameters": [
           {
             "name": "cursor",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "query",
             "in": "query",
             "schema": {
               "type": "string"
@@ -2329,6 +2386,16 @@
               }
             }
           },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
           "409": {
             "description": "Conflict",
             "content": {
@@ -2348,21 +2415,11 @@
                 }
               }
             }
-          },
-          "426": {
-            "description": "Upgrade Required",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              }
-            }
           }
         }
       }
     },
-    "/api/purchase-order-drafts/{id}": {
+    "/api/beta/purchase-order-drafts/{id}": {
       "get": {
         "tags": [
           "Purchasing"
@@ -2476,364 +2533,6 @@
                 }
               }
             }
-          },
-          "426": {
-            "description": "Upgrade Required",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              }
-            }
-          }
-        }
-      },
-      "delete": {
-        "tags": [
-          "Purchasing"
-        ],
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/DeleteDraftOrderRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/SaveDraftOrderResponse"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Bad Request",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HttpValidationProblemDetails"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Not Found",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "Conflict",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              }
-            }
-          },
-          "413": {
-            "description": "Payload Too Large",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              }
-            }
-          },
-          "426": {
-            "description": "Upgrade Required",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v2/purchase-order-drafts": {
-      "get": {
-        "tags": [
-          "Purchasing"
-        ],
-        "parameters": [
-          {
-            "name": "cursor",
-            "in": "query",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "query",
-            "in": "query",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/DraftOrderPageResponseV2"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Bad Request",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              }
-            }
-          }
-        }
-      },
-      "post": {
-        "tags": [
-          "Purchasing"
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/CreateDraftOrderRequestV2"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "201": {
-            "description": "Created",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/SaveDraftOrderResponse"
-                }
-              }
-            }
-          },
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/SaveDraftOrderResponse"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Bad Request",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HttpValidationProblemDetails"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Not Found",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "Conflict",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              }
-            }
-          },
-          "413": {
-            "description": "Payload Too Large",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              }
-            }
-          },
-          "426": {
-            "description": "Upgrade Required",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v2/purchase-order-drafts/{id}": {
-      "get": {
-        "tags": [
-          "Purchasing"
-        ],
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/DraftOrderResponseV2"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Not Found",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              }
-            }
-          }
-        }
-      },
-      "put": {
-        "tags": [
-          "Purchasing"
-        ],
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/UpdateDraftOrderRequestV2"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/SaveDraftOrderResponse"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Bad Request",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HttpValidationProblemDetails"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Not Found",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "Conflict",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              }
-            }
-          },
-          "413": {
-            "description": "Payload Too Large",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              }
-            }
-          },
-          "426": {
-            "description": "Upgrade Required",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              }
-            }
           }
         }
       },
@@ -2916,741 +2615,7 @@
         }
       }
     },
-    "/api/v3/purchase-order-drafts/calculate": {
-      "post": {
-        "tags": [
-          "Purchasing"
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/CalculateDraftOrderRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/DraftCalculationResponse"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Bad Request",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HttpValidationProblemDetails"
-                }
-              }
-            }
-          },
-          "413": {
-            "description": "Payload Too Large",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v3/purchase-order-drafts": {
-      "get": {
-        "tags": [
-          "Purchasing"
-        ],
-        "parameters": [
-          {
-            "name": "cursor",
-            "in": "query",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "query",
-            "in": "query",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/DraftOrderPageResponseV2"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Bad Request",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              }
-            }
-          }
-        }
-      },
-      "post": {
-        "tags": [
-          "Purchasing"
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/CreateDraftOrderRequestV3"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "201": {
-            "description": "Created",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/SaveDraftOrderResponse"
-                }
-              }
-            }
-          },
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/SaveDraftOrderResponse"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Bad Request",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HttpValidationProblemDetails"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Not Found",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "Conflict",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              }
-            }
-          },
-          "413": {
-            "description": "Payload Too Large",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v3/purchase-order-drafts/{id}": {
-      "get": {
-        "tags": [
-          "Purchasing"
-        ],
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/DraftOrderResponseV3"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Not Found",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              }
-            }
-          }
-        }
-      },
-      "put": {
-        "tags": [
-          "Purchasing"
-        ],
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/UpdateDraftOrderRequestV3"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/SaveDraftOrderResponse"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Bad Request",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HttpValidationProblemDetails"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Not Found",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "Conflict",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              }
-            }
-          },
-          "413": {
-            "description": "Payload Too Large",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              }
-            }
-          }
-        }
-      },
-      "delete": {
-        "tags": [
-          "Purchasing"
-        ],
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/DeleteDraftOrderRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/SaveDraftOrderResponse"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Bad Request",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HttpValidationProblemDetails"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Not Found",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "Conflict",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              }
-            }
-          },
-          "413": {
-            "description": "Payload Too Large",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v4/purchase-order-drafts/calculate": {
-      "post": {
-        "tags": [
-          "Purchasing"
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/CalculateDraftOrderRequestV4"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/DraftCalculationResponseV4"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Bad Request",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HttpValidationProblemDetails"
-                }
-              }
-            }
-          },
-          "413": {
-            "description": "Payload Too Large",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v4/purchase-order-drafts": {
-      "get": {
-        "tags": [
-          "Purchasing"
-        ],
-        "parameters": [
-          {
-            "name": "cursor",
-            "in": "query",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "query",
-            "in": "query",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/DraftOrderPageResponseV2"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Bad Request",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              }
-            }
-          }
-        }
-      },
-      "post": {
-        "tags": [
-          "Purchasing"
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/CreateDraftOrderRequestV4"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "201": {
-            "description": "Created",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/SaveDraftOrderResponse"
-                }
-              }
-            }
-          },
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/SaveDraftOrderResponse"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Bad Request",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HttpValidationProblemDetails"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Not Found",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "Conflict",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              }
-            }
-          },
-          "413": {
-            "description": "Payload Too Large",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v4/purchase-order-drafts/{id}": {
-      "get": {
-        "tags": [
-          "Purchasing"
-        ],
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/DraftOrderResponseV4"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Not Found",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              }
-            }
-          }
-        }
-      },
-      "put": {
-        "tags": [
-          "Purchasing"
-        ],
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/UpdateDraftOrderRequestV4"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/SaveDraftOrderResponse"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Bad Request",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HttpValidationProblemDetails"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Not Found",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "Conflict",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              }
-            }
-          },
-          "413": {
-            "description": "Payload Too Large",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              }
-            }
-          }
-        }
-      },
-      "delete": {
-        "tags": [
-          "Purchasing"
-        ],
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/DeleteDraftOrderRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/SaveDraftOrderResponse"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Bad Request",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HttpValidationProblemDetails"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Not Found",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "Conflict",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              }
-            }
-          },
-          "413": {
-            "description": "Payload Too Large",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/suppliers": {
+    "/api/beta/suppliers": {
       "get": {
         "tags": [
           "Purchasing"
@@ -3769,7 +2734,7 @@
         }
       }
     },
-    "/api/suppliers/{id}": {
+    "/api/beta/suppliers/{id}": {
       "get": {
         "tags": [
           "Purchasing"
@@ -3887,7 +2852,7 @@
         }
       }
     },
-    "/api/suppliers/{id}/archive": {
+    "/api/beta/suppliers/{id}/archive": {
       "post": {
         "tags": [
           "Purchasing"
@@ -3967,7 +2932,7 @@
         }
       }
     },
-    "/api/tenant/users": {
+    "/api/beta/tenant/users": {
       "get": {
         "tags": [
           "Tenant users"
@@ -3989,7 +2954,7 @@
         }
       }
     },
-    "/api/tenant/users/{userId}": {
+    "/api/beta/tenant/users/{userId}": {
       "delete": {
         "tags": [
           "Tenant users"
@@ -4025,7 +2990,7 @@
         }
       }
     },
-    "/api/tenant/users/{userId}/reactivate": {
+    "/api/beta/tenant/users/{userId}/reactivate": {
       "post": {
         "tags": [
           "Tenant users"
@@ -4061,7 +3026,7 @@
         }
       }
     },
-    "/api/tenant/users/{userId}/recovery": {
+    "/api/beta/tenant/users/{userId}/recovery": {
       "post": {
         "tags": [
           "Tenant users"
@@ -4097,7 +3062,7 @@
         }
       }
     },
-    "/api/tenant/users/{userId}/sessions": {
+    "/api/beta/tenant/users/{userId}/sessions": {
       "delete": {
         "tags": [
           "Tenant users"
@@ -4123,7 +3088,7 @@
         }
       }
     },
-    "/api/tenant/users/invitations": {
+    "/api/beta/tenant/users/invitations": {
       "post": {
         "tags": [
           "Tenant users"
@@ -4427,19 +3392,7 @@
         "type": "object",
         "properties": {
           "draft": {
-            "$ref": "#/components/schemas/DraftContentV3"
-          }
-        },
-        "additionalProperties": false
-      },
-      "CalculateDraftOrderRequestV4": {
-        "required": [
-          "draft"
-        ],
-        "type": "object",
-        "properties": {
-          "draft": {
-            "$ref": "#/components/schemas/DraftContentV4"
+            "$ref": "#/components/schemas/DraftContent"
           }
         },
         "additionalProperties": false
@@ -4589,57 +3542,6 @@
         },
         "additionalProperties": false
       },
-      "CreateDraftOrderRequestV2": {
-        "required": [
-          "requestId",
-          "draft"
-        ],
-        "type": "object",
-        "properties": {
-          "requestId": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "draft": {
-            "$ref": "#/components/schemas/DraftContentV2"
-          }
-        },
-        "additionalProperties": false
-      },
-      "CreateDraftOrderRequestV3": {
-        "required": [
-          "requestId",
-          "draft"
-        ],
-        "type": "object",
-        "properties": {
-          "requestId": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "draft": {
-            "$ref": "#/components/schemas/DraftContentV3"
-          }
-        },
-        "additionalProperties": false
-      },
-      "CreateDraftOrderRequestV4": {
-        "required": [
-          "requestId",
-          "draft"
-        ],
-        "type": "object",
-        "properties": {
-          "requestId": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "draft": {
-            "$ref": "#/components/schemas/DraftContentV4"
-          }
-        },
-        "additionalProperties": false
-      },
       "CreateItemRequest": {
         "required": [
           "creationRequestId",
@@ -4742,36 +3644,6 @@
         "required": [
           "lines",
           "incompleteLineCount",
-          "merchandiseEstimate"
-        ],
-        "type": "object",
-        "properties": {
-          "lines": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/DraftLineCalculation"
-            }
-          },
-          "incompleteLineCount": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
-            "format": "int32"
-          },
-          "merchandiseEstimate": {
-            "type": [
-              "null",
-              "string"
-            ]
-          }
-        }
-      },
-      "DraftCalculationResponseV4": {
-        "required": [
-          "lines",
-          "incompleteLineCount",
           "merchandiseEstimate",
           "lineDiscountTotal",
           "merchandiseNet",
@@ -4789,7 +3661,7 @@
           "lines": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/DraftLineCalculationV4"
+              "$ref": "#/components/schemas/DraftLineCalculation"
             }
           },
           "incompleteLineCount": {
@@ -4938,296 +3810,6 @@
           "currency",
           "notes",
           "sourceLinks",
-          "entries"
-        ],
-        "type": "object",
-        "properties": {
-          "title": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "supplierName": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "currency": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "notes": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "sourceLinks": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          },
-          "entries": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/DraftEntry"
-            }
-          }
-        },
-        "additionalProperties": false
-      },
-      "DraftContentV2": {
-        "required": [
-          "title",
-          "supplierName",
-          "currency",
-          "notes",
-          "sourceLinks",
-          "entries",
-          "supplierId",
-          "supplierContactName",
-          "supplierEmail",
-          "supplierPhone",
-          "supplierWebsite",
-          "supplierPostalAddress",
-          "supplierOrderReference",
-          "platform"
-        ],
-        "type": "object",
-        "properties": {
-          "title": {
-            "maxLength": 200,
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "supplierName": {
-            "maxLength": 200,
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "currency": {
-            "maxLength": 3,
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "notes": {
-            "maxLength": 10000,
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "sourceLinks": {
-            "maxItems": 20,
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          },
-          "entries": {
-            "maxItems": 100,
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/DraftEntry"
-            }
-          },
-          "supplierId": {
-            "type": [
-              "null",
-              "string"
-            ],
-            "format": "uuid"
-          },
-          "supplierContactName": {
-            "maxLength": 200,
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "supplierEmail": {
-            "maxLength": 254,
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "supplierPhone": {
-            "maxLength": 100,
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "supplierWebsite": {
-            "maxLength": 2048,
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "supplierPostalAddress": {
-            "maxLength": 2000,
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "supplierOrderReference": {
-            "maxLength": 200,
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "platform": {
-            "maxLength": 200,
-            "type": [
-              "null",
-              "string"
-            ]
-          }
-        },
-        "additionalProperties": false
-      },
-      "DraftContentV3": {
-        "required": [
-          "title",
-          "supplierName",
-          "currency",
-          "notes",
-          "sourceLinks",
-          "entries",
-          "supplierId",
-          "supplierContactName",
-          "supplierEmail",
-          "supplierPhone",
-          "supplierWebsite",
-          "supplierPostalAddress",
-          "supplierOrderReference",
-          "platform"
-        ],
-        "type": "object",
-        "properties": {
-          "title": {
-            "maxLength": 200,
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "supplierName": {
-            "maxLength": 200,
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "currency": {
-            "maxLength": 3,
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "notes": {
-            "maxLength": 10000,
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "sourceLinks": {
-            "maxItems": 20,
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          },
-          "entries": {
-            "maxItems": 100,
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/DraftEntryV3"
-            }
-          },
-          "supplierId": {
-            "type": [
-              "null",
-              "string"
-            ],
-            "format": "uuid"
-          },
-          "supplierContactName": {
-            "maxLength": 200,
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "supplierEmail": {
-            "maxLength": 254,
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "supplierPhone": {
-            "maxLength": 100,
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "supplierWebsite": {
-            "maxLength": 2048,
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "supplierPostalAddress": {
-            "maxLength": 2000,
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "supplierOrderReference": {
-            "maxLength": 200,
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "platform": {
-            "maxLength": 200,
-            "type": [
-              "null",
-              "string"
-            ]
-          }
-        },
-        "additionalProperties": false
-      },
-      "DraftContentV4": {
-        "required": [
-          "title",
-          "supplierName",
-          "currency",
-          "notes",
-          "sourceLinks",
           "entries",
           "supplierId",
           "supplierContactName",
@@ -5281,7 +3863,7 @@
             "maxItems": 100,
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/DraftEntryV4"
+              "$ref": "#/components/schemas/DraftEntry"
             }
           },
           "supplierId": {
@@ -5382,161 +3964,6 @@
           "description",
           "notes",
           "sourceLink",
-          "indicativePrice"
-        ],
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "description": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "notes": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "sourceLink": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "indicativePrice": {
-            "type": [
-              "null",
-              "string"
-            ]
-          }
-        },
-        "additionalProperties": false
-      },
-      "DraftEntryV3": {
-        "required": [
-          "id",
-          "description",
-          "notes",
-          "sourceLink",
-          "indicativePrice",
-          "quantity",
-          "unitOfMeasure",
-          "unitPrice",
-          "pricingUnit",
-          "pricePerQuantity",
-          "pricingQuantity",
-          "supplierSku",
-          "itemType"
-        ],
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "description": {
-            "maxLength": 500,
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "notes": {
-            "maxLength": 2000,
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "sourceLink": {
-            "maxLength": 2048,
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "indicativePrice": {
-            "maxLength": 20,
-            "pattern": "^(0|[1-9][0-9]{0,14})(\\.[0-9]{1,4})?$",
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "quantity": {
-            "maxLength": 14,
-            "pattern": "^(0|[1-9][0-9]{0,8})(\\.[0-9]{1,4})?$",
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "unitOfMeasure": {
-            "pattern": "^(piece|carat|gram|kilogram|ounce|troyOunce|millimeter|centimeter|meter|parcel|pair|set|pack|box|lot)$",
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "unitPrice": {
-            "maxLength": 20,
-            "pattern": "^(0|[1-9][0-9]{0,14})(\\.[0-9]{1,4})?$",
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "pricingUnit": {
-            "pattern": "^(piece|carat|gram|kilogram|ounce|troyOunce|millimeter|centimeter|meter|parcel|pair|set|pack|box|lot)$",
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "pricePerQuantity": {
-            "maxLength": 14,
-            "pattern": "^(0|[1-9][0-9]{0,8})(\\.[0-9]{1,4})?$",
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "pricingQuantity": {
-            "maxLength": 14,
-            "pattern": "^(0|[1-9][0-9]{0,8})(\\.[0-9]{1,4})?$",
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "supplierSku": {
-            "maxLength": 200,
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "itemType": {
-            "maxLength": 100,
-            "type": [
-              "null",
-              "string"
-            ]
-          }
-        },
-        "additionalProperties": false
-      },
-      "DraftEntryV4": {
-        "required": [
-          "id",
-          "description",
-          "notes",
-          "sourceLink",
           "indicativePrice",
           "quantity",
           "unitOfMeasure",
@@ -5607,7 +4034,7 @@
                 "type": "null"
               },
               {
-                "$ref": "#/components/schemas/DraftLegacyPricingV4"
+                "$ref": "#/components/schemas/DraftLegacyPricing"
               }
             ]
           },
@@ -5638,7 +4065,7 @@
         },
         "additionalProperties": false
       },
-      "DraftLegacyPricingV4": {
+      "DraftLegacyPricing": {
         "required": [
           "quantity",
           "unitOfMeasure",
@@ -5689,25 +4116,6 @@
         "additionalProperties": false
       },
       "DraftLineCalculation": {
-        "required": [
-          "id",
-          "gross"
-        ],
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "gross": {
-            "type": [
-              "null",
-              "string"
-            ]
-          }
-        }
-      },
-      "DraftLineCalculationV4": {
         "required": [
           "id",
           "gross",
@@ -5768,92 +4176,7 @@
           }
         }
       },
-      "DraftOrderPageResponseV2": {
-        "required": [
-          "items",
-          "nextCursor"
-        ],
-        "type": "object",
-        "properties": {
-          "items": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/DraftOrderSummaryV2"
-            }
-          },
-          "nextCursor": {
-            "type": [
-              "null",
-              "string"
-            ]
-          }
-        }
-      },
       "DraftOrderResponse": {
-        "required": [
-          "id",
-          "draft",
-          "createdAtUtc",
-          "updatedAtUtc",
-          "version"
-        ],
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "draft": {
-            "$ref": "#/components/schemas/DraftContent"
-          },
-          "createdAtUtc": {
-            "type": "string"
-          },
-          "updatedAtUtc": {
-            "type": "string"
-          },
-          "version": {
-            "type": "string"
-          }
-        }
-      },
-      "DraftOrderResponseV2": {
-        "required": [
-          "id",
-          "draft",
-          "createdAtUtc",
-          "updatedAtUtc",
-          "version",
-          "poReference",
-          "supplierIsArchived"
-        ],
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "draft": {
-            "$ref": "#/components/schemas/DraftContentV2"
-          },
-          "createdAtUtc": {
-            "type": "string"
-          },
-          "updatedAtUtc": {
-            "type": "string"
-          },
-          "version": {
-            "type": "string"
-          },
-          "poReference": {
-            "type": "string"
-          },
-          "supplierIsArchived": {
-            "type": "boolean"
-          }
-        }
-      },
-      "DraftOrderResponseV3": {
         "required": [
           "id",
           "draft",
@@ -5871,7 +4194,7 @@
             "format": "uuid"
           },
           "draft": {
-            "$ref": "#/components/schemas/DraftContentV3"
+            "$ref": "#/components/schemas/DraftContent"
           },
           "createdAtUtc": {
             "type": "string"
@@ -5893,77 +4216,7 @@
           }
         }
       },
-      "DraftOrderResponseV4": {
-        "required": [
-          "id",
-          "draft",
-          "createdAtUtc",
-          "updatedAtUtc",
-          "version",
-          "poReference",
-          "supplierIsArchived",
-          "calculation"
-        ],
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "draft": {
-            "$ref": "#/components/schemas/DraftContentV4"
-          },
-          "createdAtUtc": {
-            "type": "string"
-          },
-          "updatedAtUtc": {
-            "type": "string"
-          },
-          "version": {
-            "type": "string"
-          },
-          "poReference": {
-            "type": "string"
-          },
-          "supplierIsArchived": {
-            "type": "boolean"
-          },
-          "calculation": {
-            "$ref": "#/components/schemas/DraftCalculationResponseV4"
-          }
-        }
-      },
       "DraftOrderSummary": {
-        "required": [
-          "id",
-          "title",
-          "supplierName",
-          "updatedAtUtc"
-        ],
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "title": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "supplierName": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "updatedAtUtc": {
-            "type": "string"
-          }
-        }
-      },
-      "DraftOrderSummaryV2": {
         "required": [
           "id",
           "title",
@@ -6654,7 +4907,8 @@
       "SystemResponse": {
         "required": [
           "name",
-          "version"
+          "version",
+          "apiRevision"
         ],
         "type": "object",
         "properties": {
@@ -6662,6 +4916,9 @@
             "type": "string"
           },
           "version": {
+            "type": "string"
+          },
+          "apiRevision": {
             "type": "string"
           }
         }
@@ -6790,69 +5047,6 @@
           },
           "draft": {
             "$ref": "#/components/schemas/DraftContent"
-          }
-        },
-        "additionalProperties": false
-      },
-      "UpdateDraftOrderRequestV2": {
-        "required": [
-          "requestId",
-          "expectedVersion",
-          "draft"
-        ],
-        "type": "object",
-        "properties": {
-          "requestId": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "expectedVersion": {
-            "type": "string"
-          },
-          "draft": {
-            "$ref": "#/components/schemas/DraftContentV2"
-          }
-        },
-        "additionalProperties": false
-      },
-      "UpdateDraftOrderRequestV3": {
-        "required": [
-          "requestId",
-          "expectedVersion",
-          "draft"
-        ],
-        "type": "object",
-        "properties": {
-          "requestId": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "expectedVersion": {
-            "type": "string"
-          },
-          "draft": {
-            "$ref": "#/components/schemas/DraftContentV3"
-          }
-        },
-        "additionalProperties": false
-      },
-      "UpdateDraftOrderRequestV4": {
-        "required": [
-          "requestId",
-          "expectedVersion",
-          "draft"
-        ],
-        "type": "object",
-        "properties": {
-          "requestId": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "expectedVersion": {
-            "type": "string"
-          },
-          "draft": {
-            "$ref": "#/components/schemas/DraftContentV4"
           }
         },
         "additionalProperties": false

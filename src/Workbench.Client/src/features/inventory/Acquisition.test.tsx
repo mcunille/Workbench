@@ -39,11 +39,11 @@ function setup() {
 }
 beforeEach(() => {
   server.use(
-    http.get('*/api/items/stone', () => HttpResponse.json(item)),
-    http.get('*/api/items/stone/acquisition', () =>
+    http.get('*/api/beta/items/stone', () => HttpResponse.json(item)),
+    http.get('*/api/beta/items/stone/acquisition', () =>
       HttpResponse.json({ acquisition: null, itemVersion: 'old' }),
     ),
-    http.get('*/api/auth/antiforgery', () =>
+    http.get('*/api/beta/auth/antiforgery', () =>
       HttpResponse.json({ requestToken: 'csrf' }),
     ),
   );
@@ -53,7 +53,7 @@ it('adds a gift with unknown date and source without inventing facts or another 
   // GIVEN a saved item without acquisition context.
   const commands: Record<string, unknown>[] = [];
   server.use(
-    http.post('*/api/items/stone/acquisition', async ({ request }) => {
+    http.post('*/api/beta/items/stone/acquisition', async ({ request }) => {
       const body = (await request.json()) as Record<string, unknown>;
       commands.push(body);
       return HttpResponse.json(
@@ -71,6 +71,8 @@ it('adds a gift with unknown date and source without inventing facts or another 
     }),
   );
   const { onDirtyChange } = setup();
+  // AND the item has loaded before its acquisition request can complete.
+  await screen.findByRole('heading', { name: 'Stone', level: 1 });
   // WHEN adding only the known method.
   fireEvent.click(
     await screen.findByRole('button', { name: 'Add acquisition' }),
@@ -104,7 +106,7 @@ it('retries an uncertain creation with the same UUID, versions and frozen input'
   // GIVEN a lost create response.
   const commands: unknown[] = [];
   server.use(
-    http.post('*/api/items/stone/acquisition', async ({ request }) => {
+    http.post('*/api/beta/items/stone/acquisition', async ({ request }) => {
       commands.push(await request.json());
       return commands.length === 1
         ? HttpResponse.error()
@@ -125,6 +127,12 @@ it('retries an uncertain creation with the same UUID, versions and frozen input'
   fireEvent.click(screen.getByRole('button', { name: 'Save acquisition' }));
   await screen.findByText(/could not confirm/);
   expect(screen.getByLabelText('Gift from (optional)')).toBeDisabled();
+  // AND the retained business values can be selected with a focusable readonly control.
+  fireEvent.click(screen.getByRole('button', { name: 'Select acquisition text' }));
+  const recovery = screen.getByRole('textbox', { name: 'Acquisition recovery text' }) as HTMLTextAreaElement;
+  expect(recovery).toHaveFocus();
+  expect(recovery).toHaveAttribute('readonly');
+  expect(recovery.value).toContain('Source: Aunt May');
   fireEvent.click(screen.getByRole('button', { name: 'Retry save' }));
   // THEN a retry does not create another request identity.
   await screen.findByRole('button', { name: 'Edit acquisition' });
@@ -137,7 +145,7 @@ it('retains conflicting edits through a failed read and starts reconciliation fr
   let reads = 0;
   const commands: Record<string, unknown>[] = [];
   server.use(
-    http.get('*/api/items/stone/acquisition', () => {
+    http.get('*/api/beta/items/stone/acquisition', () => {
       reads++;
       if (reads === 2) return HttpResponse.error();
       return HttpResponse.json({
@@ -148,7 +156,7 @@ it('retains conflicting edits through a failed read and starts reconciliation fr
         itemVersion: reads === 1 ? 'old' : 'new',
       });
     }),
-    http.put('*/api/items/stone/acquisition/origin', async ({ request }) => {
+    http.put('*/api/beta/items/stone/acquisition/origin', async ({ request }) => {
       commands.push((await request.json()) as Record<string, unknown>);
       return HttpResponse.json(
         { code: 'acquisition_version_conflict' },
@@ -193,7 +201,7 @@ it('retains conflicting edits through a failed read and starts reconciliation fr
 it('distinguishes a failed acquisition load from an empty acquisition', async () => {
   // GIVEN a read failure WHEN details open THEN no Add acquisition action is offered.
   server.use(
-    http.get('*/api/items/stone/acquisition', () => HttpResponse.error()),
+    http.get('*/api/beta/items/stone/acquisition', () => HttpResponse.error()),
   );
   setup();
   await screen.findByText(/could not load acquisition context/);
@@ -202,7 +210,7 @@ it('distinguishes a failed acquisition load from an empty acquisition', async ()
   ).not.toBeInTheDocument();
   // WHEN retry succeeds THEN creation becomes available.
   server.use(
-    http.get('*/api/items/stone/acquisition', () =>
+    http.get('*/api/beta/items/stone/acquisition', () =>
       HttpResponse.json({ acquisition: null, itemVersion: 'old' }),
     ),
   );
@@ -215,10 +223,10 @@ it('distinguishes a failed acquisition load from an empty acquisition', async ()
 it('shows retained context on archived items without mutation controls', async () => {
   // GIVEN an archived item WHEN loading context THEN retain its precise year and provenance.
   server.use(
-    http.get('*/api/items/stone', () =>
+    http.get('*/api/beta/items/stone', () =>
       HttpResponse.json({ ...item, archivedAtUtc: '2026-01-02T00:00:00Z' }),
     ),
-    http.get('*/api/items/stone/acquisition', () =>
+    http.get('*/api/beta/items/stone/acquisition', () =>
       HttpResponse.json({ acquisition, itemVersion: 'old' }),
     ),
   );
@@ -234,7 +242,7 @@ it('focuses server validation, retains fields, and preserves partial date precis
   // GIVEN authoritative date validation rejecting a future year.
   const commands: Record<string, unknown>[] = [];
   server.use(
-    http.post('*/api/items/stone/acquisition', async ({ request }) => {
+    http.post('*/api/beta/items/stone/acquisition', async ({ request }) => {
       commands.push((await request.json()) as Record<string, unknown>);
       return HttpResponse.json(
         { errors: { year: ['The acquired date cannot be in the future.'] } },
@@ -273,7 +281,7 @@ it('focuses server validation, retains fields, and preserves partial date precis
 it('cancels unsent acquisition input and restores focus without writing', async () => {
   // GIVEN an unsent draft WHEN cancelling THEN the item remains without an acquisition.
   const write = vi.fn(() => HttpResponse.error());
-  server.use(http.post('*/api/items/stone/acquisition', write));
+  server.use(http.post('*/api/beta/items/stone/acquisition', write));
   setup();
   fireEvent.click(
     await screen.findByRole('button', { name: 'Add acquisition' }),
@@ -293,7 +301,7 @@ it('cancels unsent acquisition input and restores focus without writing', async 
 it('requires an explicit method and the components of the chosen precision before sending', async () => {
   // GIVEN no facts selected WHEN saving THEN focus a useful method error without a request.
   const write = vi.fn(() => HttpResponse.error());
-  server.use(http.post('*/api/items/stone/acquisition', write));
+  server.use(http.post('*/api/beta/items/stone/acquisition', write));
   setup();
   fireEvent.click(
     await screen.findByRole('button', { name: 'Add acquisition' }),
@@ -320,10 +328,10 @@ it('requires an explicit method and the components of the chosen precision befor
 it('retains a draft when another session archives and cannot reconcile into a write', async () => {
   // GIVEN active context WHEN another session archives before our save.
   server.use(
-    http.get('*/api/items/stone/acquisition', () =>
+    http.get('*/api/beta/items/stone/acquisition', () =>
       HttpResponse.json({ acquisition, itemVersion: 'old' }),
     ),
-    http.put('*/api/items/stone/acquisition/origin', () =>
+    http.put('*/api/beta/items/stone/acquisition/origin', () =>
       HttpResponse.json({ code: 'item_archived' }, { status: 409 }),
     ),
   );
@@ -335,7 +343,7 @@ it('retains a draft when another session archives and cannot reconcile into a wr
     target: { value: 'Keep this draft' },
   });
   server.use(
-    http.get('*/api/items/stone', () =>
+    http.get('*/api/beta/items/stone', () =>
       HttpResponse.json({
         ...item,
         archivedAtUtc: '2026-01-02T00:00:00Z',
@@ -360,9 +368,9 @@ it('retains a draft when another session archives and cannot reconcile into a wr
 it('refreshes descriptive fields with their version after acquisition replay', async () => {
   // GIVEN a creation replay returning context after another session also renamed the item.
   server.use(
-    http.post('*/api/items/stone/acquisition', () => {
+    http.post('*/api/beta/items/stone/acquisition', () => {
       server.use(
-        http.get('*/api/items/stone', () =>
+        http.get('*/api/beta/items/stone', () =>
           HttpResponse.json({
             ...item,
             name: 'Current name',
@@ -391,7 +399,7 @@ it('delegates authentication loss without retaining an enabled save flow', async
   // GIVEN an expired session WHEN context loading is rejected THEN notify the private-state owner.
   server.use(
     http.get(
-      '*/api/items/stone/acquisition',
+      '*/api/beta/items/stone/acquisition',
       () => new HttpResponse(null, { status: 401 }),
     ),
   );
@@ -409,7 +417,7 @@ it.each(['2020.5', '10000', '2147483648'])(
     const write = vi.fn(() =>
       HttpResponse.json({ acquisition, itemVersion: 'next' }),
     );
-    server.use(http.post('*/api/items/stone/acquisition', write));
+    server.use(http.post('*/api/beta/items/stone/acquisition', write));
     setup();
     fireEvent.click(
       await screen.findByRole('button', { name: 'Add acquisition' }),
@@ -436,7 +444,7 @@ it('keeps input editable after a definite bad request without field details', as
   // GIVEN a definitive binding rejection without a field-error body.
   server.use(
     http.post(
-      '*/api/items/stone/acquisition',
+      '*/api/beta/items/stone/acquisition',
       () => new HttpResponse(null, { status: 400 }),
     ),
   );

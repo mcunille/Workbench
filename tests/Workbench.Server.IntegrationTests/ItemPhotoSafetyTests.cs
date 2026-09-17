@@ -105,6 +105,8 @@ public sealed class ItemPhotoSafetyTests(SqlServerFixture sqlServer)
         await using var context = await TestContext.CreateAsync(sqlServer);
         var (path, current) = await context.CreatePhotographedItemAsync();
         using var anonymous = context.Factory.CreateClient();
+        anonymous.DefaultRequestHeaders.Add("X-Workbench-Api-Revision", "beta-2");
+        context.Client.DefaultRequestHeaders.Add("X-Workbench-Api-Revision", "beta-2");
 
         // WHEN an anonymous session reads or writes, or an owner omits antiforgery.
         Assert.Equal(HttpStatusCode.Unauthorized,
@@ -317,7 +319,7 @@ public sealed class ItemPhotoSafetyTests(SqlServerFixture sqlServer)
 
         public async Task<(string Path, JsonElement Item)> CreateItemAsync()
         {
-            var response = await SendJsonAsync(Client, HttpMethod.Post, "/api/items",
+            var response = await SendJsonAsync(Client, HttpMethod.Post, "/api/beta/items",
                 new { creationRequestId = Guid.NewGuid(), name = "Safety sapphire", location = "Tray A" });
             Assert.Equal(HttpStatusCode.Created, response.StatusCode);
             var path = response.Headers.Location!.ToString();

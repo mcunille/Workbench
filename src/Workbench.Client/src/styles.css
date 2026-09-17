@@ -63,6 +63,31 @@
 * {
   box-sizing: border-box;
 }
+.api-update-notice {
+  position: sticky;
+  inset-block-start: 0;
+  z-index: 100;
+  padding: 1rem max(1rem, calc((100vw - 80rem) / 2));
+  border-block-end: 2px solid var(--focus);
+  background: var(--surface-raised);
+  color: var(--text);
+  box-shadow: var(--card-shadow);
+}
+.api-update-notice p {
+  margin: 0.35rem 0 0;
+  max-width: 80ch;
+}
+.recovery-text {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: .75rem;
+  margin-block: 1.5rem;
+  padding: clamp(1rem, 3vw, 1.5rem);
+  background: var(--surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-card);
+}
+.recovery-text p { margin: 0; }
 body {
   margin: 0;
   min-width: 320px;

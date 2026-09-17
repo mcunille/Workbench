@@ -24,7 +24,7 @@ test('photo failures remain readable in compact lists and enlarged item details'
   const detailUrl = page.url();
   let status = 503;
   let unavailable = true;
-  await page.route('**/api/items/*/photo/*/*', route => unavailable
+  await page.route('**/api/beta/items/*/photo/*/*', route => unavailable
     ? route.fulfill({ status, body: '' })
     : route.continue());
 

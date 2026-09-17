@@ -12,7 +12,7 @@ public static class SupplierEndpoints
 {
     public static void MapSuppliers(this IEndpointRouteBuilder endpoints)
     {
-        var group = endpoints.MapGroup("/api/suppliers").WithTags("Purchasing").RequireAuthorization();
+        var group = endpoints.MapGroup("/api/beta/suppliers").WithTags("Purchasing").RequireAuthorization();
         group.MapGet("", BrowseAsync).Produces<SupplierPageResponse>().ProducesProblem(400);
         group.MapGet("/{id:guid}", ReadAsync).Produces<SupplierResponse>().ProducesProblem(404);
         group.MapPost("", CreateAsync).WithMetadata(WorkbenchAntiforgeryMetadata.Instance).Produces<SaveSupplierResponse>(201).Produces<SaveSupplierResponse>().ProducesValidationProblem().ProducesProblem(409).ProducesProblem(413);
@@ -55,7 +55,7 @@ public static class SupplierEndpoints
             await using var reader = await command.ExecuteReaderAsync(cancellationToken);
             if (!await reader.ReadAsync(cancellationToken)) throw new InvalidOperationException("Supplier save returned no receipt.");
             var response = new SaveSupplierResponse(reader.GetGuid(reader.GetOrdinal("RequestId")), reader.GetBoolean(reader.GetOrdinal("Replayed")), reader.GetGuid(reader.GetOrdinal("SupplierId")), Convert.ToBase64String((byte[])reader["SavedVersion"]), DraftOrderCursor.Timestamp(reader.GetFieldValue<DateTimeOffset>(reader.GetOrdinal("CompletedAtUtc"))));
-            return id is null && !response.Replayed ? Results.Created($"/api/suppliers/{response.SupplierId:D}", response) : Results.Ok(response);
+            return id is null && !response.Replayed ? Results.Created($"/api/beta/suppliers/{response.SupplierId:D}", response) : Results.Ok(response);
         }
         catch (SqlException exception) when (exception.Number is 50500 or 50503 or 50504 or 50509 or 50510)
         {

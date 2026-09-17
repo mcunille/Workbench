@@ -11,6 +11,20 @@ namespace Workbench.Server.IntegrationTests;
 [Collection(SqlServerCollection.Name)]
 public sealed class PasswordPrincipalProvisioningTests(SqlServerFixture sqlServer)
 {
+    [Fact]
+    public async Task BetaReceiptPermissionAllowsProvisioningWithoutRestoringRetiredWriters()
+    {
+        // GIVEN the current schema with its restricted receipt lookup grant.
+        await using var database = await sqlServer.CreateMigratedDatabaseAsync();
+        using var inputs = new Inputs();
+        // WHEN a fresh installation provisions its contained principals.
+        await inputs.ProvisionAsync(database);
+        // THEN the new authority is accepted and no retired writer is recreated.
+        Assert.Equal(1, await ScalarAsync(database, "SELECT COUNT(*) FROM sys.database_principals WHERE name='web_user'"));
+        Assert.Equal(0, await ScalarAsync(database, "SELECT COUNT(*) FROM sys.database_permissions WHERE grantee_principal_id=DATABASE_PRINCIPAL_ID('workbench_web') AND major_id=OBJECT_ID('Purchasing.ReplayDraftOrderReceipt') AND permission_name='EXECUTE' AND state='G'"));
+        Assert.Equal(0, await ScalarAsync(database, "SELECT COUNT(*) FROM sys.procedures WHERE schema_id=SCHEMA_ID('Purchasing') AND name IN ('CreateDraftOrderV2','UpdateDraftOrderV2','CreateDraftOrderV3','UpdateDraftOrderV3','CreateDraftOrderV4','UpdateDraftOrderV4')"));
+    }
+
     [Theory]
     [InlineData("GRANT UPDATE ON OBJECT::[Inventory].[Items] TO [workbench_web]")]
     [InlineData("GRANT DELETE ON OBJECT::[Inventory].[Items] TO [workbench_web]")]

@@ -15,7 +15,7 @@ test('H6 archive navigation and photographed restoration persist in another sess
   await page.getByLabel('Choose photograph', { exact: true }).setInputFiles(await smallPhotoImage(page));
   await page.getByRole('button', { name: 'Upload photograph', exact: true }).click();
   await expect(page.getByAltText(`Photograph of ${item.name}`)).toBeVisible();
-  item = await (await page.request.get(`/api/items/${item.id}`)).json();
+  item = await (await page.request.get(`/api/beta/items/${item.id}`)).json();
   const archived = await lifecycle(page, item.id, 'archive', item.version);
   await page.goto('/inventory');
   await page.getByRole('searchbox').fill('active draft');
@@ -39,7 +39,7 @@ test('H6 archive navigation and photographed restoration persist in another sess
   await expect(page.getByRole('heading', { name: 'Restore to collection?', exact: true })).toBeFocused();
   await page.getByRole('button', { name: 'Cancel', exact: true }).click();
   await expect(restore(page)).toBeFocused();
-  expect((await (await page.request.get(`/api/items/${item.id}`)).json()).version).toBe(archived.version);
+  expect((await (await page.request.get(`/api/beta/items/${item.id}`)).json()).version).toBe(archived.version);
 
   // THEN archived controls stay read-only and usable at 320px/desktop in both appearances.
   for (const width of [320, 1280]) for (const theme of ['light', 'dark']) {
@@ -74,7 +74,7 @@ test('H6 archive navigation and photographed restoration persist in another sess
   await expect(page).toHaveURL(/#main$/);
   await setAppearance(page, false);
   await expect(page.getByRole('link', { name: 'Back to archive', exact: true })).toBeVisible();
-  const restored = await (await page.request.get(`/api/items/${item.id}`)).json();
+  const restored = await (await page.request.get(`/api/beta/items/${item.id}`)).json();
   expect(restored).toEqual({ ...archived, archivedAtUtc: null, version: restored.version });
   expect(restored.version).not.toBe(archived.version);
   // WHEN reopening from Collection, then jumping between same-record history entries.
@@ -99,14 +99,14 @@ test('H6 archive navigation and photographed restoration persist in another sess
     await other.reload();
     await expect(other.getByAltText(`Photograph of ${item.name}`)).toBeVisible();
     await expect(other.getByRole('button', { name: 'Edit details', exact: true })).toBeVisible();
-    expect(await (await other.request.get(`/api/items/${item.id}`)).json()).toEqual(restored);
+    expect(await (await other.request.get(`/api/beta/items/${item.id}`)).json()).toEqual(restored);
   } finally { await context.close(); }
 });
 test('H6 lost committed restore response retains same-token retry and uncertain navigation protection', async ({ page }) => {
   // GIVEN the server commits but its first response is lost.
   await photoSignIn(page); const item = await createArchived(page); await page.goto(`/inventory/${item.id}`);
   const bodies: unknown[] = [];
-  await page.route(`**/api/items/${item.id}/restore`, async route => {
+  await page.route(`**/api/beta/items/${item.id}/restore`, async route => {
     bodies.push(route.request().postDataJSON());
     if (bodies.length === 1) { expect((await route.fetch()).status()).toBe(200); await route.abort('failed'); } else await route.continue();
   });
@@ -132,9 +132,9 @@ test('H6 a competing restore and re-archive requires renewed confirmation after 
     const other = await context.newPage(); await photoSignIn(other, 'secondary');
     const active = await lifecycle(other, item.id, 'restore', item.version);
     const current = await lifecycle(other, item.id, 'archive', active.version);
-    const bodies: any[] = []; page.on('request', request => { if (request.url().endsWith(`/api/items/${item.id}/restore`)) bodies.push(request.postDataJSON()); });
+    const bodies: any[] = []; page.on('request', request => { if (request.url().endsWith(`/api/beta/items/${item.id}/restore`)) bodies.push(request.postDataJSON()); });
     // WHEN the obsolete restore conflicts and its recovery read fails THEN no current token is silently reused.
-    await page.route(`**/api/items/${item.id}`, route => route.fulfill({ status: 503, json: {} }), { times: 1 });
+    await page.route(`**/api/beta/items/${item.id}`, route => route.fulfill({ status: 503, json: {} }), { times: 1 });
     await confirmRestore(page).click();
     await expect(page.getByRole('alert')).toContainText('Could not load the current record');
     await expect(confirmRestore(page)).toHaveCount(0);
@@ -153,7 +153,7 @@ test('H6 archive searches beyond the first page and distinguishes missing matche
   await pagedInventory(page, Array.from({ length: 51 }, (_, i) => syntheticItem(i, `${prefix}-${String(i).padStart(2, '0')}`, true)), true);
   await page.goto('/inventory/archive'); await searchArchive(page, prefix);
   await expect(page.getByRole('status')).toContainText('50 matching items loaded');
-  await page.route('**/api/items/archived?**', route => route.fulfill({ status: 503, json: {} }), { times: 1 });
+  await page.route('**/api/beta/items/archived?**', route => route.fulfill({ status: 503, json: {} }), { times: 1 });
   // WHEN the second page fails THEN the first page remains and retry retrieves the remaining item.
   await page.getByRole('button', { name: 'Load more', exact: true }).click();
   await expect(page.getByRole('alert')).toContainText('We could not load the archive');

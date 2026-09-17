@@ -69,7 +69,7 @@ test('collection grid and list preserve saved links across responsive layouts an
   const originalLinks = await Promise.all(names.map(name => itemLink(page, name).getAttribute('href')));
   let reads = 0;
   page.on('request', request => {
-    if (new URL(request.url()).pathname === '/api/items' && request.method() === 'GET') reads++;
+    if (new URL(request.url()).pathname === '/api/beta/items' && request.method() === 'GET') reads++;
   });
 
 
@@ -214,7 +214,7 @@ test('a real saved item survives reload and a separate authenticated browser ses
   await page.getByLabel('Storage location (optional)', { exact: true }).fill('Tray A, slot 3');
 
   // WHEN the user saves through the real API and reloads the resulting detail.
-  const savedResponse = page.waitForResponse(response => response.url().endsWith('/api/items') && response.request().method() === 'POST');
+  const savedResponse = page.waitForResponse(response => response.url().endsWith('/api/beta/items') && response.request().method() === 'POST');
   await page.getByRole('button', { name: 'Save item', exact: true }).click();
   expect((await savedResponse).status()).toBe(201);
   await expect(page).toHaveURL(/\/inventory\/[0-9a-f-]{36}$/);
@@ -249,7 +249,7 @@ test('a committed save with a lost response is explicitly retried without duplic
   await signIn(page);
   const name = `Uncertain save ${crypto.randomUUID()}`;
   const payloads: unknown[] = [];
-  await page.route('**/api/items', async route => {
+  await page.route('**/api/beta/items', async route => {
     if (route.request().method() !== 'POST') return route.continue();
     payloads.push(route.request().postDataJSON());
     if (payloads.length === 1) {
@@ -266,7 +266,7 @@ test('a committed save with a lost response is explicitly retried without duplic
   await page.getByRole('button', { name: 'Save item', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Retry save', exact: true })).toBeVisible();
   await expect(page.getByLabel('Name', { exact: true })).toBeDisabled();
-  const replayResponse = page.waitForResponse(response => response.url().endsWith('/api/items') && response.request().method() === 'POST');
+  const replayResponse = page.waitForResponse(response => response.url().endsWith('/api/beta/items') && response.request().method() === 'POST');
   await page.getByRole('button', { name: 'Retry save', exact: true }).click();
 
   // THEN the server resolves the same request and the collection has exactly one entry.
@@ -283,7 +283,7 @@ test('dirty cancel, app navigation, history and sign-out require an explicit cho
   await signInThroughUi(page);
   let creates = 0;
   page.on('request', request => {
-    if (request.url().endsWith('/api/items') && request.method() === 'POST') creates++;
+    if (request.url().endsWith('/api/beta/items') && request.method() === 'POST') creates++;
   });
   await startItem(page, 'Unsaved stone');
 
@@ -347,7 +347,7 @@ test('skip-link fragment navigation preserves the dirty draft guard across brows
 test('collection failure has a retry state distinct from an empty collection', async ({ page }) => {
   // GIVEN a collection endpoint that fails while authentication remains available.
   let fail = true;
-  await page.route('**/api/items', route => route.request().method() === 'GET'
+  await page.route('**/api/beta/items', route => route.request().method() === 'GET'
     ? route.fulfill(fail
       ? { status: 503, json: { title: 'Collection unavailable', status: 503 } }
       : { json: { items: [], nextCursor: null } })

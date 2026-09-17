@@ -8,8 +8,8 @@ namespace Workbench.Server.IntegrationTests;
 
 public sealed class DraftOrderInputTests
 {
-    private static DraftContent Empty => new(null, null, null, null, [], []);
-    private static DraftEntry Entry(string? price = null) => new(Guid.NewGuid(), null, null, null, price);
+    private static DraftContent Empty => new(null, null, null, null, [], [], null, null, null, null, null, null, null, null);
+    private static DraftEntry Entry(string? price = null) => new(Guid.NewGuid(), null, null, null, price, null, null, "perUnit", null, null, null, null);
 
     [Fact]
     public void EmptyAndNormalizedOptionalFactsPreserveUnknownAndExplicitZero()

@@ -10,14 +10,14 @@ namespace Workbench.Server.IntegrationTests;
 public sealed partial class PurchasingIdentityEndpointTests(SqlServerFixture sqlServer)
 {
     [Fact]
-    public async Task V3DraftCanSaveAnEmptySupplierSnapshot()
+    public async Task BetaDraftCanSaveAnEmptySupplierSnapshot()
     {
         // GIVEN an authenticated owner starting an incomplete purchase.
         await using var application = await AuthTestApplication.CreateAsync(sqlServer);
         using var client = application.CreateClient();
         await LoginAsync(client);
-        // WHEN a V3 draft is saved with explicitly absent supplier details.
-        var result = await SendAsync(client, HttpMethod.Post, "/api/v3/purchase-order-drafts", new
+        // WHEN a beta draft is saved with explicitly absent supplier details.
+        var result = await SendAsync(client, HttpMethod.Post, "/api/beta/purchase-order-drafts", new
         {
             requestId = Guid.NewGuid(),
             draft = new
@@ -35,7 +35,9 @@ public sealed partial class PurchasingIdentityEndpointTests(SqlServerFixture sql
                 supplierWebsite = (string?)null,
                 supplierPostalAddress = (string?)null,
                 supplierOrderReference = (string?)null,
-                platform = (string?)null
+                platform = (string?)null,
+                orderDiscount = (object?)null,
+                charges = Array.Empty<object>()
             }
         });
         // THEN its first save creates a durable purchase.

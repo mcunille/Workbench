@@ -152,35 +152,35 @@ Storage__DurableVolume=true
 
     $shell = Invoke-WebRequest -Uri "$baseUrl/client/route" -SkipHttpErrorCheck
     if ($shell.StatusCode -ne 200 -or $shell.Headers.'Content-Type' -notmatch '^text/html') { throw 'React shell failed.' }
-    $apiMiss = Invoke-WebRequest -Uri "$baseUrl/api/not-a-route" -SkipHttpErrorCheck
+    $apiMiss = Invoke-WebRequest -Uri "$baseUrl/api/beta/not-a-route" -SkipHttpErrorCheck
     if ($apiMiss.StatusCode -ne 404 -or $apiMiss.Headers.'Content-Type' -notmatch '^application/problem\+json') { throw 'API miss contract failed.' }
     # GIVEN one client has exhausted its network budget through the trusted ingress peer.
-    $attackerHeaders = @{ 'X-Forwarded-For' = '192.0.2.10'; 'X-Forwarded-Proto' = 'https' }
-    $attackerAntiforgery = Invoke-WebRequest -Uri "$baseUrl/api/auth/antiforgery" -Headers $attackerHeaders
+    $attackerHeaders = @{ 'X-Workbench-Api-Revision' = 'beta-2'; 'X-Forwarded-For' = '192.0.2.10'; 'X-Forwarded-Proto' = 'https' }
+    $attackerAntiforgery = Invoke-WebRequest -Uri "$baseUrl/api/beta/auth/antiforgery" -Headers $attackerHeaders
     $attackerHeaders['X-CSRF-TOKEN'] = ($attackerAntiforgery.Content | ConvertFrom-Json).requestToken
     $attackerHeaders['Cookie'] = ($attackerAntiforgery.Headers.'Set-Cookie' -split ';')[0]
     for ($attempt = 0; $attempt -lt 6; $attempt++) {
-        $rejected = Invoke-WebRequest -Uri "$baseUrl/api/auth/login" -Method Post `
+        $rejected = Invoke-WebRequest -Uri "$baseUrl/api/beta/auth/login" -Method Post `
             -Headers $attackerHeaders -ContentType 'application/json' `
             -Body (@{ email = 'unknown@example.test'; password = 'Invalid Password 8!' } | ConvertTo-Json) `
             -SkipHttpErrorCheck
         if ($rejected.StatusCode -ne 401) { throw 'Expected rejected login while exhausting the client budget.' }
     }
     # THEN even valid credentials are rejected from the exhausted network partition.
-    $limitedLogin = Invoke-WebRequest -Uri "$baseUrl/api/auth/login" -Method Post `
+    $limitedLogin = Invoke-WebRequest -Uri "$baseUrl/api/beta/auth/login" -Method Post `
         -Headers $attackerHeaders -ContentType 'application/json' `
         -Body (@{ email = 'smoke-admin@example.test'; password = 'Smoke Correct Horse 8!' } | ConvertTo-Json) `
         -SkipHttpErrorCheck
     if ($limitedLogin.StatusCode -ne 401) { throw 'Exhausted client network budget allowed valid credentials.' }
     # WHEN another forwarded client signs in with valid credentials.
-    $forwardedHeaders = @{ 'X-Forwarded-For' = '192.0.2.20'; 'X-Forwarded-Proto' = 'https' }
-    $antiforgeryResponse = Invoke-WebRequest -Uri "$baseUrl/api/auth/antiforgery" -Headers $forwardedHeaders
+    $forwardedHeaders = @{ 'X-Workbench-Api-Revision' = 'beta-2'; 'X-Forwarded-For' = '192.0.2.20'; 'X-Forwarded-Proto' = 'https' }
+    $antiforgeryResponse = Invoke-WebRequest -Uri "$baseUrl/api/beta/auth/antiforgery" -Headers $forwardedHeaders
     $antiforgery = $antiforgeryResponse.Content | ConvertFrom-Json
     $antiforgeryCookie = ($antiforgeryResponse.Headers.'Set-Cookie' -split ';')[0]
     $loginHeaders = $forwardedHeaders.Clone()
     $loginHeaders['X-CSRF-TOKEN'] = $antiforgery.requestToken
     $loginHeaders['Cookie'] = $antiforgeryCookie
-    $login = Invoke-WebRequest -Uri "$baseUrl/api/auth/login" -Method Post `
+    $login = Invoke-WebRequest -Uri "$baseUrl/api/beta/auth/login" -Method Post `
         -Headers $loginHeaders -ContentType 'application/json' `
         -Body (@{ email = 'smoke-admin@example.test'; password = 'Smoke Correct Horse 8!' } | ConvertTo-Json) `
         -SkipHttpErrorCheck
@@ -189,21 +189,21 @@ Storage__DurableVolume=true
     $sessionCookie = (($login.Headers.'Set-Cookie' | Where-Object { $_ -match '__Host-Workbench.Session=' }) -split ';')[0]
     $identityHeaders = $forwardedHeaders.Clone()
     $identityHeaders['Cookie'] = $sessionCookie
-    if ((Invoke-WebRequest -Uri "$baseUrl/api/auth/me" -Headers $identityHeaders -SkipHttpErrorCheck).StatusCode -ne 200) {
+    if ((Invoke-WebRequest -Uri "$baseUrl/api/beta/auth/me" -Headers $identityHeaders -SkipHttpErrorCheck).StatusCode -ne 200) {
         throw 'Container durable session validation failed.'
     }
 
     # GIVEN an authenticated collector in the restricted Linux runtime.
-    $itemAntiforgeryResponse = Invoke-WebRequest -Uri "$baseUrl/api/auth/antiforgery" -Headers $identityHeaders
+    $itemAntiforgeryResponse = Invoke-WebRequest -Uri "$baseUrl/api/beta/auth/antiforgery" -Headers $identityHeaders
     $itemHeaders = $identityHeaders.Clone()
     $itemHeaders['X-CSRF-TOKEN'] = ($itemAntiforgeryResponse.Content | ConvertFrom-Json).requestToken
     $itemAntiforgeryCookie = ($itemAntiforgeryResponse.Headers.'Set-Cookie' -split ';')[0]
     if ($itemAntiforgeryCookie) { $itemHeaders['Cookie'] = "$sessionCookie; $itemAntiforgeryCookie" }
     $itemBody = @{ creationRequestId = [Guid]::NewGuid(); name = 'Container sapphire'; location = 'Tray A'; notes = 'Smoke notebook' } | ConvertTo-Json
     # WHEN the same creation request is sent twice through the real HTTP boundary.
-    $createdItem = Invoke-WebRequest -Uri "$baseUrl/api/items" -Method Post -Headers $itemHeaders `
+    $createdItem = Invoke-WebRequest -Uri "$baseUrl/api/beta/items" -Method Post -Headers $itemHeaders `
         -ContentType 'application/json' -Body $itemBody -SkipHttpErrorCheck
-    $replayedItem = Invoke-WebRequest -Uri "$baseUrl/api/items" -Method Post -Headers $itemHeaders `
+    $replayedItem = Invoke-WebRequest -Uri "$baseUrl/api/beta/items" -Method Post -Headers $itemHeaders `
         -ContentType 'application/json' -Body $itemBody -SkipHttpErrorCheck
     if ($createdItem.StatusCode -ne 201 -or $replayedItem.StatusCode -ne 200) {
         throw 'Container collection create/replay failed.'
@@ -211,8 +211,8 @@ Storage__DurableVolume=true
     $itemId = ($createdItem.Content | ConvertFrom-Json).id
     # THEN the permanent identity, stored text, and one-row collection survive a fresh read.
     if (($replayedItem.Content | ConvertFrom-Json).id -ne $itemId) { throw 'Container replay duplicated item identity.' }
-    $itemDetail = Invoke-RestMethod -Uri "$baseUrl/api/items/$itemId" -Headers $identityHeaders
-    $itemPage = Invoke-RestMethod -Uri "$baseUrl/api/items" -Headers $identityHeaders
+    $itemDetail = Invoke-RestMethod -Uri "$baseUrl/api/beta/items/$itemId" -Headers $identityHeaders
+    $itemPage = Invoke-RestMethod -Uri "$baseUrl/api/beta/items" -Headers $identityHeaders
     if ($itemDetail.name -ne 'Container sapphire' -or $itemDetail.location -ne 'Tray A' -or
         $itemDetail.notes -ne 'Smoke notebook' -or $itemPage.items.Count -ne 1) {
         throw 'Container collection persistence failed.'
@@ -222,10 +222,10 @@ Storage__DurableVolume=true
     $photoFile = Join-Path $temporaryRoot 'prepared-photo.png'
     [IO.File]::WriteAllBytes($photoFile, [Convert]::FromBase64String('iVBORw0KGgoAAAANSUhEUgAAAAwAAAAICAYAAADN5B7xAAAAFElEQVR4nGPQCDjxnxTMMKqBFhoAkjTXoQ3awywAAAAASUVORK5CYII='))
     $photoOperation = [Guid]::NewGuid().ToString()
-    $photoUpload = Invoke-WebRequest -Uri "$baseUrl/api/items/$itemId/photo" -Method Put -Headers $itemHeaders `
+    $photoUpload = Invoke-WebRequest -Uri "$baseUrl/api/beta/items/$itemId/photo" -Method Put -Headers $itemHeaders `
         -Form @{ file = Get-Item -LiteralPath $photoFile; requestId = $photoOperation; expectedVersion = $itemDetail.version } -SkipHttpErrorCheck
     if ($photoUpload.StatusCode -ne 200) { throw "Container photo processing failed with status $($photoUpload.StatusCode)." }
-    $photographedItem = Invoke-RestMethod -Uri "$baseUrl/api/items/$itemId" -Headers $identityHeaders
+    $photographedItem = Invoke-RestMethod -Uri "$baseUrl/api/beta/items/$itemId" -Headers $identityHeaders
     # THEN the native codec works without root privileges or writable application files,
     # and both private images can be read before logical removal preserves the item.
     foreach ($photoUrl in @($photographedItem.photo.detailUrl, $photographedItem.photo.thumbnailUrl)) {
@@ -233,7 +233,7 @@ Storage__DurableVolume=true
         if ($photoResponse.StatusCode -ne 200 -or $photoResponse.Headers.'Content-Type' -notmatch 'image/webp' -or
             $photoResponse.Headers.'X-Content-Type-Options' -notcontains 'nosniff') { throw 'Container photo delivery failed.' }
     }
-    $photoRemoved = Invoke-WebRequest -Uri "$baseUrl/api/items/$itemId/photo" -Method Delete -Headers $itemHeaders `
+    $photoRemoved = Invoke-WebRequest -Uri "$baseUrl/api/beta/items/$itemId/photo" -Method Delete -Headers $itemHeaders `
         -ContentType 'application/json' -Body (@{ requestId = [Guid]::NewGuid(); expectedVersion = $photographedItem.version } | ConvertTo-Json) -SkipHttpErrorCheck
     if ($photoRemoved.StatusCode -ne 200 -or
         (Invoke-WebRequest -Uri "$baseUrl$($photographedItem.photo.detailUrl)" -Headers $identityHeaders -SkipHttpErrorCheck).StatusCode -ne 404) {

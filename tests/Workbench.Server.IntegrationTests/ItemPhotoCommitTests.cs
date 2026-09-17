@@ -37,7 +37,7 @@ public sealed class ItemPhotoCommitTests(SqlServerFixture sqlServer)
         }));
         using var client = factory.CreateClient();
         await ItemPhotoEndpointTests.LoginAsync(client);
-        using var created = await ItemPhotoEndpointTests.SendJsonAsync(client, HttpMethod.Post, "/api/items",
+        using var created = await ItemPhotoEndpointTests.SendJsonAsync(client, HttpMethod.Post, "/api/beta/items",
             new { creationRequestId = Guid.NewGuid(), name = "Commit recovery specimen" });
         Assert.Equal(HttpStatusCode.Created, created.StatusCode);
         var path = created.Headers.Location!.ToString();

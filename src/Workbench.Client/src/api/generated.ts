@@ -4,7 +4,7 @@
  */
 
 export interface paths {
-    "/api/system": {
+    "/api/beta/system": {
         parameters: {
             query?: never;
             header?: never;
@@ -20,7 +20,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/auth/recovery": {
+    "/api/beta/auth/recovery": {
         parameters: {
             query?: never;
             header?: never;
@@ -66,7 +66,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/auth/recovery/consume": {
+    "/api/beta/auth/recovery/consume": {
         parameters: {
             query?: never;
             header?: never;
@@ -121,7 +121,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/auth/invitations/consume": {
+    "/api/beta/auth/invitations/consume": {
         parameters: {
             query?: never;
             header?: never;
@@ -176,7 +176,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/auth/antiforgery": {
+    "/api/beta/auth/antiforgery": {
         parameters: {
             query?: never;
             header?: never;
@@ -211,7 +211,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/auth/login": {
+    "/api/beta/auth/login": {
         parameters: {
             query?: never;
             header?: never;
@@ -266,7 +266,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/auth/me": {
+    "/api/beta/auth/me": {
         parameters: {
             query?: never;
             header?: never;
@@ -308,7 +308,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/auth/logout": {
+    "/api/beta/auth/logout": {
         parameters: {
             query?: never;
             header?: never;
@@ -341,7 +341,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/auth/change-password": {
+    "/api/beta/auth/change-password": {
         parameters: {
             query?: never;
             header?: never;
@@ -387,7 +387,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/auth/sessions": {
+    "/api/beta/auth/sessions": {
         parameters: {
             query?: never;
             header?: never;
@@ -439,7 +439,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/auth/sessions/{sessionId}": {
+    "/api/beta/auth/sessions/{sessionId}": {
         parameters: {
             query?: never;
             header?: never;
@@ -474,7 +474,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/items": {
+    "/api/beta/items": {
         parameters: {
             query?: never;
             header?: never;
@@ -571,7 +571,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/items/archived": {
+    "/api/beta/items/archived": {
         parameters: {
             query?: never;
             header?: never;
@@ -618,7 +618,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/items/{id}": {
+    "/api/beta/items/{id}": {
         parameters: {
             query?: never;
             header?: never;
@@ -716,7 +716,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/items/{id}/photo": {
+    "/api/beta/items/{id}/photo": {
         parameters: {
             query?: never;
             header?: never;
@@ -944,7 +944,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/items/{id}/photo/{photoId}/{variant}": {
+    "/api/beta/items/{id}/photo/{photoId}/{variant}": {
         parameters: {
             query?: never;
             header?: never;
@@ -1010,7 +1010,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/items/{id}/acquisition": {
+    "/api/beta/items/{id}/acquisition": {
         parameters: {
             query?: never;
             header?: never;
@@ -1117,7 +1117,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/items/{id}/acquisition/{acquisitionId}": {
+    "/api/beta/items/{id}/acquisition/{acquisitionId}": {
         parameters: {
             query?: never;
             header?: never;
@@ -1186,7 +1186,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/items/{id}/acquisition-link": {
+    "/api/beta/items/{id}/acquisition-link": {
         parameters: {
             query?: never;
             header?: never;
@@ -1254,7 +1254,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/items/export": {
+    "/api/beta/items/export": {
         parameters: {
             query?: never;
             header?: never;
@@ -1343,7 +1343,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/items/export-package": {
+    "/api/beta/items/export-package": {
         parameters: {
             query?: never;
             header?: never;
@@ -1432,7 +1432,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/items/{id}/archive": {
+    "/api/beta/items/{id}/archive": {
         parameters: {
             query?: never;
             header?: never;
@@ -1500,7 +1500,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/items/{id}/restore": {
+    "/api/beta/items/{id}/restore": {
         parameters: {
             query?: never;
             header?: never;
@@ -1568,7 +1568,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/items/{id}/acquisition/{acquisitionId}/documents": {
+    "/api/beta/items/{id}/acquisition/{acquisitionId}/documents": {
         parameters: {
             query?: never;
             header?: never;
@@ -1727,7 +1727,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/items/{id}/acquisition/{acquisitionId}/documents/operations/{requestId}": {
+    "/api/beta/items/{id}/acquisition/{acquisitionId}/documents/operations/{requestId}": {
         parameters: {
             query?: never;
             header?: never;
@@ -1784,7 +1784,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/items/{id}/acquisition/{acquisitionId}/documents/{documentId}/download": {
+    "/api/beta/items/{id}/acquisition/{acquisitionId}/documents/{documentId}/download": {
         parameters: {
             query?: never;
             header?: never;
@@ -1850,7 +1850,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/items/{id}/acquisition/{acquisitionId}/documents/{documentId}": {
+    "/api/beta/items/{id}/acquisition/{acquisitionId}/documents/{documentId}": {
         parameters: {
             query?: never;
             header?: never;
@@ -2082,7 +2082,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/acquisitions": {
+    "/api/beta/acquisitions": {
         parameters: {
             query?: never;
             header?: never;
@@ -2129,7 +2129,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/acquisitions/{id}": {
+    "/api/beta/acquisitions/{id}": {
         parameters: {
             query?: never;
             header?: never;
@@ -2175,7 +2175,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/acquisitions/{id}/items": {
+    "/api/beta/acquisitions/{id}/items": {
         parameters: {
             query?: never;
             header?: never;
@@ -2233,7 +2233,64 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/purchase-order-drafts": {
+    "/api/beta/purchase-order-drafts/calculate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["CalculateDraftOrderRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["DraftCalculationResponse"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["HttpValidationProblemDetails"];
+                    };
+                };
+                /** @description Payload Too Large */
+                413: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/beta/purchase-order-drafts": {
         parameters: {
             query?: never;
             header?: never;
@@ -2244,6 +2301,7 @@ export interface paths {
             parameters: {
                 query?: {
                     cursor?: string;
+                    query?: string;
                 };
                 header?: never;
                 path?: never;
@@ -2312,6 +2370,15 @@ export interface paths {
                         "application/problem+json": components["schemas"]["HttpValidationProblemDetails"];
                     };
                 };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
                 /** @description Conflict */
                 409: {
                     headers: {
@@ -2330,15 +2397,6 @@ export interface paths {
                         "application/problem+json": components["schemas"]["ProblemDetails"];
                     };
                 };
-                /** @description Upgrade Required */
-                426: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/problem+json": components["schemas"]["ProblemDetails"];
-                    };
-                };
             };
         };
         delete?: never;
@@ -2347,7 +2405,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/purchase-order-drafts/{id}": {
+    "/api/beta/purchase-order-drafts/{id}": {
         parameters: {
             query?: never;
             header?: never;
@@ -2445,325 +2503,6 @@ export interface paths {
                         "application/problem+json": components["schemas"]["ProblemDetails"];
                     };
                 };
-                /** @description Upgrade Required */
-                426: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/problem+json": components["schemas"]["ProblemDetails"];
-                    };
-                };
-            };
-        };
-        post?: never;
-        delete: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    id: string;
-                };
-                cookie?: never;
-            };
-            requestBody: {
-                content: {
-                    "application/json": components["schemas"]["DeleteDraftOrderRequest"];
-                };
-            };
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["SaveDraftOrderResponse"];
-                    };
-                };
-                /** @description Bad Request */
-                400: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/problem+json": components["schemas"]["HttpValidationProblemDetails"];
-                    };
-                };
-                /** @description Not Found */
-                404: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/problem+json": components["schemas"]["ProblemDetails"];
-                    };
-                };
-                /** @description Conflict */
-                409: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/problem+json": components["schemas"]["ProblemDetails"];
-                    };
-                };
-                /** @description Payload Too Large */
-                413: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/problem+json": components["schemas"]["ProblemDetails"];
-                    };
-                };
-                /** @description Upgrade Required */
-                426: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/problem+json": components["schemas"]["ProblemDetails"];
-                    };
-                };
-            };
-        };
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v2/purchase-order-drafts": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: {
-            parameters: {
-                query?: {
-                    cursor?: string;
-                    query?: string;
-                };
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["DraftOrderPageResponseV2"];
-                    };
-                };
-                /** @description Bad Request */
-                400: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/problem+json": components["schemas"]["ProblemDetails"];
-                    };
-                };
-            };
-        };
-        put?: never;
-        post: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody: {
-                content: {
-                    "application/json": components["schemas"]["CreateDraftOrderRequestV2"];
-                };
-            };
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["SaveDraftOrderResponse"];
-                    };
-                };
-                /** @description Created */
-                201: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["SaveDraftOrderResponse"];
-                    };
-                };
-                /** @description Bad Request */
-                400: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/problem+json": components["schemas"]["HttpValidationProblemDetails"];
-                    };
-                };
-                /** @description Not Found */
-                404: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/problem+json": components["schemas"]["ProblemDetails"];
-                    };
-                };
-                /** @description Conflict */
-                409: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/problem+json": components["schemas"]["ProblemDetails"];
-                    };
-                };
-                /** @description Payload Too Large */
-                413: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/problem+json": components["schemas"]["ProblemDetails"];
-                    };
-                };
-                /** @description Upgrade Required */
-                426: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/problem+json": components["schemas"]["ProblemDetails"];
-                    };
-                };
-            };
-        };
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v2/purchase-order-drafts/{id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    id: string;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["DraftOrderResponseV2"];
-                    };
-                };
-                /** @description Not Found */
-                404: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/problem+json": components["schemas"]["ProblemDetails"];
-                    };
-                };
-            };
-        };
-        put: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    id: string;
-                };
-                cookie?: never;
-            };
-            requestBody: {
-                content: {
-                    "application/json": components["schemas"]["UpdateDraftOrderRequestV2"];
-                };
-            };
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["SaveDraftOrderResponse"];
-                    };
-                };
-                /** @description Bad Request */
-                400: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/problem+json": components["schemas"]["HttpValidationProblemDetails"];
-                    };
-                };
-                /** @description Not Found */
-                404: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/problem+json": components["schemas"]["ProblemDetails"];
-                    };
-                };
-                /** @description Conflict */
-                409: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/problem+json": components["schemas"]["ProblemDetails"];
-                    };
-                };
-                /** @description Payload Too Large */
-                413: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/problem+json": components["schemas"]["ProblemDetails"];
-                    };
-                };
-                /** @description Upgrade Required */
-                426: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/problem+json": components["schemas"]["ProblemDetails"];
-                    };
-                };
             };
         };
         post?: never;
@@ -2834,687 +2573,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v3/purchase-order-drafts/calculate": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody: {
-                content: {
-                    "application/json": components["schemas"]["CalculateDraftOrderRequest"];
-                };
-            };
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["DraftCalculationResponse"];
-                    };
-                };
-                /** @description Bad Request */
-                400: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/problem+json": components["schemas"]["HttpValidationProblemDetails"];
-                    };
-                };
-                /** @description Payload Too Large */
-                413: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/problem+json": components["schemas"]["ProblemDetails"];
-                    };
-                };
-            };
-        };
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v3/purchase-order-drafts": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: {
-            parameters: {
-                query?: {
-                    cursor?: string;
-                    query?: string;
-                };
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["DraftOrderPageResponseV2"];
-                    };
-                };
-                /** @description Bad Request */
-                400: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/problem+json": components["schemas"]["ProblemDetails"];
-                    };
-                };
-            };
-        };
-        put?: never;
-        post: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody: {
-                content: {
-                    "application/json": components["schemas"]["CreateDraftOrderRequestV3"];
-                };
-            };
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["SaveDraftOrderResponse"];
-                    };
-                };
-                /** @description Created */
-                201: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["SaveDraftOrderResponse"];
-                    };
-                };
-                /** @description Bad Request */
-                400: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/problem+json": components["schemas"]["HttpValidationProblemDetails"];
-                    };
-                };
-                /** @description Not Found */
-                404: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/problem+json": components["schemas"]["ProblemDetails"];
-                    };
-                };
-                /** @description Conflict */
-                409: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/problem+json": components["schemas"]["ProblemDetails"];
-                    };
-                };
-                /** @description Payload Too Large */
-                413: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/problem+json": components["schemas"]["ProblemDetails"];
-                    };
-                };
-            };
-        };
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v3/purchase-order-drafts/{id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    id: string;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["DraftOrderResponseV3"];
-                    };
-                };
-                /** @description Not Found */
-                404: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/problem+json": components["schemas"]["ProblemDetails"];
-                    };
-                };
-            };
-        };
-        put: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    id: string;
-                };
-                cookie?: never;
-            };
-            requestBody: {
-                content: {
-                    "application/json": components["schemas"]["UpdateDraftOrderRequestV3"];
-                };
-            };
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["SaveDraftOrderResponse"];
-                    };
-                };
-                /** @description Bad Request */
-                400: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/problem+json": components["schemas"]["HttpValidationProblemDetails"];
-                    };
-                };
-                /** @description Not Found */
-                404: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/problem+json": components["schemas"]["ProblemDetails"];
-                    };
-                };
-                /** @description Conflict */
-                409: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/problem+json": components["schemas"]["ProblemDetails"];
-                    };
-                };
-                /** @description Payload Too Large */
-                413: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/problem+json": components["schemas"]["ProblemDetails"];
-                    };
-                };
-            };
-        };
-        post?: never;
-        delete: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    id: string;
-                };
-                cookie?: never;
-            };
-            requestBody: {
-                content: {
-                    "application/json": components["schemas"]["DeleteDraftOrderRequest"];
-                };
-            };
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["SaveDraftOrderResponse"];
-                    };
-                };
-                /** @description Bad Request */
-                400: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/problem+json": components["schemas"]["HttpValidationProblemDetails"];
-                    };
-                };
-                /** @description Not Found */
-                404: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/problem+json": components["schemas"]["ProblemDetails"];
-                    };
-                };
-                /** @description Conflict */
-                409: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/problem+json": components["schemas"]["ProblemDetails"];
-                    };
-                };
-                /** @description Payload Too Large */
-                413: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/problem+json": components["schemas"]["ProblemDetails"];
-                    };
-                };
-            };
-        };
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v4/purchase-order-drafts/calculate": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody: {
-                content: {
-                    "application/json": components["schemas"]["CalculateDraftOrderRequestV4"];
-                };
-            };
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["DraftCalculationResponseV4"];
-                    };
-                };
-                /** @description Bad Request */
-                400: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/problem+json": components["schemas"]["HttpValidationProblemDetails"];
-                    };
-                };
-                /** @description Payload Too Large */
-                413: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/problem+json": components["schemas"]["ProblemDetails"];
-                    };
-                };
-            };
-        };
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v4/purchase-order-drafts": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: {
-            parameters: {
-                query?: {
-                    cursor?: string;
-                    query?: string;
-                };
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["DraftOrderPageResponseV2"];
-                    };
-                };
-                /** @description Bad Request */
-                400: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/problem+json": components["schemas"]["ProblemDetails"];
-                    };
-                };
-            };
-        };
-        put?: never;
-        post: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody: {
-                content: {
-                    "application/json": components["schemas"]["CreateDraftOrderRequestV4"];
-                };
-            };
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["SaveDraftOrderResponse"];
-                    };
-                };
-                /** @description Created */
-                201: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["SaveDraftOrderResponse"];
-                    };
-                };
-                /** @description Bad Request */
-                400: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/problem+json": components["schemas"]["HttpValidationProblemDetails"];
-                    };
-                };
-                /** @description Not Found */
-                404: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/problem+json": components["schemas"]["ProblemDetails"];
-                    };
-                };
-                /** @description Conflict */
-                409: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/problem+json": components["schemas"]["ProblemDetails"];
-                    };
-                };
-                /** @description Payload Too Large */
-                413: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/problem+json": components["schemas"]["ProblemDetails"];
-                    };
-                };
-            };
-        };
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v4/purchase-order-drafts/{id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    id: string;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["DraftOrderResponseV4"];
-                    };
-                };
-                /** @description Not Found */
-                404: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/problem+json": components["schemas"]["ProblemDetails"];
-                    };
-                };
-            };
-        };
-        put: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    id: string;
-                };
-                cookie?: never;
-            };
-            requestBody: {
-                content: {
-                    "application/json": components["schemas"]["UpdateDraftOrderRequestV4"];
-                };
-            };
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["SaveDraftOrderResponse"];
-                    };
-                };
-                /** @description Bad Request */
-                400: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/problem+json": components["schemas"]["HttpValidationProblemDetails"];
-                    };
-                };
-                /** @description Not Found */
-                404: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/problem+json": components["schemas"]["ProblemDetails"];
-                    };
-                };
-                /** @description Conflict */
-                409: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/problem+json": components["schemas"]["ProblemDetails"];
-                    };
-                };
-                /** @description Payload Too Large */
-                413: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/problem+json": components["schemas"]["ProblemDetails"];
-                    };
-                };
-            };
-        };
-        post?: never;
-        delete: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    id: string;
-                };
-                cookie?: never;
-            };
-            requestBody: {
-                content: {
-                    "application/json": components["schemas"]["DeleteDraftOrderRequest"];
-                };
-            };
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["SaveDraftOrderResponse"];
-                    };
-                };
-                /** @description Bad Request */
-                400: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/problem+json": components["schemas"]["HttpValidationProblemDetails"];
-                    };
-                };
-                /** @description Not Found */
-                404: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/problem+json": components["schemas"]["ProblemDetails"];
-                    };
-                };
-                /** @description Conflict */
-                409: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/problem+json": components["schemas"]["ProblemDetails"];
-                    };
-                };
-                /** @description Payload Too Large */
-                413: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/problem+json": components["schemas"]["ProblemDetails"];
-                    };
-                };
-            };
-        };
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/suppliers": {
+    "/api/beta/suppliers": {
         parameters: {
             query?: never;
             header?: never;
@@ -3621,7 +2680,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/suppliers/{id}": {
+    "/api/beta/suppliers/{id}": {
         parameters: {
             query?: never;
             header?: never;
@@ -3728,7 +2787,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/suppliers/{id}/archive": {
+    "/api/beta/suppliers/{id}/archive": {
         parameters: {
             query?: never;
             header?: never;
@@ -3805,7 +2864,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/tenant/users": {
+    "/api/beta/tenant/users": {
         parameters: {
             query?: never;
             header?: never;
@@ -3840,7 +2899,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/tenant/users/{userId}": {
+    "/api/beta/tenant/users/{userId}": {
         parameters: {
             query?: never;
             header?: never;
@@ -3891,7 +2950,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/tenant/users/{userId}/reactivate": {
+    "/api/beta/tenant/users/{userId}/reactivate": {
         parameters: {
             query?: never;
             header?: never;
@@ -3942,7 +3001,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/tenant/users/{userId}/recovery": {
+    "/api/beta/tenant/users/{userId}/recovery": {
         parameters: {
             query?: never;
             header?: never;
@@ -3993,7 +3052,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/tenant/users/{userId}/sessions": {
+    "/api/beta/tenant/users/{userId}/sessions": {
         parameters: {
             query?: never;
             header?: never;
@@ -4035,7 +3094,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/tenant/users/invitations": {
+    "/api/beta/tenant/users/invitations": {
         parameters: {
             query?: never;
             header?: never;
@@ -4148,10 +3207,7 @@ export interface components {
             isArchived: boolean;
         };
         CalculateDraftOrderRequest: {
-            draft: components["schemas"]["DraftContentV3"];
-        };
-        CalculateDraftOrderRequestV4: {
-            draft: components["schemas"]["DraftContentV4"];
+            draft: components["schemas"]["DraftContent"];
         };
         ChangeAcquisitionDocumentRequest: {
             /** Format: uuid */
@@ -4184,21 +3240,6 @@ export interface components {
             requestId: string;
             draft: components["schemas"]["DraftContent"];
         };
-        CreateDraftOrderRequestV2: {
-            /** Format: uuid */
-            requestId: string;
-            draft: components["schemas"]["DraftContentV2"];
-        };
-        CreateDraftOrderRequestV3: {
-            /** Format: uuid */
-            requestId: string;
-            draft: components["schemas"]["DraftContentV3"];
-        };
-        CreateDraftOrderRequestV4: {
-            /** Format: uuid */
-            requestId: string;
-            draft: components["schemas"]["DraftContentV4"];
-        };
         CreateItemRequest: {
             /** Format: uuid */
             creationRequestId: string;
@@ -4225,12 +3266,6 @@ export interface components {
         };
         DraftCalculationResponse: {
             lines: components["schemas"]["DraftLineCalculation"][];
-            /** Format: int32 */
-            incompleteLineCount: number | string;
-            merchandiseEstimate: null | string;
-        };
-        DraftCalculationResponseV4: {
-            lines: components["schemas"]["DraftLineCalculationV4"][];
             /** Format: int32 */
             incompleteLineCount: number | string;
             merchandiseEstimate: null | string;
@@ -4265,48 +3300,6 @@ export interface components {
             notes: null | string;
             sourceLinks: string[];
             entries: components["schemas"]["DraftEntry"][];
-        };
-        DraftContentV2: {
-            title: null | string;
-            supplierName: null | string;
-            currency: null | string;
-            notes: null | string;
-            sourceLinks: string[];
-            entries: components["schemas"]["DraftEntry"][];
-            /** Format: uuid */
-            supplierId: null | string;
-            supplierContactName: null | string;
-            supplierEmail: null | string;
-            supplierPhone: null | string;
-            supplierWebsite: null | string;
-            supplierPostalAddress: null | string;
-            supplierOrderReference: null | string;
-            platform: null | string;
-        };
-        DraftContentV3: {
-            title: null | string;
-            supplierName: null | string;
-            currency: null | string;
-            notes: null | string;
-            sourceLinks: string[];
-            entries: components["schemas"]["DraftEntryV3"][];
-            /** Format: uuid */
-            supplierId: null | string;
-            supplierContactName: null | string;
-            supplierEmail: null | string;
-            supplierPhone: null | string;
-            supplierWebsite: null | string;
-            supplierPostalAddress: null | string;
-            supplierOrderReference: null | string;
-            platform: null | string;
-        };
-        DraftContentV4: {
-            title: null | string;
-            supplierName: null | string;
-            currency: null | string;
-            notes: null | string;
-            sourceLinks: string[];
-            entries: components["schemas"]["DraftEntryV4"][];
             /** Format: uuid */
             supplierId: null | string;
             supplierContactName: null | string;
@@ -4330,40 +3323,16 @@ export interface components {
             notes: null | string;
             sourceLink: null | string;
             indicativePrice: null | string;
-        };
-        DraftEntryV3: {
-            /** Format: uuid */
-            id: string;
-            description: null | string;
-            notes: null | string;
-            sourceLink: null | string;
-            indicativePrice: null | string;
-            quantity: null | string;
-            unitOfMeasure: null | string;
-            unitPrice: null | string;
-            pricingUnit: null | string;
-            pricePerQuantity: null | string;
-            pricingQuantity: null | string;
-            supplierSku: null | string;
-            itemType: null | string;
-        };
-        DraftEntryV4: {
-            /** Format: uuid */
-            id: string;
-            description: null | string;
-            notes: null | string;
-            sourceLink: null | string;
-            indicativePrice: null | string;
             quantity: null | string;
             unitOfMeasure: null | string;
             priceMode: string;
             price: null | string;
-            legacyPricing: null | components["schemas"]["DraftLegacyPricingV4"];
+            legacyPricing: null | components["schemas"]["DraftLegacyPricing"];
             supplierSku: null | string;
             itemType: null | string;
             discount: null | components["schemas"]["DraftDiscount"];
         };
-        DraftLegacyPricingV4: {
+        DraftLegacyPricing: {
             quantity: null | string;
             unitOfMeasure: null | string;
             unitPrice: null | string;
@@ -4375,21 +3344,12 @@ export interface components {
             /** Format: uuid */
             id: string;
             gross: null | string;
-        };
-        DraftLineCalculationV4: {
-            /** Format: uuid */
-            id: string;
-            gross: null | string;
             discountBase: null | string;
             discountAmount: null | string;
             net: null | string;
         };
         DraftOrderPageResponse: {
             items: components["schemas"]["DraftOrderSummary"][];
-            nextCursor: null | string;
-        };
-        DraftOrderPageResponseV2: {
-            items: components["schemas"]["DraftOrderSummaryV2"][];
             nextCursor: null | string;
         };
         DraftOrderResponse: {
@@ -4399,47 +3359,11 @@ export interface components {
             createdAtUtc: string;
             updatedAtUtc: string;
             version: string;
-        };
-        DraftOrderResponseV2: {
-            /** Format: uuid */
-            id: string;
-            draft: components["schemas"]["DraftContentV2"];
-            createdAtUtc: string;
-            updatedAtUtc: string;
-            version: string;
-            poReference: string;
-            supplierIsArchived: boolean;
-        };
-        DraftOrderResponseV3: {
-            /** Format: uuid */
-            id: string;
-            draft: components["schemas"]["DraftContentV3"];
-            createdAtUtc: string;
-            updatedAtUtc: string;
-            version: string;
             poReference: string;
             supplierIsArchived: boolean;
             calculation: components["schemas"]["DraftCalculationResponse"];
         };
-        DraftOrderResponseV4: {
-            /** Format: uuid */
-            id: string;
-            draft: components["schemas"]["DraftContentV4"];
-            createdAtUtc: string;
-            updatedAtUtc: string;
-            version: string;
-            poReference: string;
-            supplierIsArchived: boolean;
-            calculation: components["schemas"]["DraftCalculationResponseV4"];
-        };
         DraftOrderSummary: {
-            /** Format: uuid */
-            id: string;
-            title: null | string;
-            supplierName: null | string;
-            updatedAtUtc: string;
-        };
-        DraftOrderSummaryV2: {
             /** Format: uuid */
             id: string;
             title: null | string;
@@ -4606,6 +3530,7 @@ export interface components {
         SystemResponse: {
             name: string;
             version: string;
+            apiRevision: string;
         };
         TenantInvitationRequest: {
             email: string;
@@ -4634,24 +3559,6 @@ export interface components {
             requestId: string;
             expectedVersion: string;
             draft: components["schemas"]["DraftContent"];
-        };
-        UpdateDraftOrderRequestV2: {
-            /** Format: uuid */
-            requestId: string;
-            expectedVersion: string;
-            draft: components["schemas"]["DraftContentV2"];
-        };
-        UpdateDraftOrderRequestV3: {
-            /** Format: uuid */
-            requestId: string;
-            expectedVersion: string;
-            draft: components["schemas"]["DraftContentV3"];
-        };
-        UpdateDraftOrderRequestV4: {
-            /** Format: uuid */
-            requestId: string;
-            expectedVersion: string;
-            draft: components["schemas"]["DraftContentV4"];
         };
         UpdateItemDetailsRequest: {
             expectedVersion: null | string;

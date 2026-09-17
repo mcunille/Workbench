@@ -10,7 +10,7 @@ export async function signInThroughUi(page: Page, navigate = true, owner = 'live
   await expect(async () => {
     await page.getByLabel('Email', { exact: true }).fill(browserOwner(owner).email);
     await page.getByLabel('Password', { exact: true }).fill('Browser Correct Horse 9!');
-    const response = page.waitForResponse(response => new URL(response.url()).pathname === '/api/auth/login');
+    const response = page.waitForResponse(response => new URL(response.url()).pathname === '/api/beta/auth/login');
     await page.getByRole('button', { name: 'Sign in', exact: true }).click();
     expect((await response).status()).toBe(204);
   }).toPass({ timeout: 70_000, intervals: [1_000, 5_000, 10_000] });

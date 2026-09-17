@@ -17,9 +17,9 @@ test('H9 narrated acquisition walkthrough', async ({ browser }) => {
   await mkdir(root, { recursive: true });
   const setup = await browser.newContext({ baseURL: browserBaseUrl });
   const seed = await setup.newPage(); await useAuthenticatedSession(seed);
-  const csrf = await (await seed.request.get('/api/auth/antiforgery')).json();
-  const created = await seed.request.post('/api/items', {
-    headers: { 'X-CSRF-TOKEN': csrf.requestToken },
+  const csrf = await (await seed.request.get('/api/beta/auth/antiforgery')).json();
+  const created = await seed.request.post('/api/beta/items', {
+    headers: { 'X-Workbench-Api-Revision': 'beta-2', 'X-CSRF-TOKEN': csrf.requestToken },
     data: { creationRequestId: crypto.randomUUID(), name: 'Blue stone from a family collection', notes: 'Synthetic walkthrough record', location: 'Tray A' },
   });
   expect(created.status()).toBe(201); const item = await created.json();
@@ -46,7 +46,7 @@ test('H9 narrated acquisition walkthrough', async ({ browser }) => {
     await page.getByLabel('Provenance notes (optional)', { exact: true }).fill('Remembered as part of the family collection; exact date unknown.');
     await narrate('Choose a method explicitly, including Unknown when needed. Inheritance does not require a seller or price. Only the year is known here, so no month or day is invented.', 14);
     // WHEN creation commits but transport drops its response THEN the retry uses the original request.
-    await page.route(`**/api/items/${item.id}/acquisition`, async route => {
+    await page.route(`**/api/beta/items/${item.id}/acquisition`, async route => {
       if (route.request().method() !== 'POST') return route.continue();
       expect((await route.fetch()).status()).toBe(201); await route.abort('failed');
     }, { times: 1 });
@@ -69,7 +69,7 @@ test('H9 narrated acquisition walkthrough', async ({ browser }) => {
     await narrate('On a narrow dark appearance, changing the method preserves the source text. This correction records a gift. Optional facts may remain unknown; the note explains what the collector remembers.', 14);
     await page.getByRole('button', { name: 'Save acquisition', exact: true }).click();
     await expect(page.getByRole('button', { name: 'Edit acquisition', exact: true })).toBeVisible();
-    const current = await (await seed.request.get(`/api/items/${item.id}`)).json();
+    const current = await (await seed.request.get(`/api/beta/items/${item.id}`)).json();
     await lifecycle(seed, item.id, 'archive', current.version);
     await page.reload();
     await page.getByRole('heading', { name: 'Acquisition', exact: true }).scrollIntoViewIfNeeded();

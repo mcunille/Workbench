@@ -33,7 +33,7 @@ public sealed class AcquisitionConcurrencyTests(SqlServerFixture sqlServer)
         async Task<HttpResponseMessage> CreateAsync(HttpClient client, Guid id, CreateAcquisitionRequest body)
         {
             await gate.Task;
-            return await SendAsync(client, HttpMethod.Post, $"/api/items/{id}/acquisition", body);
+            return await SendAsync(client, HttpMethod.Post, $"/api/beta/items/{id}/acquisition", body);
         }
         // WHEN simultaneous writes use the same or competing request identifiers.
         var a = CreateAsync(first, item.Id, request);
@@ -44,8 +44,8 @@ public sealed class AcquisitionConcurrencyTests(SqlServerFixture sqlServer)
         Assert.Single(results, result => result.StatusCode == HttpStatusCode.Created);
         Assert.Single(results, result => result.StatusCode == (sameRequest && !differentItem ? HttpStatusCode.OK : HttpStatusCode.Conflict));
         var winner = (await results.Single(result => result.StatusCode == HttpStatusCode.Created).Content.ReadFromJsonAsync<ItemAcquisitionResponse>())!;
-        var firstSaved = (await first.GetFromJsonAsync<ItemAcquisitionResponse>($"/api/items/{item.Id}/acquisition"))!;
-        var secondSaved = (await first.GetFromJsonAsync<ItemAcquisitionResponse>($"/api/items/{otherItem.Id}/acquisition"))!;
+        var firstSaved = (await first.GetFromJsonAsync<ItemAcquisitionResponse>($"/api/beta/items/{item.Id}/acquisition"))!;
+        var secondSaved = (await first.GetFromJsonAsync<ItemAcquisitionResponse>($"/api/beta/items/{otherItem.Id}/acquisition"))!;
         Assert.True(winner == firstSaved || winner == secondSaved);
         if (differentItem) Assert.Single(new[] { firstSaved, secondSaved }, saved => saved.Acquisition is not null);
         // AND no orphan, duplicate link or partial replay evidence survives.
@@ -70,7 +70,7 @@ public sealed class AcquisitionConcurrencyTests(SqlServerFixture sqlServer)
         await LoginAsync(first);
         await LoginAsync(second);
         var item = await CreateItemAsync(first);
-        var path = $"/api/items/{item.Id}/acquisition";
+        var path = $"/api/beta/items/{item.Id}/acquisition";
         var created = await SendAsync(first, HttpMethod.Post, path,
             new CreateAcquisitionRequest(Guid.NewGuid(), item.Version, "Gift", null, null, null, null, null));
         var saved = (await created.Content.ReadFromJsonAsync<ItemAcquisitionResponse>())!;
@@ -81,7 +81,7 @@ public sealed class AcquisitionConcurrencyTests(SqlServerFixture sqlServer)
         async Task<HttpResponseMessage> CompeteAsync()
         {
             await gate.Task;
-            return archive ? await SendAsync(second, HttpMethod.Post, $"/api/items/{item.Id}/archive", new { expectedVersion = saved.ItemVersion })
+            return archive ? await SendAsync(second, HttpMethod.Post, $"/api/beta/items/{item.Id}/archive", new { expectedVersion = saved.ItemVersion })
                 : await SendAsync(second, HttpMethod.Put, editPath, update with { Source = "Second" });
         }
         // WHEN edit competes with another edit or archive over real SQL transactions.
@@ -93,7 +93,7 @@ public sealed class AcquisitionConcurrencyTests(SqlServerFixture sqlServer)
         Assert.Single(results, response => response.StatusCode == HttpStatusCode.OK);
         Assert.Single(results, response => response.StatusCode == HttpStatusCode.Conflict);
         var current = (await first.GetFromJsonAsync<ItemAcquisitionResponse>(path))!;
-        var currentItem = (await first.GetFromJsonAsync<ItemDetailResponse>($"/api/items/{item.Id}"))!;
+        var currentItem = (await first.GetFromJsonAsync<ItemDetailResponse>($"/api/beta/items/{item.Id}"))!;
         Assert.Equal(currentItem.Version, current.ItemVersion);
         Assert.NotEqual(saved.ItemVersion, current.ItemVersion);
         if (archive && results[1].StatusCode == HttpStatusCode.OK)
@@ -125,8 +125,8 @@ public sealed class AcquisitionConcurrencyTests(SqlServerFixture sqlServer)
         await fail.ExecuteNonQueryAsync();
         var request = new CreateAcquisitionRequest(Guid.NewGuid(), item.Version, "Gift", null, null, null, null, null);
         // WHEN a transaction fails THEN it leaves no rows or changed item token.
-        Assert.Equal(HttpStatusCode.InternalServerError, (await SendAsync(client, HttpMethod.Post, $"/api/items/{item.Id}/acquisition", request)).StatusCode);
-        Assert.Equal(item, await client.GetFromJsonAsync<ItemDetailResponse>($"/api/items/{item.Id}"));
+        Assert.Equal(HttpStatusCode.InternalServerError, (await SendAsync(client, HttpMethod.Post, $"/api/beta/items/{item.Id}/acquisition", request)).StatusCode);
+        Assert.Equal(item, await client.GetFromJsonAsync<ItemDetailResponse>($"/api/beta/items/{item.Id}"));
         // AND even a direct SQL caller catching the failure cannot commit partial acquisition/link rows.
         await using (var attemptedPartialCommit = new SqlCommand("""
             BEGIN TRANSACTION;
@@ -152,6 +152,6 @@ public sealed class AcquisitionConcurrencyTests(SqlServerFixture sqlServer)
         await using var recover = new SqlCommand("ALTER TABLE Inventory.AcquisitionCreationRecords DROP CONSTRAINT CK_InjectedCreationFailure", sql);
         await recover.ExecuteNonQueryAsync();
         // AND the original request is safe to retry after recovery.
-        Assert.Equal(HttpStatusCode.Created, (await SendAsync(client, HttpMethod.Post, $"/api/items/{item.Id}/acquisition", request)).StatusCode);
+        Assert.Equal(HttpStatusCode.Created, (await SendAsync(client, HttpMethod.Post, $"/api/beta/items/{item.Id}/acquisition", request)).StatusCode);
     }
 }

@@ -241,7 +241,14 @@ builder.Services.AddAntiforgery(options =>
         : CookieSecurePolicy.Always;
     options.Cookie.Path = "/";
 });
-builder.Services.AddOpenApi();
+builder.Services.AddOpenApi("beta", options => options.AddDocumentTransformer((document, context, cancellationToken) =>
+{
+    document.Info.Version = "beta";
+    document.Info.Description = "Unreleased beta API. Contracts are expected to change; the first release establishes v1. " +
+        "Writes require X-Workbench-Api-Revision: beta-2. Missing or incompatible revisions return api_contract_unsupported; " +
+        "preserve unsaved changes before reloading. Read requests may omit the header for bootstrap and media delivery.";
+    return Task.CompletedTask;
+}));
 builder.Services.AddProblemDetails(options =>
 {
     options.CustomizeProblemDetails = context =>
@@ -256,6 +263,7 @@ app.UseExceptionHandler();
 app.UseDefaultFiles();
 app.UseStaticFiles();
 app.UseRouting();
+app.UseMiddleware<BetaApiContractMiddleware>();
 app.UseMiddleware<DraftOrderCacheMiddleware>();
 app.UseAuthentication();
 app.UseAuthorization();
@@ -265,18 +273,15 @@ app.UseMiddleware<WorkbenchAntiforgeryMiddleware>();
 app.UseMiddleware<DraftOrderRequestMiddleware>();
 
 app.MapGet(
-        "/api/system",
+        "/api/beta/system",
         (IReleaseInformation releaseInformation) =>
-            new SystemResponse("Workbench", releaseInformation.Version))
+            new SystemResponse("Workbench", releaseInformation.Version, BetaApiContractMiddleware.Revision))
     .WithName("GetSystem")
     .Produces<SystemResponse>();
 
 app.MapWorkbenchAuthentication();
 app.MapWorkbenchInventory();
 app.MapPurchaseOrderDrafts();
-app.MapPurchaseOrderDraftsV2();
-app.MapPurchaseOrderDraftsV3();
-app.MapPurchaseOrderDraftsV4();
 app.MapSuppliers();
 app.MapWorkbenchRecovery();
 app.MapTenantUserAdministration();
@@ -294,10 +299,11 @@ app.MapHealthChecks("/health/ready", new HealthCheckOptions
     ResponseWriter = HealthResponseWriter.WriteAsync,
 });
 
-app.Map("/api/{**path}", () => Results.Problem(
+app.Map("/api/beta/{**path}", () => Results.Problem(
     statusCode: StatusCodes.Status404NotFound,
     title: "API route not found.",
     type: "https://www.rfc-editor.org/rfc/rfc9110#section-15.5.5"));
+app.Map("/api/{**path}", BetaApiContractMiddleware.Unsupported).ExcludeFromDescription();
 
 app.MapFallbackToFile("index.html");
 

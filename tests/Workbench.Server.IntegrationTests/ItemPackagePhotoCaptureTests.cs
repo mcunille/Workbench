@@ -36,7 +36,7 @@ public sealed class ItemPackagePhotoCaptureTests(SqlServerFixture sqlServer)
         }));
         using var writer = factory.CreateClient();
         await LoginAsync(writer);
-        using var created = await SendJsonAsync(writer, HttpMethod.Post, "/api/items",
+        using var created = await SendJsonAsync(writer, HttpMethod.Post, "/api/beta/items",
             new { creationRequestId = Guid.NewGuid(), name = "Photo at capture" });
         Assert.Equal(HttpStatusCode.Created, created.StatusCode);
         var path = created.Headers.Location!.ToString();
@@ -51,7 +51,7 @@ public sealed class ItemPackagePhotoCaptureTests(SqlServerFixture sqlServer)
             services.AddDbContext<WorkbenchDbContext>(options => options.AddInterceptors(barrier))));
         using var reader = readerFactory.CreateClient();
         await LoginAsync(reader);
-        var exporting = SendJsonAsync(reader, HttpMethod.Post, "/api/items/export-package", new { scope = "all" });
+        var exporting = SendJsonAsync(reader, HttpMethod.Post, "/api/beta/items/export-package", new { scope = "all" });
 
         // WHEN a replacement/removal starts while the SERIALIZABLE capture transaction still holds its locks.
         Task<HttpResponseMessage>? mutation = null;

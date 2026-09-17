@@ -21,7 +21,7 @@ public sealed class TenantUserAdministrationTests(SqlServerFixture sqlServer) : 
         _admin = _application.CreateClient();
         Assert.Equal(HttpStatusCode.NoContent, (await RecoveryTests.PostWithAntiforgeryAsync(
             _admin,
-            "/api/auth/login",
+            "/api/beta/auth/login",
             new { email = AuthTestApplication.AdminEmail, password = AuthTestApplication.AdminPassword }))
             .StatusCode);
     }
@@ -54,7 +54,7 @@ public sealed class TenantUserAdministrationTests(SqlServerFixture sqlServer) : 
         var response = await SendDeleteWithAntiforgeryAsync(AuthTestApplication.AdminUserId);
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
-        Assert.Equal(HttpStatusCode.OK, (await _admin.GetAsync("/api/auth/me")).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await _admin.GetAsync("/api/beta/auth/me")).StatusCode);
     }
 
     [Fact]
@@ -63,15 +63,15 @@ public sealed class TenantUserAdministrationTests(SqlServerFixture sqlServer) : 
         const string email = "pending-invite@example.com";
         Assert.Equal(HttpStatusCode.Accepted, (await RecoveryTests.PostWithAntiforgeryAsync(
             _admin,
-            "/api/tenant/users/invitations",
+            "/api/beta/tenant/users/invitations",
             new { email })).StatusCode);
         var users = await _admin.GetFromJsonAsync<Workbench.Server.Administration.TenantUserResponse[]>(
-            "/api/tenant/users");
+            "/api/beta/tenant/users");
         var invited = Assert.Single(users!, user => user.Email == email);
 
         var response = await RecoveryTests.PostWithAntiforgeryAsync(
             _admin,
-            $"/api/tenant/users/{invited.Id}/reactivate",
+            $"/api/beta/tenant/users/{invited.Id}/reactivate",
             new { });
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
@@ -82,27 +82,27 @@ public sealed class TenantUserAdministrationTests(SqlServerFixture sqlServer) : 
     {
         const string email = "cancelled-invite@example.com";
         Assert.Equal(HttpStatusCode.Accepted, (await RecoveryTests.PostWithAntiforgeryAsync(
-            _admin, "/api/tenant/users/invitations", new { email })).StatusCode);
+            _admin, "/api/beta/tenant/users/invitations", new { email })).StatusCode);
         var token = Assert.Single(_application.Factory.Services
             .GetRequiredService<Workbench.Server.Identity.DevelopmentIdentityMessageDelivery>()
             .Messages).Token;
         var users = await _admin.GetFromJsonAsync<Workbench.Server.Administration.TenantUserResponse[]>(
-            "/api/tenant/users");
+            "/api/beta/tenant/users");
         var invited = Assert.Single(users!, user => user.Email == email);
 
         Assert.Equal(HttpStatusCode.NoContent, (await SendDeleteWithAntiforgeryAsync(invited.Id)).StatusCode);
         users = await _admin.GetFromJsonAsync<Workbench.Server.Administration.TenantUserResponse[]>(
-            "/api/tenant/users");
+            "/api/beta/tenant/users");
         Assert.Equal(Workbench.Server.Identity.AccountState.Disabled,
             Assert.Single(users!, user => user.Id == invited.Id).State);
         Assert.Equal(HttpStatusCode.BadRequest, (await RecoveryTests.PostWithAntiforgeryAsync(
-            _admin, $"/api/tenant/users/{invited.Id}/reactivate", new { })).StatusCode);
+            _admin, $"/api/beta/tenant/users/{invited.Id}/reactivate", new { })).StatusCode);
         using var anonymous = _application.CreateClient();
         Assert.Equal(HttpStatusCode.BadRequest, (await RecoveryTests.PostWithAntiforgeryAsync(
-            anonymous, "/api/auth/invitations/consume",
+            anonymous, "/api/beta/auth/invitations/consume",
             new { token, newPassword = "Cancelled Invitation 8!" })).StatusCode);
         Assert.Equal(HttpStatusCode.Unauthorized, (await RecoveryTests.PostWithAntiforgeryAsync(
-            anonymous, "/api/auth/login", new { email, password = "Cancelled Invitation 8!" })).StatusCode);
+            anonymous, "/api/beta/auth/login", new { email, password = "Cancelled Invitation 8!" })).StatusCode);
     }
 
     [Fact]
@@ -111,15 +111,15 @@ public sealed class TenantUserAdministrationTests(SqlServerFixture sqlServer) : 
         using var member = _application.CreateClient();
         Assert.Equal(HttpStatusCode.NoContent, (await RecoveryTests.PostWithAntiforgeryAsync(
             member,
-            "/api/auth/login",
+            "/api/beta/auth/login",
             new { email = "member@example.com", password = AuthTestApplication.AdminPassword }))
             .StatusCode);
 
         var response = await SendDeleteWithAntiforgeryAsync(
-            $"/api/tenant/users/{AuthTestApplication.MemberUserId}/sessions");
+            $"/api/beta/tenant/users/{AuthTestApplication.MemberUserId}/sessions");
 
         Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
-        Assert.Equal(HttpStatusCode.Unauthorized, (await member.GetAsync("/api/auth/me")).StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, (await member.GetAsync("/api/beta/auth/me")).StatusCode);
     }
 
     [Fact]
@@ -131,13 +131,13 @@ public sealed class TenantUserAdministrationTests(SqlServerFixture sqlServer) : 
         using var admin = unavailable.CreateClient();
         Assert.Equal(HttpStatusCode.NoContent, (await RecoveryTests.PostWithAntiforgeryAsync(
             admin,
-            "/api/auth/login",
+            "/api/beta/auth/login",
             new { email = AuthTestApplication.AdminEmail, password = AuthTestApplication.AdminPassword }))
             .StatusCode);
 
         var response = await RecoveryTests.PostWithAntiforgeryAsync(
             admin,
-            $"/api/tenant/users/{AuthTestApplication.AdminUserId}/recovery",
+            $"/api/beta/tenant/users/{AuthTestApplication.AdminUserId}/recovery",
             new { });
 
         Assert.Equal(HttpStatusCode.ServiceUnavailable, response.StatusCode);
@@ -150,7 +150,7 @@ public sealed class TenantUserAdministrationTests(SqlServerFixture sqlServer) : 
         const string password = "Invited Correct Horse 4$";
         var invited = await RecoveryTests.PostWithAntiforgeryAsync(
             _admin,
-            "/api/tenant/users/invitations",
+            "/api/beta/tenant/users/invitations",
             new { email });
         Assert.Equal(HttpStatusCode.Accepted, invited.StatusCode);
         var token = Assert.Single(_application.Factory.Services
@@ -160,16 +160,16 @@ public sealed class TenantUserAdministrationTests(SqlServerFixture sqlServer) : 
 
         var consumed = await RecoveryTests.PostWithAntiforgeryAsync(
             anonymous,
-            "/api/auth/invitations/consume",
+            "/api/beta/auth/invitations/consume",
             new { token, newPassword = password });
 
         Assert.Equal(HttpStatusCode.NoContent, consumed.StatusCode);
         Assert.Equal(HttpStatusCode.NoContent, (await RecoveryTests.PostWithAntiforgeryAsync(
             anonymous,
-            "/api/auth/login",
+            "/api/beta/auth/login",
             new { email, password })).StatusCode);
         using var identity = JsonDocument.Parse(
-            await (await anonymous.GetAsync("/api/auth/me")).Content.ReadAsStringAsync());
+            await (await anonymous.GetAsync("/api/beta/auth/me")).Content.ReadAsStringAsync());
         Assert.Contains(
             "TenantAccess",
             identity.RootElement.GetProperty("permissions")
@@ -187,11 +187,11 @@ public sealed class TenantUserAdministrationTests(SqlServerFixture sqlServer) : 
         var recipient = email.Trim();
         // WHEN the administrator requests an invitation.
         var response = await RecoveryTests.PostWithAntiforgeryAsync(
-            _admin, "/api/tenant/users/invitations", new { email });
+            _admin, "/api/beta/tenant/users/invitations", new { email });
         // THEN the response and pending-user representation are identical.
         Assert.Equal(HttpStatusCode.Accepted, response.StatusCode);
         var users = await _admin.GetFromJsonAsync<Workbench.Server.Administration.TenantUserResponse[]>(
-            "/api/tenant/users");
+            "/api/beta/tenant/users");
         var pending = Assert.Single(users!, user => user.Email == recipient);
         Assert.Equal(Workbench.Server.Identity.AccountState.Invited, pending.State);
         // AND pending authority owns neither global login identifier.
@@ -212,15 +212,15 @@ public sealed class TenantUserAdministrationTests(SqlServerFixture sqlServer) : 
         const string email = "other@example.com";
         // WHEN an invitation is requested and its recipient attempts consumption.
         Assert.Equal(HttpStatusCode.Accepted, (await RecoveryTests.PostWithAntiforgeryAsync(
-            _admin, "/api/tenant/users/invitations", new { email })).StatusCode);
+            _admin, "/api/beta/tenant/users/invitations", new { email })).StatusCode);
         var token = Assert.Single(_application.Factory.Services
             .GetRequiredService<Workbench.Server.Identity.DevelopmentIdentityMessageDelivery>().Messages).Token;
         using var anonymous = _application.CreateClient();
         Assert.Equal(HttpStatusCode.BadRequest, (await RecoveryTests.PostWithAntiforgeryAsync(
-            anonymous, "/api/auth/invitations/consume", new { token, newPassword = "Changed Password 9!" })).StatusCode);
+            anonymous, "/api/beta/auth/invitations/consume", new { token, newPassword = "Changed Password 9!" })).StatusCode);
         // THEN the original account still signs in with its original password.
         Assert.Equal(HttpStatusCode.NoContent, (await RecoveryTests.PostWithAntiforgeryAsync(
-            anonymous, "/api/auth/login", new { email, password = AuthTestApplication.AdminPassword })).StatusCode);
+            anonymous, "/api/beta/auth/login", new { email, password = AuthTestApplication.AdminPassword })).StatusCode);
         // AND the failed consumption leaves the pending account and token unchanged.
         await using var connection = new Microsoft.Data.SqlClient.SqlConnection(_application.AdminConnectionString);
         await connection.OpenAsync();
@@ -290,13 +290,13 @@ public sealed class TenantUserAdministrationTests(SqlServerFixture sqlServer) : 
         // GIVEN an invitation that is cancelled or expired.
         const string email = "reinvite@example.com";
         Assert.Equal(HttpStatusCode.Accepted, (await RecoveryTests.PostWithAntiforgeryAsync(
-            _admin, "/api/tenant/users/invitations", new { email })).StatusCode);
+            _admin, "/api/beta/tenant/users/invitations", new { email })).StatusCode);
         var delivery = _application.Factory.Services
             .GetRequiredService<Workbench.Server.Identity.DevelopmentIdentityMessageDelivery>();
         var oldToken = Assert.Single(delivery.Messages).Token;
         if (cancel)
         {
-            var users = await _admin.GetFromJsonAsync<Workbench.Server.Administration.TenantUserResponse[]>("/api/tenant/users");
+            var users = await _admin.GetFromJsonAsync<Workbench.Server.Administration.TenantUserResponse[]>("/api/beta/tenant/users");
             Assert.Equal(HttpStatusCode.NoContent, (await SendDeleteWithAntiforgeryAsync(
                 Assert.Single(users!, user => user.Email == email).Id)).StatusCode);
         }
@@ -311,14 +311,14 @@ public sealed class TenantUserAdministrationTests(SqlServerFixture sqlServer) : 
         }
         // WHEN another invitation is issued for the same mailbox.
         Assert.Equal(HttpStatusCode.Accepted, (await RecoveryTests.PostWithAntiforgeryAsync(
-            _admin, "/api/tenant/users/invitations", new { email })).StatusCode);
+            _admin, "/api/beta/tenant/users/invitations", new { email })).StatusCode);
         var newToken = Assert.Single(delivery.Messages, message => message.Token != oldToken).Token;
         using var anonymous = _application.CreateClient();
         // THEN the old token fails and the new token activates the account.
         Assert.Equal(HttpStatusCode.BadRequest, (await RecoveryTests.PostWithAntiforgeryAsync(
-            anonymous, "/api/auth/invitations/consume", new { token = oldToken, newPassword = "Reinvited Password 9!" })).StatusCode);
+            anonymous, "/api/beta/auth/invitations/consume", new { token = oldToken, newPassword = "Reinvited Password 9!" })).StatusCode);
         Assert.Equal(HttpStatusCode.NoContent, (await RecoveryTests.PostWithAntiforgeryAsync(
-            anonymous, "/api/auth/invitations/consume", new { token = newToken, newPassword = "Reinvited Password 9!" })).StatusCode);
+            anonymous, "/api/beta/auth/invitations/consume", new { token = newToken, newPassword = "Reinvited Password 9!" })).StatusCode);
     }
     [Theory]
     [InlineData(false, 50001)]
@@ -327,8 +327,8 @@ public sealed class TenantUserAdministrationTests(SqlServerFixture sqlServer) : 
     {
         // GIVEN a pending invitation and the real web principal without its token.
         Assert.Equal(HttpStatusCode.Accepted, (await RecoveryTests.PostWithAntiforgeryAsync(
-            _admin, "/api/tenant/users/invitations", new { email = "proof@example.com" })).StatusCode);
-        var users = await _admin.GetFromJsonAsync<Workbench.Server.Administration.TenantUserResponse[]>("/api/tenant/users");
+            _admin, "/api/beta/tenant/users/invitations", new { email = "proof@example.com" })).StatusCode);
+        var users = await _admin.GetFromJsonAsync<Workbench.Server.Administration.TenantUserResponse[]>("/api/beta/tenant/users");
         var pending = Assert.Single(users!, user => user.Email == "proof@example.com");
         await using var connection = new Microsoft.Data.SqlClient.SqlConnection(_application.WebConnectionString);
         await connection.OpenAsync();
@@ -351,12 +351,13 @@ public sealed class TenantUserAdministrationTests(SqlServerFixture sqlServer) : 
         Assert.Equal(expectedError, error.Number);
     }
     private async Task<HttpResponseMessage> SendDeleteWithAntiforgeryAsync(Guid userId)
-        => await SendDeleteWithAntiforgeryAsync($"/api/tenant/users/{userId}");
+        => await SendDeleteWithAntiforgeryAsync($"/api/beta/tenant/users/{userId}");
 
     private async Task<HttpResponseMessage> SendDeleteWithAntiforgeryAsync(string path)
     {
-        var tokens = await _admin.GetFromJsonAsync<System.Text.Json.JsonElement>("/api/auth/antiforgery");
+        var tokens = await _admin.GetFromJsonAsync<System.Text.Json.JsonElement>("/api/beta/auth/antiforgery");
         using var request = new HttpRequestMessage(HttpMethod.Delete, path);
+        request.Headers.TryAddWithoutValidation("X-Workbench-Api-Revision", "beta-2");
         request.Headers.Add("X-CSRF-TOKEN", tokens.GetProperty("requestToken").GetString());
         return await _admin.SendAsync(request);
     }

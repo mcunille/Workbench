@@ -3,6 +3,16 @@
 **Status:** Implemented on 2026-09-17. The owner approved the in-place V4 extension and broader
 charge categories on 2026-09-16. Source, migration, browser and container delivery gates passed.
 
+**Beta integration:** The approved beta lifecycle supersedes the V4 API naming and historical
+request replay described below. PO-05 financial behavior is exposed only through `/api/beta`
+with revision `beta-2`. Explicit adjustment properties prevent old payloads from clearing new
+financial data; defaulting missing properties was rejected for that reason. Old clients must
+reload after coordinated deployment, and uncertain old saves require inspecting the current
+record. Stored drafts and receipt history remain intact. Current beta retries remain supported.
+Applied migrations remain immutable; the migration runbook describes the forward integration
+and rollback boundary. This integration preserves PO-05's financial rules and the owner's
+approved removal of unreleased historical API replay.
+
 ## Scope
 
 Implement PO-05 from the [purchasing scenario](2026-09-11-purchase-orders-and-purchase-finances.md)

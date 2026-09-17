@@ -25,7 +25,7 @@ public sealed class IdentityOutboxTests(SqlServerFixture sqlServer)
             builder.UseSetting("Identity:PublicRecoveryEnabled", "false"));
         using var client = factory.CreateClient();
         // WHEN recovery is requested, THEN the feature flag denies the operation.
-        var response = await RecoveryTests.PostWithAntiforgeryAsync(client, "/api/auth/recovery", new { email = AuthTestApplication.AdminEmail });
+        var response = await RecoveryTests.PostWithAntiforgeryAsync(client, "/api/beta/auth/recovery", new { email = AuthTestApplication.AdminEmail });
         Assert.Equal(HttpStatusCode.ServiceUnavailable, response.StatusCode);
     }
 
@@ -53,7 +53,7 @@ public sealed class IdentityOutboxTests(SqlServerFixture sqlServer)
         });
         using var client = factory.CreateClient();
         // WHEN account recovery is requested, THEN the request succeeds without network delivery.
-        var response = await RecoveryTests.PostWithAntiforgeryAsync(client, "/api/auth/recovery", new { email = AuthTestApplication.AdminEmail });
+        var response = await RecoveryTests.PostWithAntiforgeryAsync(client, "/api/beta/auth/recovery", new { email = AuthTestApplication.AdminEmail });
         Assert.Equal(HttpStatusCode.Accepted, response.StatusCode);
         await using var connection = new SqlConnection(application.AdminConnectionString);
         await connection.OpenAsync();

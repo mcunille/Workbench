@@ -13,15 +13,15 @@ public sealed class DraftAdjustmentsTests
     public void WorkedExampleCalculatesDiscountsAndIndependentPayees()
     {
         // GIVEN merchandise, line and order discounts, supplier charges and a bank fee.
-        var node = JsonSerializer.SerializeToNode(DraftOrderInputV4Tests.Empty with { Entries = [DraftOrderInputV4Tests.Line with { Quantity = "10", Price = "20" }, DraftOrderInputV4Tests.Line with { Quantity = "20", Price = "5" }] }, DraftOrderInput.JsonOptions)!;
+        var node = JsonSerializer.SerializeToNode(DraftOrderPricingTests.Empty with { Entries = [DraftOrderPricingTests.Line with { Quantity = "10", Price = "20" }, DraftOrderPricingTests.Line with { Quantity = "20", Price = "5" }] }, DraftOrderInput.JsonOptions)!;
         node["entries"]![0]!["discount"] = JsonNode.Parse("{\"mode\":\"percentage\",\"value\":\"10\"}");
         node["entries"]![1]!["discount"] = null;
         node["orderDiscount"] = JsonNode.Parse("{\"mode\":\"fixed\",\"value\":\"10\"}");
         node["charges"] = JsonSerializer.SerializeToNode(new[] { Charge("shipping", "15", "supplier"), Charge("salesTax", "21.60", "supplier"), Charge("paymentFee", "3", "thirdParty") }, DraftOrderInput.JsonOptions);
         // WHEN calculated THEN reductions precede charges and the bank fee affects only purchase estimate.
-        var draft = node.Deserialize<DraftContentV4>(DraftOrderInput.JsonOptions)!;
-        Assert.Empty(DraftOrderInputV4.Validate(draft));
-        var result = JsonSerializer.SerializeToNode(DraftOrderInputV4.Calculate(draft), DraftOrderInput.JsonOptions)!;
+        var draft = node.Deserialize<DraftContent>(DraftOrderInput.JsonOptions)!;
+        Assert.Empty(DraftOrderInput.Validate(draft));
+        var result = JsonSerializer.SerializeToNode(DraftOrderInput.Calculate(draft), DraftOrderInput.JsonOptions)!;
         Assert.Equal("280.0000", result["merchandiseNet"]!.GetValue<string>());
         Assert.Equal("306.6000", result["supplierEstimate"]!.GetValue<string>());
         Assert.Equal("309.6000", result["purchaseEstimate"]!.GetValue<string>());
@@ -34,10 +34,10 @@ public sealed class DraftAdjustmentsTests
     public void RoundsDiscountOnceAndPreservesZero(string mode, string value, string price, string reduction, string net)
     {
         // GIVEN a rounded line gross and an explicit discount.
-        var draft = DraftOrderInputV4Tests.Empty with { Entries = [DraftOrderInputV4Tests.Line with { PriceMode = "lineTotal", Price = price, Discount = new(mode, value) }] };
+        var draft = DraftOrderPricingTests.Empty with { Entries = [DraftOrderPricingTests.Line with { PriceMode = "lineTotal", Price = price, Discount = new(mode, value) }] };
         // WHEN calculated THEN midpoint rounds up and subtraction retains four-place precision.
-        Assert.Empty(DraftOrderInputV4.Validate(draft));
-        var result = DraftOrderInputV4.Calculate(draft);
+        Assert.Empty(DraftOrderInput.Validate(draft));
+        var result = DraftOrderInput.Calculate(draft);
         Assert.Equal(reduction, result.Lines[0].DiscountAmount);
         Assert.Equal(net, result.PurchaseEstimate);
     }
@@ -45,18 +45,18 @@ public sealed class DraftAdjustmentsTests
     public void UnknownBasesAndThirdPartyAmountsStayIndependent()
     {
         // GIVEN an incomplete line and a fixed discount awaiting its base.
-        var line = DraftOrderInputV4Tests.Line with { Price = null, Discount = new("fixed", "300") };
+        var line = DraftOrderPricingTests.Line with { Price = null, Discount = new("fixed", "300") };
         var charge = new DraftCharge(Guid.NewGuid(), "paymentFee", "Bank fee", null, "thirdParty", "Bank", "estimated", null, null);
-        var draft = DraftOrderInputV4Tests.Empty with { Entries = [line], OrderDiscount = new("fixed", "400"), Charges = [charge] };
+        var draft = DraftOrderPricingTests.Empty with { Entries = [line], OrderDiscount = new("fixed", "400"), Charges = [charge] };
         // WHEN calculated THEN no discount applies to a partial base.
-        Assert.Empty(DraftOrderInputV4.Validate(draft));
-        var result = DraftOrderInputV4.Calculate(draft);
+        Assert.Empty(DraftOrderInput.Validate(draft));
+        var result = DraftOrderInput.Calculate(draft);
         Assert.Null(result.MerchandiseNet); Assert.Null(result.OrderDiscountAmount); Assert.Null(result.PurchaseEstimate);
         Assert.Equal(1, result.IncompleteChargeCount);
         // AND completing merchandise leaves supplier totals independent of the unknown bank fee.
-        result = DraftOrderInputV4.Calculate(draft with { Entries = [line with { PriceMode = "lineTotal", Price = "1000" }] });
+        result = DraftOrderInput.Calculate(draft with { Entries = [line with { PriceMode = "lineTotal", Price = "1000" }] });
         Assert.Equal("300.0000", result.SupplierEstimate); Assert.Null(result.PurchaseEstimate);
-        result = DraftOrderInputV4.Calculate(draft with { Entries = [] });
+        result = DraftOrderInput.Calculate(draft with { Entries = [] });
         Assert.Null(result.SupplierEstimate);
     }
     [Theory]
@@ -68,7 +68,7 @@ public sealed class DraftAdjustmentsTests
     public void RejectsInvalidDiscounts(string mode, string value)
     {
         // GIVEN an invalid discount on a known base WHEN validated THEN its field is identified.
-        var errors = DraftOrderInputV4.Validate(DraftOrderInputV4Tests.Empty with { Entries = [DraftOrderInputV4Tests.Line with { Discount = new(mode, value) }] });
+        var errors = DraftOrderInput.Validate(DraftOrderPricingTests.Empty with { Entries = [DraftOrderPricingTests.Line with { Discount = new(mode, value) }] });
         Assert.Contains(errors.Keys, key => key.StartsWith("draft.entries[0].discount", StringComparison.Ordinal));
     }
     [Fact]
@@ -77,76 +77,82 @@ public sealed class DraftAdjustmentsTests
         // GIVEN a persisted confirmed fee with an earlier explanation.
         var saved = new DraftCharge(Guid.NewGuid(), "shipping", "Freight", "10.0000", "supplier", null, "confirmed", null, "Earlier explanation");
         // WHEN the amount changes THEN existing notes cannot justify another correction.
-        Assert.Contains("draft.charges[0].notes", DraftOrderInputV4.ValidateConfirmedCorrections([saved], [saved with { Amount = "11.0000" }]));
-        Assert.Empty(DraftOrderInputV4.ValidateConfirmedCorrections([saved], [saved with { Amount = "11.0000", Notes = "Earlier explanation; supplier correction" }]));
-        Assert.Contains("draft.charges[0].notes", DraftOrderInputV4.ValidateConfirmedCorrections([saved], [saved with { AmountStatus = "estimated" }]));
-        Assert.Contains("draft.charges[0].notes", DraftOrderInputV4.ValidateConfirmedCorrections([saved], [saved with { PayeeKind = "thirdParty", PayeeName = "Carrier" }]));
+        Assert.Contains("draft.charges[0].notes", DraftOrderInput.ValidateConfirmedCorrections([saved], [saved with { Amount = "11.0000" }]));
+        Assert.Empty(DraftOrderInput.ValidateConfirmedCorrections([saved], [saved with { Amount = "11.0000", Notes = "Earlier explanation; supplier correction" }]));
+        Assert.Contains("draft.charges[0].notes", DraftOrderInput.ValidateConfirmedCorrections([saved], [saved with { AmountStatus = "estimated" }]));
+        Assert.Contains("draft.charges[0].notes", DraftOrderInput.ValidateConfirmedCorrections([saved], [saved with { PayeeKind = "thirdParty", PayeeName = "Carrier" }]));
         // AND changing the supplier snapshot changes the effective payee of a confirmed supplier charge.
-        Assert.Contains("draft.charges[0].notes", DraftOrderInputV4.ValidateConfirmedCorrections([saved], [saved], supplierChanged: true));
-        Assert.Empty(DraftOrderInputV4.ValidateConfirmedCorrections([saved], [saved with { Notes = "Earlier explanation; supplier replaced" }], supplierChanged: true));
+        Assert.Contains("draft.charges[0].notes", DraftOrderInput.ValidateConfirmedCorrections([saved], [saved], supplierChanged: true));
+        Assert.Empty(DraftOrderInput.ValidateConfirmedCorrections([saved], [saved with { Notes = "Earlier explanation; supplier replaced" }], supplierChanged: true));
         // BUT estimated and third-party charges retain their own payee semantics.
         var estimated = saved with { AmountStatus = "estimated" };
         var thirdParty = saved with { PayeeKind = "thirdParty", PayeeName = "Bank" };
-        Assert.Empty(DraftOrderInputV4.ValidateConfirmedCorrections([estimated], [estimated], supplierChanged: true));
-        Assert.Empty(DraftOrderInputV4.ValidateConfirmedCorrections([thirdParty], [thirdParty], supplierChanged: true));
+        Assert.Empty(DraftOrderInput.ValidateConfirmedCorrections([estimated], [estimated], supplierChanged: true));
+        Assert.Empty(DraftOrderInput.ValidateConfirmedCorrections([thirdParty], [thirdParty], supplierChanged: true));
     }
     [Fact]
     public void RequiredPropertiesProtectReplacementsAndStoredSchemaThreeUpgrades()
     {
         // GIVEN a new request body and a saved schema-three entry lacking discount.
-        var node = JsonSerializer.SerializeToNode(DraftOrderInputV4Tests.Empty with { Entries = [DraftOrderInputV4Tests.Line] }, DraftOrderInput.JsonOptions)!;
+        var node = JsonSerializer.SerializeToNode(DraftOrderPricingTests.Empty with { Entries = [DraftOrderPricingTests.Line] }, DraftOrderInput.JsonOptions)!;
         node["entries"]![0]!.AsObject().Remove("discount");
         // WHEN bound as a new write THEN its missing adjustment property is rejected.
-        Assert.Throws<JsonException>(() => node.Deserialize<DraftContentV4>(DraftOrderInput.JsonOptions));
+        Assert.Throws<JsonException>(() => node.Deserialize<DraftContent>(DraftOrderInput.JsonOptions));
         // AND the same historical content upgrades safely in memory.
         using var stored = JsonDocument.Parse(node.ToJsonString());
-        Assert.Null(DraftOrderInputV4.ReadEntries(stored.RootElement, 3)[0].Discount);
+        Assert.Null(DraftOrderInput.ReadEntries(stored.RootElement, 3)[0].Discount);
         node["entries"]![0]!["discount"] = null;
         node["charges"] = null;
-        Assert.Contains("draft.charges", DraftOrderInputV4.Validate(node.Deserialize<DraftContentV4>(DraftOrderInput.JsonOptions)));
+        Assert.Contains("draft.charges", DraftOrderInput.Validate(node.Deserialize<DraftContent>(DraftOrderInput.JsonOptions)));
         node.AsObject().Remove("charges");
-        Assert.Throws<JsonException>(() => node.Deserialize<DraftContentV4>(DraftOrderInput.JsonOptions));
+        Assert.Throws<JsonException>(() => node.Deserialize<DraftContent>(DraftOrderInput.JsonOptions));
     }
     [Fact]
     public void CombinedMaximumChargesAndLinesRejectAggregateOverflow()
     {
         // GIVEN individually valid maximum line totals and supplier charges.
-        var draft = DraftOrderInputV4Tests.Empty with
+        var draft = DraftOrderPricingTests.Empty with
         {
-            Entries = Enumerable.Range(0, 100).Select(_ => DraftOrderInputV4Tests.Line with { PriceMode = "lineTotal", Price = "9999999999999999999.9999" }).ToArray(),
+            Entries = Enumerable.Range(0, 100).Select(_ => DraftOrderPricingTests.Line with { PriceMode = "lineTotal", Price = "9999999999999999999.9999" }).ToArray(),
             Charges = [new(Guid.NewGuid(), "shipping", "Freight", "1", "supplier", null, "estimated", null, null)]
         };
         // WHEN aggregate exceeds 21 integer digits THEN a field error prevents an overflowing total.
-        Assert.Contains("draft.charges", DraftOrderInputV4.Validate(draft));
+        Assert.Contains("draft.charges", DraftOrderInput.Validate(draft));
     }
     [Fact]
-    public void LegacyReceiptCanonicalOmitsOnlyNewFieldsAndKeepsNormalization()
+    public void CurrentCanonicalIncludesNormalizedFinancialInputs()
     {
-        // GIVEN an old V4 client retry that had no adjustment fields.
-        var draft = DraftOrderInputV4.Normalize(DraftOrderInputV4Tests.Empty with { Entries = [DraftOrderInputV4Tests.Line] });
-        var expected = JsonSerializer.SerializeToNode(new { operation = "Create", targetId = (Guid?)null, expectedVersion = (string?)null, draft }, DraftOrderInput.JsonOptions)!;
-        expected["draft"]!.AsObject().Remove("orderDiscount"); expected["draft"]!.AsObject().Remove("charges");
-        expected["draft"]!["entries"]![0]!.AsObject().Remove("discount");
-        // WHEN fingerprinted for receipt resolution THEN the pre-upgrade property order and values survive.
-        Assert.Equal(expected.ToJsonString(DraftOrderInput.JsonOptions), DraftOrderInputV4.Canonical("Create", null, null, draft, true));
-        Assert.Contains("\"charges\":[]", DraftOrderInputV4.Canonical("Create", null, null, draft));
+        // GIVEN a beta request with line and order discounts and a supplier charge.
+        var draft = DraftOrderInput.Normalize(DraftOrderPricingTests.Empty with
+        {
+            Entries = [DraftOrderPricingTests.Line with { Discount = new("percentage", "10") }],
+            OrderDiscount = new("fixed", "5"),
+            Charges = [new(Guid.NewGuid(), "shipping", " Freight ", "2", "supplier", null, "estimated", null, null)]
+        });
+        // WHEN fingerprinted THEN each financial input participates in the canonical document.
+        var canonical = DraftOrderInput.Canonical("Create", null, null, draft);
+        Assert.Contains("\"discount\":{\"mode\":\"percentage\",\"value\":\"10.0000\"}", canonical);
+        Assert.Contains("\"orderDiscount\":{\"mode\":\"fixed\",\"value\":\"5.0000\"}", canonical);
+        Assert.Contains("\"label\":\"Freight\",\"amount\":\"2.0000\"", canonical);
+        Assert.NotEqual(canonical, DraftOrderInput.Canonical("Create", null, null, draft with { OrderDiscount = new("fixed", "6.0000") }));
+        Assert.NotEqual(canonical, DraftOrderInput.Canonical("Create", null, null, draft with { Charges = [] }));
+        Assert.NotEqual(canonical, DraftOrderInput.Canonical("Create", null, null, draft with { Entries = [draft.Entries[0] with { Discount = null }] }));
     }
     [Fact]
-    public async Task LegacyRetryMiddlewareAddsBindingDefaultsAndMarksReceiptOnlyCanonical()
+    public async Task CurrentMiddlewareDoesNotSupplyMissingFinancialInputs()
     {
-        // GIVEN a bounded pre-upgrade V4 write body.
-        var node = JsonSerializer.SerializeToNode(new { requestId = Guid.NewGuid(), draft = DraftOrderInputV4Tests.Empty with { Entries = [DraftOrderInputV4Tests.Line] } }, DraftOrderInput.JsonOptions)!;
+        // GIVEN a stale beta write missing the required financial fields.
+        var node = JsonSerializer.SerializeToNode(new { requestId = Guid.NewGuid(), draft = DraftOrderPricingTests.Empty with { Entries = [DraftOrderPricingTests.Line] } }, DraftOrderInput.JsonOptions)!;
         node["draft"]!.AsObject().Remove("orderDiscount"); node["draft"]!.AsObject().Remove("charges");
         node["draft"]!["entries"]![0]!.AsObject().Remove("discount");
-        var context = new DefaultHttpContext(); context.Request.Path = "/api/v4/purchase-order-drafts"; context.Request.Method = "POST";
+        var context = new DefaultHttpContext(); context.Request.Path = "/api/beta/purchase-order-drafts"; context.Request.Method = "POST";
         var original = new MemoryStream(Encoding.UTF8.GetBytes(node.ToJsonString())); context.Request.Body = original;
         var invoked = false;
         var middleware = new DraftOrderRequestMiddleware(async request =>
         {
-            // WHEN the old body reaches binding THEN required defaults are present and receipt-only mode is marked.
-            var parsed = await JsonSerializer.DeserializeAsync<CreateDraftOrderRequestV4>(request.Request.Body, DraftOrderInput.JsonOptions);
-            Assert.Empty(parsed!.Draft.Charges); Assert.Null(parsed.Draft.Entries[0].Discount);
-            Assert.True(request.Items.ContainsKey(DraftOrderRequestMiddleware.LegacyV4Key)); invoked = true;
+            // WHEN the bounded body reaches binding THEN its missing fields remain invalid.
+            await Assert.ThrowsAsync<JsonException>(async () => await JsonSerializer.DeserializeAsync<CreateDraftOrderRequest>(request.Request.Body, DraftOrderInput.JsonOptions));
+            invoked = true;
         });
         await middleware.InvokeAsync(context);
         Assert.True(invoked); Assert.Same(original, context.Request.Body);
@@ -157,7 +163,7 @@ public sealed class DraftAdjustmentsTests
     public async Task DuplicateOrMalformedAdjustmentBodiesAreRejectedBeforeBinding(string body, string suffix)
     {
         // GIVEN duplicate financial input properties that could otherwise disappear during binding.
-        var context = new DefaultHttpContext(); context.Request.Path = "/api/v4/purchase-order-drafts" + suffix; context.Request.Method = "POST";
+        var context = new DefaultHttpContext(); context.Request.Path = "/api/beta/purchase-order-drafts" + suffix; context.Request.Method = "POST";
         context.Request.Body = new MemoryStream(Encoding.UTF8.GetBytes(body));
         context.Response.Body = new MemoryStream();
         var invoked = false; var middleware = new DraftOrderRequestMiddleware(_ => { invoked = true; return Task.CompletedTask; });
