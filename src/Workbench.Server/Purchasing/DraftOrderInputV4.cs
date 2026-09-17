@@ -38,6 +38,8 @@ public static partial class DraftOrderInputV4
             SupplierPostalAddress = old.SupplierPostalAddress,
             SupplierOrderReference = old.SupplierOrderReference,
             Platform = old.Platform,
+            OrderDiscount = NormalizeDiscount(input.OrderDiscount),
+            Charges = input.Charges?.Select(c => c is null ? null! : c with { Label = c.Label?.Trim()!, Amount = Number(c.Amount), PayeeName = Trim(c.PayeeName), Reference = Trim(c.Reference), Notes = Trim(c.Notes) }).ToArray()!,
             Entries = input.Entries?.Select((e, i) => e is null ? null! : e with
             {
                 Description = old.Entries[i].Description,
@@ -48,6 +50,7 @@ public static partial class DraftOrderInputV4
                 SupplierSku = old.Entries[i].SupplierSku,
                 ItemType = old.Entries[i].ItemType,
                 LegacyPricing = NormalizeLegacy(e.LegacyPricing),
+                Discount = NormalizeDiscount(e.Discount),
                 Price = e.Price is not null && PricePattern().IsMatch(e.Price) ? Format(Scaled(e.Price)) : e.Price
             }).ToArray()!
         };
@@ -92,6 +95,7 @@ public static partial class DraftOrderInputV4
                 if (!errors.Keys.Any(key => key.StartsWith(field, StringComparison.Ordinal)) && Gross(e) is { } gross && gross >= BigInteger.Pow(10, 23))
                     errors[field + ".price"] = ["The line estimate exceeds 19 integer digits."];
             }
+        ValidateAdjustments(input, errors);
         if (errors.Count == 0 && Encoding.Unicode.GetByteCount(ContentJson(input)) > DraftOrderInput.MaximumContentBytes)
             errors["draft"] = ["The draft is too large to save. Shorten its text or remove entries."];
         return errors;
@@ -103,13 +107,6 @@ public static partial class DraftOrderInputV4
         if (e.Quantity is null || e.UnitOfMeasure is null) return null;
         var result = BigInteger.DivRem(Scaled(e.Quantity) * Scaled(e.Price), 10000, out var remainder);
         return result + (remainder >= 5000 ? 1 : 0);
-    }
-    public static DraftCalculationResponse Calculate(DraftContentV4 draft)
-    {
-        var lines = draft.Entries.Select(e => (e.Id, Gross: Gross(e))).ToArray();
-        var known = lines.Where(e => e.Gross is not null).ToArray();
-        return new(lines.Select(e => new DraftLineCalculation(e.Id, e.Gross is { } gross ? Format(gross) : null)).ToArray(),
-            lines.Length - known.Length, known.Length == 0 ? null : Format(known.Aggregate(BigInteger.Zero, (sum, e) => sum + e.Gross!.Value)));
     }
     public static DraftEntryV4 Upgrade(DraftEntryV3 e)
     {
@@ -132,9 +129,26 @@ public static partial class DraftOrderInputV4
             result = result with { LegacyPricing = new(e.Quantity, e.UnitOfMeasure, e.UnitPrice, e.PricingUnit, e.PricePerQuantity, e.PricingQuantity) };
         return result;
     }
-    public static DraftEntryV4[] ReadEntries(JsonElement content, int schemaVersion) => schemaVersion == 3
-        ? content.GetProperty("entries").Deserialize<DraftEntryV4[]>(DraftOrderInput.JsonOptions)!
-        : DraftOrderInputV3.ReadEntries(content, schemaVersion).Select(Upgrade).ToArray();
-    public static string ContentJson(DraftContentV4 draft) => JsonSerializer.Serialize(new { draft.SourceLinks, draft.Entries }, DraftOrderInput.JsonOptions);
-    public static string Canonical(string operation, Guid? targetId, string? expectedVersion, DraftContentV4 draft) => JsonSerializer.Serialize(new { operation, targetId, expectedVersion, draft }, DraftOrderInput.JsonOptions);
+    public static DraftEntryV4[] ReadEntries(JsonElement content, int schemaVersion)
+    {
+        if (schemaVersion >= 3)
+        {
+            var entries = System.Text.Json.Nodes.JsonNode.Parse(content.GetProperty("entries").GetRawText())!;
+            if (schemaVersion == 3) foreach (var entry in entries.AsArray()) entry!["discount"] = null;
+            return entries.Deserialize<DraftEntryV4[]>(DraftOrderInput.JsonOptions)!;
+        }
+        return DraftOrderInputV3.ReadEntries(content, schemaVersion).Select(Upgrade).ToArray();
+    }
+    public static string ContentJson(DraftContentV4 draft) => JsonSerializer.Serialize(new { draft.SourceLinks, draft.Entries, draft.OrderDiscount, draft.Charges }, DraftOrderInput.JsonOptions);
+    public static string Canonical(string operation, Guid? targetId, string? expectedVersion, DraftContentV4 draft, bool legacyReceipt = false)
+    {
+        var document = JsonSerializer.SerializeToNode(new { operation, targetId, expectedVersion, draft }, DraftOrderInput.JsonOptions)!;
+        if (legacyReceipt)
+        {
+            var content = document["draft"]!.AsObject();
+            content.Remove("orderDiscount"); content.Remove("charges");
+            foreach (var entry in content["entries"]!.AsArray()) entry!.AsObject().Remove("discount");
+        }
+        return document.ToJsonString(DraftOrderInput.JsonOptions);
+    }
 }

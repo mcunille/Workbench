@@ -37,8 +37,8 @@ the product; hosted convenience must not depend on proprietary core capabilities
 
 Users work within an authenticated business or tenant on desktop and mobile web.
 Collection records, photographs, acquisition context, and acquisition paperwork support
-understanding individual pieces. Supplier purchase drafts retain shopping lists, source
-links, and reference prices so members can resume planning later.
+understanding individual pieces. Supplier purchase drafts retain itemized quantities/prices,
+discounts, source links and named charges so members can resume planning and inspect estimates.
 
 Saved content survives sessions. Unsaved drafts and uncertain-request retry state have
 the limits documented in the workflow guides; future interfaces must not imply that
@@ -49,10 +49,13 @@ in-memory work is durably saved.
 - [Collection](docs/collection.md): individually tracked pieces, one current private
   photograph per item, search, descriptive corrections, archive and restore, shared
   acquisition context, acquisition documents, and CSV or ZIP exports.
-- [Purchasing](docs/purchasing.md): supplier purchase drafts with shopping-list entries,
-  source links, optional reference prices, explicit save and conflict recovery, and draft
-  deletion. Drafts create no inventory, acquisition, invoice, payment obligation, or
-  accounting entry. Reference prices do not establish a calculated order total.
+- [Purchasing](docs/purchasing.md): supplier purchase drafts with itemized quantities and prices,
+  line/order discounts, categorized charges, source links, explicit save and conflict recovery,
+  and draft deletion. Exact calculations distinguish supplier estimates from total purchase
+  estimates including third-party costs. Unknown amounts remain explicit. Drafts create no
+  commitment, inventory, acquisition, invoice, payment obligation or accounting entry; confirming
+  a source charge amount does not post a financial event. Unresolved legacy reference prices
+  remain outside estimates until the owner gives them a pricing basis.
 - Work orders, general-ledger accounting, and commerce remain future workflows.
   Public collection profiles and community are exploratory, not committed scope.
 - Tenant isolation and explicit authorization are invariants. Important state changes

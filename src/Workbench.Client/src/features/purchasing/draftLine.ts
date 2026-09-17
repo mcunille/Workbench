@@ -1,7 +1,7 @@
 import type { DraftEntry } from '../../api/purchaseOrders';
 export const units = [['piece', 'Piece'], ['carat', 'Carat'], ['gram', 'Gram'], ['kilogram', 'Kilogram'], ['ounce', 'Ounce (avoirdupois)'], ['troyOunce', 'Troy ounce'], ['millimeter', 'Millimeter'], ['centimeter', 'Centimeter'], ['meter', 'Meter'], ['parcel', 'Parcel'], ['pair', 'Pair'], ['set', 'Set'], ['pack', 'Pack'], ['box', 'Box'], ['lot', 'Lot']] as const;
 export const unitLabel = (unit: string | null) => units.find(([value]) => value === unit)?.[1] ?? 'Unit not set';
-export const emptyLine = (id: string): DraftEntry => ({ id, description: null, notes: null, sourceLink: null, indicativePrice: null, quantity: null, unitOfMeasure: null, priceMode: 'perUnit', price: null, legacyPricing: null, supplierSku: null, itemType: null });
+export const emptyLine = (id: string): DraftEntry => ({ id, description: null, notes: null, sourceLink: null, indicativePrice: null, quantity: null, unitOfMeasure: null, priceMode: 'perUnit', price: null, legacyPricing: null, supplierSku: null, itemType: null, discount: null });
 
 export function formatQuantity(value: string | null): string | null {
   if (value === null || !/^\d+(\.\d{1,4})?$/.test(value)) return value;

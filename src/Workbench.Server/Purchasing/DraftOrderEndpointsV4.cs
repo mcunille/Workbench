@@ -16,7 +16,7 @@ public static class DraftOrderEndpointsV4
     {
         var group = endpoints.MapGroup("/api/v4/purchase-order-drafts").WithTags("Purchasing").RequireAuthorization();
         group.MapPost("/calculate", Calculate).WithMetadata(WorkbenchAntiforgeryMetadata.Instance)
-            .Produces<DraftCalculationResponse>().ProducesValidationProblem().ProducesProblem(413);
+            .Produces<DraftCalculationResponseV4>().ProducesValidationProblem().ProducesProblem(413);
         group.MapGet("", BrowseAsync).Produces<DraftOrderPageResponseV2>().ProducesProblem(400);
         group.MapGet("/{id:guid}", ReadAsync).Produces<DraftOrderResponseV4>().ProducesProblem(404);
         group.MapPost("", CreateAsync).WithMetadata(WorkbenchAntiforgeryMetadata.Instance)
@@ -53,7 +53,9 @@ public static class DraftOrderEndpointsV4
         var links = content.RootElement.GetProperty("sourceLinks").Deserialize<string[]>(DraftOrderInput.JsonOptions)!;
         var entries = DraftOrderInputV4.ReadEntries(content.RootElement, row.ContentSchemaVersion);
         var archived = row.SupplierId is { } supplierId && await database.Suppliers.AnyAsync(s => s.Id == supplierId && s.IsArchived, cancellationToken);
-        var draft = new DraftContentV4(row.Title, row.SupplierName, row.Currency, row.Notes, links, entries, row.SupplierId, row.SupplierContactName, row.SupplierEmail, row.SupplierPhone, row.SupplierWebsite, row.SupplierPostalAddress, row.SupplierOrderReference, row.Platform);
+        var draft = new DraftContentV4(row.Title, row.SupplierName, row.Currency, row.Notes, links, entries, row.SupplierId, row.SupplierContactName, row.SupplierEmail, row.SupplierPhone, row.SupplierWebsite, row.SupplierPostalAddress, row.SupplierOrderReference, row.Platform,
+            row.ContentSchemaVersion >= 4 ? content.RootElement.GetProperty("orderDiscount").Deserialize<DraftDiscount>(DraftOrderInput.JsonOptions) : null,
+            row.ContentSchemaVersion >= 4 ? content.RootElement.GetProperty("charges").Deserialize<DraftCharge[]>(DraftOrderInput.JsonOptions)! : []);
         return Results.Ok(new DraftOrderResponseV4(row.Id, draft, DraftOrderCursor.Timestamp(row.CreatedAtUtc), DraftOrderCursor.Timestamp(row.UpdatedAtUtc), Convert.ToBase64String(row.RowVersion), PurchasingIdentityInput.Reference(row.PoNumber), archived, DraftOrderInputV4.Calculate(draft)));
     }
     private static Task<IResult> CreateAsync(CreateDraftOrderRequestV4 request, WorkbenchDbContext database,
@@ -72,6 +74,17 @@ public static class DraftOrderEndpointsV4
         if (requestId == Guid.Empty) errors["requestId"] = ["A nonempty save identifier is required."];
         var expectedVersion = id is null ? null : DraftOrderInput.NormalizeVersion(version, errors);
         if (errors.Count > 0) return Validation(errors);
+        if (id is not null)
+        {
+            var saved = await database.DraftOrders.AsNoTracking().SingleOrDefaultAsync(row => row.Id == id && !row.IsDeleted, cancellationToken);
+            if (saved is { ContentSchemaVersion: >= 4 } && Convert.ToBase64String(saved.RowVersion) == expectedVersion)
+            {
+                using var document = JsonDocument.Parse(saved.ContentJson);
+                var charges = document.RootElement.GetProperty("charges").Deserialize<DraftCharge[]>(DraftOrderInput.JsonOptions)!;
+                var corrections = DraftOrderInputV4.ValidateConfirmedCorrections(charges, draft!.Charges);
+                if (corrections.Count > 0) return Validation(corrections);
+            }
+        }
         var operation = id is null ? "Create" : "Update";
         await database.Database.OpenConnectionAsync(cancellationToken);
         try
@@ -82,7 +95,7 @@ public static class DraftOrderEndpointsV4
             command.Parameters.Add(new SqlParameter("@RequestId", SqlDbType.UniqueIdentifier) { Value = requestId });
             command.Parameters.Add(new SqlParameter("@ActorUserId", SqlDbType.UniqueIdentifier) { Value = actor.UserId });
             command.Parameters.Add(new SqlParameter("@CanonicalInputJson", SqlDbType.NVarChar, -1)
-            { Value = DraftOrderInputV4.Canonical(operation, id, expectedVersion, draft!) });
+            { Value = DraftOrderInputV4.Canonical(operation, id, expectedVersion, draft!, context.Items.ContainsKey(DraftOrderRequestMiddleware.LegacyV4Key)) });
             await using var reader = await command.ExecuteReaderAsync(cancellationToken);
             if (!await reader.ReadAsync(cancellationToken)) throw new InvalidOperationException("Draft save did not return a receipt.");
             var response = new SaveDraftOrderResponse(reader.GetGuid(reader.GetOrdinal("RequestId")),
@@ -98,7 +111,7 @@ public static class DraftOrderEndpointsV4
             return exception.Number switch
             {
                 50400 => Validation(new() { ["draft"] = ["Review the draft fields and limits."] }),
-                50401 => Validation(new() { ["draft.currency"] = ["Clear existing prices and save before entering amounts in a different currency."] }),
+                50401 => Validation(new() { ["draft.currency"] = ["Clear all amounts and save before entering amounts in a different currency."] }),
                 50403 => Problem(403, "draft_authority_required", "Current business authority is required."),
                 50404 => Problem(404, "draft_not_found", "Draft not found."),
                 50409 => Problem(409, "draft_version_conflict", "The draft changed. Review the saved version before saving again."),
