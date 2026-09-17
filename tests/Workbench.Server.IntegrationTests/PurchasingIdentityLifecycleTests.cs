@@ -100,32 +100,6 @@ public sealed partial class PurchasingIdentityEndpointTests
         read.Parameters.AddWithValue("@id", first.DraftOrderId); Assert.Equal(1, await read.ExecuteScalarAsync());
     }
     [Fact]
-    public async Task V1ReceiptsSurviveUpgradeAndUnmatchedOldWritesRequireReload()
-    {
-        // GIVEN successful V1 create/update receipts and a deleted tombstone in the immediately preceding schema.
-        await using var application = await AuthTestApplication.CreateAsync(sqlServer, priorMigration: "AddDraftSupplierOrders");
-        using var client = application.CreateClient(); await LoginAsync(client);
-        var request = new HistoricalCreateRequest(Guid.NewGuid(), new("Retained", "Old supplier", null, null, [], []));
-        var receipt = await HistoricalSave(application, "Create", request.RequestId, null, null, request.Draft);
-        var updateRequest = new HistoricalUpdateRequest(Guid.NewGuid(), receipt.SavedVersion, request.Draft with { Title = "Updated retained" });
-        var updated = await HistoricalSave(application, "Update", updateRequest.RequestId, receipt.DraftOrderId, receipt.SavedVersion, updateRequest.Draft);
-        var deletedRequest = new HistoricalCreateRequest(Guid.NewGuid(), request.Draft);
-        var deleted = await HistoricalSave(application, "Create", deletedRequest.RequestId, null, null, deletedRequest.Draft);
-        await HistoricalSave(application, "Delete", Guid.NewGuid(), deleted.DraftOrderId, deleted.SavedVersion, null);
-        // WHEN the forward migration backfills active purchase numbers.
-        await DatabaseMigrator.MigrateAsync(application.AdminConnectionString, default);
-        // THEN saved snapshots and timestamps survive, while matching old receipts keep their original versions.
-        var detail = (await Read(client, receipt.DraftOrderId))!; Assert.Equal("PO-000001", detail.PoReference); Assert.Equal("Updated retained", detail.Draft.Title); Assert.Null(detail.Draft.Platform);
-        var replay = (await (await SendAsync(client, HttpMethod.Post, "/api/purchase-order-drafts", request)).Content.ReadFromJsonAsync<SaveDraftOrderResponse>())!;
-        Assert.True(replay.Replayed); Assert.Equal(receipt.SavedVersion, replay.SavedVersion); Assert.Equal(receipt.CompletedAtUtc, replay.CompletedAtUtc);
-        var updateReplay = (await (await SendAsync(client, HttpMethod.Put, $"/api/purchase-order-drafts/{receipt.DraftOrderId}", updateRequest)).Content.ReadFromJsonAsync<SaveDraftOrderResponse>())!;
-        Assert.True(updateReplay.Replayed); Assert.Equal(updated.SavedVersion, updateReplay.SavedVersion);
-        Assert.True((await (await SendAsync(client, HttpMethod.Post, "/api/purchase-order-drafts", deletedRequest)).Content.ReadFromJsonAsync<SaveDraftOrderResponse>())!.Replayed);
-        // AND unmatched V1 writes cannot silently clear the new contract.
-        Assert.Equal(HttpStatusCode.UpgradeRequired, (await SendAsync(client, HttpMethod.Post, "/api/purchase-order-drafts", request with { RequestId = Guid.NewGuid() })).StatusCode);
-        Assert.Equal(HttpStatusCode.UpgradeRequired, (await SendAsync(client, HttpMethod.Put, $"/api/purchase-order-drafts/{receipt.DraftOrderId}", updateRequest with { RequestId = Guid.NewGuid(), ExpectedVersion = detail.Version })).StatusCode);
-    }
-    [Fact]
     public async Task UnicodeContactAtPublishedLimitsCanBeSaved()
     {
         // GIVEN valid contact fields at their published UTF-16 limits, whose canonical JSON escapes non-ASCII text.
@@ -137,28 +111,4 @@ public sealed partial class PurchasingIdentityEndpointTests
         Assert.Equal(contact, (await client.GetFromJsonAsync<SupplierResponse>($"/api/beta/suppliers/{saved.SupplierId}"))!.Supplier);
     }
 
-    private sealed record HistoricalCreateRequest(Guid RequestId, ReceiptDraftContentV1 Draft);
-    private sealed record HistoricalUpdateRequest(Guid RequestId, string ExpectedVersion, ReceiptDraftContentV1 Draft);
-
-    private static async Task<SaveDraftOrderResponse> HistoricalSave(AuthTestApplication application, string operation,
-        Guid requestId, Guid? id, string? version, ReceiptDraftContentV1? draft)
-    {
-        await using var connection = new SqlConnection(application.WebConnectionString);
-        await connection.OpenAsync();
-        await application.Factory.Services.GetRequiredService<TenantContextProof>().ApplyAsync(connection, AuthTestApplication.TenantId, default);
-        await using var command = new SqlCommand($"Purchasing.{operation}DraftOrder", connection) { CommandType = System.Data.CommandType.StoredProcedure };
-        command.Parameters.AddWithValue("@RequestId", requestId);
-        command.Parameters.AddWithValue("@ActorUserId", AuthTestApplication.MemberUserId);
-        if (operation == "Delete")
-        {
-            command.Parameters.AddWithValue("@DraftOrderId", id!.Value);
-            command.Parameters.AddWithValue("@ExpectedRowVersion", Convert.FromBase64String(version!));
-        }
-        else command.Parameters.AddWithValue("@CanonicalInputJson", ReceiptDraftOrderInputV1.Canonical(operation, id, version, ReceiptDraftOrderInputV1.Normalize(draft!)));
-        await using var reader = await command.ExecuteReaderAsync();
-        Assert.True(await reader.ReadAsync());
-        return new(reader.GetGuid(reader.GetOrdinal("RequestId")), reader.GetBoolean(reader.GetOrdinal("Replayed")),
-            reader.GetGuid(reader.GetOrdinal("DraftOrderId")), Convert.ToBase64String((byte[])reader["SavedVersion"]),
-            DraftOrderCursor.Timestamp(reader.GetFieldValue<DateTimeOffset>(reader.GetOrdinal("CompletedAtUtc"))));
-    }
 }

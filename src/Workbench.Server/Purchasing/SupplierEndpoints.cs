@@ -42,7 +42,7 @@ public static class SupplierEndpoints
         var supplier = input is null ? null : PurchasingIdentityInput.Normalize(input);
         var errors = isArchived is null ? PurchasingIdentityInput.Validate(supplier) : new Dictionary<string, string[]>();
         if (requestId == Guid.Empty) errors["requestId"] = ["A nonempty request identifier is required."];
-        var expectedVersion = id is null ? null : ReceiptDraftOrderInputV1.NormalizeVersion(version, errors);
+        var expectedVersion = id is null ? null : DraftOrderInput.NormalizeVersion(version, errors);
         if (errors.Count > 0) return Validation(errors);
         var operation = isArchived is not null ? "Archive" : id is null ? "Create" : "Update";
         await database.Database.OpenConnectionAsync(cancellationToken);
@@ -51,7 +51,7 @@ public static class SupplierEndpoints
             await using var command = new SqlCommand("[Purchasing].[SaveSupplier]", (SqlConnection)database.Database.GetDbConnection()) { CommandType = CommandType.StoredProcedure };
             command.Parameters.Add(new SqlParameter("@RequestId", SqlDbType.UniqueIdentifier) { Value = requestId });
             command.Parameters.Add(new SqlParameter("@ActorUserId", SqlDbType.UniqueIdentifier) { Value = actor.UserId });
-            command.Parameters.Add(new SqlParameter("@CanonicalInputJson", SqlDbType.NVarChar, -1) { Value = JsonSerializer.Serialize(new { operation, targetId = id, expectedVersion, supplier, isArchived }, ReceiptDraftOrderInputV1.JsonOptions) });
+            command.Parameters.Add(new SqlParameter("@CanonicalInputJson", SqlDbType.NVarChar, -1) { Value = JsonSerializer.Serialize(new { operation, targetId = id, expectedVersion, supplier, isArchived }, DraftOrderInput.JsonOptions) });
             await using var reader = await command.ExecuteReaderAsync(cancellationToken);
             if (!await reader.ReadAsync(cancellationToken)) throw new InvalidOperationException("Supplier save returned no receipt.");
             var response = new SaveSupplierResponse(reader.GetGuid(reader.GetOrdinal("RequestId")), reader.GetBoolean(reader.GetOrdinal("Replayed")), reader.GetGuid(reader.GetOrdinal("SupplierId")), Convert.ToBase64String((byte[])reader["SavedVersion"]), DraftOrderCursor.Timestamp(reader.GetFieldValue<DateTimeOffset>(reader.GetOrdinal("CompletedAtUtc"))));

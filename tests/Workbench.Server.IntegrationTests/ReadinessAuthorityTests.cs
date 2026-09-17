@@ -13,7 +13,6 @@ namespace Workbench.Server.IntegrationTests;
 public sealed class ReadinessAuthorityTests(SqlServerFixture sqlServer)
 {
     [Theory]
-    [InlineData("REVOKE EXECUTE ON [Purchasing].[ReplayDraftOrderReceipt] FROM [workbench_web]")]
     [InlineData("REVOKE EXECUTE ON [Purchasing].[SaveSupplier] FROM [workbench_web]")]
     [InlineData("REVOKE SELECT ON [Purchasing].[Suppliers] FROM [workbench_web]")]
     [InlineData("REVOKE SELECT ON [Purchasing].[SupplierRequestReceipts] FROM [workbench_web]")]

@@ -99,18 +99,25 @@ This inventory describes checked-in migration behavior, not permission to execut
 | `20260912064156_AddSupplierIdentityAndPurchaseReferences` | `AddDraftSupplierOrders` | Tenant-owned suppliers, compact supplier receipts, purchase counters, contact snapshots and per-order platforms. Backfills permanent numbers for active drafts without inventing suppliers; retains tombstones and V1 receipts. Adds restricted V2 draft/supplier commands and legacy replay-only save behavior; advances readiness and backup markers. Verify fresh creation and PO-01 upgrade preserving content, references and exact replay evidence. | Always blocked; permanent identities and request evidence require forward correction or guarded recovery. |
 | `20260917010000_AddSupplierBasedDraftPricing` | `AddSupplierIdentityAndPurchaseReferences` | Consolidated PO-03: content schemas 1/2/3, fingerprints 1/2/3/4, restricted V3 compatibility and V4 supplier-pricing commands. Preserves legacy content and receipts; advances readiness and backup markers. | Always blocked; pricing content and request evidence require forward correction or guarded recovery. |
 | `20260917080000_ConsolidateBetaDraftCommands` | `AddSupplierBasedDraftPricing` | Retires parallel purchasing writers, installs the single beta write implementation and restricted receipt lookup, preserving content and receipt bytes. Advances readiness and backup markers. Stop prior application instances before migration, then deploy the matching frontend/server together. | Always blocked; retired commands require forward correction or guarded recovery. |
+| `20260918010000_RemoveHistoricalDraftReplay` | `ConsolidateBetaDraftCommands` | Removes the development-only receipt replay procedure and its grants while retaining draft and receipt rows. Advances readiness and backup markers; current beta retries still use the current write commands. | Always blocked; use forward correction or guarded recovery. |
 
 Product behavior, user-visible concurrency/retry rules and the shipped feature inventory belong in
 [collection documentation](../collection.md). Provider retry/backoff behavior belongs in
 [identity delivery and worker operations](blob-and-service-providers.md#identity-delivery-and-worker).
 The [migration source](../../src/Workbench.Server/Persistence/Migrations) is authoritative for SQL.
 
-The current required migration is `20260917080000_ConsolidateBetaDraftCommands`, following
-`AddSupplierBasedDraftPricing`. It replaces historical purchasing writers with one current
-implementation and a receipt-only replay procedure. Content schemas 1/2/3 and receipt fingerprints
-1–4 remain readable. Verify fresh creation and upgrade from the PR base (PO-03) schema, preserving
-drafts, identities, numbering, and immutable receipts. Stop old instances before migration; the
-previous application is not compatible with the retired commands. Its down migration is blocked;
-use a reviewed forward correction or guarded restore. See [API lifecycle](../api-lifecycle.md).
+The current required migration is `20260918010000_RemoveHistoricalDraftReplay`, following
+`ConsolidateBetaDraftCommands`. The consolidation installs one current purchasing write implementation;
+the follow-up removes historical replay authority. Content schemas 1/2/3 remain readable and stored
+receipts remain intact, but old API routes no longer resolve them. Verify fresh creation and upgrades
+from both the PR base (PO-03) and consolidation schemas, preserving drafts, identities, numbering,
+and immutable receipts. Stop old instances before migration; the previous application is not
+compatible with the retired commands. Down migration is blocked; use a reviewed forward correction
+or guarded restore. See [API lifecycle](../api-lifecycle.md).
 
-At the owner's request, the unmerged PO-03 changes are consolidated into this one migration, retaining the final migration ID and final model. It installs V3 compatibility commands before V4 commands and keeps the destructive-rollback guard. Retained previews that already applied both earlier migrations keep their existing history and data unchanged; the final ID is already applied, so no schema work is repeated. A preview that applied only the removed structured-line migration is not a supported upgrade baseline and needs a separately planned transition; never reset its history automatically.
+These two beta migrations remain separate because the consolidation has already been applied to a
+retained preview. Rewriting it would leave that database with obsolete replay authority. The forward
+removal gives fresh installations and retained environments the same final schema without editing
+migration history or deleting data.
+
+The PO-03 changes were consolidated into `AddSupplierBasedDraftPricing`, retaining the final migration ID and final model. It installs V3 compatibility commands before V4 commands and keeps the destructive-rollback guard. Retained previews that already applied both earlier migrations keep their existing history and data unchanged; the final ID is already applied, so no schema work is repeated. A preview that applied only the removed structured-line migration is not a supported upgrade baseline and needs a separately planned transition; never reset its history automatically.

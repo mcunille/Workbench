@@ -278,7 +278,6 @@
     "Workbench.Server.IntegrationTests.DraftOrderDatabaseTests.DeleteChecksVersionTenantActorAndRequestIdentity": 1.191788,
     "Workbench.Server.IntegrationTests.DraftOrderDatabaseTests.DeleteClearsDraftContentAndReplaysWithoutResurrectingIt": 0.9635392,
     "Workbench.Server.IntegrationTests.DraftOrderDatabaseTests.DestructiveDownPreservesDraftAndCompactReceipt": 0.9444001,
-    "Workbench.Server.IntegrationTests.DraftOrderDatabaseTests.ReapplyingConsolidatedMigrationPreservesSavedDraftAndRetryReceipt": 0.9498853,
     "Workbench.Server.IntegrationTests.DraftOrderDatabaseTests.RestrictedCommandRejectsMalformedHostsAndControlCharactersInBothLinkLocations(link: \"https://%zz/\")": 0.5227098,
     "Workbench.Server.IntegrationTests.DraftOrderDatabaseTests.RestrictedCommandRejectsMalformedHostsAndControlCharactersInBothLinkLocations(link: \"https://.example/\")": 0.5421885,
     "Workbench.Server.IntegrationTests.DraftOrderDatabaseTests.RestrictedCommandRejectsMalformedHostsAndControlCharactersInBothLinkLocations(link: \"https://foo..example/\")": 0.5753812,

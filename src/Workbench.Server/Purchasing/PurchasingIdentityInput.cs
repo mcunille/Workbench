@@ -1,7 +1,6 @@
 // Copyright (c) 2026 The White Stag Collection.
 using System.Security.Cryptography;
 using System.Text;
-using System.Text.Json;
 namespace Workbench.Server.Purchasing;
 
 internal static class PurchasingIdentityInput
@@ -16,28 +15,6 @@ internal static class PurchasingIdentityInput
         Website = Trim(input.Website),
         PostalAddress = string.IsNullOrWhiteSpace(input.PostalAddress) ? null : input.PostalAddress
     };
-    public static ReceiptDraftContentV1 Legacy(DraftContentV2 input) => new(input.Title, input.SupplierName, input.Currency, input.Notes, input.SourceLinks, input.Entries);
-    public static DraftContentV2 Normalize(DraftContentV2 input)
-    {
-        var old = ReceiptDraftOrderInputV1.Normalize(Legacy(input));
-        var contact = Normalize(new SupplierContent(input.SupplierName!, input.SupplierContactName, input.SupplierEmail, input.SupplierPhone, input.SupplierWebsite, input.SupplierPostalAddress));
-        return input with
-        {
-            Title = old.Title,
-            SupplierName = contact.Name,
-            Currency = old.Currency,
-            Notes = old.Notes,
-            SourceLinks = old.SourceLinks,
-            Entries = old.Entries,
-            SupplierContactName = contact.ContactName,
-            SupplierEmail = contact.Email,
-            SupplierPhone = contact.Phone,
-            SupplierWebsite = contact.Website,
-            SupplierPostalAddress = contact.PostalAddress,
-            SupplierOrderReference = Trim(input.SupplierOrderReference),
-            Platform = Trim(input.Platform)
-        };
-    }
     public static Dictionary<string, string[]> Validate(SupplierContent? input, bool required = true, string prefix = "supplier.")
     {
         var errors = new Dictionary<string, string[]>();
@@ -56,19 +33,6 @@ internal static class PurchasingIdentityInput
         if (input.PostalAddress?.Length > 2000) errors[prefix + "postalAddress"] = ["Use at most 2000 characters."];
         return errors;
     }
-    public static Dictionary<string, string[]> Validate(DraftContentV2? input)
-    {
-        if (input is null) return new() { ["draft"] = ["Supply a draft."] };
-        var errors = ReceiptDraftOrderInputV1.Validate(Legacy(input));
-        var contact = Validate(new(input.SupplierName!, input.SupplierContactName, input.SupplierEmail, input.SupplierPhone, input.SupplierWebsite, input.SupplierPostalAddress), false);
-        foreach (var pair in contact) errors["draft.supplier" + char.ToUpperInvariant(pair.Key[9]) + pair.Key[10..]] = pair.Value;
-        if (input.SupplierId == Guid.Empty) errors["draft.supplierId"] = ["Choose an existing supplier."];
-        foreach (var field in new[] { (input.Platform, "draft.platform"), (input.SupplierOrderReference, "draft.supplierOrderReference") })
-            if (field.Item1?.Length > 200 || field.Item1?.Any(char.IsControl) == true) errors[field.Item2] = ["Use at most 200 characters without control characters."];
-        return errors;
-    }
-    public static string Canonical(string operation, Guid? targetId, string? expectedVersion, DraftContentV2 draft) =>
-        JsonSerializer.Serialize(new { operation, targetId, expectedVersion, draft }, ReceiptDraftOrderInputV1.JsonOptions);
     public static string? Query(string? query) => Trim(query)?.ToUpperInvariant();
     private static string QueryHash(string? query) => Convert.ToHexString(SHA256.HashData(Encoding.Unicode.GetBytes(query ?? "")));
     public static string Cursor(DateTimeOffset time, Guid id, string? query) => "v2" + DraftOrderCursor.Encode(time, id)[2..] + "_" + QueryHash(query);

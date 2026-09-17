@@ -51,7 +51,7 @@ public static class DraftOrderEndpoints
         var row = await database.DraftOrders.AsNoTracking().SingleOrDefaultAsync(row => row.Id == id && !row.IsDeleted, cancellationToken);
         if (row is null) return Problem(404, "draft_not_found", "Draft not found.");
         using var content = JsonDocument.Parse(row.ContentJson);
-        var links = content.RootElement.GetProperty("sourceLinks").Deserialize<string[]>(ReceiptDraftOrderInputV1.JsonOptions)!;
+        var links = content.RootElement.GetProperty("sourceLinks").Deserialize<string[]>(DraftOrderInput.JsonOptions)!;
         var entries = DraftOrderInput.ReadEntries(content.RootElement, row.ContentSchemaVersion);
         var archived = row.SupplierId is { } supplierId && await database.Suppliers.AnyAsync(s => s.Id == supplierId && s.IsArchived, cancellationToken);
         var draft = new DraftContent(row.Title, row.SupplierName, row.Currency, row.Notes, links, entries, row.SupplierId, row.SupplierContactName, row.SupplierEmail, row.SupplierPhone, row.SupplierWebsite, row.SupplierPostalAddress, row.SupplierOrderReference, row.Platform);
@@ -71,7 +71,7 @@ public static class DraftOrderEndpoints
         var draft = input is null ? null : DraftOrderInput.Normalize(input);
         var errors = DraftOrderInput.Validate(draft);
         if (requestId == Guid.Empty) errors["requestId"] = ["A nonempty save identifier is required."];
-        var expectedVersion = id is null ? null : ReceiptDraftOrderInputV1.NormalizeVersion(version, errors);
+        var expectedVersion = id is null ? null : DraftOrderInput.NormalizeVersion(version, errors);
         if (errors.Count > 0) return Validation(errors);
         var operation = id is null ? "Create" : "Update";
         await database.Database.OpenConnectionAsync(cancellationToken);
@@ -117,7 +117,7 @@ public static class DraftOrderEndpoints
     {
         var errors = new Dictionary<string, string[]>();
         if (request.RequestId == Guid.Empty) errors["requestId"] = ["A nonempty deletion request identifier is required."];
-        var version = ReceiptDraftOrderInputV1.NormalizeVersion(request.ExpectedVersion, errors);
+        var version = DraftOrderInput.NormalizeVersion(request.ExpectedVersion, errors);
         if (errors.Count > 0) return Validation(errors);
         await database.Database.OpenConnectionAsync(cancellationToken);
         try

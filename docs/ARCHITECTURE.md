@@ -176,8 +176,9 @@ Supplier archival prevents new selections while preserving existing links and sn
 Permanent business PO numbers are assigned by a transactional tenant counter on first save and
 retained on deletion tombstones. Reference/name/title search runs within the tenant, with query-bound
 forward cursors. Beta draft writes fingerprint supplier, platform and supplier-based line pricing.
-Retired V1–V4 writes resolve their existing receipts only; unmatched old saves require reloading
-rather than silently clearing newer fields. Supplier writes use the same compact-receipt and rowversion
+Retired V1–V4 routes reject all requests, including old successful retries; no historical replay
+adapters remain. Current beta retries retain their compact receipts and cannot silently clear newer
+fields. Supplier writes use the same compact-receipt and rowversion
 reconciliation principles. See the [PO-02 specification](specs/2026-09-11-po-02-supplier-identity-and-references.md).
 
 PO-03 keeps the JSON aggregate. Supplier-based pricing writes content schema 3 through the single

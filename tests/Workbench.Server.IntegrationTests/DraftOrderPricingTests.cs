@@ -1,10 +1,40 @@
 // Copyright (c) 2026 The White Stag Collection.
 using Workbench.Server.Purchasing;
+using System.Text.Json;
 using Xunit;
 namespace Workbench.Server.IntegrationTests;
 
-public sealed class DraftOrderInputV4Tests
+public sealed class DraftOrderPricingTests
 {
+    [Theory]
+    [InlineData(1, "\"indicativePrice\":\"12.0000\"", null)]
+    [InlineData(2, "\"indicativePrice\":null,\"quantity\":\"10.0000\",\"unitOfMeasure\":\"piece\",\"unitPrice\":\"20.0000\",\"pricingUnit\":\"piece\",\"pricePerQuantity\":\"1.0000\",\"pricingQuantity\":null,\"supplierSku\":null,\"itemType\":null", "200.0000")]
+    public void StoredContentRemainsReadableWithoutHistoricalRequestContracts(int schema, string pricing, string? estimate)
+    {
+        // GIVEN persisted entry JSON in either retained storage schema.
+        using var content = JsonDocument.Parse("{\"entries\":[{\"id\":\"3923d8c7-b0ad-4765-9de7-7d6619f00fd4\",\"description\":\"Stone\",\"notes\":null,\"sourceLink\":null," + pricing + "}]}");
+        // WHEN projected into the beta model THEN identity, text and all known amounts remain available.
+        var entry = Assert.Single(DraftOrderInput.ReadEntries(content.RootElement, schema));
+        Assert.Equal("Stone", entry.Description);
+        Assert.Equal(Guid.Parse("3923d8c7-b0ad-4765-9de7-7d6619f00fd4"), entry.Id);
+        Assert.Equal(schema == 1 ? "12.0000" : null, entry.IndicativePrice);
+        Assert.Equal(estimate, DraftOrderInput.Calculate(Empty with { Entries = [entry] }).MerchandiseEstimate);
+    }
+    [Theory]
+    [InlineData("0")]
+    [InlineData("-1")]
+    [InlineData("1.00001")]
+    [InlineData("1000000000")]
+    [InlineData("1e2")]
+    public void BetaQuantityAndRetainedQuoteRejectInvalidValues(string quantity)
+    {
+        // GIVEN malformed supplied quantity in an editable line and a retained quote.
+        var quote = new DraftLegacyPricing(quantity, "piece", "20", "piece", "1", null);
+        // WHEN validating THEN both boundaries identify the invalid quantity without attempting arithmetic.
+        Assert.Contains("draft.entries[0].quantity", DraftOrderInput.Validate(Empty with { Entries = [Line with { Quantity = quantity }] }));
+        Assert.Contains("draft.entries[0].legacyPricing", DraftOrderInput.Validate(Empty with { Entries = [Line with { Price = null, LegacyPricing = quote }] }));
+    }
+    internal static StoredDraftEntry StoredLine => new(Guid.NewGuid(), null, null, null, null, "10", "piece", "20", "piece", "1", null, null, null);
     internal static DraftContent Empty => new(null, null, "USD", null, [], [], null, null, null, null, null, null, null, null);
     internal static DraftEntry Line => new(Guid.NewGuid(), null, null, null, null, "12.5", "carat", "perUnit", "20", null, null, null);
     [Fact]
@@ -25,7 +55,7 @@ public sealed class DraftOrderInputV4Tests
     public void ConversionPreservesEveryRoundedGross(string quantity, string price, string denominator, string mode, string amount, string gross)
     {
         // GIVEN a saved quote whose per-unit rate may require more than four places.
-        var original = DraftOrderInputV3Tests.Line with { Quantity = quantity, UnitPrice = price, PricePerQuantity = denominator };
+        var original = StoredLine with { Quantity = quantity, UnitPrice = price, PricePerQuantity = denominator };
         // WHEN upgraded THEN exact rates remain per-unit and nonrepresentable rates become exact totals.
         var converted = DraftOrderInput.Upgrade(original);
         Assert.Equal(mode, converted.PriceMode); Assert.Equal(amount, converted.Price);
@@ -35,8 +65,8 @@ public sealed class DraftOrderInputV4Tests
     public void KeepsUnconfirmedReferenceAndIncompleteQuoteWithoutInventingBasis()
     {
         // GIVEN a historical unconfirmed amount and a quote lacking priced weight.
-        var reference = DraftOrderInput.Upgrade(DraftOrderInputV3Tests.Line with { UnitPrice = null, IndicativePrice = "20", PricingUnit = null, PricePerQuantity = null });
-        var quote = DraftOrderInput.Upgrade(DraftOrderInputV3Tests.Line with { PricingUnit = "carat", PricingQuantity = null });
+        var reference = DraftOrderInput.Upgrade(StoredLine with { UnitPrice = null, IndicativePrice = "20", PricingUnit = null, PricePerQuantity = null });
+        var quote = DraftOrderInput.Upgrade(StoredLine with { PricingUnit = "carat", PricingQuantity = null });
         // WHEN read THEN both retain their amounts but neither contributes an estimate.
         Assert.Equal("20", reference.IndicativePrice); Assert.Null(reference.Price);
         Assert.Equal("20", quote.LegacyPricing!.UnitPrice); Assert.Null(quote.Price);

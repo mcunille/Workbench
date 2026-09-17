@@ -13,23 +13,6 @@ public sealed record SupplierContent(
     [property: JsonRequired, MaxLength(2048)] string? Website,
     [property: JsonRequired, MaxLength(2000)] string? PostalAddress);
 
-[JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
-internal sealed record DraftContentV2(
-    [property: JsonRequired, MaxLength(200)] string? Title,
-    [property: JsonRequired, MaxLength(200)] string? SupplierName,
-    [property: JsonRequired, MaxLength(3)] string? Currency,
-    [property: JsonRequired, MaxLength(10000)] string? Notes,
-    [property: JsonRequired, MaxLength(20)] IReadOnlyList<string> SourceLinks,
-    [property: JsonRequired, MaxLength(100)] IReadOnlyList<ReceiptDraftEntryV1> Entries,
-    [property: JsonRequired] Guid? SupplierId,
-    [property: JsonRequired, MaxLength(200)] string? SupplierContactName,
-    [property: JsonRequired, MaxLength(254)] string? SupplierEmail,
-    [property: JsonRequired, MaxLength(100)] string? SupplierPhone,
-    [property: JsonRequired, MaxLength(2048)] string? SupplierWebsite,
-    [property: JsonRequired, MaxLength(2000)] string? SupplierPostalAddress,
-    [property: JsonRequired, MaxLength(200)] string? SupplierOrderReference,
-    [property: JsonRequired, MaxLength(200)] string? Platform);
-
 public sealed record DraftOrderSummary(Guid Id, string? Title, string? SupplierName, string UpdatedAtUtc,
     string PoReference, string? SupplierOrderReference, string? Platform);
 public sealed record DraftOrderPageResponse(IReadOnlyList<DraftOrderSummary> Items, string? NextCursor);

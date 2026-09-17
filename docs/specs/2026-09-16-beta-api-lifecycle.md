@@ -1,6 +1,8 @@
 # Beta API lifecycle and purchasing consolidation
 
-**Status:** Implemented — the owner explicitly approved this design on 2026-09-16.
+**Status:** Implemented — initially approved on 2026-09-16; the owner explicitly approved removing
+historical replay support on 2026-09-17. The updated requirements below supersede the original
+receipt-adapter design.
 Current usage and retained compatibility components are documented in [API lifecycle](../api-lifecycle.md).
 
 Tracks [issue #120](https://github.com/mcunille/Workbench/issues/120).
@@ -48,8 +50,10 @@ receipt fingerprints are not public API release numbers and do not get renamed t
    shared helpers and compatibility readers have been extracted. Keeping parallel old writers
    adds repeated validation and risks overwriting fields older payloads cannot express.
 3. Reject obsolete routes with a machine-readable `api_contract_unsupported` problem and
-   reload guidance rather than redirecting or silently translating writes. Keep narrowly
-   scoped receipt-only replay handling as described below; it is not a supported old API.
+   reload guidance rather than redirecting or silently translating writes. No
+   historical replay support is retained, including for previously successful requests. Current beta
+   retries remain supported. No version has been released, and preserving development-only request
+   contracts would retain the complexity this cleanup is intended to remove.
 
 ## Browser and deployment boundary
 
@@ -59,7 +63,9 @@ build. Missing or mismatched revisions cannot perform business writes. Bootstrap
 needed to discover the revision and authenticate require explicitly tested exceptions.
 
 The bundled client surfaces a reload-required state, prevents new writes, and preserves
-unsaved edits for user recovery instead of automatically reloading or resubmitting. A browser
+unsaved edits for user recovery instead of automatically reloading or resubmitting. Frozen editors
+must expose a keyboard-accessible, read-only copy of retained edits without changing the uncertain
+request or enabling writes. A browser
 from before this mechanism may only show its existing error UI; its obsolete requests must
 still fail without mutations. Test that transition separately from future beta mismatches.
 
@@ -70,23 +76,23 @@ for older browsers that cannot display the new state.
 ## Stored data and successful retries
 
 Preserve existing drafts, supplier and purchase identities, numbering, row versions, and
-receipts. Retain read-only schema 1/2/3 projection while those records exist. Use one forward
-migration to retire old write procedures and establish any required receipt lookup authority;
-do not rewrite base migrations or re-fingerprint stored receipts.
+receipts. Retain read-only schema 1/2/3 projection while those records exist. Retire old write
+procedures through a forward migration; do not rewrite base or applied migrations or re-fingerprint
+stored receipts. The original consolidation migration has already been applied to a retained
+preview, so a second forward migration removes its replay procedure and permissions. This is an
+applied-schema boundary, not a reason to keep multiple migrations for disposable test databases.
 
-For requests to retired purchasing write routes, a restricted compatibility adapter may
-return an existing successful receipt only after matching tenant, actor, operation, target,
-expected version, and the exact historical canonical fingerprint. It must never execute a
-new write or accept merely a known request ID. Missing receipts return unsupported-contract;
-different input using an existing request ID remains a conflict. Preserve authorization,
-antiforgery, size limits, and tenant isolation for this path. Exclude these adapters from
-OpenAPI and generated clients.
+Every request to a retired purchasing route is unsupported, regardless of whether its receipt
+exists. Remove historical request DTOs, canonicalizers, receipt adapters and their contract-only
+tests. Move normalization and validation still needed by beta into the current implementation,
+preserving its behavior and coverage. Historical schema readers exist only to project stored
+drafts, not to accept obsolete requests.
 
-Retain historical canonicalizers only for receipt matching, with frozen compatibility tests;
-they no longer implement evolving business rules. Their lifetime is tied to retained receipts,
-not releases. No receipt expiry is introduced by this change. Removing them later requires an
-explicitly approved retention/transition policy. Internal storage reader types may retain
-format numbers where those identify persisted data rather than public API versions.
+The current beta contract retains immutable successful-request replay, collision detection,
+authorization, antiforgery protection, request limits and tenant isolation. Receipt rows from
+earlier development iterations remain stored, but callers cannot replay them through retired
+routes. This explicit boundary is approved because Workbench has no released consumers; retaining
+all development request formats would add complexity without a supported compatibility obligation.
 
 Rollback is allowed only to an artifact compatible with the resulting schema and available SQL
 commands. Removing old procedures prevents assuming that the previous application can simply
@@ -102,11 +108,14 @@ generated contracts, request protection, and purchasing persistence are coupled.
   fingerprint before deletion; record each retained compatibility component and purpose.
 - Use TDD for beta routing/OpenAPI, rejected unsupported requests, stale browser behavior,
   safe reload handling, and exact uncertain-save replay without duplicate effects.
-- Verify historical replay, collisions, actor/tenant isolation, concurrency, and prevention
+- Verify rejection of historical routes, current beta replay, collisions, actor/tenant isolation,
+  concurrency, and prevention
   of field loss against real SQL. Assess affected behavior with mutation tooling if available;
   otherwise state the limitation.
 - Test fresh installation and upgrade from the PR base schema with schema 1/2/3 drafts and
-  receipts for all four fingerprints. There is no released schema yet; do not invent one.
+  retained receipt rows. Also verify upgrade from the already-applied consolidation migration,
+  removal of replay-only SQL authority, and current beta retries. There is no released schema yet;
+  do not invent one.
 - Regenerate OpenAPI/client declarations and confirm only beta business contracts are exposed.
 - Run the required verification and container gates, refresh this checkout's isolated preview,
   and inspect purchasing and reload/retry workflows in the browser. Update living architecture,

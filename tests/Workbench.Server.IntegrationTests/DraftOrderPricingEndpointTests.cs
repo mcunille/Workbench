@@ -9,8 +9,24 @@ using static Workbench.Server.IntegrationTests.AcquisitionEndpointTests;
 namespace Workbench.Server.IntegrationTests;
 
 [Collection(SqlServerCollection.Name)]
-public sealed class DraftOrderEndpointV3Tests(SqlServerFixture sqlServer)
+public sealed class DraftOrderPricingEndpointTests(SqlServerFixture sqlServer)
 {
+    [Theory]
+    [InlineData("/api/purchase-order-drafts")]
+    [InlineData("/api/v2/purchase-order-drafts")]
+    [InlineData("/api/v3/purchase-order-drafts")]
+    [InlineData("/api/v4/purchase-order-drafts")]
+    public async Task RetiredRoutesRejectWithoutReadingMalformedBodies(string path)
+    {
+        // GIVEN an obsolete caller sending a non-JSON request without beta revision or login.
+        await using var application = new Microsoft.AspNetCore.Mvc.Testing.WebApplicationFactory<Program>();
+        using var client = application.CreateClient();
+        // WHEN it posts to a removed route THEN the generic unsupported response does not bind the old body.
+        var response = await client.PostAsync(path, new StringContent("not-json"));
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+        Assert.True(response.Headers.CacheControl?.NoStore);
+        Assert.Equal("api_contract_unsupported", (await response.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("code").GetString());
+    }
     private const string Path = "/api/beta/purchase-order-drafts";
     [Fact]
     public async Task CalculationIsPrivateProtectedAndDoesNotPersist()
@@ -18,7 +34,7 @@ public sealed class DraftOrderEndpointV3Tests(SqlServerFixture sqlServer)
         // GIVEN an unauthenticated browser and an exact per-unit draft.
         await using var app = await AuthTestApplication.CreateAsync(sqlServer);
         using var client = app.CreateClient();
-        var draft = DraftOrderInputV4Tests.Empty with { Entries = [DraftOrderInputV4Tests.Line with { Quantity = "12.5", Price = "20" }] };
+        var draft = DraftOrderPricingTests.Empty with { Entries = [DraftOrderPricingTests.Line with { Quantity = "12.5", Price = "20" }] };
         Assert.Equal(HttpStatusCode.Unauthorized, (await client.PostAsJsonAsync(Path + "/calculate", new CalculateDraftOrderRequest(draft))).StatusCode);
         await LoginAsync(client);
         Assert.Equal(HttpStatusCode.BadRequest, (await client.PostAsJsonAsync(Path + "/calculate", new CalculateDraftOrderRequest(draft))).StatusCode);
@@ -40,7 +56,7 @@ public sealed class DraftOrderEndpointV3Tests(SqlServerFixture sqlServer)
         // GIVEN an authenticated owner saving priced stone counts.
         await using var app = await AuthTestApplication.CreateAsync(sqlServer);
         using var client = app.CreateClient(); await LoginAsync(client);
-        var draft = DraftOrderInputV4Tests.Empty with { Entries = [DraftOrderInputV4Tests.Line with { Quantity = "12.5", Price = "20", SupplierSku = "Gem 17", ItemType = "Gemstone" }] };
+        var draft = DraftOrderPricingTests.Empty with { Entries = [DraftOrderPricingTests.Line with { Quantity = "12.5", Price = "20", SupplierSku = "Gem 17", ItemType = "Gemstone" }] };
         var request = new CreateDraftOrderRequest(Guid.NewGuid(), draft);
         // WHEN saved and read THEN the current price mode and exact estimate survive.
         var saved = await SendAsync(client, HttpMethod.Post, Path, request);
@@ -60,60 +76,31 @@ public sealed class DraftOrderEndpointV3Tests(SqlServerFixture sqlServer)
         Assert.True((await replay.Content.ReadFromJsonAsync<SaveDraftOrderResponse>())!.Replayed);
     }
     [Fact]
-    public async Task RetiredV4ResolvesExactSaveAndDeletionWithoutRevisionOrNewWrites()
+    public async Task RetiredRoutesRejectEvenPreviouslySuccessfulRequests()
     {
-        // GIVEN successful current-format creation and deletion receipts whose browser lost its responses.
+        // GIVEN successful beta create and delete receipts with the same storage format as the former V4 API.
         await using var app = await AuthTestApplication.CreateAsync(sqlServer);
         using var client = app.CreateClient(); await LoginAsync(client);
-        var request = new CreateDraftOrderRequest(Guid.NewGuid(), DraftOrderInputV4Tests.Empty);
-        var created = await SendAsync(client, HttpMethod.Post, Path, request);
-        Assert.Equal(HttpStatusCode.Created, created.StatusCode);
-        var saved = (await created.Content.ReadFromJsonAsync<SaveDraftOrderResponse>())!;
+        var request = new CreateDraftOrderRequest(Guid.NewGuid(), DraftOrderPricingTests.Empty);
+        var saved = (await (await SendAsync(client, HttpMethod.Post, Path, request)).Content.ReadFromJsonAsync<SaveDraftOrderResponse>())!;
         var delete = new DeleteDraftOrderRequest(Guid.NewGuid(), saved.SavedVersion);
-        var removed = await SendAsync(client, HttpMethod.Delete, Path + "/" + saved.DraftOrderId, delete);
-        var deletion = (await removed.Content.ReadFromJsonAsync<SaveDraftOrderResponse>())!;
-        client.DefaultRequestHeaders.Remove(Workbench.Server.Http.BetaApiContractMiddleware.HeaderName);
-        const string retired = "/api/v4/purchase-order-drafts";
-        // WHEN the old browser retries the exact original requests without the new revision mechanism.
-        var replay = await SendAsync(client, HttpMethod.Post, retired, request);
-        var deletionReplay = await SendAsync(client, HttpMethod.Delete, retired + "/" + saved.DraftOrderId, delete);
-        // THEN only the original evidence returns, preserving the tombstone and refusing changed or new work.
-        Assert.Equal(HttpStatusCode.OK, replay.StatusCode);
-        Assert.Equal(saved with { Replayed = true }, await replay.Content.ReadFromJsonAsync<SaveDraftOrderResponse>());
-        Assert.Equal(deletion with { Replayed = true }, await deletionReplay.Content.ReadFromJsonAsync<SaveDraftOrderResponse>());
-        Assert.Equal(HttpStatusCode.NotFound, (await client.GetAsync(Path + "/" + saved.DraftOrderId)).StatusCode);
-        Assert.Equal(HttpStatusCode.Conflict, (await SendAsync(client, HttpMethod.Post, retired, request with { Draft = request.Draft with { Title = "Different" } })).StatusCode);
-        Assert.Equal(HttpStatusCode.UpgradeRequired, (await SendAsync(client, HttpMethod.Post, retired, request with { RequestId = Guid.NewGuid() })).StatusCode);
-        Assert.Equal(HttpStatusCode.BadRequest, (await client.PostAsJsonAsync(retired, request)).StatusCode);
-        using var other = app.CreateClient(); await LoginAsync(other, "other@example.com");
-        Assert.Equal(HttpStatusCode.UpgradeRequired, (await SendAsync(other, HttpMethod.Post, retired, request)).StatusCode);
-        Assert.Empty((await client.GetFromJsonAsync<DraftOrderPageResponse>(Path))!.Items);
-    }
-
-    [Fact]
-    public async Task UnmatchedOldWritesRequireReload()
-    {
-        // GIVEN a current authenticated owner using a retired write contract.
-        await using var app = await AuthTestApplication.CreateAsync(sqlServer);
-        using var client = app.CreateClient(); await LoginAsync(client);
-        var historical = DraftOrderInputV3Tests.Empty;
-        // WHEN no historical receipt matches THEN every old contract rejects without mutation.
-        foreach (var version in new[] { 1, 2, 3, 4 })
+        Assert.Equal(HttpStatusCode.OK, (await SendAsync(client, HttpMethod.Delete, Path + "/" + saved.DraftOrderId, delete)).StatusCode);
+        // WHEN old callers submit identical requests through any retired route THEN reload is required without returning a receipt.
+        foreach (var version in new[] { "", "/v2", "/v3", "/v4" })
         {
-            var path = version == 1 ? "/api/purchase-order-drafts" : $"/api/v{version}/purchase-order-drafts";
-            object draft = version switch
+            var retired = "/api" + version + "/purchase-order-drafts";
+            foreach (var response in new[] {
+                await SendAsync(client, HttpMethod.Post, retired, request),
+                await SendAsync(client, HttpMethod.Put, retired + "/" + saved.DraftOrderId, new UpdateDraftOrderRequest(Guid.NewGuid(), saved.SavedVersion, request.Draft)),
+                await SendAsync(client, HttpMethod.Delete, retired + "/" + saved.DraftOrderId, delete) })
             {
-                1 => PurchasingIdentityInput.Legacy(DraftOrderInputV3.Legacy(historical)),
-                2 => DraftOrderInputV3.Legacy(historical),
-                3 => historical,
-                _ => DraftOrderInputV4Tests.Empty
-            };
-            var response = await SendAsync(client, HttpMethod.Post, path, new { requestId = Guid.NewGuid(), draft });
-            Assert.Equal(HttpStatusCode.UpgradeRequired, response.StatusCode);
-            Assert.Equal("api_contract_unsupported", (await response.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("code").GetString());
-            var deletion = await SendAsync(client, HttpMethod.Delete, path + "/" + Guid.NewGuid(), new DeleteDraftOrderRequest(Guid.NewGuid(), Convert.ToBase64String(new byte[8])));
-            Assert.Equal(HttpStatusCode.UpgradeRequired, deletion.StatusCode);
+                Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+                Assert.Equal("api_contract_unsupported", (await response.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("code").GetString());
+            }
         }
-        Assert.Empty((await client.GetFromJsonAsync<DraftOrderPageResponse>(Path))!.Items);
+        // AND current beta retries still return their receipt without reviving the deleted draft.
+        Assert.True((await (await SendAsync(client, HttpMethod.Post, Path, request)).Content.ReadFromJsonAsync<SaveDraftOrderResponse>())!.Replayed);
+        Assert.True((await (await SendAsync(client, HttpMethod.Delete, Path + "/" + saved.DraftOrderId, delete)).Content.ReadFromJsonAsync<SaveDraftOrderResponse>())!.Replayed);
+        Assert.Equal(HttpStatusCode.NotFound, (await client.GetAsync(Path + "/" + saved.DraftOrderId)).StatusCode);
     }
 }

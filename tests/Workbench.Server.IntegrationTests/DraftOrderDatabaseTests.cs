@@ -9,11 +9,13 @@ namespace Workbench.Server.IntegrationTests;
 [Collection(SqlServerCollection.Name)]
 public sealed partial class DraftOrderDatabaseTests(SqlServerFixture sqlServer)
 {
-    [Fact]
-    public async Task ReapplyingConsolidatedMigrationPreservesSavedDraftAndRetryReceipt()
+    [Theory]
+    [InlineData("ConsolidateBetaDraftCommands")]
+    [InlineData("RemoveHistoricalDraftReplay")]
+    public async Task BetaMigrationPreservesSavedDraftAndRetryReceipt(string priorMigration)
     {
         // GIVEN the consolidated purchasing schema with a successful draft save and compact receipt.
-        await using var database = await sqlServer.CreateMigratedDatabaseAsync();
+        await using var database = await sqlServer.CreateMigratedDatabaseAsync(priorMigration);
         var tenant = Guid.NewGuid(); var actor = Guid.NewGuid(); var request = Guid.NewGuid();
         await database.SeedTenantAuditRowsAsync(tenant, Guid.NewGuid()); await SeedActor(database, tenant, actor);
         await using var connection = await Open(database, await database.CreateWebUserAsync(), tenant);
@@ -29,7 +31,7 @@ public sealed partial class DraftOrderDatabaseTests(SqlServerFixture sqlServer)
             return (string)(await read.ExecuteScalarAsync())!;
         }
         var before = await Snapshot();
-        // WHEN migration is invoked again THEN saved values, actors, times and fingerprint evidence remain byte-for-byte intact.
+        // WHEN the retained beta schema is upgraded or migration is reapplied THEN all saved values and receipt bytes stay intact.
         await Workbench.Server.Persistence.DatabaseMigrator.MigrateAsync(database.AdminConnectionString, default);
         Assert.Equal(before, await Snapshot());
         // AND the original request still resolves to its original successful receipt.

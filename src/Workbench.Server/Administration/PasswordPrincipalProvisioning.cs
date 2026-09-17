@@ -91,7 +91,6 @@ public static class PasswordPrincipalProvisioning
                                     (N'workbench_web', N'[Purchasing].[DeleteDraftOrder]', N'EXECUTE'),
                                     (N'workbench_web', N'[Purchasing].[DraftOrders]', N'SELECT'),
                                     (N'workbench_web', N'[Purchasing].[DraftOrderRequestReceipts]', N'SELECT'),
-                                    (N'workbench_web', N'[Purchasing].[ReplayDraftOrderReceipt]', N'EXECUTE'),
                                     (N'workbench_web', N'[Purchasing].[SaveSupplier]', N'EXECUTE'),
                                     (N'workbench_web', N'[Purchasing].[Suppliers]', N'SELECT'),
                                     (N'workbench_web', N'[Purchasing].[SupplierRequestReceipts]', N'SELECT'),

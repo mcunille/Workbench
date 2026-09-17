@@ -89,38 +89,7 @@ public sealed partial class PurchasingIdentityEndpointTests
         Assert.Equal("invalid_cursor", (await response.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("code").GetString());
     }
 
-    [Fact]
-    public async Task UpgradeAndV1ReplayPreserveEveryStoredReceiptByte()
-    {
-        // GIVEN a successful V1 create and update with their original durable request evidence.
-        await using var application = await AuthTestApplication.CreateAsync(sqlServer, priorMigration: "AddDraftSupplierOrders");
-        using var client = application.CreateClient();
-        await LoginAsync(client);
-        var create = new HistoricalCreateRequest(Guid.NewGuid(), new("Before upgrade", "Supplier", null, null, [], []));
-        var receipt = await HistoricalSave(application, "Create", create.RequestId, null, null, create.Draft);
-        var update = new HistoricalUpdateRequest(Guid.NewGuid(), receipt.SavedVersion, create.Draft with { Title = "Reviewed before upgrade" });
-        await HistoricalSave(application, "Update", update.RequestId, receipt.DraftOrderId, receipt.SavedVersion, update.Draft);
-        await using var admin = new SqlConnection(application.AdminConnectionString);
-        await admin.OpenAsync();
-        async Task<string> Evidence()
-        {
-            await using var read = new SqlCommand("SELECT (SELECT * FROM Purchasing.DraftOrderRequestReceipts ORDER BY RequestId FOR JSON PATH,INCLUDE_NULL_VALUES)", admin);
-            return (string)(await read.ExecuteScalarAsync())!;
-        }
-        var before = await Evidence();
 
-        // WHEN migration backfills references and both old commands are retried.
-        await DatabaseMigrator.MigrateAsync(application.AdminConnectionString, default);
-        using var replayCreate = await SendAsync(client, HttpMethod.Post, "/api/purchase-order-drafts", create);
-        using var replayUpdate = await SendAsync(client, HttpMethod.Put, $"/api/purchase-order-drafts/{receipt.DraftOrderId}", update);
-        Assert.Equal(HttpStatusCode.OK, replayCreate.StatusCode);
-        Assert.Equal(HttpStatusCode.OK, replayUpdate.StatusCode);
-        Assert.True((await replayCreate.Content.ReadFromJsonAsync<SaveDraftOrderResponse>())!.Replayed);
-        Assert.True((await replayUpdate.Content.ReadFromJsonAsync<SaveDraftOrderResponse>())!.Replayed);
-
-        // THEN fingerprints, actors, original versions, completion times and all receipt columns are unchanged.
-        Assert.Equal(before, await Evidence());
-    }
 }
 
 public sealed partial class DraftOrderDatabaseTests

@@ -25,17 +25,17 @@ public sealed partial class DraftOrderDatabaseTests
         // WHEN the consolidated migrator runs THEN retained history and the old receipt stay intact.
         await Workbench.Server.Persistence.DatabaseMigrator.MigrateAsync(database.AdminConnectionString, default);
         history.CommandText = "SELECT COUNT(*) FROM dbo.__EFMigrationsHistory";
-        Assert.Equal(20, Convert.ToInt32(await history.ExecuteScalarAsync()));
+        Assert.Equal(21, Convert.ToInt32(await history.ExecuteScalarAsync()));
         var inspection = await Workbench.Server.Administration.DevelopmentDatabaseInspection.InspectAsync(database.AdminConnectionString, default);
         Assert.True(inspection.MigrationHistoryCompatible);
         Assert.True(inspection.SchemaCurrent);
-        Assert.Equal(20, inspection.AppliedMigrations.Length);
+        Assert.Equal(21, inspection.AppliedMigrations.Length);
         var replay = await Save(connection, actor, request, original, "Create");
         Assert.Equal(saved.Version, replay.Version); Assert.True(replay.Replayed);
         // AND a beta update retains the order identity while older clients cannot overwrite the new content.
         await using var update = new SqlCommand("Purchasing.UpdateDraftOrder", connection) { CommandType = CommandType.StoredProcedure };
         update.Parameters.AddWithValue("@RequestId", Guid.NewGuid()); update.Parameters.AddWithValue("@ActorUserId", actor);
-        update.Parameters.AddWithValue("@CanonicalInputJson", DraftOrderInput.Canonical("Update", saved.Id, Convert.ToBase64String(saved.Version), DraftOrderInput.Normalize(DraftOrderInputV4Tests.Empty with { Entries = [DraftOrderInputV4Tests.Line] })));
+        update.Parameters.AddWithValue("@CanonicalInputJson", DraftOrderInput.Canonical("Update", saved.Id, Convert.ToBase64String(saved.Version), DraftOrderInput.Normalize(DraftOrderPricingTests.Empty with { Entries = [DraftOrderPricingTests.Line] })));
         byte[] current;
         await using (var reader = await update.ExecuteReaderAsync()) { Assert.True(await reader.ReadAsync()); current = (byte[])reader["SavedVersion"]; Assert.Equal(saved.Id, reader.GetGuid(reader.GetOrdinal("DraftOrderId"))); }
         await using var retired = new SqlCommand("Purchasing.UpdateDraftOrderV3", connection) { CommandType = CommandType.StoredProcedure };
@@ -43,7 +43,7 @@ public sealed partial class DraftOrderDatabaseTests
         Assert.True((await Save(connection, actor, request, original, "Create")).Replayed);
         // AND a changed currency cannot reinterpret an existing amount, even if the new request clears it.
         update.Parameters["@RequestId"].Value = Guid.NewGuid();
-        update.Parameters["@CanonicalInputJson"].Value = DraftOrderInput.Canonical("Update", saved.Id, Convert.ToBase64String(current), DraftOrderInputV4Tests.Empty with { Currency = "EUR" });
+        update.Parameters["@CanonicalInputJson"].Value = DraftOrderInput.Canonical("Update", saved.Id, Convert.ToBase64String(current), DraftOrderPricingTests.Empty with { Currency = "EUR" });
         Assert.Equal(50401, (await Assert.ThrowsAsync<SqlException>(() => update.ExecuteNonQueryAsync())).Number);
     }
     [Fact]
@@ -54,7 +54,7 @@ public sealed partial class DraftOrderDatabaseTests
         var tenant = Guid.NewGuid(); var actor = Guid.NewGuid();
         await database.SeedTenantAuditRowsAsync(tenant, Guid.NewGuid()); await SeedActor(database, tenant, actor);
         await using var connection = await Open(database, await database.CreateWebUserAsync(), tenant);
-        var draft = DraftOrderInput.Normalize(DraftOrderInputV4Tests.Empty with { Entries = [DraftOrderInputV4Tests.Line with { PriceMode = "lineTotal", Quantity = null, UnitOfMeasure = null, Price = "9999999999999999999.9999" }] });
+        var draft = DraftOrderInput.Normalize(DraftOrderPricingTests.Empty with { Entries = [DraftOrderPricingTests.Line with { PriceMode = "lineTotal", Quantity = null, UnitOfMeasure = null, Price = "9999999999999999999.9999" }] });
         var request = Guid.NewGuid();
         var canonical = DraftOrderInput.Canonical("Create", null, null, draft);
         // WHEN a standalone maximum total is saved THEN the schema and immutable receipt use the current version.

@@ -282,7 +282,6 @@ app.MapGet(
 app.MapWorkbenchAuthentication();
 app.MapWorkbenchInventory();
 app.MapPurchaseOrderDrafts();
-app.MapRetiredPurchaseOrderDraftReceipts();
 app.MapSuppliers();
 app.MapWorkbenchRecovery();
 app.MapTenantUserAdministration();
