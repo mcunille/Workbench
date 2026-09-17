@@ -128,6 +128,10 @@ public sealed class DatabaseReadinessCheck(
                     AND HAS_PERMS_BY_NAME(N'[Purchasing].[CreateDraftOrder]', N'OBJECT', N'EXECUTE') = 1
                     AND HAS_PERMS_BY_NAME(N'[Purchasing].[UpdateDraftOrder]', N'OBJECT', N'EXECUTE') = 1
                     AND HAS_PERMS_BY_NAME(N'[Purchasing].[DeleteDraftOrder]', N'OBJECT', N'EXECUTE') = 1
+                    AND HAS_PERMS_BY_NAME(N'[Purchasing].[CreateDraftOrderV3]', N'OBJECT', N'EXECUTE') = 1
+                    AND HAS_PERMS_BY_NAME(N'[Purchasing].[CreateDraftOrderV4]', N'OBJECT', N'EXECUTE') = 1
+                    AND HAS_PERMS_BY_NAME(N'[Purchasing].[UpdateDraftOrderV3]', N'OBJECT', N'EXECUTE') = 1
+                    AND HAS_PERMS_BY_NAME(N'[Purchasing].[UpdateDraftOrderV4]', N'OBJECT', N'EXECUTE') = 1
                     AND HAS_PERMS_BY_NAME(N'[Purchasing].[CreateDraftOrderV2]', N'OBJECT', N'EXECUTE') = 1
                     AND HAS_PERMS_BY_NAME(N'[Purchasing].[UpdateDraftOrderV2]', N'OBJECT', N'EXECUTE') = 1
                     AND HAS_PERMS_BY_NAME(N'[Purchasing].[SaveSupplier]', N'OBJECT', N'EXECUTE') = 1

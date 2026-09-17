@@ -19,9 +19,9 @@ public static class DraftOrderEndpointsV2
         group.MapGet("/{id:guid}", ReadAsync).Produces<DraftOrderResponseV2>().ProducesProblem(404);
         group.MapPost("", CreateAsync).WithMetadata(WorkbenchAntiforgeryMetadata.Instance)
             .Produces<SaveDraftOrderResponse>(201).Produces<SaveDraftOrderResponse>()
-            .ProducesValidationProblem().ProducesProblem(404).ProducesProblem(409).ProducesProblem(413);
+            .ProducesValidationProblem().ProducesProblem(404).ProducesProblem(409).ProducesProblem(413).ProducesProblem(426);
         group.MapPut("/{id:guid}", UpdateAsync).WithMetadata(WorkbenchAntiforgeryMetadata.Instance)
-            .Produces<SaveDraftOrderResponse>().ProducesValidationProblem().ProducesProblem(404).ProducesProblem(409).ProducesProblem(413);
+            .Produces<SaveDraftOrderResponse>().ProducesValidationProblem().ProducesProblem(404).ProducesProblem(409).ProducesProblem(413).ProducesProblem(426);
         group.MapDelete("/{id:guid}", DraftOrderEndpoints.DeleteAsync).WithMetadata(WorkbenchAntiforgeryMetadata.Instance)
             .Produces<SaveDraftOrderResponse>().ProducesValidationProblem().ProducesProblem(404).ProducesProblem(409).ProducesProblem(413);
     }
@@ -40,9 +40,10 @@ public static class DraftOrderEndpointsV2
     {
         var row = await database.DraftOrders.AsNoTracking().SingleOrDefaultAsync(row => row.Id == id && !row.IsDeleted, cancellationToken);
         if (row is null) return Problem(404, "draft_not_found", "Draft not found.");
+        if (row.ContentSchemaVersion >= 3) return Problem(426, "draft_contract_reload_required", "Reload this draft with the current application.");
         using var content = JsonDocument.Parse(row.ContentJson);
         var links = content.RootElement.GetProperty("sourceLinks").Deserialize<string[]>(DraftOrderInput.JsonOptions)!;
-        var entries = content.RootElement.GetProperty("entries").Deserialize<DraftEntry[]>(DraftOrderInput.JsonOptions)!;
+        var entries = DraftOrderInputV3.ReadEntries(content.RootElement, row.ContentSchemaVersion).Select(DraftOrderInputV3.Legacy).ToArray();
         var archived = row.SupplierId is { } supplierId && await database.Suppliers.AnyAsync(s => s.Id == supplierId && s.IsArchived, cancellationToken);
         return Results.Ok(new DraftOrderResponseV2(row.Id, new(row.Title, row.SupplierName, row.Currency, row.Notes, links, entries, row.SupplierId, row.SupplierContactName, row.SupplierEmail, row.SupplierPhone, row.SupplierWebsite, row.SupplierPostalAddress, row.SupplierOrderReference, row.Platform), DraftOrderCursor.Timestamp(row.CreatedAtUtc), DraftOrderCursor.Timestamp(row.UpdatedAtUtc), Convert.ToBase64String(row.RowVersion), PurchasingIdentityInput.Reference(row.PoNumber), archived));
     }
@@ -83,7 +84,7 @@ public static class DraftOrderEndpointsV2
             if (id is null) context.Response.Headers.Location = location;
             return id is null && !response.Replayed ? Results.Created(location, response) : Results.Ok(response);
         }
-        catch (SqlException exception) when (exception.Number is 50400 or 50401 or 50403 or 50404 or 50409 or 50410 or 50412 or 50413 or 50414)
+        catch (SqlException exception) when (exception.Number is 50400 or 50401 or 50403 or 50404 or 50409 or 50410 or 50412 or 50413 or 50414 or 50426)
         {
             return exception.Number switch
             {
@@ -92,6 +93,7 @@ public static class DraftOrderEndpointsV2
                 50403 => Problem(403, "draft_authority_required", "Current business authority is required."),
                 50404 => Problem(404, "draft_not_found", "Draft not found."),
                 50409 => Problem(409, "draft_version_conflict", "The draft changed. Review the saved version before saving again."),
+                50426 => Problem(426, "draft_contract_reload_required", "Reload this draft with the current application before saving."),
                 50414 => Problem(404, "supplier_not_found", "Supplier not found."),
                 50412 => Problem(409, "supplier_selection_conflict", "Choose an active supplier or keep these details as one-off."),
                 50413 => Problem(409, "po_sequence_exhausted", "Purchase numbering has reached its limit."),

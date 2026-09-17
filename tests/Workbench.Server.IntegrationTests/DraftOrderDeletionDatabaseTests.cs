@@ -35,7 +35,7 @@ public sealed partial class DraftOrderDatabaseTests
                 currency = "USD",
                 notes = "Private notes",
                 sourceLinks = new[] { "https://supplier.example/cart" },
-                entries = new[] { new { id = Guid.NewGuid(), description = "Stone", notes = "Entry notes", sourceLink = "https://supplier.example/stone", indicativePrice = "1.0000" } }
+                entries = new[] { new { id = Guid.NewGuid(), description = "Stone", notes = "Entry notes", sourceLink = "https://supplier.example/stone", indicativePrice = "1.0000", quantity = (string?)null, unitOfMeasure = (string?)null, unitPrice = (string?)null, pricingUnit = (string?)null, pricePerQuantity = (string?)null, pricingQuantity = (string?)null, supplierSku = (string?)null, itemType = (string?)null } }
             },
         });
         var saved = await Save(connection, actor, createRequest, canonical, "Create"); var request = Guid.NewGuid();

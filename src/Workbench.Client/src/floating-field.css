@@ -10,7 +10,8 @@
 }
 :root[data-theme="dark"] .floating-field { --field-fill: #121317; }
 .floating-field > input,
-.floating-field > textarea {
+.floating-field > textarea,
+.floating-field > select {
   display: block;
   border: 1px solid var(--border);
   border-radius: var(--radius-input);
@@ -32,14 +33,14 @@
   line-height: 1.25;
   cursor: text;
 }
-.floating-field:where(:has(:focus, :autofill, :not(:placeholder-shown):is(input, textarea))) > .field-label {
+.floating-field:where(:has(select, :focus, :autofill, :not(:placeholder-shown):is(input, textarea))) > .field-label {
   top: 0;
   transform: translateY(-50%);
   background: var(--field-fill);
   font-size: 0.75rem;
 }
-.floating-field > :is(input, textarea):not(:focus)::placeholder { color: transparent; }
-.floating-field > :is(input, textarea):focus {
+.floating-field > :is(input, textarea, select):not(:focus)::placeholder { color: transparent; }
+.floating-field > :is(input, textarea, select):focus {
   border-color: var(--focus);
   border-width: 2px;
   padding: calc(0.75rem - 1px) calc(0.875rem - 1px);
@@ -47,7 +48,7 @@
   box-shadow: none;
 }
 .floating-field:has(:focus) > .field-label { color: var(--focus); }
-.floating-field > :is(input, textarea)[aria-invalid="true"] { border-color: var(--danger); }
+.floating-field > :is(input, textarea, select)[aria-invalid="true"] { border-color: var(--danger); }
 .floating-field:has([aria-invalid="true"]) > .field-label { color: var(--danger); }
 .floating-field:has(:disabled) { opacity: 0.7; }
 .collection-search-controls > .floating-field { flex: 1 1 16rem; margin-top: 0; }
@@ -69,17 +70,32 @@
     background: transparent;
   }
 }
+/* Short quantity/unit labels can retain the combined control at compact widths.
+   The rem threshold still moves enlarged labels into normal flow. */
+.floating-field-compact { container-name: compact-field; }
+@container compact-field (max-width: 10rem) {
+  .floating-field > .field-label {
+    position: static;
+    transform: none;
+    max-width: 100%;
+    margin-bottom: 0.5rem;
+    padding: 0;
+    font-size: 1rem;
+    overflow-wrap: anywhere;
+    background: transparent;
+  }
+}
 /* Other native controls keep a single boundary too; links/buttons retain their focus outline. */
 select:focus-visible { border-color: var(--focus); outline: none; }
 @media (prefers-reduced-motion: no-preference) {
   .floating-field > .field-label {
     transition: top 140ms ease, transform 140ms ease, font-size 140ms ease;
   }
-  .floating-field > :is(input, textarea) { transition: border-color 140ms ease; }
+  .floating-field > :is(input, textarea, select) { transition: border-color 140ms ease; }
 }
 @media (forced-colors: active) {
   .floating-field { --field-fill: Canvas !important; }
-  .floating-field > :is(input, textarea):focus,
+  .floating-field > :is(input, textarea, select):focus,
   select:focus-visible { border: 2px solid Highlight; }
   .floating-field > .field-label { color: CanvasText; }
 }

@@ -150,8 +150,9 @@ manifest, reconciliation, worker hold, and paired recovery boundary; see the
 
 The [Purchasing module](purchasing.md) stores mutable planning documents independently of inventory,
 acquisitions and financial records. `Purchasing.DraftOrders` combines searchable draft headers with
-bounded versioned JSON for source links and shopping-list entries. Reference prices are nullable
-exact decimal strings; null never becomes zero, and no totals or obligations are calculated.
+bounded versioned JSON for source links and draft lines. Quantities, units and pricing bases remain
+explicit; nullable decimal strings distinguish unknown from zero. Server calculation uses exact
+scaled integers and four-place rounding for merchandise estimates, without creating obligations.
 
 Tenant RLS, tenant-qualified foreign keys, current authenticated authority and restricted SQL
 commands protect both drafts and their immutable request receipts. The runtime cannot directly
@@ -174,10 +175,14 @@ Supplier archival prevents new selections while preserving existing links and sn
 
 Permanent business PO numbers are assigned by a transactional tenant counter on first save and
 retained on deletion tombstones. Reference/name/title search runs within the tenant, with query-bound
-forward cursors. V2 draft writes include all supplier and platform fields in their fingerprints.
-Legacy writes resolve existing V1 receipts only; unmatched legacy saves require reloading rather
-than silently clearing V2 fields. Supplier writes use the same compact-receipt and rowversion
+forward cursors. V4 draft writes fingerprint supplier, platform and supplier-based line pricing.
+Legacy V1/V2 writes resolve their existing receipts only; unmatched old saves require reloading
+rather than silently clearing newer fields. Supplier writes use the same compact-receipt and rowversion
 reconciliation principles. See the [PO-02 specification](specs/2026-09-11-po-02-supplier-identity-and-references.md).
+
+PO-03 keeps the JSON aggregate. Supplier-based pricing writes content schema 3 through restricted V4 commands, with one quantity/unit and a per-unit or total-line amount. Exact decimal arithmetic calculates line amounts; a fixed total does not require quantity. V4 reads project older schema 1/2 entries without writing them. Complete old quotes retain their totals; unresolved references and structured quotes remain explicit until the owner resolves them. V3 still handles old content but cannot read or overwrite schema 3; receipt replay remains available. SQL validates the same numeric, unit, compatibility and gross bounds as the server.
+
+The authenticated calculation endpoint shares server rules without persisting input; the client cancels obsolete previews and hides stale results. Detail responses include derived line gross and subtotal information. See the [PO-03 specification](specs/2026-09-16-po-03-itemized-quantities-and-prices.md).
 
 ## Architectural invariants
 

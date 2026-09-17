@@ -5,11 +5,12 @@ import * as systemApi from './api/system';
 import * as purchasingApi from './api/purchaseOrders';
 
 const draft = { title: 'First draft', supplierName: null, supplierId: null, supplierContactName: null, supplierEmail: null, supplierPhone: null, supplierWebsite: null, supplierPostalAddress: null, supplierOrderReference: null, platform: null, currency: null, notes: null, sourceLinks: [], entries: [] };
-const first: purchasingApi.DraftOrder = { id: 'first', poReference: 'PO-000001', supplierIsArchived: false, draft, version: 'v1', createdAtUtc: '2026-09-12T00:00:00Z', updatedAtUtc: '2026-09-12T00:00:00Z' };
+const first: purchasingApi.DraftOrder = { calculation: { lines: [], incompleteLineCount: 0, merchandiseEstimate: null }, id: 'first', poReference: 'PO-000001', supplierIsArchived: false, draft, version: 'v1', createdAtUtc: '2026-09-12T00:00:00Z', updatedAtUtc: '2026-09-12T00:00:00Z' };
 const second: purchasingApi.DraftOrder = { ...first, id: 'second', draft: { ...draft, title: 'Second draft', notes: 'Saved second notes' } };
 const originalShowModal = Object.getOwnPropertyDescriptor(HTMLDialogElement.prototype, 'showModal');
 
 beforeEach(() => {
+  vi.spyOn(purchasingApi, 'calculateDraft').mockImplementation(() => new Promise(() => {}));
   // Navigation is the feature boundary under test; transport has separate coverage.
   window.history.replaceState(null, '', '/purchase-orders/first');
   Object.defineProperty(HTMLDialogElement.prototype, 'showModal', { configurable: true, value(this: HTMLDialogElement) { this.setAttribute('open', ''); } });

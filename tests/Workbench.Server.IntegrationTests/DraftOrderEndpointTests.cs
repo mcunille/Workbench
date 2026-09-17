@@ -14,8 +14,8 @@ namespace Workbench.Server.IntegrationTests;
 [Collection(SqlServerCollection.Name)]
 public sealed class DraftOrderEndpointTests(SqlServerFixture sqlServer)
 {
-    private const string Path = "/api/v2/purchase-order-drafts";
-    private static DraftContentV2 Empty => new(null, null, null, null, [], [], null, null, null, null, null, null, null, null);
+    private const string Path = "/api/v3/purchase-order-drafts";
+    private static DraftContentV3 Empty => new(null, null, null, null, [], [], null, null, null, null, null, null, null, null);
 
     [Fact]
     public async Task EmptyDraftCanBeSavedAndResumedInAnotherSession()
@@ -46,7 +46,7 @@ public sealed class DraftOrderEndpointTests(SqlServerFixture sqlServer)
             }
         };
         // WHEN the empty draft is explicitly saved.
-        var response = await AcquisitionEndpointTests.SendAsync(client, HttpMethod.Post, "/api/v2/purchase-order-drafts", request);
+        var response = await AcquisitionEndpointTests.SendAsync(client, HttpMethod.Post, "/api/v3/purchase-order-drafts", request);
         // THEN its receipt locates persistent content in a later authenticated session.
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
         var receipt = await response.Content.ReadFromJsonAsync<JsonElement>();
@@ -72,7 +72,7 @@ public sealed class DraftOrderEndpointTests(SqlServerFixture sqlServer)
         Assert.Equal(HttpStatusCode.Unauthorized, anonymous.StatusCode);
         Assert.True(anonymous.Headers.CacheControl?.NoStore);
         await LoginAsync(client);
-        var request = new CreateDraftOrderRequestV2(Guid.NewGuid(), Empty);
+        var request = new CreateDraftOrderRequestV3(Guid.NewGuid(), Empty);
         // WHEN CSRF or required/nested fields are invalid THEN no draft is created.
         Assert.Equal(HttpStatusCode.BadRequest, (await client.PostAsJsonAsync(Path, request)).StatusCode);
         foreach (var invalid in new object[]
@@ -105,26 +105,26 @@ public sealed class DraftOrderEndpointTests(SqlServerFixture sqlServer)
         await using var application = await AuthTestApplication.CreateAsync(sqlServer);
         using var client = application.CreateClient();
         await LoginAsync(client);
-        var request = new CreateDraftOrderRequestV2(Guid.NewGuid(), Empty with
+        var request = new CreateDraftOrderRequestV3(Guid.NewGuid(), Empty with
         {
             Title = "  Plan ",
             Currency = "usd",
             SourceLinks = [" https://example.com/cart "],
-            Entries = [new(Guid.NewGuid(), "  Stone ", " note\n ", null, "0"),
-                new(Guid.NewGuid(), "Unknown price", null, "https://example.com/stone", null)]
+            Entries = [new(Guid.NewGuid(), "  Stone ", " note\n ", null, "0", null, null, null, null, null, null, null, null),
+                new(Guid.NewGuid(), "Unknown price", null, "https://example.com/stone", null, null, null, null, null, null, null, null, null)]
         });
         var response = await SendAsync(client, HttpMethod.Post, Path, request);
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
         var first = (await response.Content.ReadFromJsonAsync<SaveDraftOrderResponse>())!;
         var detailPath = $"{Path}/{first.DraftOrderId}";
-        var original = (await client.GetFromJsonAsync<DraftOrderResponseV2>(detailPath))!;
+        var original = (await client.GetFromJsonAsync<DraftOrderResponseV3>(detailPath))!;
         Assert.Equal("Plan", original.Draft.Title);
         Assert.Equal("USD", original.Draft.Currency);
         Assert.Equal("0.0000", original.Draft.Entries[0].IndicativePrice);
         Assert.Null(original.Draft.Entries[1].IndicativePrice);
         Assert.Equal("https://example.com/stone", original.Draft.Entries[1].SourceLink);
         Assert.Equal(" note\n ", original.Draft.Entries[0].Notes);
-        var edit = new UpdateDraftOrderRequestV2(Guid.NewGuid(), original.Version, original.Draft with { Notes = "Later" });
+        var edit = new UpdateDraftOrderRequestV3(Guid.NewGuid(), original.Version, original.Draft with { Notes = "Later" });
         // WHEN a later save changes the current document and the original creation is retried.
         var updated = await SendAsync(client, HttpMethod.Put, detailPath, edit);
         Assert.Equal(HttpStatusCode.OK, updated.StatusCode);
@@ -135,7 +135,7 @@ public sealed class DraftOrderEndpointTests(SqlServerFixture sqlServer)
         // THEN its original compact evidence is stable and current content remains the later edit.
         Assert.Equal(first with { Replayed = true }, replay);
         Assert.Equal(detailPath, replayResponse.Headers.Location?.OriginalString);
-        var current = (await client.GetFromJsonAsync<DraftOrderResponseV2>(detailPath))!;
+        var current = (await client.GetFromJsonAsync<DraftOrderResponseV3>(detailPath))!;
         Assert.Equal("Later", current.Draft.Notes);
         Assert.Equal(later.SavedVersion, current.Version);
         Assert.NotEqual(replay.SavedVersion, current.Version);
@@ -159,22 +159,26 @@ public sealed class DraftOrderEndpointTests(SqlServerFixture sqlServer)
         await using var application = await AuthTestApplication.CreateAsync(sqlServer);
         using var client = application.CreateClient();
         await LoginAsync(client);
-        var content = Empty with { Currency = "USD", Entries = [new(Guid.NewGuid(), null, null, null, "1.25")] };
+        var content = Empty with { Currency = "USD", Entries = [new(Guid.NewGuid(), null, null, null, "1.25", null, null, null, null, null, null, null, null)] };
         var saved = await Create(client, content);
         var path = $"{Path}/{saved.DraftOrderId}";
-        var change = new UpdateDraftOrderRequestV2(Guid.NewGuid(), saved.SavedVersion, content with { Currency = "EUR" });
+        var change = new UpdateDraftOrderRequestV3(Guid.NewGuid(), saved.SavedVersion, content with { Currency = "EUR" });
         // WHEN an amount is relabeled without a successful clearing save THEN it has a currency error.
         Assert.Equal("draft_validation_failed", await Code(await SendAsync(client, HttpMethod.Put, path, change), HttpStatusCode.BadRequest));
-        var clear = change with { Draft = change.Draft with { Entries = [content.Entries[0] with { IndicativePrice = null }] } };
+        var clear = change with { Draft = content with { Entries = [content.Entries[0] with { IndicativePrice = null }] } };
+        Assert.Equal("draft_validation_failed", await Code(await SendAsync(client, HttpMethod.Put, path, clear with { Draft = clear.Draft with { Currency = "EUR" } }), HttpStatusCode.BadRequest));
         var clearedResponse = await SendAsync(client, HttpMethod.Put, path, clear);
         Assert.Equal(HttpStatusCode.OK, clearedResponse.StatusCode);
         var cleared = (await clearedResponse.Content.ReadFromJsonAsync<SaveDraftOrderResponse>())!;
-        var pricedResponse = await SendAsync(client, HttpMethod.Put, path, change with { RequestId = Guid.NewGuid(), ExpectedVersion = cleared.SavedVersion });
+        var currencyResponse = await SendAsync(client, HttpMethod.Put, path, clear with { RequestId = Guid.NewGuid(), ExpectedVersion = cleared.SavedVersion, Draft = clear.Draft with { Currency = "EUR" } });
+        Assert.Equal(HttpStatusCode.OK, currencyResponse.StatusCode);
+        var currencyChanged = (await currencyResponse.Content.ReadFromJsonAsync<SaveDraftOrderResponse>())!;
+        var pricedResponse = await SendAsync(client, HttpMethod.Put, path, change with { RequestId = Guid.NewGuid(), ExpectedVersion = currencyChanged.SavedVersion });
         Assert.Equal(HttpStatusCode.OK, pricedResponse.StatusCode);
         // THEN re-entering the amount in a later save succeeds and the original clearing receipt still resolves.
         var replay = await SendAsync(client, HttpMethod.Put, path, clear);
         Assert.Equal(cleared with { Replayed = true }, await replay.Content.ReadFromJsonAsync<SaveDraftOrderResponse>());
-        Assert.Equal("1.2500", (await client.GetFromJsonAsync<DraftOrderResponseV2>(path))!.Draft.Entries[0].IndicativePrice);
+        Assert.Equal("1.2500", (await client.GetFromJsonAsync<DraftOrderResponseV3>(path))!.Draft.Entries[0].IndicativePrice);
     }
 
     [Fact]
@@ -186,7 +190,7 @@ public sealed class DraftOrderEndpointTests(SqlServerFixture sqlServer)
         using var other = application.CreateClient();
         await LoginAsync(owner);
         await LoginAsync(other, "other@example.com");
-        var request = new CreateDraftOrderRequestV2(Guid.NewGuid(), Empty);
+        var request = new CreateDraftOrderRequestV3(Guid.NewGuid(), Empty);
         var created = await SendAsync(owner, HttpMethod.Post, Path, request);
         var saved = (await created.Content.ReadFromJsonAsync<SaveDraftOrderResponse>())!;
         // WHEN a foreign or missing target is requested THEN reads/writes expose no conflict details.
@@ -194,7 +198,7 @@ public sealed class DraftOrderEndpointTests(SqlServerFixture sqlServer)
         {
             Assert.Equal("draft_not_found", await Code(await other.GetAsync($"{Path}/{id}"), HttpStatusCode.NotFound));
             Assert.Equal("draft_not_found", await Code(await SendAsync(other, HttpMethod.Put, $"{Path}/{id}",
-                new UpdateDraftOrderRequestV2(request.RequestId, saved.SavedVersion, Empty)), HttpStatusCode.NotFound));
+                new UpdateDraftOrderRequestV3(request.RequestId, saved.SavedVersion, Empty)), HttpStatusCode.NotFound));
         }
         Assert.Empty((await other.GetFromJsonAsync<DraftOrderPageResponseV2>(Path))!.Items);
         var otherCreated = await SendAsync(other, HttpMethod.Post, Path, request);
@@ -211,7 +215,7 @@ public sealed class DraftOrderEndpointTests(SqlServerFixture sqlServer)
         using var second = application.CreateClient();
         await LoginAsync(first);
         await LoginAsync(second);
-        var create = new CreateDraftOrderRequestV2(Guid.NewGuid(), Empty);
+        var create = new CreateDraftOrderRequestV3(Guid.NewGuid(), Empty);
         // WHEN the matching requests race THEN exactly one creation and one replay identify the same draft.
         var created = await Task.WhenAll(SendAsync(first, HttpMethod.Post, Path, create), SendAsync(second, HttpMethod.Post, Path, create));
         Assert.Single(created, response => response.StatusCode == HttpStatusCode.Created);
@@ -220,7 +224,7 @@ public sealed class DraftOrderEndpointTests(SqlServerFixture sqlServer)
         var other = (await created[1].Content.ReadFromJsonAsync<SaveDraftOrderResponse>())!;
         Assert.Equal(saved.DraftOrderId, other.DraftOrderId);
         Assert.Equal(saved.SavedVersion, other.SavedVersion);
-        var edit = new UpdateDraftOrderRequestV2(Guid.NewGuid(), saved.SavedVersion, Empty with { Notes = "A" });
+        var edit = new UpdateDraftOrderRequestV3(Guid.NewGuid(), saved.SavedVersion, Empty with { Notes = "A" });
         // WHEN different requests race on the same version THEN the loser cannot overwrite the winner.
         var edited = await Task.WhenAll(SendAsync(first, HttpMethod.Put, $"{Path}/{saved.DraftOrderId}", edit),
             SendAsync(second, HttpMethod.Put, $"{Path}/{saved.DraftOrderId}", edit with { RequestId = Guid.NewGuid(), Draft = Empty with { Notes = "B" } }));
@@ -336,10 +340,10 @@ public sealed class DraftOrderEndpointTests(SqlServerFixture sqlServer)
         Assert.Equal("draft_not_found", await Code(await SendAsync(client, HttpMethod.Delete, path,
             new { requestId = Guid.NewGuid(), request.expectedVersion }), HttpStatusCode.NotFound));
         Assert.Equal("draft_not_found", await Code(await SendAsync(client, HttpMethod.Put, path,
-            new UpdateDraftOrderRequestV2(Guid.NewGuid(), receipt.SavedVersion, Empty)), HttpStatusCode.NotFound));
+            new UpdateDraftOrderRequestV3(Guid.NewGuid(), receipt.SavedVersion, Empty)), HttpStatusCode.NotFound));
         // AND replaying an older creation receipt cannot recreate the deleted draft.
         var creationReplay = await SendAsync(client, HttpMethod.Post, Path,
-            new CreateDraftOrderRequestV2(saved.RequestId, Empty with { Title = "Remove this draft" }));
+            new CreateDraftOrderRequestV3(saved.RequestId, Empty with { Title = "Remove this draft" }));
         Assert.Equal(HttpStatusCode.OK, creationReplay.StatusCode);
         Assert.Equal(saved with { Replayed = true }, await creationReplay.Content.ReadFromJsonAsync<SaveDraftOrderResponse>());
         Assert.Equal("draft_not_found", await Code(await client.GetAsync(path), HttpStatusCode.NotFound));
@@ -370,7 +374,7 @@ public sealed class DraftOrderEndpointTests(SqlServerFixture sqlServer)
         var saved = await Create(owner, Empty);
         var path = $"{Path}/{saved.DraftOrderId}";
         var edit = await SendAsync(owner, HttpMethod.Put, path,
-            new UpdateDraftOrderRequestV2(Guid.NewGuid(), saved.SavedVersion, Empty with { Notes = "Keep newer work" }));
+            new UpdateDraftOrderRequestV3(Guid.NewGuid(), saved.SavedVersion, Empty with { Notes = "Keep newer work" }));
         var current = (await edit.Content.ReadFromJsonAsync<SaveDraftOrderResponse>())!;
         // WHEN stale, malformed or CSRF-invalid requests attempt deletion THEN newer work survives.
         Assert.Equal("draft_version_conflict", await Code(await SendAsync(owner, HttpMethod.Delete, path,
@@ -393,12 +397,12 @@ public sealed class DraftOrderEndpointTests(SqlServerFixture sqlServer)
         foreach (var id in new[] { saved.DraftOrderId, Guid.NewGuid() })
             Assert.Equal("draft_not_found", await Code(await SendAsync(other, HttpMethod.Delete, $"{Path}/{id}",
                 new { requestId = Guid.NewGuid(), expectedVersion = current.SavedVersion }), HttpStatusCode.NotFound));
-        Assert.Equal("Keep newer work", (await owner.GetFromJsonAsync<DraftOrderResponseV2>(path))!.Draft.Notes);
+        Assert.Equal("Keep newer work", (await owner.GetFromJsonAsync<DraftOrderResponseV3>(path))!.Draft.Notes);
     }
 
-    private static async Task<SaveDraftOrderResponse> Create(HttpClient client, DraftContentV2 draft)
+    private static async Task<SaveDraftOrderResponse> Create(HttpClient client, DraftContentV3 draft)
     {
-        var response = await SendAsync(client, HttpMethod.Post, Path, new CreateDraftOrderRequestV2(Guid.NewGuid(), draft));
+        var response = await SendAsync(client, HttpMethod.Post, Path, new CreateDraftOrderRequestV3(Guid.NewGuid(), draft));
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
         return (await response.Content.ReadFromJsonAsync<SaveDraftOrderResponse>())!;
     }

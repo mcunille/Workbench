@@ -1133,7 +1133,7 @@ namespace Workbench.Server.Persistence.Migrations
 
                     b.ToTable("DraftOrders", "Purchasing", t =>
                         {
-                            t.HasCheckConstraint("CK_DraftOrders_Content", "[ContentSchemaVersion]=1 AND ISJSON([ContentJson],OBJECT)=1 AND DATALENGTH([ContentJson])<=1048576");
+                            t.HasCheckConstraint("CK_DraftOrders_Content", "[ContentSchemaVersion] IN (1,2,3) AND ISJSON([ContentJson],OBJECT)=1 AND DATALENGTH([ContentJson])<=1048576");
 
                             t.HasCheckConstraint("CK_DraftOrders_Currency", "[Currency] IS NULL OR (DATALENGTH([Currency])=3 AND [Currency] COLLATE Latin1_General_100_BIN2 NOT LIKE '%[^A-Z]%')");
 
@@ -1194,7 +1194,7 @@ namespace Workbench.Server.Persistence.Migrations
                         {
                             t.HasCheckConstraint("CK_DraftOrderRequestReceipts_Completed", "DATEPART(TZOFFSET,[CompletedAtUtc])=0");
 
-                            t.HasCheckConstraint("CK_DraftOrderRequestReceipts_Fingerprint", "[FingerprintVersion] IN (1,2)");
+                            t.HasCheckConstraint("CK_DraftOrderRequestReceipts_Fingerprint", "[FingerprintVersion] IN (1,2,3,4)");
 
                             t.HasCheckConstraint("CK_DraftOrderRequestReceipts_Operation", "([Operation] COLLATE Latin1_General_100_BIN2='Create' AND [ExpectedRowVersion] IS NULL) OR ([Operation] COLLATE Latin1_General_100_BIN2 IN ('Update','Delete') AND [ExpectedRowVersion] IS NOT NULL)");
 

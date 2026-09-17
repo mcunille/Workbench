@@ -165,6 +165,6 @@ it('protects unsaved contact changes while a conflict comparison read is still p
   fireEvent.change(screen.getByLabelText('Phone'), { target: { value: 'Unsaved phone' } });
   // WHEN fetching the comparison THEN navigation remains protected until reconciliation.
   fireEvent.click(screen.getByRole('button', { name: 'Save supplier' })); await waitFor(() => expect(getSupplier).toHaveBeenCalledTimes(2));
-  expect(callbacks.onDirtyChange).toHaveBeenLastCalledWith(true, false);
+  await waitFor(() => expect(callbacks.onDirtyChange).toHaveBeenLastCalledWith(true, false));
   await act(async () => finish(saved));
 });
