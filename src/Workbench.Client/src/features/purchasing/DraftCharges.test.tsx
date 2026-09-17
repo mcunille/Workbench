@@ -26,6 +26,28 @@ it('associates discount type validation with its selector', () => {
 });
 
 const saved: DraftContent = { title: null, supplierName: 'Supplier', supplierId: null, supplierContactName: null, supplierEmail: null, supplierPhone: null, supplierWebsite: null, supplierPostalAddress: null, supplierOrderReference: null, platform: null, currency: 'USD', notes: null, sourceLinks: [], entries: [], orderDiscount: null, charges: [{ id: 'freight', category: 'shipping', label: 'Freight', amount: '15.00', payeeKind: 'thirdParty', payeeName: 'Carrier', amountStatus: 'confirmed', reference: null, notes: null }] };
+it.each([{ supplierName: 'Replacement' }, { supplierName: null }, { supplierId: 'replacement-id' }])('reveals the explanation when the supplier payee changes: %j', patch => {
+  // GIVEN a collapsed confirmed supplier charge.
+  const baseline = { ...saved, charges: [{ ...saved.charges[0], payeeKind: 'supplier', payeeName: null }] };
+  const { rerender } = render(<DraftCharges draft={baseline} baseline={baseline} disabled={false} amountDisabled={false} errors={{}} change={() => {}} />);
+  expect(screen.getByLabelText('Charge notes 1')).not.toBeVisible();
+  // WHEN the order supplier changes THEN the charge opens and asks for an explanation before saving.
+  rerender(<DraftCharges draft={{ ...baseline, ...patch }} baseline={baseline} disabled={false} amountDisabled={false} errors={{}} change={() => {}} />);
+  expect(screen.getByLabelText('Charge notes 1')).toBeVisible();
+  expect(screen.getByText(/Add an explanation to Charge notes/)).toBeVisible();
+});
+
+it.each(['contact', 'estimated', 'thirdParty', 'whitespace'])('does not request a supplier correction for %s changes', kind => {
+  // GIVEN a saved charge whose effective payee will remain unchanged, or an estimate.
+  const charge = { ...saved.charges[0], payeeKind: kind === 'thirdParty' ? 'thirdParty' : 'supplier', payeeName: kind === 'thirdParty' ? 'Carrier' : null, amountStatus: kind === 'estimated' ? 'estimated' : 'confirmed' };
+  const baseline = { ...saved, charges: [charge] };
+  const draft = kind === 'contact' ? { ...baseline, supplierContactName: 'New contact' } : { ...baseline, supplierName: kind === 'whitespace' ? ' Supplier ' : 'Replacement' };
+  // WHEN the unrelated supplier details change THEN no correction is demanded and the charge stays collapsed.
+  render(<DraftCharges draft={draft} baseline={baseline} disabled={false} amountDisabled={false} errors={{}} change={() => {}} />);
+  expect(screen.getByLabelText('Charge notes 1')).not.toBeVisible();
+  expect(screen.queryByText(/Add an explanation to Charge notes/)).not.toBeInTheDocument();
+});
+
 function Harness({ errors = {} }: { errors?: Record<string, string[]> }) {
   const [draft, setDraft] = useState(saved);
   return <DraftCharges draft={draft} baseline={saved} disabled={false} amountDisabled={false} errors={errors} change={charges => setDraft({ ...draft, charges })} />;

@@ -81,7 +81,8 @@ public static class DraftOrderEndpointsV4
             {
                 using var document = JsonDocument.Parse(saved.ContentJson);
                 var charges = document.RootElement.GetProperty("charges").Deserialize<DraftCharge[]>(DraftOrderInput.JsonOptions)!;
-                var corrections = DraftOrderInputV4.ValidateConfirmedCorrections(charges, draft!.Charges);
+                var corrections = DraftOrderInputV4.ValidateConfirmedCorrections(charges, draft!.Charges,
+                    saved.SupplierId != draft.SupplierId || saved.SupplierName != draft.SupplierName);
                 if (corrections.Count > 0) return Validation(corrections);
             }
         }

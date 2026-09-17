@@ -8,6 +8,62 @@ namespace Workbench.Server.IntegrationTests;
 
 public sealed partial class DraftOrderDatabaseTests
 {
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task SupplierReplacementCannotBypassConfirmedChargeSqlGuard(bool upgrade)
+    {
+        // GIVEN a confirmed supplier charge saved through the restricted SQL command.
+        await using var database = await sqlServer.CreateMigratedDatabaseAsync(upgrade ? "AddDraftFinancialAdjustments" : null);
+        var tenant = Guid.NewGuid(); var actor = Guid.NewGuid();
+        await database.SeedTenantAuditRowsAsync(tenant, Guid.NewGuid()); await SeedActor(database, tenant, actor);
+        await using var connection = await Open(database, await database.CreateWebUserAsync(), tenant);
+        var input = FinancialInput(); input["draft"]!["supplierName"] = "Supplier Alpha";
+        var charge = FinancialCharge(); charge["amountStatus"] = "confirmed"; charge["notes"] = "Original source";
+        input["draft"]!["charges"]!.AsArray().Add(charge);
+        var creationRequest = Guid.NewGuid();
+        var saved = await SaveFinancial(connection, actor, creationRequest, input);
+        // AND upgrading retained financial content preserves the original receipt and draft.
+        if (upgrade) await Workbench.Server.Persistence.DatabaseMigrator.MigrateAsync(database.AdminConnectionString, default);
+        var replay = await SaveFinancial(connection, actor, creationRequest, input);
+        Assert.True(replay.Replayed); Assert.Equal(saved.Version, replay.Version);
+        input["operation"] = "Update"; input["targetId"] = saved.Id.ToString(); input["expectedVersion"] = Convert.ToBase64String(saved.Version);
+        // AND a contact correction alone does not change the supplier payee.
+        input["draft"]!["supplierContactName"] = "New contact";
+        saved = await SaveFinancial(connection, actor, Guid.NewGuid(), input);
+        input["expectedVersion"] = Convert.ToBase64String(saved.Version);
+        // AND a directory identity change is protected even when its displayed supplier name is unchanged.
+        var supplier = await SaveSupplier(connection, actor, Guid.NewGuid(), SupplierCanonical("Create", null, null, new("Supplier Alpha", null, null, null, null, null)));
+        var identityChange = input.DeepClone(); identityChange["draft"]!["supplierId"] = supplier.Id.ToString();
+        Assert.Equal(50400, (await Assert.ThrowsAsync<SqlException>(() => SaveFinancial(connection, actor, Guid.NewGuid(), identityChange))).Number);
+        // WHEN replacing or clearing the effective payee directly THEN the SQL boundary rejects unchanged notes.
+        foreach (var name in new string?[] { "Supplier Beta", null })
+        {
+            var candidate = input.DeepClone(); candidate["draft"]!["supplierName"] = name;
+            Assert.Equal(50400, (await Assert.ThrowsAsync<SqlException>(() => SaveFinancial(connection, actor, Guid.NewGuid(), candidate))).Number);
+        }
+        // WHEN a new explanation accompanies the replacement THEN the command accepts and replays it.
+        input["draft"]!["supplierName"] = "Supplier Beta"; charge["notes"] = "Original source; supplier replaced";
+        var request = Guid.NewGuid();
+        await SaveFinancial(connection, actor, request, input);
+        Assert.True((await SaveFinancial(connection, actor, request, input)).Replayed);
+        // AND supplier replacement does not require notes for estimates or independent third-party payees.
+        foreach (var thirdParty in new[] { false, true })
+        {
+            var independent = FinancialInput(); independent["draft"]!["supplierName"] = "Supplier Alpha";
+            var independentCharge = FinancialCharge();
+            independentCharge["amountStatus"] = thirdParty ? "confirmed" : "estimated";
+            if (thirdParty) { independentCharge["payeeKind"] = "thirdParty"; independentCharge["payeeName"] = "Bank"; }
+            independent["draft"]!["charges"]!.AsArray().Add(independentCharge);
+            var created = await SaveFinancial(connection, actor, Guid.NewGuid(), independent);
+            independent["operation"] = "Update"; independent["targetId"] = created.Id.ToString(); independent["expectedVersion"] = Convert.ToBase64String(created.Version);
+            independent["draft"]!["supplierName"] = "Supplier Beta";
+            await SaveFinancial(connection, actor, Guid.NewGuid(), independent);
+        }
+        // AND removing the protection through downgrade remains blocked.
+        Assert.Equal(50020, (await Assert.ThrowsAsync<SqlException>(() => Workbench.Server.Persistence.DatabaseMigrator.MigrateToAsync(database.AdminConnectionString, "AddDraftFinancialAdjustments", default))).Number);
+    }
+
     private static JsonNode FinancialInput()
     {
         var input = JsonNode.Parse(DraftOrderInputV4.Canonical("Create", null, null,

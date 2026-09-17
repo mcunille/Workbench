@@ -129,4 +129,20 @@ test('discounts and source charges reconcile and persist without combining suppl
   await expect(page.getByRole('button', { name: 'Save draft', exact: true })).toBeDisabled();
   await page.reload();
   await expect(page.locator('.po-summary-total dd')).toHaveText('USD 310.60');
+  // WHEN the order supplier changes THEN only its confirmed charges request new payee explanations.
+  await page.locator('.po-supplier-summary').click();
+  await page.getByLabel('Supplier name', { exact: true }).fill('Replacement gemstone supplier');
+  await expect(page.getByLabel('Charge notes 1', { exact: true })).toBeVisible();
+  await expect(page.getByLabel('Charge notes 2', { exact: true })).toBeVisible();
+  await expect(page.getByLabel('Charge notes 3', { exact: true })).not.toBeVisible();
+  await page.getByRole('button', { name: 'Save draft', exact: true }).click();
+  await expect(page.getByRole('alert')).toContainText('explanation');
+  // AND supplying both explanations saves the new supplier without changing the estimate or bank charge.
+  await page.getByLabel('Charge notes 1', { exact: true }).fill('Updated shipping quote; payable to replacement supplier.');
+  await page.getByLabel('Charge notes 2', { exact: true }).fill('Tax confirmed by replacement supplier.');
+  await page.getByRole('button', { name: 'Save draft', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Save draft', exact: true })).toBeDisabled();
+  await page.reload();
+  await expect(page.locator('.po-supplier-summary')).toContainText('Replacement gemstone supplier');
+  await expect(page.locator('.po-summary-total dd')).toHaveText('USD 310.60');
 });

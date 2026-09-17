@@ -81,6 +81,14 @@ public sealed class DraftAdjustmentsTests
         Assert.Empty(DraftOrderInputV4.ValidateConfirmedCorrections([saved], [saved with { Amount = "11.0000", Notes = "Earlier explanation; supplier correction" }]));
         Assert.Contains("draft.charges[0].notes", DraftOrderInputV4.ValidateConfirmedCorrections([saved], [saved with { AmountStatus = "estimated" }]));
         Assert.Contains("draft.charges[0].notes", DraftOrderInputV4.ValidateConfirmedCorrections([saved], [saved with { PayeeKind = "thirdParty", PayeeName = "Carrier" }]));
+        // AND changing the supplier snapshot changes the effective payee of a confirmed supplier charge.
+        Assert.Contains("draft.charges[0].notes", DraftOrderInputV4.ValidateConfirmedCorrections([saved], [saved], supplierChanged: true));
+        Assert.Empty(DraftOrderInputV4.ValidateConfirmedCorrections([saved], [saved with { Notes = "Earlier explanation; supplier replaced" }], supplierChanged: true));
+        // BUT estimated and third-party charges retain their own payee semantics.
+        var estimated = saved with { AmountStatus = "estimated" };
+        var thirdParty = saved with { PayeeKind = "thirdParty", PayeeName = "Bank" };
+        Assert.Empty(DraftOrderInputV4.ValidateConfirmedCorrections([estimated], [estimated], supplierChanged: true));
+        Assert.Empty(DraftOrderInputV4.ValidateConfirmedCorrections([thirdParty], [thirdParty], supplierChanged: true));
     }
     [Fact]
     public void RequiredPropertiesProtectReplacementsAndStoredSchemaThreeUpgrades()

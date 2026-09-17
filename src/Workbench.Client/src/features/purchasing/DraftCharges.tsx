@@ -38,8 +38,9 @@ export function DraftCharges({ draft, baseline, disabled, amountDisabled, errors
       const update = (patch: Partial<Charge>) => change(draft.charges.map(old => old.id === charge.id ? { ...old, ...patch } : old));
       const old = baseline?.charges.find(saved => saved.id === charge.id);
       const invalid = Object.keys(errors).some(key => key === path || key.startsWith(`${path}.`));
-      const open = (expanded[charge.id] ?? !old) || invalid;
-      const correction = old?.amountStatus === 'confirmed' && (charge.amount !== old.amount || charge.amountStatus !== old.amountStatus || charge.payeeKind !== old.payeeKind || charge.payeeName !== old.payeeName);
+      const supplierCorrection = old?.amountStatus === 'confirmed' && old.payeeKind === 'supplier' && (draft.supplierId !== baseline?.supplierId || (draft.supplierName?.trim() || null) !== (baseline?.supplierName?.trim() || null));
+      const open = (expanded[charge.id] ?? (!old || supplierCorrection)) || invalid;
+      const correction = supplierCorrection || (old?.amountStatus === 'confirmed' && (charge.amount !== old.amount || charge.amountStatus !== old.amountStatus || charge.payeeKind !== old.payeeKind || charge.payeeName !== old.payeeName));
       const field = (key: 'label' | 'payeeName' | 'reference' | 'notes', label: string) => <div className="po-field"><FloatingField htmlFor={id(key)} label={label}>
         {key === 'notes' ? <textarea id={id(key)} aria-label={`${label} ${index + 1}`} rows={3} value={charge[key] ?? ''} disabled={disabled} placeholder=" " aria-invalid={!!error(key)} aria-describedby={error(key) ? `${id(key)}-error` : undefined} onChange={event => update({ [key]: event.target.value || null })} /> : <input id={id(key)} aria-label={`${label} ${index + 1}`} value={charge[key] ?? ''} disabled={disabled} placeholder=" " aria-invalid={!!error(key)} aria-describedby={error(key) ? `${id(key)}-error` : undefined} onChange={event => update({ [key]: key === 'label' ? event.target.value : event.target.value || null })} />}
       </FloatingField>{error(key) ? <p id={`${id(key)}-error`} className="form-message error">{error(key)}</p> : null}</div>;

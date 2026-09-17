@@ -86,13 +86,13 @@ public static partial class DraftOrderInputV4
                 errors["draft.charges"] = ["The estimate exceeds 21 integer digits."];
         }
     }
-    public static Dictionary<string, string[]> ValidateConfirmedCorrections(IReadOnlyList<DraftCharge> saved, IReadOnlyList<DraftCharge> replacement)
+    public static Dictionary<string, string[]> ValidateConfirmedCorrections(IReadOnlyList<DraftCharge> saved, IReadOnlyList<DraftCharge> replacement, bool supplierChanged = false)
     {
         Dictionary<string, string[]> errors = [];
         for (var i = 0; i < replacement.Count; i++)
         {
             var current = replacement[i]; var old = saved.FirstOrDefault(c => c.Id == current.Id);
-            if (old?.AmountStatus == "confirmed" && (old.Amount != current.Amount || old.PayeeKind != current.PayeeKind || old.PayeeName != current.PayeeName || old.AmountStatus != current.AmountStatus) && (string.IsNullOrWhiteSpace(current.Notes) || current.Notes == old.Notes))
+            if (old?.AmountStatus == "confirmed" && (old.Amount != current.Amount || old.PayeeKind != current.PayeeKind || old.PayeeName != current.PayeeName || old.AmountStatus != current.AmountStatus || (old.PayeeKind == "supplier" && supplierChanged)) && (string.IsNullOrWhiteSpace(current.Notes) || current.Notes == old.Notes))
                 errors[$"draft.charges[{i}].notes"] = ["Append a new explanation for changing this confirmed charge's amount, payee or status."];
         }
         return errors;
