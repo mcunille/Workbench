@@ -121,7 +121,8 @@ test('H10 a lost connection response retains original tokens and requires review
   await page.getByRole('button', { name: 'Save connection', exact: true }).click();
   await expect(page.getByRole('alert')).toContainText(/confirm/i);
   await page.getByRole('button', { name: 'Retry connection save', exact: true }).click();
-  expect(submissions).toHaveLength(2);
+  // THEN the asynchronous retry arrives with the original concurrency tokens.
+  await expect.poll(() => submissions.length).toBe(2);
   expect(submissions[1]).toEqual(submissions[0]);
   // THEN conflict review is readable at 320px and preserves its state across appearances.
   await expect(page.getByRole('heading', { name: 'Review current connection', exact: true })).toBeVisible();

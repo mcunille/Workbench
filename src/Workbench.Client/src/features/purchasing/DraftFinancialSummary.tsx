@@ -16,7 +16,7 @@ export function DraftFinancialSummary({ draft, result }: { draft: DraftContent; 
       {draft.charges.some(charge => charge.payeeKind === 'thirdParty') ? row('Third-party charges', result.thirdPartyCharges) : null}
       {row('Total purchase estimate', result.purchaseEstimate, false, 'po-summary-total')}
     </dl>
-    {result.incompleteLineCount ? <p>{result.incompleteLineCount} {result.incompleteLineCount === 1 ? 'line needs' : 'lines need'} quantity or pricing details. Discounts awaiting a complete base are not applied to the known subtotal.</p> : null}
+    {result.incompleteLineCount ? <p>{result.incompleteLineCount} {result.incompleteLineCount === 1 ? 'line needs' : 'lines need'} quantity or pricing details. Any discounts that depend on those details are not included yet.</p> : null}
     {result.incompleteChargeCount ? <p>{result.incompleteChargeCount} {result.incompleteChargeCount === 1 ? 'charge has' : 'charges have'} an unknown amount.</p> : null}
     {!draft.entries.length ? <p>Add merchandise to calculate a complete purchase estimate. Charge subtotals are shown separately.</p> : null}
   </section>;

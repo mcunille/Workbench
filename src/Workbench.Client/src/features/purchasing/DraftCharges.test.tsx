@@ -2,6 +2,28 @@ import { useState } from 'react';
 import { fireEvent, render, screen } from '@testing-library/react';
 import type { DraftContent } from '../../api/purchaseOrders';
 import { DraftCharges } from './DraftCharges';
+import { DiscountFields } from './DiscountFields';
+
+it.each([['category', 'Category'], ['amountStatus', 'Amount status'], ['payeeKind', 'Payee']])('associates %s validation with its charge selector', (key, label) => {
+  // GIVEN a saved charge with a rejected selection.
+  const { rerender } = render(<Harness errors={{ [`draft.charges[0].${key}`]: ['Choose a supported value.'] }} />);
+  // THEN keyboard and assistive-technology users can identify the error from the revealed control.
+  const control = screen.getByLabelText(`${label} 1`);
+  expect(control).toBeVisible();
+  expect(control).toHaveAttribute('aria-invalid', 'true');
+  expect(control).toHaveAccessibleDescription('Choose a supported value.');
+  // WHEN validation clears THEN the obsolete error description is removed.
+  rerender(<Harness />);
+  expect(control).toHaveAttribute('aria-invalid', 'false');
+  expect(control).not.toHaveAttribute('aria-describedby');
+});
+
+it('associates discount type validation with its selector', () => {
+  // GIVEN a discount whose type was rejected.
+  render(<DiscountFields label="Order discount" path="draft.orderDiscount" discount={{ mode: 'fixed', value: '10' }} currency="USD" disabled={false} errors={{ 'draft.orderDiscount.mode': ['Choose a supported discount type.'] }} change={() => {}} />);
+  // THEN its selector exposes the specific recovery message.
+  expect(screen.getByLabelText('Order discount type')).toHaveAccessibleDescription('Choose a supported discount type.');
+});
 
 const saved: DraftContent = { title: null, supplierName: 'Supplier', supplierId: null, supplierContactName: null, supplierEmail: null, supplierPhone: null, supplierWebsite: null, supplierPostalAddress: null, supplierOrderReference: null, platform: null, currency: 'USD', notes: null, sourceLinks: [], entries: [], orderDiscount: null, charges: [{ id: 'freight', category: 'shipping', label: 'Freight', amount: '15.00', payeeKind: 'thirdParty', payeeName: 'Carrier', amountStatus: 'confirmed', reference: null, notes: null }] };
 function Harness({ errors = {} }: { errors?: Record<string, string[]> }) {

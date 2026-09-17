@@ -48,7 +48,7 @@ test('discounts and source charges reconcile and persist without combining suppl
   // THEN supplier and whole-purchase estimates reconcile independently with inspectable bases.
   await expect(page.locator('.po-summary-subtotal dd')).toHaveText('USD 306.60');
   await expect(page.locator('.po-summary-total dd')).toHaveText('USD 309.60');
-  await expect(page.locator('.po-discount').last()).toContainText('Eligible base: USD 280.00');
+  await expect(page.locator('.po-discount').last()).toContainText('Discount applies to: USD 280.00');
   await page.getByRole('button', { name: 'Save draft', exact: true }).click();
   await expect(page).toHaveURL(/\/purchase-orders\/[a-f0-9-]{36}$/);
   await page.reload();

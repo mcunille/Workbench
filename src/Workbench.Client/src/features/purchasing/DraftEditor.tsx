@@ -350,13 +350,13 @@ export function DraftEditor({ id: initialId, onDirtyChange, onAuthLost, onSaved,
               placeholder: 'Not set', disabled: !!baseline?.draft.currency && hasMonetaryAmounts(baseline.draft),
             })}
             <div className="po-field-help">
-              <p>Prices, discounts and charges use this currency. Clear amounts and save before changing it.</p>
+              <p>Prices, discounts and charges use this currency. To change it, clear all amounts and save first.</p>
               {hasPrices ? (
                 <button className="quiet" type="button" disabled={frozen} onClick={() => setClearingPrices(true)}>Clear all amounts</button>
               ) : null}
             </div>
           </div>
-          {currencyTransition ? <p role="status">Save the changed currency with all amounts cleared before entering new amounts.</p> : null}
+          {currencyTransition ? <p role="status">Save the new currency before entering amounts.</p> : null}
           {draft.entries.length === 0 ? <p className="po-section-empty">Add a line to itemize your purchase. You can save an empty draft too.</p> : null}
           {draft.entries.map((entry, index) => {
             return (
