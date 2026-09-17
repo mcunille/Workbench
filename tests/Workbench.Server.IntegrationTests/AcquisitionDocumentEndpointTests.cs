@@ -114,6 +114,7 @@ public sealed class AcquisitionDocumentEndpointTests(SqlServerFixture sqlServer)
         var requestId = Guid.NewGuid();
 
         // AND uploads without antiforgery proof cannot change saved evidence.
+        client.DefaultRequestHeaders.Add("X-Workbench-Api-Revision", "beta-1");
         Assert.Equal(HttpStatusCode.BadRequest, (await client.PostAsync(path, new MultipartFormDataContent())).StatusCode);
         Assert.Equal(HttpStatusCode.OK, (await UploadAsync(client, path, context, requestId, bytes)).StatusCode);
         var list = (await client.GetFromJsonAsync<AcquisitionDocumentsResponse>(path))!;

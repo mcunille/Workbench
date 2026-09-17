@@ -1,7 +1,7 @@
 # Beta API lifecycle and purchasing consolidation
 
-**Status:** Accepted — the owner explicitly approved this design on 2026-09-16; implementation
-and verification are in progress.
+**Status:** Implemented — the owner explicitly approved this design on 2026-09-16.
+Current usage and retained compatibility components are documented in [API lifecycle](../api-lifecycle.md).
 
 Tracks [issue #120](https://github.com/mcunille/Workbench/issues/120).
 

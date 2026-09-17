@@ -55,8 +55,10 @@ internal static class RetiredDraftOrderReceipts
                 if (errors.Count > 0) return Invalid();
             }
             // Frozen normalizers preserve each historical fingerprint's field order and number formatting.
+            // SQL deletion receipts used literal base64, including '+'. Both interpolated values are
+            // already restricted to GUID/base64 syntax; JSON escaping would change the stored fingerprint.
             canonical = operation == "Delete"
-                ? JsonSerializer.Serialize(new { operation, targetId, expectedVersion, draft = (object?)null }, ReceiptDraftOrderInputV1.JsonOptions)
+                ? $$"""{"operation":"Delete","targetId":"{{targetId:D}}","expectedVersion":"{{expectedVersion}}","draft":null}"""
                 : Canonical(fingerprintVersion, operation, targetId, expectedVersion, Property(root, "draft"));
         }
         catch (Exception exception) when (exception is JsonException or InvalidOperationException or KeyNotFoundException or FormatException or ArgumentException)

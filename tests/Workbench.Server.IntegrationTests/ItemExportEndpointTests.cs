@@ -107,6 +107,7 @@ public sealed class ItemExportEndpointTests(SqlServerFixture sqlServer)
         await using var storageFactory = CreateExportFactory(app);
         using var client = storageFactory.CreateClient();
         // WHEN requesting a private export.
+        client.DefaultRequestHeaders.Add("X-Workbench-Api-Revision", "beta-1");
         Assert.Equal(HttpStatusCode.Unauthorized, (await client.PostAsJsonAsync(ExportPath(package), new { scope = "all" })).StatusCode);
         await LoginAsync(client);
         // THEN authentication alone does not bypass antiforgery validation.
