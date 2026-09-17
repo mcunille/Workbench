@@ -26,6 +26,10 @@ public sealed partial class DraftOrderDatabaseTests
         await Workbench.Server.Persistence.DatabaseMigrator.MigrateAsync(database.AdminConnectionString, default);
         history.CommandText = "SELECT COUNT(*) FROM dbo.__EFMigrationsHistory";
         Assert.Equal(19, Convert.ToInt32(await history.ExecuteScalarAsync()));
+        var inspection = await Workbench.Server.Administration.DevelopmentDatabaseInspection.InspectAsync(database.AdminConnectionString, default);
+        Assert.True(inspection.MigrationHistoryCompatible);
+        Assert.True(inspection.SchemaCurrent);
+        Assert.Equal(19, inspection.AppliedMigrations.Length);
         var replay = await Save(connection, actor, request, original, "Create");
         Assert.Equal(saved.Version, replay.Version); Assert.True(replay.Replayed);
         // AND a V4 update retains the order identity while older clients cannot overwrite the new content.

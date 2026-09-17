@@ -17,8 +17,20 @@ public sealed record DevelopmentDatabaseReport(
 
 public static class DevelopmentDatabaseInspection
 {
-    public static bool IsCompatibleHistory(IReadOnlyList<string> known, IReadOnlyList<string> applied) =>
-        applied.Count <= known.Count && applied.SequenceEqual(known.Take(applied.Count), StringComparer.Ordinal);
+    public static bool IsCompatibleHistory(IReadOnlyList<string> known, IReadOnlyList<string> applied)
+    {
+        if (applied.Count <= known.Count && applied.SequenceEqual(known.Take(applied.Count), StringComparer.Ordinal))
+            return true;
+
+        // Retained previews applied both PO-03 steps before they were consolidated. Accept only
+        // that completed sequence; never rewrite history or allow the removed step on its own.
+        const string consolidated = "20260917010000_AddSupplierBasedDraftPricing";
+        var index = Array.IndexOf(known.ToArray(), consolidated);
+        if (index < 0 || !applied.Contains(consolidated, StringComparer.Ordinal)) return false;
+        var historical = known.Take(index).Append("20260916183834_AddStructuredDraftOrderLines")
+            .Concat(known.Skip(index)).ToArray();
+        return applied.Count <= historical.Length && applied.SequenceEqual(historical.Take(applied.Count), StringComparer.Ordinal);
+    }
 
     public static async Task<DevelopmentDatabaseReport> InspectAsync(
         string connectionString, CancellationToken cancellationToken)
@@ -58,7 +70,7 @@ public static class DevelopmentDatabaseInspection
         var present = new List<string>();
         await using var reader = await roles.ExecuteReaderAsync(cancellationToken);
         while (await reader.ReadAsync(cancellationToken)) present.Add(reader.GetString(0));
-        return new(known, applied, compatible, compatible && known.Length == applied.Length,
+        return new(known, applied, compatible, compatible && !known.Except(applied, StringComparer.Ordinal).Any(),
             initialized, bootstrapped, present.ToArray());
     }
 }
