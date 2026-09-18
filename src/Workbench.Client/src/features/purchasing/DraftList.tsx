@@ -72,7 +72,7 @@ export function DraftList({ memory, follow, onAuthLost }: Props) {
       </form>
       <div className="po-list-toolbar po-draft-results-toolbar">
         <div className="po-draft-result-context">
-          <p className="po-list-caption">{memory.query ? 'Matching purchase orders' : 'Purchase orders'}</p>
+          <p className="po-list-caption">Purchase orders</p>
           <div className="po-draft-progress"><p role="status" aria-live="polite" aria-atomic="true" className={pending ? undefined : 'po-accessible-heading'}>{pending ? 'Loading purchases…' : message || !page ? '' : page.items.length === 0 ? (memory.query ? 'No matching purchase orders.' : 'No purchase orders yet.') : `Purchase orders shown: ${page.items.length.toLocaleString()}.${page.nextCursor ? ' More available.' : ''}`}</p></div>
         </div>
         <button type="button" className={`quiet po-draft-clear${query || memory.query ? '' : ' is-unavailable'}`} disabled={!query && !memory.query} aria-hidden={!query && !memory.query} onClick={() => { searchInput.current?.focus(); setQuery(''); void load(true, ''); }}>Clear search</button>

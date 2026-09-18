@@ -20,6 +20,8 @@ public sealed class BlobManifestValidationTests
     [InlineData("20260916183834_AddStructuredDraftOrderLines")]
     [InlineData("20260918020000_IntegrateBetaDraftFinancialAdjustments")]
     [InlineData("20260918030000_AddPurchaseOrderCommitment")]
+    [InlineData("20260918040000_HardenPurchaseOrderCommitmentValidation")]
+    [InlineData("20260918050000_ProjectRetainedPurchaseOrderLines")]
     [InlineData("20260917015000_PrepareRetainedBetaFinancialUpgrade")]
     [InlineData("20260917010000_AddSupplierBasedDraftPricing")]
     [InlineData("20260917080000_ConsolidateBetaDraftCommands")]

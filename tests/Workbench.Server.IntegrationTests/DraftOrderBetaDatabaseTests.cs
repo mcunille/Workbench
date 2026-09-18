@@ -35,13 +35,15 @@ public sealed partial class DraftOrderDatabaseTests
         }
         async Task<string> Snapshot()
         {
-            await using var read = new SqlCommand("SELECT (SELECT * FROM Purchasing.DraftOrders ORDER BY Id FOR JSON PATH) Drafts,(SELECT * FROM Purchasing.DraftOrderRequestReceipts ORDER BY RequestId FOR JSON PATH) Receipts FOR JSON PATH,WITHOUT_ARRAY_WRAPPER", connection);
+            await using var read = new SqlCommand("SELECT (SELECT Id,TenantId,IsDeleted,Title,SupplierName,PoNumber,SupplierId,SupplierContactName,SupplierEmail,SupplierPhone,SupplierWebsite,SupplierPostalAddress,SupplierOrderReference,Platform,Currency,Notes,ContentSchemaVersion,ContentJson,CreatedAtUtc,UpdatedAtUtc,CreatedByUserId,UpdatedByUserId,RowVersion FROM Purchasing.DraftOrders ORDER BY Id FOR JSON PATH) Drafts,(SELECT * FROM Purchasing.DraftOrderRequestReceipts ORDER BY RequestId FOR JSON PATH) Receipts FOR JSON PATH,WITHOUT_ARRAY_WRAPPER", connection);
             return (string)(await read.ExecuteScalarAsync())!;
         }
         var before = await Snapshot();
         // WHEN the forward migration retires old writers THEN every retained record and receipt stays byte-for-byte intact.
         await DatabaseMigrator.MigrateAsync(database.AdminConnectionString, default);
         Assert.Equal(before, await Snapshot());
+        await using var state = new SqlCommand("SELECT COUNT(*) FROM Purchasing.DraftOrders WHERE State<>'Draft' OR Revision<>0 OR OrderDate IS NOT NULL", connection);
+        Assert.Equal(0, await state.ExecuteScalarAsync());
         // AND the renamed beta writer cannot accept the old six-field contract and silently discard newer fields.
         Assert.Equal(50400, (await Assert.ThrowsAsync<SqlException>(() => Save(connection, actor, Guid.NewGuid(), receipts[0].Canonical, "Create"))).Number);
         Assert.Equal(before, await Snapshot());

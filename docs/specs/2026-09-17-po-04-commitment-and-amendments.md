@@ -140,9 +140,12 @@ and upgrade from the PR base, retained data, restricted-principal permissions an
 Implementation note: the isolated retained preview applied `AddPurchaseOrderCommitment` before
 final SQL edge-case verification. Preserve that applied migration and use
 `HardenPurchaseOrderCommitmentValidation` for supplier GUID normalization, trimmed amendment reasons
-and older structured-line adaptation. These two migrations deliberately remain separate under the
-repository's prohibition on rewriting applied retained history; fresh and predecessor upgrades
-apply both in order. The preview's installed procedure was inspected before making this correction.
+and older structured-line adaptation. After that correction was also applied, independent review
+identified a missing projection for the oldest retained line formats. The forward
+`ProjectRetainedPurchaseOrderLines` correction makes commitment match public read projections while
+preserving unresolved quotes for validation. These three migrations deliberately remain separate
+under the repository's prohibition on rewriting applied retained history; fresh and predecessor
+upgrades apply them in order. The preview's installed procedure was inspected before correction.
 
 ## Acceptance and verification
 

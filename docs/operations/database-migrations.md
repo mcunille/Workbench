@@ -106,13 +106,14 @@ This inventory describes checked-in migration behavior, not permission to execut
 | `20260918020000_IntegrateBetaDraftFinancialAdjustments` | `RemoveHistoricalDraftReplay` | Installs PO-05 validation and confirmed supplier correction protection on the single beta writer, removes all temporary V3/V4 prerequisites, and advances readiness/backup markers. Retains schema 1/2/3/4 content and exact receipt bytes. | Always blocked; use forward correction or guarded recovery. |
 | `20260918030000_AddPurchaseOrderCommitment` | `IntegrateBetaDraftFinancialAdjustments` | Adds Draft/Ordered state, order date, immutable revision snapshots and actor-bound commitment/amendment receipts, with RLS and restricted commands. Preserves existing drafts, references, row versions and receipts without inferring commitments. Protects draft writers after successful receipt replay; advances readiness and backup markers. Stop older writers and deploy the matching beta-3 application. | Always blocked; retain agreed contents and amendment history through forward correction or guarded recovery. |
 | `20260918040000_HardenPurchaseOrderCommitmentValidation` | `AddPurchaseOrderCommitment` | Forward correction for a retained preview already carrying the preceding migration: normalizes supplier GUID serialization, enforces trimmed amendment reasons and adapts older structured lines without a discount property. No history or receipts are rewritten; advances readiness and backup markers. | Always blocked; forward correction or guarded recovery. |
+| `20260918050000_ProjectRetainedPurchaseOrderLines` | `HardenPurchaseOrderCommitmentValidation` | Projects older retained draft lines under the commitment lock using the same exact-unit or line-total conversion as public reads. Preserves unresolved quotes for rejection and leaves saved drafts untouched until successful commitment. Earlier migrations were applied to the retained preview; this correction advances readiness and backup markers without rewriting that history. | Always blocked; forward correction or guarded recovery. |
 
 Product behavior, user-visible concurrency/retry rules and the shipped feature inventory belong in
 [collection documentation](../collection.md). Provider retry/backoff behavior belongs in
 [identity delivery and worker operations](blob-and-service-providers.md#identity-delivery-and-worker).
 The [migration source](../../src/Workbench.Server/Persistence/Migrations) is authoritative for SQL.
 
-The current required migration is `20260918040000_HardenPurchaseOrderCommitmentValidation`.
+The current required migration is `20260918050000_ProjectRetainedPurchaseOrderLines`.
 Stop all application writers before migration and deploy the matching beta API/client together
 only after the entire pending migration set completes. The final schema has one purchasing writer
 with PO-05 financial and confirmed supplier correction validation, no historical replay procedure,

@@ -51,6 +51,27 @@ it('retries an uncertain commitment with its original request and keeps the date
   expect(vi.mocked(commitOrder).mock.calls[1]).toEqual(vi.mocked(commitOrder).mock.calls[0]);
 });
 
+it('focuses commitment validation and reveals saved-content fields without losing the entered date', async () => {
+  // GIVEN a saved draft whose line needs correction according to the server.
+  vi.mocked(getDraft).mockReset().mockResolvedValue(saved);
+  vi.mocked(commitOrder).mockReset().mockRejectedValue(new DraftError(400, 'purchase_validation_failed', { 'draft.entries[0].description': ['Describe the ordered item.'], 'draft.entries[0].quantity': ['Enter an ordered quantity.'] }));
+  render(<DraftEditor {...props()} />);
+  fireEvent.click(await screen.findByRole('button', { name: 'Record as ordered' }));
+  // WHEN confirming without a date THEN keyboard focus identifies the affected input.
+  const confirm = screen.getByRole('button', { name: 'Confirm order' }); confirm.focus(); fireEvent.click(confirm);
+  expect(screen.getByLabelText('Order date')).toHaveFocus();
+  expect(screen.getByLabelText('Order date')).toHaveAttribute('aria-invalid', 'true');
+  fireEvent.change(screen.getByLabelText('Order date'), { target: { value: '2026-09-16' } });
+  fireEvent.click(confirm);
+  // WHEN following the authoritative saved-content error THEN its collapsed line opens for correction.
+  fireEvent.click(await screen.findByRole('button', { name: 'Enter an ordered quantity.' }));
+  await waitFor(() => expect(screen.getByLabelText('Quantity 1')).toHaveFocus());
+  expect(screen.getByLabelText('Quantity 1').closest('details')).toHaveAttribute('open');
+  // AND the review can be reopened with its entered date intact.
+  fireEvent.click(screen.getByRole('button', { name: 'Record as ordered' }));
+  expect(screen.getByLabelText('Order date')).toHaveValue('2026-09-16');
+});
+
 it('keeps an amendment on validation failure and requires review before submission', async () => {
   // GIVEN an ordered purchase and authoritative validation failure.
   vi.mocked(getDraft).mockResolvedValue(ordered);

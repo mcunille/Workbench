@@ -43,6 +43,7 @@ const optional = (text: string) => text === '' ? null : text;
 
 export function DraftEditor({ id: initialId, onDirtyChange, onAuthLost, onSaved, onCreated, onCancel }: Props) {
   const [committing, setCommitting] = useState(false);
+  const [commitDate, setCommitDate] = useState('');
   const [commitPending, setCommitPending] = useState(false);
   const [amending, setAmending] = useState(false);
   const [orderDate, setOrderDate] = useState('');
@@ -89,7 +90,7 @@ export function DraftEditor({ id: initialId, onDirtyChange, onAuthLost, onSaved,
   const supplierAccessLost = useCallback(() => {
     setDraft(emptyDraft()); setBaseline(undefined); setCurrent(undefined); setSavedAt(undefined);
     submitted.current = undefined; confirmed.current = undefined; deletion.current = undefined;
-    setSupplierDirty(false); setSupplierUncertain(false); setCommitting(false); setCommitPending(false); setAmending(false); setOrderDate(''); setAmendmentReason(''); setMode('blocked'); onDirtyChange(false, false); onAuthLost();
+    setSupplierDirty(false); setSupplierUncertain(false); setCommitting(false); setCommitDate(''); setCommitPending(false); setAmending(false); setOrderDate(''); setAmendmentReason(''); setMode('blocked'); onDirtyChange(false, false); onAuthLost();
   }, [onAuthLost, onDirtyChange]);
 
   useEffect(() => {
@@ -116,7 +117,12 @@ export function DraftEditor({ id: initialId, onDirtyChange, onAuthLost, onSaved,
   useEffect(() => {
     if (addedEntry.current || focusSupplierSummary.current) return;
     const first = Object.keys(errors)[0];
-    if (first) document.getElementById(fieldId(first))?.focus();
+    if (first) {
+      const target = document.getElementById(fieldId(first));
+      let disclosure = target?.closest('details');
+      while (disclosure) { disclosure.setAttribute('open', ''); disclosure = disclosure.parentElement?.closest('details'); }
+      target?.focus();
+    }
   }, [errors]);
   useEffect(() => {
     if (!addedEntry.current) return;
@@ -269,7 +275,7 @@ export function DraftEditor({ id: initialId, onDirtyChange, onAuthLost, onSaved,
 
   return (
     <section className="editor po-editor">
-      {committing && baseline ? <CommitOrderDialog order={baseline} cancel={() => setCommitting(false)} pending={setCommitPending} onAuthLost={supplierAccessLost}
+      {committing && baseline ? <CommitOrderDialog order={baseline} date={commitDate} changeDate={setCommitDate} editDraft={fields => { setCommitting(false); setErrors(fields); }} cancel={() => setCommitting(false)} pending={setCommitPending} onAuthLost={supplierAccessLost}
         conflict={() => { setCommitting(false); void loadCurrent('conflict', baseline.id); }}
         committed={receipt => { setCommitting(false); confirmed.current = receipt; onSaved(); void loadCurrent('confirmed', baseline.id, receipt); }} /> : null}
       {discardingAmendment ? <SupplierDialog title="Discard amendment?" cancel={() => setDiscardingAmendment(false)}><p>Your unsaved changes will be discarded. The ordered purchase and its history stay saved.</p><div className="button-row"><button type="button" className="secondary" onClick={() => setDiscardingAmendment(false)}>Keep editing</button><button type="button" className="secondary danger" onClick={discardAmendment}>Discard amendment</button></div></SupplierDialog> : null}
