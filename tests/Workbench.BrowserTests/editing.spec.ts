@@ -29,7 +29,7 @@ async function checkTextContrast(page: Page) {
 async function create(page: Page) {
   const csrf = await (await page.request.get('/api/beta/auth/antiforgery')).json();
   const response = await page.request.post('/api/beta/items', {
-    headers: { 'X-Workbench-Api-Revision': 'beta-3', 'X-CSRF-TOKEN': csrf.requestToken },
+    headers: { 'X-CSRF-TOKEN': csrf.requestToken },
     data: { creationRequestId: crypto.randomUUID(), name: `H4 ${crypto.randomUUID()}`, notes: 'September fair', location: 'Tray A' },
   });
   expect(response.status()).toBe(201);
@@ -153,7 +153,7 @@ test('H4 a lost success response cannot overwrite a later save on retry', async 
   expect(current.name).toBe('First saved correction');
   const csrf = await (await page.request.get('/api/beta/auth/antiforgery')).json();
   const later = await page.request.put(`/api/beta/items/${item.id}`, {
-    headers: { 'X-Workbench-Api-Revision': 'beta-3', 'X-CSRF-TOKEN': csrf.requestToken },
+    headers: { 'X-CSRF-TOKEN': csrf.requestToken },
     data: { expectedVersion: current.version, name: 'Later correction', notes: current.notes, location: current.location },
   });
   expect(later.status()).toBe(200);

@@ -25,7 +25,7 @@ public sealed class DatabaseReadinessCheck(
             };
             // An older schema must not certify compatibility with this application revision.
             command.Parameters.Add("@ExpectedMigration", SqlDbType.NVarChar, 150).Value =
-                "20260918050000_ProjectRetainedPurchaseOrderLines";
+                "20260918060000_AddPurchaseOrderCommitment";
             DatabaseSecurityState? state;
             await using (var reader = await command.ExecuteReaderAsync(cancellationToken))
             {

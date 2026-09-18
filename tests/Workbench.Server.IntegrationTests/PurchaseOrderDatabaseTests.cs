@@ -106,13 +106,13 @@ public sealed partial class DraftOrderDatabaseTests
         public bool Equals(DraftCalculationResponse? x, DraftCalculationResponse? y) => JsonSerializer.Serialize(x, DraftOrderInput.JsonOptions) == JsonSerializer.Serialize(y, DraftOrderInput.JsonOptions);
         public int GetHashCode(DraftCalculationResponse obj) => 0;
     }
-    private static async Task<(byte[] Version, int Revision, bool Replayed)> Purchase(SqlConnection connection, Guid actor, Guid id, Guid request, byte[] version, string operation, DraftContent? draft)
+    private static async Task<(byte[] Version, int Revision, bool Replayed)> Purchase(SqlConnection connection, Guid actor, Guid id, Guid request, byte[] version, string operation, DraftContent? draft, string orderDate = "2026-09-11", string? rawDraft = null)
     {
         await using var command = new SqlCommand("Purchasing.SavePurchaseOrder", connection) { CommandType = CommandType.StoredProcedure };
         command.Parameters.AddWithValue("@RequestId", request); command.Parameters.AddWithValue("@ActorUserId", actor); command.Parameters.AddWithValue("@TargetId", id);
-        command.Parameters.AddWithValue("@ExpectedVersion", version); command.Parameters.AddWithValue("@Operation", operation); command.Parameters.AddWithValue("@OrderDate", "2026-09-11");
+        command.Parameters.AddWithValue("@ExpectedVersion", version); command.Parameters.AddWithValue("@Operation", operation); command.Parameters.AddWithValue("@OrderDate", orderDate);
         command.Parameters.Add(new("@Reason", SqlDbType.NVarChar, -1) { Value = operation == "Amend" ? "Supplier correction" : DBNull.Value });
-        command.Parameters.Add(new("@Draft", SqlDbType.NVarChar, -1) { Value = draft is null ? DBNull.Value : JsonSerializer.Serialize(draft, DraftOrderInput.JsonOptions) });
+        command.Parameters.Add(new("@Draft", SqlDbType.NVarChar, -1) { Value = rawDraft ?? (object?)(draft is null ? null : JsonSerializer.Serialize(draft, DraftOrderInput.JsonOptions)) ?? DBNull.Value });
         // A caller-supplied calculation must never forge historical financial evidence.
         command.Parameters.AddWithValue("@Calculation", "{}");
         await using var reader = await command.ExecuteReaderAsync(); Assert.True(await reader.ReadAsync());

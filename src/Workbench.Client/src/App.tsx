@@ -33,7 +33,6 @@ import { DraftList } from './features/purchasing/DraftList';
 import { DraftEditor } from './features/purchasing/DraftEditor';
 import { DraftMemory } from './features/purchasing/draftMemory';
 import { SupplierMemory } from './features/purchasing/supplierMemory';
-import { ApiUpdateNotice } from './ApiUpdateNotice';
 
 const narrowNavigationQuery = '(width < 900px)';
 function subscribeToNavigationWidth(update: () => void) {
@@ -433,7 +432,6 @@ export function App({
   );
   return (
     <>
-      <ApiUpdateNotice />
       {window.location.pathname === '/recover' ? (
         <div className="sign-in-page">
           <PublicAppearance>{appearance}</PublicAppearance>

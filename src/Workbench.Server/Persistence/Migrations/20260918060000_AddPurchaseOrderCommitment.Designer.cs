@@ -12,7 +12,7 @@ using Workbench.Server.Persistence;
 namespace Workbench.Server.Persistence.Migrations
 {
     [DbContext(typeof(WorkbenchDbContext))]
-    [Migration("20260918030000_AddPurchaseOrderCommitment")]
+    [Migration("20260918060000_AddPurchaseOrderCommitment")]
     partial class AddPurchaseOrderCommitment
     {
         /// <inheritdoc />

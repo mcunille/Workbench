@@ -105,8 +105,6 @@ public sealed class ItemPhotoSafetyTests(SqlServerFixture sqlServer)
         await using var context = await TestContext.CreateAsync(sqlServer);
         var (path, current) = await context.CreatePhotographedItemAsync();
         using var anonymous = context.Factory.CreateClient();
-        anonymous.DefaultRequestHeaders.Add("X-Workbench-Api-Revision", "beta-3");
-        context.Client.DefaultRequestHeaders.Add("X-Workbench-Api-Revision", "beta-3");
 
         // WHEN an anonymous session reads or writes, or an owner omits antiforgery.
         Assert.Equal(HttpStatusCode.Unauthorized,

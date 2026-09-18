@@ -245,8 +245,8 @@ builder.Services.AddOpenApi("beta", options => options.AddDocumentTransformer((d
 {
     document.Info.Version = "beta";
     document.Info.Description = "Unreleased beta API. Contracts are expected to change; the first release establishes v1. " +
-        "Writes require X-Workbench-Api-Revision: beta-3. Missing or incompatible revisions return api_contract_unsupported; " +
-        "preserve unsaved changes before reloading. Read requests may omit the header for bootstrap and media delivery.";
+        "The frontend and server ship together without revision negotiation. Endpoint validation and concurrency conflicts " +
+        "govern requests; preserve unsaved changes before manually reloading a stale browser.";
     return Task.CompletedTask;
 }));
 builder.Services.AddProblemDetails(options =>
@@ -263,7 +263,6 @@ app.UseExceptionHandler();
 app.UseDefaultFiles();
 app.UseStaticFiles();
 app.UseRouting();
-app.UseMiddleware<BetaApiContractMiddleware>();
 app.UseMiddleware<DraftOrderCacheMiddleware>();
 app.UseAuthentication();
 app.UseAuthorization();
@@ -275,7 +274,7 @@ app.UseMiddleware<DraftOrderRequestMiddleware>();
 app.MapGet(
         "/api/beta/system",
         (IReleaseInformation releaseInformation) =>
-            new SystemResponse("Workbench", releaseInformation.Version, BetaApiContractMiddleware.Revision))
+            new SystemResponse("Workbench", releaseInformation.Version))
     .WithName("GetSystem")
     .Produces<SystemResponse>();
 
@@ -304,7 +303,7 @@ app.Map("/api/beta/{**path}", () => Results.Problem(
     statusCode: StatusCodes.Status404NotFound,
     title: "API route not found.",
     type: "https://www.rfc-editor.org/rfc/rfc9110#section-15.5.5"));
-app.Map("/api/{**path}", BetaApiContractMiddleware.Unsupported).ExcludeFromDescription();
+app.Map("/api/{**path}", RetiredApiResponse.Unsupported).ExcludeFromDescription();
 
 app.MapFallbackToFile("index.html");
 

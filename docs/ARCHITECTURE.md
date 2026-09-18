@@ -189,7 +189,7 @@ totals; unresolved references and structured quotes remain explicit until the ow
 SQL validates the same numeric, unit, compatibility and gross bounds as the server.
 
 All application APIs use `/api/beta/...` until the first release establishes v1. The
-[API lifecycle](api-lifecycle.md) owns version support, client revision checks, retired receipt
+[API lifecycle](api-lifecycle.md) owns version support, stale-browser recovery, retired receipt
 adapters, and rollout/rollback boundaries. Public contract versions do not determine the lifetime
 of persisted content or immutable receipts.
 
@@ -201,7 +201,7 @@ merchandise bases, then supplier and third-party charge totals separately. Unkno
 become zero or a complete purchase estimate. Restricted current SQL commands independently validate
 the closed shape, amounts, discount bounds, currency transitions and confirmed-charge correction
 notes. New writes require adjustment properties; missing properties cannot erase saved financial
-inputs. The bundled client and server use revision `beta-3`; older clients must reload and retired
+inputs. The bundled client and server share one beta contract without revision negotiation; stale browsers rely on normal validation/conflict handling and may need a manual reload. Retired
 public routes remain unsupported. Stored receipt history remains intact.
 Reads upgrade older content without persisting it, preserving unresolved legacy quotes.
 Draft saves create no commitment, invoice, balance or ledger posting. See the

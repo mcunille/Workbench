@@ -19,11 +19,11 @@ public sealed partial class DraftOrderDatabaseTests
     public async Task RetainedCompleteSchemaTwoLinesCommitExactlyAsTheirDisplayedProjection(string unit, string? pricingUnit, string quantity, string? unitPrice, string? denominator, string? pricingQuantity)
     {
         // GIVEN an otherwise valid saved legacy order on the preceding retained schema.
-        await using var database = await sqlServer.CreateMigratedDatabaseAsync("HardenPurchaseOrderCommitmentValidation");
+        await using var database = await sqlServer.CreateMigratedDatabaseAsync("IntegrateBetaDraftFinancialAdjustments");
         var tenant = Guid.NewGuid(); var actor = Guid.NewGuid();
         await database.SeedTenantAuditRowsAsync(tenant, Guid.NewGuid()); await SeedActor(database, tenant, actor);
         await using var connection = await Open(database, await database.CreateWebUserAsync(), tenant);
-        var line = new StoredDraftEntry(Guid.NewGuid(), "Retained sapphire", "Supplier quote", null, null, quantity, unit, unitPrice, pricingUnit, denominator, pricingQuantity, "SKU-1", "Gemstone");
+        var line = new StoredDraftEntry(Guid.NewGuid(), "Café / ruby", "Supplier quote", null, null, quantity, unit, unitPrice, pricingUnit, denominator, pricingQuantity, "SKU-1", "Gemstone");
         var legacyContent = JsonSerializer.Serialize(new { sourceLinks = Array.Empty<string>(), entries = new[] { line } }, DraftOrderInput.JsonOptions);
         var draft = DraftOrderInput.Normalize(DraftOrderPricingTests.Empty with { SupplierName = "Supplier", Entries = [DraftOrderInput.Upgrade(line)] });
         Assert.Empty(PurchaseOrderInput.Validate(draft, "2026-09-11", null, false));
@@ -48,6 +48,19 @@ public sealed partial class DraftOrderDatabaseTests
             Assert.Equal(DraftOrderInput.Calculate(draft), JsonSerializer.Deserialize<DraftCalculationResponse>(reader.GetString(1), DraftOrderInput.JsonOptions)!, new CalculationComparer());
         }
         Assert.True((await Purchase(connection, actor, created.Id, request, savedVersion, "Commit", null)).Replayed);
+        // WHEN the displayed projection is submitted unchanged through the .NET serializer.
+        var unchangedRequest = Guid.NewGuid();
+        var noChange = await Assert.ThrowsAsync<SqlException>(() => Purchase(connection, actor, created.Id, unchangedRequest, committed.Version, "Amend", draft));
+        // THEN encoding differences create neither a revision nor a receipt and leave the row version unchanged.
+        Assert.Equal(50417, noChange.Number);
+        await using var evidence = new SqlCommand("SELECT RowVersion,Revision,(SELECT COUNT(*) FROM Purchasing.PurchaseOrderRevisions WHERE DraftOrderId=@id),(SELECT COUNT(*) FROM Purchasing.PurchaseOrderReceipts WHERE RequestId=@request) FROM Purchasing.DraftOrders WHERE Id=@id", connection);
+        evidence.Parameters.AddWithValue("@id", created.Id); evidence.Parameters.AddWithValue("@request", unchangedRequest);
+        await using var evidenceReader = await evidence.ExecuteReaderAsync();
+        Assert.True(await evidenceReader.ReadAsync());
+        Assert.Equal(committed.Version, (byte[])evidenceReader[0]);
+        Assert.Equal(1, evidenceReader.GetInt32(1));
+        Assert.Equal(1, evidenceReader.GetInt32(2));
+        Assert.Equal(0, evidenceReader.GetInt32(3));
     }
     [Theory]
     [InlineData(1)]

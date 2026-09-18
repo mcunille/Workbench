@@ -94,8 +94,8 @@ not constitute a complete purchase estimate until merchandise is entered.
 
 The [PO-05 design](specs/2026-09-16-po-05-discounts-and-charges.md) defines these rules. This
 increment supplies the financial inputs preserved by PO-04 commitments and amendments. Invoices
-and payments remain separate work. The beta contract now requires revision `beta-3`; older open clients must reload
-before making a new save. Current beta retries retain their original request identity and result.
+and payments remain separate work. The beta contract has no revision negotiation. Stale open clients may need a manual reload
+after preserving edits; ordinary endpoint validation and conflicts govern their requests. Current beta retries retain their original request identity and result.
 Retired API requests are unsupported; inspect the saved record before replacing an uncertain old save.
 
 ## Suppliers, platforms and purchase references

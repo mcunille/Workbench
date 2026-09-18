@@ -28,7 +28,7 @@ it('keeps archive and collection traversals independent through appearance and d
   };
   server.use(
     http.get('*/api/beta/system', () =>
-      HttpResponse.json({ name: 'Workbench', version: '1', apiRevision: 'beta-3' }),
+      HttpResponse.json({ name: 'Workbench', version: '1' }),
     ),
     http.get('*/api/beta/auth/me', () =>
       signedIn
@@ -149,7 +149,7 @@ it('does not reuse an old archive origin when browser history is truncated by cr
   };
   server.use(
     http.get('*/api/beta/system', () =>
-      HttpResponse.json({ name: 'Workbench', version: '1', apiRevision: 'beta-3' }),
+      HttpResponse.json({ name: 'Workbench', version: '1' }),
     ),
     http.get('*/api/beta/auth/me', () =>
       HttpResponse.json({
@@ -240,7 +240,7 @@ it('keeps the archive return origin through a native skip-link entry and appeara
   };
   server.use(
     http.get('*/api/beta/system', () =>
-      HttpResponse.json({ name: 'Workbench', version: '1', apiRevision: 'beta-3' }),
+      HttpResponse.json({ name: 'Workbench', version: '1' }),
     ),
     http.get('*/api/beta/auth/me', () =>
       HttpResponse.json({
@@ -317,7 +317,7 @@ it('refreshes the return origin on backward and forward jumps between the same r
   };
   server.use(
     http.get('*/api/beta/system', () =>
-      HttpResponse.json({ name: 'Workbench', version: '1', apiRevision: 'beta-3' }),
+      HttpResponse.json({ name: 'Workbench', version: '1' }),
     ),
     http.get('*/api/beta/auth/me', () =>
       HttpResponse.json({

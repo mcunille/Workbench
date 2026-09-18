@@ -3969,7 +3969,6 @@ export interface components {
         SystemResponse: {
             name: string;
             version: string;
-            apiRevision: string;
         };
         TenantInvitationRequest: {
             email: string;

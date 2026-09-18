@@ -5,7 +5,7 @@ charge categories on 2026-09-16. Source, migration, browser and container delive
 
 **Beta integration:** The approved beta lifecycle supersedes the V4 API naming and historical
 request replay described below. PO-05 financial behavior is exposed only through `/api/beta`
-with revision `beta-2`. Explicit adjustment properties prevent old payloads from clearing new
+with one evolving beta contract (the former revision negotiation was removed by the approved PR #126 follow-up; see [API lifecycle](../api-lifecycle.md)). Explicit adjustment properties prevent old payloads from clearing new
 financial data; defaulting missing properties was rejected for that reason. Old clients must
 reload after coordinated deployment, and uncertain old saves require inspecting the current
 record. Stored drafts and receipt history remain intact. Current beta retries remain supported.

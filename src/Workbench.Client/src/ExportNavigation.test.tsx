@@ -12,7 +12,7 @@ it.each(['csv', 'zip'] as const)('retains %s format, scope and download across n
   window.history.replaceState(null, '', '/inventory');
   let signedIn = true;
   server.use(
-    http.get('*/api/beta/system', () => HttpResponse.json({ name: 'Workbench', version: '1', apiRevision: 'beta-3' })),
+    http.get('*/api/beta/system', () => HttpResponse.json({ name: 'Workbench', version: '1' })),
     http.get('*/api/beta/auth/me', () => signedIn ? HttpResponse.json({ userId: 'person', tenantName: 'Studio', email: 'person@example.test', permissions: ['TenantAccess'] }) : new HttpResponse(null, { status: 401 })),
     http.get('*/api/beta/items', () => HttpResponse.json({ items: [], nextCursor: null })),
     http.get('*/api/beta/items/archived', () => HttpResponse.json({ items: [], nextCursor: null })),

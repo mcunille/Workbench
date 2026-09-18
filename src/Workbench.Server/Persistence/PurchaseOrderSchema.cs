@@ -1,11 +1,10 @@
 // Copyright (c) 2026 The White Stag Collection.
-using System.Text;
 using Microsoft.EntityFrameworkCore.Migrations;
 namespace Workbench.Server.Persistence;
 
 internal static class PurchaseOrderSchema
 {
-    internal const string MigrationId = "20260918030000_AddPurchaseOrderCommitment";
+    internal const string MigrationId = "20260918060000_AddPurchaseOrderCommitment";
     internal static void Create(MigrationBuilder migration)
     {
         migration.Sql("""
@@ -84,6 +83,52 @@ internal static class PurchaseOrderSchema
                 END;';
             EXEC sys.sp_executesql @Validator;
             """);
+        migration.Sql("""
+            CREATE PROCEDURE Purchasing.ProjectRetainedPurchaseOrderEntries
+              @Entries nvarchar(max),@Projected nvarchar(max) OUTPUT
+            AS
+            BEGIN
+              SET NOCOUNT ON;
+              SET @Projected=N'[]';
+              DECLARE @Index int=0,@Count int=(SELECT COUNT(*) FROM OPENJSON(@Entries)),@Entry nvarchar(max),@Modern nvarchar(max);
+              WHILE @Index<@Count
+              BEGIN
+                SET @Entry=JSON_QUERY(@Entries,N'$['+CONVERT(nvarchar(10),@Index)+N']');
+                DECLARE @Quantity nvarchar(28)=JSON_VALUE(@Entry,'$.quantity'),@Unit nvarchar(20)=JSON_VALUE(@Entry,'$.unitOfMeasure'),
+                  @UnitPrice nvarchar(40)=JSON_VALUE(@Entry,'$.unitPrice'),@PricingUnit nvarchar(20)=JSON_VALUE(@Entry,'$.pricingUnit'),
+                  @Denominator nvarchar(28)=JSON_VALUE(@Entry,'$.pricePerQuantity'),@PricingQuantity nvarchar(28)=JSON_VALUE(@Entry,'$.pricingQuantity'),
+                  @Price nvarchar(27)=NULL,@Mode nvarchar(20)=N'perUnit',@Legacy nvarchar(max)=NULL;
+                DECLARE @EffectiveQuantity nvarchar(28)=CASE WHEN @Unit=@PricingUnit THEN @Quantity ELSE @PricingQuantity END;
+                DECLARE @Q decimal(13,0)=TRY_CONVERT(decimal(13,4),@EffectiveQuantity)*10000,
+                  @P decimal(19,0)=TRY_CONVERT(decimal(19,4),@UnitPrice)*10000,@D decimal(13,0)=TRY_CONVERT(decimal(13,4),@Denominator)*10000;
+                IF @Quantity IS NOT NULL AND @Unit IS NOT NULL AND @UnitPrice IS NOT NULL AND @PricingUnit IS NOT NULL AND @Denominator IS NOT NULL AND @EffectiveQuantity IS NOT NULL AND @D>0
+                BEGIN
+                  DECLARE @Product decimal(33,0)=@Q*@P;
+                  DECLARE @Gross decimal(25,0)=(@Product-@Product%@D)/@D+CASE WHEN (@Product%@D)*2>=@D THEN 1 ELSE 0 END;
+                  DECLARE @UnitNumerator decimal(23,0)=@P*10000;
+                  DECLARE @UnitScaled decimal(23,0)=(@UnitNumerator-@UnitNumerator%@D)/@D;
+                  SET @Quantity=@EffectiveQuantity; SET @Unit=@PricingUnit;
+                  DECLARE @CandidateProduct decimal(33,0)=CASE WHEN @UnitScaled<10000000000000000000 THEN @Q*CONVERT(decimal(19,0),@UnitScaled) END;
+                  DECLARE @CandidateGross decimal(25,0)=(@CandidateProduct-@CandidateProduct%10000)/10000+CASE WHEN @CandidateProduct%10000>=5000 THEN 1 ELSE 0 END;
+                  IF @UnitNumerator%@D=0 AND @UnitScaled<10000000000000000000 AND @CandidateGross=@Gross
+                    SET @Price=Purchasing.FormatPurchaseAmount(@UnitScaled);
+                  ELSE
+                  BEGIN
+                    SET @Mode=N'lineTotal'; SET @Price=Purchasing.FormatPurchaseAmount(@Gross);
+                  END;
+                END
+                ELSE IF @UnitPrice IS NOT NULL OR @PricingUnit IS NOT NULL OR @Denominator IS NOT NULL OR @PricingQuantity IS NOT NULL
+                  SET @Legacy=(SELECT @Quantity quantity,@Unit unitOfMeasure,@UnitPrice unitPrice,@PricingUnit pricingUnit,@Denominator pricePerQuantity,@PricingQuantity pricingQuantity FOR JSON PATH,WITHOUT_ARRAY_WRAPPER,INCLUDE_NULL_VALUES);
+                SET @Modern=(SELECT LOWER(JSON_VALUE(@Entry,'$.id')) id,JSON_VALUE(@Entry,'$.description') description,JSON_VALUE(@Entry,'$.notes') notes,
+                  JSON_VALUE(@Entry,'$.sourceLink') sourceLink,JSON_VALUE(@Entry,'$.indicativePrice') indicativePrice,@Quantity quantity,@Unit unitOfMeasure,
+                  @Mode priceMode,@Price price,JSON_QUERY(@Legacy) legacyPricing,JSON_VALUE(@Entry,'$.supplierSku') supplierSku,JSON_VALUE(@Entry,'$.itemType') itemType,
+                  CAST(NULL AS nvarchar(max)) discount FOR JSON PATH,WITHOUT_ARRAY_WRAPPER,INCLUDE_NULL_VALUES);
+                SET @Projected=JSON_MODIFY(@Projected,'append $',JSON_QUERY(@Modern));
+                SET @Index+=1;
+              END;
+            END;
+            """);
+        migration.Sql(PurchaseOrderContentComparison.Create);
         migration.Sql(Command);
         migration.Sql("GRANT EXECUTE ON Purchasing.SavePurchaseOrder TO workbench_web;");
         foreach (var (name, anchor, target) in new[] {
@@ -123,6 +168,8 @@ internal static class PurchaseOrderSchema
             OR (@Operation='Commit' AND (@Reason IS NOT NULL OR @Draft IS NOT NULL))
             OR (@Operation='Amend' AND (@Reason IS NULL OR DATALENGTH(@Reason) NOT BETWEEN 2 AND 4000 OR DATALENGTH(TRIM(@Reason))=0 OR ISJSON(@Draft,OBJECT)<>1 OR @Draft IS NULL OR DATALENGTH(@Draft)>8388608))
             OR @Calculation IS NULL OR ISJSON(@Calculation,OBJECT)<>1 OR DATALENGTH(@Calculation)>1048576 THROW 50400,'Review purchase input.',1;
+          DECLARE @Whitespace nvarchar(64)=NCHAR(9)+NCHAR(10)+NCHAR(11)+NCHAR(12)+NCHAR(13)+NCHAR(32)+NCHAR(133)+NCHAR(160)+NCHAR(5760)+NCHAR(8192)+NCHAR(8193)+NCHAR(8194)+NCHAR(8195)+NCHAR(8196)+NCHAR(8197)+NCHAR(8198)+NCHAR(8199)+NCHAR(8200)+NCHAR(8201)+NCHAR(8202)+NCHAR(8232)+NCHAR(8233)+NCHAR(8239)+NCHAR(8287)+NCHAR(12288);
+          IF @Operation='Amend' AND (DATALENGTH(TRIM(@Whitespace FROM @Reason))=0 OR CONVERT(varbinary(max),@Reason)<>CONVERT(varbinary(max),TRIM(@Whitespace FROM @Reason))) THROW 50400,'Enter a trimmed amendment reason.',1;
           DECLARE @Canonical nvarchar(max)=(SELECT @Operation operation,@TargetId targetId,CONVERT(varchar(max),@ExpectedVersion,2) expectedVersion,@OrderDate orderDate,@Reason reason,JSON_QUERY(@Draft) draft FOR JSON PATH,WITHOUT_ARRAY_WRAPPER,INCLUDE_NULL_VALUES);
           DECLARE @Fingerprint binary(32)=HASHBYTES('SHA2_256',CONVERT(varbinary(max),@Canonical));
           BEGIN TRY
@@ -145,18 +192,36 @@ internal static class PurchaseOrderSchema
             IF @Version IS NULL THROW 50404,'Purchase not found.',1;
             IF @Version<>@ExpectedVersion THROW 50409,'Purchase changed; review the current version.',1;
             IF (@Operation='Commit' AND @State<>'Draft') OR (@Operation='Amend' AND @State<>'Ordered') THROW 50415,'Purchase state does not permit this operation.',1;
-            DECLARE @SavedDraft nvarchar(max)=(SELECT Title title,SupplierName supplierName,Currency currency,Notes notes,JSON_QUERY(ContentJson,'$.sourceLinks') sourceLinks,JSON_QUERY(ContentJson,'$.entries') entries,
-              SupplierId supplierId,SupplierContactName supplierContactName,SupplierEmail supplierEmail,SupplierPhone supplierPhone,SupplierWebsite supplierWebsite,SupplierPostalAddress supplierPostalAddress,
+            DECLARE @SavedEntries nvarchar(max),@StoredSchema smallint;
+            SELECT @SavedEntries=JSON_QUERY(ContentJson,'$.entries'),@StoredSchema=ContentSchemaVersion FROM Purchasing.DraftOrders WHERE TenantId=@TenantId AND Id=@TargetId;
+            IF @StoredSchema IN(1,2) EXEC Purchasing.ProjectRetainedPurchaseOrderEntries @SavedEntries,@SavedEntries OUTPUT;
+            IF @StoredSchema=3
+            BEGIN
+                DECLARE @EntryIndex int=0,@EntryCount int=(SELECT COUNT(*) FROM OPENJSON(@SavedEntries)),@Path nvarchar(100),@Entry nvarchar(max);
+                WHILE @EntryIndex<@EntryCount
+                BEGIN
+                    SET @Path=N'$['+CONVERT(nvarchar(10),@EntryIndex)+N']';
+                    SET @Entry=JSON_QUERY(@SavedEntries,@Path);
+                    IF NOT EXISTS(SELECT 1 FROM OPENJSON(@Entry) WHERE [key]=N'discount')
+                        SET @Entry=LEFT(@Entry,LEN(@Entry)-1)+N',' + N'"discount":null}';
+                    SET @SavedEntries=JSON_MODIFY(@SavedEntries,@Path,JSON_QUERY(@Entry));
+                    SET @EntryIndex+=1;
+                END;
+            END;
+            DECLARE @SavedDraft nvarchar(max)=(SELECT Title title,SupplierName supplierName,Currency currency,Notes notes,JSON_QUERY(ContentJson,'$.sourceLinks') sourceLinks,JSON_QUERY(@SavedEntries) entries,
+              LOWER(CONVERT(varchar(36),SupplierId)) supplierId,SupplierContactName supplierContactName,SupplierEmail supplierEmail,SupplierPhone supplierPhone,SupplierWebsite supplierWebsite,SupplierPostalAddress supplierPostalAddress,
               SupplierOrderReference supplierOrderReference,Platform platform,JSON_QUERY(ContentJson,'$.orderDiscount') orderDiscount,JSON_QUERY(COALESCE(JSON_QUERY(ContentJson,'$.charges'),N'[]')) charges
               FROM Purchasing.DraftOrders WHERE TenantId=@TenantId AND Id=@TargetId FOR JSON PATH,WITHOUT_ARRAY_WRAPPER,INCLUDE_NULL_VALUES);
             IF @Operation='Commit' SET @Draft=@SavedDraft;
             IF @Operation='Amend' AND (@Currency IS NULL OR JSON_VALUE(@Draft,'$.currency') IS NULL OR CONVERT(varbinary(max),CONVERT(nvarchar(3),@Currency))<>CONVERT(varbinary(max),JSON_VALUE(@Draft,'$.currency')))
               THROW 50416,'Currency is fixed after commitment.',1;
             EXEC Purchasing.ValidatePurchaseOrderContent @Draft,@TenantId,@TargetId,@Calculation OUTPUT;
-            IF @Operation='Amend' AND @PreviousDate=CONVERT(date,@OrderDate,23) AND NOT EXISTS(
-              SELECT 1 FROM OPENJSON(@Draft) a FULL JOIN OPENJSON(@SavedDraft) b ON a.[key]=b.[key]
-              WHERE a.[key] IS NULL OR b.[key] IS NULL OR a.[type]<>b.[type] OR CONVERT(varbinary(max),COALESCE(a.[value],N''))<>CONVERT(varbinary(max),COALESCE(b.[value],N'')))
-              THROW 50417,'An amendment must change the saved purchase.',1;
+            IF @Operation='Amend' AND @PreviousDate=CONVERT(date,@OrderDate,23)
+            BEGIN
+              DECLARE @SameContent bit;
+              EXEC Purchasing.ComparePurchaseOrderContent @Draft,@SavedDraft,@SameContent OUTPUT;
+              IF @SameContent=1 THROW 50417,'An amendment must change the saved purchase.',1;
+            END;
             SET @Revision+=1;
             IF @Now<@Created SET @Now=@Created;
             UPDATE Purchasing.DraftOrders SET State='Ordered',OrderDate=CONVERT(date,@OrderDate,23),Revision=@Revision,

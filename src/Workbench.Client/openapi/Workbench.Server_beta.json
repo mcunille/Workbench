@@ -2,7 +2,7 @@
   "openapi": "3.1.1",
   "info": {
     "title": "Workbench.Server | beta",
-    "description": "Unreleased beta API. Contracts are expected to change; the first release establishes v1. Writes require X-Workbench-Api-Revision: beta-3. Missing or incompatible revisions return api_contract_unsupported; preserve unsaved changes before reloading. Read requests may omit the header for bootstrap and media delivery.",
+    "description": "Unreleased beta API. Contracts are expected to change; the first release establishes v1. The frontend and server ship together without revision negotiation. Endpoint validation and concurrency conflicts govern requests; preserve unsaved changes before manually reloading a stale browser.",
     "version": "beta"
   },
   "paths": {
@@ -5626,8 +5626,7 @@
       "SystemResponse": {
         "required": [
           "name",
-          "version",
-          "apiRevision"
+          "version"
         ],
         "type": "object",
         "properties": {
@@ -5635,9 +5634,6 @@
             "type": "string"
           },
           "version": {
-            "type": "string"
-          },
-          "apiRevision": {
             "type": "string"
           }
         }

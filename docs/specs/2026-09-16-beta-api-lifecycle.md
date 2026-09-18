@@ -57,22 +57,35 @@ receipt fingerprints are not public API release numbers and do not get renamed t
 
 ## Browser and deployment boundary
 
-Deploy server and built frontend as one unit. Add a beta contract revision checked on API
-requests before business handling; change it when beta changes incompatibly, not for every
-build. Missing or mismatched revisions cannot perform business writes. Bootstrap endpoints
-needed to discover the revision and authenticate require explicitly tested exceptions.
+The owner approved removing beta revision negotiation during PR #126 feedback on 2026-09-17.
+This supersedes the earlier revision-header and global reload-lock design. Deploy server and
+built frontend as one unit against the single evolving `/api/beta` contract.
 
-The bundled client surfaces a reload-required state, prevents new writes, and preserves
-unsaved edits for user recovery instead of automatically reloading or resubmitting. Frozen editors
-must expose a keyboard-accessible, read-only copy of retained edits without changing the uncertain
-request or enabling writes. A browser
-from before this mechanism may only show its existing error UI; its obsolete requests must
-still fail without mutations. Test that transition separately from future beta mismatches.
+The change removes `X-Workbench-Api-Revision`, the `apiRevision` system field, mismatch middleware,
+and the client's global write freeze/reload notice. It does not replace them with another manual
+version. Retaining negotiation was considered but rejected because it adds a second contract
+versioning mechanism to the deliberately evolving beta. Keeping only a response revision would
+still require maintenance and would not guarantee safe behavior of older clients.
 
-An uncertain save retains its request ID and exact payload until resolved. Never convert an
-uncertain old save into a new beta request with a new ID. Document reload/recovery instructions
-for older browsers that cannot display the new state.
+This is an approved public-contract break: consumers of the removed field/header must stop
+expecting it. Old revision headers are ignored. `/api/beta`, retired-route rejection,
+authentication, antiforgery, endpoint input validation, optimistic concurrency, and successful
+exact-request replay remain. No stored content, receipt, or schema version changes because of
+this API change. Generated OpenAPI JSON and TypeScript remain tracked and regenerated together.
 
+Stale browsers are not globally detected or blocked. Ordinary validation or conflicts may reject
+incompatible requests, while shape-compatible requests may still succeed. Preserve unsaved input
+before manually reloading to load the current client. An uncertain save retains its request ID
+and exact payload until resolved; keep its page open and inspect the saved record before starting
+new work. Never replace an uncertain request ID solely to force another attempt. Frozen editors
+retain keyboard-selectable recovery text for normal uncertain/conflict recovery. There is no
+automatic reload or retry. Deploy the matching frontend/server together and stop old writers at
+schema boundaries; rollback still requires an artifact compatible with the retained schema.
+
+Acceptance: header-free bootstrap exposes only application identity; header-free writes still
+require authentication and antiforgery; normal endpoint validation/conflict handling preserves
+input; exact retries retain their body/identity; a retired-route error does not globally freeze
+later beta requests. Retired routes remain unsupported without advertising a replacement revision.
 ## Stored data and successful retries
 
 Preserve existing drafts, supplier and purchase identities, numbering, row versions, and

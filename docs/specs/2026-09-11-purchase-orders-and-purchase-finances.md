@@ -227,3 +227,20 @@ the workflow is usable. This documentation change exercises no new application b
 
 After those decisions, split the accepted scenario into verifiable implementation increments.
 Story identifiers here support discussion; they are not filed issues or delivery-status claims.
+
+## PO-04 review refinement: migration and content identity
+
+Approved on 2026-09-17: deliver PO-04 as one migration from the PR base, including
+all retained-line projection and validation corrections. Because the development
+preview had applied the intermediate migrations, reconcile a verified restored
+clone and retain both the original database and backup; never rewrite the
+original's applied history. See the migration runbook for this development-only
+exception. Verify both fresh creation and upgrade from the PR base, including
+unchanged drafts, receipts, permissions and rollback guards.
+
+An amendment changes agreed content or the order date. JSON formatting, escaping
+and object member order do not constitute a content change. Compare decoded
+values recursively, retaining array order and scalar distinctions. Reject an
+unchanged amendment before updating row versions, revisions or receipts. Exact
+request fingerprints remain unchanged, so retry identity does not become a
+semantic-content comparison.

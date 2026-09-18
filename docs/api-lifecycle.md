@@ -12,22 +12,21 @@ beta. See [design principles](DESIGN-PRINCIPLES.md#13-evolve-apis-deliberately).
 
 ## Callers and rollout
 
-The bundled frontend and server are deployed together. API writes require
-`X-Workbench-Api-Revision: beta-3`. Increment the revision for an incompatible beta change;
-clients must send the revision they were built against, never automatically adopt one returned
-by a server. Read requests without the header are allowed for bootstrap, images, and downloads;
-an explicitly mismatched revision is rejected even on reads. `/api/beta/system` advertises
-`apiRevision`, and beta responses include the revision header. Authentication writes also require
-the revision and keep their antiforgery protection.
+The bundled frontend and server are deployed together against one evolving `/api/beta`
+contract. There is no client revision header, response revision, system revision field, or
+global mismatch lock. Authentication writes retain their antiforgery protection.
 
-An incompatible request receives the `api_contract_unsupported` problem code. The current client
-stops further writes and displays reload guidance while retaining the mounted editor and uncertain
-submission. Frozen draft, supplier, item-detail and acquisition editors expose read-only recovery
-text with a keyboard-accessible selection button. Copy unsaved changes before reloading; a reload
-discards in-memory edits. Selecting recovery text does not confirm a save or change its request.
-Never replace an uncertain save's identifier with a new one just to bypass a contract rejection. Old browsers
-predating this UI may show their existing error message; reload manually after preserving edits.
+A stale open browser is not globally detected or blocked. Requests follow ordinary endpoint
+validation, authorization and optimistic-concurrency handling; incompatible input may require
+a manual reload after preserving edits. A shape-compatible old request may still succeed.
+Do not assume that every stale browser request will be rejected before mutation.
 
+Endpoint recovery preserves local input on validation/conflict failures and keeps the original
+request ID and exact payload for uncertain submissions. Frozen editors expose keyboard-selectable,
+read-only recovery text. Copy unsaved changes before reloading, which discards in-memory edits.
+For an uncertain save, keep the page open and inspect the saved record before starting new work;
+never replace its request identifier merely to force another attempt. No automatic reload or
+resubmission is introduced by this policy.
 Release notes must state when a beta becomes stable, which contract is retired, how pending
 requests are resolved, and the compatible application/schema combinations. Stop old instances
 before applying a migration that removes their commands. Do not run a mixed fleet across that
@@ -52,11 +51,11 @@ identifier with different input is a conflict. Historical development contracts 
 support: all requests to their retired routes receive `api_contract_unsupported`, even when an old
 receipt exists. The owner explicitly approved this boundary because no version has been released.
 
-PO-04 advances the bundled contract to `beta-3`: draft lists exclude ordered records, direct draft
+PO-04 extends the single beta contract: draft lists exclude ordered records, direct draft
 reads of ordered records return a state conflict, and new draft edits/deletes cannot change an
 ordered purchase. Existing successful draft retries still return their original receipts after
 commitment. Commit and amendment requests use actor-bound immutable receipts; exact retries remain
-successful after later amendments. Old clients must reload and preserve unsaved/uncertain input as
+successful after later amendments. Stale clients may need to reload after preserving unsaved/uncertain input as
 described above. Stop old writers before migrating; deploy matching frontend and server together.
 For an uncertain historical save, inspect the current record before starting new work; do not assume
 the old save failed or replace its request identifier to force another write. Existing receipt rows

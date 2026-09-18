@@ -336,7 +336,6 @@ public sealed class AuthEndpointTests(SqlServerFixture sqlServer) : IAsyncLifeti
         {
             Content = JsonContent.Create(body),
         };
-        request.Headers.TryAddWithoutValidation("X-Workbench-Api-Revision", "beta-3");
         request.Headers.Add("X-CSRF-TOKEN", tokenResponse.GetProperty("requestToken").GetString());
         return await _client.SendAsync(request);
     }
@@ -345,7 +344,6 @@ public sealed class AuthEndpointTests(SqlServerFixture sqlServer) : IAsyncLifeti
     {
         var tokenResponse = await _client.GetFromJsonAsync<JsonElement>("/api/beta/auth/antiforgery");
         using var request = new HttpRequestMessage(method, path);
-        request.Headers.TryAddWithoutValidation("X-Workbench-Api-Revision", "beta-3");
         request.Headers.Add("X-CSRF-TOKEN", tokenResponse.GetProperty("requestToken").GetString());
         return await _client.SendAsync(request);
     }

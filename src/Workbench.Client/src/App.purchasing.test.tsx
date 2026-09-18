@@ -8,7 +8,7 @@ it('opens purchase orders and replaces a new draft URL after its receipt without
   window.history.replaceState(null, '', '/purchase-orders');
   const draft = { orderDiscount: null, charges: [], title: null, supplierName: null, supplierId: null, supplierContactName: null, supplierEmail: null, supplierPhone: null, supplierWebsite: null, supplierPostalAddress: null, supplierOrderReference: null, platform: null, currency: null, notes: null, sourceLinks: [], entries: [] };
   let reads = 0; let writes = 0;
-  server.use(http.get('*/api/beta/system', () => HttpResponse.json({ name: 'Workbench', version: '1', apiRevision: 'beta-3' })),
+  server.use(http.get('*/api/beta/system', () => HttpResponse.json({ name: 'Workbench', version: '1' })),
     http.get('*/api/beta/auth/me', () => HttpResponse.json({ userId: 'user', tenantName: 'Studio', email: 'person@example.test', permissions: ['TenantAccess'] })),
     http.get('*/api/beta/purchase-orders', () => HttpResponse.json({ items: [], nextCursor: null })),
     http.get('*/api/beta/auth/antiforgery', () => HttpResponse.json({ requestToken: 'test' })),

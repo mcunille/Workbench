@@ -104,9 +104,10 @@ navigation information. New draft updates/deletes on an ordered record are rejec
 as HTTP. The new client uses the unified list with explicit Draft/Ordered labels and an optional
 state filter; existing search fields and stable pagination semantics remain.
 
-This changes the lifecycle semantics observable by older clients. Advance the beta revision so an
-old bundled editor must reload before issuing writes; preserve its recovery text and uncertain
-request identity. Regenerate OpenAPI/TypeScript and update the API lifecycle inventory. Do not add
+This changes the lifecycle semantics observable by older clients. The approved PR #126 follow-up
+removes beta revision negotiation: stale browsers are not globally blocked and rely on endpoint
+validation and concurrency handling. Preserve recovery text and uncertain request identity before
+a manual reload when needed. Regenerate OpenAPI/TypeScript and update the API lifecycle inventory. Do not add
 historical API adapters. Deploy the matching frontend and server together after migration, with
 old writers stopped. A separate committed-order aggregate would preserve the literal draft table
 name but complicate identity, references, receipts and unified reads; retaining the current row
@@ -161,15 +162,20 @@ Block destructive Down to preserve commitment evidence. Rollback uses a reviewed
 or verified backup restore with explicit accounting for subsequent writes. Verify fresh creation
 and upgrade from the PR base, retained data, restricted-principal permissions and restore behavior.
 
-Implementation note: the isolated retained preview applied `AddPurchaseOrderCommitment` before
-final SQL edge-case verification. Preserve that applied migration and use
-`HardenPurchaseOrderCommitmentValidation` for supplier GUID normalization, trimmed amendment reasons
-and older structured-line adaptation. After that correction was also applied, independent review
-identified a missing projection for the oldest retained line formats. The forward
-`ProjectRetainedPurchaseOrderLines` correction makes commitment match public read projections while
-preserving unresolved quotes for validation. These three migrations deliberately remain separate
-under the repository's prohibition on rewriting applied retained history; fresh and predecessor
-upgrades apply them in order. The preview's installed procedure was inspected before correction.
+Review refinement approved on 2026-09-17: consolidate PO-04's three development
+migrations into `20260918060000_AddPurchaseOrderCommitment`, directly from the PR
+base. Include supplier GUID normalization, trimmed amendment reasons, older
+structured-line adaptation, retained quote projection and decoded JSON no-op
+comparison. Keep exact retry fingerprints and all history security controls.
+
+The isolated preview had applied the development migrations. Preserve its
+original database and checksum-verified backup; restore and verify a separate
+clone, install the final command definitions, and reconcile only that clone's
+PO-04 history after complete retained-data checks. Switch the stopped preview to
+the verified clone and retain the original for recovery. This explicit exception
+does not authorize rewriting base migrations or other retained/shared databases.
+Fresh creation and PR-base upgrades must apply one PO-04 migration, and schema
+markers, designer/model snapshot and rollback guards must agree.
 
 ## Acceptance and verification
 
