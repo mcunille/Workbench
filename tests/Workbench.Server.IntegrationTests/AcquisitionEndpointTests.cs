@@ -117,8 +117,6 @@ public sealed class AcquisitionEndpointTests(SqlServerFixture sqlServer)
     {
         var token = await client.GetFromJsonAsync<JsonElement>("/api/beta/auth/antiforgery");
         using var request = new HttpRequestMessage(method, path) { Content = JsonContent.Create(body) };
-        if (path.StartsWith("/api/beta/", StringComparison.Ordinal))
-            request.Headers.TryAddWithoutValidation("X-Workbench-Api-Revision", "beta-2");
         request.Headers.Add("X-CSRF-TOKEN", token.GetProperty("requestToken").GetString());
         return await client.SendAsync(request);
     }

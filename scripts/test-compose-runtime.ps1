@@ -118,7 +118,6 @@ public sealed class WorkbenchComposeTlsClient : IDisposable
         var handler = new HttpClientHandler { CookieContainer = new CookieContainer(), AllowAutoRedirect = false };
         handler.ServerCertificateCustomValidationCallback = (request, certificate, suppliedChain, errors) => Validate(certificate, suppliedChain, errors);
         client = new HttpClient(handler) { BaseAddress = new Uri(origin), Timeout = TimeSpan.FromSeconds(8) };
-        client.DefaultRequestHeaders.Add("X-Workbench-Api-Revision", "beta-2");
     }
     private bool Validate(X509Certificate2 certificate, X509Chain suppliedChain, SslPolicyErrors errors)
     {

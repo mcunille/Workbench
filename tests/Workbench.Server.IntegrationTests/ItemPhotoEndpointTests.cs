@@ -85,7 +85,6 @@ public sealed class ItemPhotoEndpointTests(SqlServerFixture sqlServer)
     {
         var token = await client.GetFromJsonAsync<JsonElement>("/api/beta/auth/antiforgery");
         using var request = new HttpRequestMessage(method, path) { Content = JsonContent.Create(body) };
-        request.Headers.TryAddWithoutValidation("X-Workbench-Api-Revision", "beta-2");
         request.Headers.Add("X-CSRF-TOKEN", token.GetProperty("requestToken").GetString());
         return await client.SendAsync(request);
     }
@@ -98,7 +97,6 @@ public sealed class ItemPhotoEndpointTests(SqlServerFixture sqlServer)
         body.Add(new StringContent(requestId.ToString()), "requestId");
         body.Add(new StringContent(version), "expectedVersion");
         using var request = new HttpRequestMessage(HttpMethod.Put, path + "/photo") { Content = body };
-        request.Headers.TryAddWithoutValidation("X-Workbench-Api-Revision", "beta-2");
         request.Headers.Add("X-CSRF-TOKEN", token.GetProperty("requestToken").GetString());
         return await client.SendAsync(request);
     }

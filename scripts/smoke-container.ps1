@@ -155,7 +155,7 @@ Storage__DurableVolume=true
     $apiMiss = Invoke-WebRequest -Uri "$baseUrl/api/beta/not-a-route" -SkipHttpErrorCheck
     if ($apiMiss.StatusCode -ne 404 -or $apiMiss.Headers.'Content-Type' -notmatch '^application/problem\+json') { throw 'API miss contract failed.' }
     # GIVEN one client has exhausted its network budget through the trusted ingress peer.
-    $attackerHeaders = @{ 'X-Workbench-Api-Revision' = 'beta-2'; 'X-Forwarded-For' = '192.0.2.10'; 'X-Forwarded-Proto' = 'https' }
+    $attackerHeaders = @{ 'X-Forwarded-For' = '192.0.2.10'; 'X-Forwarded-Proto' = 'https' }
     $attackerAntiforgery = Invoke-WebRequest -Uri "$baseUrl/api/beta/auth/antiforgery" -Headers $attackerHeaders
     $attackerHeaders['X-CSRF-TOKEN'] = ($attackerAntiforgery.Content | ConvertFrom-Json).requestToken
     $attackerHeaders['Cookie'] = ($attackerAntiforgery.Headers.'Set-Cookie' -split ';')[0]
@@ -173,7 +173,7 @@ Storage__DurableVolume=true
         -SkipHttpErrorCheck
     if ($limitedLogin.StatusCode -ne 401) { throw 'Exhausted client network budget allowed valid credentials.' }
     # WHEN another forwarded client signs in with valid credentials.
-    $forwardedHeaders = @{ 'X-Workbench-Api-Revision' = 'beta-2'; 'X-Forwarded-For' = '192.0.2.20'; 'X-Forwarded-Proto' = 'https' }
+    $forwardedHeaders = @{ 'X-Forwarded-For' = '192.0.2.20'; 'X-Forwarded-Proto' = 'https' }
     $antiforgeryResponse = Invoke-WebRequest -Uri "$baseUrl/api/beta/auth/antiforgery" -Headers $forwardedHeaders
     $antiforgery = $antiforgeryResponse.Content | ConvertFrom-Json
     $antiforgeryCookie = ($antiforgeryResponse.Headers.'Set-Cookie' -split ';')[0]

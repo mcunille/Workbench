@@ -137,7 +137,6 @@ public sealed class MultiReplicaDeploymentTests(SqlServerFixture sqlServer)
         }
         if (token is not null)
         {
-            request.Headers.TryAddWithoutValidation("X-Workbench-Api-Revision", "beta-2");
             request.Headers.Add("X-CSRF-TOKEN", token);
         }
         if (forwardedFor is not null)

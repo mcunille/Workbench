@@ -4,7 +4,7 @@ import { lifecycle } from './restoration-fixture';
 async function createOwnedItem(page: Page) {
   const csrf = await (await page.request.get('/api/beta/auth/antiforgery')).json();
   const response = await page.request.post('/api/beta/items', {
-    headers: { 'X-Workbench-Api-Revision': 'beta-2', 'X-CSRF-TOKEN': csrf.requestToken },
+    headers: { 'X-CSRF-TOKEN': csrf.requestToken },
     data: { creationRequestId: crypto.randomUUID(), name: `Owner isolation ${crypto.randomUUID()}`, notes: null, location: null },
   });
   expect(response.status()).toBe(201);

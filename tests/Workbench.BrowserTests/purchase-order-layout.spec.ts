@@ -16,20 +16,20 @@ for (const width of [320, 390, 600, 1440]) test(`purchase-order search keeps res
   const top = (await panel.boundingBox())!.y;
   let release!: () => void;
   const delayed = new Promise<void>(resolve => { release = resolve; });
-  await page.route('**/api/beta/purchase-order-drafts?*', async route => {
+  await page.route('**/api/beta/purchase-orders?*', async route => {
     await delayed;
     await route.continue();
   });
   // WHEN typing starts and a slow search is pending THEN controls and feedback do not move the results.
   await page.getByRole('searchbox').fill(title);
-  await expect(page.getByRole('status')).toContainText('Loading drafts');
+  await expect(page.getByRole('status')).toContainText('Loading purchases');
   await expect.poll(async () => (await panel.boundingBox())!.y).toBeCloseTo(top, 0);
   release();
-  await expect(page.getByRole('status')).not.toContainText('Loading drafts');
+  await expect(page.getByRole('status')).not.toContainText('Loading purchases');
   await expect.poll(async () => (await panel.boundingBox())!.y).toBeCloseTo(top, 0);
   // WHEN clearing THEN the original position and keyboard path remain intact.
   await page.getByRole('button', { name: 'Clear search' }).click();
-  await expect(page.getByRole('status')).not.toContainText('Loading drafts');
+  await expect(page.getByRole('status')).not.toContainText('Loading purchases');
   await expect.poll(async () => (await panel.boundingBox())!.y).toBeCloseTo(top, 0);
   // AND enlarged text can grow naturally without clipping or horizontal page overflow.
   await page.evaluate(() => { document.documentElement.style.fontSize = '200%'; });

@@ -1,6 +1,6 @@
 import { http, HttpResponse } from 'msw';
 import { server } from '../test/server';
-import { createDraft, updateDraft, getDraft, getDrafts, deleteDraft, DraftError } from './purchaseOrders';
+import { createDraft, updateDraft, getDraft, getDrafts, deleteDraft, commitOrder, amendOrder, getOrderRevisions, getOrderRevision, DraftError } from './purchaseOrders';
 const draft = { orderDiscount: null, charges: [], title: null, supplierName: null, supplierId: null, supplierContactName: null, supplierEmail: null, supplierPhone: null, supplierWebsite: null, supplierPostalAddress: null, supplierOrderReference: null, platform: null, currency: 'USD', notes: null, sourceLinks: [], entries: [{ discount: null, quantity: null, unitOfMeasure: null, priceMode: 'perUnit', price: null, legacyPricing: null, supplierSku: null, itemType: null, id: 'entry', description: null, notes: null, sourceLink: null, indicativePrice: '0.0000' }] };
 it('sends exact decimal strings and a protected full replacement, returning a compact receipt', async () => {
   // GIVEN a full replacement with a zero reference price and a current version.
@@ -14,7 +14,7 @@ it('sends exact decimal strings and a protected full replacement, returning a co
 it('encodes opaque cursors and makes private uncached detail and page reads', async () => {
   // GIVEN an opaque cursor with reserved characters.
   const requests: Request[] = [];
-  server.use(http.get('*/api/beta/purchase-order-drafts', ({ request }) => { requests.push(request); return HttpResponse.json({ items: [], nextCursor: null }); }), http.get('*/api/beta/purchase-order-drafts/draft', ({ request }) => { requests.push(request); return HttpResponse.json({ id: 'draft', draft }); }));
+  server.use(http.get('*/api/beta/purchase-orders', ({ request }) => { requests.push(request); return HttpResponse.json({ items: [], nextCursor: null }); }), http.get('*/api/beta/purchase-orders/draft', ({ request }) => { requests.push(request); return HttpResponse.json({ id: 'draft', draft }); }));
   // WHEN reading the page and current draft THEN private data cannot use the browser cache.
   await getDrafts('a+b/='); await getDraft('draft');
   expect(new URL(requests[0].url).searchParams.get('cursor')).toBe('a+b/=');
@@ -40,4 +40,31 @@ it('sends protected deletion with an exact request and version and returns its r
   // WHEN deleting THEN the body and antiforgery token are sent and a replay remains successful.
   expect(await deleteDraft('draft', body)).toEqual(receipt);
   expect(received).toEqual(body); expect(csrf).toBe('csrf-test');
+});
+
+it('protects commitment and amendment commands and preserves their exact retry identity', async () => {
+  // GIVEN explicit date, version, reason and unchanged decimal strings.
+  const commit = { requestId: 'commit-request', expectedVersion: 'version', orderDate: '2026-09-16' };
+  const amendment = { ...commit, requestId: 'amend-request', reason: 'Supplier corrected quantities', draft };
+  const observed: unknown[] = [];
+  const receipt = { requestId: commit.requestId, replayed: true, draftOrderId: 'order', savedVersion: 'next', completedAtUtc: '2026-09-17T00:00:00Z', revision: 1 };
+  server.use(http.get('*/api/beta/auth/antiforgery', () => HttpResponse.json({ requestToken: 'csrf-test' })),
+    ...['*/api/beta/purchase-order-drafts/order/commit', '*/api/beta/purchase-orders/order/amendments'].map(path => http.post(path, async ({ request }) => {
+      expect(request.headers.get('X-CSRF-TOKEN')).toBe('csrf-test'); observed.push(await request.json()); return HttpResponse.json(receipt);
+    })));
+  // WHEN submitting and retrying THEN each payload stays exact and the server receipt is preserved.
+  expect(await commitOrder('order', commit)).toEqual(receipt);
+  await commitOrder('order', commit); await amendOrder('order', amendment);
+  expect(observed).toEqual([commit, commit, amendment]);
+});
+
+it('reads private history and encodes state and continuation filters', async () => {
+  // GIVEN revision history and a filtered list with opaque continuation tokens.
+  const requests: Request[] = [];
+  server.use(...['*/api/beta/purchase-orders', '*/api/beta/purchase-orders/order/revisions', '*/api/beta/purchase-orders/order/revisions/1'].map(path => http.get(path, ({ request }) => { requests.push(request); return HttpResponse.json({ items: [], nextCursor: null }); })));
+  // WHEN reading THEN filters reach the server and history is never cached.
+  await getDrafts('a+b/=', 'supplier', 'Ordered'); await getOrderRevisions('order', '2'); await getOrderRevision('order', 1);
+  expect(new URL(requests[0].url).searchParams.get('state')).toBe('Ordered');
+  expect(new URL(requests[1].url).searchParams.get('cursor')).toBe('2');
+  expect(requests.every(request => request.cache === 'no-store' && request.credentials === 'same-origin')).toBe(true);
 });

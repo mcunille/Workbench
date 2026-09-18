@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { vi } from 'vitest';
 import { getDrafts, DraftError } from '../../api/purchaseOrders';
 import { DraftList } from './DraftList';
@@ -7,18 +7,45 @@ vi.mock('../../api/purchaseOrders', async importOriginal => ({ ...await importOr
 const row = (id: string) => ({ id, title: id, supplierName: null, poReference: 'PO-000001', supplierOrderReference: null, platform: null, updatedAtUtc: '2026-09-12T00:00:00Z' });
 const props = () => ({ memory: new DraftMemory(), follow: vi.fn(), onAuthLost: vi.fn() });
 beforeEach(() => { vi.mocked(getDrafts).mockReset(); });
+it('distinguishes ordered purchases from drafts and filters the server query by state', async () => {
+  // GIVEN a unified page with both planned and placed purchases.
+  vi.mocked(getDrafts).mockResolvedValue({ items: [{ ...row('planned'), state: 'Draft' }, { ...row('placed'), state: 'Ordered', orderDate: '2026-09-16', revision: 1 }], nextCursor: null });
+  render(<DraftList {...props()} />);
+  expect(await screen.findByRole('link', { name: /placed.*Ordered/ })).toBeVisible();
+  // WHEN selecting ordered purchases THEN filtering is performed before pagination by the server.
+  fireEvent.change(screen.getByLabelText('Order status'), { target: { value: 'Ordered' } });
+  await screen.findByRole('link', { name: /placed.*Ordered/ });
+  expect(getDrafts).toHaveBeenLastCalledWith(undefined, undefined, 'Ordered');
+});
+it('clears the status filter from page one while preserving search and keyboard focus', async () => {
+  // GIVEN an ordered-only search with another page available.
+  const callbacks = props();
+  callbacks.memory.save({ items: [{ ...row('placed'), state: 'Ordered' }], nextCursor: 'ordered-page' }, 'sapphire', 'Ordered');
+  vi.mocked(getDrafts).mockResolvedValue({ items: [row('planned')], nextCursor: null });
+  render(<DraftList {...callbacks} />);
+  expect(screen.getByRole('combobox', { name: 'Order status' })).toHaveValue('Ordered');
+  // WHEN clearing only status THEN all states load from page one using the existing search.
+  fireEvent.click(screen.getByRole('button', { name: 'Clear status filter' }));
+  await screen.findByRole('link', { name: /planned/ });
+  expect(getDrafts).toHaveBeenLastCalledWith(undefined, 'sapphire', undefined);
+  expect(screen.getByRole('searchbox')).toHaveValue('sapphire');
+  expect(screen.getByRole('combobox', { name: 'Order status' })).toHaveValue('');
+  expect(screen.getByRole('combobox', { name: 'Order status' })).toHaveFocus();
+  expect(screen.queryByRole('button', { name: 'Clear status filter' })).not.toBeInTheDocument();
+  await waitFor(() => expect(callbacks.memory.state).toBe(''));
+});
 it('announces completed results and returns focus to search when cleared', async () => {
   // GIVEN a searched page with further results available.
   const callbacks = props(); callbacks.memory.save({ items: [row('kept')], nextCursor: 'next' }, 'gem');
   vi.mocked(getDrafts).mockResolvedValue({ items: [], nextCursor: null });
   render(<DraftList {...callbacks} />);
-  expect(screen.getByRole('status')).toHaveTextContent('Draft orders shown: 1. More available.');
+  expect(screen.getByRole('status')).toHaveTextContent('Purchase orders shown: 1. More available.');
   // WHEN the keyboard user clears the search.
   const clear = screen.getByRole('button', { name: 'Clear search' }); clear.focus(); fireEvent.click(clear);
   // THEN focus returns to the input and completion is announced without claiming a total.
   expect(screen.getByRole('searchbox')).toHaveFocus();
-  await screen.findByRole('heading', { name: 'No draft orders yet.' });
-  expect(screen.getByRole('status')).toHaveTextContent('No draft orders yet.');
+  await screen.findByRole('heading', { name: 'No purchase orders yet.' });
+  expect(screen.getByRole('status')).toHaveTextContent('No purchase orders yet.');
 });
 it.each([false, true])('explains recovery when refreshing fails with retained results: %s', async retained => {
   // GIVEN either an initial load or a previously loaded search.
@@ -28,7 +55,7 @@ it.each([false, true])('explains recovery when refreshing fails with retained re
   render(<DraftList {...callbacks} />);
   // WHEN the request fails THEN retained results are explicitly identified and Refresh is the recovery action.
   if (retained) { fireEvent.change(screen.getByRole('searchbox'), { target: { value: 'new' } }); fireEvent.submit(screen.getByRole('searchbox').closest('form')!); }
-  expect(await screen.findByRole('alert')).toHaveTextContent(retained ? 'Showing previous results. Select Refresh to try again.' : 'Drafts could not be loaded. Select Refresh to try again.');
+  expect(await screen.findByRole('alert')).toHaveTextContent(retained ? 'Showing previous results. Select Refresh to try again.' : 'Purchases could not be loaded. Select Refresh to try again.');
   expect(screen.getByRole('status')).toBeEmptyDOMElement();
   if (retained) { expect(screen.getByRole('searchbox')).toHaveValue('new'); expect(screen.getByRole('link', { name: /kept/ })).toBeVisible(); }
 });
@@ -36,7 +63,7 @@ it('distinguishes empty loaded drafts from pending data', async () => {
   // GIVEN the first page is empty.
   vi.mocked(getDrafts).mockResolvedValue({ items: [], nextCursor: null }); render(<DraftList {...props()} />);
   // WHEN loading succeeds THEN the empty state offers creation, with no next page.
-  await screen.findByRole('heading', { name: 'No draft orders yet.' });
+  await screen.findByRole('heading', { name: 'No purchase orders yet.' });
   expect(screen.getByRole('link', { name: 'New draft' })).toHaveAttribute('href', '/purchase-orders/new');
   expect(screen.queryByRole('button', { name: 'Load more' })).not.toBeInTheDocument();
 });
@@ -87,7 +114,7 @@ it('searches the server from page one and displays permanent references and plat
   fireEvent.submit(screen.getByRole('searchbox').closest('form')!);
   // THEN query-bound server results replace the old page and show identity and platform.
   await screen.findByText('PO-000042');
-  expect(getDrafts).toHaveBeenLastCalledWith(undefined, 'IG-7');
+  expect(getDrafts).toHaveBeenLastCalledWith(undefined, 'IG-7', undefined);
   expect(screen.getByText(/Instagram/)).toBeVisible();
   expect(screen.queryByRole('link', { name: /original/ })).not.toBeInTheDocument();
 });
@@ -117,5 +144,5 @@ it('continues the retained result query after a different search fails', async (
   fireEvent.change(screen.getByRole('searchbox'), { target: { value: 'B' } }); fireEvent.submit(screen.getByRole('searchbox').closest('form')!); await screen.findByRole('alert');
   // WHEN continuing the retained results THEN their cursor stays bound to query A.
   fireEvent.click(screen.getByRole('button', { name: 'Load more' })); await screen.findByRole('link', { name: /more-A/ });
-  expect(getDrafts).toHaveBeenLastCalledWith('cursor-A', 'A');
+  expect(getDrafts).toHaveBeenLastCalledWith('cursor-A', 'A', undefined);
 });

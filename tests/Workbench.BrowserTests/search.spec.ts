@@ -9,7 +9,7 @@ test.setTimeout(180_000);
 async function seed(page: Page, name: string, notes: string, location: string, requestToken?: string) {
   const token = requestToken ?? (await (await page.request.get('/api/beta/auth/antiforgery')).json()).requestToken;
   const response = await page.request.post('/api/beta/items', {
-    headers: { 'X-Workbench-Api-Revision': 'beta-2', 'X-CSRF-TOKEN': token },
+    headers: { 'X-CSRF-TOKEN': token },
     data: { creationRequestId: crypto.randomUUID(), name, notes, location },
   });
   expect(response.status()).toBe(201);

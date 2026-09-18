@@ -1057,6 +1057,9 @@ namespace Workbench.Server.Persistence.Migrations
                     b.Property<string>("Notes")
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<DateOnly?>("OrderDate")
+                        .HasColumnType("date");
+
                     b.Property<string>("Platform")
                         .HasMaxLength(200)
                         .HasColumnType("nvarchar(200)");
@@ -1064,11 +1067,24 @@ namespace Workbench.Server.Persistence.Migrations
                     b.Property<long?>("PoNumber")
                         .HasColumnType("bigint");
 
+                    b.Property<int>("Revision")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(0);
+
                     b.Property<byte[]>("RowVersion")
                         .IsConcurrencyToken()
                         .IsRequired()
                         .ValueGeneratedOnAddOrUpdate()
                         .HasColumnType("rowversion");
+
+                    b.Property<string>("State")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(7)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(7)")
+                        .HasDefaultValue("Draft");
 
                     b.Property<string>("SupplierContactName")
                         .HasMaxLength(200)

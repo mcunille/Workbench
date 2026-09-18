@@ -49,13 +49,15 @@ public sealed partial class DraftOrderDatabaseTests
         var saved = await Save(connection, actor, request, canonical, "Create");
         async Task<string> Snapshot()
         {
-            await using var read = new SqlCommand("SELECT (SELECT * FROM Purchasing.DraftOrders FOR JSON PATH) Drafts,(SELECT * FROM Purchasing.DraftOrderRequestReceipts FOR JSON PATH) Receipts FOR JSON PATH", connection);
+            await using var read = new SqlCommand("SELECT (SELECT Id,TenantId,IsDeleted,Title,SupplierName,PoNumber,SupplierId,SupplierContactName,SupplierEmail,SupplierPhone,SupplierWebsite,SupplierPostalAddress,SupplierOrderReference,Platform,Currency,Notes,ContentSchemaVersion,ContentJson,CreatedAtUtc,UpdatedAtUtc,CreatedByUserId,UpdatedByUserId,RowVersion FROM Purchasing.DraftOrders FOR JSON PATH) Drafts,(SELECT * FROM Purchasing.DraftOrderRequestReceipts FOR JSON PATH) Receipts FOR JSON PATH", connection);
             return (string)(await read.ExecuteScalarAsync())!;
         }
         var before = await Snapshot();
         // WHEN pending migrations reconcile the two branches THEN data and successful beta retry bytes survive.
         await DatabaseMigrator.MigrateAsync(database.AdminConnectionString, default);
         Assert.Equal(before, await Snapshot());
+        await using var state = new SqlCommand("SELECT COUNT(*) FROM Purchasing.DraftOrders WHERE State<>'Draft' OR Revision<>0 OR OrderDate IS NOT NULL", connection);
+        Assert.Equal(0, await state.ExecuteScalarAsync());
         Assert.True((await Workbench.Server.Administration.DevelopmentDatabaseInspection.InspectAsync(database.AdminConnectionString, default)).SchemaCurrent);
         Assert.Equal(HealthStatus.Healthy, (await readiness.CheckHealthAsync(new HealthCheckContext())).Status);
         // AND the SQL compatibility result honors a caller's required schema rather than its own default.
@@ -75,7 +77,7 @@ public sealed partial class DraftOrderDatabaseTests
         definition.CommandText = "SELECT COUNT(*) FROM sys.procedures WHERE schema_id=SCHEMA_ID(N'Purchasing') AND (name LIKE '%DraftOrderV[234]' OR name=N'ReplayDraftOrderReceipt')";
         Assert.Equal(0, Convert.ToInt32(await definition.ExecuteScalarAsync()));
         definition.CommandText = "SELECT OBJECT_DEFINITION(OBJECT_ID(N'Security.ReadDatabaseReadiness'))";
-        Assert.Contains("20260918020000_IntegrateBetaDraftFinancialAdjustments", (string)(await definition.ExecuteScalarAsync())!);
+        Assert.Contains("20260918060000_AddPurchaseOrderCommitment", (string)(await definition.ExecuteScalarAsync())!);
         // AND a new financial request is accepted and stored using content schema 4.
         await Save(connection, actor, Guid.NewGuid(), Canonical("Create", null, null, "Financial beta draft"), "Create");
         Assert.Equal(50020, (await Assert.ThrowsAsync<SqlException>(() => DatabaseMigrator.MigrateToAsync(database.AdminConnectionString, "RemoveHistoricalDraftReplay", default))).Number);

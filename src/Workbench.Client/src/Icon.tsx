@@ -13,6 +13,7 @@ type IconName =
   | 'image'
   | 'location'
   | 'plus'
+  | 'close'
   | 'chevron'
   | 'back';
 
@@ -33,6 +34,7 @@ const paths: Record<IconName, string> = {
   location:
     'M20 10c0 6-8 11-8 11S4 16 4 10a8 8 0 1 1 16 0z M15 10a3 3 0 1 1-6 0 3 3 0 0 1 6 0',
   plus: 'M12 5v14 M5 12h14',
+  close: 'm6 6 12 12 M6 18 18 6',
   chevron: 'm9 5 7 7-7 7',
   back: 'm15 5-7 7 7 7',
 };

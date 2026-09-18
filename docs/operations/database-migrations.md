@@ -104,13 +104,14 @@ This inventory describes checked-in migration behavior, not permission to execut
 | `20260917080000_ConsolidateBetaDraftCommands` | `ProtectConfirmedSupplierChargeCorrections` | Retires parallel purchasing writers, installs the single beta write implementation and restricted receipt lookup, preserving content and receipt bytes. Advances readiness and backup markers. Stop prior application instances before migration, then deploy the matching frontend/server together. | Always blocked; retired commands require forward correction or guarded recovery. |
 | `20260918010000_RemoveHistoricalDraftReplay` | `ConsolidateBetaDraftCommands` | Removes the development-only receipt replay procedure and its grants while retaining draft and receipt rows. Advances readiness and backup markers; current beta retries still use the current write commands. | Always blocked; use forward correction or guarded recovery. |
 | `20260918020000_IntegrateBetaDraftFinancialAdjustments` | `RemoveHistoricalDraftReplay` | Installs PO-05 validation and confirmed supplier correction protection on the single beta writer, removes all temporary V3/V4 prerequisites, and advances readiness/backup markers. Retains schema 1/2/3/4 content and exact receipt bytes. | Always blocked; use forward correction or guarded recovery. |
+| `20260918060000_AddPurchaseOrderCommitment` | `IntegrateBetaDraftFinancialAdjustments` | Consolidated PO-04: adds Draft/Ordered state, order date, immutable snapshots and actor-bound receipts, RLS and restricted commands. Includes retained-line projection, trimmed amendment reasons, supplier GUID normalization and decoded-content no-op detection. Preserves existing drafts, references, row versions and receipts without inferring commitments. Protects draft writers after receipt replay; advances readiness and backup markers. Stop older writers and deploy the matching beta application. | Always blocked; preserve agreed contents and history through forward correction or guarded recovery. |
 
 Product behavior, user-visible concurrency/retry rules and the shipped feature inventory belong in
 [collection documentation](../collection.md). Provider retry/backoff behavior belongs in
 [identity delivery and worker operations](blob-and-service-providers.md#identity-delivery-and-worker).
 The [migration source](../../src/Workbench.Server/Persistence/Migrations) is authoritative for SQL.
 
-The current required migration is `20260918020000_IntegrateBetaDraftFinancialAdjustments`.
+The current required migration is `20260918060000_AddPurchaseOrderCommitment`.
 Stop all application writers before migration and deploy the matching beta API/client together
 only after the entire pending migration set completes. The final schema has one purchasing writer
 with PO-05 financial and confirmed supplier correction validation, no historical replay procedure,
@@ -135,3 +136,22 @@ including preserved drafts/receipts, current financial saves, retired procedure 
 blocked downgrade. See [API lifecycle](../api-lifecycle.md).
 
 The PO-03 changes were consolidated into `AddSupplierBasedDraftPricing`, retaining the final migration ID and final model. It installs V3 compatibility commands before V4 commands and keeps the destructive-rollback guard. Retained previews that already applied both earlier migrations keep their existing history and data unchanged; the final ID is already applied, so no schema work is repeated. A preview that applied only the removed structured-line migration is not a supported upgrade baseline and needs a separately planned transition; never reset its history automatically.
+
+
+### Retained PO-04 development preview reconciliation
+
+PO-04's three development migrations (`20260918030000`, `20260918040000`, and
+`20260918050000`) were consolidated before release with explicit owner approval.
+They are not part of the release lineage. An already-applied retained preview must
+not run the new additive migration over its existing tables or silently rewrite
+its history. Back up with checksums, restore to a separate database, verify every
+retained table, install and verify the final procedure definitions on that clone,
+and reconcile only the clone's three development history entries to the final
+PO-04 migration. Stop writers and recheck retained data before switching to the
+verified clone. Keep the original database and backup for guarded recovery.
+
+This exception applies only to the approved isolated development preview. It is
+not an automatic upgrade path for shared or production databases. The final
+schema retains all constraints, RLS predicates, restricted grants and rollback
+guards. Backup manifest validation continues to recognize the retired development
+markers so their retained backups remain usable for guarded recovery.

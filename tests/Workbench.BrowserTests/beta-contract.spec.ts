@@ -15,7 +15,7 @@ async function selectRecovery(page: Page, label: string, retained: string) {
   expect(await text.evaluate((node: HTMLTextAreaElement) => node.selectionStart === 0 && node.selectionEnd === node.value.length)).toBe(true);
 }
 
-test('an incompatible item save keeps submitted details keyboard-selectable', async ({ page }) => {
+test('an interrupted item save keeps submitted details keyboard-selectable', async ({ page }) => {
   // GIVEN a collector entering a new item on a phone-sized screen.
   await useAuthenticatedSession(page);
   await page.setViewportSize({ width: 390, height: 844 });
@@ -26,20 +26,20 @@ test('an incompatible item save keeps submitted details keyboard-selectable', as
   await page.route('**/api/beta/items', async route => {
     if (route.request().method() !== 'POST') return route.continue();
     writes++;
-    await route.fulfill({ status: 409, json: { code: 'api_contract_unsupported' } });
+    await route.fulfill({ status: 503, json: { title: 'Temporarily unavailable' } });
   });
-  // WHEN the deployment rejects the submitted contract.
+  // WHEN the save response is unavailable.
   await page.getByRole('button', { name: 'Save item', exact: true }).click();
   // THEN retained details can be selected without unlocking or resending the submission.
   await expect(page.getByLabel('Name', { exact: true })).toBeDisabled();
   await selectRecovery(page, 'Item', 'Keep this research.');
   await page.getByRole('button', { name: 'Retry save', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Retry save', exact: true })).toBeEnabled();
-  expect(writes).toBe(1);
+  expect(writes).toBe(2);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });
 
-for (const kind of ['draft', 'supplier'] as const) test(`a ${kind} conflict read rejected by a deployment keeps edits keyboard-selectable`, async ({ page }) => {
+for (const kind of ['draft', 'supplier'] as const) test(`a ${kind} conflict followed by an unavailable read keeps edits keyboard-selectable`, async ({ page }) => {
   // GIVEN a saved record with local edits awaiting reconciliation.
   await useAuthenticatedSession(page);
   const draft = kind === 'draft';
@@ -57,41 +57,47 @@ for (const kind of ['draft', 'supplier'] as const) test(`a ${kind} conflict read
   await page.route(`**/api/beta/${draft ? 'purchase-order-drafts' : 'suppliers'}/${id}`, async route => {
     const write = route.request().method() === 'PUT';
     if (write) writes++;
-    await route.fulfill({ status: 409, json: { code: write ? `${kind}_version_conflict` : 'api_contract_unsupported' } });
+    await route.fulfill({ status: write ? 409 : 503, json: { code: write ? `${kind}_version_conflict` : 'temporarily_unavailable' } });
   });
-  // WHEN a version conflict is followed by a deployment mismatch on the recovery read.
+  if (draft) await page.route(`**/api/beta/purchase-orders/${id}`, async route => {
+    await route.fulfill({ status: 503, json: { title: 'Temporarily unavailable' } });
+  });
+  // WHEN a version conflict is followed by a failed recovery read.
   await page.getByRole('button', { name: save, exact: true }).click();
   // THEN frozen local edits remain selectable and further saves stay disabled.
-  await expect(page.getByText('Workbench has been updated. Reload required.', { exact: true })).toBeVisible();
+  await expect(page.getByText('Workbench has been updated. Reload required.', { exact: true })).toHaveCount(0);
   await expect(page.getByLabel(field, { exact: true })).toBeDisabled();
   await selectRecovery(page, draft ? 'Purchase draft' : 'Supplier', `Retained ${kind} edits`);
   await expect(page.getByRole('button', { name: save, exact: true })).toBeDisabled();
   expect(writes).toBe(1);
 });
 
-test('an incompatible beta API preserves purchase edits and blocks subsequent writes', async ({ page }) => {
-  // GIVEN an authenticated owner editing a purchase draft while the deployed API changes.
+test('an interrupted beta request preserves purchase edits and retries the exact submission', async ({ page }) => {
+  // GIVEN an authenticated owner editing a purchase draft while the service is temporarily unavailable.
   await useAuthenticatedSession(page);
   await page.goto('/purchase-orders/new');
   await page.getByLabel('Title', { exact: true }).fill('Retain my purchase draft');
   await page.getByLabel('Notes', { exact: true }).fill('Ask the supplier about the blue stones.');
   let saves = 0;
+  let original: string | null;
   await page.route('**/api/beta/purchase-order-drafts', async route => {
     if (route.request().method() !== 'POST') return route.continue();
     saves++;
-    // The application itself supplies the revision; the browser context does not inject one.
-    expect(route.request().headers()['x-workbench-api-revision']).toBe('beta-2');
-    await route.fulfill({ status: 409, contentType: 'application/problem+json', body: JSON.stringify({
-      title: 'API contract unsupported', code: 'api_contract_unsupported',
+    if (saves === 1) original = route.request().postData();
+    else expect(route.request().postData()).toBe(original);
+    // The single beta API requires no client revision header.
+    expect(route.request().headers()['x-workbench-api-revision']).toBeUndefined();
+    await route.fulfill({ status: 503, contentType: 'application/problem+json', body: JSON.stringify({
+      title: 'Temporarily unavailable', code: 'temporarily_unavailable',
     }) });
   });
 
-  // WHEN the owner's save receives the incompatible-contract response.
+  // WHEN the owner's save receives the unavailable-service response.
   await page.getByRole('button', { name: 'Save draft', exact: true }).click();
 
-  // THEN the notice explains recovery and the same unsaved form remains on screen.
-  await expect(page.getByText('Workbench has been updated. Reload required.', { exact: true })).toBeVisible();
-  await expect(page.getByText('Saving is paused. Your unsaved changes are still on this page. Copy them before reloading.', { exact: true })).toBeVisible();
+  // THEN the existing recovery explains the uncertain result and the same unsaved form remains on screen.
+  await expect(page.getByText('Workbench has been updated. Reload required.', { exact: true })).toHaveCount(0);
+  await expect(page.getByText('We couldn’t confirm your save.', { exact: true })).toBeVisible();
   await expect(page.getByLabel('Title', { exact: true })).toHaveValue('Retain my purchase draft');
   await expect(page.getByLabel('Notes', { exact: true })).toHaveValue('Ask the supplier about the blue stones.');
   await expect(page).toHaveURL(/\/purchase-orders\/new$/);
@@ -110,7 +116,7 @@ test('an incompatible beta API preserves purchase edits and blocks subsequent wr
   expect(selection.value).toContain('Ask the supplier about the blue stones.');
   expect(selection.start).toBe(0);
   expect(selection.end).toBe(selection.value.length);
-  // WHEN retry is requested THEN the client blocks all further unsafe API network requests.
+  // WHEN retry is requested THEN the original submission is sent again to check its result.
   const subsequentWrites: string[] = [];
   page.on('request', request => {
     if (new URL(request.url()).pathname.startsWith('/api/beta/') && !['GET', 'HEAD', 'OPTIONS'].includes(request.method())) {
@@ -120,7 +126,7 @@ test('an incompatible beta API preserves purchase edits and blocks subsequent wr
   await page.getByRole('button', { name: 'Check and retry', exact: true }).click();
   await expect(page.getByText('We couldn’t confirm your save.', { exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Check and retry', exact: true })).toBeEnabled();
-  expect(subsequentWrites).toEqual([]);
-  expect(saves).toBe(1);
+  expect(subsequentWrites).toContain('POST');
+  expect(saves).toBe(2);
   await expect(page.getByLabel('Notes', { exact: true })).toHaveValue('Ask the supplier about the blue stones.');
 });

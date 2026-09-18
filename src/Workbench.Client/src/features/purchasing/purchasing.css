@@ -304,6 +304,96 @@
 .po-financial-summary .po-summary-subtotal { border-top: 1px solid var(--border-subtle); margin-top: .5rem; }
 .po-financial-summary .po-summary-total { border-top: 1px solid var(--border-subtle); margin-top: .5rem; padding-top: 1rem; font-size: 1.125rem; font-weight: 600; }
 .po-summary-total dt { color: var(--text); }
+.po-state-filter { position: relative; flex: 0 0 10rem; width: 10rem; min-width: 0; max-width: 100%; }
+.po-state-filter select { appearance: none; width: 100%; min-width: 0; min-height: calc(3rem + 2px); padding-right: 3rem; cursor: pointer; }
+.po-state-filter select.is-empty { color: var(--muted); }
+.po-state-filter > .icon { position: absolute; top: 50%; right: .875rem; transform: translateY(-50%) rotate(90deg); pointer-events: none; color: var(--muted); }
+.po-state-filter .po-status-clear { position: absolute; right: 1px; top: 50%; transform: translateY(-50%); width: 44px; height: calc(100% - 2px); padding: 0; border: 0; background: transparent; }
+.po-status-clear:hover { color: var(--text); background: var(--hover); }
+.po-order-status { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; width: 100%; }
+.po-order-status > time { font-size: .8125rem; color: var(--muted); }
+.po-status-badge { display: inline-flex; width: fit-content; padding: .1875rem .625rem; border-radius: 999px; background: #495057; color: #fff; font-size: .75rem; font-weight: 600; line-height: 1.4; text-transform: uppercase; }
+.po-status-badge[data-state="Ordered"] { background: #1864ab; }
+@media (width < 600px) {
+  .po-search-controls > .po-state-filter { grid-column: 1 / -1; grid-row: 2; }
+}
+@media (forced-colors: active) {
+  .po-status-badge { border: 1px solid CanvasText; }
+}
+.po-history-list { list-style: none; margin: 1.5rem 0; padding: 0; }
+.po-history-list > li { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 1rem; padding-block: 1rem; border-bottom: 1px solid var(--border-subtle); }
+.po-history-list > li > div { flex: 1 1 18rem; min-width: 0; }
+.po-history-list p { margin: .375rem 0 0; overflow-wrap: anywhere; }
+.po-history-actor { color: var(--muted); font-size: .8125rem; }
+.po-ordered > .po-financial-summary { max-width: none; margin-block: 1.5rem; }
+.po-ordered .po-editor-header h2 { margin: .375rem 0; font-size: 1.125rem; font-weight: 500; }
+.po-order-meta { display: flex; flex-wrap: wrap; align-items: center; gap: .25rem 1rem; }
+.po-order-meta p { margin: 0; color: var(--muted); font-size: .875rem; }
+.po-inline-details { grid-column: 1 / -1; min-width: 0; margin: 0; padding: 0; border: 0; }
+.po-inline-details > summary { display: flex; align-items: center; gap: .375rem; width: fit-content; min-height: 44px; cursor: pointer; color: var(--muted); font-size: .875rem; list-style: none; }
+.po-inline-details > summary::-webkit-details-marker { display: none; }
+.po-inline-details > summary:hover { color: var(--text); }
+.po-inline-details > summary .icon { width: 1rem; height: 1rem; }
+.po-inline-details[open] > summary .icon { transform: rotate(45deg); }
+.po-inline-detail-fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr)); gap: 1rem 2rem; margin: 0 0 .75rem; }
+.po-inline-detail-fields > div { min-width: 0; }
+.po-inline-detail-fields dt { color: var(--muted); font-size: .8125rem; }
+.po-inline-detail-fields dd { margin: .25rem 0 0; overflow-wrap: anywhere; white-space: pre-wrap; }
+.po-inline-detail-fields ul { margin: 0; padding-left: 1.25rem; }
+.po-purchase-line > .po-inline-details, .po-purchase-charge > .po-inline-details { margin-top: -.75rem; }
+.po-estimate-breakdown { margin-top: .75rem; }
+.po-estimate-breakdown > summary { min-height: 44px; padding-block: .75rem; cursor: pointer; color: var(--muted); }
+.po-estimate-breakdown > dl { margin-top: 0; }
+.po-ordered > .po-comparison-content { border-top: 1px solid var(--border-subtle); padding-top: 1.5rem; }
+.po-record-toolbar > button { max-width: 100%; white-space: normal; }
+.po-record-details { margin-top: 1.5rem; border-top: 1px solid var(--border-subtle); }
+.po-record-details > summary, .po-commit-body > details > summary { min-height: 44px; padding-block: .75rem; cursor: pointer; }
+.po-record-details > .po-comparison { margin-top: .75rem; }
+.po-purchase-contents h3, .po-changes h3 { margin: 0; font-size: 1.125rem; font-weight: 500; }
+.po-purchase-lines, .po-purchase-charges, .po-change-list { list-style: none; padding: 0; margin: 1rem 0 0; }
+.po-purchase-lines { margin-top: .5rem; }
+.po-purchase-line, .po-purchase-charge { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 1rem 2rem; padding-block: .75rem; border-bottom: 1px solid var(--border-subtle); }
+.po-purchase-line h4 { margin: 0; font-size: 1rem; font-weight: 500; }
+.po-purchase-line p, .po-purchase-charge p { margin: .375rem 0 0; color: var(--muted); font-size: .875rem; }
+.po-purchase-line-description, .po-purchase-charge > div { min-width: 0; overflow-wrap: anywhere; }
+.po-purchase-line-amounts { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: .75rem 2rem; margin: 0; text-align: right; }
+.po-purchase-line-amounts dt, .po-change-value dt { color: var(--muted); font-size: .8125rem; }
+.po-purchase-line-amounts dd, .po-change-value dd { margin: .25rem 0 0; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.po-purchase-charge-amount { text-align: right; font-variant-numeric: tabular-nums; }
+.po-purchase-charge strong { font-weight: 500; }
+.po-purchase-contents > h4 { margin: 1.25rem 0 .25rem; font-weight: 500; }
+.po-purchase-charges { margin-top: 0; }
+.po-purchase-discount { margin-top: 1rem; }
+.po-changes-heading { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: .5rem 1rem; }
+.po-changes-heading p { margin: 0; font-size: .875rem; color: var(--muted); }
+.po-change-row { padding-block: 1rem; border-top: 1px solid var(--border-subtle); }
+.po-change-label { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: .5rem 1rem; margin-bottom: .75rem; }
+.po-change-label strong { font-weight: 500; overflow-wrap: anywhere; }
+.po-change-kind { color: var(--muted); font-size: .8125rem; }
+.po-change-values { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem 2rem; margin: 0; }
+.po-change-value { min-width: 0; }
+.po-change-value dd { white-space: pre-wrap; }
+.po-change-totals { margin-top: .75rem; padding-top: .5rem; border-top: 1px solid var(--border-subtle); }
+.po-change-totals h4 { margin: 1rem 0 .75rem; font-size: 1rem; font-weight: 500; }
+.po-amendment-review > h2 { margin: 0; font-size: 1.25rem; font-weight: 500; scroll-margin-top: 8rem; }
+.po-amendment-review > p { margin: .5rem 0 1.5rem; color: var(--muted); overflow-wrap: anywhere; }
+.po-commit-dialog[open] { display: flex; flex-direction: column; overflow: hidden; }
+.po-commit-dialog > h2 { flex-shrink: 0; margin-top: 0; }
+.po-commit-body { min-height: 0; overflow: auto; scrollbar-gutter: stable; padding-right: .5rem; }
+.po-commit-dialog > .po-dialog-footer { flex-shrink: 0; margin-top: 1rem; }
+.po-commit-summary h3 { margin: 0; font-size: 1.125rem; font-weight: 500; }
+.po-commit-summary p { margin: .375rem 0 0; color: var(--muted); overflow-wrap: anywhere; }
+.po-commit-totals { margin: 1rem 0 0; }
+.po-commit-totals > div { display: grid; grid-template-columns: minmax(0, 1fr) fit-content(50%); gap: .75rem; padding-block: .5rem; }
+.po-commit-totals dd { margin: 0; text-align: right; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.po-commit-totals > div:last-child { border-top: 1px solid var(--border-subtle); font-weight: 500; }
+@media (max-width: 700px) {
+  .po-purchase-line { grid-template-columns: minmax(0, 1fr); gap: .75rem; }
+  .po-purchase-line-amounts { justify-content: flex-start; text-align: left; gap: .75rem 1.5rem; }
+  .po-record-toolbar { flex-wrap: wrap; }
+  .po-record-toolbar > .po-save-action { margin-left: auto; }
+  .po-change-values { gap: 1rem; }
+}
 @media (max-width: 700px) {
   .po-adjustment-fields, .po-charge-primary { grid-template-columns: minmax(0, 1fr); }
   .po-charge-party .field-label { position: static; transform: none; max-width: 100%; margin-bottom: .5rem; padding: 0; font-size: 1rem; overflow-wrap: anywhere; background: transparent; }

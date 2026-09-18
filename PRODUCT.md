@@ -51,7 +51,8 @@ in-memory work is durably saved.
   acquisition context, acquisition documents, and CSV or ZIP exports.
 - [Purchasing](docs/purchasing.md): supplier purchase drafts with itemized quantities and prices,
   line/order discounts, categorized charges, source links, explicit save and conflict recovery,
-  and draft deletion. Exact calculations distinguish supplier estimates from total purchase
+  and draft deletion. Placed purchases have an explicit order date, preserved agreed contents,
+  reasoned amendments and immutable revision history. Exact calculations distinguish supplier estimates from total purchase
   estimates including third-party costs. Unknown amounts remain explicit. Drafts create no
   commitment, inventory, acquisition, invoice, payment obligation or accounting entry; confirming
   a source charge amount does not post a financial event. Unresolved legacy reference prices

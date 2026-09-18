@@ -29,66 +29,44 @@ public sealed class BetaApiContractTests
     }
 
     [Theory]
-    [InlineData("beta-0")]
-    [InlineData("beta-1")]
-    [InlineData("beta-2,beta-2")]
-    public async Task ExplicitlyIncompatibleReadsAlsoRequireReload(string revision)
+    [InlineData(null)]
+    [InlineData("obsolete-client")]
+    public async Task BootstrapDoesNotNegotiateARevision(string? obsoleteHeader)
     {
-        // GIVEN a stale or ambiguous revision on a read request.
+        // GIVEN a browser using the single evolving beta, optionally retaining an obsolete header.
         await using var application = new WebApplicationFactory<Program>();
         using var client = application.CreateClient();
-        client.DefaultRequestHeaders.Add("X-Workbench-Api-Revision", revision);
-        // WHEN the request reaches even the bootstrap route THEN it is not silently treated as current.
+        if (obsoleteHeader is not null) client.DefaultRequestHeaders.Add("X-Workbench-Api-Revision", obsoleteHeader);
+        // WHEN it discovers application identity THEN no revision is negotiated or advertised.
         var response = await client.GetAsync("/api/beta/system");
-        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
-    }
-
-    [Fact]
-    public async Task BootstrapIdentifiesTheBetaRevisionWithoutAClientRevision()
-    {
-        // GIVEN a browser bootstrapping without an API revision.
-        await using var application = new WebApplicationFactory<Program>();
-        using var client = application.CreateClient();
-        // WHEN it discovers the application identity.
-        var response = await client.GetAsync("/api/beta/system");
-        // THEN it learns the explicit beta contract rather than a stable version.
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var body = await response.Content.ReadFromJsonAsync<JsonElement>();
-        Assert.Equal("beta-2", body.GetProperty("apiRevision").GetString());
-        Assert.Equal("beta-2", Assert.Single(response.Headers.GetValues("X-Workbench-Api-Revision")));
-    }
-
-    [Theory]
-    [InlineData(null)]
-    [InlineData("beta-0")]
-    [InlineData("beta-1")]
-    public async Task StaleWritesAreRejectedBeforeAuthenticationOrBinding(string? revision)
-    {
-        // GIVEN a stale browser, including a browser predating revision headers.
-        await using var application = new WebApplicationFactory<Program>();
-        using var client = application.CreateClient();
-        if (revision is not null) client.DefaultRequestHeaders.Add("X-Workbench-Api-Revision", revision);
-        // WHEN it submits a write with no valid current payload or credentials.
-        var response = await client.PostAsJsonAsync("/api/beta/items", new { });
-        // THEN the contract rejection takes precedence and no business handler runs.
-        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
-        var body = await response.Content.ReadFromJsonAsync<JsonElement>();
-        Assert.Equal("api_contract_unsupported", body.GetProperty("code").GetString());
-        Assert.True(response.Headers.CacheControl?.NoStore);
+        Assert.Equal("Workbench", body.GetProperty("name").GetString());
+        Assert.False(body.TryGetProperty("apiRevision", out _));
+        Assert.False(response.Headers.Contains("X-Workbench-Api-Revision"));
     }
 
     [Fact]
-    public async Task CurrentRevisionStillRequiresAuthentication()
+    public async Task HeaderlessWritesStillRequireAuthentication()
     {
-        // GIVEN a current browser without a session.
+        // GIVEN an anonymous browser with no contract revision header.
         await using var application = new WebApplicationFactory<Program>();
         using var client = application.CreateClient();
-        client.DefaultRequestHeaders.Add("X-Workbench-Api-Revision", "beta-2");
-        // WHEN it attempts a protected write THEN authentication still applies.
+        // WHEN it attempts a protected write THEN normal authentication rejects it.
         var response = await client.PostAsJsonAsync("/api/beta/items", new { });
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }
 
+    [Fact]
+    public async Task HeaderlessAuthenticationWritesStillRequireAntiforgery()
+    {
+        // GIVEN an anonymous browser without an antiforgery token or revision header.
+        await using var application = new WebApplicationFactory<Program>();
+        using var client = application.CreateClient();
+        // WHEN it submits login THEN ordinary antiforgery protection still applies.
+        var response = await client.PostAsJsonAsync("/api/beta/auth/login", new { email = "example@example.test", password = "example" });
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
     [Theory]
     [InlineData("/api/system")]
     [InlineData("/api/v2/items")]

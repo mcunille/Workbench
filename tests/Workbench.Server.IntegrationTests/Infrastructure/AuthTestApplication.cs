@@ -80,7 +80,6 @@ public sealed class AuthTestApplication : IAsyncDisposable
             AllowAutoRedirect = false,
             HandleCookies = true,
         });
-        client.DefaultRequestHeaders.Add("X-Workbench-Api-Revision", "beta-2");
         return client;
     }
 

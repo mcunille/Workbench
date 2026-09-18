@@ -42,7 +42,7 @@ public static class DraftOrderEndpoints
         if (query?.Length > 200 || query?.Any(char.IsControl) == true) return Problem(400, "invalid_query", "Use up to 200 characters for search.");
         var binding = database.TenantContext.RequireTenantId().ToString("N") + ":" + query;
         if (!PurchasingIdentityInput.Decode(cursor, binding, out var timestamp, out var id)) return Problem(400, "invalid_cursor", "Refresh drafts to start a new page.");
-        var rowsQuery = database.DraftOrders.FromSql($"SELECT * FROM [Purchasing].[DraftOrders] WHERE IsDeleted=0 AND ({cursor} IS NULL OR [UpdatedAtUtc] < {timestamp} OR ([UpdatedAtUtc] = {timestamp} AND [Id] < {id})) AND ({query} IS NULL OR CHARINDEX({query},UPPER(Title) COLLATE Latin1_General_100_CI_AS)>0 OR CHARINDEX({query},UPPER(SupplierName) COLLATE Latin1_General_100_CI_AS)>0 OR CHARINDEX({query},UPPER(SupplierOrderReference) COLLATE Latin1_General_100_CI_AS)>0 OR CHARINDEX({query},'PO-'+CASE WHEN PoNumber<1000000 THEN RIGHT('000000'+CONVERT(varchar(20),PoNumber),6) ELSE CONVERT(varchar(20),PoNumber) END)>0)").AsNoTracking();
+        var rowsQuery = database.DraftOrders.FromSql($"SELECT * FROM [Purchasing].[DraftOrders] WHERE IsDeleted=0 AND State='Draft' AND ({cursor} IS NULL OR [UpdatedAtUtc] < {timestamp} OR ([UpdatedAtUtc] = {timestamp} AND [Id] < {id})) AND ({query} IS NULL OR CHARINDEX({query},UPPER(Title) COLLATE Latin1_General_100_CI_AS)>0 OR CHARINDEX({query},UPPER(SupplierName) COLLATE Latin1_General_100_CI_AS)>0 OR CHARINDEX({query},UPPER(SupplierOrderReference) COLLATE Latin1_General_100_CI_AS)>0 OR CHARINDEX({query},'PO-'+CASE WHEN PoNumber<1000000 THEN RIGHT('000000'+CONVERT(varchar(20),PoNumber),6) ELSE CONVERT(varchar(20),PoNumber) END)>0)").AsNoTracking();
         var rows = await rowsQuery.OrderByDescending(row => row.UpdatedAtUtc).ThenByDescending(row => row.Id).Take(51).ToListAsync(cancellationToken);
         return Results.Ok(new DraftOrderPageResponse(rows.Take(50).Select(row => new DraftOrderSummary(row.Id, row.Title, row.SupplierName, DraftOrderCursor.Timestamp(row.UpdatedAtUtc), PurchasingIdentityInput.Reference(row.PoNumber), row.SupplierOrderReference, row.Platform)).ToArray(), rows.Count > 50 ? PurchasingIdentityInput.Cursor(rows[49].UpdatedAtUtc, rows[49].Id, binding) : null));
     }
@@ -50,6 +50,7 @@ public static class DraftOrderEndpoints
     {
         var row = await database.DraftOrders.AsNoTracking().SingleOrDefaultAsync(row => row.Id == id && !row.IsDeleted, cancellationToken);
         if (row is null) return Problem(404, "draft_not_found", "Draft not found.");
+        if (row.State != "Draft") return Results.Problem(statusCode: 409, title: "This purchase is ordered.", extensions: new Dictionary<string, object?> { ["code"] = "purchase_state_conflict", ["purchaseOrderId"] = row.Id, ["location"] = $"/api/beta/purchase-orders/{row.Id}" });
         using var content = JsonDocument.Parse(row.ContentJson);
         var links = content.RootElement.GetProperty("sourceLinks").Deserialize<string[]>(DraftOrderInput.JsonOptions)!;
         var entries = DraftOrderInput.ReadEntries(content.RootElement, row.ContentSchemaVersion);
@@ -108,10 +109,11 @@ public static class DraftOrderEndpoints
             if (id is null) context.Response.Headers.Location = location;
             return id is null && !response.Replayed ? Results.Created(location, response) : Results.Ok(response);
         }
-        catch (SqlException exception) when (exception.Number is 50400 or 50401 or 50403 or 50404 or 50409 or 50410 or 50412 or 50413 or 50414)
+        catch (SqlException exception) when (exception.Number is 50400 or 50401 or 50403 or 50404 or 50409 or 50410 or 50412 or 50413 or 50414 or 50415)
         {
             return exception.Number switch
             {
+                50415 => Problem(409, "purchase_state_conflict", "Ordered purchases require an amendment."),
                 50400 => Validation(new() { ["draft"] = ["Review the draft fields and limits."] }),
                 50401 => Validation(new() { ["draft.currency"] = ["Clear all amounts and save before entering amounts in a different currency."] }),
                 50403 => Problem(403, "draft_authority_required", "Current business authority is required."),
@@ -150,10 +152,11 @@ public static class DraftOrderEndpoints
                 Convert.ToBase64String((byte[])reader["SavedVersion"]),
                 DraftOrderCursor.Timestamp(reader.GetFieldValue<DateTimeOffset>(reader.GetOrdinal("CompletedAtUtc")))));
         }
-        catch (SqlException exception) when (exception.Number is 50400 or 50403 or 50404 or 50409 or 50410)
+        catch (SqlException exception) when (exception.Number is 50400 or 50403 or 50404 or 50409 or 50410 or 50415)
         {
             return exception.Number switch
             {
+                50415 => Problem(409, "purchase_state_conflict", "Ordered purchases require an amendment."),
                 50400 => Validation(new() { ["requestId"] = ["Supply a valid deletion identifier and saved version."] }),
                 50403 => Problem(403, "draft_authority_required", "Current business authority is required."),
                 50404 => Problem(404, "draft_not_found", "Draft not found."),

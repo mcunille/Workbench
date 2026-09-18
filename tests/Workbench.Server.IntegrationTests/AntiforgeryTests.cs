@@ -86,7 +86,6 @@ public sealed class AntiforgeryTests(SqlServerFixture sqlServer) : IAsyncLifetim
         {
             Content = JsonContent.Create(body),
         };
-        request.Headers.TryAddWithoutValidation("X-Workbench-Api-Revision", "beta-2");
         request.Headers.Add("X-CSRF-TOKEN", tokenResponse.GetProperty("requestToken").GetString());
         return await _client.SendAsync(request);
     }
