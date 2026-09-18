@@ -25,6 +25,32 @@ editing/recovery state from committed business records and from retry evidence. 
 pruning evidence if delayed requests could then execute again. State which identities, receipts,
 historical representations, or compatibility rules a simpler design must preserve.
 
+## Review migration delivery
+
+Whenever a PR adds or changes database migrations, inventory those introduced since its base;
+exclude existing base migrations from consolidation. Apply the repository's migration policy.
+For Workbench, require one migration per coherent release change. Flag a development sequence
+of an initial migration plus corrective migrations and request consolidation before merge,
+preserving dependency ordering, custom SQL, security controls, data transformations, rollback
+guards and the final model snapshot. Multiple independent release changes are assessed separately.
+
+Verify any claimed need for separate migrations against a concrete staged deployment, backfill or
+compatibility boundary. A PR explanation or local preview application is not by itself evidence of
+such a release requirement. If the author claims a migration was applied to a retained/shared
+environment, explicitly surface the conflict between consolidation and immutable applied history;
+do not silently accept the exception or recommend rewriting applied history in place. Identify the
+affected environment and evidence available, and request an owner decision on data-preserving
+reconciliation or a documented exception. Never infer authorization to delete retained data.
+Distinguish an unresolved exception from a proven policy violation; an explicit owner decision to
+require consolidation supplies the disposition and must be recorded in the finding.
+
+Have Quality check fresh-database creation and upgrade from the PR base, including retained data,
+and inspect updates to migration-history assertions and schema-version references. Report each
+migration's purpose, the consolidation decision, verified exception evidence or unresolved owner
+decision, and verification limits in the Architecture report. A single coherent migration, a
+justified deployment boundary, and a claimed retained-preview exception should lead to different
+assessments; the count alone does not establish a defect.
+
 ## Report the architectural judgment
 
 Explain what fits the existing architecture, which complexity is justified, and which choices lack
