@@ -92,6 +92,7 @@ builder.Services.AddSingleton<PhotoProcessor>();
 builder.Services.AddScoped<ItemPhotoService>();
 builder.Services.AddSingleton<DocumentValidator>();
 builder.Services.AddScoped<AcquisitionDocumentService>();
+builder.Services.AddScoped<PurchaseOrderDocumentService>();
 builder.Services.AddSingleton<ItemExportCapacity>();
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddSingleton(new DurableSessionOptions());

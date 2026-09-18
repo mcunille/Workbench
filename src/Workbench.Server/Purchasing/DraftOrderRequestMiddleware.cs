@@ -23,6 +23,9 @@ public sealed class DraftOrderRequestMiddleware(RequestDelegate next)
     {
         if (!((context.Request.Path.StartsWithSegments("/api/beta/purchase-order-drafts") || context.Request.Path.StartsWithSegments("/api/beta/purchase-orders")) || context.Request.Path.StartsWithSegments("/api/beta/suppliers")) ||
             context.Request.Method is not ("POST" or "PUT" or "DELETE")) { await next(context); return; }
+        // Document uploads have their own bounded multipart admission before antiforgery.
+        if (context.GetEndpoint()?.Metadata.GetMetadata<Workbench.Server.Inventory.DocumentUploadMetadata>() is not null)
+        { await next(context); return; }
         if (context.Request.ContentLength > MaximumBodyBytes) { await TooLarge(context); return; }
         // Bound chunked requests as well as Content-Length. Keep private bodies in memory only;
         // bind from the bounded buffer so framework JSON binding cannot read an unbounded stream.
