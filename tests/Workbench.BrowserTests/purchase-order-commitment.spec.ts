@@ -206,12 +206,16 @@ test('an ordered purchase preserves unknown agreed costs and its original revisi
   await page.goto('/purchase-orders');
   const status = page.getByRole('combobox', { name: 'Order status' });
   await status.selectOption('Ordered');
+  await expect(page.getByRole('status')).toContainText('Purchase orders shown:');
   await page.getByRole('searchbox', { name: 'Search purchase orders' }).fill(title);
+  // Existing rows stay visible during debounce/loading; wait for the searched page to be retained.
+  await expect(page.getByRole('status')).toHaveText('Purchase orders shown: 1.');
   const listRow = page.locator('.po-draft-list a').filter({ hasText: title });
   await expect(listRow.locator('.po-status-badge')).toHaveText('Ordered');
   await listRow.click();
   await page.getByRole('button', { name: 'Purchase orders', exact: true }).click();
   await expect(status).toHaveValue('Ordered');
+  await expect(page.getByRole('searchbox', { name: 'Search purchase orders' })).toHaveValue(title);
   // WHEN clearing status THEN the search remains and keyboard focus returns to the single filter box.
   await page.getByRole('button', { name: 'Clear status filter' }).click();
   await expect(status).toHaveValue('');
