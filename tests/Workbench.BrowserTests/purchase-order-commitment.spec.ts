@@ -101,6 +101,15 @@ test('an ordered purchase preserves unknown agreed costs and its original revisi
   await expect(comparison(page, 'Complete agreed contents')).toBeHidden();
   expect((await contents.boundingBox())!.y).toBeLessThan((await page.locator('.po-financial-summary').boundingBox())!.y);
 
+  // AND desktop totals share the item amount edge, with history beside its date and revision.
+  const itemBounds = (await contents.boundingBox())!;
+  const estimateBounds = (await page.locator('.po-financial-summary').boundingBox())!;
+  expect(Math.abs(estimateBounds.x + estimateBounds.width - itemBounds.x - itemBounds.width)).toBeLessThan(2);
+  const metadataBounds = (await page.locator('.po-order-meta p').boundingBox())!;
+  const historyBounds = (await page.getByRole('button', { name: 'View history', exact: true }).boundingBox())!;
+  expect(historyBounds.x - metadataBounds.x - metadataBounds.width).toBeGreaterThanOrEqual(16);
+  expect(historyBounds.x - metadataBounds.x - metadataBounds.width).toBeLessThanOrEqual(32);
+
   // AND the first revision shows the original supplier, quantity and unresolved unit price.
   await page.getByRole('button', { name: 'View history', exact: true }).click();
   await page.getByRole('button', { name: 'View revision 1', exact: true }).click();

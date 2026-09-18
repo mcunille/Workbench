@@ -325,11 +325,10 @@
 .po-history-list > li > div { flex: 1 1 18rem; min-width: 0; }
 .po-history-list p { margin: .375rem 0 0; overflow-wrap: anywhere; }
 .po-history-actor { color: var(--muted); font-size: .8125rem; }
-.po-ordered > .po-financial-summary { margin-block: 1.5rem; }
+.po-ordered > .po-financial-summary { margin-block: 1.5rem; margin-inline-start: auto; }
 .po-ordered .po-editor-header h2 { margin: .375rem 0; font-size: 1.125rem; font-weight: 500; }
 .po-order-meta { display: flex; flex-wrap: wrap; align-items: center; gap: .25rem 1rem; }
 .po-order-meta p { margin: 0; color: var(--muted); font-size: .875rem; }
-.po-order-meta > button { margin-left: auto; }
 .po-estimate-breakdown { margin-top: .75rem; }
 .po-estimate-breakdown > summary { min-height: 44px; padding-block: .75rem; cursor: pointer; color: var(--muted); }
 .po-estimate-breakdown > dl { margin-top: 0; }
