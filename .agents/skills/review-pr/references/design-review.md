@@ -1,8 +1,9 @@
 # Review design proposals and architecture
 
-Use this guidance for a proposal PR or an explicitly requested architectural review. Review the
-design as a set of choices, not only as a consistent description. Scale the assessment to the change;
-do not require a full system redesign or runtime evidence for behavior that has not been implemented.
+Use the relevant sections during every Architecture council pass, including implementation PRs.
+Review design choices and the cost of existing conventions the change exercises, not only whether
+the implementation follows them. Scale the assessment to the change; do not require a full system
+redesign or runtime evidence for behavior that has not been implemented.
 
 ## Trace requirements to mechanisms
 
@@ -24,6 +25,63 @@ Follow retained data through lifecycle transitions and future schema changes. Di
 editing/recovery state from committed business records and from retry evidence. Do not recommend
 pruning evidence if delayed requests could then execute again. State which identities, receipts,
 historical representations, or compatibility rules a simpler design must preserve.
+
+## Assess change locality and repeated work
+
+Start from the complete diff and the requested behavior. Group changed files into feature
+implementation, meaningful tests, generated artifacts, migration history, documentation and
+mechanical edits. When a bounded feature touches unrelated domains or produces a large diff,
+quantify the main contributors and trace why those files must change. Verify claims such as
+"only a revision literal changed" against the actual before/after contents, not filenames alone.
+File count is a signal to investigate, not a verdict or a fixed threshold.
+
+Look for feature changes that force edits across unrelated modules, repeated contract/configuration
+literals, overlapping sources of truth, and mechanisms whose maintenance cost exceeds the current
+requirement. Do not excuse demonstrated coupling merely because it predates the PR or follows an
+accepted convention. Explain the concrete trigger, affected callers, recurring work or regression
+risk, and the smallest coherent correction. Distinguish costs introduced by this PR from existing
+costs exposed by it; surface broader remediation separately instead of requiring unrelated cleanup.
+
+For generated artifacts, trace authoritative inputs, generators, consumers and validation. Separate
+handwritten duplication from derived output. Assess why each output is committed, its diff churn,
+merge/review cost, and whether generation during build/CI preserves the required developer and
+release workflows. Large generated files are not automatically defects, but generation does not
+make their repository and review costs irrelevant. Recommendations to stop tracking outputs must
+preserve reproducibility, clean-checkout builds, client types and contract checks; retain artifacts
+when an actual consumer or workflow justifies them.
+
+Record material change-locality and artifact-ownership conclusions in the Architecture report,
+including evidence and justified exceptions. Merge overlapping symptoms under their root cause;
+for example, a global revision bump and dozens of unrelated literal edits are one coupling finding.
+Separate substantiated policy/correctness violations from nonblocking simplifications, and record
+an explicit owner decision when it changes the required outcome. Assess current user requirements
+even when older design documents authorize the convention being reconsidered.
+
+## Review migration delivery
+
+Whenever a PR adds or changes database migrations, inventory those introduced since its base;
+exclude existing base migrations from consolidation. Apply the repository's migration policy.
+For Workbench, require one migration per coherent release change. Flag a development sequence
+of an initial migration plus corrective migrations and request consolidation before merge,
+preserving dependency ordering, custom SQL, security controls, data transformations, rollback
+guards and the final model snapshot. Multiple independent release changes are assessed separately.
+
+Verify any claimed need for separate migrations against a concrete staged deployment, backfill or
+compatibility boundary. A PR explanation or local preview application is not by itself evidence of
+such a release requirement. If the author claims a migration was applied to a retained/shared
+environment, explicitly surface the conflict between consolidation and immutable applied history;
+do not silently accept the exception or recommend rewriting applied history in place. Identify the
+affected environment and evidence available, and request an owner decision on data-preserving
+reconciliation or a documented exception. Never infer authorization to delete retained data.
+Distinguish an unresolved exception from a proven policy violation; an explicit owner decision to
+require consolidation supplies the disposition and must be recorded in the finding.
+
+Have Quality check fresh-database creation and upgrade from the PR base, including retained data,
+and inspect updates to migration-history assertions and schema-version references. Report each
+migration's purpose, the consolidation decision, verified exception evidence or unresolved owner
+decision, and verification limits in the Architecture report. A single coherent migration, a
+justified deployment boundary, and a claimed retained-preview exception should lead to different
+assessments; the count alone does not establish a defect.
 
 ## Report the architectural judgment
 
