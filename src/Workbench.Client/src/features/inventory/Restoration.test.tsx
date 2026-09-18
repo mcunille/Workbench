@@ -207,6 +207,7 @@ it('reviews already-active state without claiming this restore succeeded', async
 });
 it('searches the archive, retries its matching continuation and preserves archive position through details', async () => {
   // GIVEN the archive has multiple matching pages and a later-page failure.
+  const scroll = vi.spyOn(window, 'scrollTo').mockImplementation(() => {});
   vi.mocked(getArchivedItems)
     .mockResolvedValueOnce({ items: [item], nextCursor: 'next' })
     .mockResolvedValueOnce({ items: [item], nextCursor: 'next' })
@@ -256,6 +257,8 @@ it('searches the archive, retries its matching continuation and preserves archiv
   ).toBeVisible();
   expect(screen.getByRole('link', { name: /Later stone/ })).toBeVisible();
   expect(getArchivedItems).toHaveBeenCalledTimes(4);
+  expect(scroll).toHaveBeenLastCalledWith({ top: 650, behavior: 'instant' });
+  scroll.mockRestore();
 });
 it('distinguishes an empty archive, no matches, loading failure and a successful retry', async () => {
   // GIVEN an empty archive followed by a no-match search and an unavailable server.

@@ -170,7 +170,7 @@ it('restores the submitted traversal, unfinished draft, selection, and scroll af
     .mockResolvedValueOnce({ items: [summary('First')], nextCursor: 'next' })
     .mockResolvedValueOnce({ items: [summary('First')], nextCursor: 'next' })
     .mockResolvedValueOnce({ items: [summary('Second')], nextCursor: null });
-  const props = { follow: vi.fn(), onAuthLost: vi.fn(), memory };
+  const props = { follow: vi.fn(event => event.preventDefault()), onAuthLost: vi.fn(), memory };
   const initial = render(<Collection {...props} />);
   await screen.findByRole('link', { name: /First/ });
   fireEvent.change(screen.getByRole('searchbox'), {
@@ -185,6 +185,7 @@ it('restores the submitted traversal, unfinished draft, selection, and scroll af
     target: { value: 'unfinished' },
   });
   fireEvent.click(screen.getByRole('link', { name: /Second/ }));
+  expect(props.follow).toHaveBeenCalledOnce();
   memory.scrollY = 650;
   // WHEN returning from details THEN restore existing rows before focus and position.
   initial.unmount();

@@ -28,6 +28,7 @@ it('restores the directory query, archive filter, loaded rows and scroll without
 });
 it('refreshes the previously loaded extent after a saved supplier changes', async () => {
   // GIVEN two pages retained after a confirmed supplier edit invalidated their data.
+  const scroll = vi.spyOn(window, 'scrollTo').mockImplementation(() => {});
   const memory = new SupplierMemory(); memory.save({ items: [row('Old'), row('Second')], nextCursor: 'old-next' }, 'Gem', true); memory.savePosition(200); memory.invalidate();
   vi.mocked(getSuppliers).mockResolvedValueOnce({ items: [row('Updated')], nextCursor: 'fresh-next' }).mockResolvedValueOnce({ items: [row('Second')], nextCursor: 'remaining' });
   render(<SupplierList memory={memory} follow={vi.fn()} onAuthLost={vi.fn()} />);
@@ -39,6 +40,8 @@ it('refreshes the previously loaded extent after a saved supplier changes', asyn
   expect(getSuppliers).toHaveBeenNthCalledWith(2, 'fresh-next', 'Gem', true);
   expect(memory.page?.nextCursor).toBe('remaining'); expect(memory.needsRefresh).toBe(false);
   expect(memory.scrollY).toBe(200);
+  expect(scroll).toHaveBeenCalledWith(0, 200);
+  scroll.mockRestore();
 });
 it('makes the whole directory row a native link', async () => {
   // GIVEN one supplier WHEN the directory loads THEN name and contact details share its navigation link.
