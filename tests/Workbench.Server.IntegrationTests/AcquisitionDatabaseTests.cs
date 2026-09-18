@@ -135,7 +135,7 @@ public sealed class AcquisitionDatabaseTests(SqlServerFixture sqlServer)
         await DatabaseMigrator.MigrateAsync(database.AdminConnectionString, default);
         Assert.Equal(before, await RetainedAsync(admin));
         await using var marker = new SqlCommand("SELECT OBJECT_DEFINITION(OBJECT_ID(N'Security.ReadDatabaseReadiness'))", admin);
-        Assert.Contains("20260918020000_IntegrateBetaDraftFinancialAdjustments", (string)(await marker.ExecuteScalarAsync())!);
+        Assert.Contains("20260918040000_HardenPurchaseOrderCommitmentValidation", (string)(await marker.ExecuteScalarAsync())!);
         await using var tokenRead = new SqlCommand("SELECT RowVersion FROM Inventory.Items WHERE Id=@id", admin);
         tokenRead.Parameters.AddWithValue("@id", id);
         var version = (byte[])(await tokenRead.ExecuteScalarAsync())!;

@@ -9,7 +9,7 @@ public sealed class DraftOrderCacheMiddleware(RequestDelegate next)
 {
     public async Task InvokeAsync(HttpContext context)
     {
-        if ((context.Request.Path.StartsWithSegments("/api/beta/purchase-order-drafts") || context.Request.Path.StartsWithSegments("/api/beta/suppliers")))
+        if (((context.Request.Path.StartsWithSegments("/api/beta/purchase-order-drafts") || context.Request.Path.StartsWithSegments("/api/beta/purchase-orders")) || context.Request.Path.StartsWithSegments("/api/beta/suppliers")))
             context.Response.OnStarting(() => { context.Response.Headers.CacheControl = "private, no-store"; return Task.CompletedTask; });
         await next(context);
     }
@@ -21,7 +21,7 @@ public sealed class DraftOrderRequestMiddleware(RequestDelegate next)
 
     public async Task InvokeAsync(HttpContext context)
     {
-        if (!(context.Request.Path.StartsWithSegments("/api/beta/purchase-order-drafts") || context.Request.Path.StartsWithSegments("/api/beta/suppliers")) ||
+        if (!((context.Request.Path.StartsWithSegments("/api/beta/purchase-order-drafts") || context.Request.Path.StartsWithSegments("/api/beta/purchase-orders")) || context.Request.Path.StartsWithSegments("/api/beta/suppliers")) ||
             context.Request.Method is not ("POST" or "PUT" or "DELETE")) { await next(context); return; }
         if (context.Request.ContentLength > MaximumBodyBytes) { await TooLarge(context); return; }
         // Bound chunked requests as well as Content-Length. Keep private bodies in memory only;
@@ -38,7 +38,7 @@ public sealed class DraftOrderRequestMiddleware(RequestDelegate next)
         }
         bounded.Position = 0;
         // Reject duplicate fields before JSON binding can discard conflicting financial inputs.
-        if (context.Request.Path.StartsWithSegments("/api/beta/purchase-order-drafts"))
+        if ((context.Request.Path.StartsWithSegments("/api/beta/purchase-order-drafts") || context.Request.Path.StartsWithSegments("/api/beta/purchase-orders")))
         {
             try
             {

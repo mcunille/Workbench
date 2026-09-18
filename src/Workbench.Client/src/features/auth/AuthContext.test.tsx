@@ -56,7 +56,7 @@ describe('authentication bootstrap', () => {
   it('never mounts protected content before durable identity succeeds', async () => {
     server.use(
       http.get('*/api/beta/system', () =>
-        HttpResponse.json({ name: 'Workbench', version: '1.2.3', apiRevision: 'beta-2' }),
+        HttpResponse.json({ name: 'Workbench', version: '1.2.3', apiRevision: 'beta-3' }),
       ),
       http.get('*/api/beta/auth/me', () => new HttpResponse(null, { status: 401 })),
     );

@@ -7,6 +7,9 @@ public sealed class DraftOrder : ITenantOwned
     public Guid Id { get; init; }
     public Guid TenantId { get; set; }
     public bool IsDeleted { get; init; }
+    public string State { get; init; } = "Draft";
+    public DateOnly? OrderDate { get; init; }
+    public int Revision { get; init; }
     public string? Title { get; init; }
     public string? SupplierName { get; init; }
     public long? PoNumber { get; init; }

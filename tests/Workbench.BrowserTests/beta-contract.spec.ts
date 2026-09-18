@@ -59,6 +59,9 @@ for (const kind of ['draft', 'supplier'] as const) test(`a ${kind} conflict read
     if (write) writes++;
     await route.fulfill({ status: 409, json: { code: write ? `${kind}_version_conflict` : 'api_contract_unsupported' } });
   });
+  if (draft) await page.route(`**/api/beta/purchase-orders/${id}`, async route => {
+    await route.fulfill({ status: 409, json: { code: 'api_contract_unsupported' } });
+  });
   // WHEN a version conflict is followed by a deployment mismatch on the recovery read.
   await page.getByRole('button', { name: save, exact: true }).click();
   // THEN frozen local edits remain selectable and further saves stay disabled.
@@ -80,7 +83,7 @@ test('an incompatible beta API preserves purchase edits and blocks subsequent wr
     if (route.request().method() !== 'POST') return route.continue();
     saves++;
     // The application itself supplies the revision; the browser context does not inject one.
-    expect(route.request().headers()['x-workbench-api-revision']).toBe('beta-2');
+    expect(route.request().headers()['x-workbench-api-revision']).toBe('beta-3');
     await route.fulfill({ status: 409, contentType: 'application/problem+json', body: JSON.stringify({
       title: 'API contract unsupported', code: 'api_contract_unsupported',
     }) });

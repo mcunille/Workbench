@@ -357,7 +357,7 @@ public sealed class TenantUserAdministrationTests(SqlServerFixture sqlServer) : 
     {
         var tokens = await _admin.GetFromJsonAsync<System.Text.Json.JsonElement>("/api/beta/auth/antiforgery");
         using var request = new HttpRequestMessage(HttpMethod.Delete, path);
-        request.Headers.TryAddWithoutValidation("X-Workbench-Api-Revision", "beta-2");
+        request.Headers.TryAddWithoutValidation("X-Workbench-Api-Revision", "beta-3");
         request.Headers.Add("X-CSRF-TOKEN", tokens.GetProperty("requestToken").GetString());
         return await _admin.SendAsync(request);
     }

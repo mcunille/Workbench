@@ -139,7 +139,7 @@ public sealed class RecoveryTests(SqlServerFixture sqlServer) : IAsyncLifetime
         {
             Content = JsonContent.Create(body),
         };
-        request.Headers.TryAddWithoutValidation("X-Workbench-Api-Revision", "beta-2");
+        request.Headers.TryAddWithoutValidation("X-Workbench-Api-Revision", "beta-3");
         request.Headers.Add("X-CSRF-TOKEN", tokens.GetProperty("requestToken").GetString());
         return await client.SendAsync(request);
     }

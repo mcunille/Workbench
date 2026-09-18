@@ -11,32 +11,34 @@ export function DraftList({ memory, follow, onAuthLost }: Props) {
   const [pending, setPending] = useState<'refresh' | 'more' | null>(null);
   const [message, setMessage] = useState('');
   const [query, setQuery] = useState(memory.query);
+  const [state, setState] = useState(memory.state);
+  const requestedState = useRef(memory.state);
   const requestedQuery = useRef(memory.query);
   const searchInput = useRef<HTMLInputElement>(null);
   const sequence = useRef(0);
   const active = useRef(true);
   const inFlight = useRef<'refresh' | 'more' | null>(null);
   const searchTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
-  const load = useCallback(async (refresh: boolean, search = refresh ? requestedQuery.current : memory.query) => {
+  const load = useCallback(async (refresh: boolean, search = refresh ? requestedQuery.current : memory.query, filter = refresh ? requestedState.current : memory.state) => {
     if (refresh) clearTimeout(searchTimer.current);
     if (!refresh && inFlight.current) return;
-    const generation = ++sequence.current; requestedQuery.current = search;
+    const generation = ++sequence.current; requestedQuery.current = search; requestedState.current = filter;
     inFlight.current = refresh ? 'refresh' : 'more'; setPending(inFlight.current); setMessage('');
     try {
-      const next = await getDrafts(refresh ? undefined : memory.page?.nextCursor ?? undefined, search || undefined);
+      const next = await getDrafts(refresh ? undefined : memory.page?.nextCursor ?? undefined, search || undefined, filter || undefined);
       if (!active.current || generation !== sequence.current) return;
       const known = new Set(memory.page?.items.map(item => item.id));
       const result = refresh ? next : { items: [...(memory.page?.items ?? []), ...next.items.filter(item => !known.has(item.id))], nextCursor: next.nextCursor };
-      memory.save(result, search); setPage(result);
+      memory.save(result, search, filter); setPage(result);
       if (refresh) memory.savePosition(0);
     } catch (error) {
       if (!active.current || generation !== sequence.current) return;
       if (error instanceof ApiError && (error.status === 401 || error.status === 403)) { memory.invalidate(); setPage(undefined); onAuthLost(); }
       else setMessage(error instanceof DraftError && error.code === 'invalid_cursor'
         ? 'The next page is no longer available. Select Refresh to start again.'
-        : !refresh ? 'More drafts could not be loaded. Your loaded drafts are kept; select Load more to try again.'
+        : !refresh ? 'More purchases could not be loaded. Your loaded purchases are kept; select Load more to try again.'
         : memory.page ? 'Results could not update. Showing previous results. Select Refresh to try again.'
-        : 'Drafts could not be loaded. Select Refresh to try again.');
+        : 'Purchases could not be loaded. Select Refresh to try again.');
     } finally {
       if (active.current && generation === sequence.current) { inFlight.current = null; setPending(null); }
     }
@@ -66,11 +68,12 @@ export function DraftList({ memory, follow, onAuthLost }: Props) {
           searchTimer.current = setTimeout(() => void load(true, value.trim()), 300);
         }} placeholder="Reference, supplier or title" /></FloatingField>
         <button className="quiet po-search-refresh" type="button" onClick={() => void load(true, query.trim())}>Refresh</button></div>
+        <div className="po-state-filter"><label htmlFor="po-state">Order state</label><select id="po-state" value={state} onChange={event => { const value = event.target.value; setState(value); void load(true, query.trim(), value); }}><option value="">All purchases</option><option value="Draft">Draft</option><option value="Ordered">Ordered</option></select></div>
       </form>
       <div className="po-list-toolbar po-draft-results-toolbar">
         <div className="po-draft-result-context">
-          <p className="po-list-caption">{memory.query ? 'Matching draft orders' : 'Draft orders'}</p>
-          <div className="po-draft-progress"><p role="status" aria-live="polite" aria-atomic="true" className={pending ? undefined : 'po-accessible-heading'}>{pending ? 'Loading drafts…' : message || !page ? '' : page.items.length === 0 ? (memory.query ? 'No matching purchase orders.' : 'No draft orders yet.') : `Draft orders shown: ${page.items.length.toLocaleString()}.${page.nextCursor ? ' More available.' : ''}`}</p></div>
+          <p className="po-list-caption">{memory.query ? 'Matching purchase orders' : 'Purchase orders'}</p>
+          <div className="po-draft-progress"><p role="status" aria-live="polite" aria-atomic="true" className={pending ? undefined : 'po-accessible-heading'}>{pending ? 'Loading purchases…' : message || !page ? '' : page.items.length === 0 ? (memory.query ? 'No matching purchase orders.' : 'No purchase orders yet.') : `Purchase orders shown: ${page.items.length.toLocaleString()}.${page.nextCursor ? ' More available.' : ''}`}</p></div>
         </div>
         <button type="button" className={`quiet po-draft-clear${query || memory.query ? '' : ' is-unavailable'}`} disabled={!query && !memory.query} aria-hidden={!query && !memory.query} onClick={() => { searchInput.current?.focus(); setQuery(''); void load(true, ''); }}>Clear search</button>
       </div>
@@ -78,7 +81,7 @@ export function DraftList({ memory, follow, onAuthLost }: Props) {
       {page?.items.length === 0 ? (
         <div className="po-empty-state">
           <span className="po-empty-icon"><Icon name="cart" /></span>
-          <h2>{memory.query ? 'No matching purchase orders.' : 'No draft orders yet.'}</h2>
+          <h2>{memory.query ? 'No matching purchase orders.' : 'No purchase orders yet.'}</h2>
           <p>{memory.query ? 'Try a different reference, supplier name or title.' : 'Start with a supplier or a few items. Add the details as you go.'}</p>
         </div>
       ) : null}
@@ -89,7 +92,7 @@ export function DraftList({ memory, follow, onAuthLost }: Props) {
             {page.items.map(item => (
               <li key={item.id}>
                 <a href={`/purchase-orders/${item.id}`} onClick={follow}>
-                  <span className="po-order-identity"><span className="po-reference">{item.poReference}</span><strong>{item.title ?? 'Untitled draft'}</strong></span>
+                  <span className="po-order-identity"><span className="po-reference">{item.poReference}</span><strong>{item.title ?? (item.state === 'Ordered' ? 'Untitled purchase' : 'Untitled draft')}</strong><span className="po-row-detail">{item.state ?? 'Draft'}{item.orderDate ? <> · <time dateTime={item.orderDate}>{item.orderDate}</time></> : null}</span></span>
                   <span className="po-order-supplier">{item.supplierName ?? 'Supplier not set'}{item.platform ? <span className="po-row-detail">{item.platform}</span> : null}{item.supplierOrderReference ? <span className="po-row-detail">Supplier ref: {item.supplierOrderReference}</span> : null}</span>
                   <time className="po-order-saved" dateTime={item.updatedAtUtc} title={new Date(item.updatedAtUtc).toLocaleString()}>
                     <span className="po-accessible-heading po-saved-label">Last saved</span>

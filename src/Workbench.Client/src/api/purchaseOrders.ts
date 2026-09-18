@@ -4,8 +4,8 @@ import type { components, paths } from './generated';
 import { ApiError, mutationHeaders } from './auth';
 export type DraftContent = components['schemas']['DraftContent'];
 export type DraftEntry = components['schemas']['DraftEntry'];
-export type DraftOrder = components['schemas']['DraftOrderResponse'];
-export type DraftPage = components['schemas']['DraftOrderPageResponse'];
+export type DraftOrder = components['schemas']['DraftOrderResponse'] & Partial<Pick<components['schemas']['PurchaseOrderResponse'], 'state' | 'orderDate' | 'revision'>>;
+export type DraftPage = Omit<components['schemas']['DraftOrderPageResponse'], 'items'> & { items: (components['schemas']['DraftOrderSummary'] & Partial<Pick<components['schemas']['PurchaseOrderSummary'], 'state' | 'orderDate' | 'revision'>>)[] };
 export type SaveReceipt = components['schemas']['SaveDraftOrderResponse'];
 export type CreateDraftRequest = components['schemas']['CreateDraftOrderRequest'];
 export type UpdateDraftRequest = components['schemas']['UpdateDraftOrderRequest'];
@@ -24,11 +24,11 @@ function requireDraft<T>({ response, data, error }: { response: Response; data?:
   }
   return data;
 }
-export async function getDrafts(cursor?: string, query?: string): Promise<DraftPage> {
-  return requireDraft(await api.GET('/api/beta/purchase-order-drafts', { params: { query: { cursor, query } } }));
+export async function getDrafts(cursor?: string, query?: string, state?: string): Promise<DraftPage> {
+  return requireDraft(await api.GET('/api/beta/purchase-orders', { params: { query: { cursor, query, state } } }));
 }
 export async function getDraft(id: string): Promise<DraftOrder> {
-  return requireDraft(await api.GET('/api/beta/purchase-order-drafts/{id}', { params: { path: { id } } }));
+  return requireDraft(await api.GET('/api/beta/purchase-orders/{id}', { params: { path: { id } } }));
 }
 export async function createDraft(body: CreateDraftRequest): Promise<SaveReceipt> {
   return requireDraft(await api.POST('/api/beta/purchase-order-drafts', { body, headers: await mutationHeaders() }));
@@ -44,4 +44,22 @@ export async function deleteDraft(id: string, body: DeleteDraftRequest): Promise
 export type DraftCalculation = components['schemas']['DraftCalculationResponse'];
 export async function calculateDraft(draft: DraftContent, signal?: AbortSignal): Promise<DraftCalculation> {
   return requireDraft(await api.POST('/api/beta/purchase-order-drafts/calculate', { body: { draft }, signal, headers: await mutationHeaders() }));
+}
+
+export type CommitOrderRequest = components['schemas']['CommitPurchaseOrderRequest'];
+export type AmendOrderRequest = components['schemas']['AmendPurchaseOrderRequest'];
+export type OrderReceipt = components['schemas']['SavePurchaseOrderResponse'];
+export type OrderRevision = components['schemas']['PurchaseOrderRevisionResponse'];
+export type OrderRevisionPage = components['schemas']['PurchaseOrderRevisionPageResponse'];
+export async function commitOrder(id: string, body: CommitOrderRequest): Promise<OrderReceipt> {
+  return requireDraft(await api.POST('/api/beta/purchase-order-drafts/{id}/commit', { params: { path: { id } }, body, headers: await mutationHeaders() }));
+}
+export async function amendOrder(id: string, body: AmendOrderRequest): Promise<OrderReceipt> {
+  return requireDraft(await api.POST('/api/beta/purchase-orders/{id}/amendments', { params: { path: { id } }, body, headers: await mutationHeaders() }));
+}
+export async function getOrderRevisions(id: string, cursor?: string): Promise<OrderRevisionPage> {
+  return requireDraft(await api.GET('/api/beta/purchase-orders/{id}/revisions', { params: { path: { id }, query: { cursor } } }));
+}
+export async function getOrderRevision(id: string, revision: number): Promise<OrderRevision> {
+  return requireDraft(await api.GET('/api/beta/purchase-orders/{id}/revisions/{revision}', { params: { path: { id, revision } } }));
 }

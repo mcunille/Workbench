@@ -26,7 +26,7 @@ public sealed class ItemRestorationTests(SqlServerFixture sqlServer, ITestOutput
         var token = await client.GetFromJsonAsync<JsonElement>("/api/beta/auth/antiforgery");
         using var editRequest = new HttpRequestMessage(HttpMethod.Put, $"/api/beta/items/{original.Id}")
         { Content = JsonContent.Create(new { expectedVersion = original.Version, name = "Original edited", notes = "Retained", location = "Tray" }) };
-        editRequest.Headers.TryAddWithoutValidation("X-Workbench-Api-Revision", "beta-2");
+        editRequest.Headers.TryAddWithoutValidation("X-Workbench-Api-Revision", "beta-3");
         editRequest.Headers.Add("X-CSRF-TOKEN", token.GetProperty("requestToken").GetString());
         var edited = (await (await client.SendAsync(editRequest)).Content.ReadFromJsonAsync<ItemDetailResponse>())!;
         var archived = (await (await SendAsync(client, $"/api/beta/items/{original.Id}/archive", new { expectedVersion = edited.Version })).Content.ReadFromJsonAsync<ItemDetailResponse>())!;
@@ -203,7 +203,7 @@ public sealed class ItemRestorationTests(SqlServerFixture sqlServer, ITestOutput
     {
         var token = await client.GetFromJsonAsync<JsonElement>("/api/beta/auth/antiforgery");
         using var request = new HttpRequestMessage(HttpMethod.Post, path) { Content = JsonContent.Create(body) };
-        request.Headers.TryAddWithoutValidation("X-Workbench-Api-Revision", "beta-2");
+        request.Headers.TryAddWithoutValidation("X-Workbench-Api-Revision", "beta-3");
         request.Headers.Add("X-CSRF-TOKEN", token.GetProperty("requestToken").GetString());
         return await client.SendAsync(request);
     }

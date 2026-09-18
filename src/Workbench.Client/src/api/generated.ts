@@ -20,6 +20,83 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/beta/purchase-order-drafts/{id}/commit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["CommitPurchaseOrderRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["SavePurchaseOrderResponse"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["HttpValidationProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Payload Too Large */
+                413: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/beta/auth/recovery": {
         parameters: {
             query?: never;
@@ -2573,6 +2650,281 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/beta/purchase-orders": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: {
+                    cursor?: string;
+                    query?: string;
+                    state?: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PurchaseOrderPageResponse"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/beta/purchase-orders/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PurchaseOrderResponse"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/beta/purchase-orders/{id}/amendments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["AmendPurchaseOrderRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["SavePurchaseOrderResponse"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["HttpValidationProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Payload Too Large */
+                413: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/beta/purchase-orders/{id}/revisions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: {
+                    cursor?: string;
+                };
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PurchaseOrderRevisionPageResponse"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/beta/purchase-orders/{id}/revisions/{revision}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                    revision: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PurchaseOrderRevisionResponse"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/beta/suppliers": {
         parameters: {
             query?: never;
@@ -3194,6 +3546,14 @@ export interface components {
             notes: null | string;
             version: string;
         };
+        AmendPurchaseOrderRequest: {
+            /** Format: uuid */
+            requestId: string;
+            expectedVersion: string;
+            orderDate: string;
+            reason: string;
+            draft: components["schemas"]["DraftContent"];
+        };
         AntiforgeryResponse: {
             requestToken: string;
         };
@@ -3220,6 +3580,12 @@ export interface components {
         ChangePasswordRequest: {
             currentPassword: string;
             newPassword: string;
+        };
+        CommitPurchaseOrderRequest: {
+            /** Format: uuid */
+            requestId: string;
+            expectedVersion: string;
+            orderDate: string;
         };
         CreateAcquisitionRequest: {
             /** Format: uuid */
@@ -3460,6 +3826,68 @@ export interface components {
             detail?: null | string;
             instance?: null | string;
         };
+        PurchaseOrderPageResponse: {
+            items: components["schemas"]["PurchaseOrderSummary"][];
+            nextCursor: null | string;
+        };
+        PurchaseOrderResponse: {
+            /** Format: uuid */
+            id: string;
+            draft: components["schemas"]["DraftContent"];
+            createdAtUtc: string;
+            updatedAtUtc: string;
+            version: string;
+            poReference: string;
+            supplierIsArchived: boolean;
+            calculation: components["schemas"]["DraftCalculationResponse"];
+            state: string;
+            orderDate: null | string;
+            /** Format: int32 */
+            revision: number | string;
+        };
+        PurchaseOrderRevisionPageResponse: {
+            items: components["schemas"]["PurchaseOrderRevisionSummary"][];
+            nextCursor: null | string;
+        };
+        PurchaseOrderRevisionResponse: {
+            /** Format: int32 */
+            revision: number | string;
+            orderDate: string;
+            /** Format: uuid */
+            actorUserId: string;
+            recordedAtUtc: string;
+            reason: null | string;
+            /** Format: int32 */
+            calculationPolicyVersion: number | string;
+            draft: components["schemas"]["DraftContent"];
+            calculation: components["schemas"]["DraftCalculationResponse"];
+            poReference: string;
+        };
+        PurchaseOrderRevisionSummary: {
+            /** Format: int32 */
+            revision: number | string;
+            orderDate: string;
+            /** Format: uuid */
+            actorUserId: string;
+            recordedAtUtc: string;
+            reason: null | string;
+            /** Format: int32 */
+            calculationPolicyVersion: number | string;
+        };
+        PurchaseOrderSummary: {
+            /** Format: uuid */
+            id: string;
+            title: null | string;
+            supplierName: null | string;
+            updatedAtUtc: string;
+            poReference: string;
+            supplierOrderReference: null | string;
+            platform: null | string;
+            state: string;
+            orderDate: null | string;
+            /** Format: int32 */
+            revision: number | string;
+        };
         RecoveryConsumeRequest: {
             token: string;
             newPassword: string;
@@ -3483,6 +3911,17 @@ export interface components {
             draftOrderId: string;
             savedVersion: string;
             completedAtUtc: string;
+        };
+        SavePurchaseOrderResponse: {
+            /** Format: uuid */
+            requestId: string;
+            replayed: boolean;
+            /** Format: uuid */
+            draftOrderId: string;
+            savedVersion: string;
+            completedAtUtc: string;
+            /** Format: int32 */
+            revision: number | string;
         };
         SaveSupplierResponse: {
             /** Format: uuid */

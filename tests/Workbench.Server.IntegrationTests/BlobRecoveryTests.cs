@@ -103,7 +103,7 @@ public sealed class BlobRecoveryTests(SqlServerFixture sqlServer)
             }
             // GIVEN the current release's exact-pair manifest, with compatibility permutations owned by BlobManifestValidationTests.
             var priorManifest = JsonSerializer.Deserialize<BlobManifest>(await File.ReadAllTextAsync(manifestPath))!;
-            Assert.Equal("20260918020000_IntegrateBetaDraftFinancialAdjustments", priorManifest.SchemaVersion);
+            Assert.Equal("20260918040000_HardenPurchaseOrderCommitmentValidation", priorManifest.SchemaVersion);
             // WHEN the command receives a mismatched binding THEN the pure validation boundary is still enforced before file checks.
             await File.WriteAllTextAsync(manifestPath, JsonSerializer.Serialize(priorManifest with { Database = "another-database" }));
             await Assert.ThrowsAsync<InvalidDataException>(() => StorageMaintenanceCommand.RunAsync("verify", maintenance, databaseName, options, CancellationToken.None));

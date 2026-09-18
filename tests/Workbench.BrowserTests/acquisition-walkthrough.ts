@@ -19,7 +19,7 @@ test('H9 narrated acquisition walkthrough', async ({ browser }) => {
   const seed = await setup.newPage(); await useAuthenticatedSession(seed);
   const csrf = await (await seed.request.get('/api/beta/auth/antiforgery')).json();
   const created = await seed.request.post('/api/beta/items', {
-    headers: { 'X-Workbench-Api-Revision': 'beta-2', 'X-CSRF-TOKEN': csrf.requestToken },
+    headers: { 'X-Workbench-Api-Revision': 'beta-3', 'X-CSRF-TOKEN': csrf.requestToken },
     data: { creationRequestId: crypto.randomUUID(), name: 'Blue stone from a family collection', notes: 'Synthetic walkthrough record', location: 'Tray A' },
   });
   expect(created.status()).toBe(201); const item = await created.json();

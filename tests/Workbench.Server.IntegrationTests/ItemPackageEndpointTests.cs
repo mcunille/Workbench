@@ -69,7 +69,7 @@ public sealed class ItemPackageEndpointTests(SqlServerFixture sqlServer)
         }));
         using var client = factory.CreateClient();
         // WHEN attempting the package with missing authority or invalid intent.
-        client.DefaultRequestHeaders.Add("X-Workbench-Api-Revision", "beta-2");
+        client.DefaultRequestHeaders.Add("X-Workbench-Api-Revision", "beta-3");
         Assert.Equal(HttpStatusCode.Unauthorized, (await client.PostAsJsonAsync("/api/beta/items/export-package", new { scope = "all" })).StatusCode);
         await LoginAsync(client);
         // THEN ordinary authentication, antiforgery and validation contracts apply; empty is not a ZIP.

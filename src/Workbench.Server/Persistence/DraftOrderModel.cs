@@ -27,6 +27,8 @@ public partial class WorkbenchDbContext
         draft.IsTenantOwned(row => (Guid?)row.TenantId == TenantContext.TenantId);
         draft.Property(row => row.Title).HasMaxLength(200);
         draft.Property(row => row.IsDeleted).HasDefaultValue(false);
+        draft.Property(row => row.State).HasMaxLength(7).IsUnicode(false).HasDefaultValue("Draft");
+        draft.Property(row => row.Revision).HasDefaultValue(0);
         draft.Property(row => row.SupplierName).HasMaxLength(200);
         draft.Property(row => row.Currency).HasMaxLength(3).IsUnicode(false);
         draft.Property(row => row.RowVersion).IsRowVersion();

@@ -13,7 +13,7 @@ beta. See [design principles](DESIGN-PRINCIPLES.md#13-evolve-apis-deliberately).
 ## Callers and rollout
 
 The bundled frontend and server are deployed together. API writes require
-`X-Workbench-Api-Revision: beta-2`. Increment the revision for an incompatible beta change;
+`X-Workbench-Api-Revision: beta-3`. Increment the revision for an incompatible beta change;
 clients must send the revision they were built against, never automatically adopt one returned
 by a server. Read requests without the header are allowed for bootstrap, images, and downloads;
 an explicitly mismatched revision is rejected even on reads. `/api/beta/system` advertises
@@ -37,8 +37,9 @@ boundary. Promotion does not authorize deletion of stored business data or retry
 
 | Surface | Current purpose and lifetime |
 | --- | --- |
-| `/api/beta/purchase-order-drafts` | The single current purchasing business contract, including calculation, browse, read, create, update, delete |
+| `/api/beta/purchase-order-drafts` | Draft calculation, browse, read, create, update, delete and explicit commitment |
 | `/api/beta/suppliers` | Current supplier identity operations |
+| `/api/beta/purchase-orders` | Unified draft/ordered browse and read, ordered amendments, and immutable revision history |
 | Generated OpenAPI and TypeScript | Only beta business endpoints and current public DTOs; regenerated together |
 | Retired `/api/purchase-order-drafts` and `/api/v2`, `/api/v3`, `/api/v4/purchase-order-drafts` | Unsupported, including retries of previously successful requests; no replay adapters or historical request DTOs |
 | Content schema 1/2/3/4 readers | Project retained drafts into current content without rewriting on read; retained while such data exists |
@@ -50,6 +51,13 @@ Current beta retries return the original result even after subsequent edits or d
 identifier with different input is a conflict. Historical development contracts have no replay
 support: all requests to their retired routes receive `api_contract_unsupported`, even when an old
 receipt exists. The owner explicitly approved this boundary because no version has been released.
+
+PO-04 advances the bundled contract to `beta-3`: draft lists exclude ordered records, direct draft
+reads of ordered records return a state conflict, and new draft edits/deletes cannot change an
+ordered purchase. Existing successful draft retries still return their original receipts after
+commitment. Commit and amendment requests use actor-bound immutable receipts; exact retries remain
+successful after later amendments. Old clients must reload and preserve unsaved/uncertain input as
+described above. Stop old writers before migrating; deploy matching frontend and server together.
 For an uncertain historical save, inspect the current record before starting new work; do not assume
 the old save failed or replace its request identifier to force another write. Existing receipt rows
 remain intact, but retaining evidence does not imply support for replaying an obsolete contract.

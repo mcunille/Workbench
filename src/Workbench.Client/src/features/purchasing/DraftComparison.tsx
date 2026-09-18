@@ -13,10 +13,10 @@ function SafeLink({ value }: { value: string }) {
   try { const url = new URL(value); safe = ['http:', 'https:'].includes(url.protocol) && !!url.hostname && !url.username && !url.password; } catch { /* Retain invalid local text during comparison. */ }
   return safe ? <a href={value} target="_blank" rel="noopener noreferrer">{value}</a> : <span>{value}</span>;
 }
-export function DraftComparison({ heading, draft }: { heading: string; draft: DraftContent }) {
+export function DraftComparison({ heading, draft, state = 'Draft' }: { heading: string; draft: DraftContent; state?: string }) {
   return (
     <section className="po-comparison-content">
-      <div className="po-comparison-heading"><h3>{heading}</h3><span className="po-badge">Draft</span></div>
+      <div className="po-comparison-heading"><h3>{heading}</h3><span className="po-badge">{state}</span></div>
       <dl className="po-comparison-details">
         <div><dt>Title</dt><dd>{draft.title ?? 'Untitled draft'}</dd></div>
         <div><dt>Supplier</dt><dd>{draft.supplierName ?? 'Not set'}</dd></div>

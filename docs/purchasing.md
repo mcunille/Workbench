@@ -1,4 +1,4 @@
-# Purchase order drafts
+# Purchase orders
 
 The purchasing API is beta, as are all unreleased Workbench APIs. The current application uses
 `/api/beta/purchase-order-drafts` and `/api/beta/suppliers`; older API paths cannot create or
@@ -53,7 +53,7 @@ Drafts allow 100 lines and 20 order-level source links. Links must use HTTP or H
 contain embedded credentials. Large drafts can reach the overall size limit before individual
 field limits; shorten text or remove entries if a save reports that limit. Saving or removing a
 line creates no collection item, acquisition, invoice, payment obligation or accounting entry.
-Commitment, attachments, receiving and payments remain separate increments. There is no order export
+Attachments, receiving and payments remain separate increments. There is no order export
 workflow in this release.
 
 ## Discounts and additional charges
@@ -93,8 +93,8 @@ available when otherwise complete; the purchase total remains Unknown. Charge-on
 not constitute a complete purchase estimate until merchandise is entered.
 
 The [PO-05 design](specs/2026-09-16-po-05-discounts-and-charges.md) defines these rules. This
-increment precedes PO-04: commitment, invoices, payments and permanent amendment history remain
-separate work. The beta contract now requires revision `beta-2`; older open clients must reload
+increment supplies the financial inputs preserved by PO-04 commitments and amendments. Invoices
+and payments remain separate work. The beta contract now requires revision `beta-3`; older open clients must reload
 before making a new save. Current beta retries retain their original request identity and result.
 Retired API requests are unsupported; inspect the saved record before replacing an uncertain old save.
 
@@ -123,14 +123,14 @@ different platforms. Selecting or refreshing a supplier never overwrites the pla
 platform leaves the supplier details and references intact. Keep storefront, listing or conversation
 URLs in the order's source links. Recording a platform does not send messages or connect an account.
 
-**Search purchase orders** finds saved drafts by Workbench reference, supplier order reference,
+**Search purchase orders** finds drafts and ordered purchases by Workbench reference, supplier order reference,
 supplier snapshot name or title across the business. Platform is displayed but is not searched in
 this release. Clear the search to return to normal browsing. Supplier search matches names and can
 include archived records. Both lists retain loaded results when a page fails.
 
 ## Resume and recover work
 
-Purchase orders lists saved drafts with the most recently saved first. **Load more** retrieves the
+Purchase orders lists drafts and ordered purchases with the most recently saved first. **Load more** retrieves the
 next page; **Refresh** starts again. This is a live list: another user's edits can move a draft above
 the current page, so refresh to see new or recently changed records. A failed page load keeps the
 already loaded drafts available for retry.
@@ -155,6 +155,40 @@ independent of purchasing.
 The [PO-02 design](specs/2026-09-11-po-02-supplier-identity-and-references.md) extends those contracts
 with supplier snapshots, per-order platforms and permanent references. The [PO-03 design](specs/2026-09-16-po-03-itemized-quantities-and-prices.md) defines structured quantities and draft estimates with one supplier quantity/unit and per-unit or total-line pricing. After an upgrade, an older
 client must reload before sending a new save; already successful old requests can still be resolved.
+
+## Record a placed purchase
+
+Save and review the draft, then choose **Record as ordered**. Enter the calendar date you placed
+the order and select **Confirm order**. Workbench requires a supplier name (a directory link is
+optional), currency, and at least one line. Every line needs a description, positive quantity and
+unit, including lines priced by total. Resolve or clear old reference quotes before commitment.
+Unknown prices and charge amounts are allowed; ordering does not turn estimates into confirmed
+charges. It records no payment, invoice balance, receipt, inventory item or accounting entry.
+
+The PO reference stays the same. The list distinguishes **Draft** and **Ordered** and can filter
+by order state. The ordered view shows the entered order date separately from history timestamps.
+If commitment is unconfirmed, **Check and retry commitment** retains the original request and date.
+Do not begin another commitment to recover a lost response.
+
+## Amend an ordered purchase
+
+Ordered purchases cannot be deleted or saved through draft editing. Choose **Create amendment**,
+edit the latest contents, and enter an **Amendment reason**. **Review amendment** shows current and
+proposed contents and the order date before **Record amendment** appends the next revision.
+Currency is fixed after commitment; quantities and costs still follow the existing validation rules.
+Changing a confirmed charge also requires the explanatory charge notes used by draft corrections.
+Removing a line or reducing quantity records the amendment without claiming a cancellation or refund.
+
+**View history** lists the original commitment and subsequent amendments with their actor IDs,
+recording timestamps and reasons. Select a revision to inspect its complete contents, order date
+and saved calculation; amendments also show the preceding revision. Earlier supplier/contact
+snapshots and quantities remain available even after directory changes or line removal.
+
+Amendments are local unsaved work until recorded. Validation and network failures keep input;
+uncertain writes retain their request for retry. A confirmed write followed by a failed read retries
+only the read. Competing changes require explicit comparison before resubmission. Earlier revisions
+are never overwritten. The [PO-04 design](specs/2026-09-17-po-04-commitment-and-amendments.md)
+defines the commitment, history and concurrency contracts.
 
 ## Delete an unwanted draft
 

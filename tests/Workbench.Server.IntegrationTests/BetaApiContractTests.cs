@@ -31,7 +31,7 @@ public sealed class BetaApiContractTests
     [Theory]
     [InlineData("beta-0")]
     [InlineData("beta-1")]
-    [InlineData("beta-2,beta-2")]
+    [InlineData("beta-3,beta-3")]
     public async Task ExplicitlyIncompatibleReadsAlsoRequireReload(string revision)
     {
         // GIVEN a stale or ambiguous revision on a read request.
@@ -54,8 +54,8 @@ public sealed class BetaApiContractTests
         // THEN it learns the explicit beta contract rather than a stable version.
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var body = await response.Content.ReadFromJsonAsync<JsonElement>();
-        Assert.Equal("beta-2", body.GetProperty("apiRevision").GetString());
-        Assert.Equal("beta-2", Assert.Single(response.Headers.GetValues("X-Workbench-Api-Revision")));
+        Assert.Equal("beta-3", body.GetProperty("apiRevision").GetString());
+        Assert.Equal("beta-3", Assert.Single(response.Headers.GetValues("X-Workbench-Api-Revision")));
     }
 
     [Theory]
@@ -83,7 +83,7 @@ public sealed class BetaApiContractTests
         // GIVEN a current browser without a session.
         await using var application = new WebApplicationFactory<Program>();
         using var client = application.CreateClient();
-        client.DefaultRequestHeaders.Add("X-Workbench-Api-Revision", "beta-2");
+        client.DefaultRequestHeaders.Add("X-Workbench-Api-Revision", "beta-3");
         // WHEN it attempts a protected write THEN authentication still applies.
         var response = await client.PostAsJsonAsync("/api/beta/items", new { });
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);

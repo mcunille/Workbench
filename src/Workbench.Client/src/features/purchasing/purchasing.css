@@ -304,6 +304,15 @@
 .po-financial-summary .po-summary-subtotal { border-top: 1px solid var(--border-subtle); margin-top: .5rem; }
 .po-financial-summary .po-summary-total { border-top: 1px solid var(--border-subtle); margin-top: .5rem; padding-top: 1rem; font-size: 1.125rem; font-weight: 600; }
 .po-summary-total dt { color: var(--text); }
+.po-state-filter { display: flex; flex-wrap: wrap; align-items: center; gap: .75rem; margin-top: .75rem; }
+.po-state-filter select { width: auto; min-width: 10rem; }
+.po-history-list { list-style: none; margin: 1.5rem 0; padding: 0; }
+.po-history-list > li { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 1rem; padding-block: 1rem; border-bottom: 1px solid var(--border-subtle); }
+.po-history-list > li > div { flex: 1 1 18rem; min-width: 0; }
+.po-history-list p { margin: .375rem 0 0; overflow-wrap: anywhere; }
+.po-history-actor { color: var(--muted); font-size: .8125rem; }
+.po-ordered > .po-financial-summary { margin-block: 2rem; }
+.po-ordered > .po-comparison-content { border-top: 1px solid var(--border-subtle); padding-top: 1.5rem; }
 @media (max-width: 700px) {
   .po-adjustment-fields, .po-charge-primary { grid-template-columns: minmax(0, 1fr); }
   .po-charge-party .field-label { position: static; transform: none; max-width: 100%; margin-bottom: .5rem; padding: 0; font-size: 1rem; overflow-wrap: anywhere; background: transparent; }

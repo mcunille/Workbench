@@ -5,7 +5,7 @@ namespace Workbench.Server.Http;
 public sealed class BetaApiContractMiddleware(RequestDelegate next)
 {
     public const string HeaderName = "X-Workbench-Api-Revision";
-    public const string Revision = "beta-2";
+    public const string Revision = "beta-3";
 
     public async Task InvokeAsync(HttpContext context)
     {

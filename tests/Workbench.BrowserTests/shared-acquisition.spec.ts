@@ -22,7 +22,7 @@ test('H10 a saved origin opens a shared acquisition without losing collection se
   const sibling = await createPiece(page, `Archived sibling ${crypto.randomUUID()}`);
   const csrf = await (await page.request.get('/api/beta/auth/antiforgery')).json();
   const link = await page.request.put(`/api/beta/items/${sibling.id}/acquisition-link`, {
-    headers: { 'X-Workbench-Api-Revision': 'beta-2', 'X-CSRF-TOKEN': csrf.requestToken },
+    headers: { 'X-Workbench-Api-Revision': 'beta-3', 'X-CSRF-TOKEN': csrf.requestToken },
     data: { expectedItemVersion: sibling.version, expectedAcquisitionId: null, expectedAcquisitionVersion: null,
       targetAcquisitionId: origin.acquisition.id, targetAcquisitionVersion: origin.acquisition.version },
   });

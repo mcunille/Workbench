@@ -15,7 +15,7 @@ it('sends the bundled revision with generated and direct requests while preservi
   await transport.fetch(input);
   await transport.fetch(new URL('http://localhost/api/beta/items'));
   // THEN both include the bundled revision and preserve the original request.
-  for (const [, init] of send.mock.calls) expect(new Headers(init?.headers).get('X-Workbench-Api-Revision')).toBe('beta-2');
+  for (const [, init] of send.mock.calls) expect(new Headers(init?.headers).get('X-Workbench-Api-Revision')).toBe('beta-3');
   expect(new Headers(send.mock.calls[0][1]?.headers).get('X-CSRF-TOKEN')).toBe('csrf');
   expect(await input.text()).toBe(body);
 });

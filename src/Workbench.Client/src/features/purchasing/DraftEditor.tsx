@@ -21,9 +21,12 @@ import { DraftCharges } from './DraftCharges';
 import { DiscountFields } from './DiscountFields';
 import { DraftFinancialSummary } from './DraftFinancialSummary';
 import { clearDraftAmounts, hasAdjustments, hasMonetaryAmounts, type Discount } from './draftFinances';
+import { amendOrder, type AmendOrderRequest } from '../../api/purchaseOrders';
+import { CommitOrderDialog } from './CommitOrderDialog';
+import { OrderedPurchase } from './OrderedPurchase';
 
-type Mode = 'loading' | 'editing' | 'saving' | 'uncertain' | 'current-loading' | 'current-failed' | 'conflict-loading' | 'conflict-failed' | 'comparison' | 'blocked' | 'load-failed' | 'deleting' | 'delete-uncertain';
-type Submission = { id?: string; body: CreateDraftRequest | UpdateDraftRequest };
+type Mode = 'loading' | 'editing' | 'saving' | 'uncertain' | 'current-loading' | 'current-failed' | 'conflict-loading' | 'conflict-failed' | 'comparison' | 'blocked' | 'load-failed' | 'deleting' | 'delete-uncertain' | 'amendment-review';
+type Submission = { id?: string; body: CreateDraftRequest | UpdateDraftRequest | AmendOrderRequest; amendment?: boolean };
 interface Props {
   id?: string;
   onDirtyChange(dirty: boolean, uncertain: boolean): void;
@@ -39,6 +42,12 @@ const fieldId = (path: string) => `po-${path.replace(/[^a-zA-Z0-9]/g, '-')}`;
 const optional = (text: string) => text === '' ? null : text;
 
 export function DraftEditor({ id: initialId, onDirtyChange, onAuthLost, onSaved, onCreated, onCancel }: Props) {
+  const [committing, setCommitting] = useState(false);
+  const [commitPending, setCommitPending] = useState(false);
+  const [amending, setAmending] = useState(false);
+  const [orderDate, setOrderDate] = useState('');
+  const [amendmentReason, setAmendmentReason] = useState('');
+  const [discardingAmendment, setDiscardingAmendment] = useState(false);
   const [clearingSupplier, setClearingSupplier] = useState(false);
   const supplierSummary = useRef<HTMLElement>(null);
   const focusSupplierSummary = useRef(false);
@@ -80,7 +89,7 @@ export function DraftEditor({ id: initialId, onDirtyChange, onAuthLost, onSaved,
   const supplierAccessLost = useCallback(() => {
     setDraft(emptyDraft()); setBaseline(undefined); setCurrent(undefined); setSavedAt(undefined);
     submitted.current = undefined; confirmed.current = undefined; deletion.current = undefined;
-    setSupplierDirty(false); setSupplierUncertain(false); setMode('blocked'); onDirtyChange(false, false); onAuthLost();
+    setSupplierDirty(false); setSupplierUncertain(false); setCommitting(false); setCommitPending(false); setAmending(false); setOrderDate(''); setAmendmentReason(''); setMode('blocked'); onDirtyChange(false, false); onAuthLost();
   }, [onAuthLost, onDirtyChange]);
 
   useEffect(() => {
@@ -99,9 +108,9 @@ export function DraftEditor({ id: initialId, onDirtyChange, onAuthLost, onSaved,
     }
     return () => { alive.current = false; currentRead = false; };
   }, [onAuthLost]);
-  const changed = JSON.stringify(draft) !== JSON.stringify(baseline?.draft ?? emptyDraft());
-  const uncertain = supplierUncertain || mode === 'uncertain' || mode === 'saving' || mode === 'deleting' || mode === 'delete-uncertain';
-  const dirty = supplierDirty || uncertain || mode === 'comparison' || mode.startsWith('conflict-') || ((mode === 'editing' || mode === 'blocked') && changed);
+  const changed = JSON.stringify(draft) !== JSON.stringify(baseline?.draft ?? emptyDraft()) || (amending && (orderDate !== baseline?.orderDate || !!amendmentReason));
+  const uncertain = commitPending || supplierUncertain || mode === 'uncertain' || mode === 'saving' || mode === 'deleting' || mode === 'delete-uncertain';
+  const dirty = supplierDirty || uncertain || mode === 'amendment-review' || mode === 'comparison' || mode.startsWith('conflict-') || ((mode === 'editing' || mode === 'blocked') && changed);
   useEffect(() => { onDirtyChange(dirty, uncertain); }, [dirty, uncertain, onDirtyChange]);
   useEffect(() => () => onDirtyChange(false, false), [onDirtyChange]);
   useEffect(() => {
@@ -120,7 +129,7 @@ export function DraftEditor({ id: initialId, onDirtyChange, onAuthLost, onSaved,
     addedEntry.current = undefined;
   }, [draft.entries]);
   useEffect(() => { if (!clearingSupplier && focusSupplierSummary.current) { supplierSummary.current?.focus(); focusSupplierSummary.current = false; } }, [clearingSupplier]);
-  const frozen = mode !== 'editing';
+  const frozen = mode !== 'editing' || committing || (baseline?.state === 'Ordered' && !amending);
   const calculation = useDraftCalculation(draft, !frozen, supplierAccessLost);
   const visibleErrors = { ...calculation.errors, ...errors };
   const [undoBoundary, setUndoBoundary] = useState({ mode, currency: draft.currency });
@@ -134,7 +143,7 @@ export function DraftEditor({ id: initialId, onDirtyChange, onAuthLost, onSaved,
   function accessFailure(error: unknown) {
     if (error instanceof ApiError && (error.status === 401 || error.status === 403)) {
       setDraft(emptyDraft()); submitted.current = undefined; confirmed.current = undefined; deletion.current = undefined; setCurrent(undefined); setBaseline(undefined);
-      setMode('blocked'); onDirtyChange(false, false); onAuthLost(); return true;
+      setAmending(false); setOrderDate(''); setAmendmentReason(''); setMode('blocked'); onDirtyChange(false, false); onAuthLost(); return true;
     }
     if (error instanceof ApiError && error.status === 404) { setMode('blocked'); setMessage('This draft is unavailable.'); return true; }
     return false;
@@ -150,6 +159,7 @@ export function DraftEditor({ id: initialId, onDirtyChange, onAuthLost, onSaved,
       } else {
         setBaseline({ ...latest, draft: displayDraft(latest.draft) }); setDraft(displayDraft(latest.draft)); setCurrent(undefined); setMode('editing');
         setSavedAt(latest.updatedAtUtc); submitted.current = undefined; confirmed.current = undefined;
+        setAmending(false); setAmendmentReason(''); setOrderDate(latest.orderDate ?? '');
         onDirtyChange(false, false);
       }
     } catch (error) {
@@ -164,16 +174,19 @@ export function DraftEditor({ id: initialId, onDirtyChange, onAuthLost, onSaved,
     try { await loadCurrent(confirmed.current ? 'confirmed' : mode === 'load-failed' ? 'initial' : 'conflict', id, confirmed.current); }
     finally { busy.current = false; }
   }
-  async function save() {
-    if (busy.current || (mode !== 'editing' && mode !== 'uncertain') || (mode === 'editing' && baseline && !changed)) return;
+  async function save(reviewed = false) {
+    if (busy.current || (mode !== 'editing' && mode !== 'uncertain' && !(reviewed && mode === 'amendment-review')) || (mode === 'editing' && baseline && !changed)) return;
+    if (amending && mode === 'editing' && !reviewed) { setMode('amendment-review'); return; }
     busy.current = true;
-    const request = submitted.current ?? { id, body: baseline
+    const request: Submission = submitted.current ?? (amending && baseline
+      ? { id, amendment: true, body: { requestId: crypto.randomUUID(), expectedVersion: baseline.version, orderDate, reason: amendmentReason, draft: structuredClone(draft) } }
+      : { id, body: baseline
       ? { requestId: crypto.randomUUID(), expectedVersion: baseline.version, draft: structuredClone(draft) }
-      : { requestId: crypto.randomUUID(), draft: structuredClone(draft) } };
+      : { requestId: crypto.randomUUID(), draft: structuredClone(draft) } });
     submitted.current = request;
     setErrors({}); setMessage(''); setMode('saving'); onDirtyChange(true, true);
     try {
-      const receipt = request.id ? await updateDraft(request.id, request.body as UpdateDraftRequest) : await createDraft(request.body);
+      const receipt = request.amendment && request.id ? await amendOrder(request.id, request.body as AmendOrderRequest) : request.id ? await updateDraft(request.id, request.body as UpdateDraftRequest) : await createDraft(request.body);
       if (!alive.current) return;
       confirmed.current = receipt; submitted.current = undefined;
       setId(receipt.draftOrderId); setSavedAt(receipt.completedAtUtc); onSaved(); onDirtyChange(false, false);
@@ -181,9 +194,9 @@ export function DraftEditor({ id: initialId, onDirtyChange, onAuthLost, onSaved,
       await loadCurrent('confirmed', receipt.draftOrderId, receipt);
     } catch (error) {
       if (!alive.current || accessFailure(error)) return;
-      if (error instanceof DraftError && error.code === 'draft_version_conflict' && request.id) {
+      if (error instanceof DraftError && ['draft_version_conflict', 'purchase_version_conflict'].includes(error.code ?? '') && request.id) {
         submitted.current = undefined; await loadCurrent('conflict', request.id);
-      } else if (error instanceof DraftError && error.code === 'draft_request_conflict') {
+      } else if (error instanceof DraftError && ['draft_request_conflict', 'purchase_request_conflict', 'purchase_state_conflict'].includes(error.code ?? '')) {
         setMode('blocked'); setMessage('This save request conflicts with a previous request. Your input is kept. Return to purchase orders and reopen the saved draft to review it.');
       } else if (error instanceof ApiError && error.status >= 400 && error.status < 500) {
         submitted.current = undefined; setMode('editing');
@@ -198,6 +211,7 @@ export function DraftEditor({ id: initialId, onDirtyChange, onAuthLost, onSaved,
     if (!current) return;
     setBaseline({ ...current, draft: displayDraft(current.draft) }); if (!keepLocal) setDraft(displayDraft(current.draft));
     setSavedAt(current.updatedAtUtc); setCurrent(undefined); submitted.current = undefined; confirmed.current = undefined; setMode('editing');
+    if (current.state === 'Ordered') { setAmending(keepLocal); if (!keepLocal || !amending) setOrderDate(current.orderDate ?? ''); if (!keepLocal) setAmendmentReason(''); }
   }
   async function removeDraft() {
     if (busy.current || !id || !baseline || (mode !== 'editing' && mode !== 'delete-uncertain')) return;
@@ -232,7 +246,7 @@ export function DraftEditor({ id: initialId, onDirtyChange, onAuthLost, onSaved,
     return <div className="po-field" key={path}><FloatingField htmlFor={controlId} label={label}>{options.multiline ? <textarea {...common} rows={2} /> : <input {...common} />}</FloatingField>{error ? <p id={`${controlId}-error`} className="form-message error">{error}</p> : null}</div>;
   }
   const saveDisabled = (mode !== 'editing' && mode !== 'uncertain') || (mode === 'editing' && !!baseline && !changed);
-  const saveLabel = mode === 'saving' ? 'Saving…' : mode === 'uncertain' ? 'Check and retry' : 'Save draft';
+  const saveLabel = mode === 'saving' ? 'Saving…' : mode === 'uncertain' ? 'Check and retry' : amending ? 'Review amendment' : 'Save draft';
   const saveStatus = mode === 'saving' ? 'Saving…'
     : mode === 'uncertain' ? 'Save unconfirmed'
     : mode === 'deleting' ? 'Deleting…'
@@ -246,9 +260,19 @@ export function DraftEditor({ id: initialId, onDirtyChange, onAuthLost, onSaved,
     addedEntry.current = entryId;
     setDraft({ ...draft, entries: [...draft.entries, emptyLine(entryId)] });
   }
+  function discardAmendment() {
+    if (baseline) setDraft(displayDraft(baseline.draft));
+    setAmending(false); setAmendmentReason(''); setOrderDate(''); setErrors({}); setMessage(''); setDiscardingAmendment(false); setMode('editing');
+  }
+
+  if (baseline?.state === 'Ordered' && !amending && mode === 'editing') return <OrderedPurchase order={baseline} onCancel={onCancel} onAuthLost={supplierAccessLost} amend={() => { setAmending(true); setOrderDate(baseline.orderDate ?? ''); }} />;
 
   return (
     <section className="editor po-editor">
+      {committing && baseline ? <CommitOrderDialog order={baseline} cancel={() => setCommitting(false)} pending={setCommitPending} onAuthLost={supplierAccessLost}
+        conflict={() => { setCommitting(false); void loadCurrent('conflict', baseline.id); }}
+        committed={receipt => { setCommitting(false); confirmed.current = receipt; onSaved(); void loadCurrent('confirmed', baseline.id, receipt); }} /> : null}
+      {discardingAmendment ? <SupplierDialog title="Discard amendment?" cancel={() => setDiscardingAmendment(false)}><p>Your unsaved changes will be discarded. The ordered purchase and its history stay saved.</p><div className="button-row"><button type="button" className="secondary" onClick={() => setDiscardingAmendment(false)}>Keep editing</button><button type="button" className="secondary danger" onClick={discardAmendment}>Discard amendment</button></div></SupplierDialog> : null}
       {clearingSupplier && !frozen ? <SupplierDialog title="Clear supplier?" cancel={() => setClearingSupplier(false)}>
         <p>Clear this PO’s supplier details and supplier order reference? The supplier stays in your directory. Save the draft to keep this change.</p>
         <div className="button-row po-dialog-footer"><button type="button" className="secondary" autoFocus onClick={() => setClearingSupplier(false)}>Cancel</button><button type="button" className="secondary danger" onClick={() => {
@@ -270,15 +294,17 @@ export function DraftEditor({ id: initialId, onDirtyChange, onAuthLost, onSaved,
         </button>
         <div className="po-save-action"><p className="po-save-status" role="status">{saveStatus}</p>
           <button type="submit" form="po-draft-form" className="primary" disabled={saveDisabled}>{saveLabel}</button>
+          {baseline && !amending && baseline.state !== 'Ordered' ? <button type="button" className="secondary" disabled={frozen || dirty} onClick={() => setCommitting(true)}>Record as ordered</button> : null}
         </div>
       </div>
       <header className="po-editor-header">
         <div className="po-heading">
-          <h1>{baseline?.poReference ?? current?.poReference ?? (id ? 'Purchase order' : 'New purchase order')}</h1><span className="po-badge">Draft</span>
+          <h1>{baseline?.poReference ?? current?.poReference ?? (id ? 'Purchase order' : 'New purchase order')}</h1><span className="po-badge">{amending ? 'Amendment' : 'Draft'}</span>
         </div>
         {savedAt ? <p className="po-saved-time">Last saved {new Date(savedAt).toLocaleString()}</p> : null}
         {draft.entries.length || draft.charges.length || draft.orderDiscount ? <a className="po-estimate-jump" href="#po-purchase-estimate" onClick={() => document.getElementById('po-purchase-estimate')?.focus({ preventScroll: true })}>View purchase estimate</a> : null}
       </header>
+      {mode === 'amendment-review' && baseline ? <section className="po-comparison-panel" aria-label="Review amendment"><h2>Review amendment</h2><p>Order date: {baseline.orderDate} → {orderDate}</p><p>Reason: {amendmentReason || 'Not entered'}</p><div className="po-comparison"><DraftComparison heading="Current agreed contents" draft={baseline.draft} state="Ordered" /><DraftComparison heading="Proposed contents" draft={draft} state="Amendment" /></div><div className="button-row"><button type="button" className="secondary" onClick={() => setMode('editing')}>Keep editing</button><button type="button" className="primary" onClick={() => void save(true)}>Record amendment</button></div></section> : null}
       {message && !Object.keys(visibleErrors).length ? <p role="alert" className="form-message error">{message}</p> : null}
       {mode === 'delete-uncertain' ? <button type="button" className="secondary" onClick={() => void removeDraft()}>Check and retry deletion</button> : null}
       {mode === 'deleting' ? <p role="status">Deleting draft…</p> : null}
@@ -288,20 +314,22 @@ export function DraftEditor({ id: initialId, onDirtyChange, onAuthLost, onSaved,
       {mode === 'comparison' && current ? (
         <section className="po-comparison-panel" aria-label="Compare draft versions">
           <div className="po-section-heading">
-            <div><h2>Review newer changes</h2><p>Compare the current saved draft with your changes before continuing.</p></div>
+            <div><h2>Review newer changes</h2><p>Compare the current saved purchase with your changes before continuing.</p></div>
           </div>
           <div className="po-comparison">
             <DraftComparison heading="Current saved" draft={current.draft} />
             <DraftComparison heading="Your changes" draft={draft} />
           </div>
+          {amending ? <p>Current order date: {current.orderDate}. Your order date: {orderDate}. Your amendment reason: {amendmentReason || 'Not entered'}.</p> : null}
           <div className="button-row">
             <button type="button" className="secondary" onClick={() => chooseCurrent(false)}>Use saved version</button>
             <button type="button" className="primary" onClick={() => chooseCurrent(true)}>Continue with my changes</button>
           </div>
         </section>
       ) : null}
-      {['uncertain', 'delete-uncertain', 'current-failed', 'conflict-failed', 'comparison', 'blocked'].includes(mode) && recoveryText(draft) ? <RecoveryText label="Purchase draft" text={recoveryText(draft)} /> : null}
+      {['uncertain', 'delete-uncertain', 'current-failed', 'conflict-failed', 'comparison', 'blocked'].includes(mode) && recoveryText(draft) ? <RecoveryText label={amending ? 'Purchase amendment' : 'Purchase draft'} text={recoveryText(amending ? { orderDate, reason: amendmentReason, draft } : draft)} /> : null}
       <form id="po-draft-form" className="form-stack" noValidate onSubmit={event => { event.preventDefault(); void save(); }}>
+        {amending ? <section className="po-form-section" aria-label="Amendment details"><h2>Amend the ordered purchase</h2><p>Changes become a new revision. Currency is fixed; earlier agreed contents remain in history.</p><div className="po-header-fields"><div className="po-field"><label htmlFor={fieldId('orderDate')}>Order date</label><input id={fieldId('orderDate')} type="date" disabled={frozen} value={orderDate} onChange={event => setOrderDate(event.target.value)} /></div>{field('reason', 'Amendment reason', amendmentReason, value => setAmendmentReason(value ?? ''), { multiline: true })}</div><button type="button" className="quiet" disabled={frozen} onClick={() => changed ? setDiscardingAmendment(true) : discardAmendment()}>Cancel amendment</button></section> : null}
         {Object.keys(visibleErrors).length ? (
           <div role="alert" className="po-validation-summary" tabIndex={-1} id={fieldId('draft')}>
             <h2>Review these fields</h2>
@@ -350,10 +378,10 @@ export function DraftEditor({ id: initialId, onDirtyChange, onAuthLost, onSaved,
           </div>
           <div className="po-currency-row">
             {field('draft.currency', 'Currency', draft.currency, currency => setDraft({ ...draft, currency }), {
-              placeholder: 'Not set', disabled: !!baseline?.draft.currency && hasMonetaryAmounts(baseline.draft),
+              placeholder: 'Not set', disabled: amending || (!!baseline?.draft.currency && hasMonetaryAmounts(baseline.draft)),
             })}
             <div className="po-field-help">
-              <p>Prices, discounts and charges use this currency. To change it, clear all amounts and save first.</p>
+              <p>{amending ? 'Currency is fixed for this ordered purchase.' : 'Prices, discounts and charges use this currency. To change it, clear all amounts and save first.'}</p>
               {hasPrices ? (
                 <button className="quiet" type="button" disabled={frozen} onClick={() => setClearingPrices(true)}>Clear all amounts</button>
               ) : null}
@@ -404,7 +432,7 @@ export function DraftEditor({ id: initialId, onDirtyChange, onAuthLost, onSaved,
           <DiscountFields label="Order discount" path="draft.orderDiscount" discount={draft.orderDiscount} base={calculation.result?.orderDiscountBase} amount={calculation.result?.orderDiscountAmount} currency={draft.currency} disabled={frozen || currencyTransition} errors={visibleErrors} change={orderDiscount => setDraft({ ...draft, orderDiscount })} />
           <DraftCharges draft={draft} baseline={baseline?.draft} disabled={frozen} amountDisabled={frozen || currencyTransition} errors={visibleErrors} change={charges => { setErrors(Object.fromEntries(Object.entries(errors).filter(([path]) => !path.startsWith('draft.charges')))); setDraft({ ...draft, charges }); }} />
           {draft.entries.length || draft.charges.length || draft.orderDiscount ? <div id="po-purchase-estimate" tabIndex={-1} className="po-merchandise-estimate" aria-live="polite">
-            {calculation.result ? <DraftFinancialSummary draft={draft} result={calculation.result} /> : calculation.message ? <><p>{calculation.message}</p><button type="button" className="quiet" disabled={frozen} onClick={calculation.retry}>Retry estimate</button></> : <p>{frozen ? 'Estimates resume when editing is available.' : 'Calculating estimate…'}</p>}
+            {calculation.result ? <DraftFinancialSummary draft={draft} result={calculation.result} ordered={amending} /> : calculation.message ? <><p>{calculation.message}</p><button type="button" className="quiet" disabled={frozen} onClick={calculation.retry}>Retry estimate</button></> : <p>{frozen ? 'Estimates resume when editing is available.' : 'Calculating estimate…'}</p>}
           </div> : null}
         </section>
         <section className="po-form-section" aria-labelledby="po-context-heading">
@@ -435,7 +463,7 @@ export function DraftEditor({ id: initialId, onDirtyChange, onAuthLost, onSaved,
           </div>
         </section>
       </form>
-      {baseline ? <div className="button-row"><button type="button" className="quiet danger" disabled={frozen}
+      {baseline && !amending && baseline.state !== 'Ordered' ? <div className="button-row"><button type="button" className="quiet danger" disabled={frozen}
         onClick={() => setConfirmingDelete(true)}>Delete draft</button></div> : null}
     </section>
   );

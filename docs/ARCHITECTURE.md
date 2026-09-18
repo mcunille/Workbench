@@ -146,7 +146,7 @@ URLs or original/historical photo routes. Pending and retained variants remain w
 manifest, reconciliation, worker hold, and paired recovery boundary; see the
 [provider runbook](operations/blob-and-service-providers.md#item-photograph-ingestion).
 
-### Purchase order drafts
+### Purchase orders
 
 The [Purchasing module](purchasing.md) stores mutable planning documents independently of inventory,
 acquisitions and financial records. `Purchasing.DraftOrders` combines searchable draft headers with
@@ -201,11 +201,23 @@ merchandise bases, then supplier and third-party charge totals separately. Unkno
 become zero or a complete purchase estimate. Restricted current SQL commands independently validate
 the closed shape, amounts, discount bounds, currency transitions and confirmed-charge correction
 notes. New writes require adjustment properties; missing properties cannot erase saved financial
-inputs. The bundled client and server use revision `beta-2`; older clients must reload and retired
+inputs. The bundled client and server use revision `beta-3`; older clients must reload and retired
 public routes remain unsupported. Stored receipt history remains intact.
 Reads upgrade older content without persisting it, preserving unresolved legacy quotes.
-No commitment, invoice, balance or ledger posting is created. See the
+Draft saves create no commitment, invoice, balance or ledger posting. See the
 [PO-05 specification](specs/2026-09-16-po-05-discounts-and-charges.md).
+
+PO-04 retains the same purchase row and permanent reference while introducing explicit Draft/Ordered
+state, calendar order date and sequential immutable revision snapshots. Commitment requires valid
+supplier, currency and itemized quantities, while unresolved costs remain estimated or unknown.
+Ordered content changes only through a reasoned amendment; currency is fixed and deletion is blocked.
+`PurchaseOrderRevisions` preserves full contents, supplier/contact snapshots, actor, recording time,
+reason and a versioned calculation snapshot. `PurchaseOrderReceipts` binds successful requests to
+the actor, tenant, operation and canonical input. Restricted SQL commands atomically append history,
+update the current projection and save the receipt; tenant RLS and denied direct mutations protect
+both history tables. Existing draft receipt retries still succeed without reapplying old writes.
+The unified beta purchase API serves drafts, ordered purchases and paged history. See the
+[PO-04 specification](specs/2026-09-17-po-04-commitment-and-amendments.md).
 
 ## Architectural invariants
 

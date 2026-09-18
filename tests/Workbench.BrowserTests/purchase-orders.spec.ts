@@ -149,9 +149,9 @@ test('a confirmed save retries only the failed current-details read', async ({ p
   await startDraft(page, `Read recovery ${Date.now()}`);
   let saves = 0;
   let reads = 0;
-  await page.route('**/api/beta/purchase-order-drafts**', async route => {
+  await page.route(/\/api\/beta\/purchase-order(?:s|-drafts)(?:\/|\?|$)/, async route => {
     if (route.request().method() === 'POST' && !route.request().url().endsWith('/calculate')) saves++;
-    if (route.request().method() === 'GET' && /\/api\/beta\/purchase-order-drafts\/[a-f0-9-]{36}$/.test(route.request().url())) {
+    if (route.request().method() === 'GET' && /\/api\/beta\/purchase-orders\/[a-f0-9-]{36}$/.test(route.request().url())) {
       reads++;
       if (reads === 1) return route.fulfill({ status: 503, contentType: 'application/problem+json', body: '{"status":503}' });
     }

@@ -174,7 +174,7 @@ public sealed class ItemArchivingTests(SqlServerFixture sqlServer)
     {
         var token = await client.GetFromJsonAsync<JsonElement>("/api/beta/auth/antiforgery");
         using var request = new HttpRequestMessage(method, path) { Content = JsonContent.Create(body) };
-        request.Headers.TryAddWithoutValidation("X-Workbench-Api-Revision", "beta-2");
+        request.Headers.TryAddWithoutValidation("X-Workbench-Api-Revision", "beta-3");
         request.Headers.Add("X-CSRF-TOKEN", token.GetProperty("requestToken").GetString());
         return await client.SendAsync(request);
     }

@@ -2,7 +2,7 @@
   "openapi": "3.1.1",
   "info": {
     "title": "Workbench.Server | beta",
-    "description": "Unreleased beta API. Contracts are expected to change; the first release establishes v1. Writes require X-Workbench-Api-Revision: beta-2. Missing or incompatible revisions return api_contract_unsupported; preserve unsaved changes before reloading. Read requests may omit the header for bootstrap and media delivery.",
+    "description": "Unreleased beta API. Contracts are expected to change; the first release establishes v1. Writes require X-Workbench-Api-Revision: beta-3. Missing or incompatible revisions return api_contract_unsupported; preserve unsaved changes before reloading. Read requests may omit the header for bootstrap and media delivery.",
     "version": "beta"
   },
   "paths": {
@@ -19,6 +19,86 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/SystemResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/beta/purchase-order-drafts/{id}/commit": {
+      "post": {
+        "tags": [
+          "Purchasing"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CommitPurchaseOrderRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SavePurchaseOrderResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Payload Too Large",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
                 }
               }
             }
@@ -2615,6 +2695,285 @@
         }
       }
     },
+    "/api/beta/purchase-orders": {
+      "get": {
+        "tags": [
+          "Purchasing"
+        ],
+        "parameters": [
+          {
+            "name": "cursor",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "query",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "state",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PurchaseOrderPageResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/beta/purchase-orders/{id}": {
+      "get": {
+        "tags": [
+          "Purchasing"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PurchaseOrderResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/beta/purchase-orders/{id}/amendments": {
+      "post": {
+        "tags": [
+          "Purchasing"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AmendPurchaseOrderRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SavePurchaseOrderResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Payload Too Large",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/beta/purchase-orders/{id}/revisions": {
+      "get": {
+        "tags": [
+          "Purchasing"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PurchaseOrderRevisionPageResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/beta/purchase-orders/{id}/revisions/{revision}": {
+      "get": {
+        "tags": [
+          "Purchasing"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "revision",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PurchaseOrderRevisionResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/beta/suppliers": {
       "get": {
         "tags": [
@@ -3338,6 +3697,35 @@
           }
         }
       },
+      "AmendPurchaseOrderRequest": {
+        "required": [
+          "requestId",
+          "expectedVersion",
+          "orderDate",
+          "reason",
+          "draft"
+        ],
+        "type": "object",
+        "properties": {
+          "requestId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "expectedVersion": {
+            "type": "string"
+          },
+          "orderDate": {
+            "type": "string"
+          },
+          "reason": {
+            "type": "string"
+          },
+          "draft": {
+            "$ref": "#/components/schemas/DraftContent"
+          }
+        },
+        "additionalProperties": false
+      },
       "AntiforgeryResponse": {
         "required": [
           "requestToken"
@@ -3449,6 +3837,27 @@
             "type": "string"
           },
           "newPassword": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "CommitPurchaseOrderRequest": {
+        "required": [
+          "requestId",
+          "expectedVersion",
+          "orderDate"
+        ],
+        "type": "object",
+        "properties": {
+          "requestId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "expectedVersion": {
+            "type": "string"
+          },
+          "orderDate": {
             "type": "string"
           }
         },
@@ -4644,6 +5053,278 @@
           }
         }
       },
+      "PurchaseOrderPageResponse": {
+        "required": [
+          "items",
+          "nextCursor"
+        ],
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PurchaseOrderSummary"
+            }
+          },
+          "nextCursor": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "PurchaseOrderResponse": {
+        "required": [
+          "id",
+          "draft",
+          "createdAtUtc",
+          "updatedAtUtc",
+          "version",
+          "poReference",
+          "supplierIsArchived",
+          "calculation",
+          "state",
+          "orderDate",
+          "revision"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "draft": {
+            "$ref": "#/components/schemas/DraftContent"
+          },
+          "createdAtUtc": {
+            "type": "string"
+          },
+          "updatedAtUtc": {
+            "type": "string"
+          },
+          "version": {
+            "type": "string"
+          },
+          "poReference": {
+            "type": "string"
+          },
+          "supplierIsArchived": {
+            "type": "boolean"
+          },
+          "calculation": {
+            "$ref": "#/components/schemas/DraftCalculationResponse"
+          },
+          "state": {
+            "type": "string"
+          },
+          "orderDate": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "revision": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        }
+      },
+      "PurchaseOrderRevisionPageResponse": {
+        "required": [
+          "items",
+          "nextCursor"
+        ],
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PurchaseOrderRevisionSummary"
+            }
+          },
+          "nextCursor": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "PurchaseOrderRevisionResponse": {
+        "required": [
+          "revision",
+          "orderDate",
+          "actorUserId",
+          "recordedAtUtc",
+          "reason",
+          "calculationPolicyVersion",
+          "draft",
+          "calculation",
+          "poReference"
+        ],
+        "type": "object",
+        "properties": {
+          "revision": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "orderDate": {
+            "type": "string"
+          },
+          "actorUserId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "recordedAtUtc": {
+            "type": "string"
+          },
+          "reason": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "calculationPolicyVersion": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "draft": {
+            "$ref": "#/components/schemas/DraftContent"
+          },
+          "calculation": {
+            "$ref": "#/components/schemas/DraftCalculationResponse"
+          },
+          "poReference": {
+            "type": "string"
+          }
+        }
+      },
+      "PurchaseOrderRevisionSummary": {
+        "required": [
+          "revision",
+          "orderDate",
+          "actorUserId",
+          "recordedAtUtc",
+          "reason",
+          "calculationPolicyVersion"
+        ],
+        "type": "object",
+        "properties": {
+          "revision": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "orderDate": {
+            "type": "string"
+          },
+          "actorUserId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "recordedAtUtc": {
+            "type": "string"
+          },
+          "reason": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "calculationPolicyVersion": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        }
+      },
+      "PurchaseOrderSummary": {
+        "required": [
+          "id",
+          "title",
+          "supplierName",
+          "updatedAtUtc",
+          "poReference",
+          "supplierOrderReference",
+          "platform",
+          "state",
+          "orderDate",
+          "revision"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "title": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "supplierName": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "updatedAtUtc": {
+            "type": "string"
+          },
+          "poReference": {
+            "type": "string"
+          },
+          "supplierOrderReference": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "platform": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "state": {
+            "type": "string"
+          },
+          "orderDate": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "revision": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        }
+      },
       "RecoveryConsumeRequest": {
         "required": [
           "token",
@@ -4730,6 +5411,44 @@
           },
           "completedAtUtc": {
             "type": "string"
+          }
+        }
+      },
+      "SavePurchaseOrderResponse": {
+        "required": [
+          "requestId",
+          "replayed",
+          "draftOrderId",
+          "savedVersion",
+          "completedAtUtc",
+          "revision"
+        ],
+        "type": "object",
+        "properties": {
+          "requestId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "replayed": {
+            "type": "boolean"
+          },
+          "draftOrderId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "savedVersion": {
+            "type": "string"
+          },
+          "completedAtUtc": {
+            "type": "string"
+          },
+          "revision": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
           }
         }
       },
@@ -5135,6 +5854,9 @@
       "name": "Workbench.Server"
     },
     {
+      "name": "Purchasing"
+    },
+    {
       "name": "RecoveryEndpoints"
     },
     {
@@ -5142,9 +5864,6 @@
     },
     {
       "name": "Inventory"
-    },
-    {
-      "name": "Purchasing"
     },
     {
       "name": "Tenant users"

@@ -6,14 +6,14 @@ describe('getSystem', () => {
   it('returns the generated system response contract', async () => {
     server.use(
       http.get('*/api/beta/system', () =>
-        HttpResponse.json({ name: 'Workbench', version: '1.2.3', apiRevision: 'beta-2' }),
+        HttpResponse.json({ name: 'Workbench', version: '1.2.3', apiRevision: 'beta-3' }),
       ),
     );
 
     await expect(getSystem()).resolves.toEqual({
       name: 'Workbench',
       version: '1.2.3',
-      apiRevision: 'beta-2',
+      apiRevision: 'beta-3',
     });
   });
 });
