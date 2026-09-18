@@ -85,6 +85,8 @@ it('keeps an amendment on validation failure and requires review before submissi
   // WHEN reviewing THEN current and proposed content are inspectable before any write.
   fireEvent.click(screen.getByRole('button', { name: 'Review amendment' }));
   expect(amendOrder).not.toHaveBeenCalled();
+  expect(screen.getByRole('region', { name: 'Changes' })).toHaveTextContent('Corrected title');
+  fireEvent.click(screen.getByText('Show complete contents'));
   expect(screen.getByRole('heading', { name: 'Proposed contents' })).toBeVisible();
   fireEvent.click(screen.getByRole('button', { name: 'Record amendment' }));
   // THEN input survives rejection and the server's reason is shown.
@@ -105,8 +107,9 @@ it('loads immutable revision contents on demand and retains them when another re
   fireEvent.click(await screen.findByRole('button', { name: 'View history' }));
   fireEvent.click(await screen.findByRole('button', { name: 'View revision 1' }));
   const detail = await screen.findByRole('region', { name: 'Revision 1 details' });
-  expect(within(detail).getByText('Sapphires')).toBeVisible();
-  expect(within(detail).getByText('Unit price').nextElementSibling).toHaveTextContent('Unknown');
+  const contents = within(detail).getByRole('region', { name: 'Agreed contents' });
+  expect(within(contents).getByText('Sapphires')).toBeVisible();
+  expect(within(contents).getByText('Unit price').nextElementSibling).toHaveTextContent('Unknown');
   // WHEN another revision fails THEN the selected evidence survives and retry is available.
   fireEvent.click(screen.getByRole('button', { name: 'View revision 2' }));
   await screen.findByRole('button', { name: 'Retry history' });
@@ -127,4 +130,62 @@ it('does not resubmit a confirmed amendment when loading the new version fails',
   fireEvent.click(await screen.findByRole('button', { name: 'Load current draft' }));
   await screen.findByRole('button', { name: 'Create amendment' });
   expect(amendOrder).toHaveBeenCalledTimes(1);
+});
+
+it('shows saved supplier and cost context before expanding commitment details', async () => {
+  // GIVEN a saved purchase with an unknown line price.
+  vi.mocked(getDraft).mockReset().mockResolvedValue(saved);
+  render(<DraftEditor {...props()} />);
+  // WHEN opening commitment THEN decision context is visible without opening the archived snapshot.
+  fireEvent.click(await screen.findByRole('button', { name: 'Record as ordered' }));
+  const summary = screen.getByRole('region', { name: 'Saved purchase summary' });
+  expect(within(summary).getByText('Supplier')).toBeVisible();
+  expect(within(summary).getByText('1 line · USD')).toBeVisible();
+  expect(within(summary).getByText('Supplier estimate')).toBeVisible();
+  expect(within(summary).getByText('Total purchase estimate')).toBeVisible();
+  expect(within(summary).getByText(/Unknown or incomplete costs/)).toBeVisible();
+  expect(screen.getByRole('button', { name: 'Confirm order' })).toBeEnabled();
+});
+
+it('reviews changes as a separate task and restores local edits when returning', async () => {
+  // GIVEN an ordered purchase with a local title correction and an explanation.
+  vi.mocked(getDraft).mockReset().mockResolvedValue(ordered);
+  render(<DraftEditor {...props()} />);
+  fireEvent.click(await screen.findByRole('button', { name: 'Create amendment' }));
+  fireEvent.change(screen.getByLabelText('Title'), { target: { value: 'Corrected title' } });
+  fireEvent.change(screen.getByLabelText('Amendment reason'), { target: { value: 'Correct the title' } });
+  // WHEN reviewing THEN only the verification task is present, with the edit form removed.
+  fireEvent.click(screen.getByRole('button', { name: 'Review amendment' }));
+  expect(screen.queryByLabelText('Title')).not.toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: 'Add line' })).not.toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: 'Review amendment' })).not.toBeInTheDocument();
+  expect(screen.getByRole('region', { name: 'Review amendment' })).toBeVisible();
+  expect(screen.getByRole('heading', { name: 'Review amendment' })).toHaveFocus();
+  expect(amendOrder).not.toHaveBeenCalled();
+  // WHEN returning to editing THEN both local changes and the reason remain intact.
+  fireEvent.click(screen.getByRole('button', { name: 'Keep editing' }));
+  expect(screen.getByLabelText('Title')).toHaveValue('Corrected title');
+  expect(screen.getByLabelText('Amendment reason')).toHaveValue('Correct the title');
+  expect(screen.getByRole('button', { name: 'Review amendment' })).toHaveFocus();
+});
+
+it('keeps a reviewed amendment frozen and retries the original request after a lost response', async () => {
+  // GIVEN a reviewed amendment whose first response is lost.
+  vi.mocked(getDraft).mockReset().mockResolvedValueOnce(ordered).mockResolvedValue({ ...ordered, revision: 2, version: 'v3' });
+  vi.mocked(amendOrder).mockReset().mockRejectedValueOnce(new TypeError('offline')).mockResolvedValue({ ...receipt, revision: 2, savedVersion: 'v3' });
+  render(<DraftEditor {...props()} />);
+  fireEvent.click(await screen.findByRole('button', { name: 'Create amendment' }));
+  fireEvent.change(screen.getByLabelText('Title'), { target: { value: 'Confirmed stones' } });
+  fireEvent.change(screen.getByLabelText('Amendment reason'), { target: { value: 'Supplier confirmation' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Review amendment' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Record amendment' }));
+  // WHEN the response is uncertain THEN edits cannot change the submitted contents.
+  const retry = await screen.findByRole('button', { name: 'Check and retry amendment' });
+  expect(screen.getByRole('button', { name: 'Keep editing' })).toBeDisabled();
+  expect(screen.queryByLabelText('Title')).not.toBeInTheDocument();
+  expect(screen.getByRole('region', { name: 'Changes' })).toHaveTextContent('Confirmed stones');
+  // WHEN retrying THEN the same idempotent request is reused and the saved record loads.
+  fireEvent.click(retry);
+  await screen.findByRole('button', { name: 'Create amendment' });
+  expect(vi.mocked(amendOrder).mock.calls[1]).toEqual(vi.mocked(amendOrder).mock.calls[0]);
 });

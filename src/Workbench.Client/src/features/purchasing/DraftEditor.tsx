@@ -24,6 +24,7 @@ import { clearDraftAmounts, hasAdjustments, hasMonetaryAmounts, type Discount } 
 import { amendOrder, type AmendOrderRequest } from '../../api/purchaseOrders';
 import { CommitOrderDialog } from './CommitOrderDialog';
 import { OrderedPurchase } from './OrderedPurchase';
+import { PurchaseChanges } from './PurchaseChanges';
 
 type Mode = 'loading' | 'editing' | 'saving' | 'uncertain' | 'current-loading' | 'current-failed' | 'conflict-loading' | 'conflict-failed' | 'comparison' | 'blocked' | 'load-failed' | 'deleting' | 'delete-uncertain' | 'amendment-review';
 type Submission = { id?: string; body: CreateDraftRequest | UpdateDraftRequest | AmendOrderRequest; amendment?: boolean };
@@ -136,7 +137,13 @@ export function DraftEditor({ id: initialId, onDirtyChange, onAuthLost, onSaved,
   }, [draft.entries]);
   useEffect(() => { if (!clearingSupplier && focusSupplierSummary.current) { supplierSummary.current?.focus(); focusSupplierSummary.current = false; } }, [clearingSupplier]);
   const frozen = mode !== 'editing' || committing || (baseline?.state === 'Ordered' && !amending);
-  const calculation = useDraftCalculation(draft, !frozen, supplierAccessLost);
+  const reviewing = amending && ['amendment-review', 'saving', 'uncertain', 'current-loading', 'current-failed'].includes(mode);
+  const returnFromReview = useRef(false);
+  useEffect(() => {
+    if (mode === 'amendment-review') document.getElementById('po-amendment-review-heading')?.focus();
+    else if (mode === 'editing' && returnFromReview.current) { returnFromReview.current = false; document.getElementById('po-save-button')?.focus(); }
+  }, [mode]);
+  const calculation = useDraftCalculation(draft, !frozen || reviewing, supplierAccessLost);
   const visibleErrors = { ...calculation.errors, ...errors };
   const [undoBoundary, setUndoBoundary] = useState({ mode, currency: draft.currency });
   if (undoBoundary.mode !== mode || undoBoundary.currency !== draft.currency) {
@@ -294,12 +301,12 @@ export function DraftEditor({ id: initialId, onDirtyChange, onAuthLost, onSaved,
         setClearingPrices(false);
       }} /> : null}
       <div ref={toolbarStart} className="po-toolbar-start" aria-hidden="true" />
-      <div className={`po-editor-toolbar${toolbarPinned ? ' is-pinned' : ''}`}>
+      <div className={`po-editor-toolbar${toolbarPinned ? ' is-pinned' : ''}${reviewing ? ' po-record-toolbar' : ''}`}>
         <button type="button" className="quiet po-back" aria-label="Back to purchase orders" onClick={onCancel}>
           <Icon name="back" />Purchase orders
         </button>
         <div className="po-save-action"><p className="po-save-status" role="status">{saveStatus}</p>
-          <button type="submit" form="po-draft-form" className="primary" disabled={saveDisabled}>{saveLabel}</button>
+          {reviewing ? <><button type="button" className="secondary" disabled={mode !== 'amendment-review'} onClick={() => { returnFromReview.current = true; setMode('editing'); }}>Keep editing</button><button type="button" className="primary" disabled={mode !== 'amendment-review' && mode !== 'uncertain'} onClick={() => void save(true)}>{mode === 'uncertain' ? 'Check and retry amendment' : mode === 'saving' ? 'Recording…' : 'Record amendment'}</button></> : <button id="po-save-button" type="submit" form="po-draft-form" className="primary" disabled={saveDisabled}>{saveLabel}</button>}
           {baseline && !amending && baseline.state !== 'Ordered' ? <button type="button" className="secondary" disabled={frozen || dirty} onClick={() => setCommitting(true)}>Record as ordered</button> : null}
         </div>
       </div>
@@ -308,9 +315,15 @@ export function DraftEditor({ id: initialId, onDirtyChange, onAuthLost, onSaved,
           <h1>{baseline?.poReference ?? current?.poReference ?? (id ? 'Purchase order' : 'New purchase order')}</h1><span className="po-badge">{amending ? 'Amendment' : 'Draft'}</span>
         </div>
         {savedAt ? <p className="po-saved-time">Last saved {new Date(savedAt).toLocaleString()}</p> : null}
-        {draft.entries.length || draft.charges.length || draft.orderDiscount ? <a className="po-estimate-jump" href="#po-purchase-estimate" onClick={() => document.getElementById('po-purchase-estimate')?.focus({ preventScroll: true })}>View purchase estimate</a> : null}
+        {!reviewing && (draft.entries.length || draft.charges.length || draft.orderDiscount) ? <a className="po-estimate-jump" href="#po-purchase-estimate" onClick={() => document.getElementById('po-purchase-estimate')?.focus({ preventScroll: true })}>View purchase estimate</a> : null}
       </header>
-      {mode === 'amendment-review' && baseline ? <section className="po-comparison-panel" aria-label="Review amendment"><h2>Review amendment</h2><p>Order date: {baseline.orderDate} → {orderDate}</p><p>Reason: {amendmentReason || 'Not entered'}</p><div className="po-comparison"><DraftComparison heading="Current agreed contents" draft={baseline.draft} state="Ordered" /><DraftComparison heading="Proposed contents" draft={draft} state="Amendment" /></div><div className="button-row"><button type="button" className="secondary" onClick={() => setMode('editing')}>Keep editing</button><button type="button" className="primary" onClick={() => void save(true)}>Record amendment</button></div></section> : null}
+      {reviewing && baseline ? <section className="po-amendment-review" aria-label="Review amendment">
+        <h2 id="po-amendment-review-heading" tabIndex={-1}>Review amendment</h2><p>Reason: {amendmentReason || 'Not entered'}</p>
+        <PurchaseChanges before={baseline.draft} after={draft} beforeDate={baseline.orderDate} afterDate={orderDate} beforeCalculation={baseline.calculation} afterCalculation={calculation.result} />
+        {!calculation.result ? <p role="status">{calculation.message || 'Calculating the proposed estimate…'}</p> : null}
+        {calculation.message ? <button type="button" className="secondary" onClick={calculation.retry}>Retry estimate</button> : null}
+        <details className="po-record-details"><summary>Show complete contents</summary><div className="po-comparison"><DraftComparison heading="Current agreed contents" draft={baseline.draft} state="Ordered" /><DraftComparison heading="Proposed contents" draft={draft} state="Amendment" /></div></details>
+      </section> : null}
       {message && !Object.keys(visibleErrors).length ? <p role="alert" className="form-message error">{message}</p> : null}
       {mode === 'delete-uncertain' ? <button type="button" className="secondary" onClick={() => void removeDraft()}>Check and retry deletion</button> : null}
       {mode === 'deleting' ? <p role="status">Deleting draft…</p> : null}
@@ -334,7 +347,7 @@ export function DraftEditor({ id: initialId, onDirtyChange, onAuthLost, onSaved,
         </section>
       ) : null}
       {['uncertain', 'delete-uncertain', 'current-failed', 'conflict-failed', 'comparison', 'blocked'].includes(mode) && recoveryText(draft) ? <RecoveryText label={amending ? 'Purchase amendment' : 'Purchase draft'} text={recoveryText(amending ? { orderDate, reason: amendmentReason, draft } : draft)} /> : null}
-      <form id="po-draft-form" className="form-stack" noValidate onSubmit={event => { event.preventDefault(); void save(); }}>
+      {!reviewing ? <form id="po-draft-form" className="form-stack" noValidate onSubmit={event => { event.preventDefault(); void save(); }}>
         {amending ? <section className="po-form-section" aria-label="Amendment details"><h2>Amend the ordered purchase</h2><p>Changes become a new revision. Currency is fixed; earlier agreed contents remain in history.</p><div className="po-header-fields"><div className="po-field"><label htmlFor={fieldId('orderDate')}>Order date</label><input id={fieldId('orderDate')} type="date" disabled={frozen} value={orderDate} onChange={event => setOrderDate(event.target.value)} /></div>{field('reason', 'Amendment reason', amendmentReason, value => setAmendmentReason(value ?? ''), { multiline: true })}</div><button type="button" className="quiet" disabled={frozen} onClick={() => changed ? setDiscardingAmendment(true) : discardAmendment()}>Cancel amendment</button></section> : null}
         {Object.keys(visibleErrors).length ? (
           <div role="alert" className="po-validation-summary" tabIndex={-1} id={fieldId('draft')}>
@@ -468,7 +481,7 @@ export function DraftEditor({ id: initialId, onDirtyChange, onAuthLost, onSaved,
             </section>
           </div>
         </section>
-      </form>
+      </form> : null}
       {baseline && !amending && baseline.state !== 'Ordered' ? <div className="button-row"><button type="button" className="quiet danger" disabled={frozen}
         onClick={() => setConfirmingDelete(true)}>Delete draft</button></div> : null}
     </section>

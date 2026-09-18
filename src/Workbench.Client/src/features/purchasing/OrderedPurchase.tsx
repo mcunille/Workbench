@@ -4,19 +4,22 @@ import { getOrderRevisions, getOrderRevision, type DraftOrder, type OrderRevisio
 import { DraftComparison } from './DraftComparison';
 import { DraftFinancialSummary } from './DraftFinancialSummary';
 import { Icon } from '../../Icon';
+import { PurchaseContents } from './PurchaseContents';
+import { PurchaseChanges } from './PurchaseChanges';
 
 export function OrderedPurchase({ order, amend, onCancel, onAuthLost }: { order: DraftOrder; amend(): void; onCancel(): void; onAuthLost(): void }) {
   const [history, setHistory] = useState(false);
   return <section className="editor po-editor po-ordered">
-    <div className="po-editor-toolbar"><button type="button" className="quiet po-back" onClick={onCancel}><Icon name="back" />Purchase orders</button><button type="button" className="primary" onClick={amend}>Create amendment</button></div>
+    <div className="po-editor-toolbar po-record-toolbar"><button type="button" className="quiet po-back" onClick={onCancel}><Icon name="back" />Purchase orders</button><button type="button" className="primary" onClick={amend}>Create amendment</button></div>
     <header className="po-editor-header"><div className="po-heading"><h1>{order.poReference}</h1><span className="po-badge">Ordered</span></div>
       <h2>{order.draft.supplierName}</h2><p>Order date <time dateTime={order.orderDate ?? undefined}>{order.orderDate}</time> · Revision {order.revision}</p>
       <p>Agreed contents are preserved. Record a reasoned amendment to make a change.</p>
       <button type="button" className="secondary" aria-expanded={history} onClick={() => setHistory(!history)}>{history ? 'Hide history' : 'View history'}</button>
     </header>
     {history ? <OrderHistory id={order.id} onAuthLost={onAuthLost} /> : <>
+      <PurchaseContents draft={order.draft} calculation={order.calculation} />
       <DraftFinancialSummary draft={order.draft} result={order.calculation} ordered />
-      <DraftComparison heading="Agreed contents" draft={order.draft} state="Ordered" />
+      <details className="po-record-details"><summary>Show complete agreed contents</summary><DraftComparison heading="Complete agreed contents" draft={order.draft} state="Ordered" /></details>
     </>}
   </section>;
 }
@@ -68,12 +71,11 @@ function OrderHistory({ id, onAuthLost }: { id: string; onAuthLost(): void }) {
     {page?.nextCursor ? <button type="button" className="secondary" disabled={busy} onClick={() => void load(page.nextCursor ?? undefined)}>Load more history</button> : null}
     {selected ? <section aria-label={`Revision ${selected.revision} details`}>
       <h2>Revision {selected.revision}</h2><p>{selected.reason ?? 'Original commitment'} · Order date <time dateTime={selected.orderDate}>{selected.orderDate}</time></p>
-      <DraftFinancialSummary draft={selected.draft} result={selected.calculation} ordered />
-      {previous ? <p>Compare the complete before and after contents, including removed lines and charges.</p> : null}
-      <div className={previous ? 'po-comparison' : undefined}>
-        {previous ? <div><p>Previous order date: {previous.orderDate}</p><DraftComparison heading={`Previous revision ${previous.revision}`} draft={previous.draft} state="Ordered" /></div> : null}
+      {previous ? <PurchaseChanges before={previous.draft} after={selected.draft} beforeDate={previous.orderDate} afterDate={selected.orderDate} beforeCalculation={previous.calculation} afterCalculation={selected.calculation} /> : <><PurchaseContents draft={selected.draft} calculation={selected.calculation} /><DraftFinancialSummary draft={selected.draft} result={selected.calculation} ordered /></>}
+      <details className="po-record-details"><summary>Show complete revision contents</summary><div className={previous ? 'po-comparison' : undefined}>
+        {previous ? <DraftComparison heading={`Previous revision ${previous.revision}`} draft={previous.draft} state="Ordered" /> : null}
         <DraftComparison heading={`Revision ${selected.revision}`} draft={selected.draft} state="Ordered" />
-      </div>
+      </div></details>
     </section> : null}
   </section>;
 }

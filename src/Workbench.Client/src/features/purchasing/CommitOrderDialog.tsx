@@ -5,6 +5,7 @@ import { SupplierDialog } from './SupplierDialog';
 import { DraftComparison } from './DraftComparison';
 import { RecoveryText } from '../../RecoveryText';
 import { recoveryText } from '../../formatRecoveryText';
+import { formatReferencePrice } from './referencePrice';
 
 export function CommitOrderDialog({ order, date, changeDate, editDraft, cancel, committed, conflict, onAuthLost, pending }: {
   order: DraftOrder; cancel(): void; committed(receipt: OrderReceipt): void; conflict(): void;
@@ -43,8 +44,17 @@ export function CommitOrderDialog({ order, date, changeDate, editDraft, cancel, 
     } finally { busy.current = false; }
   }
   const locked = mode !== 'editing';
-  return <SupplierDialog title="Record as ordered" cancel={() => { if (mode !== 'saving' && mode !== 'uncertain') cancel(); }}>
-    <p>Record the saved contents of {order.poReference} as the purchase you placed. Prices remain estimates and unknown costs stay unknown.</p>
+  const money = (value: string | null) => value === null ? 'Unknown' : `${order.draft.currency} ${formatReferencePrice(value)}`;
+  return <SupplierDialog title="Record as ordered" className="po-commit-dialog" cancel={() => { if (mode !== 'saving' && mode !== 'uncertain') cancel(); }}>
+    <div className="po-commit-body">
+    <section className="po-commit-summary" aria-label="Saved purchase summary">
+      <h3>{order.draft.supplierName || 'Supplier not set'}</h3>
+      <p>{order.poReference}{order.draft.title ? ` · ${order.draft.title}` : ''}</p>
+      <p>{order.draft.entries.length} {order.draft.entries.length === 1 ? 'line' : 'lines'} · {order.draft.currency || 'Currency not set'}</p>
+      <dl className="po-commit-totals"><div><dt>Supplier estimate</dt><dd>{money(order.calculation.supplierEstimate)}</dd></div><div><dt>Total purchase estimate</dt><dd>{money(order.calculation.purchaseEstimate)}</dd></div></dl>
+      {order.calculation.incompleteLineCount || order.calculation.incompleteChargeCount ? <p>Unknown or incomplete costs: {order.calculation.incompleteLineCount} {order.calculation.incompleteLineCount === 1 ? 'line' : 'lines'}, {order.calculation.incompleteChargeCount} {order.calculation.incompleteChargeCount === 1 ? 'charge' : 'charges'}.</p> : null}
+    </section>
+    <p>Record this purchase in Workbench. This does not send it to the supplier. Prices remain estimates and unknown costs stay unknown.</p>
     <label htmlFor="po-commit-date">Order date</label>
     <input ref={dateInput} id="po-commit-date" type="date" value={date} disabled={locked} aria-invalid={!!errors.orderDate} aria-describedby={errors.orderDate ? 'po-commit-date-error' : undefined} onChange={event => changeDate(event.target.value)} />
     {errors.orderDate ? <p id="po-commit-date-error" className="form-message error" role="alert">{errors.orderDate.join(' ')}</p> : null}
@@ -52,6 +62,7 @@ export function CommitOrderDialog({ order, date, changeDate, editDraft, cancel, 
     {message ? <p role="alert">{message}</p> : null}
     {Object.keys(errors).some(key => key !== 'orderDate') ? <ul>{Object.entries(errors).filter(([key]) => key !== 'orderDate').flatMap(([key, messages]) => messages.map((error, index) => <li key={`${key}-${index}`}><button type="button" className="quiet" onClick={() => editDraft({ [key]: messages, ...errors })}>{error}</button></li>))}</ul> : null}
     {mode === 'uncertain' ? <RecoveryText label="Purchase commitment" text={recoveryText({ orderDate: date, draft: order.draft })} /> : null}
+    </div>
     <div className="button-row po-dialog-footer">
       <button className="secondary" type="button" disabled={mode === 'saving' || mode === 'uncertain'} onClick={cancel}>Keep draft</button>
       <button className="primary" type="button" disabled={mode === 'saving' || mode === 'blocked'} onClick={() => void confirm()}>{mode === 'saving' ? 'Recording…' : mode === 'uncertain' ? 'Check and retry commitment' : 'Confirm order'}</button>

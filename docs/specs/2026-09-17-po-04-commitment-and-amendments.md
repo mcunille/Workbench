@@ -125,6 +125,30 @@ the affected fields; failures preserve input; uncertain requests prevent replace
 Keep keyboard operation, focus return, unsaved-navigation protection, session-loss clearing and
 mobile layout consistent with existing purchasing. History remains usable without color cues.
 
+### Approved interface refinements
+
+Ordered detail and the original revision present compact item descriptions, quantities, pricing
+and discounts first, then charges with payees and estimated/confirmed status, then the financial
+totals. Keep complete supplier, reference, source and other metadata in a native disclosure so
+the concise reading view preserves access to the full saved record.
+
+Amendment review and later revision comparisons match continuing lines and charges by ID and
+show changed fields as labeled Before/After pairs, including explicit Added/Removed/Changed text.
+Show old and new supplier and total purchase estimates, retaining unknown or unavailable states.
+Keep exhaustive before/after snapshots in a separate disclosure. Ordered and amendment-review
+toolbars use the existing opaque neutral surface to keep actions legible above scrolling records.
+
+Commitment review visibly summarizes the saved supplier, PO reference, title when present, line
+count, currency, both estimates and any unknown/incomplete cost counts. The saved-content disclosure
+remains available. Give the dialog a scrolling body and persistent confirmation footer; keep the
+explicit date and the explanation that recording the purchase does not send it to the supplier.
+
+Treat amendment review as a separate step with the editing form hidden and local input retained.
+Focus the review heading on entry; **Keep editing** restores the form and focus to **Review amendment**.
+These refinements preserve Operate mode, Tanzanite identity, existing tokens and native controls.
+Final verification and finish evidence for this refinement are pending; earlier evidence covers
+only the implementation revision identified with that evidence.
+
 ## Migration and recovery
 
 Introduce one forward migration from the PR base, preserving every existing draft, tombstone,
