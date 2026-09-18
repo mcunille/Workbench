@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { vi } from 'vitest';
 import { getDrafts, DraftError } from '../../api/purchaseOrders';
 import { DraftList } from './DraftList';
@@ -13,9 +13,26 @@ it('distinguishes ordered purchases from drafts and filters the server query by 
   render(<DraftList {...props()} />);
   expect(await screen.findByRole('link', { name: /placed.*Ordered/ })).toBeVisible();
   // WHEN selecting ordered purchases THEN filtering is performed before pagination by the server.
-  fireEvent.change(screen.getByLabelText('Order state'), { target: { value: 'Ordered' } });
+  fireEvent.change(screen.getByLabelText('Order status'), { target: { value: 'Ordered' } });
   await screen.findByRole('link', { name: /placed.*Ordered/ });
   expect(getDrafts).toHaveBeenLastCalledWith(undefined, undefined, 'Ordered');
+});
+it('clears the status filter from page one while preserving search and keyboard focus', async () => {
+  // GIVEN an ordered-only search with another page available.
+  const callbacks = props();
+  callbacks.memory.save({ items: [{ ...row('placed'), state: 'Ordered' }], nextCursor: 'ordered-page' }, 'sapphire', 'Ordered');
+  vi.mocked(getDrafts).mockResolvedValue({ items: [row('planned')], nextCursor: null });
+  render(<DraftList {...callbacks} />);
+  expect(screen.getByRole('combobox', { name: 'Order status' })).toHaveValue('Ordered');
+  // WHEN clearing only status THEN all states load from page one using the existing search.
+  fireEvent.click(screen.getByRole('button', { name: 'Clear status filter' }));
+  await screen.findByRole('link', { name: /planned/ });
+  expect(getDrafts).toHaveBeenLastCalledWith(undefined, 'sapphire', undefined);
+  expect(screen.getByRole('searchbox')).toHaveValue('sapphire');
+  expect(screen.getByRole('combobox', { name: 'Order status' })).toHaveValue('');
+  expect(screen.getByRole('combobox', { name: 'Order status' })).toHaveFocus();
+  expect(screen.queryByRole('button', { name: 'Clear status filter' })).not.toBeInTheDocument();
+  await waitFor(() => expect(callbacks.memory.state).toBe(''));
 });
 it('announces completed results and returns focus to search when cleared', async () => {
   // GIVEN a searched page with further results available.

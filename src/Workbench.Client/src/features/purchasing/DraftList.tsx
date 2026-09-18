@@ -15,6 +15,7 @@ export function DraftList({ memory, follow, onAuthLost }: Props) {
   const requestedState = useRef(memory.state);
   const requestedQuery = useRef(memory.query);
   const searchInput = useRef<HTMLInputElement>(null);
+  const statusFilter = useRef<HTMLSelectElement>(null);
   const sequence = useRef(0);
   const active = useRef(true);
   const inFlight = useRef<'refresh' | 'more' | null>(null);
@@ -67,8 +68,10 @@ export function DraftList({ memory, follow, onAuthLost }: Props) {
           ++sequence.current; inFlight.current = 'refresh'; setPending('refresh'); setMessage('');
           searchTimer.current = setTimeout(() => void load(true, value.trim()), 300);
         }} placeholder="Reference, supplier or title" /></FloatingField>
+        <div className="po-state-filter"><select ref={statusFilter} id="po-state" aria-label="Order status" className={state ? undefined : 'is-empty'} value={state} onChange={event => { const value = event.target.value; setState(value); void load(true, query.trim(), value); }}><option value="">Status</option><option value="Draft">Draft</option><option value="Ordered">Ordered</option></select>
+          {state ? <button type="button" className="quiet po-status-clear" aria-label="Clear status filter" onClick={() => { setState(''); statusFilter.current?.focus(); void load(true, query.trim(), ''); }}><Icon name="close" /></button> : <Icon name="chevron" />}
+        </div>
         <button className="quiet po-search-refresh" type="button" onClick={() => void load(true, query.trim())}>Refresh</button></div>
-        <div className="po-state-filter"><label htmlFor="po-state">Order state</label><select id="po-state" value={state} onChange={event => { const value = event.target.value; setState(value); void load(true, query.trim(), value); }}><option value="">All purchases</option><option value="Draft">Draft</option><option value="Ordered">Ordered</option></select></div>
       </form>
       <div className="po-list-toolbar po-draft-results-toolbar">
         <div className="po-draft-result-context">
@@ -92,7 +95,7 @@ export function DraftList({ memory, follow, onAuthLost }: Props) {
             {page.items.map(item => (
               <li key={item.id}>
                 <a href={`/purchase-orders/${item.id}`} onClick={follow}>
-                  <span className="po-order-identity"><span className="po-reference">{item.poReference}</span><strong>{item.title ?? (item.state === 'Ordered' ? 'Untitled purchase' : 'Untitled draft')}</strong><span className="po-row-detail">{item.state ?? 'Draft'}{item.orderDate ? <> · <time dateTime={item.orderDate}>{item.orderDate}</time></> : null}</span></span>
+                  <span className="po-order-identity"><span className="po-reference">{item.poReference}</span><strong>{item.title ?? (item.state === 'Ordered' ? 'Untitled purchase' : 'Untitled draft')}</strong><span className="po-order-status"><span className="po-status-badge" data-state={item.state ?? 'Draft'}>{item.state ?? 'Draft'}</span>{item.orderDate ? <time dateTime={item.orderDate}>{item.orderDate}</time> : null}</span></span>
                   <span className="po-order-supplier">{item.supplierName ?? 'Supplier not set'}{item.platform ? <span className="po-row-detail">{item.platform}</span> : null}{item.supplierOrderReference ? <span className="po-row-detail">Supplier ref: {item.supplierOrderReference}</span> : null}</span>
                   <time className="po-order-saved" dateTime={item.updatedAtUtc} title={new Date(item.updatedAtUtc).toLocaleString()}>
                     <span className="po-accessible-heading po-saved-label">Last saved</span>

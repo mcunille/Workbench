@@ -25,6 +25,7 @@ import { amendOrder, type AmendOrderRequest } from '../../api/purchaseOrders';
 import { CommitOrderDialog } from './CommitOrderDialog';
 import { OrderedPurchase } from './OrderedPurchase';
 import { PurchaseChanges } from './PurchaseChanges';
+import { PurchaseOrderToolbar } from './PurchaseOrderToolbar';
 
 type Mode = 'loading' | 'editing' | 'saving' | 'uncertain' | 'current-loading' | 'current-failed' | 'conflict-loading' | 'conflict-failed' | 'comparison' | 'blocked' | 'load-failed' | 'deleting' | 'delete-uncertain' | 'amendment-review';
 type Submission = { id?: string; body: CreateDraftRequest | UpdateDraftRequest | AmendOrderRequest; amendment?: boolean };
@@ -61,17 +62,6 @@ export function DraftEditor({ id: initialId, onDirtyChange, onAuthLost, onSaved,
   const [clearingPrices, setClearingPrices] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const deletion = useRef<DeleteDraftRequest | undefined>(undefined);
-  const [toolbarPinned, setToolbarPinned] = useState(false);
-  const toolbarStart = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    const marker = toolbarStart.current;
-    if (!marker || typeof IntersectionObserver === 'undefined') return;
-    const observer = new IntersectionObserver(([entry]) => {
-      setToolbarPinned(!entry.isIntersecting && entry.boundingClientRect.top < 0);
-    });
-    observer.observe(marker);
-    return () => observer.disconnect();
-  }, []);
   const [id, setId] = useState(initialId);
   const [draft, setDraft] = useState(emptyDraft);
   const [removedEntries, setRemovedEntries] = useState<{ entry: DraftContent['entries'][number]; index: number }[]>([]);
@@ -300,8 +290,7 @@ export function DraftEditor({ id: initialId, onDirtyChange, onAuthLost, onSaved,
         setDraft(clearDraftAmounts(draft, baseline?.draft, reason));
         setClearingPrices(false);
       }} /> : null}
-      <div ref={toolbarStart} className="po-toolbar-start" aria-hidden="true" />
-      <div className={`po-editor-toolbar${toolbarPinned ? ' is-pinned' : ''}${reviewing ? ' po-record-toolbar' : ''}`}>
+      <PurchaseOrderToolbar className={reviewing ? 'po-record-toolbar' : undefined}>
         <button type="button" className="quiet po-back" aria-label="Back to purchase orders" onClick={onCancel}>
           <Icon name="back" />Purchase orders
         </button>
@@ -309,7 +298,7 @@ export function DraftEditor({ id: initialId, onDirtyChange, onAuthLost, onSaved,
           {reviewing ? <><button type="button" className="secondary" disabled={mode !== 'amendment-review'} onClick={() => { returnFromReview.current = true; setMode('editing'); }}>Keep editing</button><button type="button" className="primary" disabled={mode !== 'amendment-review' && mode !== 'uncertain'} onClick={() => void save(true)}>{mode === 'uncertain' ? 'Check and retry amendment' : mode === 'saving' ? 'Recording…' : 'Record amendment'}</button></> : <button id="po-save-button" type="submit" form="po-draft-form" className="primary" disabled={saveDisabled}>{saveLabel}</button>}
           {baseline && !amending && baseline.state !== 'Ordered' ? <button type="button" className="secondary" disabled={frozen || dirty} onClick={() => setCommitting(true)}>Record as ordered</button> : null}
         </div>
-      </div>
+      </PurchaseOrderToolbar>
       <header className="po-editor-header">
         <div className="po-heading">
           <h1>{baseline?.poReference ?? current?.poReference ?? (id ? 'Purchase order' : 'New purchase order')}</h1><span className="po-badge">{amending ? 'Amendment' : 'Draft'}</span>

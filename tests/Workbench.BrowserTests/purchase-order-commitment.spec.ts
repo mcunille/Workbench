@@ -9,6 +9,20 @@ function comparison(page: Page, heading: string) {
   });
 }
 
+async function expectToolbarScrollTransition(page: Page) {
+  const toolbar = page.locator('.po-editor-toolbar');
+  await page.evaluate(() => window.scrollTo(0, 0));
+  await expect(toolbar).not.toHaveClass(/is-pinned/);
+  await expect(toolbar).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
+  await page.evaluate(() => window.scrollTo(0, 600));
+  await expect(toolbar).toHaveClass(/is-pinned/);
+  await expect(toolbar).toHaveCSS('background-color', /^rgb\(/);
+  await expect(toolbar).not.toHaveCSS('box-shadow', 'none');
+  await page.evaluate(() => window.scrollTo(0, 0));
+  await expect(toolbar).not.toHaveClass(/is-pinned/);
+  await expect(toolbar).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
+}
+
 test('an ordered purchase preserves unknown agreed costs and its original revision after amendment', async ({ page }) => {
   // GIVEN an owner has saved valid quantities with an unknown stone price and estimated shipping.
   await useAuthenticatedSession(page);
@@ -65,8 +79,20 @@ test('an ordered purchase preserves unknown agreed costs and its original revisi
   await expect(page.getByRole('textbox', { name: 'Quantity 1', exact: true })).toHaveCount(0);
   await expect(page.getByText('Supplier estimate', { exact: true })).toBeVisible();
   await expect(page.getByText('Total purchase estimate', { exact: true })).toBeVisible();
+
+  // AND estimate details remain available without crowding the initial ordered view.
+  const estimateBreakdown = page.locator('.po-estimate-breakdown');
+  await expect(estimateBreakdown).not.toHaveAttribute('open');
+  await estimateBreakdown.getByText('Estimate breakdown', { exact: true }).click();
+  await expect(estimateBreakdown.getByText('Supplier charges', { exact: true })).toBeVisible();
+  await estimateBreakdown.getByText('Estimate breakdown', { exact: true }).click();
+
+  // WHEN scrolling the ordered record THEN its toolbar transitions just like the editing view.
+  await page.getByText('Show complete agreed contents', { exact: true }).click();
+  await expectToolbarScrollTransition(page);
+  await page.getByText('Show complete agreed contents', { exact: true }).click();
   // AND concise itemization is visible before estimates without opening complete record details.
-  const contents = page.getByRole('region', { name: 'Agreed contents', exact: true });
+  const contents = page.getByRole('region', { name: 'Items', exact: true });
   await expect(contents.getByRole('heading', { name: 'Blue sapphires', exact: true })).toBeInViewport();
   await expect(contents).toContainText('2 pieces');
   await expect(contents).toContainText('Unknown');
@@ -97,6 +123,7 @@ test('an ordered purchase preserves unknown agreed costs and its original revisi
   // WHEN the owner amends the supplier, quantity and price with an explanation.
   await page.goto(orderPath);
   await page.getByRole('button', { name: 'Create amendment', exact: true }).click();
+  await expectToolbarScrollTransition(page);
   await expect(page.getByLabel('Currency', { exact: true })).toBeDisabled();
   await page.locator('.po-supplier-summary').click();
   await page.getByLabel('Supplier name', { exact: true }).fill('Corrected gemstone supplier');
@@ -151,5 +178,23 @@ test('an ordered purchase preserves unknown agreed costs and its original revisi
   await expect(comparison(page, 'Revision 1')).toHaveText(agreedContents, { useInnerText: true });
   await expect(commitmentHistory.locator('.po-history-actor')).toHaveText(originalActor);
   await expect(commitmentHistory.locator('time')).toHaveAttribute('datetime', originalRecordedAt!);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+
+  // WHEN filtering the list by status THEN the ordered badge and filter survive a detail visit.
+  await page.goto('/purchase-orders');
+  const status = page.getByRole('combobox', { name: 'Order status' });
+  await status.selectOption('Ordered');
+  await page.getByRole('searchbox', { name: 'Search purchase orders' }).fill(title);
+  const listRow = page.locator('.po-draft-list a').filter({ hasText: title });
+  await expect(listRow.locator('.po-status-badge')).toHaveText('Ordered');
+  await listRow.click();
+  await page.getByRole('button', { name: 'Purchase orders', exact: true }).click();
+  await expect(status).toHaveValue('Ordered');
+  // WHEN clearing status THEN the search remains and keyboard focus returns to the single filter box.
+  await page.getByRole('button', { name: 'Clear status filter' }).click();
+  await expect(status).toHaveValue('');
+  await expect(status).toBeFocused();
+  await expect(page.getByRole('searchbox', { name: 'Search purchase orders' })).toHaveValue(title);
+  await expect(listRow).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });

@@ -6,18 +6,20 @@ import { DraftFinancialSummary } from './DraftFinancialSummary';
 import { Icon } from '../../Icon';
 import { PurchaseContents } from './PurchaseContents';
 import { PurchaseChanges } from './PurchaseChanges';
+import { PurchaseOrderToolbar } from './PurchaseOrderToolbar';
 
 export function OrderedPurchase({ order, amend, onCancel, onAuthLost }: { order: DraftOrder; amend(): void; onCancel(): void; onAuthLost(): void }) {
   const [history, setHistory] = useState(false);
   return <section className="editor po-editor po-ordered">
-    <div className="po-editor-toolbar po-record-toolbar"><button type="button" className="quiet po-back" onClick={onCancel}><Icon name="back" />Purchase orders</button><button type="button" className="primary" onClick={amend}>Create amendment</button></div>
+    <PurchaseOrderToolbar className="po-record-toolbar"><button type="button" className="quiet po-back" onClick={onCancel}><Icon name="back" />Purchase orders</button><button type="button" className="primary" onClick={amend}>Create amendment</button></PurchaseOrderToolbar>
     <header className="po-editor-header"><div className="po-heading"><h1>{order.poReference}</h1><span className="po-badge">Ordered</span></div>
-      <h2>{order.draft.supplierName}</h2><p>Order date <time dateTime={order.orderDate ?? undefined}>{order.orderDate}</time> · Revision {order.revision}</p>
-      <p>Agreed contents are preserved. Record a reasoned amendment to make a change.</p>
-      <button type="button" className="secondary" aria-expanded={history} onClick={() => setHistory(!history)}>{history ? 'Hide history' : 'View history'}</button>
+      <h2>{order.draft.supplierName}</h2>
+      <div className="po-order-meta"><p>Order date <time dateTime={order.orderDate ?? undefined}>{order.orderDate}</time> · Revision {order.revision}</p>
+        <button type="button" className="quiet" aria-expanded={history} onClick={() => setHistory(!history)}>{history ? 'Hide history' : 'View history'}</button>
+      </div>
     </header>
     {history ? <OrderHistory id={order.id} onAuthLost={onAuthLost} /> : <>
-      <PurchaseContents draft={order.draft} calculation={order.calculation} />
+      <PurchaseContents draft={order.draft} calculation={order.calculation} heading="Items" />
       <DraftFinancialSummary draft={order.draft} result={order.calculation} ordered />
       <details className="po-record-details"><summary>Show complete agreed contents</summary><DraftComparison heading="Complete agreed contents" draft={order.draft} state="Ordered" /></details>
     </>}

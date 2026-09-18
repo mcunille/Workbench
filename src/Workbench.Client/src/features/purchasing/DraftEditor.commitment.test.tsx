@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { vi } from 'vitest';
 import { DraftEditor } from './DraftEditor';
 import { getDraft, commitOrder, amendOrder, calculateDraft, getOrderRevisions, getOrderRevision, DraftError } from '../../api/purchaseOrders';
@@ -188,4 +188,30 @@ it('keeps a reviewed amendment frozen and retries the original request after a l
   fireEvent.click(retry);
   await screen.findByRole('button', { name: 'Create amendment' });
   expect(vi.mocked(amendOrder).mock.calls[1]).toEqual(vi.mocked(amendOrder).mock.calls[0]);
+});
+
+it.each([['Draft', saved, 'Record as ordered'], ['Ordered', ordered, 'Create amendment']] as const)('applies the same scroll transition to the %s toolbar', async (_state, purchase, action) => {
+  // GIVEN a purchase at the top of its editing or ordered page.
+  let reportIntersection!: IntersectionObserverCallback;
+  const disconnect = vi.fn();
+  vi.stubGlobal('IntersectionObserver', class {
+    constructor(callback: IntersectionObserverCallback) { reportIntersection = callback; }
+    observe = vi.fn();
+    disconnect = disconnect;
+  });
+  try {
+    vi.mocked(getDraft).mockReset().mockResolvedValue(purchase);
+    const view = render(<DraftEditor {...props()} />);
+    const toolbar = (await screen.findByRole('button', { name: action })).closest('.po-editor-toolbar');
+    expect(toolbar).not.toHaveClass('is-pinned');
+    // WHEN its top marker scrolls above the viewport THEN the shared toolbar gains its opaque treatment.
+    act(() => reportIntersection([{ isIntersecting: false, boundingClientRect: { top: -10 } } as IntersectionObserverEntry], {} as IntersectionObserver));
+    expect(toolbar).toHaveClass('is-pinned');
+    // WHEN returning to the top THEN it becomes transparent again.
+    act(() => reportIntersection([{ isIntersecting: true, boundingClientRect: { top: 10 } } as IntersectionObserverEntry], {} as IntersectionObserver));
+    expect(toolbar).not.toHaveClass('is-pinned');
+    // AND leaving the page releases the scroll observer.
+    view.unmount();
+    expect(disconnect).toHaveBeenCalled();
+  } finally { vi.unstubAllGlobals(); }
 });
