@@ -8,10 +8,15 @@ import {
 import { http, HttpResponse } from 'msw';
 import { App } from './App';
 import { server } from './test/server';
-it('keeps archive and collection traversals independent through appearance and detail navigation, and clears both on identity loss', async () => {
+afterEach(() => {
+  window.history.replaceState(null, '', '/');
+  vi.restoreAllMocks();
+});
+
+async function renderArchiveNavigation() {
   // GIVEN authenticated active and archived records with separate searches.
   window.history.replaceState(null, '', '/inventory');
-  let signedIn = true;
+  const session = { signedIn: true };
   let markCollectionRequested!: () => void;
   const collectionRequested = new Promise<void>(resolve => { markCollectionRequested = resolve; });
   let releaseCollection!: () => void;
@@ -31,7 +36,7 @@ it('keeps archive and collection traversals independent through appearance and d
       HttpResponse.json({ name: 'Workbench', version: '1' }),
     ),
     http.get('*/api/beta/auth/me', () =>
-      signedIn
+      session.signedIn
         ? HttpResponse.json({
             userId: 'person',
             tenantName: 'Studio',
@@ -59,7 +64,7 @@ it('keeps archive and collection traversals independent through appearance and d
       HttpResponse.json({ items: [item], nextCursor: null }),
     ),
     http.get('*/api/beta/items/stone', () =>
-      signedIn
+      session.signedIn
         ? HttpResponse.json(item)
         : new HttpResponse(null, { status: 401 }),
     ),
@@ -75,6 +80,12 @@ it('keeps archive and collection traversals independent through appearance and d
     await act(async () => { releaseCollection(); });
   }
   expect(screen.getByRole('link', { name: /Active stone/ })).toBeVisible();
+  return session;
+}
+
+it('keeps archive and collection traversals independent through appearance and detail navigation', async () => {
+  // GIVEN authenticated active and archived records with separate searches.
+  await renderArchiveNavigation();
   fireEvent.change(screen.getByRole('searchbox'), {
     target: { value: 'active draft' },
   });
@@ -99,8 +110,22 @@ it('keeps archive and collection traversals independent through appearance and d
   ).toBeVisible();
   fireEvent.click(screen.getByRole('link', { name: 'Collection' }));
   expect(screen.getByRole('searchbox')).toHaveValue('active draft');
+  expect(JSON.stringify(window.history.state)).not.toContain('draft');
+});
+
+it('clears both archive and collection traversals on identity loss', async () => {
+  // GIVEN both traversals contain unfinished searches before the session expires.
+  const session = await renderArchiveNavigation();
+  fireEvent.change(screen.getByRole('searchbox'), {
+    target: { value: 'active draft' },
+  });
   fireEvent.click(screen.getByRole('link', { name: 'Archive' }));
-  signedIn = false;
+  await screen.findByRole('link', { name: /Archived stone/ });
+  fireEvent.change(screen.getByRole('searchbox'), {
+    target: { value: 'archive draft' },
+  });
+  // WHEN an authenticated detail request loses access and the owner signs in again.
+  session.signedIn = false;
   fireEvent.click(screen.getByRole('link', { name: /Archived stone/ }));
   await screen.findByRole('heading', { name: 'Sign in' });
   server.use(
@@ -108,7 +133,7 @@ it('keeps archive and collection traversals independent through appearance and d
       HttpResponse.json({ requestToken: 'test' }),
     ),
     http.post('*/api/beta/auth/login', () => {
-      signedIn = true;
+      session.signedIn = true;
       return new HttpResponse(null, { status: 204 });
     }),
   );
@@ -122,6 +147,7 @@ it('keeps archive and collection traversals independent through appearance and d
     screen.getByRole('button', { name: 'Sign in' }).closest('form')!,
   );
   await screen.findByRole('heading', { name: 'Archived stone' });
+  // THEN neither traversal restores private search input from the previous identity.
   fireEvent.click(screen.getByRole('link', { name: 'Back to archive' }));
   await screen.findByRole('link', { name: /Archived stone/ });
   expect(screen.getByRole('searchbox')).toHaveValue('');
@@ -129,7 +155,6 @@ it('keeps archive and collection traversals independent through appearance and d
   await screen.findByRole('link', { name: /Active stone/ });
   expect(screen.getByRole('searchbox')).toHaveValue('');
   expect(JSON.stringify(window.history.state)).not.toContain('draft');
-  window.history.replaceState(null, '', '/');
 });
 it('does not reuse an old archive origin when browser history is truncated by creating a new record', async () => {
   // GIVEN archived detail origins on history entries which will later be replaced.
