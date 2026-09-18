@@ -30,7 +30,7 @@ it('offers accessible package selection, limits, and ZIP download with CSV recov
   fireEvent.click(screen.getByRole('radio', { name: 'Records (CSV)' }));
   expect(screen.queryByRole('link', { name: 'Download ZIP' })).not.toBeInTheDocument();
   expect(screen.getByText('CSV version 2 · UTF-8')).toBeVisible();
-  memory.dispose();
+  act(() => memory.dispose());
 });
 it('requires accessible explicit scope, reports completeness, and preserves a file across page remounts', async () => {
   // GIVEN an export page with no implicit scope.
@@ -59,7 +59,7 @@ it('requires accessible explicit scope, reports completeness, and preserves a fi
   fireEvent.click(screen.getByRole('radio', { name: 'Active records' }));
   expect(screen.queryByRole('link', { name: 'Download CSV' })).not.toBeInTheDocument();
   expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:export');
-  memory.dispose();
+  act(() => memory.dispose());
 });
 it('provides safe retry after a failed body read', async () => {
   // GIVEN a failed preparation with no usable file.
@@ -73,5 +73,5 @@ it('provides safe retry after a failed body read', async () => {
   fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
   expect(await screen.findByText(/There are no records in the selected scope/)).toBeVisible();
   expect(screen.queryByRole('link', { name: 'Download CSV' })).not.toBeInTheDocument();
-  memory.dispose();
+  act(() => memory.dispose());
 });

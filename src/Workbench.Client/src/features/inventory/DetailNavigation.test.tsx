@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { vi } from 'vitest';
 import { ItemDetails, Collection } from './Collection';
 import { CollectionMemory } from './collectionMemory';
@@ -80,9 +80,7 @@ it('restarts a mounted collection after a late detail mutation invalidates it', 
   render(<Collection memory={memory} onAuthLost={vi.fn()} follow={vi.fn()} />);
   // WHEN a late mutation finishes THEN the visible list refreshes without retaining the old page boundary.
   fireEvent.click(screen.getByRole('button', { name: 'Grid' }));
-  await import('@testing-library/react').then(({ act }) =>
-    act(() => memory.invalidate()),
-  );
+  await act(async () => memory.invalidate());
   await screen.findByRole('link', { name: /Updated/ });
   await waitFor(() =>
     expect(
