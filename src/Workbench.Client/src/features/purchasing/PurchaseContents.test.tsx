@@ -1,4 +1,4 @@
-import { render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import type { DraftContent } from '../../api/purchaseOrders';
 import { zeroAdjustmentCalculation } from '../../test/draftCalculationFixture';
 import { emptyLine } from './draftLine';
@@ -28,6 +28,55 @@ it('leads with merchandise and uses the exact server estimate without empty meta
   expect(screen.queryByText('Supplier directory link')).not.toBeInTheDocument();
   expect(screen.queryByText('Not set')).not.toBeInTheDocument();
   expect(screen.queryByText('None')).not.toBeInTheDocument();
+  expect(screen.queryByLabelText('Details for line 1')).not.toBeInTheDocument();
+});
+
+it('reveals supplemental line details independently without repeating the primary facts', () => {
+  // GIVEN two lines with supplemental information, including a zero reference price and legacy quote.
+  const content = { ...draft, entries: [
+    { ...draft.entries[0], supplierSku: 'S-123', itemType: 'Gemstone', indicativePrice: '0.0000', notes: 'Inspect inclusions', sourceLink: 'https://example.com/stone', legacyPricing: { quantity: '2', unitOfMeasure: 'carat', unitPrice: '10', pricingUnit: 'carat', pricePerQuantity: '1', pricingQuantity: '2' } },
+    { ...emptyLine('second'), description: 'Ruby', notes: 'Second line notes' },
+  ] };
+  render(<PurchaseContents draft={content} />);
+  const first = screen.getByLabelText('Details for line 1');
+  const second = screen.getByLabelText('Details for line 2');
+  expect(screen.getByText('S-123')).not.toBeVisible();
+  // WHEN opening the first line THEN its metadata is available without opening other lines.
+  fireEvent.click(first);
+  expect(first.closest('details')).toHaveAttribute('open');
+  expect(second.closest('details')).not.toHaveAttribute('open');
+  expect(screen.getByText('S-123')).toBeVisible();
+  expect(screen.getByText('Gemstone')).toBeVisible();
+  expect(screen.getByText('Reference price').nextElementSibling).toHaveTextContent('USD 0.00');
+  expect(screen.getByText('Inspect inclusions')).toBeVisible();
+  expect(screen.getByText('Quoted price').nextElementSibling).toHaveTextContent('10.00 USD');
+  expect(screen.getByRole('link', { name: 'https://example.com/stone' })).toHaveAttribute('rel', 'noopener noreferrer');
+  expect(within(first.closest('details')!).queryByText('Unit price')).not.toBeInTheDocument();
+  expect(screen.getAllByText('Blue sapphire')).toHaveLength(1);
+  // AND closing it restores the compact row.
+  fireEvent.click(first);
+  expect(screen.getByText('S-123')).not.toBeVisible();
+});
+
+it.each(['javascript:alert(1)', 'https://owner:secret@example.com/stone', 'not a URL'])('retains unsafe source text without a link: %s', sourceLink => {
+  // GIVEN an archived source value that is not a safe public HTTP link.
+  render(<PurchaseContents draft={{ ...draft, entries: [{ ...draft.entries[0], sourceLink }] }} />);
+  // WHEN inspecting its line details THEN the value is preserved as noninteractive text.
+  fireEvent.click(screen.getByLabelText('Details for line 1'));
+  expect(screen.getByText(sourceLink)).toBeVisible();
+  expect(screen.queryByRole('link')).not.toBeInTheDocument();
+});
+
+it('keeps charge category, reference and notes with the individual charge', () => {
+  // GIVEN a charge with supporting information.
+  render(<PurchaseContents draft={{ ...draft, charges: [{ id: 'shipping', category: 'shipping', label: 'Freight', amount: '2', payeeKind: 'supplier', payeeName: null, amountStatus: 'estimated', reference: 'Quote 123', notes: 'Express service' }] }} />);
+  // WHEN opening that charge THEN all supplemental facts are shown below its primary amount.
+  expect(screen.getByText('Quote 123')).not.toBeVisible();
+  fireEvent.click(screen.getByLabelText('Details for charge 1'));
+  expect(screen.getByText('Shipping / freight')).toBeVisible();
+  expect(screen.getByText('Quote 123')).toBeVisible();
+  expect(screen.getByText('Express service')).toBeVisible();
+  expect(screen.getAllByText('USD 2.00')).toHaveLength(1);
 });
 
 it('distinguishes zero and unknown prices and preserves charge payees and status', () => {

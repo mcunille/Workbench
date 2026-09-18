@@ -12,6 +12,26 @@ const receipt = { requestId: 'request', replayed: false, draftOrderId: saved.id,
 beforeEach(() => { vi.clearAllMocks(); Object.defineProperty(HTMLDialogElement.prototype, 'showModal', { configurable: true, value(this: HTMLDialogElement) { this.setAttribute('open', ''); } }); vi.mocked(calculateDraft).mockResolvedValue(saved.calculation); });
 const props = () => ({ id: saved.id, onDirtyChange: vi.fn(), onAuthLost: vi.fn(), onSaved: vi.fn(), onCreated: vi.fn(), onCancel: vi.fn() });
 
+it('keeps the ordered record in one view with contextual order and supplier details', async () => {
+  // GIVEN saved order references, notes and supplier contacts alongside the agreed items.
+  vi.mocked(getDraft).mockResolvedValue({ ...ordered, draft: { ...draft, supplierId: 'supplier-id', supplierEmail: 'orders@example.test', supplierOrderReference: 'SUP-123', platform: 'Direct', notes: 'Deliver together', sourceLinks: ['https://example.test/order', 'javascript:alert(1)'] } });
+  render(<DraftEditor {...props()} />);
+  await screen.findByRole('button', { name: 'Create amendment' });
+  // THEN items occur once and there is no duplicated complete-record view.
+  expect(screen.queryByText('Show complete agreed contents')).not.toBeInTheDocument();
+  expect(screen.getAllByText('Sapphires')).toHaveLength(1);
+  expect(screen.getByText('Deliver together')).not.toBeVisible();
+  // WHEN opening contextual details THEN saved metadata is available without repeating the items.
+  fireEvent.click(screen.getByLabelText('Order and supplier details'));
+  expect(screen.getByText('Deliver together')).toBeVisible();
+  expect(screen.getByText('orders@example.test')).toBeVisible();
+  expect(screen.getByText('SUP-123')).toBeVisible();
+  expect(screen.getByText('supplier-id')).toBeVisible();
+  expect(screen.getByRole('link', { name: 'https://example.test/order' })).toHaveAttribute('rel', 'noopener noreferrer');
+  expect(screen.queryByRole('link', { name: 'javascript:alert(1)' })).not.toBeInTheDocument();
+  expect(screen.getAllByText('Sapphires')).toHaveLength(1);
+});
+
 it('requires saved content and explicit review before recording an order', async () => {
   // GIVEN a saved draft whose costs are unknown.
   vi.mocked(getDraft).mockResolvedValueOnce(saved).mockResolvedValue(ordered);

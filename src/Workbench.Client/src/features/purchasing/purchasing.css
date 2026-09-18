@@ -329,6 +329,18 @@
 .po-ordered .po-editor-header h2 { margin: .375rem 0; font-size: 1.125rem; font-weight: 500; }
 .po-order-meta { display: flex; flex-wrap: wrap; align-items: center; gap: .25rem 1rem; }
 .po-order-meta p { margin: 0; color: var(--muted); font-size: .875rem; }
+.po-inline-details { grid-column: 1 / -1; min-width: 0; margin: 0; padding: 0; border: 0; }
+.po-inline-details > summary { display: flex; align-items: center; gap: .375rem; width: fit-content; min-height: 44px; cursor: pointer; color: var(--muted); font-size: .875rem; list-style: none; }
+.po-inline-details > summary::-webkit-details-marker { display: none; }
+.po-inline-details > summary:hover { color: var(--text); }
+.po-inline-details > summary .icon { width: 1rem; height: 1rem; }
+.po-inline-details[open] > summary .icon { transform: rotate(45deg); }
+.po-inline-detail-fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr)); gap: 1rem 2rem; margin: 0 0 .75rem; }
+.po-inline-detail-fields > div { min-width: 0; }
+.po-inline-detail-fields dt { color: var(--muted); font-size: .8125rem; }
+.po-inline-detail-fields dd { margin: .25rem 0 0; overflow-wrap: anywhere; white-space: pre-wrap; }
+.po-inline-detail-fields ul { margin: 0; padding-left: 1.25rem; }
+.po-purchase-line > .po-inline-details, .po-purchase-charge > .po-inline-details { margin-top: -.75rem; }
 .po-estimate-breakdown { margin-top: .75rem; }
 .po-estimate-breakdown > summary { min-height: 44px; padding-block: .75rem; cursor: pointer; color: var(--muted); }
 .po-estimate-breakdown > dl { margin-top: 0; }

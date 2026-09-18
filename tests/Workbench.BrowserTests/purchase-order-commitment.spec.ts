@@ -35,6 +35,9 @@ test('an ordered purchase preserves unknown agreed costs and its original revisi
   await page.getByLabel('Description 1', { exact: true }).fill('Blue sapphires');
   await page.getByLabel('Quantity 1', { exact: true }).fill('2');
   await page.getByLabel('Unit 1', { exact: true }).selectOption('piece');
+  await page.getByText('Line details', { exact: true }).click();
+  await page.getByLabel('Supplier SKU 1', { exact: true }).fill('BLUE-PAIR');
+  await page.getByLabel('Line notes 1', { exact: true }).fill('Keep the two stones together.');
   await page.getByRole('button', { name: 'Add charge', exact: true }).click();
   await page.getByLabel('Category 1', { exact: true }).selectOption('shipping');
   await page.getByLabel('Charge amount 1', { exact: true }).fill('500');
@@ -88,9 +91,9 @@ test('an ordered purchase preserves unknown agreed costs and its original revisi
   await estimateBreakdown.getByText('Estimate breakdown', { exact: true }).click();
 
   // WHEN scrolling the ordered record THEN its toolbar transitions just like the editing view.
-  await page.getByText('Show complete agreed contents', { exact: true }).click();
+  await page.setViewportSize({ width: 1440, height: 600 });
   await expectToolbarScrollTransition(page);
-  await page.getByText('Show complete agreed contents', { exact: true }).click();
+  await page.setViewportSize({ width: 1440, height: 960 });
   // AND concise itemization is visible before estimates without opening complete record details.
   const contents = page.getByRole('region', { name: 'Items', exact: true });
   await expect(contents.getByRole('heading', { name: 'Blue sapphires', exact: true })).toBeInViewport();
@@ -98,7 +101,17 @@ test('an ordered purchase preserves unknown agreed costs and its original revisi
   await expect(contents).toContainText('Unknown');
   await expect(contents).toContainText('USD 5.00');
   await expect(contents).toContainText('Estimated');
-  await expect(comparison(page, 'Complete agreed contents')).toBeHidden();
+  await expect(page.getByText('Show complete agreed contents', { exact: true })).toHaveCount(0);
+  // AND each row reveals only its supplemental information without duplicating the purchase.
+  const lineDetails = contents.getByLabel('Details for line 1', { exact: true });
+  await expect(contents.getByText('BLUE-PAIR', { exact: true })).toBeHidden();
+  await lineDetails.focus();
+  await page.keyboard.press('Enter');
+  await expect(contents.getByText('BLUE-PAIR', { exact: true })).toBeVisible();
+  await expect(contents.getByText('Keep the two stones together.', { exact: true })).toBeVisible();
+  await expect(contents.getByRole('heading', { name: 'Blue sapphires', exact: true })).toHaveCount(1);
+  await page.keyboard.press('Enter');
+  await expect(contents.getByText('BLUE-PAIR', { exact: true })).toBeHidden();
   expect((await contents.boundingBox())!.y).toBeLessThan((await page.locator('.po-financial-summary').boundingBox())!.y);
 
   // AND desktop totals share the item amount edge, with history beside its date and revision.

@@ -7,6 +7,7 @@ import { Icon } from '../../Icon';
 import { PurchaseContents } from './PurchaseContents';
 import { PurchaseChanges } from './PurchaseChanges';
 import { PurchaseOrderToolbar } from './PurchaseOrderToolbar';
+import { OrderRecordDetails } from './OrderRecordDetails';
 
 export function OrderedPurchase({ order, amend, onCancel, onAuthLost }: { order: DraftOrder; amend(): void; onCancel(): void; onAuthLost(): void }) {
   const [history, setHistory] = useState(false);
@@ -17,11 +18,11 @@ export function OrderedPurchase({ order, amend, onCancel, onAuthLost }: { order:
       <div className="po-order-meta"><p>Order date <time dateTime={order.orderDate ?? undefined}>{order.orderDate}</time> · Revision {order.revision}</p>
         <button type="button" className="quiet" aria-expanded={history} onClick={() => setHistory(!history)}>{history ? 'Hide history' : 'View history'}</button>
       </div>
+      {!history ? <OrderRecordDetails draft={order.draft} /> : null}
     </header>
     {history ? <OrderHistory id={order.id} onAuthLost={onAuthLost} /> : <>
       <PurchaseContents draft={order.draft} calculation={order.calculation} heading="Items" />
       <DraftFinancialSummary draft={order.draft} result={order.calculation} ordered />
-      <details className="po-record-details"><summary>Show complete agreed contents</summary><DraftComparison heading="Complete agreed contents" draft={order.draft} state="Ordered" /></details>
     </>}
   </section>;
 }
