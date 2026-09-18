@@ -13,7 +13,7 @@ export function OrderedPurchase({ order, amend, onCancel, onAuthLost }: { order:
   const [history, setHistory] = useState(false);
   return <section className="editor po-editor po-ordered">
     <PurchaseOrderToolbar className="po-record-toolbar"><button type="button" className="quiet po-back" onClick={onCancel}><Icon name="back" />Purchase orders</button><button type="button" className="primary" onClick={amend}>Create amendment</button></PurchaseOrderToolbar>
-    <header className="po-editor-header"><div className="po-heading"><h1>{order.poReference}</h1><span className="po-badge">Ordered</span></div>
+    <header className="po-editor-header"><div className="po-heading"><h1>{order.poReference}</h1><span className="po-status-badge" data-state="Ordered">Ordered</span></div>
       <h2>{order.draft.supplierName}</h2>
       <div className="po-order-meta"><p>Order date <time dateTime={order.orderDate ?? undefined}>{order.orderDate}</time> · Revision {order.revision}</p>
         <button type="button" className="quiet" aria-expanded={history} onClick={() => setHistory(!history)}>{history ? 'Hide history' : 'View history'}</button>

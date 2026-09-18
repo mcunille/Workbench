@@ -28,7 +28,14 @@ it('leads with merchandise and uses the exact server estimate without empty meta
   expect(screen.queryByText('Supplier directory link')).not.toBeInTheDocument();
   expect(screen.queryByText('Not set')).not.toBeInTheDocument();
   expect(screen.queryByText('None')).not.toBeInTheDocument();
-  expect(screen.queryByLabelText('Details for line 1')).not.toBeInTheDocument();
+  // WHEN opening a line with no supplemental information THEN the consistent control explains that state.
+  const details = screen.getByLabelText('Details for line 1');
+  expect(details).toBeVisible();
+  expect(screen.getByText('No additional details.')).not.toBeVisible();
+  fireEvent.click(details);
+  expect(screen.getByText('No additional details.')).toBeVisible();
+  fireEvent.click(details);
+  expect(screen.getByText('No additional details.')).not.toBeVisible();
 });
 
 it('reveals supplemental line details independently without repeating the primary facts', () => {

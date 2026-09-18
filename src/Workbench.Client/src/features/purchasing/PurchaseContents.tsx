@@ -21,17 +21,17 @@ export function PurchaseContents({ draft, calculation, heading = 'Agreed content
           {entry.discount ? <div><dt>Line discount</dt><dd>{discountText(entry.discount)}</dd></div> : null}
           {calculation ? <div><dt>Line estimate</dt><dd>{money(calculatedLines.get(entry.id)?.net)}</dd></div> : null}
         </dl>
-        {entry.supplierSku || entry.itemType || entry.indicativePrice != null || entry.notes || entry.sourceLink || entry.legacyPricing ? <details className="po-inline-details">
+        <details className="po-inline-details">
           <summary aria-label={`Details for line ${index + 1}`}><Icon name="plus" />Details</summary>
-          <dl className="po-inline-detail-fields">
+          {entry.supplierSku || entry.itemType || entry.indicativePrice != null || entry.notes || entry.sourceLink || entry.legacyPricing ? <dl className="po-inline-detail-fields">
             {entry.supplierSku ? <div><dt>Supplier SKU</dt><dd>{entry.supplierSku}</dd></div> : null}
             {entry.itemType ? <div><dt>Item type</dt><dd>{entry.itemType}</dd></div> : null}
             {entry.indicativePrice != null ? <div><dt>Reference price</dt><dd>{money(entry.indicativePrice)}</dd></div> : null}
             {entry.notes ? <div><dt>Notes</dt><dd>{entry.notes}</dd></div> : null}
             {entry.sourceLink ? <div><dt>Source link</dt><dd><SafeSourceLink value={entry.sourceLink} /></dd></div> : null}
-          </dl>
+          </dl> : <p>No additional details.</p>}
           {entry.legacyPricing ? <LegacyPricingDetails pricing={entry.legacyPricing} currency={draft.currency} /> : null}
-        </details> : null}
+        </details>
       </li>)}
     </ul> : <p className="po-section-empty">No lines</p>}
     {draft.orderDiscount ? <p className="po-purchase-discount">Order discount: {discountText(draft.orderDiscount)} on merchandise after line discounts</p> : null}

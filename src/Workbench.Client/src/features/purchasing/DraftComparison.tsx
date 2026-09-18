@@ -16,7 +16,7 @@ function SafeLink({ value }: { value: string }) {
 export function DraftComparison({ heading, draft, state = 'Draft' }: { heading: string; draft: DraftContent; state?: string }) {
   return (
     <section className="po-comparison-content">
-      <div className="po-comparison-heading"><h3>{heading}</h3><span className="po-badge">{state}</span></div>
+      <div className="po-comparison-heading"><h3>{heading}</h3><span className={state === 'Ordered' ? 'po-status-badge' : 'po-badge'} data-state={state}>{state}</span></div>
       <dl className="po-comparison-details">
         <div><dt>Title</dt><dd>{draft.title ?? 'Untitled draft'}</dd></div>
         <div><dt>Supplier</dt><dd>{draft.supplierName ?? 'Not set'}</dd></div>
