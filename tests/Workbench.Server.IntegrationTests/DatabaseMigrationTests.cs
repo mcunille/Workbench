@@ -33,7 +33,7 @@ public sealed class DatabaseMigrationTests(SqlServerFixture sqlServer)
             migrations.Add(reader.GetString(0));
         }
 
-        // THEN this feature adds one migration after the established schema history.
+        // THEN document storage and its forward authority guard follow the established schema history.
         Assert.Collection(
             migrations,
             migration => Assert.EndsWith("_InitialSchema", migration, StringComparison.Ordinal),
@@ -183,12 +183,12 @@ public sealed class DatabaseMigrationTests(SqlServerFixture sqlServer)
         await Task.WhenAll(first, second);
 
         // THEN both complete successfully, history appears once, and the current schema exists.
-        Assert.Equal(25, await CountAsync(database.AdminConnectionString, "[dbo].[__EFMigrationsHistory]"));
+        Assert.Equal(27, await CountAsync(database.AdminConnectionString, "[dbo].[__EFMigrationsHistory]"));
         Assert.Equal(1, await ObjectCountAsync(database.AdminConnectionString, "Storage.Revisions"));
         Assert.Equal(1, await ObjectCountAsync(database.AdminConnectionString, "Operations.WorkItems"));
         // AND another invocation observes the completed schema without applying it again.
         await DatabaseMigrator.MigrateAsync(connectionString, timeout.Token);
-        Assert.Equal(25, await CountAsync(database.AdminConnectionString, "[dbo].[__EFMigrationsHistory]"));
+        Assert.Equal(27, await CountAsync(database.AdminConnectionString, "[dbo].[__EFMigrationsHistory]"));
     }
 
     [Fact]
@@ -227,7 +227,7 @@ public sealed class DatabaseMigrationTests(SqlServerFixture sqlServer)
         await SetMigrationLockAsync(lockConnection, acquire: false);
         using var retryTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(45));
         await DatabaseMigrator.MigrateAsync(connectionString, retryTimeout.Token);
-        Assert.Equal(25, await CountAsync(database.AdminConnectionString, "[dbo].[__EFMigrationsHistory]"));
+        Assert.Equal(27, await CountAsync(database.AdminConnectionString, "[dbo].[__EFMigrationsHistory]"));
         Assert.Equal(1, await ObjectCountAsync(database.AdminConnectionString, "Storage.Revisions"));
     }
 

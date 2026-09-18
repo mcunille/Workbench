@@ -1,6 +1,6 @@
 # PO-06: private invoice attachments on purchase orders
 
-**Status:** Accepted scope; implementation in progress. The owner clarified that invoices are
+**Status:** Implemented attachment scope. The owner clarified that invoices are
 one or more PDF attachments, like GemInv, and instructed continuation with that direction.
 
 ## Scope and user outcome
