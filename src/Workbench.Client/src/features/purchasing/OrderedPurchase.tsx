@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { ApiError } from '../../api/auth';
 import { getOrderRevisions, getOrderRevision, type DraftOrder, type OrderRevision, type OrderRevisionPage } from '../../api/purchaseOrders';
 import { DraftComparison } from './DraftComparison';
@@ -8,21 +8,25 @@ import { PurchaseContents } from './PurchaseContents';
 import { PurchaseChanges } from './PurchaseChanges';
 import { PurchaseOrderToolbar } from './PurchaseOrderToolbar';
 import { OrderRecordDetails } from './OrderRecordDetails';
+import { PurchaseDocuments } from './PurchaseDocuments';
 
-export function OrderedPurchase({ order, amend, onCancel, onAuthLost }: { order: DraftOrder; amend(): void; onCancel(): void; onAuthLost(): void }) {
+export function OrderedPurchase({ order, amend, onCancel, onAuthLost, onCurrent, onDirtyChange }: { order: DraftOrder; amend(): void; onCancel(): void; onAuthLost(): void; onCurrent(): Promise<void>; onDirtyChange(dirty: boolean, uncertain: boolean): void }) {
   const [history, setHistory] = useState(false);
+  const [editingFiles, setEditingFiles] = useState(false);
+  const reportFiles = useCallback((dirty: boolean, uncertain: boolean, editing: boolean) => { setEditingFiles(editing); onDirtyChange(dirty, uncertain); }, [onDirtyChange]);
   return <section className="editor po-editor po-ordered">
-    <PurchaseOrderToolbar className="po-record-toolbar"><button type="button" className="quiet po-back" onClick={onCancel}><Icon name="back" />Purchase orders</button><button type="button" className="primary" onClick={amend}>Create amendment</button></PurchaseOrderToolbar>
+    <PurchaseOrderToolbar className="po-record-toolbar"><button type="button" className="quiet po-back" onClick={onCancel}><Icon name="back" />Purchase orders</button><button type="button" className="primary" disabled={editingFiles} onClick={amend}>Create amendment</button></PurchaseOrderToolbar>
     <header className="po-editor-header"><div className="po-heading"><h1>{order.poReference}</h1><span className="po-status-badge" data-state="Ordered">Ordered</span></div>
       <h2>{order.draft.supplierName}</h2>
       <div className="po-order-meta"><p>Order date <time dateTime={order.orderDate ?? undefined}>{order.orderDate}</time> · Revision {order.revision}</p>
-        <button type="button" className="quiet" aria-expanded={history} onClick={() => setHistory(!history)}>{history ? 'Hide history' : 'View history'}</button>
+        <button type="button" className="quiet" disabled={editingFiles} aria-expanded={history} onClick={() => setHistory(!history)}>{history ? 'Hide history' : 'View history'}</button>
       </div>
       {!history ? <OrderRecordDetails draft={order.draft} /> : null}
     </header>
     {history ? <OrderHistory id={order.id} onAuthLost={onAuthLost} /> : <>
       <PurchaseContents draft={order.draft} calculation={order.calculation} heading="Items" />
       <DraftFinancialSummary draft={order.draft} result={order.calculation} ordered />
+      <PurchaseDocuments orderId={order.id} onAuthLost={onAuthLost} onCurrent={onCurrent} onStateChange={reportFiles} />
     </>}
   </section>;
 }

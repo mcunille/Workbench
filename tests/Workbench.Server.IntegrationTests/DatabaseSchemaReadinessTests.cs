@@ -20,6 +20,8 @@ public sealed class DatabaseSchemaReadinessTests(SqlServerFixture sqlServer)
     [InlineData("AddSupplierIdentityAndPurchaseReferences")]
     [InlineData("AddSupplierBasedDraftPricing")]
     [InlineData("ConsolidateBetaDraftCommands")]
+    [InlineData("AddPurchaseOrderCommitment")]
+    [InlineData("AddPurchaseOrderDocuments")]
     public async Task PriorReleaseSchemaIsUnreadyUntilDeploymentMigrationIsApplied(string priorMigration)
     {
         // GIVEN a prior release schema lacks one of this release's required worker or identity capabilities.

@@ -39,6 +39,7 @@ boundary. Promotion does not authorize deletion of stored business data or retry
 | `/api/beta/purchase-order-drafts` | Draft calculation, browse, read, create, update, delete and explicit commitment |
 | `/api/beta/suppliers` | Current supplier identity operations |
 | `/api/beta/purchase-orders` | Unified draft/ordered browse and read, ordered amendments, and immutable revision history |
+| `/api/beta/purchase-orders/{id}/documents` | Private files on ordered purchases; versioned upload/rename/removal, downloads and exact-operation status/retry |
 | Generated OpenAPI and TypeScript | Only beta business endpoints and current public DTOs; regenerated together |
 | Retired `/api/purchase-order-drafts` and `/api/v2`, `/api/v3`, `/api/v4/purchase-order-drafts` | Unsupported, including retries of previously successful requests; no replay adapters or historical request DTOs |
 | Content schema 1/2/3/4 readers | Project retained drafts into current content without rewriting on read; retained while such data exists |

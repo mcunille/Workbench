@@ -25,6 +25,9 @@ public sealed class ReadinessAuthorityTests(SqlServerFixture sqlServer)
     [InlineData("REVOKE EXECUTE ON [Purchasing].[DeleteDraftOrder] FROM [workbench_web]")]
     [InlineData("REVOKE SELECT ON [Purchasing].[DraftOrders] FROM [workbench_web]")]
     [InlineData("REVOKE SELECT ON [Purchasing].[DraftOrderRequestReceipts] FROM [workbench_web]")]
+    [InlineData("REVOKE SELECT ON [Purchasing].[PurchaseOrderDocuments] FROM [workbench_web]")]
+    [InlineData("REVOKE EXECUTE ON [Purchasing].[PreparePurchaseOrderDocument] FROM [workbench_web]")]
+    [InlineData("REVOKE EXECUTE ON [Purchasing].[FinishPurchaseOrderDocument] FROM [workbench_web]")]
     [InlineData("GRANT UPDATE ON [Purchasing].[DraftOrders] TO [workbench_web]")]
     public async Task MissingDraftOrderBoundariesMakeReadinessUnhealthy(string changeAuthority)
     {

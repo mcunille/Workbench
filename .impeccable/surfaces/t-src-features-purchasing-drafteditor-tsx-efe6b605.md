@@ -2,10 +2,24 @@
 version: 1
 slug: "t-src-features-purchasing-drafteditor-tsx-efe6b605"
 primary_target: "src/Workbench.Client/src/features/purchasing/DraftEditor.tsx"
-related_targets: ["src/Workbench.Client/src/features/purchasing/DraftComparison.tsx", "src/Workbench.Client/src/features/purchasing/CommitOrderDialog.tsx", "src/Workbench.Client/src/features/purchasing/OrderedPurchase.tsx", "src/Workbench.Client/src/features/purchasing/PurchaseContents.tsx", "src/Workbench.Client/src/features/purchasing/PurchaseChanges.tsx", "src/Workbench.Client/src/features/purchasing/PurchaseOrderToolbar.tsx", "src/Workbench.Client/src/features/purchasing/DraftList.tsx", "src/Workbench.Client/src/features/purchasing/purchasing.css"]
+related_targets: ["src/Workbench.Client/src/features/purchasing/DraftComparison.tsx", "src/Workbench.Client/src/features/purchasing/CommitOrderDialog.tsx", "src/Workbench.Client/src/features/purchasing/OrderedPurchase.tsx", "src/Workbench.Client/src/features/purchasing/PurchaseContents.tsx", "src/Workbench.Client/src/features/purchasing/PurchaseChanges.tsx", "src/Workbench.Client/src/features/purchasing/PurchaseOrderToolbar.tsx", "src/Workbench.Client/src/features/purchasing/DraftList.tsx", "src/Workbench.Client/src/features/purchasing/purchasing.css", "src/Workbench.Client/src/features/purchasing/PurchaseDocuments.tsx", "src/Workbench.Client/src/features/purchasing/purchase-documents.css"]
 ---
 
 # Purchase order discounts and charges
+PO-06 attachment extension: Operate mode continues with Invoice files after the current ordered
+purchase estimate. Direct Add invoice files opens an inline multi-file selection with optional
+filename-derived labels, per-file saved state and explicit retry/review recovery. Compact rows
+show format, size and upload date with download, rename and confirmed removal. File count never
+implies invoice count or a financial posting. Tanzanite identity, the existing page hierarchy,
+toolbar behavior and neutral controls remain authoritative; no new global tokens or shipping rasters.
+
+Finish review: six persisted-record captures at desktop 1440px, mobile 390px and 320px with
+200% text, in light and dark appearances, received `ship` for the attachment surface. Transient
+editor states were source-reviewed and behavior-tested, not independently captured by the finish
+reviewer. The existing estimate layout's wrapping at extreme enlarged text is outside this local
+extension. Detector was unavailable because its engine runtime was not installed; the independent
+reviewer checked the craft floor manually. Repository gates are reported separately.
+
 Mode: Operate. PO-05 extension approved 2026-09-16, before commitment workflow.
 ## Direction contract
 THESIS: Make the arithmetic from supplier line prices to full purchase cost inspectable in place.

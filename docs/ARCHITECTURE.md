@@ -219,6 +219,14 @@ both history tables. Existing draft receipt retries still succeed without reappl
 The unified beta purchase API serves drafts, ordered purchases and paged history. See the
 [PO-04 specification](specs/2026-09-17-po-04-commitment-and-amendments.md).
 
+PO-06 attaches private invoice files directly to ordered purchases. Purchasing-owned document
+metadata and operation evidence link to the existing immutable storage revisions; no synthetic
+acquisition or structured invoice is created. Restricted SQL preparation/finalization commands
+serialize capacity and check PO/document versions around provider publication. File changes
+advance the PO rowversion without changing its agreed-content revision. Existing format validation,
+private downloads, exact-request recovery, seven-day retention and paired SQL/blob recovery apply.
+See the [PO-06 attachment scope](specs/2026-09-18-po-06-invoices-and-purchase-documents.md).
+
 ## Architectural invariants
 
 1. Hosted and self-hosted installations use the same application source, feature set, data model,
