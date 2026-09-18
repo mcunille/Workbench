@@ -1,6 +1,6 @@
 # PO-04: commit purchase orders and preserve amendments
 
-**Status:** Approved by the owner on 2026-09-17; implementation in progress.
+**Status:** Implemented following owner approval on 2026-09-17.
 
 ## Outcome and scope
 
