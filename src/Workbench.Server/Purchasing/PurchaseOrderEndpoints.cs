@@ -14,6 +14,7 @@ public static class PurchaseOrderEndpoints
     public static void MapPurchaseOrders(this IEndpointRouteBuilder endpoints)
     {
         var group = endpoints.MapGroup("/api/beta/purchase-orders").WithTags("Purchasing").RequireAuthorization();
+        group.MapPurchaseOrderDocuments();
         group.MapGet("", BrowseAsync).Produces<PurchaseOrderPageResponse>().ProducesProblem(400);
         group.MapGet("/{id:guid}", ReadAsync).Produces<PurchaseOrderResponse>().ProducesProblem(404);
         group.MapPost("/{id:guid}/amendments", AmendAsync).WithMetadata(WorkbenchAntiforgeryMetadata.Instance)

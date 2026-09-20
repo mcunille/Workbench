@@ -99,6 +99,7 @@ public partial class WorkbenchDbContext : IdentityDbContext<
         ConfigureInventory(modelBuilder);
         ConfigureAcquisitions(modelBuilder);
         ConfigureAcquisitionDocuments(modelBuilder);
+        ConfigurePurchaseOrderDocuments(modelBuilder);
         ConfigureItemCreationSnapshots(modelBuilder);
         ConfigureItemPhotos(modelBuilder);
         ConfigureIdentity(modelBuilder);

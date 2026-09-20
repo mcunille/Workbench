@@ -58,6 +58,9 @@ export function DraftEditor({ id: initialId, onDirtyChange, onAuthLost, onSaved,
   const [supplierExpanded, setSupplierExpanded] = useState(!initialId);
   const [supplierDirty, setSupplierDirty] = useState(false);
   const [supplierUncertain, setSupplierUncertain] = useState(false);
+  const [documentsDirty, setDocumentsDirty] = useState(false);
+  const [documentsUncertain, setDocumentsUncertain] = useState(false);
+  const reportDocumentsDirty = useCallback((dirty: boolean, uncertain: boolean) => { setDocumentsDirty(dirty); setDocumentsUncertain(uncertain); }, []);
   const reportSupplierDirty = useCallback((dirty: boolean, uncertain: boolean) => { setSupplierDirty(dirty); setSupplierUncertain(uncertain); }, []);
   const [clearingPrices, setClearingPrices] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
@@ -101,8 +104,8 @@ export function DraftEditor({ id: initialId, onDirtyChange, onAuthLost, onSaved,
     return () => { alive.current = false; currentRead = false; };
   }, [onAuthLost]);
   const changed = JSON.stringify(draft) !== JSON.stringify(baseline?.draft ?? emptyDraft()) || (amending && (orderDate !== baseline?.orderDate || !!amendmentReason));
-  const uncertain = commitPending || supplierUncertain || mode === 'uncertain' || mode === 'saving' || mode === 'deleting' || mode === 'delete-uncertain';
-  const dirty = supplierDirty || uncertain || mode === 'amendment-review' || mode === 'comparison' || mode.startsWith('conflict-') || ((mode === 'editing' || mode === 'blocked') && changed);
+  const uncertain = documentsUncertain || commitPending || supplierUncertain || mode === 'uncertain' || mode === 'saving' || mode === 'deleting' || mode === 'delete-uncertain';
+  const dirty = documentsDirty || supplierDirty || uncertain || mode === 'amendment-review' || mode === 'comparison' || mode.startsWith('conflict-') || ((mode === 'editing' || mode === 'blocked') && changed);
   useEffect(() => { onDirtyChange(dirty, uncertain); }, [dirty, uncertain, onDirtyChange]);
   useEffect(() => () => onDirtyChange(false, false), [onDirtyChange]);
   useEffect(() => {
@@ -268,7 +271,14 @@ export function DraftEditor({ id: initialId, onDirtyChange, onAuthLost, onSaved,
     setAmending(false); setAmendmentReason(''); setOrderDate(''); setErrors({}); setMessage(''); setDiscardingAmendment(false); setMode('editing');
   }
 
-  if (baseline?.state === 'Ordered' && !amending && mode === 'editing') return <OrderedPurchase order={baseline} onCancel={onCancel} onAuthLost={supplierAccessLost} amend={() => { setAmending(true); setOrderDate(baseline.orderDate ?? ''); }} />;
+  const refreshForDocuments = useCallback(async () => {
+    if (!id) return;
+    const value = await getDraft(id);
+    if (!alive.current) return;
+    setBaseline({ ...value, draft: displayDraft(value.draft) }); setDraft(displayDraft(value.draft)); setSavedAt(value.updatedAtUtc); onSaved();
+  }, [id, onSaved]);
+
+  if (baseline?.state === 'Ordered' && !amending && mode === 'editing') return <OrderedPurchase order={baseline} onCancel={onCancel} onAuthLost={supplierAccessLost} onCurrent={refreshForDocuments} onDirtyChange={reportDocumentsDirty} amend={() => { setAmending(true); setOrderDate(baseline.orderDate ?? ''); }} />;
 
   return (
     <section className="editor po-editor">

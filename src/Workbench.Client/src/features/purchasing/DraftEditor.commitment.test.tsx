@@ -12,6 +12,16 @@ const receipt = { requestId: 'request', replayed: false, draftOrderId: saved.id,
 beforeEach(() => { vi.clearAllMocks(); Object.defineProperty(HTMLDialogElement.prototype, 'showModal', { configurable: true, value(this: HTMLDialogElement) { this.setAttribute('open', ''); } }); vi.mocked(calculateDraft).mockResolvedValue(saved.calculation); });
 const props = () => ({ id: saved.id, onDirtyChange: vi.fn(), onAuthLost: vi.fn(), onSaved: vi.fn(), onCreated: vi.fn(), onCancel: vi.fn() });
 
+it('offers invoice files directly on an ordered purchase without invoice accounting entry', async () => {
+  // GIVEN an ordered purchase with its agreed contents.
+  vi.mocked(getDraft).mockResolvedValue(ordered);
+  render(<DraftEditor {...props()} />);
+  await screen.findByRole('button', { name: 'Create amendment' });
+  // WHEN reviewing the purchase THEN the owner can attach invoice files directly.
+  expect(await screen.findByRole('button', { name: 'Add invoice files' })).toBeEnabled();
+  expect(screen.queryByLabelText('Invoice number')).not.toBeInTheDocument();
+});
+
 it('keeps the ordered record in one view with contextual order and supplier details', async () => {
   // GIVEN saved order references, notes and supplier contacts alongside the agreed items.
   vi.mocked(getDraft).mockResolvedValue({ ...ordered, draft: { ...draft, supplierId: 'supplier-id', supplierEmail: 'orders@example.test', supplierOrderReference: 'SUP-123', platform: 'Direct', notes: 'Deliver together', sourceLinks: ['https://example.test/order', 'javascript:alert(1)'] } });

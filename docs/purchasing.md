@@ -93,7 +93,7 @@ available when otherwise complete; the purchase total remains Unknown. Charge-on
 not constitute a complete purchase estimate until merchandise is entered.
 
 The [PO-05 design](specs/2026-09-16-po-05-discounts-and-charges.md) defines these rules. This
-increment supplies the financial inputs preserved by PO-04 commitments and amendments. Invoices
+increment supplies the financial inputs preserved by PO-04 commitments and amendments. Structured invoices
 and payments remain separate work. The beta contract has no revision negotiation. Stale open clients may need a manual reload
 after preserving edits; ordinary endpoint validation and conflicts govern their requests. Current beta retries retain their original request identity and result.
 Retired API requests are unsupported; inspect the saved record before replacing an uncertain old save.
@@ -189,6 +189,33 @@ uncertain writes retain their request for retry. A confirmed write followed by a
 only the read. Competing changes require explicit comparison before resubmission. Earlier revisions
 are never overwritten. The [PO-04 design](specs/2026-09-17-po-04-commitment-and-amendments.md)
 defines the commitment, history and concurrency contracts.
+
+## Keep invoice files with an ordered purchase
+
+In **Invoice files**, choose **Add invoice files**, select one or more supplier PDFs, and review
+their labels before **Upload files**. Labels start with the filename and can be changed. JPEG,
+PNG and WebP are also supported. Each file is limited to 10 MiB; a purchase can hold 20 current
+or pending files. Files remain private to members of the business and may contain embedded
+metadata. The existing document validator accepts a restricted PDF subset; a rejected file may
+need re-exporting or a supported image copy.
+
+Uploads run one file at a time and show which files were uploaded. If a response is lost, use
+**Check and retry file** to resolve that exact upload, then **Upload remaining files** if needed.
+If the write succeeded but refreshing failed, **Retry loading saved files** repeats only the read.
+Validation errors retain your selection; remove a rejected file from the selection or correct its
+label. A conflicting change requires **Review current files** before explicitly resubmitting.
+Unsaved selections exist only in the open page. Files already uploaded stay attached if you cancel
+the remaining selection. Finish or cancel file editing before opening an amendment or history.
+
+Each saved file offers **Download**, **Rename** and **Remove**. Rename affects only its label;
+file bytes cannot be edited. Removal asks for confirmation and immediately revokes download
+access; retained copies follow the seven-day retention policy and any holds. Recovery-unavailable
+files keep their metadata and explain that another copy or administrator help is needed.
+
+Files do not create structured invoice amounts, payments, credits or inventory and do not advance
+the agreed order revision. One file may contain several invoices, or one invoice may span files.
+Invoice numbers, due dates, amount comparisons and duplicate supplier-reference warnings remain
+future work. See the [attachment scope](specs/2026-09-18-po-06-invoices-and-purchase-documents.md).
 
 ## Delete an unwanted draft
 

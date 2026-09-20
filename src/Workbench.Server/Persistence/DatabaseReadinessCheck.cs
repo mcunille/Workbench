@@ -25,7 +25,7 @@ public sealed class DatabaseReadinessCheck(
             };
             // An older schema must not certify compatibility with this application revision.
             command.Parameters.Add("@ExpectedMigration", SqlDbType.NVarChar, 150).Value =
-                "20260918060000_AddPurchaseOrderCommitment";
+                "20260918063409_HardenPurchaseOrderDocumentAuthority";
             DatabaseSecurityState? state;
             await using (var reader = await command.ExecuteReaderAsync(cancellationToken))
             {
@@ -118,6 +118,16 @@ public sealed class DatabaseReadinessCheck(
                     AND HAS_PERMS_BY_NAME(N'[Inventory].[ItemCreationSnapshots]', N'OBJECT', N'INSERT') = 0
                     AND HAS_PERMS_BY_NAME(N'[Inventory].[ItemCreationSnapshots]', N'OBJECT', N'UPDATE') = 0
                     AND HAS_PERMS_BY_NAME(N'[Inventory].[ItemCreationSnapshots]', N'OBJECT', N'DELETE') = 0
+                    AND HAS_PERMS_BY_NAME(N'[Purchasing].[PreparePurchaseOrderDocument]', N'OBJECT', N'EXECUTE') = 1
+                    AND HAS_PERMS_BY_NAME(N'[Purchasing].[FinishPurchaseOrderDocument]', N'OBJECT', N'EXECUTE') = 1
+                    AND HAS_PERMS_BY_NAME(N'[Purchasing].[PurchaseOrderDocuments]', N'OBJECT', N'SELECT') = 1
+                    AND HAS_PERMS_BY_NAME(N'[Purchasing].[PurchaseOrderDocuments]', N'OBJECT', N'INSERT') = 0
+                    AND HAS_PERMS_BY_NAME(N'[Purchasing].[PurchaseOrderDocuments]', N'OBJECT', N'UPDATE') = 0
+                    AND HAS_PERMS_BY_NAME(N'[Purchasing].[PurchaseOrderDocuments]', N'OBJECT', N'DELETE') = 0
+                    AND HAS_PERMS_BY_NAME(N'[Purchasing].[PurchaseOrderDocumentOperations]', N'OBJECT', N'SELECT') = 1
+                    AND HAS_PERMS_BY_NAME(N'[Purchasing].[PurchaseOrderDocumentOperations]', N'OBJECT', N'INSERT') = 0
+                    AND HAS_PERMS_BY_NAME(N'[Purchasing].[PurchaseOrderDocumentOperations]', N'OBJECT', N'UPDATE') = 0
+                    AND HAS_PERMS_BY_NAME(N'[Purchasing].[PurchaseOrderDocumentOperations]', N'OBJECT', N'DELETE') = 0
                     AND HAS_PERMS_BY_NAME(N'[Inventory].[PrepareAcquisitionDocument]', N'OBJECT', N'EXECUTE') = 1
                     AND HAS_PERMS_BY_NAME(N'[Inventory].[FinishAcquisitionDocument]', N'OBJECT', N'EXECUTE') = 1
                     AND HAS_PERMS_BY_NAME(N'[Inventory].[AcquisitionDocuments]', N'OBJECT', N'SELECT') = 1

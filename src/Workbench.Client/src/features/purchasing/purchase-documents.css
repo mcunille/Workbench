@@ -1,0 +1,26 @@
+.po-documents { margin-top: 2rem; padding-top: 1.5rem; border-top: 1px solid var(--border-subtle); min-width: 0; }
+.po-documents-heading { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: .75rem 1rem; }
+.po-documents h2 { margin: 0; font-size: 1.25rem; font-weight: 500; }
+.po-documents h3 { margin: 0 0 1rem; font-size: 1.125rem; font-weight: 500; }
+.po-documents .hint { margin-block: .5rem; color: var(--muted); font-size: .875rem; line-height: 1.6; overflow-wrap: anywhere; }
+.po-document-list, .po-file-queue { list-style: none; padding: 0; margin: 1rem 0 0; }
+.po-document-list > li { display: flex; flex-wrap: wrap; align-items: center; gap: .75rem 1.5rem; padding-block: 1rem; border-bottom: 1px solid var(--border-subtle); }
+.po-document-description { flex: 1 1 20rem; min-width: 0; overflow-wrap: anywhere; }
+.po-document-description strong, .po-file-queue strong { font-weight: 500; }
+.po-document-description p { color: var(--muted); font-size: .875rem; margin: .375rem 0 0; font-variant-numeric: tabular-nums; }
+.po-document-actions { display: flex; align-items: center; flex-wrap: wrap; gap: .5rem; }
+.po-documents button { max-width: 100%; white-space: normal; min-height: 44px; }
+.po-document-form { margin-top: 1.5rem; max-width: 48rem; }
+.po-document-form > .po-document-actions { margin-top: 1rem; }
+.po-document-form > .floating-field { max-width: 32rem; }
+.po-file-picker { display: grid; gap: .5rem; }
+.po-file-picker input { min-width: 0; width: 100%; padding: .75rem; }
+.po-file-queue > li { display: flex; flex-wrap: wrap; align-items: start; gap: .5rem 1rem; padding-block: 1rem; border-top: 1px solid var(--border-subtle); }
+.po-file-queue > li > div { flex: 1 1 20rem; min-width: 0; overflow-wrap: anywhere; }
+.po-file-queue .floating-field { margin-top: 0; }
+.po-document-error { color: var(--danger); margin-block: 1rem; overflow-wrap: anywhere; }
+.po-document-error p { margin-top: 0; }
+@media (max-width: 700px) {
+  .po-document-description { flex-basis: 100%; }
+  .po-document-list .po-document-actions { width: 100%; }
+}

@@ -13,6 +13,25 @@ namespace Workbench.Server.IntegrationTests;
 public sealed class BetaApiContractTests
 {
     [Fact]
+    public async Task PurchaseDocumentUploadDescribesItsRequiredMultipartFields()
+    {
+        // GIVEN the runtime-generated contract used by generated API consumers.
+        await using var application = new WebApplicationFactory<Program>();
+        using var client = application.CreateClient();
+        var provider = application.Services.GetRequiredKeyedService<IOpenApiDocumentProvider>("beta");
+        var document = await provider.GetOpenApiDocumentAsync(default);
+        // WHEN a consumer discovers the purchase document upload.
+        var operation = document.Paths["/api/beta/purchase-orders/{id}/documents"].Operations![HttpMethod.Post];
+        // THEN a required multipart body describes all four mandatory fields, including binary bytes.
+        Assert.NotNull(operation.RequestBody);
+        Assert.True(operation.RequestBody.Required);
+        var schema = operation.RequestBody.Content!["multipart/form-data"].Schema!;
+        Assert.Equal(new[] { "expectedOrderVersion", "file", "label", "requestId" }, schema.Required!.Order());
+        Assert.Equal("binary", schema.Properties!["file"].Format);
+        Assert.Equal("uuid", schema.Properties["requestId"].Format);
+    }
+
+    [Fact]
     public async Task OpenApiExposesOnlyTheBetaBusinessContract()
     {
         // GIVEN the runtime-generated document, including all endpoint registrations.
