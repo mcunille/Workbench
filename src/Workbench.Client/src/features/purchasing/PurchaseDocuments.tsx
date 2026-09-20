@@ -53,7 +53,7 @@ export function PurchaseDocuments({ orderId, onAuthLost, onCurrent, onStateChang
 
   function close() {
     setEditor(undefined); setQueue([]); setLabel(''); setCommand(undefined); setPhase('ready'); setError('');
-    requestAnimationFrame(() => { if (active.current) (addButton.current ?? heading.current)?.focus(); });
+    requestAnimationFrame(() => { if (active.current) (addButton.current && !addButton.current.disabled ? addButton.current : heading.current)?.focus(); });
   }
   function lostAccess(failure: unknown) {
     if (!(failure instanceof ApiError && [401, 403].includes(failure.status))) return false;

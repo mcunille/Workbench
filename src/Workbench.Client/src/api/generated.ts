@@ -2716,7 +2716,11 @@ export interface paths {
                 };
                 cookie?: never;
             };
-            requestBody?: never;
+            requestBody: {
+                content: {
+                    "multipart/form-data": components["schemas"]["UploadPurchaseOrderDocumentRequest"];
+                };
+            };
             responses: {
                 /** @description OK */
                 200: {
@@ -4564,6 +4568,13 @@ export interface components {
             /** Format: uuid */
             requestId: string;
             expectedVersion: string;
+        };
+        UploadPurchaseOrderDocumentRequest: {
+            file: components["schemas"]["IFormFile"];
+            label: string;
+            /** Format: uuid */
+            requestId: string;
+            expectedOrderVersion: string;
         };
     };
     responses: never;

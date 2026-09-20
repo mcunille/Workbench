@@ -20,7 +20,8 @@ public static class PurchaseOrderDocumentEndpoints
         group.MapGet("/{documentId:guid}/download", DownloadAsync)
             .Produces<byte[]>(contentType: "application/octet-stream").ProducesProblem(404).ProducesProblem(410).ProducesProblem(503);
         var upload = group.MapPost("", UploadAsync)
-            .WithMetadata(WorkbenchAntiforgeryMetadata.Instance, new DocumentUploadMetadata());
+            .WithMetadata(WorkbenchAntiforgeryMetadata.Instance, new DocumentUploadMetadata())
+            .Accepts<UploadPurchaseOrderDocumentRequest>("multipart/form-data");
         var rename = group.MapPut("/{documentId:guid}", RenameAsync).WithMetadata(WorkbenchAntiforgeryMetadata.Instance);
         var remove = group.MapDelete("/{documentId:guid}", RemoveAsync).WithMetadata(WorkbenchAntiforgeryMetadata.Instance);
         foreach (var endpoint in new[] { upload, rename, remove })

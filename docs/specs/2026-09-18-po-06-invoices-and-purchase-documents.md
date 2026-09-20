@@ -104,7 +104,13 @@ inaccessible 404, stale/request/capacity 409, recovery-unavailable 410, retryabl
 The release uses an additive document migration followed by an authority-guard migration. The
 second forward migration preserves the first migration already applied to the retained local
 preview; that applied history must not be rewritten. Preserve base migrations and retained
-databases; update readiness/provisioning/permission checks. Verify clean
+databases. A read-only check on 2026-09-20 of this checkout's retained preview
+(`dev-70c8b9b310fa437ba376994b1911f28d`) confirmed both
+`20260918061646_AddPurchaseOrderDocuments` and
+`20260918063409_HardenPurchaseOrderDocumentAuthority` in `__EFMigrationsHistory`.
+Keeping these applied migrations follows the repository's prohibition on rewriting retained
+history; no separate owner-approved consolidation exception is claimed. Update
+readiness/provisioning/permission checks. Verify clean
 creation and base upgrade preserving existing records and receipts. Guard destructive rollback
 once document evidence exists; paired SQL/blob restoration is the recovery path.
 

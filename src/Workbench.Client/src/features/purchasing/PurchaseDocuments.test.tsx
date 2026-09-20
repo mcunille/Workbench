@@ -21,6 +21,18 @@ async function select(files: File[]) {
   fireEvent.change(screen.getByLabelText('Choose files'), { target: { files } });
 }
 
+it('returns focus to the heading when closing an editor at the file limit', async () => {
+  // GIVEN twenty saved files and a disabled add button.
+  vi.mocked(api.getPurchaseDocuments).mockResolvedValue({ documents: Array.from({ length: 20 }, (_, index) => ({ ...document, id: `file-${index}`, label: `Invoice ${index}` })), orderVersion: 'v1' });
+  render(<PurchaseDocuments {...props()} />);
+  fireEvent.click(await screen.findByRole('button', { name: 'Rename Invoice 0' }));
+  // WHEN the owner cancels the editor.
+  fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+  // THEN focus lands on the section heading instead of the disabled add control.
+  expect(screen.getByRole('button', { name: 'Add invoice files' })).toBeDisabled();
+  await waitFor(() => expect(screen.getByRole('heading', { name: 'Invoice files' })).toHaveFocus());
+});
+
 it('uploads each selected file with its label and the refreshed purchase version', async () => {
   // GIVEN two PDFs and a new PO version after the first upload.
   const callbacks = props(); render(<PurchaseDocuments {...callbacks} />);

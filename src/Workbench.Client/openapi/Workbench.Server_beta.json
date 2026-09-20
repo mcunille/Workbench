@@ -2769,6 +2769,16 @@
             }
           }
         ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/UploadPurchaseOrderDocumentRequest"
+              }
+            }
+          },
+          "required": true
+        },
         "responses": {
           "200": {
             "description": "OK",
@@ -6551,6 +6561,30 @@
             "format": "uuid"
           },
           "expectedVersion": {
+            "type": "string"
+          }
+        }
+      },
+      "UploadPurchaseOrderDocumentRequest": {
+        "required": [
+          "file",
+          "label",
+          "requestId",
+          "expectedOrderVersion"
+        ],
+        "type": "object",
+        "properties": {
+          "file": {
+            "$ref": "#/components/schemas/IFormFile"
+          },
+          "label": {
+            "type": "string"
+          },
+          "requestId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "expectedOrderVersion": {
             "type": "string"
           }
         }

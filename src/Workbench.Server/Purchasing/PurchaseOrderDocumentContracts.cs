@@ -4,6 +4,8 @@ using System.Text.Json.Serialization;
 
 namespace Workbench.Server.Purchasing;
 
+public sealed record UploadPurchaseOrderDocumentRequest(IFormFile File, string Label, Guid RequestId, string ExpectedOrderVersion);
+
 public sealed record PurchaseOrderDocumentResponse(Guid Id, string Label, string MediaType, string Extension,
     long Length, DateTimeOffset CreatedAtUtc, string Version, bool Unavailable);
 public sealed record PurchaseOrderDocumentsResponse(PurchaseOrderDocumentResponse[] Documents, string OrderVersion);
