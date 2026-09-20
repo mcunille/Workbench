@@ -48,6 +48,13 @@ Deleting a draft retires its reference permanently.
 
 ## Supplier details and lifecycle
 
+The directory and supplier picker browse names A–Z using SQL Server's
+`Latin1_General_100_CI_AS` case-insensitive, accent-sensitive ordering, then supplier ID ascending
+for equal names. Search and archive filtering retain this order across all pages. Contact edits
+do not move suppliers; renames take their new position on refresh. Continuations carry the last
+name and ID and remain bound to business, normalized search, and archive scope. Old timestamp
+continuations are rejected with `invalid_cursor`; refresh starts the alphabetical listing.
+
 Use the same field set for a supplier and its order snapshot:
 
 | Field | Limit and meaning |
