@@ -7,7 +7,7 @@ test.setTimeout(120_000);
 
 async function startDraft(page: Page, title: string) {
   await page.goto('/purchase-orders/new');
-  await page.getByLabel('Title', { exact: true }).fill(title);
+  await page.getByLabel('Custom title (optional)', { exact: true }).fill(title);
 }
 
 async function save(page: Page) {
@@ -16,7 +16,7 @@ async function save(page: Page) {
   await page.getByRole('button', { name: 'Save draft', exact: true }).click();
   expect((await response).ok()).toBe(true);
   await expect(page).toHaveURL(/\/purchase-orders\/[a-f0-9-]{36}$/);
-  await expect(page.getByLabel('Title', { exact: true })).toBeEnabled();
+  await expect(page.getByLabel('Custom title (optional)', { exact: true })).toBeEnabled();
 }
 
 test('incomplete shopping list survives reload and another session with unknown and zero prices distinct', async ({ page, browser }) => {
@@ -62,7 +62,7 @@ test('incomplete shopping list survives reload and another session with unknown 
     const other = await otherContext.newPage();
     await signIn(other, 'secondary');
     await other.goto(path);
-    await expect(other.getByLabel('Title', { exact: true })).toHaveValue(title);
+    await expect(other.getByLabel('Custom title (optional)', { exact: true })).toHaveValue(title);
   } finally { await otherContext.close(); }
 
   // WHEN the toolbar pins over content THEN it gains an opaque background and clears again at the top.
@@ -78,7 +78,7 @@ test('incomplete shopping list survives reload and another session with unknown 
   await page.setViewportSize({ width: 390, height: 844 });
   for (const dark of [false, true]) {
     await setAppearance(page, dark);
-    await expect(page.getByLabel('Title', { exact: true })).toHaveValue(title);
+    await expect(page.getByLabel('Custom title (optional)', { exact: true })).toHaveValue(title);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   }
 });
@@ -102,7 +102,7 @@ test('uncertain creation retries the original request without creating another d
   await page.getByRole('button', { name: 'Save draft', exact: true }).click();
   await page.getByRole('button', { name: 'Check and retry', exact: true }).click();
   await expect(page).toHaveURL(/\/purchase-orders\/[a-f0-9-]{36}$/);
-  await expect(page.getByLabel('Title', { exact: true })).toBeEnabled();
+  await expect(page.getByLabel('Custom title (optional)', { exact: true })).toBeEnabled();
 
   // THEN the same complete request was retried and the business has only one matching draft.
   expect(requests).toHaveLength(2);
@@ -164,7 +164,7 @@ test('a confirmed save retries only the failed current-details read', async ({ p
   await page.getByRole('button', { name: 'Load current draft', exact: true }).click();
 
   // THEN the editor resumes without another creation or mutation request.
-  await expect(page.getByLabel('Title', { exact: true })).toBeEnabled();
+  await expect(page.getByLabel('Custom title (optional)', { exact: true })).toBeEnabled();
   expect(saves).toBe(1);
   expect(reads).toBe(2);
 });
@@ -224,7 +224,7 @@ test('deleting a saved draft requires confirmation and removes it from the list'
   await expect(dialog.getByRole('button', { name: 'Cancel', exact: true })).toBeFocused();
   await page.keyboard.press('Escape');
   await expect(dialog).toHaveCount(0);
-  await expect(page.getByLabel('Title', { exact: true })).toHaveValue(title);
+  await expect(page.getByLabel('Custom title (optional)', { exact: true })).toHaveValue(title);
   // WHEN explicitly confirming THEN navigation returns to the list without the deleted draft.
   await page.getByRole('button', { name: 'Delete draft', exact: true }).click();
   const deleted = page.waitForResponse(response => response.request().method() === 'DELETE' && response.url().includes('/api/beta/purchase-order-drafts/'));
@@ -248,7 +248,7 @@ test('same-draft history jumps preserve unsaved input and the departure warning'
   const originalEntry = await page.evaluate(() => window.history.state.workbenchEntryId as string);
   await page.getByRole('button', { name: 'Back to purchase orders', exact: true }).click();
   await page.getByRole('link').filter({ hasText: title }).click();
-  await expect(page.getByLabel('Title', { exact: true })).toHaveValue(title);
+  await expect(page.getByLabel('Custom title (optional)', { exact: true })).toHaveValue(title);
   const notes = page.getByLabel('Notes', { exact: true });
   await notes.fill('Unsaved supplier questions');
 
@@ -268,4 +268,32 @@ test('same-draft history jumps preserve unsaved input and the departure warning'
   const current = await page.request.get(`/api/beta/purchase-order-drafts/${path.split('/').at(-1)}`);
   expect(current.ok()).toBe(true);
   expect((await current.json()).draft.notes).toBeNull();
+});
+
+test('purchases start without titles and retain supplier or item identity after reload', async ({ page }) => {
+  // GIVEN a signed-in owner creating supplier-only, item-only, and empty drafts.
+  await signIn(page);
+  const supplier = 'Titleless supplier ' + Date.now();
+  for (const [kind, label] of [['supplier', supplier], ['items', 'Blue sapphires'], ['empty', 'Empty draft']]) {
+    await page.goto('/purchase-orders/new');
+    if (kind === 'supplier') await page.getByLabel('Supplier name', { exact: true }).fill(supplier);
+    if (kind === 'items') {
+      await page.getByRole('button', { name: 'Add line', exact: true }).first().click();
+      await page.getByLabel('Description 1', { exact: true }).fill(label);
+    }
+    // WHEN saved and reloaded THEN no generated label has been written as a title.
+    await save(page);
+    const reference = await page.getByRole('heading', { level: 1 }).innerText();
+    await page.reload();
+    await expect(page.getByLabel('Custom title (optional)', { exact: true })).toHaveValue('');
+    await page.getByRole('button', { name: 'Back to purchase orders' }).click();
+    const row = page.getByRole('link').filter({ hasText: reference });
+    await expect(row).toContainText(label);
+    await expect(row).not.toContainText('Untitled');
+    // AND deletion identifies the exact saved purchase using the same reference and context.
+    await row.click();
+    await page.getByRole('button', { name: 'Delete draft', exact: true }).click();
+    await expect(page.getByRole('dialog')).toContainText(reference + ' · ' + label);
+    await page.getByRole('button', { name: 'Cancel', exact: true }).click();
+  }
 });

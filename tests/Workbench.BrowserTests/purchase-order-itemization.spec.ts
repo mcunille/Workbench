@@ -5,7 +5,7 @@ test('supplier unit and total line pricing persist with explainable draft estima
   // GIVEN a business owner planning stones priced by weight and a fixed quote for settings.
   await useAuthenticatedSession(page);
   await page.goto('/purchase-orders/new');
-  await page.getByLabel('Title', { exact: true }).fill(`Itemized purchase ${Date.now()}`);
+  await page.getByLabel('Custom title (optional)', { exact: true }).fill(`Itemized purchase ${Date.now()}`);
   await page.getByLabel('Currency', { exact: true }).fill('USD');
   await page.getByRole('button', { name: 'Add line', exact: true }).first().click();
   await page.getByLabel('Description 1', { exact: true }).fill('Ten sapphires');
@@ -31,7 +31,7 @@ test('supplier unit and total line pricing persist with explainable draft estima
   await page.getByRole('button', { name: 'Save draft', exact: true }).click();
   expect((await saved).ok()).toBeTruthy();
   await expect(page).toHaveURL(/\/purchase-orders\/[a-f0-9-]{36}$/);
-  await expect(page.getByLabel('Title', { exact: true })).toBeEnabled();
+  await expect(page.getByLabel('Custom title (optional)', { exact: true })).toBeEnabled();
   await page.reload();
   await page.locator('.po-line-disclosure > summary').first().click();
   await expect(page.getByLabel('Quantity 1', { exact: true })).toHaveValue('12.5');

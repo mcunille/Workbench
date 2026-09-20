@@ -22,7 +22,7 @@ it('keeps exact uncertain retries and ordinary validation recovery without a dep
     }),
   );
   render(<App />);
-  fireEvent.change(await screen.findByLabelText('Title'), { target: { value: 'Keep the purchase notes' } });
+  fireEvent.change(await screen.findByLabelText('Custom title (optional)'), { target: { value: 'Keep the purchase notes' } });
   fireEvent.click(screen.getByRole('button', { name: 'Save draft' }));
   await screen.findByText('We couldn’t confirm your save.');
   // WHEN the exact save is retried and ordinary endpoint validation rejects it.
@@ -30,9 +30,9 @@ it('keeps exact uncertain retries and ordinary validation recovery without a dep
   // THEN input remains editable and no global reload notice replaces endpoint recovery.
   await screen.findAllByText('Review this title.');
   expect(screen.queryByText('Workbench has been updated. Reload required.')).not.toBeInTheDocument();
-  expect(screen.getByLabelText('Title')).toBeEnabled();
-  expect(screen.getByLabelText('Title')).toHaveValue('Keep the purchase notes');
+  expect(screen.getByLabelText('Custom title (optional)')).toBeEnabled();
+  expect(screen.getByLabelText('Custom title (optional)')).toHaveValue('Keep the purchase notes');
   expect(window.location.pathname).toBe('/purchase-orders/new');
   await waitFor(() => expect(writes).toBe(2));
-  expect(screen.getByLabelText('Title')).toHaveValue('Keep the purchase notes');
+  expect(screen.getByLabelText('Custom title (optional)')).toHaveValue('Keep the purchase notes');
 });

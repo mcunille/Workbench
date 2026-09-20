@@ -49,9 +49,9 @@ it('requires saved content and explicit review before recording an order', async
   render(<DraftEditor {...props()} />);
   const commit = await screen.findByRole('button', { name: 'Record as ordered' });
   // WHEN local content changes THEN commitment waits for a successful draft save.
-  fireEvent.change(screen.getByLabelText('Title'), { target: { value: 'Unsaved' } });
+  fireEvent.change(screen.getByLabelText('Custom title (optional)'), { target: { value: 'Unsaved' } });
   expect(commit).toBeDisabled();
-  fireEvent.change(screen.getByLabelText('Title'), { target: { value: draft.title } });
+  fireEvent.change(screen.getByLabelText('Custom title (optional)'), { target: { value: draft.title } });
   fireEvent.click(commit);
   const review = screen.getByRole('dialog', { name: 'Record as ordered' });
   fireEvent.change(within(review).getByLabelText('Order date'), { target: { value: '2026-09-16' } });
@@ -110,7 +110,7 @@ it('keeps an amendment on validation failure and requires review before submissi
   render(<DraftEditor {...props()} />);
   fireEvent.click(await screen.findByRole('button', { name: 'Create amendment' }));
   expect(screen.getByLabelText('Currency')).toBeDisabled();
-  fireEvent.change(screen.getByLabelText('Title'), { target: { value: 'Corrected title' } });
+  fireEvent.change(screen.getByLabelText('Custom title (optional)'), { target: { value: 'Corrected title' } });
   fireEvent.change(screen.getByLabelText('Amendment reason'), { target: { value: 'Supplier correction' } });
   // WHEN reviewing THEN current and proposed content are inspectable before any write.
   fireEvent.click(screen.getByRole('button', { name: 'Review amendment' }));
@@ -120,8 +120,8 @@ it('keeps an amendment on validation failure and requires review before submissi
   expect(screen.getByRole('heading', { name: 'Proposed contents' })).toBeVisible();
   fireEvent.click(screen.getByRole('button', { name: 'Record amendment' }));
   // THEN input survives rejection and the server's reason is shown.
-  await waitFor(() => expect(screen.getByLabelText('Title')).toBeEnabled());
-  expect(screen.getByLabelText('Title')).toHaveValue('Corrected title');
+  await waitFor(() => expect(screen.getByLabelText('Custom title (optional)')).toBeEnabled());
+  expect(screen.getByLabelText('Custom title (optional)')).toHaveValue('Corrected title');
   expect(screen.getByLabelText('Amendment reason')).toHaveValue('Supplier correction');
   expect(screen.getAllByText('Explain this amendment.').length).toBeGreaterThan(0);
 });
@@ -152,7 +152,7 @@ it('does not resubmit a confirmed amendment when loading the new version fails',
   vi.mocked(amendOrder).mockReset().mockResolvedValue({ ...receipt, revision: 2, savedVersion: 'v3' });
   render(<DraftEditor {...props()} />);
   fireEvent.click(await screen.findByRole('button', { name: 'Create amendment' }));
-  fireEvent.change(screen.getByLabelText('Title'), { target: { value: 'Updated title' } });
+  fireEvent.change(screen.getByLabelText('Custom title (optional)'), { target: { value: 'Updated title' } });
   fireEvent.change(screen.getByLabelText('Amendment reason'), { target: { value: 'Correct title' } });
   fireEvent.click(screen.getByRole('button', { name: 'Review amendment' }));
   fireEvent.click(screen.getByRole('button', { name: 'Record amendment' }));
@@ -182,7 +182,7 @@ it('reviews changes as a separate task and restores local edits when returning',
   vi.mocked(getDraft).mockReset().mockResolvedValue(ordered);
   render(<DraftEditor {...props()} />);
   fireEvent.click(await screen.findByRole('button', { name: 'Create amendment' }));
-  fireEvent.change(screen.getByLabelText('Title'), { target: { value: 'Corrected title' } });
+  fireEvent.change(screen.getByLabelText('Custom title (optional)'), { target: { value: 'Corrected title' } });
   fireEvent.change(screen.getByLabelText('Amendment reason'), { target: { value: 'Correct the title' } });
   // WHEN reviewing THEN only the verification task is present, with the edit form removed.
   fireEvent.click(screen.getByRole('button', { name: 'Review amendment' }));
@@ -194,7 +194,7 @@ it('reviews changes as a separate task and restores local edits when returning',
   expect(amendOrder).not.toHaveBeenCalled();
   // WHEN returning to editing THEN both local changes and the reason remain intact.
   fireEvent.click(screen.getByRole('button', { name: 'Keep editing' }));
-  expect(screen.getByLabelText('Title')).toHaveValue('Corrected title');
+  expect(screen.getByLabelText('Custom title (optional)')).toHaveValue('Corrected title');
   expect(screen.getByLabelText('Amendment reason')).toHaveValue('Correct the title');
   expect(screen.getByRole('button', { name: 'Review amendment' })).toHaveFocus();
 });
@@ -205,7 +205,7 @@ it('keeps a reviewed amendment frozen and retries the original request after a l
   vi.mocked(amendOrder).mockReset().mockRejectedValueOnce(new TypeError('offline')).mockResolvedValue({ ...receipt, revision: 2, savedVersion: 'v3' });
   render(<DraftEditor {...props()} />);
   fireEvent.click(await screen.findByRole('button', { name: 'Create amendment' }));
-  fireEvent.change(screen.getByLabelText('Title'), { target: { value: 'Confirmed stones' } });
+  fireEvent.change(screen.getByLabelText('Custom title (optional)'), { target: { value: 'Confirmed stones' } });
   fireEvent.change(screen.getByLabelText('Amendment reason'), { target: { value: 'Supplier confirmation' } });
   fireEvent.click(screen.getByRole('button', { name: 'Review amendment' }));
   fireEvent.click(screen.getByRole('button', { name: 'Record amendment' }));

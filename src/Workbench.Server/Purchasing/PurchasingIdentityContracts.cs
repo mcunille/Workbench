@@ -14,7 +14,7 @@ public sealed record SupplierContent(
     [property: JsonRequired, MaxLength(2000)] string? PostalAddress);
 
 public sealed record DraftOrderSummary(Guid Id, string? Title, string? SupplierName, string UpdatedAtUtc,
-    string PoReference, string? SupplierOrderReference, string? Platform);
+    string PoReference, string? SupplierOrderReference, string? Platform, string? FirstItemDescription);
 public sealed record DraftOrderPageResponse(IReadOnlyList<DraftOrderSummary> Items, string? NextCursor);
 
 [JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]

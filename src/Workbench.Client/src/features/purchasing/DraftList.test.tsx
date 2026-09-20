@@ -4,9 +4,26 @@ import { getDrafts, DraftError } from '../../api/purchaseOrders';
 import { DraftList } from './DraftList';
 import { DraftMemory } from './draftMemory';
 vi.mock('../../api/purchaseOrders', async importOriginal => ({ ...await importOriginal<typeof import('../../api/purchaseOrders')>(), getDrafts: vi.fn() }));
-const row = (id: string) => ({ id, title: id, supplierName: null, poReference: 'PO-000001', supplierOrderReference: null, platform: null, updatedAtUtc: '2026-09-12T00:00:00Z' });
+const row = (id: string) => ({ id, title: id, supplierName: null, firstItemDescription: null, poReference: 'PO-000001', supplierOrderReference: null, platform: null, updatedAtUtc: '2026-09-12T00:00:00Z' });
 const props = () => ({ memory: new DraftMemory(), follow: vi.fn(), onAuthLost: vi.fn() });
 beforeEach(() => { vi.mocked(getDrafts).mockReset(); });
+it('identifies untitled purchases by supplier or items while retaining their references', async () => {
+  // GIVEN two purchases from one supplier, an items-only draft, an empty draft, and a custom label.
+  const items = [
+    { ...row('one'), title: null, supplierName: 'Gem supplier', poReference: 'PO-000001' },
+    { ...row('two'), title: null, supplierName: 'Gem supplier', poReference: 'PO-000002', state: 'Ordered' },
+    { ...row('items'), title: null, firstItemDescription: 'Blue sapphires', poReference: 'PO-000003' },
+    { ...row('empty'), title: null, poReference: 'PO-000004' },
+    { ...row('named'), title: 'Autumn collection', supplierName: 'Gem supplier', poReference: 'PO-000005' },
+  ];
+  vi.mocked(getDrafts).mockResolvedValue({ items, nextCursor: null });
+  // WHEN browsing THEN every purchase has a meaningful label and distinct reference.
+  render(<DraftList {...props()} />);
+  for (const [reference, label] of [['PO-000001', 'Gem supplier'], ['PO-000002', 'Gem supplier'], ['PO-000003', 'Blue sapphires'], ['PO-000004', 'Empty draft'], ['PO-000005', 'Autumn collection']]) {
+    expect(await screen.findByRole('link', { name: new RegExp(`${reference}.*${label}`) })).toBeVisible();
+  }
+  expect(screen.queryByText(/Untitled/)).not.toBeInTheDocument();
+});
 it('distinguishes ordered purchases from drafts and filters the server query by state', async () => {
   // GIVEN a unified page with both planned and placed purchases.
   vi.mocked(getDrafts).mockResolvedValue({ items: [{ ...row('planned'), state: 'Draft' }, { ...row('placed'), state: 'Ordered', orderDate: '2026-09-16', revision: 1 }], nextCursor: null });

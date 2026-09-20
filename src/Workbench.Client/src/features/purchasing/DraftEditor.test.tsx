@@ -11,6 +11,26 @@ const content = { orderDiscount: null, charges: [], title: null, supplierName: n
 const saved = { calculation: zeroAdjustmentCalculation({ lines: [], incompleteLineCount: 0, merchandiseEstimate: null }), id: 'draft-one', poReference: 'PO-000001', supplierIsArchived: false, draft: content, version: 'v1', createdAtUtc: '2026-09-12T00:00:00Z', updatedAtUtc: '2026-09-12T00:00:00Z' };
 const receipt = { requestId: 'request', replayed: false, draftOrderId: saved.id, savedVersion: saved.version, completedAtUtc: saved.updatedAtUtc };
 const props = () => ({ onDirtyChange: vi.fn(), onAuthLost: vi.fn(), onSaved: vi.fn(), onCancel: vi.fn(), onCreated: vi.fn() });
+it('starts with supplier and items and explains the secondary optional custom title', () => {
+  // GIVEN a new purchase with no custom title.
+  render(<DraftEditor {...props()} />);
+  // WHEN entering the draft THEN supplier and items come before the optional label.
+  const title = screen.getByLabelText('Custom title (optional)');
+  expect(screen.getByLabelText('Supplier name').compareDocumentPosition(title) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  expect(screen.getByRole('heading', { name: 'Order lines' }).compareDocumentPosition(title) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  expect(title).toHaveAccessibleDescription('Add a custom label to help you recognize this purchase. Supplier, items and the PO reference identify it without a title.');
+  expect(title).not.toBeRequired();
+});
+it('identifies the saved untitled draft in deletion even when local supplier edits are unsaved', async () => {
+  // GIVEN a saved supplier-only draft and a different unsaved supplier name.
+  vi.mocked(getDraft).mockResolvedValue({ ...saved, draft: { ...content, supplierName: 'Saved supplier' } });
+  render(<DraftEditor {...props()} id={saved.id} />);
+  fireEvent.change(await screen.findByLabelText('Supplier name'), { target: { value: 'Unsaved supplier' } });
+  // WHEN deleting THEN the confirmation identifies the saved record and its permanent reference.
+  fireEvent.click(screen.getByRole('button', { name: 'Delete draft' }));
+  expect(screen.getByRole('dialog')).toHaveTextContent('PO-000001 · Saved supplier');
+  expect(screen.getByRole('dialog')).not.toHaveTextContent('Unsaved supplier');
+});
 it('summarizes saved supplier context and exposes it for editing', async () => {
   // GIVEN a saved draft with supplier and transaction platform.
   vi.mocked(getDraft).mockResolvedValue({ ...saved, draft: { ...content, supplierName: 'Gem supplier', platform: 'Instagram' } });
@@ -49,7 +69,7 @@ it('preserves newly populated details without expanding them when adopting a new
   vi.mocked(updateDraft).mockRejectedValue(new DraftError(409, 'draft_version_conflict'));
   render(<DraftEditor {...props()} id={saved.id} />);
   await screen.findByDisplayValue('Sapphire');
-  fireEvent.change(screen.getByLabelText('Title'), { target: { value: 'Local title' } });
+  fireEvent.change(screen.getByLabelText('Custom title (optional)'), { target: { value: 'Local title' } });
   // WHEN conflict recovery adopts the newer saved content.
   fireEvent.click(screen.getByRole('button', { name: 'Save draft' }));
   fireEvent.click(await screen.findByRole('button', { name: 'Use saved version' }));
@@ -77,15 +97,15 @@ it('saves an empty draft and enables editing only after loading the confirmed cu
   const callbacks = props(); render(<DraftEditor {...callbacks} />);
   // WHEN saving an empty draft twice before completion.
   fireEvent.click(screen.getByRole('button', { name: 'Save draft' }));
-  fireEvent.submit(screen.getByLabelText('Title').closest('form')!);
+  fireEvent.submit(screen.getByLabelText('Custom title (optional)').closest('form')!);
   await waitFor(() => expect(getDraft).toHaveBeenCalledWith(saved.id));
   // THEN only one creation occurs, the URL can be replaced, and editing waits for current content.
   expect(createDraft).toHaveBeenCalledTimes(1);
   expect(vi.mocked(createDraft).mock.calls[0][0].draft).toEqual(content);
   expect(callbacks.onCreated).toHaveBeenCalledWith(saved.id);
-  expect(screen.getByLabelText('Title')).toBeDisabled();
+  expect(screen.getByLabelText('Custom title (optional)')).toBeDisabled();
   await act(async () => resolve(saved));
-  expect(screen.getByLabelText('Title')).not.toBeDisabled();
+  expect(screen.getByLabelText('Custom title (optional)')).not.toBeDisabled();
 });
 it('retries only the current-detail read when a confirmed creation cannot be loaded', async () => {
   // GIVEN saving succeeds but the follow-up GET fails.
@@ -99,7 +119,7 @@ it('retries only the current-detail read when a confirmed creation cannot be loa
   expect(screen.getByLabelText('Notes')).toHaveValue('Keep this');
   fireEvent.click(screen.getByRole('button', { name: 'Load current draft' }));
   // THEN a second mutation never occurs.
-  await waitFor(() => expect(screen.getByLabelText('Title')).not.toBeDisabled());
+  await waitFor(() => expect(screen.getByLabelText('Custom title (optional)')).not.toBeDisabled());
   expect(createDraft).toHaveBeenCalledTimes(1); expect(getDraft).toHaveBeenCalledTimes(2);
 });
 it('freezes an uncertain request and resends its exact payload and request ID', async () => {
@@ -152,10 +172,10 @@ it('links authoritative validation errors to retained fields', async () => {
 it('does not resubmit an unchanged saved draft but allows a new empty draft', async () => {
   // GIVEN a saved draft has been reopened without edits.
   vi.mocked(getDraft).mockResolvedValue(saved); render(<DraftEditor id={saved.id} {...props()} />);
-  await waitFor(() => expect(screen.getByLabelText('Title')).not.toBeDisabled());
+  await waitFor(() => expect(screen.getByLabelText('Custom title (optional)')).not.toBeDisabled());
   // WHEN no content has changed THEN another save is unavailable and direct submission is ignored.
   expect(screen.getByRole('button', { name: 'Save draft' })).toBeDisabled();
-  fireEvent.submit(screen.getByLabelText('Title').closest('form')!);
+  fireEvent.submit(screen.getByLabelText('Custom title (optional)').closest('form')!);
   expect(updateDraft).not.toHaveBeenCalled();
 });
 it('allows correcting an unsaved currency after authoritative validation with a price still entered', async () => {
@@ -190,7 +210,7 @@ it('retains every local field across a failed conflict read and adopts only the 
   const latest = { ...saved, version: 'v2', draft: { ...content, title: 'Other title', sourceLinks: ['https://example.test/current'], entries: [{ discount: null, quantity: null, unitOfMeasure: null, priceMode: 'perUnit', price: null, legacyPricing: null, supplierSku: null, itemType: null, id: 'different', description: 'Added elsewhere', notes: 'Other entry note', sourceLink: 'https://example.test/entry', indicativePrice: null }] } };
   vi.mocked(getDraft).mockResolvedValueOnce(saved).mockRejectedValueOnce(new TypeError('Network')).mockResolvedValueOnce(latest);
   vi.mocked(updateDraft).mockRejectedValue(new DraftError(409, 'draft_version_conflict'));
-  render(<DraftEditor id={saved.id} {...props()} />); await waitFor(() => expect(screen.getByLabelText('Title')).not.toBeDisabled());
+  render(<DraftEditor id={saved.id} {...props()} />); await waitFor(() => expect(screen.getByLabelText('Custom title (optional)')).not.toBeDisabled());
   fireEvent.change(screen.getByLabelText('Notes'), { target: { value: 'My full notes' } });
   fireEvent.click(screen.getByRole('button', { name: 'Add source link' }));
   fireEvent.change(screen.getByLabelText('Source link 1'), { target: { value: 'https://example.test/local' } });
@@ -205,7 +225,7 @@ it('retains every local field across a failed conflict read and adopts only the 
   expect(within(comparison).getByText('Other entry note')).toBeVisible();
   expect(within(comparison).getByRole('link', { name: 'https://example.test/local' })).toHaveAttribute('rel', 'noopener noreferrer');
   fireEvent.click(screen.getByRole('button', { name: 'Use saved version' }));
-  expect(screen.getByLabelText('Title')).toHaveValue('Other title');
+  expect(screen.getByLabelText('Custom title (optional)')).toHaveValue('Other title');
   expect(screen.getByLabelText('Description 1')).toHaveValue('Added elsewhere');
   expect(updateDraft).toHaveBeenCalledTimes(1);
 });
@@ -318,7 +338,7 @@ it('confirms a named draft deletion and leaves cancellation unchanged', async ()
   vi.mocked(getDraft).mockResolvedValue({ ...saved, draft: { ...content, title: 'Supplier samples' } });
   vi.mocked(deleteDraft).mockResolvedValue(receipt);
   const callbacks = props(); render(<DraftEditor id={saved.id} {...callbacks} />);
-  await waitFor(() => expect(screen.getByLabelText('Title')).toBeEnabled());
+  await waitFor(() => expect(screen.getByLabelText('Custom title (optional)')).toBeEnabled());
   fireEvent.change(screen.getByLabelText('Notes'), { target: { value: 'Unsaved notes' } });
   // WHEN requesting deletion THEN the confirmation names the saved draft.
   fireEvent.click(screen.getByRole('button', { name: 'Delete draft' }));
@@ -339,12 +359,12 @@ it('retries an uncertain deletion with the same request and freezes editing', as
   vi.mocked(getDraft).mockResolvedValue(saved);
   vi.mocked(deleteDraft).mockRejectedValueOnce(new TypeError('Network')).mockResolvedValueOnce(receipt);
   render(<DraftEditor id={saved.id} {...props()} />);
-  await waitFor(() => expect(screen.getByLabelText('Title')).toBeEnabled());
+  await waitFor(() => expect(screen.getByLabelText('Custom title (optional)')).toBeEnabled());
   fireEvent.click(screen.getByRole('button', { name: 'Delete draft' }));
   fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Delete draft' }));
   // WHEN explicitly retrying THEN the immutable deletion request is reused.
   fireEvent.click(await screen.findByRole('button', { name: 'Check and retry deletion' }));
-  expect(screen.getByLabelText('Title')).toBeDisabled();
+  expect(screen.getByLabelText('Custom title (optional)')).toBeDisabled();
   await waitFor(() => expect(deleteDraft).toHaveBeenCalledTimes(2));
   expect(vi.mocked(deleteDraft).mock.calls[1]).toEqual(vi.mocked(deleteDraft).mock.calls[0]);
 });
@@ -354,7 +374,7 @@ it('requires review and a fresh confirmation after a stale deletion', async () =
   vi.mocked(getDraft).mockResolvedValueOnce(saved).mockResolvedValueOnce({ ...saved, version: 'v2', draft: { ...content, title: 'Newer title' } });
   vi.mocked(deleteDraft).mockRejectedValueOnce(new DraftError(409, 'draft_version_conflict')).mockResolvedValueOnce(receipt);
   render(<DraftEditor id={saved.id} {...props()} />);
-  await waitFor(() => expect(screen.getByLabelText('Title')).toBeEnabled());
+  await waitFor(() => expect(screen.getByLabelText('Custom title (optional)')).toBeEnabled());
   fireEvent.click(screen.getByRole('button', { name: 'Delete draft' }));
   fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Delete draft' }));
   // THEN current content is reviewed without an automatic deletion retry.
@@ -392,7 +412,7 @@ it('searches and saves an inline supplier independently without submitting the e
   vi.mocked(getSuppliers).mockResolvedValue({ items: [], nextCursor: null });
   vi.mocked(createSupplier).mockResolvedValue({ requestId: 'supplier-request', replayed: false, supplierId: supplier.id, savedVersion: supplier.version, completedAtUtc: supplier.updatedAtUtc }); vi.mocked(getSupplier).mockResolvedValue(supplier);
   render(<DraftEditor {...props()} />);
-  fireEvent.change(screen.getByLabelText('Title'), { target: { value: 'Unsaved order' } });
+  fireEvent.change(screen.getByLabelText('Custom title (optional)'), { target: { value: 'Unsaved order' } });
   // WHEN searching the supplier picker and independently saving a new directory entry.
   fireEvent.click(screen.getByRole('button', { name: 'Choose supplier' }));
   const chooser = await screen.findByRole('dialog', { name: 'Choose supplier' });
@@ -408,7 +428,7 @@ it('searches and saves an inline supplier independently without submitting the e
   fireEvent.click(await screen.findByRole('button', { name: 'Use supplier details' }));
   // THEN only the supplier was saved; the order retains its local title and selected snapshot.
   expect(createDraft).not.toHaveBeenCalled(); expect(createSupplier).toHaveBeenCalledTimes(1);
-  expect(screen.getByLabelText('Title')).toHaveValue('Unsaved order'); expect(screen.getByLabelText('Supplier name')).toHaveValue('Gem Studio');
+  expect(screen.getByLabelText('Custom title (optional)')).toHaveValue('Unsaved order'); expect(screen.getByLabelText('Supplier name')).toHaveValue('Gem Studio');
 });
 it('previews refresh and supplier changes while preserving platform and requiring a reference decision', async () => {
   // GIVEN a linked draft with its own snapshot, platform and external reference.
@@ -451,7 +471,7 @@ it('confirms clearing supplier details and the reference while preserving the re
   expect(screen.getByLabelText('Supplier phone')).toHaveValue('');
   expect(screen.getByLabelText('Supplier order reference')).toHaveValue('');
   expect(screen.getByLabelText('Platform')).toHaveValue('Retail');
-  expect(screen.getByLabelText('Title')).toHaveValue('My order');
+  expect(screen.getByLabelText('Custom title (optional)')).toHaveValue('My order');
   expect(screen.getByText('Supplier details').closest('summary')).toHaveFocus();
   expect(updateDraft).not.toHaveBeenCalled();
   vi.mocked(updateDraft).mockRejectedValue(new DraftError(400, 'draft_validation_failed'));
@@ -466,7 +486,7 @@ it('confirms clearing supplier details and the reference while preserving the re
   // WHEN the supplier API rejects authority THEN no contact body remains while authentication refresh runs.
   await waitFor(() => expect(callbacks.onAuthLost).toHaveBeenCalled());
   expect(screen.getByLabelText('Supplier name')).toHaveValue(''); expect(screen.getByLabelText('Platform')).toHaveValue('');
-  expect(screen.getByLabelText('Title')).toBeDisabled();
+  expect(screen.getByLabelText('Custom title (optional)')).toBeDisabled();
 });
 it('presents a clear new order heading and one draft state before any details are entered', () => {
   // GIVEN a new purchase order with no assigned reference.
@@ -476,7 +496,7 @@ it('presents a clear new order heading and one draft state before any details ar
   expect(screen.getAllByText('Draft', { exact: true })).toHaveLength(1);
   expect(screen.queryByText('Assigned when saved')).not.toBeInTheDocument();
   expect(screen.queryByText('Not saved yet')).not.toBeInTheDocument();
-  expect(screen.getByLabelText('Title')).toBeEnabled();
+  expect(screen.getByLabelText('Custom title (optional)')).toBeEnabled();
 });
 it('restores removed entries in order with their details and moves focus predictably', async () => {
   // GIVEN two entries with research and an exact reference price.
@@ -490,7 +510,7 @@ it('restores removed entries in order with their details and moves focus predict
   expect(screen.getByLabelText('Description 1')).toHaveFocus();
   fireEvent.click(screen.getByRole('button', { name: 'Remove line 1' }));
   expect(screen.getAllByRole('button', { name: 'Add line' }).at(-1)).toHaveFocus();
-  fireEvent.change(screen.getByLabelText('Title'), { target: { value: 'Other edit' } });
+  fireEvent.change(screen.getByLabelText('Custom title (optional)'), { target: { value: 'Other edit' } });
   // WHEN undoing both removals THEN all fields, order and unrelated edits survive.
   fireEvent.click(screen.getByRole('button', { name: 'Undo removal' }));
   expect(screen.getByLabelText('Description 1')).toHaveValue('Ruby');
@@ -501,7 +521,7 @@ it('restores removed entries in order with their details and moves focus predict
   expect(screen.getByLabelText('Line notes 1')).toHaveValue(first.notes);
   expect(screen.getByLabelText('Line source link 1')).toHaveValue(first.sourceLink);
   expect(screen.getByText('USD 12.3456')).toBeVisible();
-  expect(screen.getByLabelText('Title')).toHaveValue('Other edit');
+  expect(screen.getByLabelText('Custom title (optional)')).toHaveValue('Other edit');
   expect(screen.queryByRole('button', { name: 'Undo removal' })).not.toBeInTheDocument();
 });
 it('ends removal undo when currency changes or a save starts', async () => {
@@ -599,7 +619,7 @@ it.each(['conflict-failed', 'current-failed', 'blocked', 'comparison'] as const)
   if (state === 'current-failed') vi.mocked(updateDraft).mockResolvedValueOnce(receipt);
   else vi.mocked(updateDraft).mockRejectedValueOnce(new DraftError(409, state === 'blocked' ? 'draft_request_conflict' : 'draft_version_conflict'));
   render(<DraftEditor id={saved.id} {...props()} />);
-  await waitFor(() => expect(screen.getByLabelText('Title')).toBeEnabled());
+  await waitFor(() => expect(screen.getByLabelText('Custom title (optional)')).toBeEnabled());
   fireEvent.change(screen.getByLabelText('Notes'), { target: { value: 'Retain all local research' } });
   fireEvent.click(screen.getByRole('button', { name: 'Save draft' }));
   if (state === 'comparison') await screen.findByRole('region', { name: 'Compare draft versions' });
@@ -616,4 +636,23 @@ it.each(['conflict-failed', 'current-failed', 'blocked', 'comparison'] as const)
   // AND selection never submits another mutation or bypasses conflict reconciliation.
   expect(screen.getByRole('button', { name: 'Save draft' })).toBeDisabled();
   expect(updateDraft).toHaveBeenCalledOnce();
+});
+
+it.each(['supplier', 'items', 'both'])('saves a %s draft without generating a custom title', async start => {
+  // GIVEN a new draft started with supplier or item context.
+  vi.mocked(createDraft).mockResolvedValue(receipt);
+  vi.mocked(getDraft).mockResolvedValue(saved);
+  render(<DraftEditor {...props()} />);
+  if (start !== 'items') fireEvent.change(screen.getByLabelText('Supplier name'), { target: { value: 'Gem supplier' } });
+  if (start !== 'supplier') {
+    fireEvent.click(screen.getAllByRole('button', { name: 'Add line' })[0]);
+    fireEvent.change(screen.getByLabelText('Description 1'), { target: { value: 'Blue sapphires' } });
+  }
+  // WHEN saving THEN the supplied context is kept and title stays null.
+  fireEvent.click(screen.getByRole('button', { name: 'Save draft' }));
+  await waitFor(() => expect(createDraft).toHaveBeenCalledTimes(1));
+  const draft = vi.mocked(createDraft).mock.calls[0][0].draft;
+  expect(draft.title).toBeNull();
+  expect(draft.supplierName).toBe(start === 'items' ? null : 'Gem supplier');
+  expect(draft.entries.map(entry => entry.description)).toEqual(start === 'supplier' ? [] : ['Blue sapphires']);
 });

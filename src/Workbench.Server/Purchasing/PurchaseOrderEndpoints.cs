@@ -25,6 +25,13 @@ public static class PurchaseOrderEndpoints
             .Produces<SavePurchaseOrderResponse>().ProducesValidationProblem().ProducesProblem(404).ProducesProblem(409).ProducesProblem(413);
     }
 
+    internal static string? FirstItemDescription(DraftOrder row)
+    {
+        using var content = JsonDocument.Parse(row.ContentJson);
+        return DraftOrderInput.ReadEntries(content.RootElement, row.ContentSchemaVersion)
+            .Select(entry => entry.Description).FirstOrDefault(description => !string.IsNullOrWhiteSpace(description));
+    }
+
     internal static DraftContent Content(DraftOrder row)
     {
         using var content = JsonDocument.Parse(row.ContentJson);
@@ -43,7 +50,7 @@ public static class PurchaseOrderEndpoints
         if (!PurchasingIdentityInput.Decode(cursor, binding, out var timestamp, out var id)) return Problem(400, "invalid_cursor", "Refresh purchases to start a new page.");
         var rows = await database.DraftOrders.FromSql($"SELECT * FROM Purchasing.DraftOrders WHERE IsDeleted=0 AND ({state} IS NULL OR State={state}) AND ({cursor} IS NULL OR UpdatedAtUtc<{timestamp} OR (UpdatedAtUtc={timestamp} AND Id<{id})) AND ({query} IS NULL OR CHARINDEX({query},UPPER(Title) COLLATE Latin1_General_100_CI_AS)>0 OR CHARINDEX({query},UPPER(SupplierName) COLLATE Latin1_General_100_CI_AS)>0 OR CHARINDEX({query},UPPER(SupplierOrderReference) COLLATE Latin1_General_100_CI_AS)>0 OR CHARINDEX({query},'PO-'+CASE WHEN PoNumber<1000000 THEN RIGHT('000000'+CONVERT(varchar(20),PoNumber),6) ELSE CONVERT(varchar(20),PoNumber) END)>0)")
             .AsNoTracking().OrderByDescending(r => r.UpdatedAtUtc).ThenByDescending(r => r.Id).Take(51).ToListAsync(cancellationToken);
-        return Results.Ok(new PurchaseOrderPageResponse(rows.Take(50).Select(r => new PurchaseOrderSummary(r.Id, r.Title, r.SupplierName, DraftOrderCursor.Timestamp(r.UpdatedAtUtc), PurchasingIdentityInput.Reference(r.PoNumber), r.SupplierOrderReference, r.Platform, r.State, r.OrderDate?.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture), r.Revision)).ToArray(), rows.Count > 50 ? PurchasingIdentityInput.Cursor(rows[49].UpdatedAtUtc, rows[49].Id, binding) : null));
+        return Results.Ok(new PurchaseOrderPageResponse(rows.Take(50).Select(r => new PurchaseOrderSummary(r.Id, r.Title, r.SupplierName, DraftOrderCursor.Timestamp(r.UpdatedAtUtc), PurchasingIdentityInput.Reference(r.PoNumber), r.SupplierOrderReference, r.Platform, r.State, r.OrderDate?.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture), r.Revision, FirstItemDescription(r))).ToArray(), rows.Count > 50 ? PurchasingIdentityInput.Cursor(rows[49].UpdatedAtUtc, rows[49].Id, binding) : null));
     }
     private static async Task<IResult> ReadAsync(Guid id, WorkbenchDbContext database, CancellationToken cancellationToken)
     {

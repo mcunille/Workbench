@@ -28,7 +28,7 @@ test('an ordered purchase preserves unknown agreed costs and its original revisi
   await useAuthenticatedSession(page);
   await page.goto('/purchase-orders/new');
   const title = `PO-04 agreement ${Date.now()}`;
-  await page.getByLabel('Title', { exact: true }).fill(title);
+  await page.getByLabel('Custom title (optional)', { exact: true }).fill(title);
   await page.getByLabel('Supplier name', { exact: true }).fill('Original gemstone supplier');
   await page.getByLabel('Currency', { exact: true }).fill('USD');
   await page.getByRole('button', { name: 'Add line', exact: true }).first().click();

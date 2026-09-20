@@ -52,7 +52,7 @@ test('saved order lines stay compact and reopen by keyboard with precise quantit
   // GIVEN a new line whose quantities and pricing basis have not been inferred.
   await signIn(page);
   await page.goto('/purchase-orders/new');
-  await page.getByLabel('Title', { exact: true }).fill(`Compact lines ${Date.now()}`);
+  await page.getByLabel('Custom title (optional)', { exact: true }).fill(`Compact lines ${Date.now()}`);
   await page.getByLabel('Currency', { exact: true }).fill('USD');
   await page.getByRole('button', { name: 'Add line', exact: true }).first().click();
   const disclosure = page.locator('.po-line-disclosure').first();

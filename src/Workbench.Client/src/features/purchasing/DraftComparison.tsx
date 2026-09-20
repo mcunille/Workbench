@@ -18,9 +18,9 @@ export function DraftComparison({ heading, draft, state = 'Draft' }: { heading: 
     <section className="po-comparison-content">
       <div className="po-comparison-heading"><h3>{heading}</h3><span className={state === 'Ordered' ? 'po-status-badge' : 'po-badge'} data-state={state}>{state}</span></div>
       <dl className="po-comparison-details">
-        <div><dt>Title</dt><dd>{draft.title ?? 'Untitled draft'}</dd></div>
         <div><dt>Supplier</dt><dd>{draft.supplierName ?? 'Not set'}</dd></div>
         <div><dt>Supplier directory link</dt><dd>{draft.supplierId ?? 'One-off'}</dd></div><div><dt>Platform</dt><dd>{draft.platform ?? 'Not set'}</dd></div><div><dt>Supplier order reference</dt><dd>{draft.supplierOrderReference ?? 'Not set'}</dd></div><div><dt>Currency</dt><dd>{draft.currency ?? 'Not set'}</dd></div>
+        <div><dt>Custom title (optional)</dt><dd>{draft.title || 'None'}</dd></div>
         <div><dt>Notes</dt><dd>{draft.notes ?? 'None'}</dd></div>
         <div><dt>Order discount</dt><dd>{discountText(draft.orderDiscount, draft.currency)} after line discounts</dd></div>
         <div><dt>Source links</dt><dd>{draft.sourceLinks.length ? (

@@ -17,6 +17,40 @@ public sealed class DraftOrderEndpointTests(SqlServerFixture sqlServer)
     private const string Path = "/api/beta/purchase-order-drafts";
     private static DraftContent Empty => new(null, null, null, null, [], [], null, null, null, null, null, null, null, null);
 
+    [Theory]
+    [InlineData("/api/beta/purchase-order-drafts")]
+    [InlineData("/api/beta/purchase-orders")]
+    public async Task BrowseReturnsFirstDescribedItemWithoutChangingOptionalTitle(string browsePath)
+    {
+        // GIVEN saved purchases with no items, undescribed items, and descriptions in saved line order.
+        await using var application = await AuthTestApplication.CreateAsync(sqlServer);
+        using var client = application.CreateClient();
+        await LoginAsync(client);
+        var cases = new (DraftContent Draft, string? Expected)[]
+        {
+            (Empty, null),
+            (DraftOrderPricingTests.Empty with { Entries = [DraftOrderPricingTests.Line with { Description = " " }] }, null),
+            (DraftOrderPricingTests.Empty with { Title = "Custom title", Entries = [
+                DraftOrderPricingTests.Line with { Id = Guid.NewGuid(), Description = null },
+                DraftOrderPricingTests.Line with { Id = Guid.NewGuid(), Description = "Zircon" },
+                DraftOrderPricingTests.Line with { Id = Guid.NewGuid(), Description = "Amethyst" }] }, "Zircon")
+        };
+        foreach (var (draft, expected) in cases)
+        {
+            var created = await SendAsync(client, HttpMethod.Post, Path, new CreateDraftOrderRequest(Guid.NewGuid(), draft));
+            Assert.Equal(HttpStatusCode.Created, created.StatusCode);
+            var receipt = (await created.Content.ReadFromJsonAsync<SaveDraftOrderResponse>())!;
+            // WHEN browsing either supported purchase list.
+            var page = await client.GetFromJsonAsync<JsonElement>(browsePath);
+            var summary = page.GetProperty("items").EnumerateArray().Single(item => item.GetProperty("id").GetGuid() == receipt.DraftOrderId);
+            // THEN the first nonblank description is available independently of the unchanged custom title.
+            Assert.Equal(expected, summary.GetProperty("firstItemDescription").GetString());
+            Assert.Equal(draft.Title, summary.GetProperty("title").GetString());
+            var detail = (await client.GetFromJsonAsync<DraftOrderResponse>($"{Path}/{receipt.DraftOrderId}"))!;
+            Assert.Equal(draft.Title, detail.Draft.Title);
+        }
+    }
+
     [Fact]
     public async Task EmptyDraftCanBeSavedAndResumedInAnotherSession()
     {

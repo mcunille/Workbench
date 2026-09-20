@@ -29,7 +29,7 @@ function invoicePdf(marker: string) {
 async function orderedPurchase(page: Page) {
   await useAuthenticatedSession(page);
   await page.goto('/purchase-orders/new');
-  await page.getByLabel('Title', { exact: true }).fill(`PO-06 invoice files ${Date.now()}`);
+  await page.getByLabel('Custom title (optional)', { exact: true }).fill(`PO-06 invoice files ${Date.now()}`);
   await page.getByLabel('Supplier name', { exact: true }).fill('Sample gemstone supplier');
   await page.getByLabel('Currency', { exact: true }).fill('USD');
   await page.getByRole('button', { name: 'Add line', exact: true }).first().click();
