@@ -169,41 +169,44 @@ Use the current Identity roles and resolved permission claims. A person can have
 effective permission is their union. No controller or SQL command checks whether a user is an Owner
 or Bookkeeper. Do not add a generic `Accounting.Post` permission.
 
-Propose fixed, composable system roles for this increment; a custom role editor is deferred:
+Use only two fixed accounting roles initially; a custom role editor and finer role splits are deferred:
 
 | Role | Permissions and boundary |
 | --- | --- |
-| Accounting setup | `AccountingConfigurationRead`, `AccountingConfigurationManage`: configuration, accounts, mappings, and coverage plans; no role assignment, financial reports, close, or payment authority. |
-| Accounting reporting | `AccountingReportsRead`, `AccountingReportsExport`: reserved for future financial report read/export handlers; no posting, configuration, or close. |
-| Accounting reconciliation | `AccountingReconcile`: reserved for BK-11; no implied configuration or role administration. |
-| Accounting period control | `AccountingPeriodsClose`, `AccountingFiscalYearsClose`: reserved separately for future monthly and fiscal-year close implementations; no close endpoint in BK-01. |
-| Accounting access administration | `AccountingRolesManage`: assign/revoke these roles for enabled users in the current tenant; does not itself grant access to financial data or configuration. |
+| Accounting administrator | Configuration, accounts, mappings, and coverage plans; financial report read/export, reconciliation, and monthly/fiscal-year closing as those capabilities ship. No authority to assign roles or administer users merely from this role. |
+| Accounting reader | Financial report read/export as those capabilities ship. No configuration changes, reconciliation, closing, role assignment, or payment authority. |
 
-Each permission remains distinct even where the proposed preset groups permissions. Accepting the
-preset design does not implement the future actions. Register only shipped endpoint policies and
-show future role capabilities as unavailable, not as buttons that appear to work.
+Accounting administrator includes the reader's permissions, so assigning both is unnecessary.
+Keep explicit permissions internally: `AccountingConfigurationRead`, `AccountingConfigurationManage`,
+`AccountingReportsRead`, `AccountingReportsExport`, `AccountingReconcile`, `AccountingPeriodsClose`,
+and `AccountingFiscalYearsClose`. The administrator role contains all seven; the reader contains only
+the two report permissions. This keeps endpoint checks specific without asking users to manage five
+roles. Register only shipped endpoint policies; future actions remain unavailable. The reader role
+can be assigned in BK-01, but financial reports themselves remain a later delivery.
 
 Later source stories introduce action permissions for recording a payment, recognizing a purchase,
 or correcting a financial source. The business action and its required journal commit atomically;
 failure to create the journal rolls back the source action. A user authorized for that action needs
 no additional persona or posting role. They see the operational result without automatically gaining
-access to company-wide financial reports. BK-01 does not retrofit new restrictions onto existing
-nonfinancial PO commitment or ordinary purchase browsing.
+access to company-wide financial reports. Neither accounting role grants those future operational
+actions implicitly. BK-01 does not retrofit new restrictions onto existing nonfinancial PO commitment
+or ordinary purchase browsing.
 
-Proposed bootstrap: existing enabled holders of `TenantUsersManage` receive only the new accounting
-access-administration role during migration. Fresh tenant provisioning grants that role to its
-initial tenant administrator. This makes initial assignment possible without granting all members
-accounting access or assuming administrators should receive every accounting capability. An authorized
-access administrator can assign all accounting roles to themselves or another enabled user explicitly.
-New invitations receive no accounting roles automatically.
+Use existing `TenantUsersManage` authority to assign/revoke the two accounting roles for enabled users
+in the current tenant, including explicit self-assignment. No new access-administration role or
+`AccountingRolesManage` permission is needed. Create the two role definitions for existing and new
+tenants without automatically assigning accounting access. Existing tenant administrators can make
+the initial assignment through user administration. New invitations receive no accounting role.
+There is no requirement to retain an accounting administrator: existing tenant-user administrators
+can restore accounting access when needed. Preserve existing last-tenant-administrator protections.
 
-Role assignment is an audited, versioned, restricted command with a fixed allowlist of assignable
-accounting role IDs. It cannot change arbitrary roles or claims or grant `TenantUsersManage`. Require
-the actor's current session and permission at command execution, not just a stale UI or request claim.
-Serialize grant/revoke with user disable and other access changes. Prevent removal/disable of the
-last enabled accounting access administrator, including concurrent attempts. Preserve existing last
-tenant-administrator protections. Authoritative role changes take effect on the next request; command
-execution must also recheck access if a request was admitted before revocation.
+Role assignment is an audited, versioned, restricted command with a fixed allowlist containing only
+the two accounting role IDs. It cannot change arbitrary roles/claims or grant `TenantUsersManage`.
+Require the actor's current session and permission at command execution, not a stale UI/request claim.
+Coordinate assignment with user disable and competing membership changes through transactional locks;
+reject assignment to a user already disabled at the command's serialization point. A subsequent
+disable still revokes effective access. Authoritative role changes take effect on the next request;
+command execution must also recheck access if a request was admitted before revocation.
 
 The proposed Identity security scope is explicit: deny direct web-principal writes to `Identity.Roles`,
 `RoleClaims`, `UserRoles`, and `UserClaims`; preserve scoped reads and fixed-role creation through the
@@ -212,16 +215,12 @@ existing restricted provisioning/invitation commands and the new accounting-role
 available would bypass role assignment. Preserve existing non-accounting claims, but do not accept
 new accounting permission grants through user claims. Accounting checks use the role-derived set.
 
-Route the existing user disable/reactivate mutation through a restricted command, deny direct web
-updates to `Users.State` and direct user deletion, and serialize that command with accounting-role
-assignment using a tenant access-administration lock. Keep password/session/recovery writes outside
-this change except where the existing restricted identity operation legitimately changes account
-state. Update principal provisioning/permission expectations as well as migrations so re-provisioning
-cannot regrant a bypass. Test invitation acceptance, account recovery, restore sanitation, fresh
-tenant provisioning, user disable/reactivate, and both last-administrator protections. This is scoped
-protection for roles and account-state invariants, not a redesign of all identity storage or a claim
-of protection against a fully compromised web process. If an additional mutation path is discovered,
-resolve its design before broadening the approved scope.
+Update principal provisioning/permission expectations as well as migrations so re-provisioning cannot
+regrant a bypass. Test invitation acceptance, recovery, restore sanitation, fresh tenant provisioning,
+and existing user-disable/last-tenant-administrator behavior. This increment does not introduce a
+second last-administrator invariant or replace user-state management with a new command. Its Identity
+scope protects role/claim writes; it is not a redesign of all identity storage or a claim of protection
+against a fully compromised web process. Resolve any additional mutation path before broadening scope.
 
 ## Complete-statement coverage planning
 
@@ -260,7 +259,7 @@ of invented balances, activity selector, or replacement visual design is needed.
 - Start with explicit policy choices and an optional chart preview. Show account code, name, type,
   purpose, and archive state in a searchable, paginated list, ordered by normalized code then ID.
   Include-archived is explicit and does not make archived accounts selectable as current mappings.
-- Place accounting role assignment with user administration, visible only with the role-management
+- Place accounting role assignment with user administration, visible only with the existing `TenantUsersManage`
   permission. Summarize effective capabilities and the proposed grants/revocations before saving.
 - Keep setup and role-management screens independently reachable for their authorized users.
   Neither screen grants report access. Hide unauthorized navigation and enforce the same checks
@@ -294,7 +293,7 @@ tenant/account locking order. Accounts, revisions, receipts, role changes, and a
 commit together as appropriate; never report success with missing audit/replay evidence.
 
 Use one additive migration for this coherent release, including required Identity command changes,
-role provisioning/backfill, SQL grants/denials, schema readiness, and the EF snapshot. Preserve all
+role-definition provisioning/backfill, SQL grants/denials, schema readiness, and the EF snapshot. Preserve all
 base migrations. Verify fresh creation and upgrade with existing users, sessions, and POs; existing
 tenants start with unconfigured books. No production migration is authorized by this design.
 Block destructive down-migration once accounting configuration/history exists; document a reviewed
@@ -309,11 +308,12 @@ tests for the setup workflow. Required acceptance includes:
 
 1. Two tenants configure different countries, currencies, scales, calendars, and start approaches
    independently. Missing fields remain explicit; unsupported scales and malformed dates are rejected.
-2. An ordinary member cannot read or change accounting setup or assign roles. An accounting setup
-   user can configure accounts without user-administration or future financial-report authority.
+2. An ordinary member and an Accounting reader cannot read or change accounting setup or assign
+   roles. An Accounting administrator can configure accounts but cannot assign roles without
+   `TenantUsersManage`. That permission alone permits assignment, not reading accounting data.
 3. Roles compose; persona/display-name changes grant no permission. Grants/revocations work through
-   fresh and already-admitted requests; self-escalation without role authority and last-administrator
-   removal fail, including concurrent disable/revoke operations.
+   fresh and already-admitted requests; self-escalation without `TenantUsersManage` fails. Concurrent
+   disable/assignment preserves authorization, and existing last-tenant-administrator protection holds.
 4. All five account types are usable without an activity category. Duplicate normalized codes and
    changed-payload retries fail. Starter-chart retries create exactly one set, atomically.
 5. Wrong-type, archived, cross-tenant, and nonexistent mapping targets fail through both HTTP and SQL.
@@ -364,10 +364,9 @@ required source stories; they must be scoped explicitly rather than hidden behin
 
 The agreed policies above do not automatically approve every mechanism. Proposed choices are:
 
-1. Fixed composable role presets initially, including the limited bootstrap grant to current tenant
-   administrators and the specified protection of Identity role/claim writes and user-state changes;
-   custom role editing is deferred. Report read/export and month/year close are distinct permissions
-   but grouped into their respective initial presets.
+1. Two accounting roles only: Accounting administrator and Accounting reader, assigned through existing
+   tenant-user administration with no automatic membership grants. Retain explicit internal permissions
+   and the specified protection of Identity role/claim writes; defer custom roles and finer role splits.
 2. Calendar-month periods with a configurable fiscal start month; other fiscal calendars are deferred.
 3. Account type/purpose immutable from creation, with an optional general starter chart and explicit
    mapping assignments. This favors stable meaning over editing an unused account's type in place.
