@@ -49,6 +49,24 @@ creation/photo replay evidence and the current photograph are retained. Active a
 have independent authenticated traversal state. Existing authorized links remain readable.
 See [collection design records](collection.md#design-records) for the individual decisions and limits.
 
+### Accounting configuration
+
+BK-01 adds tenant-scoped accounting policies, typed general accounts, controlled mapping candidates,
+and complete-statement coverage planning. It creates no financial entries or balances and never
+activates bookkeeping. [Accounting setup](accounting.md) describes the user workflow.
+
+Accounting administrator and Accounting reader are fixed roles with explicit permission claims;
+existing `TenantUsersManage` authority assigns them through a restricted command. Neither role is
+granted automatically. Role/claim tables deny direct runtime mutation, and accounting permissions
+are resolved only from roles. Assignment and user-state changes serialize to preserve access checks.
+
+`Accounting.Accounts`, `Configurations`, `Revisions`, and `Receipts` have tenant RLS and restricted
+writes through `Accounting.Save`. The command validates current session/role authority, serializes
+tenant accounting changes, validates mapping and coverage references, and commits state, revision,
+audit, and durable replay evidence together. UUID version tokens reject stale edits. Archived accounts
+retain their codes and history. The [BK-01 design](specs/2026-09-21-bk-01-accounting-foundation.md)
+defines later first-posting, retention, cutover, and reconciliation obligations.
+
 ### Collection records export
 
 The [H7 export](specs/2026-09-08-h7-collection-export.md) retrieves current text records as CSV v1.

@@ -44,6 +44,13 @@ verification, and preserve retained data before planning an explicit transition.
 schemas require an explicit transition or deliberately disposable replacement; no database or
 migration-history rows are automatically reset.
 
+The accounting foundation adds one migration, `20260921051843_AddAccountingFoundation`, after
+`20260918063409_HardenPurchaseOrderDocumentAuthority`. It preserves existing users and POs, creates
+unassigned accounting-role definitions, and protects accounting and role/claim writes. Fresh creation
+and upgrade from the preceding schema are required verification paths. Down is blocked with error
+50020 to preserve configuration, role-assignment, revision, and receipt evidence. Use a reviewed forward
+correction or protected restore; the prior application's readiness marker does not accept this schema.
+
 ## Authoring and validating a migration
 
 Keep migrations deterministic and reversible where SQL Server permits. Review generated SQL and
@@ -107,6 +114,7 @@ This inventory describes checked-in migration behavior, not permission to execut
 | `20260918060000_AddPurchaseOrderCommitment` | `IntegrateBetaDraftFinancialAdjustments` | Consolidated PO-04: adds Draft/Ordered state, order date, immutable snapshots and actor-bound receipts, RLS and restricted commands. Includes retained-line projection, trimmed amendment reasons, supplier GUID normalization and decoded-content no-op detection. Preserves existing drafts, references, row versions and receipts without inferring commitments. Protects draft writers after receipt replay; advances readiness and backup markers. Stop older writers and deploy the matching beta application. | Always blocked; preserve agreed contents and history through forward correction or guarded recovery. |
 | `20260918061646_AddPurchaseOrderDocuments` | `AddPurchaseOrderCommitment` | Adds PO-owned private document metadata and durable request evidence, tenant-qualified ownership, RLS and restricted prepare/finalize procedures. Reserves up to 20 current or pending files per ordered PO, serializes parent versions and uses the existing publication, reconciliation and seven-day retention lifecycle. Preserves acquisition documents and ordered-content revisions. Advances readiness and backup markers; deploy the matching application. | Always blocked; retain metadata and command evidence through forward correction or guarded paired recovery. |
 | `20260918063409_HardenPurchaseOrderDocumentAuthority` | `AddPurchaseOrderDocuments` | Revalidates enabled tenant and active actor authority for document reservations, binds request replay to the original actor, and rechecks authority during finalization. A suspension during publication produces a terminal conflict and retains published bytes for cleanup. Kept as a separate forward migration because the predecessor was already applied to the retained local preview; its applied history is immutable. Advances readiness and backup markers. | Always blocked; retain authority controls through forward correction or guarded paired recovery. |
+| `20260921051843_AddAccountingFoundation` | `HardenPurchaseOrderDocumentAuthority` | Adds tenant accounting configuration, general accounts, revisions, receipts and two explicitly assigned accounting roles. Restricted commands validate current actor authority; runtime Identity role/claim writes are denied. Retains existing data without granting accounting access or creating balances. Advances readiness and backup markers; stop older writers and deploy the matching application. Verify fresh creation and upgrade from the predecessor. | Always blocked (50020); preserve configuration and authorization history through forward correction or guarded recovery. |
 
 Product behavior, user-visible concurrency/retry rules and the shipped feature inventory belong in
 [collection documentation](../collection.md). Provider retry/backoff behavior belongs in

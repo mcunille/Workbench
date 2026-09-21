@@ -1,8 +1,7 @@
 # BK-01: accounting configuration, accounts, and authorization
 
-**Status:** Proposed — the product policies below were agreed during the BK-01 discussion.
-The bounded implementation design, including the explicitly listed choices for review, awaits
-approval. This document delivers no runtime, schema, reporting, or bookkeeping activation.
+**Status:** Accepted — the product policies and bounded two-role implementation design were approved.
+Implementation and verification are in progress. BK-01 does not activate bookkeeping or deliver reports.
 
 Parent: [PO-07 bookkeeping prerequisites](2026-09-20-po-07-deposits-and-payments.md).
 This specification supersedes the parent's persona-based authorization proposal for BK-01.
@@ -107,8 +106,9 @@ must not shorten an existing evidence obligation; BK-07 owns their effective-pol
 
 Each account has a tenant-qualified stable UUID, unique normalized code, display name, one of the
 five account types, a purpose, optional description, archive timestamp, and version token. Proposed
-limits are 32 characters for the code, 160 for the name, and 2,000 for the description. Trim text;
-normalize codes consistently in API and SQL using ordinal case-insensitive uniqueness. Names need
+limits are 32 characters for the code, 160 for the name, and 2,000 for the description. Codes use ASCII
+letters, digits, dots, underscores, and hyphens; normalize to uppercase consistently in API and SQL
+with binary uniqueness. Names need
 not be unique; pickers show code and name. Account codes remain reserved when archived.
 
 The proposed first release fixes account type and purpose at creation. Correct a mistaken type by
@@ -339,8 +339,7 @@ restricted-principal checks, regenerate the API declarations, and inspect the is
 The delivery PR reports actual results and remaining limits. BK-02 owns first-posting freeze and
 post-versus-edit/archive tests; BK-07 owns retention enforcement; no BK-01 test substitutes for them.
 
-For this design-only PR, check local links, parent/child consistency, privacy, and repository
-documentation assertions. No runtime, migration, browser, or mutation evidence is claimed.
+Verification evidence and coverage limitations are recorded in the implementation pull request.
 
 ## Delivery dependencies and later designs
 
@@ -360,9 +359,9 @@ The agreed retention direction does not set a jurisdiction-specific legal durati
 approve its effective policy before BK-07/activation. Complete-statement coverage may reveal additional
 required source stories; they must be scoped explicitly rather than hidden behind supplier payments.
 
-## Material implementation choices for review
+## Approved implementation choices
 
-The agreed policies above do not automatically approve every mechanism. Proposed choices are:
+The implementation approval includes these bounded choices:
 
 1. Two accounting roles only: Accounting administrator and Accounting reader, assigned through existing
    tenant-user administration with no automatic membership grants. Retain explicit internal permissions

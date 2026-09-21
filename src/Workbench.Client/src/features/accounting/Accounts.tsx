@@ -1,0 +1,55 @@
+import { ApiError } from '../../api/auth';
+import { useEffect, useRef, useState } from 'react';
+import { FloatingField } from '../../FloatingField';
+import { archiveAccount, createAccounts, getAccounts, updateAccount, type Account, type AccountContent, type Catalog } from '../../api/accounting';
+import { label } from './accountingRules';
+const empty: AccountContent = { code: '', name: '', type: 'Asset', purpose: 'General', description: null };
+export function AccountEditorFields({ value, catalog, change, fixed = false }: { value: AccountContent; catalog: Catalog; change(value: AccountContent): void; fixed?: boolean }) {
+  return <div className="accounting-grid">
+    <FloatingField label="Account code" htmlFor="account-code"><input id="account-code" placeholder=" " required maxLength={32} value={value.code} onChange={e => change({ ...value, code: e.target.value })} /></FloatingField>
+    <FloatingField label="Account name" htmlFor="account-name"><input id="account-name" placeholder=" " required maxLength={160} value={value.name} onChange={e => change({ ...value, name: e.target.value })} /></FloatingField>
+    <label>Account type<select disabled={fixed} value={value.type} onChange={e => change({ ...value, type: e.target.value })}>{catalog.accountTypes.map(type => <option key={type}>{type}</option>)}</select></label>
+    <label>Account purpose<select disabled={fixed} value={value.purpose} onChange={e => change({ ...value, purpose: e.target.value })}>{catalog.accountPurposes.map(purpose => <option key={purpose} value={purpose}>{label(purpose)}</option>)}</select></label>
+    <FloatingField label="Description (optional)" htmlFor="account-description"><textarea id="account-description" placeholder=" " maxLength={2000} value={value.description ?? ''} onChange={e => change({ ...value, description: e.target.value || null })} /></FloatingField>
+  </div>;
+}
+export function Accounts({ catalog, changed, fail, canManage, onDirtyChange }: { catalog: Catalog; changed(): Promise<void>; fail(error: unknown): void; canManage: boolean; onDirtyChange(dirty: boolean, uncertain: boolean): void }) {
+  const [items, setItems] = useState<Account[]>([]); const [cursor, setCursor] = useState<string | null>();
+  const [query, setQuery] = useState(''); const [archived, setArchived] = useState(false);
+  const [loading, setLoading] = useState(true); const [busy, setBusy] = useState(false);
+  const [editing, setEditing] = useState<Account | 'new'>(); const [content, setContent] = useState<AccountContent>(empty);
+  const [uncertain, setUncertain] = useState(false); const [conflict, setConflict] = useState(false);
+  const [starter, setStarter] = useState(false); const [message, setMessage] = useState('');
+  const pending = useRef<{ key: string; id: string; run: (requestId: string) => Promise<unknown> } | undefined>(undefined);
+  useEffect(() => { onDirtyChange(!!editing || starter || uncertain || busy, uncertain || busy); }, [editing, starter, uncertain, busy, onDirtyChange]);
+  useEffect(() => { let live = true; void getAccounts(undefined, query, archived).then(page => { if (live) { setItems(page.items); setCursor(page.nextCursor); setLoading(false); } }, error => { if (live) { setLoading(false); fail(error); } }); return () => { live = false; }; }, [query, archived, fail]);
+  async function reload() { const page = await getAccounts(undefined, query, archived); setItems(page.items); setCursor(page.nextCursor); await changed(); }
+  async function command(key: string, run: (requestId: string) => Promise<unknown>) {
+    if (busy) return; setBusy(true); setMessage('');
+    if (pending.current && pending.current.key !== key) { setBusy(false); setMessage('Retry the previous action before making another change. Its result is uncertain.'); return; }
+    pending.current ??= { key, id: crypto.randomUUID(), run };
+    try { await pending.current.run(pending.current.id); await reload(); pending.current = undefined; setUncertain(false); setEditing(undefined); setStarter(false); setMessage('Accounts saved.'); }
+    catch (error) {
+      if (error instanceof ApiError && error.status < 500) { pending.current = undefined; setUncertain(false); setConflict(error.status === 409); setMessage(error.status === 409 ? 'The account changed or its code is occupied. Your draft is preserved. Reload accounts to reconcile before saving.' : 'Correct the account details and try again.'); }
+      else { setUncertain(true); setMessage('The action result is uncertain. Retry the same action before making another change.'); }
+      fail(error);
+    }
+    finally { setBusy(false); }
+  }
+  return <section aria-labelledby="accounts-heading"><h2 id="accounts-heading">Accounts</h2><p>General accounts describe financial purpose. Creating accounts does not create balances or accounting entries.</p>
+    <div className="button-row"><FloatingField label="Search account code or name" htmlFor="account-query"><input id="account-query" placeholder=" " disabled={busy || uncertain} value={query} onChange={e => { setQuery(e.target.value); setLoading(true); setCursor(null); }} /></FloatingField><label className="accounting-check"><input type="checkbox" disabled={busy || uncertain} checked={archived} onChange={e => { setArchived(e.target.checked); setLoading(true); setCursor(null); }} /> Include archived</label></div>
+    {loading ? <p role="status">Loading accounts…</p> : !items.length ? <p>No accounts match. Create an account or preview the optional starter chart.</p> : <ul className="record-list">{items.map(account => <li key={account.id}><span><strong>{account.code} — {account.name}</strong><small>{account.type} · {label(account.purpose)}{account.isArchived ? ' · Archived' : ''}</small></span>{canManage ? <span className="button-row"><button type="button" className="secondary" disabled={busy || uncertain || conflict || !!editing || starter} onClick={() => { setEditing(account); setContent(account); }}>Edit</button><button type="button" className="secondary" disabled={busy || uncertain || conflict || !!editing || starter} onClick={() => void command(`archive-${account.id}-${account.version}`, id => archiveAccount(account.id, { requestId: id, expectedVersion: account.version, isArchived: !account.isArchived }))}>{account.isArchived ? 'Restore' : 'Archive'}</button></span> : null}</li>)}</ul>}
+    {cursor ? <button type="button" className="secondary" disabled={busy} onClick={() => { setBusy(true); void getAccounts(cursor, query, archived).then(page => { setItems(previous => [...previous, ...page.items]); setCursor(page.nextCursor); }, fail).finally(() => setBusy(false)); }}>Load more accounts</button> : null}
+    {canManage && !editing && !starter && !uncertain && !conflict ? <div className="button-row"><button type="button" className="secondary" onClick={() => { setEditing('new'); setContent(empty); }}>Create account</button><button type="button" className="secondary" onClick={() => setStarter(true)}>Preview starter chart</button></div> : null}
+    {editing ? <form onSubmit={e => { e.preventDefault(); void command(JSON.stringify(content), id => editing === 'new' ? createAccounts({ requestId: id, accounts: [content] }) : updateAccount(editing.id, { requestId: id, expectedVersion: editing.version, code: content.code, name: content.name, description: content.description })); }}><h3>{editing === 'new' ? 'Create account' : 'Edit account'}</h3><fieldset disabled={busy || conflict}><fieldset disabled={uncertain}><AccountEditorFields value={content} catalog={catalog} change={setContent} fixed={editing !== 'new'} /></fieldset><div className="button-row"><button type="submit" className="primary">Save account</button><button type="button" className="secondary" disabled={uncertain} onClick={() => setEditing(undefined)}>Cancel</button></div></fieldset></form> : null}
+    {starter ? <div><h3>Review starter chart</h3><p>Every row below will be created together. Names and codes can be edited afterward. These suggestions do not establish recognition or tax policies.</p><ul className="record-list">{catalog.starterAccounts.map(account => <li key={account.code}><span><strong>{account.code} — {account.name}</strong><small>{account.type} · {label(account.purpose)}</small></span></li>)}</ul><div className="button-row"><button type="button" className="primary" disabled={busy} onClick={() => void command('starter', id => createAccounts({ requestId: id, accounts: catalog.starterAccounts }))}>Create these accounts</button><button type="button" className="secondary" disabled={busy || uncertain} onClick={() => setStarter(false)}>Cancel preview</button></div></div> : null}
+    {uncertain ? <button type="button" className="primary" disabled={busy} onClick={() => { const retry = pending.current; if (retry) void command(retry.key, retry.run); }}>Retry the same account action</button> : null}
+    {conflict ? <button type="button" className="secondary" onClick={() => { void reload().then(async () => { if (editing && editing !== 'new') { let next: Account | undefined; let cursor: string | null | undefined; do { const page = await getAccounts(cursor ?? undefined, undefined, true); next = page.items.find(item => item.id === editing.id); cursor = page.nextCursor; } while (!next && cursor); if (next) setEditing(next); } setConflict(false); setMessage('Current accounts loaded. Review your retained draft before saving.'); }).catch(fail); }}>Reload accounts and retain draft</button> : null}
+    {message ? <p role="status">{message}</p> : null}
+  </section>;
+}
+
+
+
+
+

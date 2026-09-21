@@ -109,6 +109,7 @@ public partial class WorkbenchDbContext : IdentityDbContext<
         ConfigureStorage(modelBuilder);
         ConfigureWork(modelBuilder);
         ConfigureDraftOrders(modelBuilder);
+        ConfigureAccounting(modelBuilder);
     }
 
     private void ConfigureInventory(ModelBuilder modelBuilder)

@@ -15,7 +15,7 @@ It remains a design proposal, not implemented bookkeeping.
 [BK-01 accounting configuration, accounts, and authorization](2026-09-21-bk-01-accounting-foundation.md)
 records agreed general-account and role-based policies, proposes their bounded implementation,
 and links the separate reporting, portability, migration, and jurisdiction-reporting design issues.
-Its implementation choices remain proposed; no accounting runtime is delivered by the document.
+Its bounded two-role design is accepted; implementation and verification are in progress.
 
 | Area | Records |
 | --- | --- |

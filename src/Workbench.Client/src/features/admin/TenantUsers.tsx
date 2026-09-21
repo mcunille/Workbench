@@ -1,3 +1,4 @@
+import { AccountingRoles } from './AccountingRoles';
 import { FloatingField } from '../../FloatingField';
 import { useEffect, useState, type FormEvent } from 'react';
 import {
@@ -23,7 +24,8 @@ function stateLabel(state: number): string {
   return 'Unknown';
 }
 
-export function TenantUsers() {
+export function TenantUsers({ onAuthLost, onDirtyChange }: { onAuthLost?(): void; onDirtyChange?(dirty: boolean, uncertain: boolean): void }) {
+  const [roleUser, setRoleUser] = useState<TenantUser>();
   const [users, setUsers] = useState<TenantUser[]>();
   const [message, setMessage] = useState<string>();
 
@@ -115,6 +117,7 @@ export function TenantUsers() {
                 <small>{stateLabel(user.state)}</small>
               </span>
               <span className="button-row">
+                {user.state === accountState.enabled ? <button className="secondary" type="button" onClick={() => setRoleUser(user)}>Accounting roles</button> : null}
                 <button className="secondary" type="button" onClick={() => void recover(user)}>
                   Recovery
                 </button>
@@ -137,7 +140,10 @@ export function TenantUsers() {
       ) : (
         <p role="status">Loading tenant users…</p>
       )}
+      {roleUser ? <AccountingRoles key={roleUser.id} userId={roleUser.id} email={roleUser.email ?? 'Account'} close={() => setRoleUser(undefined)} onAuthLost={onAuthLost} onDirtyChange={onDirtyChange} /> : null}
       {message ? <p className="form-message" role="status">{message}</p> : null}
     </section>
   );
 }
+
+

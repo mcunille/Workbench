@@ -194,6 +194,15 @@ public sealed class AuthTestApplication : IAsyncDisposable
                 ClaimValue = WorkbenchPermissions.TenantAccess,
             });
         await database.SaveChangesAsync();
+        // Synthetic tenants bypass production provisioning; mirror only its fixed role definitions.
+        // Prior-schema upgrade tests intentionally run before this command exists.
+        await database.Database.ExecuteSqlRawAsync("""
+            IF OBJECT_ID(N'Administration.CreateAccountingRoles') IS NOT NULL
+            BEGIN
+                EXEC Administration.CreateAccountingRoles 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
+                EXEC Administration.CreateAccountingRoles 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb';
+            END;
+            """);
     }
 
     private static WorkbenchUser CreateUser(Guid id, string email, DateTimeOffset now) => new()
