@@ -70,15 +70,15 @@ describe('authentication bootstrap', () => {
   });
 });
 
-function AuthRaceProbe({ refreshed }: { refreshed(): void }) {
+function AuthRaceProbe({ refreshed, failed }: { refreshed(): void; failed?(error: unknown): void }) {
   const { identity, status, refresh, signIn, signOut } = useAuth();
   return <>
     <p role="status">{status}</p>
     {identity ? <p>{identity.tenantName}</p> : null}
     <button onClick={() => void refresh('permissions').finally(refreshed)}>Refresh permissions</button>
     <button onClick={() => void refresh().finally(refreshed)}>Refresh access</button>
-    <button onClick={() => void signOut()}>Sign out probe</button>
-    <button onClick={() => void signIn('new@example.com', 'test-password')}>Sign in new user</button>
+    <button onClick={() => void signOut().catch(error => failed?.(error))}>Sign out probe</button>
+    <button onClick={() => void signIn('new@example.com', 'test-password').catch(error => failed?.(error))}>Sign in new user</button>
   </>;
 }
 
@@ -174,3 +174,53 @@ it.each(['permissions', 'access'])('does not let a %s refresh supersede an in-fl
   expect(screen.queryByText('Old tenant')).not.toBeInTheDocument();
 });
 
+
+
+it.each([
+  ['Sign out probe', 'logout'],
+  ['Sign in new user', 'login'],
+])('settles cleared protected UI when %s fails after an access refresh', async (button, endpoint) => {
+  // GIVEN an authentication mutation whose error has not arrived yet
+  let release!: () => void;
+  const held = new Promise<void>(resolve => { release = resolve; });
+  let mutating = false;
+  const failed = vi.fn();
+  server.use(
+    http.get('*/api/beta/auth/me', () => HttpResponse.json({ userId: 'old', tenantName: 'Old tenant', email: null, permissions: [] })),
+    http.get('*/api/beta/auth/antiforgery', () => HttpResponse.json({ requestToken: 'test' })),
+    http.post(`*/api/beta/auth/${endpoint}`, async () => { mutating = true; await held; return new HttpResponse(null, { status: 500 }); }),
+  );
+  render(<AuthProvider><AuthRaceProbe refreshed={vi.fn()} failed={failed} /></AuthProvider>);
+  await screen.findByText('Old tenant');
+  fireEvent.click(screen.getByRole('button', { name: button }));
+  await waitFor(() => expect(mutating).toBe(true));
+  // WHEN access loss clears the protected UI and the mutation subsequently fails
+  fireEvent.click(screen.getByRole('button', { name: 'Refresh access' }));
+  expect(screen.getByRole('status')).toHaveTextContent('loading');
+  expect(screen.queryByText('Old tenant')).not.toBeInTheDocument();
+  await act(async () => release());
+  await waitFor(() => expect(failed).toHaveBeenCalled());
+  // THEN authentication reaches a recoverable failure state rather than an endless loading screen
+  expect(screen.getByRole('status')).toHaveTextContent('unavailable');
+  expect(screen.queryByText('Old tenant')).not.toBeInTheDocument();
+});
+
+it.each([
+  ['Sign out probe', 'logout'],
+  ['Sign in new user', 'login'],
+])('preserves normal %s error handling without an overlapping access loss', async (button, endpoint) => {
+  // GIVEN an ordinary authentication failure without an overlapping access refresh
+  const failed = vi.fn();
+  server.use(
+    http.get('*/api/beta/auth/me', () => HttpResponse.json({ userId: 'old', tenantName: 'Old tenant', email: null, permissions: [] })),
+    http.get('*/api/beta/auth/antiforgery', () => HttpResponse.json({ requestToken: 'test' })),
+    http.post(`*/api/beta/auth/${endpoint}`, () => new HttpResponse(null, { status: 500 })),
+  );
+  render(<AuthProvider><AuthRaceProbe refreshed={vi.fn()} failed={failed} /></AuthProvider>);
+  await screen.findByText('Old tenant');
+  // WHEN the action rejects THEN caller error handling and the existing identity remain intact
+  fireEvent.click(screen.getByRole('button', { name: button }));
+  await waitFor(() => expect(failed).toHaveBeenCalled());
+  expect(screen.getByRole('status')).toHaveTextContent('signed-in');
+  expect(screen.getByText('Old tenant')).toBeVisible();
+});

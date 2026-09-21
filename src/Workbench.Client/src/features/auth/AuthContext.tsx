@@ -27,6 +27,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [status, setStatus] = useState<AuthStatus>('loading');
   const operationGeneration = useRef(0);
   const authenticationTransition = useRef<number | null>(null);
+  const transitionAccessCleared = useRef(false);
 
   const refresh = useCallback(async (mode?: 'permissions') => {
     // Access-loss checks discard protected state immediately. A successful role
@@ -37,7 +38,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
     // Neither refresh mode may replace an in-flight login/logout. Access-loss
     // checks still clear protected UI above while that transition completes.
-    if (authenticationTransition.current !== null) return;
+    if (authenticationTransition.current !== null) {
+      if (mode !== 'permissions') transitionAccessCleared.current = true;
+      return;
+    }
     const generation = ++operationGeneration.current;
     try {
       const result = await getCurrentIdentity();
@@ -84,9 +88,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setIdentity(result);
       setStatus('signed-in');
     } catch (error) {
-      if (generation === operationGeneration.current) throw error;
+      if (generation === operationGeneration.current) {
+        if (transitionAccessCleared.current) {
+          setIdentity(null);
+          setStatus(statusFor(error));
+        }
+        throw error;
+      }
     } finally {
-      if (authenticationTransition.current === generation) authenticationTransition.current = null;
+      if (authenticationTransition.current === generation) {
+        authenticationTransition.current = null;
+        transitionAccessCleared.current = false;
+      }
     }
   }, []);
 
@@ -99,9 +112,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setIdentity(null);
       setStatus('signed-out');
     } catch (error) {
-      if (generation === operationGeneration.current) throw error;
+      if (generation === operationGeneration.current) {
+        if (transitionAccessCleared.current) {
+          setIdentity(null);
+          setStatus(statusFor(error));
+        }
+        throw error;
+      }
     } finally {
-      if (authenticationTransition.current === generation) authenticationTransition.current = null;
+      if (authenticationTransition.current === generation) {
+        authenticationTransition.current = null;
+        transitionAccessCleared.current = false;
+      }
     }
   }, []);
 
