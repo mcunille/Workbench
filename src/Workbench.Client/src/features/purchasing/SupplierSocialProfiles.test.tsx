@@ -12,7 +12,7 @@ it('focuses a new label before the user can move on to its handle', () => {
   render(<Form />);
   // WHEN adding a row THEN focus is immediately ready for entry, without a delayed focus change.
   fireEvent.click(screen.getByRole('button', { name: 'Add social' }));
-  expect(screen.getByRole('textbox', { name: 'Label 1' })).toHaveFocus();
+  expect(screen.getByRole('textbox', { name: 'Platform' })).toHaveFocus();
 });
 
 it('keeps focus on an available control after removing a row at the limit', async () => {

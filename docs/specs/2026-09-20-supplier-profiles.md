@@ -6,7 +6,7 @@ URL design is superseded.
 
 ## Scope and interaction
 
-The supplier editor offers **Add social**, then an editable **Label** and **Handle** per row.
+The supplier editor offers **Add social**, then an editable **Platform** and **URL / Handle** per row. On desktop, both fields share a row with a compact remove button at the right; mobile stacks the fields and keeps removal right-aligned below them.
 Examples include Discord / gemdealer, Mastodon / @gems@stones.example, or a marketplace name
 and seller identifier. Users define their own labels, rename them, edit values, or remove rows.
 All entries remain optional. Each added row needs both fields; duplicate labels are rejected

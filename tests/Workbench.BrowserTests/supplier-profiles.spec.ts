@@ -9,39 +9,52 @@ for (const width of [320, 1440]) test(`custom supplier handles create, validate,
   await page.getByLabel('Supplier name', { exact: true }).fill(`Reference supplier ${width}`);
   await page.getByLabel('Website', { exact: true }).fill('https://example.test');
   await page.getByRole('button', { name: 'Add social', exact: true }).click();
-  await page.getByLabel('Handle 1', { exact: true }).fill('@gem dealer');
+  await page.getByLabel('URL / Handle', { exact: true }).nth(0).fill('@gem dealer');
   // WHEN saving an incomplete pair THEN the missing label receives actionable feedback and focus.
   await page.getByRole('button', { name: 'Save supplier', exact: true }).click();
-  await expect(page.getByLabel('Label 1', { exact: true })).toHaveAttribute('aria-invalid', 'true');
-  await expect(page.getByLabel('Label 1', { exact: true })).toBeFocused();
-  await page.getByLabel('Label 1', { exact: true }).fill('Trade chat');
+  await expect(page.getByLabel('Platform', { exact: true }).nth(0)).toHaveAttribute('aria-invalid', 'true');
+  await expect(page.getByLabel('Platform', { exact: true }).nth(0)).toBeFocused();
+  await page.getByLabel('Platform', { exact: true }).nth(0).fill('Trade chat');
   await page.getByRole('button', { name: 'Add social', exact: true }).click();
-  await page.getByLabel('Label 2', { exact: true }).fill('Mastodon');
-  await page.getByLabel('Handle 2', { exact: true }).fill('@gems@stones.example');
+  await page.getByLabel('Platform', { exact: true }).nth(1).fill('Mastodon');
+  await page.getByLabel('URL / Handle', { exact: true }).nth(1).fill('@gems@stones.example');
   await page.getByRole('button', { name: 'Add social', exact: true }).click();
-  await page.getByLabel('Label 3', { exact: true }).fill('Gem forum');
-  await page.getByLabel('Handle 3', { exact: true }).fill('https://example.test/member');
+  await page.getByLabel('Platform', { exact: true }).nth(2).fill('Gem forum');
+  await page.getByLabel('URL / Handle', { exact: true }).nth(2).fill('https://example.test/member');
   await page.getByRole('button', { name: 'Save supplier', exact: true }).click();
   await expect(page).toHaveURL(/\/suppliers\/[a-f0-9-]{36}$/);
   await expect(page.getByRole('button', { name: 'Save supplier', exact: true })).toBeDisabled();
   await page.reload();
   // THEN arbitrary labels and handles persist as reference text, without links or overflow.
-  await expect(page.getByLabel('Handle 1', { exact: true })).toHaveValue('@gem dealer');
-  await expect(page.getByLabel('Handle 2', { exact: true })).toHaveValue('@gems@stones.example');
+  await expect(page.getByLabel('URL / Handle', { exact: true }).nth(0)).toHaveValue('@gem dealer');
+  await expect(page.getByLabel('URL / Handle', { exact: true }).nth(1)).toHaveValue('@gems@stones.example');
   const profiles = page.getByRole('group', { name: 'Social handles (optional)' });
+  // THEN the unnumbered fields fill a desktop row with removal at the right; mobile stacks them.
+  const platformBox = (await page.getByLabel('Platform', { exact: true }).first().boundingBox())!;
+  const handleBox = (await page.getByLabel('URL / Handle', { exact: true }).first().boundingBox())!;
+  const removeBox = (await page.getByRole('button', { name: 'Remove social 1', exact: true }).boundingBox())!;
+  if (width > 700) {
+    expect(Math.abs(platformBox.y - handleBox.y)).toBeLessThan(2);
+    expect(Math.abs(platformBox.y - removeBox.y)).toBeLessThan(2);
+    expect(removeBox.x).toBeGreaterThan(handleBox.x + handleBox.width);
+  } else {
+    expect(handleBox.y).toBeGreaterThan(platformBox.y + platformBox.height);
+    expect(removeBox.y).toBeGreaterThan(handleBox.y + handleBox.height);
+    expect(Math.abs(removeBox.x + removeBox.width - handleBox.x - handleBox.width)).toBeLessThan(2);
+  }
   await expect(profiles.getByRole('link')).toHaveCount(0);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   // WHEN renaming, editing and removing a pair THEN reload preserves the requested list and the separate website.
-  await page.getByLabel('Label 1', { exact: true }).fill('Discord');
-  await page.getByLabel('Handle 1', { exact: true }).fill('gemdealer');
+  await page.getByLabel('Platform', { exact: true }).nth(0).fill('Discord');
+  await page.getByLabel('URL / Handle', { exact: true }).nth(0).fill('gemdealer');
   await page.getByRole('button', { name: 'Remove social 2', exact: true }).click();
   await page.getByRole('button', { name: 'Save supplier', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Save supplier', exact: true })).toBeDisabled();
   await page.reload();
-  await expect(page.getByLabel('Label 1', { exact: true })).toHaveValue('Discord');
-  await expect(page.getByLabel('Handle 1', { exact: true })).toHaveValue('gemdealer');
-  await expect(page.getByLabel('Label 2', { exact: true })).toHaveValue('Gem forum');
-  await expect(page.getByLabel('Handle 2', { exact: true })).toHaveValue('https://example.test/member');
-  await expect(page.getByLabel('Handle 3', { exact: true })).toHaveCount(0);
+  await expect(page.getByLabel('Platform', { exact: true }).nth(0)).toHaveValue('Discord');
+  await expect(page.getByLabel('URL / Handle', { exact: true }).nth(0)).toHaveValue('gemdealer');
+  await expect(page.getByLabel('Platform', { exact: true }).nth(1)).toHaveValue('Gem forum');
+  await expect(page.getByLabel('URL / Handle', { exact: true }).nth(1)).toHaveValue('https://example.test/member');
+  await expect(page.getByLabel('URL / Handle', { exact: true }).nth(2)).toHaveCount(0);
   await expect(page.getByLabel('Website', { exact: true })).toHaveValue('https://example.test');
 });

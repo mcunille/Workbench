@@ -228,8 +228,8 @@ the original request; do not create a new request to resolve a lost response.
 
 ## Supplier social handles
 
-Use **Add social** in a supplier's **Social handles (optional)** section to record a label and
-handle of your choosing. For example, enter **Discord** and **gemdealer**, or a marketplace name
+Use **Add social** in a supplier's **Social handles (optional)** section to record a **Platform** and
+**URL / Handle** of your choosing. For example, enter **Discord** and **gemdealer**, or a marketplace name
 and seller identifier. Edit either field, or use **Remove** to remove a pair, then save the supplier.
 Both fields are required for each added row; labels must be unique ignoring case. Up to 20 pairs
 are supported. Handles are plain text kept for reference; they need not be web addresses and

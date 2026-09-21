@@ -17,14 +17,14 @@ it('adds, renames, edits and removes arbitrary social handles while retaining co
   await screen.findByRole('heading', { name: 'Gems', level: 1 });
   const profiles = screen.getByRole('group', { name: 'Social handles (optional)' });
   expect(within(profiles).queryByRole('link')).not.toBeInTheDocument();
-  expect(screen.getByLabelText('Handle 2')).toHaveValue('@gems@stones.example');
+  expect(screen.getAllByLabelText('URL / Handle')[1]).toHaveValue('@gems@stones.example');
   // WHEN renaming and editing one row, removing another, and adding a custom label.
-  fireEvent.change(screen.getByLabelText('Label 1'), { target: { value: 'Trade chat' } });
-  fireEvent.change(screen.getByLabelText('Handle 1'), { target: { value: '@gem dealer' } });
+  fireEvent.change(screen.getAllByLabelText('Platform')[0], { target: { value: 'Trade chat' } });
+  fireEvent.change(screen.getAllByLabelText('URL / Handle')[0], { target: { value: '@gem dealer' } });
   fireEvent.click(screen.getByRole('button', { name: 'Remove social 2' }));
   fireEvent.click(screen.getByRole('button', { name: 'Add social' }));
-  fireEvent.change(screen.getByLabelText('Label 3'), { target: { value: 'Gem forum' } });
-  fireEvent.change(screen.getByLabelText('Handle 3'), { target: { value: 'member #42' } });
+  fireEvent.change(screen.getAllByLabelText('Platform')[2], { target: { value: 'Gem forum' } });
+  fireEvent.change(screen.getAllByLabelText('URL / Handle')[2], { target: { value: 'member #42' } });
   fireEvent.click(screen.getByRole('button', { name: 'Save supplier' }));
   // THEN all remaining rows and the separate website are saved verbatim.
   await waitFor(() => expect(updateSupplier).toHaveBeenCalledWith('one', expect.objectContaining({ supplier: {
@@ -37,12 +37,12 @@ it('focuses incomplete social fields and preserves plain handles after server va
   render(<SupplierEditor {...props()} />);
   fireEvent.change(screen.getByLabelText('Supplier name'), { target: { value: 'New supplier' } });
   fireEvent.click(screen.getByRole('button', { name: 'Add social' }));
-  fireEvent.change(screen.getByLabelText('Handle 1'), { target: { value: '@gems' } });
+  fireEvent.change(screen.getAllByLabelText('URL / Handle')[0], { target: { value: '@gems' } });
   // WHEN saving THEN validation focuses the missing label and retains the entered handle.
   fireEvent.click(screen.getByRole('button', { name: 'Save supplier' }));
-  await waitFor(() => expect(screen.getByLabelText('Label 1')).toHaveFocus());
-  expect(screen.getByLabelText('Label 1')).toHaveAccessibleDescription('Enter a label.');
-  expect(screen.getByLabelText('Handle 1')).toHaveValue('@gems');
+  await waitFor(() => expect(screen.getAllByLabelText('Platform')[0]).toHaveFocus());
+  expect(screen.getAllByLabelText('Platform')[0]).toHaveAccessibleDescription('Enter a label.');
+  expect(screen.getAllByLabelText('URL / Handle')[0]).toHaveValue('@gems');
 });
 it('offers contact-specific input controls without imposing browser validation over server feedback', () => {
   // GIVEN a supplier form WHEN entering contact details THEN devices receive the appropriate input semantics.

@@ -22,7 +22,7 @@ export function SupplierSocialProfiles({ profiles, disabled, errors, onChange }:
   function field(profile: SocialProfile, index: number, key: keyof SocialProfile) {
     const id = `supplier-socialProfiles[${index}].${key}`;
     const error = errors[`supplier.socialProfiles[${index}].${key}`]?.join(' ');
-    const label = `${key === 'label' ? 'Label' : 'Handle'} ${index + 1}`;
+    const label = key === 'label' ? 'Platform' : 'URL / Handle';
     return <div className="po-field">
       <FloatingField htmlFor={id} label={label}>
         <input id={id} type="text" value={profile[key]} placeholder={key === 'label' ? 'e.g. Discord' : 'e.g. @gemdealer'}
@@ -34,11 +34,11 @@ export function SupplierSocialProfiles({ profiles, disabled, errors, onChange }:
     </div>;
   }
   return <section className="po-form-section" role="group" aria-labelledby="supplier-socialProfiles-heading" id="supplier-socialProfiles" tabIndex={-1}>
-    <div className="po-section-heading"><div><h2 id="supplier-socialProfiles-heading">Social handles (optional)</h2><p>Choose a label and keep the handle here for reference.</p></div></div>
+    <div className="po-section-heading"><div><h2 id="supplier-socialProfiles-heading">Social handles (optional)</h2><p>Choose a platform and keep its URL or handle here for reference.</p></div></div>
     <div className="po-social-profiles">
       {profiles.map((profile, index) => <div className="po-social-profile" key={index}>
-        <div className="po-supplier-contact-fields">{field(profile, index, 'label')}{field(profile, index, 'handle')}</div>
-        <button type="button" className="quiet danger" disabled={disabled} aria-label={`Remove social ${index + 1}`} onClick={() => {
+        <div className="po-social-profile-fields">{field(profile, index, 'label')}{field(profile, index, 'handle')}</div>
+        <button type="button" className="secondary danger po-social-profile-remove" disabled={disabled} aria-label={`Remove social ${index + 1}`} onClick={() => {
           pendingFocus.current = 'add';
           onChange(profiles.filter((_, position) => position !== index));
         }}>Remove</button>
