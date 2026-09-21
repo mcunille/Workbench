@@ -11,7 +11,13 @@ public sealed record SupplierContent(
     [property: JsonRequired, MaxLength(254)] string? Email,
     [property: JsonRequired, MaxLength(100)] string? Phone,
     [property: JsonRequired, MaxLength(2048)] string? Website,
-    [property: JsonRequired, MaxLength(2000)] string? PostalAddress);
+    [property: JsonRequired, MaxLength(2000)] string? PostalAddress,
+    [property: MaxLength(20), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] IReadOnlyList<SupplierSocialProfile>? SocialProfiles = null);
+
+[JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
+public sealed record SupplierSocialProfile(
+    [property: JsonRequired, MaxLength(100)] string Label,
+    [property: JsonRequired, MaxLength(2048)] string Handle);
 
 public sealed record DraftOrderSummary(Guid Id, string? Title, string? SupplierName, string UpdatedAtUtc,
     string PoReference, string? SupplierOrderReference, string? Platform, string? FirstItemDescription);

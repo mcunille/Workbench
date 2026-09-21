@@ -25,6 +25,7 @@ public partial class WorkbenchDbContext
         supplier.Property(row => row.Email).HasMaxLength(254);
         supplier.Property(row => row.Phone).HasMaxLength(100);
         supplier.Property(row => row.Website).HasMaxLength(2048);
+        supplier.Property(row => row.SocialProfilesJson).HasColumnType("nvarchar(max)");
         supplier.Property(row => row.PostalAddress).HasMaxLength(2000);
         supplier.Property(row => row.RowVersion).IsRowVersion();
         supplier.HasIndex(row => new { row.TenantId, row.UpdatedAtUtc, row.Id }).IsDescending(false, true, true);

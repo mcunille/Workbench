@@ -4507,6 +4507,7 @@ export interface components {
             phone: null | string;
             website: null | string;
             postalAddress: null | string;
+            socialProfiles?: null | components["schemas"]["SupplierSocialProfile"][];
         };
         SupplierPageResponse: {
             items: components["schemas"]["SupplierResponse"][];
@@ -4520,6 +4521,10 @@ export interface components {
             createdAtUtc: string;
             updatedAtUtc: string;
             version: string;
+        };
+        SupplierSocialProfile: {
+            label: string;
+            handle: string;
         };
         SystemResponse: {
             name: string;

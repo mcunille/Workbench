@@ -13,6 +13,7 @@ internal static class PurchasingIdentityInput
         Email = Trim(input.Email),
         Phone = Trim(input.Phone),
         Website = NormalizeWebsite(input.Website),
+        SocialProfiles = input.SocialProfiles is { Count: > 0 } profiles ? profiles.Select(profile => profile is null ? null! : new SupplierSocialProfile(profile.Label?.Trim()!, profile.Handle?.Trim()!)).ToArray() : null,
         PostalAddress = string.IsNullOrWhiteSpace(input.PostalAddress) ? null : input.PostalAddress
     };
     private static string? NormalizeWebsite(string? input)
@@ -42,6 +43,21 @@ internal static class PurchasingIdentityInput
             !Uri.TryCreate(website, UriKind.Absolute, out var uri) || uri.Scheme is not ("http" or "https") || string.IsNullOrEmpty(uri.Host) || !string.IsNullOrEmpty(uri.UserInfo)))
             errors[prefix + "website"] = ["Enter a valid HTTP or HTTPS website without spaces or credentials."];
         if (input.PostalAddress?.Length > 2000) errors[prefix + "postalAddress"] = ["Use at most 2000 characters."];
+        if (input.SocialProfiles is { } profiles)
+        {
+            if (profiles.Count > 20) errors[prefix + "socialProfiles"] = ["Use at most 20 social handles."];
+            var labels = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            for (var index = 0; index < profiles.Count; index++)
+            {
+                var profile = profiles[index];
+                var key = $"socialProfiles[{index}]";
+                Field(profile?.Label, 100, key + ".label");
+                Field(profile?.Handle, 2048, key + ".handle");
+                if (string.IsNullOrWhiteSpace(profile?.Label)) errors[prefix + key + ".label"] = ["Enter a platform or label."];
+                else if (!labels.Add(profile.Label.Trim())) errors[prefix + key + ".label"] = ["Use each platform or label only once."];
+                if (string.IsNullOrWhiteSpace(profile?.Handle)) errors[prefix + key + ".handle"] = ["Enter a handle or reference."];
+            }
+        }
         return errors;
     }
     public static string? Query(string? query) => Trim(query)?.ToUpperInvariant();

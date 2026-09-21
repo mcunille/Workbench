@@ -8,6 +8,42 @@ const saved = { id: 'one', supplier, version: 'v1', isArchived: false, createdAt
 const receipt = { requestId: 'request', replayed: false, supplierId: 'one', savedVersion: 'v1', completedAtUtc: saved.updatedAtUtc };
 const props = () => ({ onDirtyChange: vi.fn(), onAuthLost: vi.fn(), onCancel: vi.fn(), onCreated: vi.fn(), onSelected: vi.fn() });
 beforeEach(() => { vi.resetAllMocks(); Object.defineProperty(HTMLDialogElement.prototype, 'showModal', { configurable: true, value(this: HTMLDialogElement) { this.setAttribute('open', ''); } }); });
+it('adds, renames, edits and removes arbitrary social handles while retaining contacts', async () => {
+  // GIVEN arbitrary saved labels and reference handles, including URL-like text.
+  const socialProfiles = [{ label: 'Discord', handle: 'gemdealer' }, { label: 'Mastodon', handle: '@gems@stones.example' }, { label: 'Forum', handle: 'https://example.test/member' }];
+  vi.mocked(getSupplier).mockResolvedValue({ ...saved, supplier: { ...supplier, socialProfiles } });
+  vi.mocked(updateSupplier).mockResolvedValue(receipt);
+  render(<SupplierEditor id="one" {...props()} />);
+  await screen.findByRole('heading', { name: 'Gems', level: 1 });
+  const profiles = screen.getByRole('group', { name: 'Social handles (optional)' });
+  expect(within(profiles).queryByRole('link')).not.toBeInTheDocument();
+  expect(screen.getAllByLabelText('URL / Handle')[1]).toHaveValue('@gems@stones.example');
+  // WHEN renaming and editing one row, removing another, and adding a custom label.
+  fireEvent.change(screen.getAllByLabelText('Platform')[0], { target: { value: 'Trade chat' } });
+  fireEvent.change(screen.getAllByLabelText('URL / Handle')[0], { target: { value: '@gem dealer' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Remove social 2' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Add social' }));
+  fireEvent.change(screen.getAllByLabelText('Platform')[2], { target: { value: 'Gem forum' } });
+  fireEvent.change(screen.getAllByLabelText('URL / Handle')[2], { target: { value: 'member #42' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Save supplier' }));
+  // THEN all remaining rows and the separate website are saved verbatim.
+  await waitFor(() => expect(updateSupplier).toHaveBeenCalledWith('one', expect.objectContaining({ supplier: {
+    ...supplier, socialProfiles: [{ label: 'Trade chat', handle: '@gem dealer' }, socialProfiles[2], { label: 'Gem forum', handle: 'member #42' }],
+  } })));
+});
+it('focuses incomplete social fields and preserves plain handles after server validation', async () => {
+  // GIVEN a new row with a handle but no label.
+  vi.mocked(createSupplier).mockRejectedValue(new SupplierError(400, 'supplier_validation_failed', { 'supplier.socialProfiles[0].label': ['Enter a label.'] }));
+  render(<SupplierEditor {...props()} />);
+  fireEvent.change(screen.getByLabelText('Supplier name'), { target: { value: 'New supplier' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Add social' }));
+  fireEvent.change(screen.getAllByLabelText('URL / Handle')[0], { target: { value: '@gems' } });
+  // WHEN saving THEN validation focuses the missing label and retains the entered handle.
+  fireEvent.click(screen.getByRole('button', { name: 'Save supplier' }));
+  await waitFor(() => expect(screen.getAllByLabelText('Platform')[0]).toHaveFocus());
+  expect(screen.getAllByLabelText('Platform')[0]).toHaveAccessibleDescription('Enter a label.');
+  expect(screen.getAllByLabelText('URL / Handle')[0]).toHaveValue('@gems');
+});
 it('offers contact-specific input controls without imposing browser validation over server feedback', () => {
   // GIVEN a supplier form WHEN entering contact details THEN devices receive the appropriate input semantics.
   render(<SupplierEditor {...props()} />);

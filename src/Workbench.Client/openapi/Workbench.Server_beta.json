@@ -6302,6 +6302,16 @@
               "null",
               "string"
             ]
+          },
+          "socialProfiles": {
+            "maxItems": 20,
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/SupplierSocialProfile"
+            }
           }
         },
         "additionalProperties": false
@@ -6358,6 +6368,24 @@
             "type": "string"
           }
         }
+      },
+      "SupplierSocialProfile": {
+        "required": [
+          "label",
+          "handle"
+        ],
+        "type": "object",
+        "properties": {
+          "label": {
+            "maxLength": 100,
+            "type": "string"
+          },
+          "handle": {
+            "maxLength": 2048,
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
       },
       "SystemResponse": {
         "required": [

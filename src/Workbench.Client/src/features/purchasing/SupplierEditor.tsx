@@ -7,6 +7,7 @@ import { ApiError } from '../../api/auth';
 import { getSupplier, createSupplier, updateSupplier, archiveSupplier, SupplierError, type Supplier, type SupplierContent, type SupplierReceipt, type CreateSupplierRequest, type UpdateSupplierRequest, type ArchiveSupplierRequest } from '../../api/suppliers';
 import { SupplierDetails } from './supplierDetails';
 import { emptySupplier, supplierFields } from './supplierSnapshot';
+import { SupplierSocialProfiles } from './SupplierSocialProfiles';
 import { SupplierDialog } from './SupplierDialog';
 import './purchasing.css';
 type Mode = 'loading' | 'editing' | 'saving' | 'uncertain' | 'reading' | 'read-failed' | 'comparison' | 'blocked' | 'load-failed';
@@ -130,7 +131,7 @@ export function SupplierEditor({ id: initialId, inline, onDirtyChange, onAuthLos
     {message ? <p role={mode === 'editing' && !Object.keys(errors).length ? 'status' : 'alert'}>{message}</p> : null}
     {inline && (mode === 'loading' || mode === 'reading') ? <p role="status">Loading current supplier…</p> : null}
     {mode === 'read-failed' || mode === 'load-failed' ? <button type="button" className="secondary" onClick={() => { if (id && !busy.current) { busy.current = true; void read(id, readReason, receipt.current).finally(() => { busy.current = false; }); } }}>Load current supplier</button> : null}
-    {current && mode === 'comparison' ? <section className="po-comparison-panel" aria-label="Compare supplier versions"><h2>Review newer supplier changes</h2><div className="po-comparison"><SupplierDetails heading="Current saved" supplier={current.supplier} archived={current.isArchived} /><SupplierDetails heading="Your changes" supplier={supplier} archived={baseline?.isArchived} /></div><div className="button-row"><button className="secondary" type="button" onClick={() => reconcile(false)}>Use saved version</button><button className="primary" type="button" onClick={() => reconcile(true)}>Continue with my changes</button></div></section> : null}
+    {current && mode === 'comparison' ? <section className="po-comparison-panel" aria-label="Compare supplier versions"><h2>Review newer supplier changes</h2><div className="po-comparison"><SupplierDetails includeProfiles heading="Current saved" supplier={current.supplier} archived={current.isArchived} /><SupplierDetails includeProfiles heading="Your changes" supplier={supplier} archived={baseline?.isArchived} /></div><div className="button-row"><button className="secondary" type="button" onClick={() => reconcile(false)}>Use saved version</button><button className="primary" type="button" onClick={() => reconcile(true)}>Continue with my changes</button></div></section> : null}
     {['uncertain', 'read-failed', 'comparison', 'blocked'].includes(mode) && recoveryText(supplier) ? <RecoveryText label="Supplier" text={recoveryText(supplier)} /> : null}
     <form id={formId} className="form-stack" noValidate onSubmit={event => { event.preventDefault(); event.stopPropagation(); void execute(); }}>
       {Object.keys(errors).length ? <div className="po-validation-summary" role="alert"><h2>Review these fields</h2><ul>{Object.entries(errors).flatMap(([path, values]) => values.map((value, index) => <li key={`${path}-${index}`}><a href={`#supplier-${path.replace('supplier.', '')}`} onClick={event => { event.preventDefault(); document.getElementById(`supplier-${path.replace('supplier.', '')}`)?.focus(); }}>{value}</a></li>))}</ul></div> : null}
@@ -139,6 +140,7 @@ export function SupplierEditor({ id: initialId, inline, onDirtyChange, onAuthLos
         <div className="po-section-heading"><div><h2 id={`${formId}-contacts`}>Contact details (optional)</h2><p>Changes here won’t update existing purchase orders.</p></div></div>
         <div className="po-supplier-contact-fields">{supplierFields.slice(1).map(field)}</div>
       </section>
+      <SupplierSocialProfiles profiles={supplier.socialProfiles ?? []} disabled={frozen} errors={errors} onChange={socialProfiles => setSupplier({ ...supplier, socialProfiles: socialProfiles.length ? socialProfiles : undefined })} />
       {inline ? <div className="button-row po-dialog-footer"><button className="secondary" type="button" onClick={onCancel}>Cancel</button>{saveButton}
       {inline && baseline && mode === 'editing' && !changed ? <button className="secondary" type="button" onClick={() => onSelected?.(baseline)}>Select saved supplier</button> : null}
       </div> : null}

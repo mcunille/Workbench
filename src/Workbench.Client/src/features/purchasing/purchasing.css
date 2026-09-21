@@ -57,6 +57,16 @@
 .po-supplier-address { grid-column: 1 / -1; }
 .po-field-help.po-required-help { margin-top: .5rem; }
 .po-supplier-contact-fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr)); gap: 1rem; }
+.po-social-profiles { display: grid; gap: 1rem; }
+.po-social-profile { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: start; gap: 1rem; }
+.po-social-profile-fields { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 2fr); gap: 1rem; }
+.po-social-profile > button.po-social-profile-remove { margin-top: .5rem; display: grid; place-items: center; width: 3.125rem; min-height: 3.125rem; padding: 0; border: 1px solid var(--border-subtle); border-radius: var(--radius-input); }
+@media (max-width: 700px) {
+  .po-social-profile { grid-template-columns: minmax(0, 1fr); padding-bottom: 1rem; border-bottom: 1px solid var(--border-subtle); }
+  .po-social-profile-fields { grid-template-columns: minmax(0, 1fr); }
+  .po-social-profile > button.po-social-profile-remove { margin-top: 0; justify-self: end; min-height: 2.75rem; }
+}
+.po-social-profiles:not(:empty) { margin-bottom: 1rem; }
 .po-supplier-inline-editor .po-form-section + .po-form-section { padding-top: 1.25rem; margin-top: 1.25rem; }
 .po-accessible-heading { position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 .editor.po-editor .form-stack { gap: 0; padding: 0; margin-top: 1.25rem; }
