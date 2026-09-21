@@ -7,9 +7,17 @@
 .accounting-workspace h2 { margin-top: 2rem; }
 .accounting-check { display: flex !important; align-items: center; gap: .65rem; }
 .accounting-check input { width: auto; }
-.accounting-readiness { margin-block: 1.5rem; padding-block: 1rem; border-block: 1px solid var(--glass-edge); }
 .accounting-workspace details { margin-block: .75rem; }
 .accounting-workspace summary { cursor: pointer; padding-block: .5rem; }
+.accounting-workspace > .accounting-readiness { margin-block: .5rem 1.25rem; }
+.accounting-readiness > summary { min-height: 2.75rem; align-content: center; font-weight: 600; }
+.accounting-status-details { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 22rem), 1fr)); gap: 1rem 2rem; padding-bottom: .75rem; }
+.accounting-status-details h2 { font-size: 1rem; margin-block: .75rem .5rem; }
+.accounting-status-details ul { margin-block: 0; padding-left: 1.25rem; }
+.accounting-sections { display: flex; flex-wrap: wrap; gap: .25rem 1rem; border-bottom: 1px solid var(--glass-edge); }
+.accounting-sections > button { border: 0; border-bottom: 2px solid transparent; border-radius: 0; background: transparent; min-height: 2.75rem; padding-inline: .5rem; }
+.accounting-sections > button[aria-pressed="true"] { border-bottom-color: currentColor; font-weight: 700; }
+.accounting-section > div > h2:first-child, .accounting-section > div > section > h2:first-child { margin-top: 1.25rem; }
 .accounting-coverage { margin-block: 1.5rem; padding: 1.25rem; min-width: 0; border: 1px solid var(--glass-edge); border-radius: 6px; }
 .accounting-coverage fieldset { min-width: 0; margin-block: 1rem; border: 1px solid var(--glass-edge); }
 .accounting-save { padding-block: 1.5rem; margin-top: 1.5rem; border-top: 1px solid var(--glass-edge); }
@@ -24,3 +32,17 @@
 .accounting-account-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 1rem; margin-block: 1.5rem; }
 .accounting-account-toolbar > .floating-field { flex: 1 1 20rem; max-width: 32rem; }
 .accounting-account-toolbar > .accounting-check { flex: 0 0 auto; }
+
+.accounting-policy-groups { display: grid; gap: 2rem; margin-top: 1.5rem; }
+.accounting-policy-group { min-width: 0; margin: 0; padding: 0; border: 0; }
+.accounting-policy-group legend { padding: 0; font-weight: 600; }
+.accounting-policy-group .accounting-grid { margin-block: 1rem 0; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.accounting-policy-group:last-child .floating-field:last-child { grid-column: 1 / -1; }
+.accounting-mappings-link { display: inline-flex; align-items: center; min-height: 2.75rem; margin-top: .75rem; }
+.accounting-accounts-layout { display: grid; gap: 2rem; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; }
+.accounting-accounts-layout > section { min-width: 0; }
+.accounting-accounts-layout .accounting-grid { grid-template-columns: minmax(0, 1fr); }
+.accounting-accounts-layout h2 { margin-top: 1rem; }
+#accounting-mappings { scroll-margin-top: 1rem; }
+@media (max-width: 64rem) { .accounting-accounts-layout { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 40rem) { .accounting-policy-group .accounting-grid { grid-template-columns: minmax(0, 1fr); } }

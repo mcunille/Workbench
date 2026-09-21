@@ -10,6 +10,37 @@ function handlers() {
   server.use(http.get('*/api/beta/accounting/catalog', () => HttpResponse.json(catalog)), http.get('*/api/beta/accounting/setup', () => HttpResponse.json(setup)), http.get('*/api/beta/accounting/accounts', () => HttpResponse.json({ items: [], nextCursor: null })), http.get('*/api/beta/auth/antiforgery', () => HttpResponse.json({ requestToken: 'test' })));
 }
 describe('Accounting setup', () => {
+  it('groups related policy decisions and provides direct access to mappings', async () => {
+    // GIVEN an administrator preparing a business configuration
+    handlers();
+    render(<AccountingSetup canManage onAuthLost={vi.fn()} onDirtyChange={vi.fn()} />);
+    // THEN related decisions are exposed as named groups in their reading order
+    expect(await screen.findByRole('group', { name: 'Location and currency' })).toBeVisible();
+    expect(screen.getByRole('group', { name: 'Accounting dates' })).toBeVisible();
+    expect(screen.getByRole('group', { name: 'Retention and policy notes' })).toBeVisible();
+    // WHEN browsing accounts THEN mappings have a direct keyboard-accessible destination
+    fireEvent.click(screen.getByRole('button', { name: 'Accounts and mappings' }));
+    const shortcut = screen.getByRole('link', { name: 'Go to mappings' });
+    expect(shortcut).toHaveAttribute('href', '#accounting-mappings');
+    expect(screen.getByRole('heading', { name: 'Mappings' })).toHaveAttribute('id', 'accounting-mappings');
+    expect(screen.getByRole('heading', { name: 'Mappings' })).toHaveAttribute('tabindex', '-1');
+  });
+  it('keeps setup details collapsed while preserving unanswered decisions and capability limits', async () => {
+    // GIVEN an incomplete setup with an unavailable bookkeeping capability
+    handlers();
+    render(<AccountingSetup canManage onAuthLost={vi.fn()} onDirtyChange={vi.fn()} />);
+    // WHEN the policies are ready THEN status details do not compete with the form
+    expect(await screen.findByLabelText('Functional currency')).toBeVisible();
+    const summary = screen.getByText('Saved setup: 1 unanswered item');
+    const disclosure = summary.closest('details');
+    expect(disclosure).not.toHaveAttribute('open');
+    expect(disclosure).toHaveTextContent('Currency');
+    expect(disclosure).toHaveTextContent('Journal is not available.');
+    // WHEN details are expanded THEN both the remaining work and capability explanation remain available
+    fireEvent.click(summary);
+    expect(disclosure).toHaveAttribute('open');
+    expect(screen.getByText('Journal is not available.')).toBeVisible();
+  });
   it('saves explicit business choices without inferring precision or enabling bookkeeping', async () => {
     // GIVEN incomplete accounting setup and an authorized administrator
     handlers(); let saved: unknown;
