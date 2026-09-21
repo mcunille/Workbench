@@ -114,6 +114,11 @@ one-off supplier details directly on a draft. Contact name, email, phone, websit
 are optional. Duplicate supplier names are allowed. Archiving a supplier removes it from default
 selection while keeping its saved orders and details; it can be reactivated later.
 
+Supplier directory websites accept domains such as `example.com` or `www.example.com/shop`;
+saving trims surrounding whitespace and adds `https://` when the scheme is omitted. Explicit
+HTTP/HTTPS schemes, paths, queries and fragments are preserved. Websites remain optional;
+malformed addresses, other schemes, spaces and embedded credentials are rejected by the server.
+
 Selecting a supplier copies their details onto this draft. Editing the directory never rewrites
 saved purchases. **Use current supplier details** previews a refresh for this draft; confirm the
 replacement and then save. **Keep details as one-off** removes the directory link while retaining
