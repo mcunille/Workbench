@@ -1,5 +1,6 @@
 import { useLayoutEffect, useRef } from 'react';
 import { FloatingField } from '../../FloatingField';
+import { Icon } from '../../Icon';
 
 type SocialProfile = { label: string; handle: string };
 export function SupplierSocialProfiles({ profiles, disabled, errors, onChange }: {
@@ -24,7 +25,7 @@ export function SupplierSocialProfiles({ profiles, disabled, errors, onChange }:
     const error = errors[`supplier.socialProfiles[${index}].${key}`]?.join(' ');
     const label = key === 'label' ? 'Platform' : 'URL / Handle';
     return <div className="po-field">
-      <FloatingField htmlFor={id} label={label}>
+      <FloatingField htmlFor={id} label={label} compact>
         <input id={id} type="text" value={profile[key]} placeholder={key === 'label' ? 'e.g. Discord' : 'e.g. @gemdealer'}
           disabled={disabled} maxLength={key === 'label' ? 100 : 2048} required
           aria-invalid={!!error} aria-describedby={error ? `${id}-error` : undefined}
@@ -38,10 +39,10 @@ export function SupplierSocialProfiles({ profiles, disabled, errors, onChange }:
     <div className="po-social-profiles">
       {profiles.map((profile, index) => <div className="po-social-profile" key={index}>
         <div className="po-social-profile-fields">{field(profile, index, 'label')}{field(profile, index, 'handle')}</div>
-        <button type="button" className="secondary danger po-social-profile-remove" disabled={disabled} aria-label={`Remove social ${index + 1}`} onClick={() => {
+        <button type="button" className="secondary danger po-social-profile-remove" title="Remove social" disabled={disabled} aria-label={`Remove social ${index + 1}`} onClick={() => {
           pendingFocus.current = 'add';
           onChange(profiles.filter((_, position) => position !== index));
-        }}>Remove</button>
+        }}><Icon name="close" /></button>
       </div>)}
     </div>
     {errors['supplier.socialProfiles'] ? <p className="form-message error">{errors['supplier.socialProfiles'].join(' ')}</p> : null}
