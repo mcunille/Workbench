@@ -1,4 +1,4 @@
-import { useRef } from 'react';
+import { useLayoutEffect, useRef } from 'react';
 import { FloatingField } from '../../FloatingField';
 
 type SocialProfile = { label: string; handle: string };
@@ -9,6 +9,13 @@ export function SupplierSocialProfiles({ profiles, disabled, errors, onChange }:
   onChange(profiles: SocialProfile[]): void;
 }) {
   const addButton = useRef<HTMLButtonElement>(null);
+  const pendingFocus = useRef<number | 'add' | null>(null);
+  useLayoutEffect(() => {
+    const target = pendingFocus.current;
+    pendingFocus.current = null;
+    if (target === 'add') addButton.current?.focus();
+    else if (target !== null) document.getElementById(`supplier-socialProfiles[${target}].label`)?.focus();
+  }, [profiles]);
   function update(index: number, key: keyof SocialProfile, value: string) {
     onChange(profiles.map((profile, position) => position === index ? { ...profile, [key]: value } : profile));
   }
@@ -32,15 +39,15 @@ export function SupplierSocialProfiles({ profiles, disabled, errors, onChange }:
       {profiles.map((profile, index) => <div className="po-social-profile" key={index}>
         <div className="po-supplier-contact-fields">{field(profile, index, 'label')}{field(profile, index, 'handle')}</div>
         <button type="button" className="quiet danger" disabled={disabled} aria-label={`Remove social ${index + 1}`} onClick={() => {
+          pendingFocus.current = 'add';
           onChange(profiles.filter((_, position) => position !== index));
-          requestAnimationFrame(() => addButton.current?.focus());
         }}>Remove</button>
       </div>)}
     </div>
     {errors['supplier.socialProfiles'] ? <p className="form-message error">{errors['supplier.socialProfiles'].join(' ')}</p> : null}
     <button ref={addButton} type="button" className="secondary" disabled={disabled || profiles.length >= 20} onClick={() => {
+      pendingFocus.current = profiles.length;
       onChange([...profiles, { label: '', handle: '' }]);
-      requestAnimationFrame(() => document.getElementById(`supplier-socialProfiles[${profiles.length}].label`)?.focus());
     }}>Add social</button>
     {profiles.length >= 20 ? <p className="po-field-help">Up to 20 social handles per supplier.</p> : null}
   </section>;

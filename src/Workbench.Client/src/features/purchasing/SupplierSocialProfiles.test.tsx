@@ -3,6 +3,18 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { vi } from 'vitest';
 import { SupplierSocialProfiles } from './SupplierSocialProfiles';
 
+it('focuses a new label before the user can move on to its handle', () => {
+  // GIVEN an empty profile editor.
+  function Form() {
+    const [profiles, setProfiles] = useState<{ label: string; handle: string }[]>([]);
+    return <SupplierSocialProfiles profiles={profiles} disabled={false} errors={{}} onChange={setProfiles} />;
+  }
+  render(<Form />);
+  // WHEN adding a row THEN focus is immediately ready for entry, without a delayed focus change.
+  fireEvent.click(screen.getByRole('button', { name: 'Add social' }));
+  expect(screen.getByRole('textbox', { name: 'Label 1' })).toHaveFocus();
+});
+
 it('keeps focus on an available control after removing a row at the limit', async () => {
   // GIVEN the maximum number of reference handles, with Add social disabled.
   function Form() {
