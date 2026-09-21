@@ -25,10 +25,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [identity, setIdentity] = useState<CurrentIdentity | null>(null);
   const [status, setStatus] = useState<AuthStatus>('loading');
 
-  const refresh = useCallback(async () => {
-    // Discard protected application state immediately while rechecking access.
-    setIdentity(null);
-    setStatus('loading');
+  const refresh = useCallback(async (mode?: 'permissions') => {
+    // Access-loss checks discard protected state immediately. A successful role
+    // change only refreshes permission claims, preserving the saved editor feedback.
+    if (mode !== 'permissions') {
+      setIdentity(null);
+      setStatus('loading');
+    }
     try {
       const result = await getCurrentIdentity();
       setIdentity(result);
@@ -81,3 +84,4 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
+

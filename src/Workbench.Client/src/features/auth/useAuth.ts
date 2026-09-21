@@ -6,7 +6,7 @@ export type AuthStatus = 'loading' | 'signed-out' | 'signed-in' | 'forbidden' | 
 export interface AuthValue {
   identity: CurrentIdentity | null;
   status: AuthStatus;
-  refresh(): Promise<void>;
+  refresh(mode?: 'permissions'): Promise<void>;
   signIn(email: string, password: string): Promise<void>;
   signOut(): Promise<void>;
 }
@@ -20,3 +20,4 @@ export function useAuth(): AuthValue {
   }
   return value;
 }
+

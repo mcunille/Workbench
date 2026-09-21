@@ -24,7 +24,7 @@ function stateLabel(state: number): string {
   return 'Unknown';
 }
 
-export function TenantUsers({ onAuthLost, onDirtyChange }: { onAuthLost?(): void; onDirtyChange?(dirty: boolean, uncertain: boolean): void }) {
+export function TenantUsers({ onAuthLost, onRolesSaved, onDirtyChange }: { onAuthLost?(): void; onRolesSaved?(): void; onDirtyChange?(dirty: boolean, uncertain: boolean): void }) {
   const [roleUser, setRoleUser] = useState<TenantUser>();
   const [roleChangePending, setRoleChangePending] = useState(false);
   const roleDraftChanged = useCallback((dirty: boolean, uncertain: boolean) => {
@@ -145,11 +145,12 @@ export function TenantUsers({ onAuthLost, onDirtyChange }: { onAuthLost?(): void
       ) : (
         <p role="status">Loading tenant users…</p>
       )}
-      {roleUser ? <AccountingRoles key={roleUser.id} userId={roleUser.id} email={roleUser.email ?? 'Account'} close={() => setRoleUser(undefined)} onAuthLost={onAuthLost} onDirtyChange={roleDraftChanged} /> : null}
+      {roleUser ? <AccountingRoles key={roleUser.id} userId={roleUser.id} email={roleUser.email ?? 'Account'} close={() => setRoleUser(undefined)} onAuthLost={onAuthLost} onRolesSaved={onRolesSaved} onDirtyChange={roleDraftChanged} /> : null}
       {message ? <p className="form-message" role="status">{message}</p> : null}
     </section>
   );
 }
+
 
 
 

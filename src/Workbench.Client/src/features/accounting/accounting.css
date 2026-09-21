@@ -1,7 +1,8 @@
 .accounting-workspace { max-width: 76rem; margin-inline: auto; }
 .accounting-workspace p { max-width: 72ch; }
 .accounting-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 20rem), 1fr)); gap: 1.25rem; margin-block: 1.5rem; }
-.accounting-grid label, .accounting-coverage > label { display: grid; gap: .5rem; min-width: 0; }
+.accounting-grid > label, .accounting-coverage > label { display: grid; gap: .5rem; min-width: 0; }
+.accounting-grid > .floating-field { align-self: end; }
 .accounting-section { border: 0; padding: 0; min-width: 0; }
 .accounting-workspace h2 { margin-top: 2rem; }
 .accounting-check { display: flex !important; align-items: center; gap: .65rem; }
@@ -19,3 +20,4 @@
 .accounting-comparison dl > div { display: grid; grid-template-columns: minmax(8rem, 1fr) 2fr; gap: .75rem; padding-block: .5rem; }
 .accounting-comparison dt { color: var(--muted); }
 .accounting-comparison dd { margin: 0; overflow-wrap: anywhere; }
+

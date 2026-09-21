@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { http, HttpResponse } from 'msw';
 import { server } from '../../test/server';
 import { TenantUsers } from './TenantUsers';
@@ -82,7 +82,8 @@ it.each([403, 404])('keeps the role editor mounted until pending recovery ends w
   fireEvent.click(screen.getByRole('button', { name: 'Save accounting roles' }));
   await screen.findByText(status === 403 ? 'Access denied. Private role selections have been cleared.' : 'This user is unavailable. Close this editor and choose an enabled user.');
   expect(screen.queryByLabelText('Accounting reader')).not.toBeInTheDocument();
-  expect(switches[1]).toBeEnabled();
+  await waitFor(() => expect(switches[1]).toBeEnabled());
   if (status === 403) expect(lost).toHaveBeenCalled(); else expect(lost).not.toHaveBeenCalled();
 });
+
 

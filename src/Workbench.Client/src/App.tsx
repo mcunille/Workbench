@@ -130,6 +130,7 @@ function SignedInApplication({
     supplierMemory.clear();
     void refresh();
   }, [refresh, supplierMemory]);
+  const rolesSaved = useCallback(() => { void refresh('permissions'); }, [refresh]);
   if (!identity) return null;
   const canManageUsers = identity.permissions.includes(
     'TenantUsersManage',
@@ -328,7 +329,7 @@ function SignedInApplication({
           ) : path === '/accounting' ? (canReadAccounting ? <AccountingSetup canManage={canManageAccounting} onAuthLost={authLost} onDirtyChange={navigation.setDirty} /> : <><h1>Access denied</h1><p>Your roles do not permit accounting configuration.</p></>) : path === '/administration' && canManageUsers ? (
             <>
               <h1>Administration</h1>
-              <TenantUsers onAuthLost={authLost} onDirtyChange={navigation.setDirty} />
+              <TenantUsers onAuthLost={authLost} onRolesSaved={rolesSaved} onDirtyChange={navigation.setDirty} />
             </>
           ) : (
             <>
@@ -456,5 +457,6 @@ export function App({
     </>
   );
 }
+
 
 

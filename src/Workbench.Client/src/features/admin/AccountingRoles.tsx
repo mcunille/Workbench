@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { ApiError } from '../../api/auth';
 import { getAccountingRoles, getRoleAssignment, saveRoleAssignment, type AccountingRole, type RoleAssignment } from '../../api/accountingRoles';
-export function AccountingRoles({ userId, email, close, onAuthLost, onDirtyChange }: { userId: string; email: string; close(): void; onAuthLost?(): void; onDirtyChange?(dirty: boolean, uncertain: boolean): void }) {
+export function AccountingRoles({ userId, email, close, onAuthLost, onRolesSaved, onDirtyChange }: { userId: string; email: string; close(): void; onAuthLost?(): void; onRolesSaved?(): void; onDirtyChange?(dirty: boolean, uncertain: boolean): void }) {
   const [roles, setRoles] = useState<AccountingRole[]>([]); const [saved, setSaved] = useState<RoleAssignment>(); const [selected, setSelected] = useState<string[]>([]);
   const [uncertain, setUncertain] = useState(false);
   const [message, setMessage] = useState(''); const [busy, setBusy] = useState(false); const [denied, setDenied] = useState(false); const [conflict, setConflict] = useState(false);
@@ -13,7 +13,7 @@ export function AccountingRoles({ userId, email, close, onAuthLost, onDirtyChang
   async function save() {
     if (!saved || busy) return; setBusy(true);
     pending.current ??= { requestId: crypto.randomUUID(), expectedVersion: saved.version, roleIds: selected };
-    try { await saveRoleAssignment(userId, pending.current); const next = await getRoleAssignment(userId); pending.current = undefined; setUncertain(false); setSaved(next); setSelected(next.roleIds); setMessage('Accounting roles saved. Changes take effect on the next request.'); onAuthLost?.(); }
+    try { await saveRoleAssignment(userId, pending.current); const next = await getRoleAssignment(userId); pending.current = undefined; setUncertain(false); setSaved(next); setSelected(next.roleIds); setMessage('Accounting roles saved. Changes take effect on the next request.'); onRolesSaved?.(); }
     catch (error) { if (error instanceof ApiError && [401,403].includes(error.status)) { pending.current = undefined; setSaved(undefined); setSelected([]); setRoles([]); setDenied(true); setUncertain(false); onAuthLost?.(); } else if (error instanceof ApiError && error.status === 409) { pending.current = undefined; setUncertain(false); setConflict(true); setMessage('Role assignment changed. Your selection is preserved. Reload roles before reconciling.'); } else { if (error instanceof ApiError && error.status < 500) { pending.current = undefined; setUncertain(false); if (error.status === 404) { setSaved(undefined); setSelected([]); setRoles([]); setConflict(false); setMessage('This user is unavailable. Close this editor and choose an enabled user.'); } else setMessage('The assignment was rejected. Close and reload roles before trying again.'); } else { setUncertain(true); setMessage('Roles could not be saved. Retry the same assignment.'); } } }
     finally { setBusy(false); }
   }
@@ -27,6 +27,7 @@ export function AccountingRoles({ userId, email, close, onAuthLost, onDirtyChang
     {message ? <p role="status">{message}</p> : null}
   </>}<button type="button" className="secondary" disabled={busy || uncertain} onClick={close}>Close roles</button></section>;
 }
+
 
 
 
