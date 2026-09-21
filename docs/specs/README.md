@@ -8,6 +8,10 @@ history, not a backlog and not a substitute for current documentation.
 [Beta API lifecycle and purchasing consolidation](2026-09-16-beta-api-lifecycle.md)
 records the approved transition for issue #120.
 
+[PO-07 bookkeeping foundation and prerequisites](2026-09-20-po-07-deposits-and-payments.md)
+proposes ledger-backed payments, structured supplier bills, and prerequisite accounting stories.
+It remains a design proposal, not implemented bookkeeping.
+
 | Area | Records |
 | --- | --- |
 | Foundation | [Base architecture](2026-08-31-base-application-architecture.md), [application foundation](2026-08-31-application-foundation.md), [data/identity/tenancy](2026-09-01-data-identity-tenancy.md) |
