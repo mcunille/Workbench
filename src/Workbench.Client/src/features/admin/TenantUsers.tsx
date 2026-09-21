@@ -1,6 +1,6 @@
 import { AccountingRoles } from './AccountingRoles';
 import { FloatingField } from '../../FloatingField';
-import { useEffect, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import {
   disableTenantUser,
   getTenantUsers,
@@ -26,6 +26,11 @@ function stateLabel(state: number): string {
 
 export function TenantUsers({ onAuthLost, onDirtyChange }: { onAuthLost?(): void; onDirtyChange?(dirty: boolean, uncertain: boolean): void }) {
   const [roleUser, setRoleUser] = useState<TenantUser>();
+  const [roleChangePending, setRoleChangePending] = useState(false);
+  const roleDraftChanged = useCallback((dirty: boolean, uncertain: boolean) => {
+    setRoleChangePending(uncertain);
+    onDirtyChange?.(dirty, uncertain);
+  }, [onDirtyChange]);
   const [users, setUsers] = useState<TenantUser[]>();
   const [message, setMessage] = useState<string>();
 
@@ -117,7 +122,7 @@ export function TenantUsers({ onAuthLost, onDirtyChange }: { onAuthLost?(): void
                 <small>{stateLabel(user.state)}</small>
               </span>
               <span className="button-row">
-                {user.state === accountState.enabled ? <button className="secondary" type="button" onClick={() => setRoleUser(user)}>Accounting roles</button> : null}
+                {user.state === accountState.enabled ? <button className="secondary" type="button" disabled={roleChangePending} onClick={() => { if (!roleChangePending) setRoleUser(user); }}>Accounting roles</button> : null}
                 <button className="secondary" type="button" onClick={() => void recover(user)}>
                   Recovery
                 </button>
@@ -140,10 +145,11 @@ export function TenantUsers({ onAuthLost, onDirtyChange }: { onAuthLost?(): void
       ) : (
         <p role="status">Loading tenant users…</p>
       )}
-      {roleUser ? <AccountingRoles key={roleUser.id} userId={roleUser.id} email={roleUser.email ?? 'Account'} close={() => setRoleUser(undefined)} onAuthLost={onAuthLost} onDirtyChange={onDirtyChange} /> : null}
+      {roleUser ? <AccountingRoles key={roleUser.id} userId={roleUser.id} email={roleUser.email ?? 'Account'} close={() => setRoleUser(undefined)} onAuthLost={onAuthLost} onDirtyChange={roleDraftChanged} /> : null}
       {message ? <p className="form-message" role="status">{message}</p> : null}
     </section>
   );
 }
+
 
 
