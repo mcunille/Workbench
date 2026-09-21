@@ -25,9 +25,10 @@ public static class SupplierEndpoints
         query = PurchasingIdentityInput.Query(query);
         var binding = database.TenantContext.RequireTenantId().ToString("N") + ":" + (includeArchived == true ? "archived:" : "active:") + query;
         if (query?.Length > 200 || query?.Any(char.IsControl) == true) return Problem(400, "invalid_query", "Use up to 200 characters for search.");
-        if (!PurchasingIdentityInput.Decode(cursor, binding, out var timestamp, out var id)) return Problem(400, "invalid_cursor", "Refresh suppliers to start a new page.");
-        var rows = await database.Suppliers.FromSql($"SELECT * FROM [Purchasing].[Suppliers] WHERE ({includeArchived == true}=1 OR IsArchived=0) AND ({cursor} IS NULL OR UpdatedAtUtc<{timestamp} OR (UpdatedAtUtc={timestamp} AND Id<{id})) AND ({query} IS NULL OR CHARINDEX({query},UPPER(Name) COLLATE Latin1_General_100_CI_AS)>0)").AsNoTracking().OrderByDescending(row => row.UpdatedAtUtc).ThenByDescending(row => row.Id).Take(51).ToListAsync(cancellationToken);
-        return Results.Ok(new SupplierPageResponse(rows.Take(50).Select(Response).ToArray(), rows.Count > 50 ? PurchasingIdentityInput.Cursor(rows[49].UpdatedAtUtc, rows[49].Id, binding) : null));
+        if (!PurchasingIdentityInput.DecodeSupplierCursor(cursor, binding, out var name, out var id)) return Problem(400, "invalid_cursor", "Refresh suppliers to start a new page.");
+        // Use the same explicit collation for both the keyset boundary and the complete result order.
+        var rows = await database.Suppliers.FromSql($"SELECT * FROM [Purchasing].[Suppliers] WHERE ({includeArchived == true}=1 OR IsArchived=0) AND ({cursor} IS NULL OR Name COLLATE Latin1_General_100_CI_AS>{name} OR (Name COLLATE Latin1_General_100_CI_AS={name} AND Id>{id})) AND ({query} IS NULL OR CHARINDEX({query},UPPER(Name) COLLATE Latin1_General_100_CI_AS)>0)").AsNoTracking().OrderBy(row => EF.Functions.Collate(row.Name, "Latin1_General_100_CI_AS")).ThenBy(row => row.Id).Take(51).ToListAsync(cancellationToken);
+        return Results.Ok(new SupplierPageResponse(rows.Take(50).Select(Response).ToArray(), rows.Count > 50 ? PurchasingIdentityInput.SupplierCursor(rows[49].Name, rows[49].Id, binding) : null));
     }
     private static async Task<IResult> ReadAsync(Guid id, WorkbenchDbContext database, CancellationToken cancellationToken)
     {

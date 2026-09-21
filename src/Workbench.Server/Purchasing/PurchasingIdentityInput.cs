@@ -35,6 +35,23 @@ internal static class PurchasingIdentityInput
     }
     public static string? Query(string? query) => Trim(query)?.ToUpperInvariant();
     private static string QueryHash(string? query) => Convert.ToHexString(SHA256.HashData(Encoding.Unicode.GetBytes(query ?? "")));
+    public static string SupplierCursor(string name, Guid id, string binding) =>
+        "sn1_" + Convert.ToBase64String(Encoding.Unicode.GetBytes(name)) + "_" + id.ToString("N") + "_" + QueryHash(binding);
+    public static bool DecodeSupplierCursor(string? cursor, string binding, out string name, out Guid id)
+    {
+        name = ""; id = default;
+        if (cursor is null) return true;
+        if (cursor.Length > 640) return false;
+        var parts = cursor.Split('_');
+        if (parts.Length != 4 || parts[0] != "sn1" || parts[3] != QueryHash(binding)
+            || !Guid.TryParseExact(parts[2], "N", out id) || id == Guid.Empty) return false;
+        try
+        {
+            name = new UnicodeEncoding(false, false, true).GetString(Convert.FromBase64String(parts[1]));
+            return name.Length <= 200 && !string.IsNullOrWhiteSpace(name) && !name.Any(char.IsControl);
+        }
+        catch (Exception exception) when (exception is FormatException or DecoderFallbackException) { return false; }
+    }
     public static string Cursor(DateTimeOffset time, Guid id, string? query) => "v2" + DraftOrderCursor.Encode(time, id)[2..] + "_" + QueryHash(query);
     public static bool Decode(string? cursor, string? query, out DateTimeOffset time, out Guid id)
     {
