@@ -50,9 +50,13 @@ make their repository and review costs irrelevant. Recommendations to stop track
 preserve reproducibility, clean-checkout builds, client types and contract checks; retain artifacts
 when an actual consumer or workflow justifies them.
 
-Record material change-locality and artifact-ownership conclusions in the Architecture report,
-including evidence and justified exceptions. Merge overlapping symptoms under their root cause;
-for example, a global revision bump and dozens of unrelated literal edits are one coupling finding.
+Record material change-locality and artifact-ownership conclusions in the Architecture report
+and final review, including evidence and justified exceptions. Explaining why files changed is
+not the same as judging whether the recurring work is proportionate to the feature. Separate
+necessary generated output from avoidable handwritten duplication, scattered version markers,
+and cross-feature maintenance. Surface demonstrated costs even when they follow existing conventions;
+do not classify a large file count alone as technical debt. Merge overlapping symptoms under their
+root cause; for example, a global revision bump and dozens of unrelated literal edits are one coupling finding.
 Separate substantiated policy/correctness violations from nonblocking simplifications, and record
 an explicit owner decision when it changes the required outcome. Assess current user requirements
 even when older design documents authorize the convention being reconsidered.
@@ -79,8 +83,11 @@ require consolidation supplies the disposition and must be recorded in the findi
 Have Quality check fresh-database creation and upgrade from the PR base, including retained data,
 and inspect updates to migration-history assertions and schema-version references. Report each
 migration's purpose, the consolidation decision, verified exception evidence or unresolved owner
-decision, and verification limits in the Architecture report. A single coherent migration, a
-justified deployment boundary, and a claimed retained-preview exception should lead to different
+decision, and verification limits in the Architecture report and final review. When one feature
+retains an initial migration plus corrective migrations, surface that sequence even if immutable
+applied history justifies it. State the retained maintenance/upgrade cost and whether a development
+workflow change could avoid repeating it; do not recommend rewriting applied history or deleting data.
+A single coherent migration, a justified deployment boundary, and a claimed retained-preview exception should lead to different
 assessments; the count alone does not establish a defect.
 
 ## Report the architectural judgment
@@ -93,6 +100,16 @@ Label a correctness defect or substantiated approach-level objection as a requir
 an optional simplification, unresolved future choice, or request for rationale as nonblocking unless
 evidence shows it prevents the current requirements from being met. Do not invent a blocker to make
 an architectural review appear useful, or silently promote advice when asked to publish it.
+
+When material debt or tradeoffs exist, include **Architectural debt and tradeoffs** in the final
+chat assessment and proposed grouped review body, even with an APPROVE verdict. For each item,
+state the affected paths and measured scope, the concrete recurring cost or risk, why the current
+approach is necessary or avoidable, and a bounded improvement or explicit acceptance decision.
+Distinguish debt introduced by the PR from existing debt it exercises. Give actionable findings
+a severity and required-fix or nonblocking disposition; label a justified retained tradeoff as
+nonblocking without inventing a policy violation. An explanation such as "most lines are generated"
+or "the migration was applied locally" must not replace this assessment. If no material concern
+remains after inspection, say so briefly rather than manufacturing a recommendation.
 
 State the reviewed scope and limits: design consistency, architectural suitability, static code
 inspection, mock interaction, and actual runtime verification are different evidence. Approval of
