@@ -13,9 +13,7 @@ internal static class PurchasingIdentityInput
         Email = Trim(input.Email),
         Phone = Trim(input.Phone),
         Website = Trim(input.Website),
-        Instagram = Trim(input.Instagram),
-        X = Trim(input.X),
-        GemRockAuctions = Trim(input.GemRockAuctions),
+        SocialProfiles = input.SocialProfiles is { Count: > 0 } profiles ? profiles.Select(profile => profile is null ? null! : new SupplierSocialProfile(profile.Label?.Trim()!, profile.Handle?.Trim()!)).ToArray() : null,
         PostalAddress = string.IsNullOrWhiteSpace(input.PostalAddress) ? null : input.PostalAddress
     };
     public static Dictionary<string, string[]> Validate(SupplierContent? input, bool required = true, string prefix = "supplier.")
@@ -34,15 +32,21 @@ internal static class PurchasingIdentityInput
             !Uri.TryCreate(website, UriKind.Absolute, out var uri) || uri.Scheme is not ("http" or "https") || string.IsNullOrEmpty(uri.Host) || !string.IsNullOrEmpty(uri.UserInfo)))
             errors[prefix + "website"] = ["Use an absolute HTTP or HTTPS website without credentials."];
         if (input.PostalAddress?.Length > 2000) errors[prefix + "postalAddress"] = ["Use at most 2000 characters."];
-        void Profile(string? value, string key, string label)
+        if (input.SocialProfiles is { } profiles)
         {
-            if (value is not null && (value.Length > 2048 || value.Any(c => char.IsControl(c) || char.IsWhiteSpace(c)) || value.Contains('\\') ||
-                !Uri.TryCreate(value, UriKind.Absolute, out var uri) || uri.Scheme is not ("http" or "https") || string.IsNullOrEmpty(uri.Host) || !string.IsNullOrEmpty(uri.UserInfo)))
-                errors[prefix + key] = [$"Enter an absolute HTTP or HTTPS {label} profile link, up to 2048 characters, without spaces or credentials."];
+            if (profiles.Count > 20) errors[prefix + "socialProfiles"] = ["Use at most 20 social handles."];
+            var labels = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            for (var index = 0; index < profiles.Count; index++)
+            {
+                var profile = profiles[index];
+                var key = $"socialProfiles[{index}]";
+                Field(profile?.Label, 100, key + ".label");
+                Field(profile?.Handle, 2048, key + ".handle");
+                if (string.IsNullOrWhiteSpace(profile?.Label)) errors[prefix + key + ".label"] = ["Enter a platform or label."];
+                else if (!labels.Add(profile.Label.Trim())) errors[prefix + key + ".label"] = ["Use each platform or label only once."];
+                if (string.IsNullOrWhiteSpace(profile?.Handle)) errors[prefix + key + ".handle"] = ["Enter a handle or reference."];
+            }
         }
-        Profile(input.Instagram, "instagram", "Instagram");
-        Profile(input.X, "x", "X");
-        Profile(input.GemRockAuctions, "gemRockAuctions", "GemRockAuctions");
         return errors;
     }
     public static string? Query(string? query) => Trim(query)?.ToUpperInvariant();

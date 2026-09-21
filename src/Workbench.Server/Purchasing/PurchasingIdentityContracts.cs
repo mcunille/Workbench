@@ -12,9 +12,12 @@ public sealed record SupplierContent(
     [property: JsonRequired, MaxLength(100)] string? Phone,
     [property: JsonRequired, MaxLength(2048)] string? Website,
     [property: JsonRequired, MaxLength(2000)] string? PostalAddress,
-    [property: MaxLength(2048), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? Instagram = null,
-    [property: MaxLength(2048), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? X = null,
-    [property: MaxLength(2048), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? GemRockAuctions = null);
+    [property: MaxLength(20), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] IReadOnlyList<SupplierSocialProfile>? SocialProfiles = null);
+
+[JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
+public sealed record SupplierSocialProfile(
+    [property: JsonRequired, MaxLength(100)] string Label,
+    [property: JsonRequired, MaxLength(2048)] string Handle);
 
 public sealed record DraftOrderSummary(Guid Id, string? Title, string? SupplierName, string UpdatedAtUtc,
     string PoReference, string? SupplierOrderReference, string? Platform);

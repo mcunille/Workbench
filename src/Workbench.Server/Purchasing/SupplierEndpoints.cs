@@ -19,7 +19,7 @@ public static class SupplierEndpoints
         group.MapPut("/{id:guid}", UpdateAsync).WithMetadata(WorkbenchAntiforgeryMetadata.Instance).Produces<SaveSupplierResponse>().ProducesValidationProblem().ProducesProblem(404).ProducesProblem(409).ProducesProblem(413);
         group.MapPost("/{id:guid}/archive", ArchiveAsync).WithMetadata(WorkbenchAntiforgeryMetadata.Instance).Produces<SaveSupplierResponse>().ProducesValidationProblem().ProducesProblem(404).ProducesProblem(409).ProducesProblem(413);
     }
-    private static SupplierResponse Response(Supplier row) => new(row.Id, new(row.Name, row.ContactName, row.Email, row.Phone, row.Website, row.PostalAddress, row.Instagram, row.X, row.GemRockAuctions), row.IsArchived, DraftOrderCursor.Timestamp(row.CreatedAtUtc), DraftOrderCursor.Timestamp(row.UpdatedAtUtc), Convert.ToBase64String(row.RowVersion));
+    private static SupplierResponse Response(Supplier row) => new(row.Id, new(row.Name, row.ContactName, row.Email, row.Phone, row.Website, row.PostalAddress, row.SocialProfilesJson is null ? null : System.Text.Json.JsonSerializer.Deserialize<SupplierSocialProfile[]>(row.SocialProfilesJson, DraftOrderInput.JsonOptions)), row.IsArchived, DraftOrderCursor.Timestamp(row.CreatedAtUtc), DraftOrderCursor.Timestamp(row.UpdatedAtUtc), Convert.ToBase64String(row.RowVersion));
     private static async Task<IResult> BrowseAsync(string? cursor, string? query, bool? includeArchived, WorkbenchDbContext database, CancellationToken cancellationToken)
     {
         query = PurchasingIdentityInput.Query(query);

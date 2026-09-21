@@ -108,19 +108,20 @@ This inventory describes checked-in migration behavior, not permission to execut
 | `20260918061646_AddPurchaseOrderDocuments` | `AddPurchaseOrderCommitment` | Adds PO-owned private document metadata and durable request evidence, tenant-qualified ownership, RLS and restricted prepare/finalize procedures. Reserves up to 20 current or pending files per ordered PO, serializes parent versions and uses the existing publication, reconciliation and seven-day retention lifecycle. Preserves acquisition documents and ordered-content revisions. Advances readiness and backup markers; deploy the matching application. | Always blocked; retain metadata and command evidence through forward correction or guarded paired recovery. |
 | `20260918063409_HardenPurchaseOrderDocumentAuthority` | `AddPurchaseOrderDocuments` | Revalidates enabled tenant and active actor authority for document reservations, binds request replay to the original actor, and rechecks authority during finalization. A suspension during publication produces a terminal conflict and retains published bytes for cleanup. Kept as a separate forward migration because the predecessor was already applied to the retained local preview; its applied history is immutable. Advances readiness and backup markers. | Always blocked; retain authority controls through forward correction or guarded paired recovery. |
 | `20260921012247_AddSupplierProfiles` | `HardenPurchaseOrderDocumentAuthority` | Adds optional profile columns and extends the restricted supplier writer; preserves supplier versions and receipt fingerprints. Advances readiness and backup markers. Verify fresh creation and predecessor upgrade, legacy replay, safe links and tenant isolation. Deploy the matching API/client. | Always blocked; preserve profiles and request evidence through forward correction or guarded recovery. |
+| `20260921041331_MakeSupplierProfilesCustom` | `AddSupplierProfiles` | Replaces fixed profile columns with an ordered JSON collection of custom labels and handles. Copies existing values verbatim, preserves receipts, and advances readiness and backup markers. Retained preview history already includes the predecessor, so both migrations remain immutable. Verify fresh creation, PR-base upgrade, retained-profile upgrade, legacy replay, and restricted-writer validation. Deploy the matching API/client; older fixed-field clients must refresh. | Always blocked; preserve handles and request evidence through forward correction or guarded recovery. |
 
 Product behavior, user-visible concurrency/retry rules and the shipped feature inventory belong in
 [collection documentation](../collection.md). Provider retry/backoff behavior belongs in
 [identity delivery and worker operations](blob-and-service-providers.md#identity-delivery-and-worker).
 The [migration source](../../src/Workbench.Server/Persistence/Migrations) is authoritative for SQL.
 
-The current required migration is `20260921012247_AddSupplierProfiles`.
 
-`AddSupplierProfiles` follows `HardenPurchaseOrderDocumentAuthority`: nullable Instagram, X,
-and GemRockAuctions columns and the restricted supplier writer retain existing supplier data,
-versions and receipt fingerprints. Readiness and backup markers advance. Fresh creation and
-upgrade from its predecessor verify replay and tenant isolation. Down is blocked; use forward
-correction or guarded recovery to preserve profiles and request evidence.
+The current required migration is `20260921041331_MakeSupplierProfilesCustom`.
+
+`MakeSupplierProfilesCustom` follows the already applied `AddSupplierProfiles` migration.
+It copies populated fixed profiles into custom label/handle entries without changing their text
+or immutable receipts. The forward migration advances readiness and backup markers; verify both
+PR-base and retained-preview upgrades. Down is blocked; use forward correction or guarded recovery.
 Stop all application writers before migration and deploy the matching beta API/client together
 only after the entire pending migration set completes. The final schema has one purchasing writer
 with PO-05 financial and confirmed supplier correction validation, no historical replay procedure,

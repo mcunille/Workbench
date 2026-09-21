@@ -8,52 +8,48 @@ const saved = { id: 'one', supplier, version: 'v1', isArchived: false, createdAt
 const receipt = { requestId: 'request', replayed: false, supplierId: 'one', savedVersion: 'v1', completedAtUtc: saved.updatedAtUtc };
 const props = () => ({ onDirtyChange: vi.fn(), onAuthLost: vi.fn(), onCancel: vi.fn(), onCreated: vi.fn(), onSelected: vi.fn() });
 beforeEach(() => { vi.resetAllMocks(); Object.defineProperty(HTMLDialogElement.prototype, 'showModal', { configurable: true, value(this: HTMLDialogElement) { this.setAttribute('open', ''); } }); });
-it('edits optional profiles independently and opens saved links with safe tab isolation', async () => {
-  // GIVEN a supplier with three saved profiles alongside its website.
-  const profiles = { instagram: 'https://www.instagram.com/example/', x: 'https://x.com/example', gemRockAuctions: 'https://www.gemrockauctions.com/stores/example' };
-  vi.mocked(getSupplier).mockResolvedValue({ ...saved, supplier: { ...supplier, ...profiles } });
+it('adds, renames, edits and removes arbitrary social handles while retaining contacts', async () => {
+  // GIVEN arbitrary saved labels and reference handles, including URL-like text.
+  const socialProfiles = [{ label: 'Discord', handle: 'gemdealer' }, { label: 'Mastodon', handle: '@gems@stones.example' }, { label: 'Forum', handle: 'https://example.test/member' }];
+  vi.mocked(getSupplier).mockResolvedValue({ ...saved, supplier: { ...supplier, socialProfiles } });
   vi.mocked(updateSupplier).mockResolvedValue(receipt);
   render(<SupplierEditor id="one" {...props()} />);
   await screen.findByRole('heading', { name: 'Gems', level: 1 });
-  // THEN all platforms are labeled and their saved destinations can be opened safely.
-  for (const [label, url] of [['Instagram', profiles.instagram], ['X', profiles.x], ['GemRockAuctions', profiles.gemRockAuctions]]) {
-    expect(screen.getByLabelText(label)).toHaveValue(url);
-    const link = screen.getByRole('link', { name: `Open ${label} profile (new tab)` });
-    expect(link).toHaveAttribute('href', url);
-    expect(link).toHaveAttribute('rel', 'noopener noreferrer');
-    expect(link).toHaveAttribute('target', '_blank');
-  }
-  // WHEN editing one profile and clearing another THEN the website and third profile are retained.
-  fireEvent.change(screen.getByLabelText('Instagram'), { target: { value: 'https://instagram.com/changed' } });
-  fireEvent.change(screen.getByLabelText('X'), { target: { value: '' } });
+  const profiles = screen.getByRole('group', { name: 'Social handles (optional)' });
+  expect(within(profiles).queryByRole('link')).not.toBeInTheDocument();
+  expect(screen.getByLabelText('Handle 2')).toHaveValue('@gems@stones.example');
+  // WHEN renaming and editing one row, removing another, and adding a custom label.
+  fireEvent.change(screen.getByLabelText('Label 1'), { target: { value: 'Trade chat' } });
+  fireEvent.change(screen.getByLabelText('Handle 1'), { target: { value: '@gem dealer' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Remove social 2' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Add social' }));
+  fireEvent.change(screen.getByLabelText('Label 3'), { target: { value: 'Gem forum' } });
+  fireEvent.change(screen.getByLabelText('Handle 3'), { target: { value: 'member #42' } });
   fireEvent.click(screen.getByRole('button', { name: 'Save supplier' }));
+  // THEN all remaining rows and the separate website are saved verbatim.
   await waitFor(() => expect(updateSupplier).toHaveBeenCalledWith('one', expect.objectContaining({ supplier: {
-    ...supplier, ...profiles, instagram: 'https://instagram.com/changed', x: null,
+    ...supplier, socialProfiles: [{ label: 'Trade chat', handle: '@gem dealer' }, socialProfiles[2], { label: 'Gem forum', handle: 'member #42' }],
   } })));
+});
+it('focuses incomplete social fields and preserves plain handles after server validation', async () => {
+  // GIVEN a new row with a handle but no label.
+  vi.mocked(createSupplier).mockRejectedValue(new SupplierError(400, 'supplier_validation_failed', { 'supplier.socialProfiles[0].label': ['Enter a label.'] }));
+  render(<SupplierEditor {...props()} />);
+  fireEvent.change(screen.getByLabelText('Supplier name'), { target: { value: 'New supplier' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Add social' }));
+  fireEvent.change(screen.getByLabelText('Handle 1'), { target: { value: '@gems' } });
+  // WHEN saving THEN validation focuses the missing label and retains the entered handle.
+  fireEvent.click(screen.getByRole('button', { name: 'Save supplier' }));
+  await waitFor(() => expect(screen.getByLabelText('Label 1')).toHaveFocus());
+  expect(screen.getByLabelText('Label 1')).toHaveAccessibleDescription('Enter a label.');
+  expect(screen.getByLabelText('Handle 1')).toHaveValue('@gems');
 });
 it('offers contact-specific input controls without imposing browser validation over server feedback', () => {
   // GIVEN a supplier form WHEN entering contact details THEN devices receive the appropriate input semantics.
   render(<SupplierEditor {...props()} />);
-  for (const [label, type] of [['Email', 'email'], ['Phone', 'tel'], ['Website', 'url']]) {
-    expect(screen.getByLabelText(label)).toHaveAttribute('type', type);
-  }
+  for (const [label, type] of [['Email', 'email'], ['Phone', 'tel'], ['Website', 'url']]) expect(screen.getByLabelText(label)).toHaveAttribute('type', type);
   // AND server validation remains responsible for feedback without losing entered text.
   expect(screen.getByLabelText('Email').closest('form')).toHaveAttribute('novalidate');
-});
-it('keeps new profile input and focuses actionable server validation', async () => {
-  // GIVEN a new supplier whose profile is rejected by the authoritative server.
-  vi.mocked(createSupplier).mockRejectedValue(new SupplierError(400, 'supplier_validation_failed', { 'supplier.instagram': ['Enter an absolute HTTP or HTTPS Instagram profile link.'] }));
-  render(<SupplierEditor {...props()} />);
-  fireEvent.change(screen.getByLabelText('Supplier name'), { target: { value: 'New supplier' } });
-  fireEvent.change(screen.getByLabelText('Instagram'), { target: { value: 'javascript:alert(1)' } });
-  fireEvent.change(screen.getByLabelText('X'), { target: { value: 'https://x.com/example' } });
-  // WHEN saving THEN input survives and the invalid platform is identified and focused.
-  fireEvent.click(screen.getByRole('button', { name: 'Save supplier' }));
-  await waitFor(() => expect(screen.getByLabelText('Instagram')).toHaveFocus());
-  expect(screen.getByLabelText('Instagram')).toHaveValue('javascript:alert(1)');
-  expect(screen.getByLabelText('Instagram')).toHaveAccessibleDescription('Enter an absolute HTTP or HTTPS Instagram profile link.');
-  expect(screen.getByLabelText('X')).toHaveValue('https://x.com/example');
-  expect(screen.queryByRole('link', { name: /Open .* profile/ })).not.toBeInTheDocument();
 });
 it('explains an unavailable supplier and keeps navigation available', async () => {
   // GIVEN a bookmarked supplier is no longer available WHEN loading fails with 404.

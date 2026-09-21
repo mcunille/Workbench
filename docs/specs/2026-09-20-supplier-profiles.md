@@ -1,49 +1,56 @@
-# Supplier social and marketplace profiles
+# Supplier social handles
 
-Issue [#132](https://github.com/mcunille/Workbench/issues/132) requests independent,
-optional Instagram, X and GemRockAuctions links on supplier records.
+Issue [#132](https://github.com/mcunille/Workbench/issues/132), refined by the owner's
+feedback, records reference handles under user-defined labels. The earlier fixed-platform
+URL design is superseded.
 
-## Scope and design
+## Scope and interaction
 
-Extend the existing supplier content with nullable, optional `instagram`, `x`, and
-`gemRockAuctions` strings, each limited to 2048 characters. Three named fields match
-the requested platforms without introducing a platform registry or child-resource API.
-A generic list would permit arbitrary platforms and duplicates but adds editing and
-validation complexity beyond this request.
+The supplier editor offers **Add social**, then an editable **Label** and **Handle** per row.
+Examples include Discord / gemdealer, Mastodon / @gems@stones.example, or a marketplace name
+and seller identifier. Users define their own labels, rename them, edit values, or remove rows.
+All entries remain optional. Each added row needs both fields; duplicate labels are rejected
+without losing input. Errors identify and focus the affected field.
 
-The editor retains the existing contact section and adds an optional profile section.
-Clearing a field removes its value when saved. Saved destinations appear as platform-labeled
-links opening a new tab with `noopener noreferrer`; editing retains the last saved link
-until the save completes. Conflict comparisons include all profile values as text.
+Handles are plain reference text. There is no URL requirement, domain ownership check,
+external-link action, automatic handle parsing, or third-party request. URL-looking values
+are stored and rendered as text. Website behavior remains unchanged. Supplier conflict
+comparisons include these pairs; purchase-order contact snapshots do not acquire them.
 
-The server trims surrounding whitespace and maps blank input to absence. HTTP and HTTPS
-absolute URLs are accepted; credentials, backslashes, control characters, whitespace,
-relative URLs, other schemes, and oversized values are rejected with field-specific feedback.
-Platform labels describe the user's classification; hostname ownership is not verified or
-restricted. No server fetch, profile lookup, or third-party integration is performed.
-The client independently prevents unsafe saved values from becoming links.
+## Contract and validation
 
-## Contracts and retained data
+Supplier content accepts optional `socialProfiles`, an ordered list of `{ label, handle }`.
+It supports up to 20 entries, with labels up to 100 characters and handles up to 2048.
+Both values are trimmed and must be nonempty single-line text without control characters.
+Labels must be unique ignoring case. Punctuation, internal spaces, `@` handles, and URL-like
+text are accepted. The list avoids object-key hazards and preserves the user's row order.
 
-The additive fields may be omitted by existing callers. As with existing supplier fields,
-PUT replaces submitted supplier content, so omitted or null profiles are cleared. Null
-profile properties are omitted from canonical serialization, preserving exact pre-change
-request fingerprints. Non-null profiles participate in fingerprints and version checks.
-Existing receipts remain immutable; retry, archive, actor checks, RLS, and restricted command
-authority retain their current behavior. Purchase-order snapshots and website semantics do
-not change. Suppliers with no profiles need only their existing required name.
+Null, omitted, and empty lists normalize to absence. PUT replaces the supplied list; removing
+all rows clears it. Empty profiles are omitted from canonical serialization so original
+six-field supplier requests retain their exact retry fingerprints. Nonempty pairs participate
+in the existing request fingerprint and optimistic concurrency checks. The restricted SQL
+writer validates the same bounds and retains tenant and actor authority.
 
-One forward migration adds nullable columns and installs the extended restricted supplier
-command. No supplier values or receipts are backfilled. Readiness and backup markers advance;
-old backup markers remain accepted. Deploy the matching API/client after migration. Downgrade
-is blocked to preserve data and retry evidence; use forward correction or guarded recovery.
+## Migration and compatibility
 
-## Acceptance and verification
+The prior fixed-platform migration was already applied to a retained local preview, so its
+history and SQL remain immutable. A forward migration replaces the three fixed fields with
+JSON-backed reference pairs. Previously entered values are retained verbatim under their
+platform labels, including complete URLs; no handle is guessed from a URL. Original receipt
+bytes remain unchanged. Empty-profile records need no content backfill.
 
-- Create, edit, clear, reload and open independently labeled links for all three platforms.
-- Keep website and unaffected profiles intact, including suppliers with no profiles.
-- Reject unsafe links at the API and restricted SQL boundary with no persisted changes.
-- Preserve legacy receipt replay, tenant isolation, direct-write restrictions, and concurrent-edit conflicts.
-- Verify fresh migration and upgrade from the PR base with retained supplier/receipt bytes.
-- Exercise desktop and mobile forms, validation focus, and safe links; run the repository
-  verification and container gates. This extends the existing Tanzanite form design.
+The updated API/client replace the unmerged fixed-field contract together. Tabs or callers
+using that superseded preview contract must refresh. Original suppliers without profile
+fields remain compatible. Readiness and backup markers advance; prior backup markers remain
+accepted. Down remains guarded to preserve retained supplier information and retry evidence.
+The two migrations remain separate solely because the first is applied to the retained preview.
+
+## Acceptance
+
+- Add, rename, edit, remove, save and reload arbitrary label/handle pairs independently of website.
+- Require no predefined platform or web URL; render handles as text without opening actions.
+- Preserve input and focus actionable feedback for incomplete, duplicate or oversized entries.
+- Preserve legacy suppliers, six-field retry compatibility, tenant isolation, restricted writes,
+  and current-profile concurrency/replay behavior.
+- Verify fresh schema and upgrade from the fixed-field preview with retained values and receipts.
+- Exercise desktop/mobile forms, comparisons and the repository verification/container gates.

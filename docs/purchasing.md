@@ -226,12 +226,12 @@ be restored through the application. If another member changed it, review the cu
 before requesting deletion again. An uncertain deletion offers **Check and retry deletion** with
 the original request; do not create a new request to resolve a lost response.
 
-## Supplier social and marketplace profiles
+## Supplier social handles
 
-Supplier records can keep optional Instagram, X, and GemRockAuctions profile links alongside
-their website. Enter a full HTTP or HTTPS URL in **Social and marketplace profiles (optional)**.
-Save the supplier, then use the platform's **Open profile** link to open the saved destination
-in a new tab. Clear a field and save to remove that profile; other links stay unchanged.
-Spaces, embedded credentials, and non-web links are rejected with feedback beside the field.
-These profiles belong to the supplier directory and do not change purchase-order snapshots.
-See the [supplier profile design](specs/2026-09-20-supplier-profiles.md).
+Use **Add social** in a supplier's **Social handles (optional)** section to record a label and
+handle of your choosing. For example, enter **Discord** and **gemdealer**, or a marketplace name
+and seller identifier. Edit either field, or use **Remove** to remove a pair, then save the supplier.
+Both fields are required for each added row; labels must be unique ignoring case. Up to 20 pairs
+are supported. Handles are plain text kept for reference; they need not be web addresses and
+have no opening action. The website is separate, and purchase-order snapshots stay unchanged.
+See the [supplier handles design](specs/2026-09-20-supplier-profiles.md).

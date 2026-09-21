@@ -6,40 +6,54 @@ namespace Workbench.Server.IntegrationTests;
 public sealed class PurchasingIdentityInputTests
 {
     private static SupplierContent Contact => new(" Supplier ", " Contact ", " a@example.test ", " +1 555 ext 2 ", " https://example.test ", " First\nSecond ");
-    [Theory]
-    [InlineData("javascript:alert(1)")]
-    [InlineData("data:text/html,hello")]
-    [InlineData("ftp://example.test")]
-    [InlineData("//instagram.com/example")]
-    [InlineData("https://user:password@example.test")]
-    [InlineData("https://example.test/white space")]
-    [InlineData("https://example.test/\u0001")]
-    [InlineData("https://example.test\\path")]
-    public void ProfilesRejectUnsafeLinksWithPlatformSpecificFeedback(string link)
+    [Fact]
+    public void ProfilesAcceptUserDefinedPlainHandles()
     {
-        // GIVEN unsafe links in each optional platform WHEN validated THEN every field has actionable feedback.
-        var errors = PurchasingIdentityInput.Validate(Contact with { Instagram = link, X = link, GemRockAuctions = link });
-        foreach (var field in new[] { "instagram", "x", "gemRockAuctions" })
-            Assert.Contains("HTTP or HTTPS", Assert.Single(errors["supplier." + field]));
+        // GIVEN arbitrary platform labels and plain reference handles, including URL-like text.
+        const string json = """{"name":"Supplier","contactName":null,"email":null,"phone":null,"website":null,"postalAddress":null,"socialProfiles":[{"label":"Discord","handle":"@someone (primary)"},{"label":"Other","handle":"javascript:reference"}]}""";
+        // WHEN decoded and validated THEN the open set of labels and non-link handles is accepted.
+        var content = System.Text.Json.JsonSerializer.Deserialize<SupplierContent>(json, DraftOrderInput.JsonOptions)!;
+        Assert.Empty(PurchasingIdentityInput.Validate(content));
     }
     [Fact]
-    public void ProfilesNormalizeEmptyValuesAndEnforceLengthWithoutChangingLegacySerialization()
+    public void ProfilesNormalizeTrimmedValuesAndPreserveLegacySerialization()
     {
-        // GIVEN optional profiles, supported web schemes, and legacy supplier input.
-        var normalized = PurchasingIdentityInput.Normalize(Contact with { Instagram = " https://instagram.com/example ", X = " \t", GemRockAuctions = "http://www.gemrockauctions.com/stores/example" });
-        // WHEN normalized THEN blank profiles are absent and valid links retain their destination.
-        Assert.Equal("https://instagram.com/example", normalized.Instagram);
-        Assert.Null(normalized.X);
+        // GIVEN reference text with outer whitespace WHEN normalized THEN labels and handles are trimmed.
+        var normalized = PurchasingIdentityInput.Normalize(Contact with { SocialProfiles = [new(" Discord ", " @someone ")] });
+        Assert.Equal(new SupplierSocialProfile("Discord", "@someone"), Assert.Single(normalized.SocialProfiles!));
         Assert.Empty(PurchasingIdentityInput.Validate(normalized));
-        const string origin = "https://example.test/";
-        var maximum = origin + new string('a', 2048 - origin.Length);
-        Assert.Empty(PurchasingIdentityInput.Validate(normalized with { Instagram = maximum, X = maximum, GemRockAuctions = maximum }));
-        var errors = PurchasingIdentityInput.Validate(normalized with { Instagram = maximum + "a", X = maximum + "a", GemRockAuctions = maximum + "a" });
-        foreach (var field in new[] { "instagram", "x", "gemRockAuctions" }) Assert.Contains("supplier." + field, errors);
-        // AND absent new fields preserve the old canonical supplier bytes for request receipt replay.
-        var legacy = new { Contact.Name, Contact.ContactName, Contact.Email, Contact.Phone, Contact.Website, Contact.PostalAddress };
-        Assert.Equal(System.Text.Json.JsonSerializer.Serialize(legacy, DraftOrderInput.JsonOptions),
-            System.Text.Json.JsonSerializer.Serialize(Contact, DraftOrderInput.JsonOptions));
+        // AND omitted, null, and empty entries preserve the legacy six-field canonical bytes.
+        var legacy = new { normalized.Name, normalized.ContactName, normalized.Email, normalized.Phone, normalized.Website, normalized.PostalAddress };
+        foreach (var profiles in new IReadOnlyList<SupplierSocialProfile>?[] { null, [] })
+            Assert.Equal(System.Text.Json.JsonSerializer.Serialize(legacy, DraftOrderInput.JsonOptions),
+                System.Text.Json.JsonSerializer.Serialize(PurchasingIdentityInput.Normalize(Contact with { SocialProfiles = profiles }), DraftOrderInput.JsonOptions));
+    }
+    [Theory]
+    [InlineData("", "handle", "label")]
+    [InlineData(" \t", "handle", "label")]
+    [InlineData("Platform", "", "handle")]
+    [InlineData("Platform", " \t", "handle")]
+    [InlineData("line\nbreak", "handle", "label")]
+    [InlineData("Platform", "line\nbreak", "handle")]
+    public void ProfilesRejectMissingOrControlText(string label, string handle, string field)
+    {
+        // GIVEN an incomplete or multiline reference WHEN validated THEN its indexed field has feedback.
+        var content = PurchasingIdentityInput.Normalize(Contact with { SocialProfiles = [new(label, handle)] });
+        Assert.Contains("supplier.socialProfiles[0]." + field, PurchasingIdentityInput.Validate(content));
+    }
+    [Fact]
+    public void ProfilesEnforceLimitsAndCaseInsensitiveDistinctLabels()
+    {
+        // GIVEN maximum-sized valid reference text WHEN validated THEN all limits are inclusive.
+        var content = PurchasingIdentityInput.Normalize(Contact) with { SocialProfiles = [new(new string('a', 100), new string('b', 2048))] };
+        Assert.Empty(PurchasingIdentityInput.Validate(content));
+        // AND oversized labels, handles, and lists, duplicates and null elements are rejected.
+        Assert.Contains("supplier.socialProfiles[0].label", PurchasingIdentityInput.Validate(content with { SocialProfiles = [new(new string('a', 101), "handle")] }));
+        Assert.Contains("supplier.socialProfiles[0].handle", PurchasingIdentityInput.Validate(content with { SocialProfiles = [new("label", new string('b', 2049))] }));
+        Assert.Contains("supplier.socialProfiles[1].label", PurchasingIdentityInput.Validate(content with { SocialProfiles = [new("Discord", "one"), new("discord", "two")] }));
+        Assert.Contains("supplier.socialProfiles[0].label", PurchasingIdentityInput.Validate(PurchasingIdentityInput.Normalize(content with { SocialProfiles = [null!] })));
+        Assert.Empty(PurchasingIdentityInput.Validate(content with { SocialProfiles = Enumerable.Range(0, 20).Select(i => new SupplierSocialProfile($"Label{i}", "handle")).ToArray() }));
+        Assert.Contains("supplier.socialProfiles", PurchasingIdentityInput.Validate(content with { SocialProfiles = Enumerable.Range(0, 21).Select(i => new SupplierSocialProfile($"Label{i}", "handle")).ToArray() }));
     }
     private static DraftContent Empty => new(null, null, null, null, [], [], null, null, null, null, null, null, null, null);
     [Fact]

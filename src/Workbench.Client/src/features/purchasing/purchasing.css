@@ -57,6 +57,10 @@
 .po-supplier-address { grid-column: 1 / -1; }
 .po-field-help.po-required-help { margin-top: .5rem; }
 .po-supplier-contact-fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr)); gap: 1rem; }
+.po-social-profiles { display: grid; gap: 1rem; }
+.po-social-profile { padding-bottom: 1rem; border-bottom: 1px solid var(--border-subtle); }
+.po-social-profile > button { margin-top: .5rem; }
+.po-social-profiles:not(:empty) { margin-bottom: 1rem; }
 .po-supplier-inline-editor .po-form-section + .po-form-section { padding-top: 1.25rem; margin-top: 1.25rem; }
 .po-accessible-heading { position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 .editor.po-editor .form-stack { gap: 0; padding: 0; margin-top: 1.25rem; }

@@ -6289,26 +6289,15 @@
               "string"
             ]
           },
-          "instagram": {
-            "maxLength": 2048,
+          "socialProfiles": {
+            "maxItems": 20,
             "type": [
               "null",
-              "string"
-            ]
-          },
-          "x": {
-            "maxLength": 2048,
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "gemRockAuctions": {
-            "maxLength": 2048,
-            "type": [
-              "null",
-              "string"
-            ]
+              "array"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/SupplierSocialProfile"
+            }
           }
         },
         "additionalProperties": false
@@ -6365,6 +6354,24 @@
             "type": "string"
           }
         }
+      },
+      "SupplierSocialProfile": {
+        "required": [
+          "label",
+          "handle"
+        ],
+        "type": "object",
+        "properties": {
+          "label": {
+            "maxLength": 100,
+            "type": "string"
+          },
+          "handle": {
+            "maxLength": 2048,
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
       },
       "SystemResponse": {
         "required": [
