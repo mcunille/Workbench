@@ -232,12 +232,3 @@ internal static class AccountingSchema
         END;
         """;
 }
-
-
-
-
-
-
-
-
-

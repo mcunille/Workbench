@@ -49,4 +49,3 @@ public partial class WorkbenchDbContext
         receipt.HasOne<AccountingAccount>().WithMany().HasForeignKey(x => new { x.TenantId, x.AccountId }).HasPrincipalKey(x => new { x.TenantId, x.Id }).OnDelete(DeleteBehavior.Restrict);
     }
 }
-

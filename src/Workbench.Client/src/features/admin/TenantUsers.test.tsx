@@ -85,5 +85,3 @@ it.each([403, 404])('keeps the role editor mounted until pending recovery ends w
   await waitFor(() => expect(switches[1]).toBeEnabled());
   if (status === 403) expect(lost).toHaveBeenCalled(); else expect(lost).not.toHaveBeenCalled();
 });
-
-

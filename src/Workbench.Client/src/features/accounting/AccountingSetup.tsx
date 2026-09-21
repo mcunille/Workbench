@@ -64,9 +64,3 @@ export function AccountingSetup({ canManage, onAuthLost, onDirtyChange }: Props)
     {canManage ? <div className="button-row accounting-save"><button type="button" className="primary" disabled={busy || !!conflict || accountDirty} onClick={() => void save()}>{busy ? 'Saving…' : uncertain ? 'Retry the same save' : 'Save setup'}</button><span>{dirty ? 'Unsaved configuration' : 'Configuration matches saved version'}</span></div> : <p>You can view this configuration but cannot change it.</p>}
   </div>;
 }
-
-
-
-
-
-

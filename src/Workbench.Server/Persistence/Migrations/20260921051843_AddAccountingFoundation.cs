@@ -200,4 +200,3 @@ namespace Workbench.Server.Persistence.Migrations
         }
     }
 }
-

@@ -20,4 +20,3 @@ export function useAuth(): AuthValue {
   }
   return value;
 }
-

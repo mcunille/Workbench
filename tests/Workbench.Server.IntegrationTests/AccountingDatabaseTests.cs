@@ -220,10 +220,3 @@ public sealed class AccountingDatabaseTests(SqlServerFixture sqlServer)
         return (int)(await command.ExecuteScalarAsync())!;
     }
 }
-
-
-
-
-
-
-

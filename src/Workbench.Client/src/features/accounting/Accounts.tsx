@@ -48,9 +48,3 @@ export function Accounts({ catalog, changed, fail, canManage, onDirtyChange }: {
     {message ? <p role="status">{message}</p> : null}
   </section>;
 }
-
-
-
-
-
-

@@ -27,7 +27,3 @@ export function AccountingRoles({ userId, email, close, onAuthLost, onRolesSaved
     {message ? <p role="status">{message}</p> : null}
   </>}<button type="button" className="secondary" disabled={busy || uncertain} onClick={close}>Close roles</button></section>;
 }
-
-
-
-

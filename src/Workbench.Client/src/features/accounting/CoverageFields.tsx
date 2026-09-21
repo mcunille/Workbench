@@ -23,4 +23,3 @@ export function CoverageFields({ accounts, value, change }: { accounts: Account[
     </fieldset>;
   })}</>;
 }
-

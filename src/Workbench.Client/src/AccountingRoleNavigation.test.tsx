@@ -32,5 +32,3 @@ it('keeps role-save feedback while refreshing newly granted accounting navigatio
     expect(screen.getByLabelText('Accounting administrator')).toBeChecked();
   } finally { release(); window.history.replaceState({}, '', '/'); }
 });
-
-
