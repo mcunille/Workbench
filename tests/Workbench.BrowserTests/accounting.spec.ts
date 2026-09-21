@@ -46,6 +46,7 @@ test('accounting setup preserves explicit policies, guarded mappings, coverage, 
 
     // WHEN the optional starter chart is explicitly confirmed THEN typed controls become selectable
     await page.getByRole('button', { name: 'Accounts and mappings', exact: true }).click();
+    expect((await page.getByLabel('Search account code or name', { exact: true }).boundingBox())!.width).toBeGreaterThanOrEqual(280);
     await page.getByRole('button', { name: 'Preview starter chart', exact: true }).click();
     await expect(page.getByRole('heading', { name: 'Review starter chart' })).toBeVisible();
     await expect(page.getByText('1000 — Bank', { exact: true })).toBeVisible();
@@ -114,6 +115,8 @@ test('accounting setup preserves explicit policies, guarded mappings, coverage, 
       await page.getByRole('button', { name: 'Policies', exact: true }).focus();
       await page.keyboard.press('Tab');
       await expect(page.getByRole('button', { name: 'Accounts and mappings', exact: true })).toBeFocused();
+      await page.keyboard.press('Enter');
+      expect((await page.getByLabel('Search account code or name', { exact: true }).boundingBox())!.width).toBeGreaterThanOrEqual(200);
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     }
 
@@ -133,6 +136,7 @@ test('accounting setup preserves explicit policies, guarded mappings, coverage, 
     await assign(original.roleIds);
   }
 });
+
 
 
 

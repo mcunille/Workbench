@@ -2,6 +2,7 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from 'react';
@@ -24,8 +25,13 @@ function statusFor(error: unknown): AuthStatus {
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [identity, setIdentity] = useState<CurrentIdentity | null>(null);
   const [status, setStatus] = useState<AuthStatus>('loading');
+  const operationGeneration = useRef(0);
+  const authenticationTransition = useRef<number | null>(null);
 
   const refresh = useCallback(async (mode?: 'permissions') => {
+    // A role-save completion cannot supersede a login/logout already in flight.
+    if (mode === 'permissions' && authenticationTransition.current !== null) return;
+    const generation = ++operationGeneration.current;
     // Access-loss checks discard protected state immediately. A successful role
     // change only refreshes permission claims, preserving the saved editor feedback.
     if (mode !== 'permissions') {
@@ -34,48 +40,69 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
     try {
       const result = await getCurrentIdentity();
+      if (generation !== operationGeneration.current) return;
       setIdentity(result);
       setStatus(result ? 'signed-in' : 'signed-out');
     } catch (error) {
+      if (generation !== operationGeneration.current) return;
       setIdentity(null);
       setStatus(statusFor(error));
     }
   }, []);
 
   useEffect(() => {
+    const generation = ++operationGeneration.current;
     let current = true;
     void getCurrentIdentity().then(
       (result) => {
-        if (current) {
+        if (current && generation === operationGeneration.current) {
           setIdentity(result);
           setStatus(result ? 'signed-in' : 'signed-out');
         }
       },
       (error: unknown) => {
-        if (current) {
+        if (current && generation === operationGeneration.current) {
           setStatus(statusFor(error));
         }
       },
     );
     return () => {
       current = false;
+      operationGeneration.current++;
     };
   }, []);
 
   const signIn = useCallback(async (email: string, password: string) => {
-    await signInRequest(email, password);
-    const result = await getCurrentIdentity();
-    if (!result) {
-      throw new ApiError(401);
+    const generation = ++operationGeneration.current;
+    authenticationTransition.current = generation;
+    try {
+      await signInRequest(email, password);
+      if (generation !== operationGeneration.current) return;
+      const result = await getCurrentIdentity();
+      if (generation !== operationGeneration.current) return;
+      if (!result) throw new ApiError(401);
+      setIdentity(result);
+      setStatus('signed-in');
+    } catch (error) {
+      if (generation === operationGeneration.current) throw error;
+    } finally {
+      if (authenticationTransition.current === generation) authenticationTransition.current = null;
     }
-    setIdentity(result);
-    setStatus('signed-in');
   }, []);
 
   const signOut = useCallback(async () => {
-    await signOutRequest();
-    setIdentity(null);
-    setStatus('signed-out');
+    const generation = ++operationGeneration.current;
+    authenticationTransition.current = generation;
+    try {
+      await signOutRequest();
+      if (generation !== operationGeneration.current) return;
+      setIdentity(null);
+      setStatus('signed-out');
+    } catch (error) {
+      if (generation === operationGeneration.current) throw error;
+    } finally {
+      if (authenticationTransition.current === generation) authenticationTransition.current = null;
+    }
   }, []);
 
   const value = useMemo(

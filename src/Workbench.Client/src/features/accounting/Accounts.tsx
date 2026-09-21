@@ -37,7 +37,7 @@ export function Accounts({ catalog, changed, fail, canManage, onDirtyChange }: {
     finally { setBusy(false); }
   }
   return <section aria-labelledby="accounts-heading"><h2 id="accounts-heading">Accounts</h2><p>General accounts describe financial purpose. Creating accounts does not create balances or accounting entries.</p>
-    <div className="button-row"><FloatingField label="Search account code or name" htmlFor="account-query"><input id="account-query" placeholder=" " disabled={busy || uncertain} value={query} onChange={e => { setQuery(e.target.value); setLoading(true); setCursor(null); }} /></FloatingField><label className="accounting-check"><input type="checkbox" disabled={busy || uncertain} checked={archived} onChange={e => { setArchived(e.target.checked); setLoading(true); setCursor(null); }} /> Include archived</label></div>
+    <div className="accounting-account-toolbar"><FloatingField label="Search account code or name" htmlFor="account-query"><input id="account-query" placeholder=" " disabled={busy || uncertain} value={query} onChange={e => { setQuery(e.target.value); setLoading(true); setCursor(null); }} /></FloatingField><label className="accounting-check"><input type="checkbox" disabled={busy || uncertain} checked={archived} onChange={e => { setArchived(e.target.checked); setLoading(true); setCursor(null); }} /> Include archived</label></div>
     {loading ? <p role="status">Loading accounts…</p> : !items.length ? <p>No accounts match. Create an account or preview the optional starter chart.</p> : <ul className="record-list">{items.map(account => <li key={account.id}><span><strong>{account.code} — {account.name}</strong><small>{account.type} · {label(account.purpose)}{account.isArchived ? ' · Archived' : ''}</small></span>{canManage ? <span className="button-row"><button type="button" className="secondary" disabled={busy || uncertain || conflict || !!editing || starter} onClick={() => { setEditing(account); setContent(account); }}>Edit</button><button type="button" className="secondary" disabled={busy || uncertain || conflict || !!editing || starter} onClick={() => void command(`archive-${account.id}-${account.version}`, id => archiveAccount(account.id, { requestId: id, expectedVersion: account.version, isArchived: !account.isArchived }))}>{account.isArchived ? 'Restore' : 'Archive'}</button></span> : null}</li>)}</ul>}
     {cursor ? <button type="button" className="secondary" disabled={busy} onClick={() => { setBusy(true); void getAccounts(cursor, query, archived).then(page => { setItems(previous => [...previous, ...page.items]); setCursor(page.nextCursor); }, fail).finally(() => setBusy(false)); }}>Load more accounts</button> : null}
     {canManage && !editing && !starter && !uncertain && !conflict ? <div className="button-row"><button type="button" className="secondary" onClick={() => { setEditing('new'); setContent(empty); }}>Create account</button><button type="button" className="secondary" onClick={() => setStarter(true)}>Preview starter chart</button></div> : null}
@@ -48,6 +48,7 @@ export function Accounts({ catalog, changed, fail, canManage, onDirtyChange }: {
     {message ? <p role="status">{message}</p> : null}
   </section>;
 }
+
 
 
 

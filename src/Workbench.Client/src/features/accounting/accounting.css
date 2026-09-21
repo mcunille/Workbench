@@ -21,3 +21,6 @@
 .accounting-comparison dt { color: var(--muted); }
 .accounting-comparison dd { margin: 0; overflow-wrap: anywhere; }
 
+.accounting-account-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 1rem; margin-block: 1.5rem; }
+.accounting-account-toolbar > .floating-field { flex: 1 1 20rem; max-width: 32rem; }
+.accounting-account-toolbar > .accounting-check { flex: 0 0 auto; }
