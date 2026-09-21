@@ -39,6 +39,9 @@ provenance and the aggregate CI check.
 The second requires Docker and verifies a SQL-backed runtime image as non-root and read-only with no Node.js,
 source files, setup credential, operator credential, or migrator credential. If Docker is
 unavailable, state that limit explicitly; do not report the container gate as passed.
+If an existing local Docker network overlaps the smoke fixture's default `172.29` range, select
+an unused private prefix with `./scripts/smoke-container.ps1 -ComposeIngressPrefix '172.30'`.
+The fixture chooses its /24 within octets 100–239; verify the chosen prefix is available first.
 
 Read the [migration runbook](docs/operations/database-migrations.md) before changing the schema and
 the [backup/restore runbook](docs/operations/database-backup-restore.md) before any recovery drill.

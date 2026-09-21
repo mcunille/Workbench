@@ -1,5 +1,8 @@
 [CmdletBinding()]
-param()
+param(
+    [ValidatePattern('\A172\.(1[6-9]|2[0-9]|3[01])\z')]
+    [string]$ComposeIngressPrefix = '172.29'
+)
 
 $ErrorActionPreference = 'Stop'
 $repositoryRoot = Split-Path -Parent $PSScriptRoot
@@ -257,7 +260,8 @@ ALTER ROLE [workbench_worker] ADD MEMBER [$workerUser];
     $null = Write-SecretFile 'certificate-password' $certificatePassword
     $null = Write-SecretFile 'smtp-password' ''
     & (Join-Path $PSScriptRoot 'test-compose-runtime.ps1') -DockerPath $docker.Source -Image $image `
-        -SqlNetwork $network -SecretDirectory $temporaryRoot -AdminPasswordFile $adminPasswordFile
+        -SqlNetwork $network -SecretDirectory $temporaryRoot -AdminPasswordFile $adminPasswordFile `
+        -IngressPrefix $ComposeIngressPrefix
 
     $runtimeEnvironment = & $docker.Source inspect --format '{{json .Config.Env}}' $appContainer
     if ($runtimeEnvironment -match [regex]::Escape($sqlPassword) -or
