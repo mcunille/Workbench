@@ -69,15 +69,13 @@ public sealed partial class DraftOrderDatabaseTests
             Assert.False(reader.GetBoolean(0));
         }
         Assert.True((await Save(connection, actor, request, canonical, "Create")).Replayed);
-        // AND only the current financial beta writer remains, with the required readiness marker.
+        // AND only the current financial beta writer remains.
         await using var definition = new SqlCommand("SELECT OBJECT_DEFINITION(OBJECT_ID(N'Purchasing.SaveDraftOrder'))", admin);
         var sql = (string)(await definition.ExecuteScalarAsync())!;
         Assert.Contains("ContentSchemaVersion=4", sql);
         Assert.Contains("@SavedSupplierId", sql);
         definition.CommandText = "SELECT COUNT(*) FROM sys.procedures WHERE schema_id=SCHEMA_ID(N'Purchasing') AND (name LIKE '%DraftOrderV[234]' OR name=N'ReplayDraftOrderReceipt')";
         Assert.Equal(0, Convert.ToInt32(await definition.ExecuteScalarAsync()));
-        definition.CommandText = "SELECT OBJECT_DEFINITION(OBJECT_ID(N'Security.ReadDatabaseReadiness'))";
-        Assert.Contains(CurrentSchema.MigrationId, (string)(await definition.ExecuteScalarAsync())!);
         // AND a new financial request is accepted and stored using content schema 4.
         await Save(connection, actor, Guid.NewGuid(), Canonical("Create", null, null, "Financial beta draft"), "Create");
         Assert.Equal(50020, (await Assert.ThrowsAsync<SqlException>(() => DatabaseMigrator.MigrateToAsync(database.AdminConnectionString, "RemoveHistoricalDraftReplay", default))).Number);

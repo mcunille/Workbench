@@ -23,6 +23,12 @@ public sealed class DatabaseMigrationTests(SqlServerFixture sqlServer)
 
         // THEN the applied history exactly matches the current release manifest.
         await MigrationHistoryAssertions.AssertCurrentAsync(database.AdminConnectionString);
+        // AND the stored default advances too: later migrations guard against this predecessor marker.
+        await using var connection = new SqlConnection(database.AdminConnectionString);
+        await connection.OpenAsync();
+        await using var definition = new SqlCommand("SELECT OBJECT_DEFINITION(OBJECT_ID(N'Security.ReadDatabaseReadiness'))", connection);
+        Assert.Contains($"@ExpectedMigration nvarchar(150)=N'{CurrentSchema.MigrationId}'",
+            (string)(await definition.ExecuteScalarAsync())!);
     }
 
     [Theory]
@@ -83,6 +89,7 @@ public sealed class DatabaseMigrationTests(SqlServerFixture sqlServer)
         {
             CommandType = System.Data.CommandType.StoredProcedure,
         };
+        readiness.Parameters.AddWithValue("@ExpectedMigration", CurrentSchema.MigrationId);
         await using var state = await readiness.ExecuteReaderAsync();
         Assert.True(await state.ReadAsync());
         Assert.True(state.GetBoolean(state.GetOrdinal("CompatibleMigration")));

@@ -177,8 +177,10 @@ The SQL migration must still advance the readiness procedure's marker explicitly
 migration SQL and upgrade fixture IDs remain immutable.
 
 Current-history integration assertions use `MigrationHistoryAssertions` to compare every ID in
-order, including explicitly named retained preview migrations. Acquisition, financial-upgrade,
-and recovery tests use the shared current marker; they need no literal or total-count update.
+order, including explicitly named retained preview migrations. Dedicated migration tests check
+readiness against the shared current marker; recovery tests check the emitted backup marker.
+Acquisition and financial tests assert their own preservation and domain behavior without
+repeating a SQL-definition marker check. They need no literal or total-count update.
 Fixed upgrade tests, such as supplier migration consolidation, migrate to their named historical
 boundary so their independent one-migration assertion survives later releases.
 

@@ -35,7 +35,8 @@ known EF migrations predating backup support and unknown future markers are reje
 | Location | Classification and treatment |
 | --- | --- |
 | `DatabaseReadinessCheck`, `StorageMaintenanceCommand` emitted marker | Current release; use shared boundary. |
-| Acquisition, shared acquisition, beta financial upgrade, blob recovery tests | Current release; use shared boundary. |
+| Acquisition, shared acquisition, beta financial upgrade tests | Remove redundant SQL-definition marker checks; retain domain preservation and behavioral readiness checks. |
+| Migration compatibility and blob recovery tests | Own the current readiness and emitted backup marker checks using the shared boundary. |
 | Fresh migration, concurrent migrator, cancelled-migrator retry tests | Current history; compare full ordered manifest. |
 | Retained supplier-pricing preview test | Current history plus explicitly retained structured-line migration. |
 | Supplier profile consolidation test | Fixed historical upgrade; target supplier-profile migration explicitly and retain one-step assertion. |
