@@ -20,7 +20,7 @@ It remains a design proposal, not implemented bookkeeping.
 | Visual decisions | [UI guidance](2026-09-06-ui-design-guidance.md), [Tanzanite acceptance sequence](2026-09-08-tanzanite-visual-language.md), [floating labels](2026-09-08-floating-label-fields.md), [navigation](2026-09-09-refined-navigation.md) |
 | Providers and recovery | [Blob/operational providers](2026-09-05-blob-operational-providers.md), [online backup/manual recovery](2026-09-07-online-backup-and-manual-recovery.md) |
 | Deployment | [Azure](2026-09-05-azure-deployment.md), [forwarded trust](azure-forwarded-metadata-trust.md), [release verification fixes](azure-release-verification-fixes.md), [security controls](2026-09-08-production-security-controls.md), [local self-host update](local-self-host-update.md) |
-| Development and verification | [Local iteration](2026-09-08-local-test-iteration.md), [concurrent gate](2026-09-09-concurrent-verification-gate.md), [duration balancing](2026-09-16-duration-balanced-server-partitions.md), [test suite efficiency](2026-09-16-test-suite-efficiency.md), [worktree environments](2026-09-09-worktree-development-environments.md) |
+| Development and verification | [Current schema bookkeeping](2026-09-21-current-schema-bookkeeping.md), [Local iteration](2026-09-08-local-test-iteration.md), [concurrent gate](2026-09-09-concurrent-verification-gate.md), [duration balancing](2026-09-16-duration-balanced-server-partitions.md), [test suite efficiency](2026-09-16-test-suite-efficiency.md), [worktree environments](2026-09-09-worktree-development-environments.md) |
 
 Current instructions are indexed by [task](../README.md). [DESIGN.md](../../DESIGN.md) owns current
 visual values; [collection export](../collection-export.md) owns current CSV/ZIP formats.

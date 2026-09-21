@@ -4,6 +4,7 @@ using System.Data;
 using System.Text.Json;
 using Microsoft.Data.SqlClient;
 using Workbench.Server.Operations;
+using Workbench.Server.Persistence;
 
 namespace Workbench.Server.Storage;
 
@@ -14,7 +15,6 @@ public sealed record BlobManifest(int Version, string SchemaVersion, Guid Backup
 // exposes this authority. Stop every replica and worker before invoking it.
 public static class StorageMaintenanceCommand
 {
-    private const string SchemaVersion = "20260921041331_MakeSupplierProfilesCustom";
     public static async Task RunAsync(string action, string connectionString, string database,
         IReadOnlyDictionary<string, string> arguments, CancellationToken cancellationToken)
     {
@@ -58,7 +58,7 @@ public static class StorageMaintenanceCommand
                 }
             }
             await WriteNewAsync(Required("--output-file"),
-                new BlobManifest(1, SchemaVersion, Guid.NewGuid(), installation, database, DateTimeOffset.UtcNow, entries), cancellationToken);
+                new BlobManifest(1, CurrentSchema.MigrationId, Guid.NewGuid(), installation, database, DateTimeOffset.UtcNow, entries), cancellationToken);
         }
         else if (action == "verify")
         {
@@ -147,10 +147,41 @@ public static class StorageMaintenanceCommand
         return OperationalConfiguration.CreateStore(targetConfiguration)!;
     }
 
+    // Historical compatibility is an explicit allowlist, not every migration in the EF inventory.
+    // Keep former current markers here when advancing the release contract.
+    private static bool IsSupportedSchema(string schema) =>
+        schema == CurrentSchema.MigrationId || schema is
+            "20260921041331_MakeSupplierProfilesCustom"
+            or "20260918063409_HardenPurchaseOrderDocumentAuthority"
+            or "20260918061646_AddPurchaseOrderDocuments"
+            or "20260918060000_AddPurchaseOrderCommitment"
+            or "20260918050000_ProjectRetainedPurchaseOrderLines"
+            or "20260918040000_HardenPurchaseOrderCommitmentValidation"
+            or "20260918030000_AddPurchaseOrderCommitment"
+            or "20260918020000_IntegrateBetaDraftFinancialAdjustments"
+            or "20260918010000_RemoveHistoricalDraftReplay"
+            or "20260917030000_ProtectConfirmedSupplierChargeCorrections"
+            or "20260917020000_AddDraftFinancialAdjustments"
+            or "20260917015000_PrepareRetainedBetaFinancialUpgrade"
+            or "20260917080000_ConsolidateBetaDraftCommands"
+            or "20260917010000_AddSupplierBasedDraftPricing"
+            or "20260916183834_AddStructuredDraftOrderLines"
+            or "20260912064156_AddSupplierIdentityAndPurchaseReferences"
+            or "20260912030844_AddDraftSupplierOrders"
+            or "20260912033355_TightenDraftSourceLinkValidation"
+            or "20260912045432_AddDraftOrderDeletion"
+            or "20260911184933_AddAcquisitionDocuments"
+            or "20260910071000_AddSharedAcquisitions"
+            or "20260909034719_AddAcquisitionContext"
+            or "20260908010000_AddItemRestoration"
+            or "20260907225320_AddOnlineRecovery"
+            or "20260907224158_AddItemArchiving"
+            or "20260907194500_AddItemDetailEditing";
+
     internal static void ValidateManifest(BlobManifest manifest, string database, Guid installation,
         IReadOnlyList<BlobManifestEntry> entries)
     {
-        if (manifest.Version != 1 || manifest.SchemaVersion is not (SchemaVersion or "20260918063409_HardenPurchaseOrderDocumentAuthority" or "20260918061646_AddPurchaseOrderDocuments" or "20260918060000_AddPurchaseOrderCommitment" or "20260918050000_ProjectRetainedPurchaseOrderLines" or "20260918040000_HardenPurchaseOrderCommitmentValidation" or "20260918030000_AddPurchaseOrderCommitment" or "20260918020000_IntegrateBetaDraftFinancialAdjustments" or "20260918010000_RemoveHistoricalDraftReplay" or "20260917030000_ProtectConfirmedSupplierChargeCorrections" or "20260917020000_AddDraftFinancialAdjustments" or "20260917015000_PrepareRetainedBetaFinancialUpgrade" or "20260917080000_ConsolidateBetaDraftCommands" or "20260917010000_AddSupplierBasedDraftPricing" or "20260916183834_AddStructuredDraftOrderLines" or "20260912064156_AddSupplierIdentityAndPurchaseReferences" or "20260912030844_AddDraftSupplierOrders" or "20260912033355_TightenDraftSourceLinkValidation" or "20260912045432_AddDraftOrderDeletion" or "20260911184933_AddAcquisitionDocuments" or "20260910071000_AddSharedAcquisitions" or "20260909034719_AddAcquisitionContext" or "20260908010000_AddItemRestoration" or "20260907225320_AddOnlineRecovery" or "20260907224158_AddItemArchiving" or "20260907194500_AddItemDetailEditing") || manifest.Database != database || manifest.InstallationId != installation ||
+        if (manifest.Version != 1 || !IsSupportedSchema(manifest.SchemaVersion) || manifest.Database != database || manifest.InstallationId != installation ||
             manifest.Entries.Count != entries.Count || !entries.SequenceEqual(manifest.Entries))
         {
             throw new InvalidDataException("The manifest does not match the restored database.");

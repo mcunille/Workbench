@@ -71,7 +71,7 @@ public sealed partial class DraftOrderDatabaseTests
     {
         // GIVEN the released schema WHEN the supplier profile change is applied.
         await using var database = await sqlServer.CreateMigratedDatabaseAsync("HardenPurchaseOrderDocumentAuthority");
-        await DatabaseMigrator.MigrateAsync(database.AdminConnectionString, default);
+        await DatabaseMigrator.MigrateToAsync(database.AdminConnectionString, "20260921041331_MakeSupplierProfilesCustom", default);
         await using var connection = new SqlConnection(database.AdminConnectionString);
         await connection.OpenAsync();
         // THEN exactly one migration adds the final JSON field without fixed-platform columns.

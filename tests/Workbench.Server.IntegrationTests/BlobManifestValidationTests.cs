@@ -1,6 +1,7 @@
 // Copyright (c) 2026 The White Stag Collection.
 
 using Workbench.Server.Storage;
+using Workbench.Server.Persistence;
 using Xunit;
 
 namespace Workbench.Server.IntegrationTests;
@@ -67,6 +68,26 @@ public sealed class BlobManifestValidationTests
         Assert.Equal("The manifest does not match the restored database.", error.Message);
     }
 
+    [Fact]
+    public void CurrentReleaseAcceptsAnExactManifest()
+    {
+        // GIVEN a manifest emitted by this release, independently of historical compatibility fixtures.
+        var manifest = Manifest() with { SchemaVersion = CurrentSchema.MigrationId };
+        // WHEN validating the paired backup THEN the current schema is supported.
+        StorageMaintenanceCommand.ValidateManifest(manifest, manifest.Database, manifest.InstallationId, manifest.Entries);
+    }
+
+    [Theory]
+    [InlineData("20260904061204_InitialSchema")]
+    [InlineData("99999999999999_FutureSchema")]
+    public void KnownButUnsupportedAndFutureSchemasRemainRejected(string schema)
+    {
+        // GIVEN an EF migration predating supported manifests or an unknown future boundary.
+        var manifest = Manifest() with { SchemaVersion = schema };
+        // WHEN validating THEN neither inventory membership nor ordering grants compatibility.
+        Assert.Throws<InvalidDataException>(() => StorageMaintenanceCommand.ValidateManifest(
+            manifest, manifest.Database, manifest.InstallationId, manifest.Entries));
+    }
     private static BlobManifest Manifest() => new(1, "20260912064156_AddSupplierIdentityAndPurchaseReferences",
         Guid.NewGuid(), Guid.NewGuid(), "restored-database", DateTimeOffset.UtcNow,
         [new(Guid.NewGuid(), Guid.NewGuid(), "provider", 1, "AA"), new(Guid.NewGuid(), Guid.NewGuid(), "provider", 2, "BB")]);

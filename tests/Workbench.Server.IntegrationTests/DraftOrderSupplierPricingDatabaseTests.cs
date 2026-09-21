@@ -2,6 +2,7 @@
 using System.Data;
 using System.Text.Json.Nodes;
 using Microsoft.Data.SqlClient;
+using Workbench.Server.IntegrationTests.Infrastructure;
 using Workbench.Server.Purchasing;
 using Xunit;
 namespace Workbench.Server.IntegrationTests;
@@ -24,12 +25,11 @@ public sealed partial class DraftOrderDatabaseTests
         var saved = await Save(connection, actor, request, original, "Create");
         // WHEN the consolidated migrator runs THEN retained history and the old receipt stay intact.
         await Workbench.Server.Persistence.DatabaseMigrator.MigrateAsync(database.AdminConnectionString, default);
-        history.CommandText = "SELECT COUNT(*) FROM dbo.__EFMigrationsHistory";
-        Assert.Equal(29, Convert.ToInt32(await history.ExecuteScalarAsync()));
+        await MigrationHistoryAssertions.AssertCurrentAsync(database.AdminConnectionString, "20260916183834_AddStructuredDraftOrderLines");
         var inspection = await Workbench.Server.Administration.DevelopmentDatabaseInspection.InspectAsync(database.AdminConnectionString, default);
         Assert.True(inspection.MigrationHistoryCompatible);
         Assert.True(inspection.SchemaCurrent);
-        Assert.Equal(29, inspection.AppliedMigrations.Length);
+        MigrationHistoryAssertions.AssertCurrent(inspection.AppliedMigrations, "20260916183834_AddStructuredDraftOrderLines");
         var replay = await Save(connection, actor, request, original, "Create");
         Assert.Equal(saved.Version, replay.Version); Assert.True(replay.Replayed);
         // AND a beta update retains the order identity while older clients cannot overwrite the new content.
