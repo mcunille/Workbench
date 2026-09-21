@@ -11,6 +11,9 @@ public sealed class Supplier : ITenantOwned
     public string? Email { get; init; }
     public string? Phone { get; init; }
     public string? Website { get; init; }
+    public string? Instagram { get; init; }
+    public string? X { get; init; }
+    public string? GemRockAuctions { get; init; }
     public string? PostalAddress { get; init; }
     public bool IsArchived { get; init; }
     public DateTimeOffset CreatedAtUtc { get; init; }

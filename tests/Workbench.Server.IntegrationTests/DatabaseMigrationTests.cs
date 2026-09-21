@@ -62,7 +62,8 @@ public sealed class DatabaseMigrationTests(SqlServerFixture sqlServer)
             migration => Assert.EndsWith("_IntegrateBetaDraftFinancialAdjustments", migration, StringComparison.Ordinal),
             migration => Assert.Equal("20260918060000_AddPurchaseOrderCommitment", migration),
             migration => Assert.Equal("20260918061646_AddPurchaseOrderDocuments", migration),
-            migration => Assert.Equal("20260918063409_HardenPurchaseOrderDocumentAuthority", migration));
+            migration => Assert.Equal("20260918063409_HardenPurchaseOrderDocumentAuthority", migration),
+            migration => Assert.Equal("20260921012247_AddSupplierProfiles", migration));
     }
 
     [Theory]

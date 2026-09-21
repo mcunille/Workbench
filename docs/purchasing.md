@@ -225,3 +225,13 @@ unchanged. Confirming removes the draft from purchase orders and returns to the 
 be restored through the application. If another member changed it, review the current version
 before requesting deletion again. An uncertain deletion offers **Check and retry deletion** with
 the original request; do not create a new request to resolve a lost response.
+
+## Supplier social and marketplace profiles
+
+Supplier records can keep optional Instagram, X, and GemRockAuctions profile links alongside
+their website. Enter a full HTTP or HTTPS URL in **Social and marketplace profiles (optional)**.
+Save the supplier, then use the platform's **Open profile** link to open the saved destination
+in a new tab. Clear a field and save to remove that profile; other links stay unchanged.
+Spaces, embedded credentials, and non-web links are rejected with feedback beside the field.
+These profiles belong to the supplier directory and do not change purchase-order snapshots.
+See the [supplier profile design](specs/2026-09-20-supplier-profiles.md).

@@ -6,6 +6,41 @@ namespace Workbench.Server.IntegrationTests;
 public sealed class PurchasingIdentityInputTests
 {
     private static SupplierContent Contact => new(" Supplier ", " Contact ", " a@example.test ", " +1 555 ext 2 ", " https://example.test ", " First\nSecond ");
+    [Theory]
+    [InlineData("javascript:alert(1)")]
+    [InlineData("data:text/html,hello")]
+    [InlineData("ftp://example.test")]
+    [InlineData("//instagram.com/example")]
+    [InlineData("https://user:password@example.test")]
+    [InlineData("https://example.test/white space")]
+    [InlineData("https://example.test/\u0001")]
+    [InlineData("https://example.test\\path")]
+    public void ProfilesRejectUnsafeLinksWithPlatformSpecificFeedback(string link)
+    {
+        // GIVEN unsafe links in each optional platform WHEN validated THEN every field has actionable feedback.
+        var errors = PurchasingIdentityInput.Validate(Contact with { Instagram = link, X = link, GemRockAuctions = link });
+        foreach (var field in new[] { "instagram", "x", "gemRockAuctions" })
+            Assert.Contains("HTTP or HTTPS", Assert.Single(errors["supplier." + field]));
+    }
+    [Fact]
+    public void ProfilesNormalizeEmptyValuesAndEnforceLengthWithoutChangingLegacySerialization()
+    {
+        // GIVEN optional profiles, supported web schemes, and legacy supplier input.
+        var normalized = PurchasingIdentityInput.Normalize(Contact with { Instagram = " https://instagram.com/example ", X = " \t", GemRockAuctions = "http://www.gemrockauctions.com/stores/example" });
+        // WHEN normalized THEN blank profiles are absent and valid links retain their destination.
+        Assert.Equal("https://instagram.com/example", normalized.Instagram);
+        Assert.Null(normalized.X);
+        Assert.Empty(PurchasingIdentityInput.Validate(normalized));
+        const string origin = "https://example.test/";
+        var maximum = origin + new string('a', 2048 - origin.Length);
+        Assert.Empty(PurchasingIdentityInput.Validate(normalized with { Instagram = maximum, X = maximum, GemRockAuctions = maximum }));
+        var errors = PurchasingIdentityInput.Validate(normalized with { Instagram = maximum + "a", X = maximum + "a", GemRockAuctions = maximum + "a" });
+        foreach (var field in new[] { "instagram", "x", "gemRockAuctions" }) Assert.Contains("supplier." + field, errors);
+        // AND absent new fields preserve the old canonical supplier bytes for request receipt replay.
+        var legacy = new { Contact.Name, Contact.ContactName, Contact.Email, Contact.Phone, Contact.Website, Contact.PostalAddress };
+        Assert.Equal(System.Text.Json.JsonSerializer.Serialize(legacy, DraftOrderInput.JsonOptions),
+            System.Text.Json.JsonSerializer.Serialize(Contact, DraftOrderInput.JsonOptions));
+    }
     private static DraftContent Empty => new(null, null, null, null, [], [], null, null, null, null, null, null, null, null);
     [Fact]
     public void NormalizeTrimsSingleLinesAndPreservesAddressWithoutChangingPurchaseIdentity()

@@ -6288,6 +6288,27 @@
               "null",
               "string"
             ]
+          },
+          "instagram": {
+            "maxLength": 2048,
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "x": {
+            "maxLength": 2048,
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "gemRockAuctions": {
+            "maxLength": 2048,
+            "type": [
+              "null",
+              "string"
+            ]
           }
         },
         "additionalProperties": false

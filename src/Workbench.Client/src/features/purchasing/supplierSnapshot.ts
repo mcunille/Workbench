@@ -1,5 +1,8 @@
 import type { DraftContent } from '../../api/purchaseOrders';
 import type { SupplierContent, Supplier } from '../../api/suppliers';
+export const supplierProfileFields = [
+  ['instagram', 'Instagram', 2048], ['x', 'X', 2048], ['gemRockAuctions', 'GemRockAuctions', 2048],
+] as const;
 export const supplierFields = [
   ['name', 'Name', 200], ['contactName', 'Contact name', 200], ['email', 'Email', 254],
   ['phone', 'Phone', 100], ['website', 'Website', 2048], ['postalAddress', 'Postal address', 2000],

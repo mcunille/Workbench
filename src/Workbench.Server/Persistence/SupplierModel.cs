@@ -25,6 +25,9 @@ public partial class WorkbenchDbContext
         supplier.Property(row => row.Email).HasMaxLength(254);
         supplier.Property(row => row.Phone).HasMaxLength(100);
         supplier.Property(row => row.Website).HasMaxLength(2048);
+        supplier.Property(row => row.Instagram).HasMaxLength(2048);
+        supplier.Property(row => row.X).HasMaxLength(2048);
+        supplier.Property(row => row.GemRockAuctions).HasMaxLength(2048);
         supplier.Property(row => row.PostalAddress).HasMaxLength(2000);
         supplier.Property(row => row.RowVersion).IsRowVersion();
         supplier.HasIndex(row => new { row.TenantId, row.UpdatedAtUtc, row.Id }).IsDescending(false, true, true);

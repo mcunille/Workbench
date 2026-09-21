@@ -6,7 +6,8 @@ import { FloatingField } from '../../FloatingField';
 import { ApiError } from '../../api/auth';
 import { getSupplier, createSupplier, updateSupplier, archiveSupplier, SupplierError, type Supplier, type SupplierContent, type SupplierReceipt, type CreateSupplierRequest, type UpdateSupplierRequest, type ArchiveSupplierRequest } from '../../api/suppliers';
 import { SupplierDetails } from './supplierDetails';
-import { emptySupplier, supplierFields } from './supplierSnapshot';
+import { emptySupplier, supplierFields, supplierProfileFields } from './supplierSnapshot';
+import { SupplierProfileLink } from './SupplierProfileLink';
 import { SupplierDialog } from './SupplierDialog';
 import './purchasing.css';
 type Mode = 'loading' | 'editing' | 'saving' | 'uncertain' | 'reading' | 'read-failed' | 'comparison' | 'blocked' | 'load-failed';
@@ -95,12 +96,13 @@ export function SupplierEditor({ id: initialId, inline, onDirtyChange, onAuthLos
     if (!current) return; setBaseline(current); if (!keep) setSupplier(current.supplier); setCurrent(undefined); receipt.current = undefined; submission.current = undefined; setMode('editing'); setMessage('Review the details, then save your changes.');
   }
   const frozen = mode !== 'editing';
-  function field([key, label, limit]: typeof supplierFields[number]) {
+  function field([key, label, limit]: typeof supplierFields[number] | typeof supplierProfileFields[number]) {
     const controlId = `supplier-${key}`; const error = errors[`supplier.${key}`]?.join(' ');
     const description = [key === 'name' ? `${formId}-required` : '', error ? `${controlId}-error` : ''].filter(Boolean).join(' ') || undefined;
     const common = { id: controlId, value: supplier[key] ?? '', disabled: frozen, maxLength: limit, placeholder: ' ', 'aria-invalid': !!error, 'aria-describedby': description, onChange: (event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => setSupplier({ ...supplier, [key]: event.target.value || (key === 'name' ? '' : null) }) };
     return <div className={`po-field${key === 'postalAddress' ? ' po-supplier-address' : ''}`} key={key}>
-      <FloatingField htmlFor={controlId} label={key === 'name' ? 'Supplier name' : label}>{key === 'postalAddress' ? <textarea {...common} rows={3} /> : <input {...common} type={key === 'email' ? 'email' : key === 'phone' ? 'tel' : key === 'website' ? 'url' : 'text'} required={key === 'name'} />}</FloatingField>
+      <FloatingField htmlFor={controlId} label={key === 'name' ? 'Supplier name' : label}>{key === 'postalAddress' ? <textarea {...common} rows={3} /> : <input {...common} type={key === 'email' ? 'email' : key === 'phone' ? 'tel' : key === 'website' || supplierProfileFields.some(([profile]) => profile === key) ? 'url' : 'text'} required={key === 'name'} />}</FloatingField>
+      {supplierProfileFields.some(([profile]) => profile === key) && baseline?.supplier[key] ? <SupplierProfileLink label={label} value={baseline.supplier[key]} /> : null}
       {key === 'name' ? <p className="po-field-help po-required-help" id={`${formId}-required`}>Required</p> : null}
       {error ? <p className="form-message error" id={`${controlId}-error`}>{error}</p> : null}
     </div>;
@@ -138,6 +140,10 @@ export function SupplierEditor({ id: initialId, inline, onDirtyChange, onAuthLos
       <section className="po-form-section" role="group" aria-labelledby={`${formId}-contacts`}>
         <div className="po-section-heading"><div><h2 id={`${formId}-contacts`}>Contact details (optional)</h2><p>Changes here won’t update existing purchase orders.</p></div></div>
         <div className="po-supplier-contact-fields">{supplierFields.slice(1).map(field)}</div>
+      </section>
+      <section className="po-form-section" role="group" aria-labelledby={`${formId}-profiles`}>
+        <div className="po-section-heading"><div><h2 id={`${formId}-profiles`}>Social and marketplace profiles (optional)</h2><p>Use full links starting with https:// or http://. Clear a field to remove its profile.</p></div></div>
+        <div className="po-supplier-contact-fields">{supplierProfileFields.map(field)}</div>
       </section>
       {inline ? <div className="button-row po-dialog-footer"><button className="secondary" type="button" onClick={onCancel}>Cancel</button>{saveButton}
       {inline && baseline && mode === 'editing' && !changed ? <button className="secondary" type="button" onClick={() => onSelected?.(baseline)}>Select saved supplier</button> : null}
