@@ -40,17 +40,19 @@ Every specialist returns:
 
 1. Role, reviewed SHAs/range, completion status, inspected scope, and justified inapplicable areas.
 2. Checks performed and outcomes, identifying static inspection, mock-based tests, and real runtime execution separately; include exact commands and source provenance where applicable, without secrets.
-3. Candidate findings, or an explicit no-findings statement for the inspected scope.
+3. Candidate findings, including evidence-backed nonblocking architectural debt and tradeoffs, or an explicit no-findings statement for the inspected scope. Architecture must separately record material migration exceptions and change-locality costs under `design-review.md`; no required fixes does not mean no observations to surface.
 4. Assigned prior-thread dispositions: satisfied, still open, conceded, or deferred, each with evidence. Resolved/outdated UI status is not proof. Keep an established required finding still open until evidence supports satisfaction or concession. Use deferred only for an explicit, documented deferral with its reason and outstanding work; deferral does not clear a required finding for the verdict.
 5. Coverage limits, unresolved hypotheses, and blockers, separate from substantiated findings.
 
-Each candidate finding includes a role-local ID, title, proposed Critical/High/Medium/Low severity, required-fix or nonblocking disposition, violated requirement/contract/invariant, concrete trigger, affected path, observable impact, evidence, verification limits, and recommended corrective outcome. Include file/line/diff side or explain why it is unanchorable; include related prior-thread IDs. A recommendation should describe a concrete benefit rather than imply an unproven defect.
+Each candidate finding includes a role-local ID, title, proposed Critical/High/Medium/Low severity, required-fix or nonblocking disposition, violated requirement/contract/invariant (or concrete maintenance cost for a nonblocking recommendation), concrete trigger, affected path, observable impact, evidence, verification limits, and recommended corrective outcome. Include file/line/diff side or explain why it is unanchorable; include related prior-thread IDs. A recommendation should describe a concrete benefit rather than imply an unproven defect. Justified retained tradeoffs may be labeled nonblocking observations without inventing a violation or corrective change.
 
 ## Reconciliation and severity
 
 The orchestrator validates supporting code and relevant check evidence, rather than accepting a specialist's conclusion as proof. Request focused clarification from the relevant agents when evidence conflicts. Decide through evidence, not votes, agent seniority, or the highest proposed severity; retain unresolved uncertainty in coverage limits.
 
 Merge candidates only when they describe the same underlying defect and corrective action. Preserve contributing roles/IDs, distinct triggers, affected locations, domain impacts, evidence, limits, and prior-thread links. Choose a representative changed-line anchor without dropping supporting locations. Similar symptoms with separate causes or fixes remain separate findings. Record why disputed candidates were merged, downgraded, or excluded in the working reconciliation ledger; retain material disagreements in the final assessment.
+
+Before finalizing, account for every material architectural observation in the specialist reports: include it in the user-visible assessment and proposed grouped body, merge it without losing its cost or tradeoff, or exclude it with a recorded evidence-based reason. Being nonblocking, generated, inherited from existing conventions, or justified by an exception is not an exclusion reason by itself. An exception can justify retaining the implementation while leaving a maintenance cost worth surfacing. Preserve publication approval and scope: recommendations do not authorize filing issues or starting a refactor.
 
 Assign every accepted finding one final impact severity:
 
