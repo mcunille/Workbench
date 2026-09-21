@@ -64,16 +64,16 @@ The inventory recognition portion of BK-04 is Core for the intended gemstone pur
 
 | ID / gate | User story | Observable acceptance | Depends on |
 | --- | --- | --- | --- |
-| BK-01 / Core | As an owner, I want explicit accounting policies, accounts and permissions so that postings have a stable meaning. | Approve the policy table above; set functional currency, scale, fiscal calendar and cutover; create typed asset/liability/equity/income/expense accounts and controlled mappings; configure bank/cash and supplier control accounts; archive accounts without deleting history; prevent posting by ordinary members. | Design approval |
+| BK-01 / Core | As an owner, I want explicit accounting policies, accounts and permissions so that postings have a stable meaning. | Approve the policy table above; set functional currency, scale, fiscal calendar and cutover; create typed asset/liability/equity/income/expense accounts and controlled mappings; configure bank/cash and supplier control accounts; inventory complete-statement transaction coverage; archive accounts without deleting history; prevent posting by ordinary members. | Design approval |
 | BK-02 / Core | As a bookkeeper, I want an atomic double-entry journal so that every recorded event is balanced and traceable. | Every posted journal balances exactly, has at least two nonzero lines, approved accounts and a unique source-event identity; journal/source/receipt commit together; direct runtime mutation and unbalanced posting fail at the database boundary; retries and replica races create one result. | BK-01 |
 | BK-03 / Core | As a bookkeeper, I want corrections and period controls so that historical balances cannot be silently changed. | Distinguish document/effective/posting dates and UTC recording time; reject closed-period postings; atomically reverse/repost with a reason and linked evidence; preserve source revisions; serialize close-versus-post races; corrections after close use an open period. | BK-02 |
 | BK-04 / Core | As a bookkeeper, I want classified purchase recognition so that purchases affect the right accounts at the right time. | Define and test expense/prepayment/inventory/tax rules, invoice-before-receipt and receipt-before-invoice cases; independent recognition events prevent invoice and receipt double-counting; every component and rounding difference has an approved treatment; missing mappings block posting. | BK-01–03 |
 | BK-05 / Core (structured PO-06) | As an owner, I want structured supplier bills linked to private evidence so that liabilities come from reviewed source records. | Draft/post bills with supplier, reference, document and posting dates, due date/terms, currency, classified components and exact total; support multiple bills per PO; flag normalized duplicate supplier references and require recorded resolution; posted bills are immutable; pro forma requests create no automatic payable. | BK-02–04 |
-| BK-06 / Core | As a bookkeeper, I want supplier open items and allocations so that deposits and liabilities remain distinguishable. | Supplier/PO/bill subledger reconciles exactly to AP, advances and supplier-credit controls; partial allocations cannot exceed available advance or open debt; reversal releases allocations through new events; concurrent allocations cannot overspend the same amount. | BK-02–05 |
+| BK-06 / Core | As a bookkeeper, I want supplier open items and allocations so that deposits and liabilities remain distinguishable. | Supplier/PO/bill subledger reconciles exactly to AP, advances, supplier-credit and refund-clearing controls; partial allocations cannot exceed available advance or open debt; reversal releases allocations through new events; concurrent allocations cannot overspend the same amount. | BK-02–05 |
 | BK-07 / Core | As an owner, I want durable financial evidence so that corrections and recovery retain an audit trail. | Posted sources preserve supplier/account/mapping snapshots and private document revision/digest links; retained evidence cannot be removed through ordinary PO-file deletion; holds cover physical cleanup and recovery; permission loss revokes access without erasing evidence; configured retention is enforced. | BK-01–03; existing PO-06 storage |
 | BK-08 / Core (financial PO-10) | As a bookkeeper, I want supplier credits and refunds so that overpayments and exceptions reconcile without false payments. | Post credit notes and refunds separately, allocate credits to bills or retain an explicit supplier receivable, return unused deposits, preserve the original entries, and distinguish corrections from actual money returned; the worked example below reconciles. | BK-04–07; payment source contract |
 | BK-09 / Core readback, Release close | As a bookkeeper, I want a trial balance, account journal and supplier reconciliation so that I can prove balances and close a period. | Readback/export trace every amount to immutable source/journal IDs; debits equal credits; subledger totals equal control accounts at the same cutoff; close requires resolved discrepancies and retained reconciliation evidence; chronological and as-recorded views include later corrections. | Readback: BK-02–08; close: BK-10–11 |
-| BK-10 / Release | As an owner, I want a reconciled cutover so that existing cash, liabilities and advances are not invented or omitted. | Approve a balanced opening journal with source schedule; opening supplier items equal control balances and opening bank balances match evidence; prevent duplicate imports and pre-cutover reposting; a clean start explicitly confirms no opening items. | BK-01–03, BK-06, BK-09 readback |
+| BK-10 / Release | As an owner, I want a reconciled cutover so that existing cash, liabilities and advances are not invented or omitted. | Approve a balanced opening journal with source schedule; opening supplier items equal control balances and opening bank balances match evidence; revalidate complete-statement transaction coverage before activation; prevent duplicate imports and pre-cutover reposting; a clean start explicitly confirms no opening items. | BK-01–03, BK-06, BK-09 readback |
 | BK-11 / Release | As a bookkeeper, I want bank/cash/card reconciliation so that recorded payments match actual money movement and card debt. | Manual statement opening/closing balances and dated matching show outstanding items and zero unexplained difference; matching does not repost a payment; duplicates and reversal of matched payments require explicit resolution; retain statement evidence; reconcile card liabilities separately from bank balances. | BK-06–08, BK-09 readback, BK-10, BK-12, PO-07 payment recording |
 | BK-12 / Core for fees/cards, Release otherwise | As a bookkeeper, I want controlled non-supplier cash entries so that bank fees, transfers and card settlement do not become fictitious supplier payments. | Typed sources record bank fees, bank-to-bank transfers, card-liability settlements and approved owner funding/withdrawals with configured account mappings and evidence; both sides of a transfer post atomically; prevent duplicate settlement; never write AP/advance/supplier-credit controls through these commands; unsupported statement transactions remain unresolved and block reconciliation. | BK-01–03, BK-07 |
 
@@ -101,6 +101,26 @@ payment table and retrofit the journal later. The next implementation story is B
 approval, not PO-07. This design does not authorize creating GitHub issues or production changes.
 
 ## Journal and source contract
+
+### Complete-statement coverage before cutover
+
+BK-01 inventories every intended bank/cash/card account using complete representative statements,
+including receipts, sales deposits, interest, loan principal/interest, payroll, taxes, transfers,
+fees and card settlements where present. Map each transaction class to an implemented typed source,
+its posting policy and reconciliation behavior. Sampling only supplier-payment rows is insufficient.
+Record unsupported classes as explicit prerequisite stories for that business's activation; their
+implementation needs separately approved scope. Never disguise an unsupported receipt as owner
+funding or omit statement rows to achieve a zero difference.
+
+BK-10 repeats this coverage check against the actual cutover statements and opening schedules,
+including outstanding checks/transfers and expected recurring activity. Production activation
+requires complete coverage for each included account and no unexplained opening difference.
+If coverage is missing, remain in synthetic development until the prerequisite is delivered or
+the owner/bookkeeper approves a coherent accounting perimeter and its limits. Excluding an account
+must not omit activity needed by the included books. New unsupported activity after activation
+remains visible and blocks affected reconciliation/close until its treatment is approved.
+
+### Posting and correction contract
 
 Accounting owns Accounts, Periods, JournalEntries, JournalLines, immutable source-event links,
 correction links and durable command receipts. Purchasing owns versioned bills, payment/credit/
@@ -131,6 +151,32 @@ reject ambiguous dependencies rather than silently reallocating. Accounting reve
 claim money was returned. Closed-period corrections retain the original effective date and use
 an authorized open posting date. No reopening or year-end earnings roll-forward in this increment;
 BK-01's calendar must support later stories without erasing prior periods.
+
+Corrections of bills and credits must also resolve their dependent applications, not just payment
+corrections. BK-03/BK-06/BK-08 require an atomic preview and execution of the dependency closure:
+reverse affected applications, reverse/replace the source, and explicitly reapply eligible amounts.
+Preserve actual payment/refund records and their funding-account postings. Reclassification entries
+contain no new Bank/Cash/card movement; do not void real money movement merely to free an open item.
+Reject a correction if its dependencies cannot be resolved under the approved mappings.
+
+- A fully paid bill of 300 corrected to 280 keeps the actual payment of 300. Unapply it to a
+  supplier advance (debit Advances, credit AP, 300), reverse the original bill, post the replacement,
+  and apply 280 (debit AP, credit Advances). AP ends at zero and Advances at 20; Bank remains -300.
+  A larger replacement instead leaves additional AP. Any later return of the 20 is a real refund.
+- A credit of 18 already refunded in cash, corrected to 10, keeps the actual receipt of 18.
+  Unapply the refund through an explicitly mapped supplier refund-clearing liability (debit supplier
+  credit receivable, credit refund-clearing liability, 18), reverse the original credit, post the
+  replacement, then apply 10 (debit refund-clearing liability, credit receivable). The remaining
+  liability of 8 is money owed back to the supplier; cash remains +18. Display and reconcile that
+  liability as a separate supplier control/open item, including it in the net supplier position.
+  BK-01 defines its mapping, BK-06/BK-09 reconcile it, and BK-08 owns its actual repayment
+  (debit refund-clearing liability, credit the funding account). No automatic repayment occurs.
+
+These are proposed correction contracts for the prerequisite specs. If the source was posted in
+a closed period, all correction/reapplication entries use an eligible open date; prior closed
+balances remain unchanged. Retain original classifications unless the correction explicitly changes
+them under BK-04. An already reconciled cash entry stays matched when its amount/account/date did
+not change; a correction to that cash entry itself requires explicit reconciliation resolution.
 
 Allow narrowly typed source adapters, not caller-authored arbitrary journals from a PO endpoint.
 Runtime users cannot directly write ledger tables or post manual entries to supplier control
@@ -191,6 +237,31 @@ funding account once. Initial scope is one supplier/PO/currency per payment. PO-
 allocation and consolidated billing. A deposit is allowed before any bill exists. Do not label
 unapplied money as an invoice settlement or allow an allocation above the outstanding bill amount.
 
+### Allocation dates and historical availability
+
+BK-06 requires an allocation posting date in an open period, no earlier than the posting date of
+either the bill or the payment/advance/credit it applies. Both sources must already be posted and
+authorized when recording the allocation. A document/effective date cannot make an unposted or
+future-posted source available. Allocation reversals cannot predate the original application and
+closed-period applications are corrected in an open period. Reapplication also respects the
+replacement source's posting date.
+
+For a backdated allocation, validate available credit and open debt at that date and at every later
+affected event boundary, including existing applications/reversals. Reject any result that would
+overdraw a source or over-settle a bill at any cutoff; today's remaining balance alone is not proof.
+Perform this validation under the same source/open-item locks as allocation writes. No implicit
+reordering or relocation of existing applications is allowed.
+
+Example: a 100 deposit posted September 10 and a 150 bill posted September 15 can be allocated
+on September 15 or later, never September 12. An allocation of 100 dated September 16 but recorded
+September 20 is allowed only while that period is open and all intervening availability checks pass.
+By posting-date cutoff, September 14 shows Advances 100/AP 0; September 15 shows Advances 100/AP 150;
+September 16 shows Advances 0/AP 50 once the allocation is recorded. An as-recorded report through
+September 19 still shows Advances 100/AP 150 at the September 16 posting cutoff. Reports accept
+both posting-date and recorded-time cutoffs and include only events satisfying both. If a September
+18 allocation already consumed the same 100, the backdated request conflicts rather than rewriting
+that history. BK-09 exports both dates and reproduces these views from immutable events.
+
 The ordered purchase screen retains its existing estimate and adds a compact **Bookkeeping**
 section with posted bills, credits, payments, unapplied advances and open liabilities. Entries
 link to journal evidence, source documents and correction history. **Record payment** previews
@@ -205,7 +276,7 @@ Report independently:
 - AP outstanding = recognized bills minus credit allocations minus payment/advance allocations,
   including explicit reversals. Tie exactly to the PO's AP subledger.
 - Unapplied advances and supplier credit receivables are positive assets displayed separately.
-- Net supplier position = AP outstanding - advances - supplier credit receivables; a negative
+- Net supplier position = AP outstanding + refund-clearing liabilities - advances - supplier credit receivables; a negative
   result is money held by/owed from the supplier, not a negative bill balance or an automatic refund.
 - Remaining purchase cost stays unknown if further bills/recognition are expected. Zero AP means
   **Recorded bills settled**, never proof the PO is complete. Uninvoiced accruals remain separately
@@ -312,6 +383,13 @@ cannot establish journal integrity. Required scenarios include:
 8. Exercise the persisted payment/bill/credit/refund workflow in the preview and reconcile it to
    source documents; test keyboard, narrow viewports and themes. Run repository verification and
    container gates for each application change, and independently review accounting invariants.
+
+9. Exercise both correction examples above: paid bill 300 to 280 leaves Advances 20 and no new cash;
+   refunded credit 18 to 10 leaves a supplier liability of 8 and preserves the cash receipt. Repeat
+   across a closed-period boundary and verify dependent application history and reconciliation.
+10. Reproduce the September allocation cutoffs above, including a competing later allocation and
+    closed-period rejection. BK-01/BK-10 coverage checks reject a complete statement containing an
+    unsupported transaction even when its supplier-payment subset reconciles.
 
 For this design-only change, check document links, dependencies, arithmetic and consistency with
 current contracts. No application, mutation, migration or browser tests are claimed. Design approval
