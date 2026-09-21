@@ -107,8 +107,7 @@ This inventory describes checked-in migration behavior, not permission to execut
 | `20260918060000_AddPurchaseOrderCommitment` | `IntegrateBetaDraftFinancialAdjustments` | Consolidated PO-04: adds Draft/Ordered state, order date, immutable snapshots and actor-bound receipts, RLS and restricted commands. Includes retained-line projection, trimmed amendment reasons, supplier GUID normalization and decoded-content no-op detection. Preserves existing drafts, references, row versions and receipts without inferring commitments. Protects draft writers after receipt replay; advances readiness and backup markers. Stop older writers and deploy the matching beta application. | Always blocked; preserve agreed contents and history through forward correction or guarded recovery. |
 | `20260918061646_AddPurchaseOrderDocuments` | `AddPurchaseOrderCommitment` | Adds PO-owned private document metadata and durable request evidence, tenant-qualified ownership, RLS and restricted prepare/finalize procedures. Reserves up to 20 current or pending files per ordered PO, serializes parent versions and uses the existing publication, reconciliation and seven-day retention lifecycle. Preserves acquisition documents and ordered-content revisions. Advances readiness and backup markers; deploy the matching application. | Always blocked; retain metadata and command evidence through forward correction or guarded paired recovery. |
 | `20260918063409_HardenPurchaseOrderDocumentAuthority` | `AddPurchaseOrderDocuments` | Revalidates enabled tenant and active actor authority for document reservations, binds request replay to the original actor, and rechecks authority during finalization. A suspension during publication produces a terminal conflict and retains published bytes for cleanup. Kept as a separate forward migration because the predecessor was already applied to the retained local preview; its applied history is immutable. Advances readiness and backup markers. | Always blocked; retain authority controls through forward correction or guarded paired recovery. |
-| `20260921012247_AddSupplierProfiles` | `HardenPurchaseOrderDocumentAuthority` | Adds optional profile columns and extends the restricted supplier writer; preserves supplier versions and receipt fingerprints. Advances readiness and backup markers. Verify fresh creation and predecessor upgrade, legacy replay, safe links and tenant isolation. Deploy the matching API/client. | Always blocked; preserve profiles and request evidence through forward correction or guarded recovery. |
-| `20260921041331_MakeSupplierProfilesCustom` | `AddSupplierProfiles` | Replaces fixed profile columns with an ordered JSON collection of custom labels and handles. Copies existing values verbatim, preserves receipts, and advances readiness and backup markers. Retained preview history already includes the predecessor, so both migrations remain immutable. Verify fresh creation, PR-base upgrade, retained-profile upgrade, legacy replay, and restricted-writer validation. Deploy the matching API/client; older fixed-field clients must refresh. | Always blocked; preserve handles and request evidence through forward correction or guarded recovery. |
+| `20260921041331_MakeSupplierProfilesCustom` | `HardenPurchaseOrderDocumentAuthority` | Adds the optional JSON collection of custom platform/handle pairs and updates the restricted supplier writer in one release migration. Preserves existing supplier values, row versions and receipts; advances readiness and backup markers. Verify fresh creation, PR-base upgrade, legacy replay and restricted-writer validation. Deploy the matching API/client. | Always blocked; preserve handles and request evidence through forward correction or guarded recovery. |
 
 Product behavior, user-visible concurrency/retry rules and the shipped feature inventory belong in
 [collection documentation](../collection.md). Provider retry/backoff behavior belongs in
@@ -118,10 +117,12 @@ The [migration source](../../src/Workbench.Server/Persistence/Migrations) is aut
 
 The current required migration is `20260921041331_MakeSupplierProfilesCustom`.
 
-`MakeSupplierProfilesCustom` follows the already applied `AddSupplierProfiles` migration.
-It copies populated fixed profiles into custom label/handle entries without changing their text
-or immutable receipts. The forward migration advances readiness and backup markers; verify both
-PR-base and retained-preview upgrades. Down is blocked; use forward correction or guarded recovery.
+`MakeSupplierProfilesCustom` directly follows `HardenPurchaseOrderDocumentAuthority`.
+It adds custom supplier reference pairs in one migration, preserving existing supplier data,
+versions and receipts. The unmerged intermediate supplier migration was consolidated at the
+owner's request; the matching local preview was explicitly reconciled after verifying its final
+schema and retained data. Other development histories require a verified transition before
+refresh. Shipped migrations remain unchanged. Down is blocked.
 Stop all application writers before migration and deploy the matching beta API/client together
 only after the entire pending migration set completes. The final schema has one purchasing writer
 with PO-05 financial and confirmed supplier correction validation, no historical replay procedure,

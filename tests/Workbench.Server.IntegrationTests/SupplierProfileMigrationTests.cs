@@ -67,37 +67,22 @@ public sealed partial class DraftOrderDatabaseTests
         Assert.Equal(1, await cleared.ExecuteScalarAsync());
     }
     [Fact]
-    public async Task CustomProfilesUpgradePreservesFixedValuesAndReceiptBytes()
+    public async Task SupplierProfilesUseOneMigrationFromTheReleaseBase()
     {
-        // GIVEN the retained fixed-profile preview schema, including an existing request receipt.
-        await using var database = await sqlServer.CreateMigratedDatabaseAsync("AddSupplierProfiles");
-        var tenant = Guid.NewGuid(); var actor = Guid.NewGuid();
-        await database.SeedTenantAuditRowsAsync(tenant, Guid.NewGuid());
-        await SeedActor(database, tenant, actor);
-        await using var connection = await Open(database, await database.CreateWebUserAsync(), tenant);
-        var content = new SupplierContent("Existing profiles", null, null, null, "https://example.test", null);
-        var legacy = System.Text.Json.Nodes.JsonNode.Parse(SupplierCanonical("Create", null, null, content))!;
-        legacy["supplier"]!["instagram"] = "https://instagram.com/Original?reference=1";
-        legacy["supplier"]!["x"] = "http://x.com/example";
-        legacy["supplier"]!["gemRockAuctions"] = "https://www.gemrockauctions.com/stores/example";
-        var canonical = legacy.ToJsonString(); var request = Guid.NewGuid();
-        var saved = await SaveSupplier(connection, actor, request, canonical);
-        await using var receiptRead = new SqlCommand("SELECT * FROM Purchasing.SupplierRequestReceipts FOR JSON PATH", connection);
-        var receipts = (string)(await receiptRead.ExecuteScalarAsync())!;
-        // WHEN the forward conversion runs THEN every value survives verbatim, in its named reference entry.
+        // GIVEN the released schema WHEN the supplier profile change is applied.
+        await using var database = await sqlServer.CreateMigratedDatabaseAsync("HardenPurchaseOrderDocumentAuthority");
         await DatabaseMigrator.MigrateAsync(database.AdminConnectionString, default);
-        await using var read = new SqlCommand("SELECT SocialProfilesJson FROM Purchasing.Suppliers", connection);
-        var profiles = System.Text.Json.JsonSerializer.Deserialize<SupplierSocialProfile[]>((string)(await read.ExecuteScalarAsync())!, DraftOrderInput.JsonOptions)!;
-        Assert.Equal(new SupplierSocialProfile("Instagram", "https://instagram.com/Original?reference=1"), profiles[0]);
-        Assert.Equal(new SupplierSocialProfile("X", "http://x.com/example"), profiles[1]);
-        Assert.Equal(new SupplierSocialProfile("GemRockAuctions", "https://www.gemrockauctions.com/stores/example"), profiles[2]);
-        Assert.Equal(receipts, (string)(await receiptRead.ExecuteScalarAsync())!);
-        // AND the immutable request still replays while a stale editor must refresh the converted supplier.
-        Assert.True((await SaveSupplier(connection, actor, request, canonical)).Replayed);
-        var stale = await Assert.ThrowsAsync<SqlException>(() => SaveSupplier(connection, actor, Guid.NewGuid(), SupplierCanonical("Update", saved.Id, saved.Version, content)));
-        Assert.Equal(50509, stale.Number);
-        // AND new fixed-profile writes are rejected, requiring the matching updated client.
-        var obsolete = await Assert.ThrowsAsync<SqlException>(() => SaveSupplier(connection, actor, Guid.NewGuid(), canonical));
-        Assert.Equal(50500, obsolete.Number);
+        await using var connection = new SqlConnection(database.AdminConnectionString);
+        await connection.OpenAsync();
+        // THEN exactly one migration adds the final JSON field without fixed-platform columns.
+        await using var migrations = new SqlCommand("SELECT MigrationId FROM dbo.__EFMigrationsHistory WHERE MigrationId>N'20260918063409_HardenPurchaseOrderDocumentAuthority' ORDER BY MigrationId", connection);
+        var applied = new List<string>();
+        await using (var reader = await migrations.ExecuteReaderAsync())
+            while (await reader.ReadAsync()) applied.Add(reader.GetString(0));
+        Assert.Equal("20260921041331_MakeSupplierProfilesCustom", Assert.Single(applied));
+        await using var columns = new SqlCommand("SELECT COUNT(*) FROM sys.columns WHERE object_id=OBJECT_ID(N'Purchasing.Suppliers') AND name IN(N'Instagram',N'X',N'GemRockAuctions')", connection);
+        Assert.Equal(0, await columns.ExecuteScalarAsync());
+        columns.CommandText = "SELECT COUNT(*) FROM sys.columns WHERE object_id=OBJECT_ID(N'Purchasing.Suppliers') AND name=N'SocialProfilesJson' AND is_nullable=1 AND max_length=-1";
+        Assert.Equal(1, await columns.ExecuteScalarAsync());
     }
 }

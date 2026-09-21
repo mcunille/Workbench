@@ -33,17 +33,20 @@ writer validates the same bounds and retains tenant and actor authority.
 
 ## Migration and compatibility
 
-The prior fixed-platform migration was already applied to a retained local preview, so its
-history and SQL remain immutable. A forward migration replaces the three fixed fields with
-JSON-backed reference pairs. Previously entered values are retained verbatim under their
-platform labels, including complete URLs; no handle is guessed from a URL. Original receipt
-bytes remain unchanged. Empty-profile records need no content backfill.
+The release contains one migration, `20260921041331_MakeSupplierProfilesCustom`, directly
+following `HardenPurchaseOrderDocumentAuthority`. It adds the JSON collection and restricted
+supplier writer without creating temporary fixed-platform columns. Existing suppliers, row
+versions, and immutable receipt bytes remain unchanged.
 
-The updated API/client replace the unmerged fixed-field contract together. Tabs or callers
-using that superseded preview contract must refresh. Original suppliers without profile
-fields remain compatible. Readiness and backup markers advance; prior backup markers remain
-accepted. Down remains guarded to preserve retained supplier information and retry evidence.
-The two migrations remain separate solely because the first is applied to the retained preview.
+The owner requested consolidation of the unmerged development migrations. The isolated preview
+already held the final schema; its obsolete intermediate history entry was removed in a guarded
+transaction with the app stopped and supplier/receipt preservation checks. This was an explicit
+local development reconciliation, not a production migration or a general history-rewrite policy.
+Other databases carrying an earlier development history require their own verified transition.
+
+Readiness and backup markers identify the final schema. Released predecessor backup markers
+remain accepted. Down is guarded to preserve retained supplier information and retry evidence.
+Deploy the matching API/client after migration; superseded fixed-field preview clients must refresh.
 
 ## Acceptance
 
@@ -52,5 +55,5 @@ The two migrations remain separate solely because the first is applied to the re
 - Preserve input and focus actionable feedback for incomplete, duplicate or oversized entries.
 - Preserve legacy suppliers, six-field retry compatibility, tenant isolation, restricted writes,
   and current-profile concurrency/replay behavior.
-- Verify fresh schema and upgrade from the fixed-field preview with retained values and receipts.
+- Verify one migration from the PR base, fresh schema, and upgrade preserving supplier values and receipts.
 - Exercise desktop/mobile forms, comparisons and the repository verification/container gates.
