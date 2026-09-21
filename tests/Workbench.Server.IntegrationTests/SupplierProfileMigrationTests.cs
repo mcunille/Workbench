@@ -55,7 +55,7 @@ public sealed partial class DraftOrderDatabaseTests
         }
         // AND the inclusive entry and text limits fit the command envelope even with escaped Unicode.
         var maximum = content with { SocialProfiles = Enumerable.Range(0, 20).Select(i => new SupplierSocialProfile($"Label{i}" + new string('界', 90), new string('界', 2048))).ToArray() };
-        updated = await SaveSupplier(connection, actor, Guid.NewGuid(), SupplierCanonical("Update", saved.Id, updated.Version, maximum));        await using var direct = new SqlCommand("UPDATE Purchasing.Suppliers SET SocialProfilesJson=NULL", connection);
+        updated = await SaveSupplier(connection, actor, Guid.NewGuid(), SupplierCanonical("Update", saved.Id, updated.Version, maximum)); await using var direct = new SqlCommand("UPDATE Purchasing.Suppliers SET SocialProfilesJson=NULL", connection);
         Assert.Equal(229, (await Assert.ThrowsAsync<SqlException>(() => direct.ExecuteNonQueryAsync())).Number);
         // AND another tenant cannot read this supplier or its profiles.
         await using var foreign = await Open(database, web, other);
@@ -99,4 +99,5 @@ public sealed partial class DraftOrderDatabaseTests
         // AND new fixed-profile writes are rejected, requiring the matching updated client.
         var obsolete = await Assert.ThrowsAsync<SqlException>(() => SaveSupplier(connection, actor, Guid.NewGuid(), canonical));
         Assert.Equal(50500, obsolete.Number);
-    }}
+    }
+}
