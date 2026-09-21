@@ -76,6 +76,7 @@ function AuthRaceProbe({ refreshed }: { refreshed(): void }) {
     <p role="status">{status}</p>
     {identity ? <p>{identity.tenantName}</p> : null}
     <button onClick={() => void refresh('permissions').finally(refreshed)}>Refresh permissions</button>
+    <button onClick={() => void refresh().finally(refreshed)}>Refresh access</button>
     <button onClick={() => void signOut()}>Sign out probe</button>
     <button onClick={() => void signIn('new@example.com', 'test-password')}>Sign in new user</button>
   </>;
@@ -143,7 +144,7 @@ it.each([200, 500])('ignores a stale permission response (%s) after a newer user
 });
 
 
-it('does not let a permission refresh supersede an in-flight sign-out', async () => {
+it.each(['permissions', 'access'])('does not let a %s refresh supersede an in-flight sign-out', async (mode) => {
   // GIVEN logout is in progress while the old session can still answer identity reads
   let release!: () => void;
   const held = new Promise<void>(resolve => { release = resolve; });
@@ -158,8 +159,12 @@ it('does not let a permission refresh supersede an in-flight sign-out', async ()
   await screen.findByText('Old tenant');
   fireEvent.click(screen.getByRole('button', { name: 'Sign out probe' }));
   await waitFor(() => expect(loggingOut).toBe(true));
-  // WHEN an earlier role save requests a permission refresh during logout
-  fireEvent.click(screen.getByRole('button', { name: 'Refresh permissions' }));
+  // WHEN either refresh mode runs during logout, access-loss mode immediately clears protected UI
+  fireEvent.click(screen.getByRole('button', { name: mode === 'permissions' ? 'Refresh permissions' : 'Refresh access' }));
+  if (mode === 'access') {
+    expect(screen.getByRole('status')).toHaveTextContent('loading');
+    expect(screen.queryByText('Old tenant')).not.toBeInTheDocument();
+  }
   await waitFor(() => expect(refreshed).toHaveBeenCalled());
   const readsDuringLogout = reads;
   await act(async () => release());
@@ -168,3 +173,4 @@ it('does not let a permission refresh supersede an in-flight sign-out', async ()
   await screen.findByText('signed-out');
   expect(screen.queryByText('Old tenant')).not.toBeInTheDocument();
 });
+

@@ -29,15 +29,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const authenticationTransition = useRef<number | null>(null);
 
   const refresh = useCallback(async (mode?: 'permissions') => {
-    // A role-save completion cannot supersede a login/logout already in flight.
-    if (mode === 'permissions' && authenticationTransition.current !== null) return;
-    const generation = ++operationGeneration.current;
     // Access-loss checks discard protected state immediately. A successful role
     // change only refreshes permission claims, preserving the saved editor feedback.
     if (mode !== 'permissions') {
       setIdentity(null);
       setStatus('loading');
     }
+    // Neither refresh mode may replace an in-flight login/logout. Access-loss
+    // checks still clear protected UI above while that transition completes.
+    if (authenticationTransition.current !== null) return;
+    const generation = ++operationGeneration.current;
     try {
       const result = await getCurrentIdentity();
       if (generation !== operationGeneration.current) return;
@@ -68,7 +69,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     );
     return () => {
       current = false;
-      operationGeneration.current++;
     };
   }, []);
 
