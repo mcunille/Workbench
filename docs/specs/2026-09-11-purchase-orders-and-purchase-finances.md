@@ -216,6 +216,12 @@ the workflow is usable. This documentation change exercises no new application b
 
 ## Decisions to resolve before implementation
 
+The owner's subsequent direction is to ground purchase finances in double-entry bookkeeping.
+The [PO-07 design and prerequisite user stories](2026-09-20-po-07-deposits-and-payments.md)
+propose the ledger, recognition, structured bill, allocation, correction and reconciliation
+foundation required before payments ship. This supersedes the operational-only payment proposal;
+the detailed accounting policies remain proposed and do not authorize implementing all stories here.
+
 - Does the owner's first real purchase require foreign-currency settlement or consolidated billing?
   If so, promote PO-15 or PO-17 into the first scenario rather than inventing a workaround.
 - Is operational purchase tracking enough for initial use, or are balanced ledger postings and
