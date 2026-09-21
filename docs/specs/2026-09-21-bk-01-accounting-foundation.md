@@ -1,7 +1,6 @@
 # BK-01: accounting configuration, accounts, and authorization
 
-**Status:** Accepted — the product policies and bounded two-role implementation design were approved.
-Implementation and verification are in progress. BK-01 does not activate bookkeeping or deliver reports.
+**Status:** Implemented. BK-01 does not activate bookkeeping or deliver reports.
 
 Parent: [PO-07 bookkeeping prerequisites](2026-09-20-po-07-deposits-and-payments.md).
 This specification supersedes the parent's persona-based authorization proposal for BK-01.

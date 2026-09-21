@@ -13,9 +13,9 @@ proposes ledger-backed payments, structured supplier bills, and prerequisite acc
 It remains a design proposal, not implemented bookkeeping.
 
 [BK-01 accounting configuration, accounts, and authorization](2026-09-21-bk-01-accounting-foundation.md)
-records agreed general-account and role-based policies, proposes their bounded implementation,
+records the implemented general-account setup and two-role authorization model,
 and links the separate reporting, portability, migration, and jurisdiction-reporting design issues.
-Its bounded two-role design is accepted; implementation and verification are in progress.
+Setup completeness does not activate bookkeeping.
 
 | Area | Records |
 | --- | --- |
