@@ -11,9 +11,10 @@ beforeEach(() => { vi.resetAllMocks(); Object.defineProperty(HTMLDialogElement.p
 it('offers contact-specific input controls without imposing browser validation over server feedback', () => {
   // GIVEN a supplier form WHEN entering contact details THEN devices receive the appropriate input semantics.
   render(<SupplierEditor {...props()} />);
-  for (const [label, type] of [['Email', 'email'], ['Phone', 'tel'], ['Website', 'url']]) {
+  for (const [label, type] of [['Email', 'email'], ['Phone', 'tel'], ['Website', 'text']]) {
     expect(screen.getByLabelText(label)).toHaveAttribute('type', type);
   }
+  expect(screen.getByLabelText('Website')).toHaveAttribute('inputmode', 'url');
   // AND server validation remains responsible for feedback without losing entered text.
   expect(screen.getByLabelText('Email').closest('form')).toHaveAttribute('novalidate');
 });

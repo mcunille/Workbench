@@ -12,9 +12,20 @@ internal static class PurchasingIdentityInput
         ContactName = Trim(input.ContactName),
         Email = Trim(input.Email),
         Phone = Trim(input.Phone),
-        Website = Trim(input.Website),
+        Website = NormalizeWebsite(input.Website),
         PostalAddress = string.IsNullOrWhiteSpace(input.PostalAddress) ? null : input.PostalAddress
     };
+    private static string? NormalizeWebsite(string? input)
+    {
+        var website = Trim(input);
+        if (website is null) return null;
+        // Preserve explicit schemes, including unsupported ones, for authoritative validation below.
+        var colon = website.IndexOf(':');
+        if (colon >= 0 && Uri.CheckSchemeName(website[..colon])) return website;
+        var candidate = "https://" + website;
+        return !website.StartsWith('/') && Uri.TryCreate(candidate, UriKind.Absolute, out var uri)
+            && uri.Host.Contains('.') ? candidate : website;
+    }
     public static Dictionary<string, string[]> Validate(SupplierContent? input, bool required = true, string prefix = "supplier.")
     {
         var errors = new Dictionary<string, string[]>();
@@ -29,7 +40,7 @@ internal static class PurchasingIdentityInput
             errors[prefix + "email"] = ["Enter one email address."];
         if (input.Website is { } website && (website.Length > 2048 || website.Any(c => char.IsControl(c) || char.IsWhiteSpace(c)) || website.Contains('\\') ||
             !Uri.TryCreate(website, UriKind.Absolute, out var uri) || uri.Scheme is not ("http" or "https") || string.IsNullOrEmpty(uri.Host) || !string.IsNullOrEmpty(uri.UserInfo)))
-            errors[prefix + "website"] = ["Use an absolute HTTP or HTTPS website without credentials."];
+            errors[prefix + "website"] = ["Enter a valid HTTP or HTTPS website without spaces or credentials."];
         if (input.PostalAddress?.Length > 2000) errors[prefix + "postalAddress"] = ["Use at most 2000 characters."];
         return errors;
     }
