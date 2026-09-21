@@ -46,3 +46,6 @@
 #accounting-mappings { scroll-margin-top: 1rem; }
 @media (max-width: 64rem) { .accounting-accounts-layout { grid-template-columns: minmax(0, 1fr); } }
 @media (max-width: 40rem) { .accounting-policy-group .accounting-grid { grid-template-columns: minmax(0, 1fr); } }
+.accounting-help { font-size: .875rem; line-height: 1.5; color: var(--muted); margin-block: .5rem 1rem; }
+.accounting-reference-field { min-width: 0; }
+.accounting-reference-field .accounting-help { margin-bottom: 0; }

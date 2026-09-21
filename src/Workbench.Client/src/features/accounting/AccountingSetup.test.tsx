@@ -10,6 +10,13 @@ function handlers() {
   server.use(http.get('*/api/beta/accounting/catalog', () => HttpResponse.json(catalog)), http.get('*/api/beta/accounting/setup', () => HttpResponse.json(setup)), http.get('*/api/beta/accounting/accounts', () => HttpResponse.json({ items: [], nextCursor: null })), http.get('*/api/beta/auth/antiforgery', () => HttpResponse.json({ requestToken: 'test' })));
 }
 describe('Accounting setup', () => {
+  it('explains both starting approaches without implying that setup creates balances', async () => {
+    // GIVEN an administrator choosing how to start accounting
+    handlers();
+    render(<AccountingSetup canManage onAuthLost={vi.fn()} onDirtyChange={vi.fn()} />);
+    // THEN decision support is associated with the choice and preserves the planning boundary
+    expect(await screen.findByLabelText('Starting approach')).toHaveAccessibleDescription(/complete business history.*verified balances.*does not import history or create balances/i);
+  });
   it('groups related policy decisions and provides direct access to mappings', async () => {
     // GIVEN an administrator preparing a business configuration
     handlers();

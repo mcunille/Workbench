@@ -6,6 +6,19 @@ function Fixture() {
   const [value, setValue] = useState<Coverage[]>([]);
   return <><CoverageFields accounts={[{ id: 'bank', code: '1000', name: 'Bank', type: 'Asset', purpose: 'Bank', description: null, isArchived: false, version: 'v1' }]} value={value} change={setValue} /><output>{JSON.stringify(value)}</output></>;
 }
+it('explains coverage choices and reference fields without claiming financial support', () => {
+  // GIVEN a bank account whose coverage has not been planned
+  render(<Fixture />);
+  // THEN the inclusion decision has plain-language help
+  expect(screen.getByLabelText('Accounting perimeter')).toHaveAccessibleDescription(/include.*business.*exclude.*reason/i);
+  // WHEN included THEN evidence guidance distinguishes a statement from no prior activity
+  fireEvent.change(screen.getByLabelText('Accounting perimeter'), { target: { value: 'include' } });
+  expect(screen.getByLabelText('Evidence basis')).toHaveAccessibleDescription(/no prior activity.*expected.*does not prove zero/i);
+  fireEvent.click(screen.getByRole('button', { name: 'Add transaction class' }));
+  expect(screen.getByLabelText('Class and expected activity')).toHaveAccessibleDescription(/fees.*transfers/i);
+  expect(screen.getByLabelText('Reconciliation reference')).toHaveAccessibleDescription(/check.*statement/i);
+  expect(screen.getByText(/does not import statements or create opening balances/i)).toBeVisible();
+});
 it('records no-prior-activity as a dated plan with explicitly unsupported future classes', () => {
   // GIVEN a new bank account without statement history
   render(<Fixture />);
