@@ -6,6 +6,8 @@ import { PolicyFields } from './PolicyFields';
 import { CoverageFields } from './CoverageFields';
 import { Accounts } from './Accounts';
 import { eligibleForMapping, label } from './accountingRules';
+import { FieldError } from './AccountingField';
+import { fieldId, fieldName } from './accountingValidation';
 import './accounting.css';
 interface Props { canManage: boolean; onAuthLost(): void; onDirtyChange(dirty: boolean, uncertain: boolean): void; }
 export function AccountingSetup({ canManage, onAuthLost, onDirtyChange }: Props) {
@@ -14,6 +16,29 @@ export function AccountingSetup({ canManage, onAuthLost, onDirtyChange }: Props)
   const accountChanged = useCallback((dirty: boolean, uncertain: boolean) => { setAccountDirty(dirty); setAccountUncertain(uncertain); }, []);
   const [message, setMessage] = useState(''); const [errors, setErrors] = useState<Record<string, string[]>>({}); const [busy, setBusy] = useState(false); const [denied, setDenied] = useState(false);
   const [conflict, setConflict] = useState<Setup>(); const [uncertain, setUncertain] = useState(false);
+  const errorSummary = useRef<HTMLElement>(null);
+  const focusTarget = useRef<string | null>(null);
+  const [focusRequest, setFocusRequest] = useState(0);
+  const saving = useRef(false);
+  useEffect(() => { if (Object.keys(errors).length) errorSummary.current?.focus(); }, [errors]);
+  useEffect(() => {
+    if (!focusTarget.current) return;
+    document.getElementById(focusTarget.current)?.focus(); focusTarget.current = null;
+  }, [focusRequest]);
+  function navigate(section: string, id: string) { setTab(section); focusTarget.current = id; setFocusRequest(value => value + 1); }
+  function returnToAccounts() { navigate('Accounts and mappings', document.getElementById('account-editor-heading') ? 'account-editor-heading' : document.getElementById('account-starter-heading') ? 'account-starter-heading' : 'accounts-heading'); }
+  function reviewError(field: string) {
+    if (field.startsWith('accounts')) { returnToAccounts(); return; }
+    const section = field.startsWith('coverage') ? 'Transaction coverage' : field.startsWith('mappings') ? 'Accounts and mappings' : 'Policies';
+    const fallback = section === 'Transaction coverage' ? 'coverage' : section === 'Accounts and mappings' ? 'mappings' : 'policies';
+    navigate(section, document.getElementById(fieldId(field)) ? fieldId(field) : fieldId(fallback));
+  }
+  function errorLabel(field: string) {
+    const index = /^coverage\[(\d+)\]/.exec(field)?.[1];
+    const account = index === undefined ? undefined : accounts.find(item => item.id === draft?.coverage[Number(index)]?.accountId);
+    return `${account ? `${account.code} — ${account.name}: ` : ''}${fieldName(field)}`;
+  }
+  function changeDraft(next: Configuration) { setDraft(next); setErrors({}); setMessage(''); }
   const pending = useRef<{ requestId: string; expectedVersion: string; configuration: Configuration } | undefined>(undefined);
   const dirty = !!draft && JSON.stringify(draft) !== JSON.stringify(saved?.configuration);
   useEffect(() => { onDirtyChange(dirty || accountDirty || uncertain, uncertain || accountUncertain); }, [dirty, accountDirty, uncertain, accountUncertain, onDirtyChange]);
@@ -36,7 +61,8 @@ export function AccountingSetup({ canManage, onAuthLost, onDirtyChange }: Props)
     return () => { live = false; pending.current = undefined; };
   }, [fail, refreshAccounts]);
   async function save() {
-    if (!draft || !saved || busy) return;
+    if (!draft || !saved || busy || saving.current || !canManage || accountDirty || conflict) return;
+    saving.current = true;
     setBusy(true); setMessage(''); setErrors({});
     pending.current ??= { requestId: crypto.randomUUID(), expectedVersion: saved.version, configuration: structuredClone(draft) };
     try {
@@ -47,7 +73,7 @@ export function AccountingSetup({ canManage, onAuthLost, onDirtyChange }: Props)
         pending.current = undefined; setUncertain(false); setMessage('Setup changed elsewhere. Your draft is preserved. Load the current version to compare before saving again.');
         try { setConflict(await getAccountingSetup()); } catch (readError) { fail(readError); }
       } else { if (!(error instanceof ApiError) || error.status >= 500) setUncertain(true); else pending.current = undefined; fail(error); }
-    } finally { setBusy(false); }
+    } finally { saving.current = false; setBusy(false); }
   }
   if (denied) return <><h1>Access denied</h1><p>Your accounting access has changed. Private drafts have been cleared.</p></>;
   if (!catalog || !saved || !draft) return <><h1>Accounting setup</h1><p role={message ? 'alert' : 'status'}>{message || 'Loading accounting setup…'}</p>{message ? <button type="button" className="secondary" onClick={() => window.location.reload()}>Reload accounting setup</button> : null}</>;
@@ -60,13 +86,20 @@ export function AccountingSetup({ canManage, onAuthLost, onDirtyChange }: Props)
       </div>
     </details>
     <div className="accounting-sections" role="group" aria-label="Setup sections">{['Policies','Accounts and mappings','Transaction coverage'].map(section => <button type="button" className="secondary" aria-pressed={tab === section} key={section} onClick={() => setTab(section)}>{section}</button>)}</div>
-    {message ? <p role="alert">{message}</p> : null}{Object.entries(errors).map(([field, messages]) => <p role="alert" key={field}>{label(field)}: {messages.join(' ')}</p>)}
+    {message ? <p role="alert">{message}</p> : null}
+    {Object.keys(errors).length ? <section ref={errorSummary} tabIndex={-1} aria-label="Review setup errors" className="accounting-errors"><h2>Review setup errors</h2><p>Your draft is preserved. Choose an error to review its section.</p><ul>{Object.entries(errors).map(([field, messages]) => <li key={field}><button type="button" className="secondary" onClick={() => reviewError(field)}>{errorLabel(field)}: {messages.join(' ')}</button></li>)}</ul></section> : null}
     {conflict ? <section aria-label="Compare concurrent changes"><h2>Resolve concurrent changes</h2><p>Your unsaved draft remains below. Compare it with the current saved configuration, then explicitly choose which version to continue with.</p><details><summary>Current saved configuration</summary><ConfigurationSummary value={conflict.configuration} accounts={accounts} /></details><div className="button-row"><button type="button" className="secondary" onClick={() => { setSaved(conflict); setConflict(undefined); setMessage('Current version loaded. Your draft is retained for reconciliation; review it before saving.'); }}>Keep my draft against this version</button><button type="button" className="secondary" onClick={() => { setSaved(conflict); setDraft(conflict.configuration); setConflict(undefined); setMessage('Current saved configuration loaded.'); }}>Discard my draft and use saved version</button></div></section> : null}
     <fieldset disabled={!canManage || busy || uncertain} className="accounting-section">
-      <div hidden={tab !== 'Policies'}><h2>Policies</h2><p>Accounting uses an accrual foundation and monthly periods. Choosing a country or region does not configure tax rules.</p><PolicyFields value={draft.policies} catalog={catalog} change={policies => setDraft({ ...draft, policies })} /></div>
-      <div hidden={tab !== 'Accounts and mappings'}><a className="accounting-mappings-link" href="#accounting-mappings">Go to mappings</a><div className="accounting-accounts-layout"><Accounts catalog={catalog} changed={refreshAccounts} fail={fail} canManage={canManage} onDirtyChange={accountChanged} /><section aria-labelledby="accounting-mappings"><h2 id="accounting-mappings" tabIndex={-1}>Mappings</h2><p>Choose the account for each accounting purpose. Only active accounts with a matching type and purpose appear. These assignments are a plan; they do not post transactions.</p><div className="accounting-grid">{catalog.mappingSlots.map(slot => <label key={slot}>{label(slot)}<select value={draft.mappings.find(item => item.slot === slot)?.accountId ?? ''} onChange={e => setDraft({ ...draft, mappings: [...draft.mappings.filter(item => item.slot !== slot), ...(e.target.value ? [{ slot, accountId: e.target.value }] : [])] })}><option value="">Not assigned</option>{accounts.filter(account => eligibleForMapping(slot, account)).map(account => <option key={account.id} value={account.id}>{account.code} — {account.name}</option>)}</select></label>)}</div></section></div></div>
-      <div hidden={tab !== 'Transaction coverage'}><h2>Transaction coverage</h2><CoverageFields accounts={accounts} value={draft.coverage} change={coverage => setDraft({ ...draft, coverage })} /></div>
+      <div hidden={tab !== 'Policies'}><h2 id={fieldId('policies')} tabIndex={-1}>Policies</h2><p>Accounting uses an accrual foundation and monthly periods. Choosing a country or region does not configure tax rules.</p><PolicyFields value={draft.policies} catalog={catalog} errors={errors} change={policies => changeDraft({ ...draft, policies })} /></div>
+      <div hidden={tab !== 'Accounts and mappings'}><a className="accounting-mappings-link" href="#accounting-mappings">Go to mappings</a><div className="accounting-accounts-layout"><Accounts catalog={catalog} changed={refreshAccounts} fail={fail} canManage={canManage} onDirtyChange={accountChanged} /><section aria-labelledby="accounting-mappings"><h2 id="accounting-mappings" tabIndex={-1}>Mappings</h2><p>Choose the account for each accounting purpose. Only active accounts with a matching type and purpose appear. These assignments are a plan; they do not post transactions.</p><FieldError field="mappings" errors={errors} /><div className="accounting-grid">{catalog.mappingSlots.map(slot => <label key={slot}>{label(slot)}<select value={draft.mappings.find(item => item.slot === slot)?.accountId ?? ''} onChange={e => changeDraft({ ...draft, mappings: [...draft.mappings.filter(item => item.slot !== slot), ...(e.target.value ? [{ slot, accountId: e.target.value }] : [])] })}><option value="">Not assigned</option>{accounts.filter(account => eligibleForMapping(slot, account)).map(account => <option key={account.id} value={account.id}>{account.code} — {account.name}</option>)}</select></label>)}</div></section></div></div>
+      <div hidden={tab !== 'Transaction coverage'}><h2 id={fieldId('coverage')} tabIndex={-1}>Transaction coverage</h2><CoverageFields accounts={accounts} value={draft.coverage} errors={errors} change={coverage => changeDraft({ ...draft, coverage })} /></div>
     </fieldset>
-    {canManage ? <div className="button-row accounting-save"><button type="button" className="primary" disabled={busy || !!conflict || accountDirty} onClick={() => void save()}>{busy ? 'Saving…' : uncertain ? 'Retry the same save' : 'Save setup'}</button><span>{dirty ? 'Unsaved configuration' : 'Configuration matches saved version'}</span></div> : <p>You can view this configuration but cannot change it.</p>}
+    {canManage ? <div className="accounting-save">
+      {accountDirty ? <p id="accounting-save-dependency">Finish or resolve your account changes before saving setup. Accounts are saved separately. <button type="button" className="secondary" onClick={returnToAccounts}>Return to account changes</button></p> : null}
+      {uncertain ? <p role="status">The save result is unknown. Retry the same save to confirm whether it succeeded. Your draft is preserved.</p> : null}
+      <div className="button-row"><button type="button" className="primary" aria-describedby={accountDirty ? 'accounting-save-dependency' : undefined} disabled={busy || !!conflict || accountDirty} onClick={() => void save()}>{busy ? 'Saving…' : uncertain ? 'Retry the same save' : 'Save setup'}</button>
+      {dirty ? <button type="button" className="secondary" disabled={busy || uncertain || !!conflict || accountDirty} onClick={() => { changeDraft(structuredClone(saved.configuration)); setMessage('Unsaved setup changes discarded.'); }}>Discard setup changes</button> : null}
+      <span>{dirty ? 'Unsaved configuration' : 'Configuration matches saved version'}</span></div>
+    </div> : <p>You can view this configuration but cannot change it.</p>}
   </div>;
 }

@@ -37,7 +37,6 @@
 .accounting-policy-group { min-width: 0; margin: 0; padding: 0; border: 0; }
 .accounting-policy-group legend { padding: 0; font-weight: 600; }
 .accounting-policy-group .accounting-grid { margin-block: 1rem 0; grid-template-columns: repeat(2, minmax(0, 1fr)); }
-.accounting-policy-group:last-child .floating-field:last-child { grid-column: 1 / -1; }
 .accounting-mappings-link { display: inline-flex; align-items: center; min-height: 2.75rem; margin-top: .75rem; }
 .accounting-accounts-layout { display: grid; gap: 2rem; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; }
 .accounting-accounts-layout > section { min-width: 0; }
@@ -47,5 +46,15 @@
 @media (max-width: 64rem) { .accounting-accounts-layout { grid-template-columns: minmax(0, 1fr); } }
 @media (max-width: 40rem) { .accounting-policy-group .accounting-grid { grid-template-columns: minmax(0, 1fr); } }
 .accounting-help { font-size: .875rem; line-height: 1.5; color: var(--muted); margin-block: .5rem 1rem; }
-.accounting-reference-field { min-width: 0; }
-.accounting-reference-field .accounting-help { margin-bottom: 0; }
+.accounting-field { min-width: 0; display: flex; flex-direction: column; gap: .5rem; }
+.accounting-field > label { overflow-wrap: anywhere; }
+.accounting-field .accounting-help, .accounting-field-error { margin: 0; }
+.accounting-field-error { color: var(--text); font-weight: 600; overflow-wrap: anywhere; }
+.accounting-field [aria-invalid="true"] { border-style: dashed; border-width: 2px; }
+.accounting-coverage > .accounting-field { margin-block: 1rem; }
+.accounting-policy-group:last-child .accounting-field:last-child { grid-column: 1 / -1; }
+.accounting-errors { margin-block: 1.5rem; }
+.accounting-errors h2 { margin-top: 0; }
+.accounting-errors button { text-align: start; white-space: normal; overflow-wrap: anywhere; text-decoration: underline; }
+.accounting-workspace :is(h2, h3, [tabindex="-1"]) { scroll-margin-block: 1rem; }
+.accounting-coverage legend, .accounting-save p { overflow-wrap: anywhere; }

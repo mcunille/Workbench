@@ -10,6 +10,77 @@ function handlers() {
   server.use(http.get('*/api/beta/accounting/catalog', () => HttpResponse.json(catalog)), http.get('*/api/beta/accounting/setup', () => HttpResponse.json(setup)), http.get('*/api/beta/accounting/accounts', () => HttpResponse.json({ items: [], nextCursor: null })), http.get('*/api/beta/auth/antiforgery', () => HttpResponse.json({ requestToken: 'test' })));
 }
 describe('Accounting setup', () => {
+  it('preserves a rejected draft and routes hidden policy errors to the field', async () => {
+    // GIVEN a policy validation error returned while another section is open
+    handlers();
+    server.use(http.put('*/api/beta/accounting/setup', () => HttpResponse.json({ errors: { 'policies.retentionYears': ['Use 1–1000 years or leave unresolved.'] } }, { status: 400 })));
+    render(<AccountingSetup canManage onAuthLost={vi.fn()} onDirtyChange={vi.fn()} />);
+    fireEvent.change(await screen.findByLabelText('Proposed document retention (years)'), { target: { value: '1001' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Transaction coverage' }));
+    // WHEN saving fails THEN the summary receives focus and keeps the draft
+    fireEvent.click(screen.getByRole('button', { name: 'Save setup' }));
+    const summary = await screen.findByRole('region', { name: 'Review setup errors' });
+    await waitFor(() => expect(summary).toHaveFocus());
+    fireEvent.click(screen.getByRole('button', { name: /Proposed document retention.*Use 1–1000/ }));
+    const field = screen.getByLabelText('Proposed document retention (years)');
+    await waitFor(() => expect(field).toHaveFocus());
+    expect(field).toHaveValue(1001);
+    expect(field).toHaveAttribute('aria-invalid', 'true');
+    expect(field).toHaveAccessibleDescription('Use 1–1000 years or leave unresolved.');
+  });
+  it('explains a hidden account edit and returns to it without losing the draft', async () => {
+    // GIVEN an unfinished account edit
+    handlers();
+    render(<AccountingSetup canManage onAuthLost={vi.fn()} onDirtyChange={vi.fn()} />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Accounts and mappings' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Create account' }));
+    fireEvent.change(screen.getByLabelText('Account name'), { target: { value: 'Unsaved bank' } });
+    // WHEN moving to policies THEN the blocked setup save explains how to recover
+    fireEvent.click(screen.getByRole('button', { name: 'Policies' }));
+    expect(screen.getByRole('button', { name: 'Save setup' })).toBeDisabled();
+    fireEvent.click(screen.getByRole('button', { name: 'Return to account changes' }));
+    expect(screen.getByLabelText('Account name')).toHaveValue('Unsaved bank');
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Create account' })).toHaveFocus());
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    expect(screen.getByRole('button', { name: 'Save setup' })).toBeEnabled();
+  });
+  it('allows discarding a known draft but preserves an uncertain save for an identical retry', async () => {
+    // GIVEN an editable setup and a first save whose result is unknown
+    handlers(); const requests: unknown[] = [];
+    server.use(http.put('*/api/beta/accounting/setup', async ({ request }) => { requests.push(await request.json()); return requests.length === 1 ? new HttpResponse(null, { status: 500 }) : HttpResponse.json({ savedVersion: 'v2', accountIds: [] }); }));
+    render(<AccountingSetup canManage onAuthLost={vi.fn()} onDirtyChange={vi.fn()} />);
+    const notes = await screen.findByLabelText('Framework and tax policy notes (optional)');
+    fireEvent.change(notes, { target: { value: 'Discard this draft' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Discard setup changes' }));
+    expect(notes).toHaveValue('');
+    // WHEN a save fails ambiguously THEN discard is disabled and retry retains the command
+    fireEvent.change(notes, { target: { value: 'Keep this draft' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save setup' }));
+    const retry = await screen.findByRole('button', { name: 'Retry the same save' });
+    expect(screen.getByRole('button', { name: 'Discard setup changes' })).toBeDisabled();
+    expect(notes).toHaveValue('Keep this draft');
+    expect(notes).toBeDisabled();
+    expect(screen.getByText(/The save result is unknown/)).toBeVisible();
+    fireEvent.click(retry);
+    await waitFor(() => expect(requests).toHaveLength(2));
+    expect(requests[1]).toEqual(requests[0]);
+  });
+  it('routes indexed coverage errors to the right account and preserves its help', async () => {
+    // GIVEN account display order differs from the coverage command order
+    handlers();
+    const bank = { id: 'bank', code: '1000', name: 'Bank', type: 'Asset', purpose: 'Bank', description: null, isArchived: false, version: 'v1' };
+    const cash = { ...bank, id: 'cash', code: '1010', name: 'Cash', purpose: 'Cash' };
+    const coverage = [cash, bank].map(account => ({ accountId: account.id, included: true, attestedComplete: false, classes: [], evidenceKind: 'NoPriorActivity', fromDate: null, toDate: null, evidenceReference: null, rationale: null, exclusionRationale: null }));
+    server.use(http.get('*/api/beta/accounting/accounts', () => HttpResponse.json({ items: [bank, cash], nextCursor: null })), http.get('*/api/beta/accounting/setup', () => HttpResponse.json({ ...setup, configuration: { ...configuration, coverage } })), http.put('*/api/beta/accounting/setup', () => HttpResponse.json({ errors: { 'coverage[0].evidenceKind': ['Provide a dated no-prior-activity declaration.'] } }, { status: 400 })));
+    render(<AccountingSetup canManage onAuthLost={vi.fn()} onDirtyChange={vi.fn()} />);
+    // WHEN saving from policies THEN the error targets Cash rather than the first displayed account
+    fireEvent.click(await screen.findByRole('button', { name: 'Save setup' }));
+    fireEvent.click(await screen.findByRole('button', { name: /1010 — Cash: Evidence basis/ }));
+    const field = document.getElementById('accounting-coverage[0].evidenceKind');
+    await waitFor(() => expect(field).toHaveFocus());
+    expect(field?.closest('fieldset')).toHaveTextContent('1010 — Cash');
+    expect(field).toHaveAccessibleDescription(/does not prove zero opening balances.*Provide a dated/);
+  });
   it('explains both starting approaches without implying that setup creates balances', async () => {
     // GIVEN an administrator choosing how to start accounting
     handlers();

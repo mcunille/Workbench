@@ -41,3 +41,16 @@ it('retains an explicit rationale for an excluded funding account', () => {
   expect(screen.getByRole('status')).toHaveTextContent('"included":false');
   expect(screen.getByRole('status')).toHaveTextContent('Personal account outside this business');
 });
+it('keeps unplanned account controls uniquely labelled and applies server text limits', () => {
+  // GIVEN two accounts that do not yet have coverage records
+  const bank = { id: 'bank', code: '1000', name: 'Bank', type: 'Asset', purpose: 'Bank', description: null, isArchived: false, version: 'v1' };
+  const { container, rerender } = render(<CoverageFields accounts={[bank, { ...bank, id: 'cash', code: '1010', name: 'Cash' }]} value={[]} change={vi.fn()} />);
+  // THEN all label and help identifiers remain unique before either account is included
+  const ids = Array.from(container.querySelectorAll('[id]'), element => element.id);
+  expect(new Set(ids).size).toBe(ids.length);
+  expect(screen.getAllByLabelText('Accounting perimeter')).toHaveLength(2);
+  // WHEN a class is present THEN labels remain persistent and input limits match the API
+  rerender(<CoverageFields accounts={[bank]} value={[{ accountId: 'bank', included: true, attestedComplete: false, classes: [{ label: '', sourceReference: null, policyReference: null, reconciliationReference: null, prerequisiteReference: null }], evidenceKind: 'Statement', fromDate: null, toDate: null, evidenceReference: null, rationale: null, exclusionRationale: null }]} change={vi.fn()} />);
+  expect(screen.getByLabelText('Class and expected activity')).toHaveAttribute('maxlength', '160');
+  expect(screen.getByLabelText('Evidence description or reference')).toHaveAttribute('maxlength', '500');
+});
