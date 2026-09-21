@@ -16,6 +16,11 @@ public sealed class DraftOrderPricingTests
         // WHEN projected into the beta model THEN identity, text and all known amounts remain available.
         var entry = Assert.Single(DraftOrderInput.ReadEntries(content.RootElement, schema));
         Assert.Equal("Stone", entry.Description);
+        Assert.Equal("Stone", PurchaseOrderEndpoints.FirstItemDescription(new DraftOrder
+        {
+            ContentJson = content.RootElement.GetRawText(),
+            ContentSchemaVersion = (short)schema
+        }));
         Assert.Equal(Guid.Parse("3923d8c7-b0ad-4765-9de7-7d6619f00fd4"), entry.Id);
         Assert.Equal(schema == 1 ? "12.0000" : null, entry.IndicativePrice);
         Assert.Equal(estimate, DraftOrderInput.Calculate(Empty with { Entries = [entry] }).MerchandiseEstimate);

@@ -12,3 +12,13 @@ it('renders all draft content as text and exposes only safe opener-isolated sour
   expect(screen.getAllByRole('link')).toHaveLength(2);
   for (const link of screen.getAllByRole('link')) { expect(link).toHaveAttribute('rel', 'noopener noreferrer'); expect(link).toHaveAttribute('target', '_blank'); }
 });
+
+it('presents an absent custom title as optional metadata alongside supplier context', () => {
+  // GIVEN a supplier-only purchase without a custom title.
+  const draft = { title: null, supplierName: 'Gem supplier', supplierId: null, supplierContactName: null, supplierEmail: null, supplierPhone: null, supplierWebsite: null, supplierPostalAddress: null, supplierOrderReference: null, platform: null, currency: null, notes: null, sourceLinks: [], entries: [], orderDiscount: null, charges: [] };
+  // WHEN comparing contents THEN supplier context remains visible without an Untitled heading.
+  render(<DraftComparison heading="Current saved" draft={draft} />);
+  expect(screen.getByText('Supplier').nextElementSibling).toHaveTextContent('Gem supplier');
+  expect(screen.getByText('Custom title (optional)').nextElementSibling).toHaveTextContent('None');
+  expect(screen.queryByText(/Untitled/)).not.toBeInTheDocument();
+});

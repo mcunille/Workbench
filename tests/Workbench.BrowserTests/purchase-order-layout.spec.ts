@@ -7,7 +7,7 @@ for (const width of [320, 390, 600, 1440]) test(`purchase-order search keeps res
   await page.setViewportSize({ width, height: 900 });
   const title = `Layout anchor ${width} ${Date.now()}`;
   await page.goto('/purchase-orders/new');
-  await page.getByLabel('Title', { exact: true }).fill(title);
+  await page.getByLabel('Custom title (optional)', { exact: true }).fill(title);
   await page.getByRole('button', { name: 'Save draft', exact: true }).click();
   await expect(page).toHaveURL(/\/purchase-orders\/[a-f0-9-]{36}$/);
   await page.goto('/purchase-orders');

@@ -1,3 +1,4 @@
+import { purchaseLabel } from './purchaseLabel';
 import { useEffect, useRef, useState } from 'react';
 import { ApiError } from '../../api/auth';
 import { commitOrder, DraftError, type CommitOrderRequest, type DraftOrder, type OrderReceipt } from '../../api/purchaseOrders';
@@ -49,7 +50,7 @@ export function CommitOrderDialog({ order, date, changeDate, editDraft, cancel, 
     <div className="po-commit-body">
     <section className="po-commit-summary" aria-label="Saved purchase summary">
       <h3>{order.draft.supplierName || 'Supplier not set'}</h3>
-      <p>{order.poReference}{order.draft.title ? ` · ${order.draft.title}` : ''}</p>
+      <p>{order.poReference} · {purchaseLabel(order.draft)}</p>
       <p>{order.draft.entries.length} {order.draft.entries.length === 1 ? 'line' : 'lines'} · {order.draft.currency || 'Currency not set'}</p>
       <dl className="po-commit-totals"><div><dt>Supplier estimate</dt><dd>{money(order.calculation.supplierEstimate)}</dd></div><div><dt>Total purchase estimate</dt><dd>{money(order.calculation.purchaseEstimate)}</dd></div></dl>
       {order.calculation.incompleteLineCount || order.calculation.incompleteChargeCount ? <p>Unknown or incomplete costs: {order.calculation.incompleteLineCount} {order.calculation.incompleteLineCount === 1 ? 'line' : 'lines'}, {order.calculation.incompleteChargeCount} {order.calculation.incompleteChargeCount === 1 ? 'charge' : 'charges'}.</p> : null}

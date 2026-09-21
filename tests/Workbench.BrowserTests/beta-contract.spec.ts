@@ -44,7 +44,7 @@ for (const kind of ['draft', 'supplier'] as const) test(`a ${kind} conflict foll
   await useAuthenticatedSession(page);
   const draft = kind === 'draft';
   const path = draft ? 'purchase-orders' : 'suppliers';
-  const field = draft ? 'Title' : 'Supplier name';
+  const field = draft ? 'Custom title (optional)' : 'Supplier name';
   const save = draft ? 'Save draft' : 'Save supplier';
   await page.goto(`/${path}/new`);
   await page.getByLabel(field, { exact: true }).fill(`Recovery ${kind}`);
@@ -76,7 +76,7 @@ test('an interrupted beta request preserves purchase edits and retries the exact
   // GIVEN an authenticated owner editing a purchase draft while the service is temporarily unavailable.
   await useAuthenticatedSession(page);
   await page.goto('/purchase-orders/new');
-  await page.getByLabel('Title', { exact: true }).fill('Retain my purchase draft');
+  await page.getByLabel('Custom title (optional)', { exact: true }).fill('Retain my purchase draft');
   await page.getByLabel('Notes', { exact: true }).fill('Ask the supplier about the blue stones.');
   let saves = 0;
   let original: string | null;
@@ -98,7 +98,7 @@ test('an interrupted beta request preserves purchase edits and retries the exact
   // THEN the existing recovery explains the uncertain result and the same unsaved form remains on screen.
   await expect(page.getByText('Workbench has been updated. Reload required.', { exact: true })).toHaveCount(0);
   await expect(page.getByText('We couldn’t confirm your save.', { exact: true })).toBeVisible();
-  await expect(page.getByLabel('Title', { exact: true })).toHaveValue('Retain my purchase draft');
+  await expect(page.getByLabel('Custom title (optional)', { exact: true })).toHaveValue('Retain my purchase draft');
   await expect(page.getByLabel('Notes', { exact: true })).toHaveValue('Ask the supplier about the blue stones.');
   await expect(page).toHaveURL(/\/purchase-orders\/new$/);
 

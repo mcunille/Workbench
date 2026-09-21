@@ -8,7 +8,7 @@ test('discounts and source charges reconcile and persist without combining suppl
   // GIVEN the scenario's stones and settings entered as a draft purchase.
   await useAuthenticatedSession(page);
   await page.goto('/purchase-orders/new');
-  await page.getByLabel('Title', { exact: true }).fill('PO-05 worked example');
+  await page.getByLabel('Custom title (optional)', { exact: true }).fill('PO-05 worked example');
   await page.getByLabel('Supplier name', { exact: true }).fill('Sample gemstone supplier');
   await page.getByLabel('Currency', { exact: true }).fill('USD');
   for (const [index, description, quantity, price] of [[1, 'Stones', '10', '2000'], [2, 'Settings', '20', '500']] as const) {

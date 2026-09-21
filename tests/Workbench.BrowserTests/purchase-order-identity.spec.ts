@@ -9,7 +9,7 @@ async function saveDraft(page: Page) {
   await page.getByRole('button', { name: 'Save draft', exact: true }).click();
   expect((await saved).ok()).toBe(true);
   await expect(page).toHaveURL(/\/purchase-orders\/[a-f0-9-]{36}$/);
-  await expect(page.getByLabel('Title', { exact: true })).toBeEnabled();
+  await expect(page.getByLabel('Custom title (optional)', { exact: true })).toBeEnabled();
   const detail = await page.request.get(`/api/beta/purchase-order-drafts/${page.url().split('/').at(-1)}`);
   expect(detail.ok()).toBe(true);
   return detail.json();
@@ -51,7 +51,7 @@ test('one supplier has independent order snapshots and platforms with deliberate
 
   // WHEN purchasing through two platforms THEN both orders keep the same supplier identity.
   await page.goto('/purchase-orders/new');
-  await page.getByLabel('Title', { exact: true }).fill(`Instagram ${supplierName}`);
+  await page.getByLabel('Custom title (optional)', { exact: true }).fill(`Instagram ${supplierName}`);
   await openSupplierDetails(page);
   await page.getByLabel('Platform', { exact: true }).fill('Instagram');
   await selectSupplier(page, supplierName);
@@ -59,7 +59,7 @@ test('one supplier has independent order snapshots and platforms with deliberate
   const first = await saveDraft(page);
   const firstPath = new URL(page.url()).pathname;
   await page.goto('/purchase-orders/new');
-  await page.getByLabel('Title', { exact: true }).fill(`Auction ${supplierName}`);
+  await page.getByLabel('Custom title (optional)', { exact: true }).fill(`Auction ${supplierName}`);
   await selectSupplier(page, supplierName);
   await openSupplierDetails(page);
   await page.getByLabel('Platform', { exact: true }).fill('Gem Rock Auctions');
@@ -124,7 +124,7 @@ test('one-off supplier details and transaction platform persist with a permanent
   const title = `Platform purchase ${Date.now()}`;
   const externalReference = `IG-${Date.now()}`;
   await page.goto('/purchase-orders/new');
-  await page.getByLabel('Title', { exact: true }).fill(title);
+  await page.getByLabel('Custom title (optional)', { exact: true }).fill(title);
   await page.getByLabel('Supplier name', { exact: true }).fill('Sample multichannel supplier');
   await openSupplierDetails(page);
   await page.getByLabel('Platform', { exact: true }).fill('Instagram');
@@ -163,7 +163,7 @@ test('an uncertain platform save retries identical content and keeps the assigne
   // GIVEN a draft save whose server acknowledgement will be lost.
   await signIn(page);
   await page.goto('/purchase-orders/new');
-  await page.getByLabel('Title', { exact: true }).fill(`Platform retry ${Date.now()}`);
+  await page.getByLabel('Custom title (optional)', { exact: true }).fill(`Platform retry ${Date.now()}`);
   await openSupplierDetails(page);
   await page.getByLabel('Platform', { exact: true }).fill('Retail');
   const requests: unknown[] = [];
@@ -183,7 +183,7 @@ test('an uncertain platform save retries identical content and keeps the assigne
   // WHEN retrying the uncertain request THEN the same platform-bearing request resolves once.
   await page.getByRole('button', { name: 'Save draft', exact: true }).click();
   await page.getByRole('button', { name: 'Check and retry', exact: true }).click();
-  await expect(page.getByLabel('Title', { exact: true })).toBeEnabled();
+  await expect(page.getByLabel('Custom title (optional)', { exact: true })).toBeEnabled();
   await expect(page).toHaveURL(/\/purchase-orders\/[a-f0-9-]{36}$/);
   expect(requests).toHaveLength(2);
   expect(requests[1]).toEqual(requests[0]);
@@ -199,7 +199,7 @@ test('inline supplier creation survives a subsequent draft failure without submi
   await signIn(page);
   await page.goto('/purchase-orders/new');
   const name = `Independent supplier ${Date.now()}`;
-  await page.getByLabel('Title', { exact: true }).fill('Purchase waiting on confirmation');
+  await page.getByLabel('Custom title (optional)', { exact: true }).fill('Purchase waiting on confirmation');
   await openSupplierDetails(page);
   await page.getByLabel('Platform', { exact: true }).fill('Instagram');
   let draftWrites = 0;
@@ -228,7 +228,7 @@ test('inline supplier creation survives a subsequent draft failure without submi
   await page.getByRole('button', { name: 'Save draft', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Check and retry', exact: true })).toBeVisible();
   expect(draftWrites).toBe(1);
-  await expect(page.getByLabel('Title', { exact: true })).toHaveValue('Purchase waiting on confirmation');
+  await expect(page.getByLabel('Custom title (optional)', { exact: true })).toHaveValue('Purchase waiting on confirmation');
   const supplier = await page.request.get(`/api/beta/suppliers/${supplierId}`);
   expect(supplier.ok()).toBe(true);
   expect((await supplier.json()).supplier.name).toBe(name);

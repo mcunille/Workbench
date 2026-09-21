@@ -1,3 +1,4 @@
+import { purchaseLabel } from './purchaseLabel';
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type MouseEvent } from 'react';
 import { ApiError } from '../../api/auth';
 import { getDrafts, DraftError, type DraftPage } from '../../api/purchaseOrders';
@@ -95,7 +96,7 @@ export function DraftList({ memory, follow, onAuthLost }: Props) {
             {page.items.map(item => (
               <li key={item.id}>
                 <a href={`/purchase-orders/${item.id}`} onClick={follow}>
-                  <span className="po-order-identity"><span className="po-reference">{item.poReference}</span><strong>{item.title ?? (item.state === 'Ordered' ? 'Untitled purchase' : 'Untitled draft')}</strong><span className="po-order-status"><span className="po-status-badge" data-state={item.state ?? 'Draft'}>{item.state ?? 'Draft'}</span>{item.orderDate ? <time dateTime={item.orderDate}>{item.orderDate}</time> : null}</span></span>
+                  <span className="po-order-identity"><span className="po-reference">{item.poReference}</span><strong>{purchaseLabel(item, item.state)}</strong><span className="po-order-status"><span className="po-status-badge" data-state={item.state ?? 'Draft'}>{item.state ?? 'Draft'}</span>{item.orderDate ? <time dateTime={item.orderDate}>{item.orderDate}</time> : null}</span></span>
                   <span className="po-order-supplier">{item.supplierName ?? 'Supplier not set'}{item.platform ? <span className="po-row-detail">{item.platform}</span> : null}{item.supplierOrderReference ? <span className="po-row-detail">Supplier ref: {item.supplierOrderReference}</span> : null}</span>
                   <time className="po-order-saved" dateTime={item.updatedAtUtc} title={new Date(item.updatedAtUtc).toLocaleString()}>
                     <span className="po-accessible-heading po-saved-label">Last saved</span>
