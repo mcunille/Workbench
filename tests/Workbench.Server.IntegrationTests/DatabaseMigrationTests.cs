@@ -184,12 +184,12 @@ public sealed class DatabaseMigrationTests(SqlServerFixture sqlServer)
         await Task.WhenAll(first, second);
 
         // THEN both complete successfully, history appears once, and the current schema exists.
-        Assert.Equal(27, await CountAsync(database.AdminConnectionString, "[dbo].[__EFMigrationsHistory]"));
+        Assert.Equal(28, await CountAsync(database.AdminConnectionString, "[dbo].[__EFMigrationsHistory]"));
         Assert.Equal(1, await ObjectCountAsync(database.AdminConnectionString, "Storage.Revisions"));
         Assert.Equal(1, await ObjectCountAsync(database.AdminConnectionString, "Operations.WorkItems"));
         // AND another invocation observes the completed schema without applying it again.
         await DatabaseMigrator.MigrateAsync(connectionString, timeout.Token);
-        Assert.Equal(27, await CountAsync(database.AdminConnectionString, "[dbo].[__EFMigrationsHistory]"));
+        Assert.Equal(28, await CountAsync(database.AdminConnectionString, "[dbo].[__EFMigrationsHistory]"));
     }
 
     [Fact]
@@ -228,7 +228,7 @@ public sealed class DatabaseMigrationTests(SqlServerFixture sqlServer)
         await SetMigrationLockAsync(lockConnection, acquire: false);
         using var retryTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(45));
         await DatabaseMigrator.MigrateAsync(connectionString, retryTimeout.Token);
-        Assert.Equal(27, await CountAsync(database.AdminConnectionString, "[dbo].[__EFMigrationsHistory]"));
+        Assert.Equal(28, await CountAsync(database.AdminConnectionString, "[dbo].[__EFMigrationsHistory]"));
         Assert.Equal(1, await ObjectCountAsync(database.AdminConnectionString, "Storage.Revisions"));
     }
 
