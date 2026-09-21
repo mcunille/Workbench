@@ -101,7 +101,7 @@ export function SupplierEditor({ id: initialId, inline, onDirtyChange, onAuthLos
     const description = [key === 'name' ? `${formId}-required` : '', error ? `${controlId}-error` : ''].filter(Boolean).join(' ') || undefined;
     const common = { id: controlId, value: supplier[key] ?? '', disabled: frozen, maxLength: limit, placeholder: ' ', 'aria-invalid': !!error, 'aria-describedby': description, onChange: (event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => setSupplier({ ...supplier, [key]: event.target.value || (key === 'name' ? '' : null) }) };
     return <div className={`po-field${key === 'postalAddress' ? ' po-supplier-address' : ''}`} key={key}>
-      <FloatingField htmlFor={controlId} label={key === 'name' ? 'Supplier name' : label}>{key === 'postalAddress' ? <textarea {...common} rows={3} /> : <input {...common} type={key === 'email' ? 'email' : key === 'phone' ? 'tel' : key === 'website' ? 'url' : 'text'} required={key === 'name'} />}</FloatingField>
+      <FloatingField htmlFor={controlId} label={key === 'name' ? 'Supplier name' : label}>{key === 'postalAddress' ? <textarea {...common} rows={3} /> : <input {...common} type={key === 'email' ? 'email' : key === 'phone' ? 'tel' : 'text'} inputMode={key === 'website' ? 'url' : undefined} required={key === 'name'} />}</FloatingField>
       {key === 'name' ? <p className="po-field-help po-required-help" id={`${formId}-required`}>Required</p> : null}
       {error ? <p className="form-message error" id={`${controlId}-error`}>{error}</p> : null}
     </div>;

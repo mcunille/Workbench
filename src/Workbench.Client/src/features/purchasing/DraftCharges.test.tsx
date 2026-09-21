@@ -31,10 +31,21 @@ it.each([{ supplierName: 'Replacement' }, { supplierName: null }, { supplierId: 
   const baseline = { ...saved, charges: [{ ...saved.charges[0], payeeKind: 'supplier', payeeName: null }] };
   const { rerender } = render(<DraftCharges draft={baseline} baseline={baseline} disabled={false} amountDisabled={false} errors={{}} change={() => {}} />);
   expect(screen.getByLabelText('Charge notes 1')).not.toBeVisible();
+  // AND the owner explicitly opens and closes the charge before changing supplier.
+  const summary = screen.getByLabelText('Edit charge 1: Freight');
+  fireEvent.click(summary);
+  fireEvent.click(summary);
   // WHEN the order supplier changes THEN the charge opens and asks for an explanation before saving.
   rerender(<DraftCharges draft={{ ...baseline, ...patch }} baseline={baseline} disabled={false} amountDisabled={false} errors={{}} change={() => {}} />);
   expect(screen.getByLabelText('Charge notes 1')).toBeVisible();
   expect(screen.getByText(/Add an explanation to Charge notes/)).toBeVisible();
+  // WHEN deliberately collapsed afterward THEN the correction does not force it open.
+  fireEvent.click(summary);
+  expect(screen.getByLabelText('Charge notes 1')).not.toBeVisible();
+  // WHEN save-time validation rejects missing notes THEN the correction is revealed again.
+  rerender(<DraftCharges draft={{ ...baseline, ...patch }} baseline={baseline} disabled={false} amountDisabled={false} errors={{ 'draft.charges[0].notes': ['Explain the correction.'] }} change={() => {}} />);
+  expect(screen.getByLabelText('Charge notes 1')).toBeVisible();
+  expect(screen.getByText('Explain the correction.')).toBeVisible();
 });
 
 it.each(['contact', 'estimated', 'thirdParty', 'whitespace'])('does not request a supplier correction for %s changes', kind => {
@@ -43,7 +54,11 @@ it.each(['contact', 'estimated', 'thirdParty', 'whitespace'])('does not request 
   const baseline = { ...saved, charges: [charge] };
   const draft = kind === 'contact' ? { ...baseline, supplierContactName: 'New contact' } : { ...baseline, supplierName: kind === 'whitespace' ? ' Supplier ' : 'Replacement' };
   // WHEN the unrelated supplier details change THEN no correction is demanded and the charge stays collapsed.
-  render(<DraftCharges draft={draft} baseline={baseline} disabled={false} amountDisabled={false} errors={{}} change={() => {}} />);
+  const { rerender } = render(<DraftCharges draft={baseline} baseline={baseline} disabled={false} amountDisabled={false} errors={{}} change={() => {}} />);
+  const summary = screen.getByLabelText('Edit charge 1: Freight');
+  fireEvent.click(summary);
+  fireEvent.click(summary);
+  rerender(<DraftCharges draft={draft} baseline={baseline} disabled={false} amountDisabled={false} errors={{}} change={() => {}} />);
   expect(screen.getByLabelText('Charge notes 1')).not.toBeVisible();
   expect(screen.queryByText(/Add an explanation to Charge notes/)).not.toBeInTheDocument();
 });

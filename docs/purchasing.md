@@ -11,12 +11,16 @@ keep the page open and check the saved record before starting another save.
 
 Purchase orders lets members of a business plan a supplier purchase and return to it later.
 Use **New draft**, record what you know, and select **Save draft**. An empty draft is valid;
-its display name is Untitled draft until you give it a title. Saved drafts remain available after
+it appears as **Empty draft** with its permanent PO reference. Start with a supplier,
+items, or both; no title is needed. Lists identify purchases by custom title when present,
+otherwise supplier or the first described item, alongside the PO reference. Saved drafts remain available after
 signing out and signing back in. All records belong to the signed-in business.
 
 ## Itemize a purchase
 
-Keep an optional title, supplier details, notes and source links together. Under **Order lines**, add a description and one quantity and unit matching how the supplier charges. Optional details include supplier SKU, item type, notes and a source link. Incomplete lines and empty drafts remain saveable; they do not commit a purchase.
+Start with supplier details and order lines. Under **Notes and custom label**, an optional
+custom title can help you recognize a purchase; existing titles stay editable and searchable.
+Keep notes and source links there too. Under **Order lines**, add a description and one quantity and unit matching how the supplier charges. Optional details include supplier SKU, item type, notes and a source link. Incomplete lines and empty drafts remain saveable; they do not commit a purchase.
 
 Choose **Per unit** or **Total line** pricing. Per unit multiplies quantity by unit price: 12.5 carats at USD 20 produces USD 250.00. Total line records the supplier's amount directly and does not require quantity or unit to calculate. There is no separate ordered count, pricing unit, batch denominator or priced quantity. A quote of USD 8 per 100 pieces can be entered as USD 0.08 per piece, or as the total for the line. Workbench does not convert between units; ounce and troy ounce are distinct.
 
@@ -109,6 +113,11 @@ Use **Manage suppliers** from Purchase orders to create and maintain reusable su
 one-off supplier details directly on a draft. Contact name, email, phone, website and postal address
 are optional. Duplicate supplier names are allowed. Archiving a supplier removes it from default
 selection while keeping its saved orders and details; it can be reactivated later.
+
+Supplier directory websites accept domains such as `example.com` or `www.example.com/shop`;
+saving trims surrounding whitespace and adds `https://` when the scheme is omitted. Explicit
+HTTP/HTTPS schemes, paths, queries and fragments are preserved. Websites remain optional;
+malformed addresses, other schemes, spaces and embedded credentials are rejected by the server.
 
 Selecting a supplier copies their details onto this draft. Editing the directory never rewrites
 saved purchases. **Use current supplier details** previews a refresh for this draft; confirm the

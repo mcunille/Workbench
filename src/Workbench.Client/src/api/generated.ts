@@ -4266,6 +4266,7 @@ export interface components {
             poReference: string;
             supplierOrderReference: null | string;
             platform: null | string;
+            firstItemDescription: null | string;
         };
         ExportItemsRequest: {
             scope: null | string;
@@ -4440,6 +4441,7 @@ export interface components {
             orderDate: null | string;
             /** Format: int32 */
             revision: number | string;
+            firstItemDescription: null | string;
         };
         RecoveryConsumeRequest: {
             token: string;

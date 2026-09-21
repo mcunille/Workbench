@@ -1,3 +1,4 @@
+import { purchaseLabel } from './purchaseLabel';
 import { RecoveryText } from '../../RecoveryText';
 import { recoveryText } from '../../formatRecoveryText';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -245,11 +246,11 @@ export function DraftEditor({ id: initialId, onDirtyChange, onAuthLost, onSaved,
       }
     } finally { busy.current = false; }
   }
-  function field(path: string, label: string, value: string | null, change: (value: string | null) => void, options: { multiline?: boolean; placeholder?: string; disabled?: boolean } = {}) {
+  function field(path: string, label: string, value: string | null, change: (value: string | null) => void, options: { multiline?: boolean; placeholder?: string; disabled?: boolean; description?: string } = {}) {
     const controlId = fieldId(path);
     const error = visibleErrors[path]?.join(' ');
-    const common = { id: controlId, name: path, value: value ?? '', onChange: (event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => change(optional(event.target.value)), disabled: frozen || options.disabled, placeholder: options.placeholder ?? ' ', 'aria-invalid': !!error, 'aria-describedby': error ? `${controlId}-error` : undefined };
-    return <div className="po-field" key={path}><FloatingField htmlFor={controlId} label={label}>{options.multiline ? <textarea {...common} rows={2} /> : <input {...common} />}</FloatingField>{error ? <p id={`${controlId}-error`} className="form-message error">{error}</p> : null}</div>;
+    const common = { id: controlId, name: path, value: value ?? '', onChange: (event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => change(optional(event.target.value)), disabled: frozen || options.disabled, placeholder: options.placeholder ?? ' ', 'aria-invalid': !!error, 'aria-describedby': [error ? `${controlId}-error` : '', options.description ? `${controlId}-help` : ''].filter(Boolean).join(' ') || undefined };
+    return <div className="po-field" key={path}><FloatingField htmlFor={controlId} label={label}>{options.multiline ? <textarea {...common} rows={2} /> : <input {...common} />}</FloatingField>{options.description ? <p id={`${controlId}-help`} className="po-field-help">{options.description}</p> : null}{error ? <p id={`${controlId}-error`} className="form-message error">{error}</p> : null}</div>;
   }
   const saveDisabled = (mode !== 'editing' && mode !== 'uncertain') || (mode === 'editing' && !!baseline && !changed);
   const saveLabel = mode === 'saving' ? 'Saving…' : mode === 'uncertain' ? 'Check and retry' : amending ? 'Review amendment' : 'Save draft';
@@ -294,7 +295,7 @@ export function DraftEditor({ id: initialId, onDirtyChange, onAuthLost, onSaved,
           focusSupplierSummary.current = true; setClearingSupplier(false);
         }}>Clear supplier</button></div>
       </SupplierDialog> : null}
-      {confirmingDelete && baseline && !frozen ? <DeleteDraftDialog title={baseline.draft.title ?? 'Untitled draft'}
+      {confirmingDelete && baseline && !frozen ? <DeleteDraftDialog title={`${baseline.poReference} · ${purchaseLabel(baseline.draft)}`}
         cancel={() => setConfirmingDelete(false)} confirm={() => void removeDraft()} /> : null}
       {clearingPrices && !frozen ? <ClearPricesDialog count={draft.entries.filter(hasLinePrice).length} confirmedCharges={draft.charges.some(charge => baseline?.draft.charges.some(saved => saved.id === charge.id && saved.amountStatus === 'confirmed'))} cancel={() => setClearingPrices(false)} clear={reason => {
         setDraft(clearDraftAmounts(draft, baseline?.draft, reason));
@@ -364,12 +365,6 @@ export function DraftEditor({ id: initialId, onDirtyChange, onAuthLost, onSaved,
             )))}</ul>
           </div>
         ) : null}
-        <section className="po-form-section" aria-label="Order details">
-          <div className="po-header-fields po-title-fields">
-            {field('draft.title', 'Title', draft.title, title => setDraft({ ...draft, title }))}
-
-          </div>
-        </section>
         <details className="po-form-section po-supplier-section" open={supplierExpanded || Object.keys(visibleErrors).some(key => key.startsWith('draft.supplier') || key === 'draft.platform')} onToggle={event => setSupplierExpanded(event.currentTarget.open)}>
           <summary ref={supplierSummary} className="po-supplier-summary"><span className="po-supplier-summary-row"><span className="po-supplier-summary-copy"><span>Supplier details</span><span className="po-supplier-summary-context">{[draft.supplierName, draft.platform].filter(Boolean).join(' · ') || 'Add a supplier or one-off contact'}</span></span>{[draft.supplierId, draft.supplierName, draft.supplierContactName, draft.supplierEmail, draft.supplierPhone, draft.supplierWebsite, draft.supplierPostalAddress, draft.supplierOrderReference].some(Boolean) ? <button type="button" className="quiet danger" disabled={frozen} onClick={event => { event.preventDefault(); event.stopPropagation(); setClearingSupplier(true); }}>Clear supplier</button> : null}</span></summary>
           <DraftSupplier draft={draft} archived={!!baseline?.supplierIsArchived && baseline.draft.supplierId === draft.supplierId} frozen={frozen || clearingSupplier} onChange={setDraft} onAuthLost={supplierAccessLost} onDirtyChange={reportSupplierDirty} />
@@ -455,7 +450,10 @@ export function DraftEditor({ id: initialId, onDirtyChange, onAuthLost, onSaved,
         </section>
         <section className="po-form-section" aria-labelledby="po-context-heading">
           <div className="po-section-heading">
-            <div><h2 id="po-context-heading">Notes and sources</h2><p>Keep the details you will want when you return to this draft.</p></div>
+            <div><h2 id="po-context-heading">Notes and custom label</h2><p>Keep the details you will want when you return to this draft.</p></div>
+          </div>
+          <div className="po-header-fields po-title-fields">
+            {field('draft.title', 'Custom title (optional)', draft.title, title => setDraft({ ...draft, title }), { description: 'Add a custom label to help you recognize this purchase. Supplier, items and the PO reference identify it without a title.' })}
           </div>
           <div className="po-order-context">
             {field('draft.notes', 'Notes', draft.notes, notes => setDraft({ ...draft, notes }), { multiline: true })}

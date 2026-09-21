@@ -13,6 +13,16 @@ export function DraftCharges({ draft, baseline, disabled, amountDisabled, errors
   const [removed, setRemoved] = useState<{ charge: Charge; index: number }[]>([]);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [boundary, setBoundary] = useState({ disabled, currency: draft.currency });
+  const supplierName = draft.supplierName?.trim() || null;
+  const [supplier, setSupplier] = useState({ id: draft.supplierId, name: supplierName });
+  const supplierChanged = draft.supplierId !== baseline?.supplierId || supplierName !== (baseline?.supplierName?.trim() || null);
+  if (supplier.id !== draft.supplierId || supplier.name !== supplierName) {
+    setSupplier({ id: draft.supplierId, name: supplierName });
+    if (supplierChanged) {
+      const affected = draft.charges.filter(charge => baseline?.charges.some(saved => saved.id === charge.id && saved.amountStatus === 'confirmed' && saved.payeeKind === 'supplier'));
+      setExpanded(previous => ({ ...previous, ...Object.fromEntries(affected.map(charge => [charge.id, true])) }));
+    }
+  }
   const focusId = useRef<string | undefined>(undefined);
   const addButton = useRef<HTMLButtonElement>(null);
   const invalidCharges = draft.charges.filter((_, index) => Object.keys(errors).some(key => key === `draft.charges[${index}]` || key.startsWith(`draft.charges[${index}].`)));
@@ -38,7 +48,7 @@ export function DraftCharges({ draft, baseline, disabled, amountDisabled, errors
       const update = (patch: Partial<Charge>) => change(draft.charges.map(old => old.id === charge.id ? { ...old, ...patch } : old));
       const old = baseline?.charges.find(saved => saved.id === charge.id);
       const invalid = Object.keys(errors).some(key => key === path || key.startsWith(`${path}.`));
-      const supplierCorrection = old?.amountStatus === 'confirmed' && old.payeeKind === 'supplier' && (draft.supplierId !== baseline?.supplierId || (draft.supplierName?.trim() || null) !== (baseline?.supplierName?.trim() || null));
+      const supplierCorrection = old?.amountStatus === 'confirmed' && old.payeeKind === 'supplier' && supplierChanged;
       const open = (expanded[charge.id] ?? (!old || supplierCorrection)) || invalid;
       const correction = supplierCorrection || (old?.amountStatus === 'confirmed' && (charge.amount !== old.amount || charge.amountStatus !== old.amountStatus || charge.payeeKind !== old.payeeKind || charge.payeeName !== old.payeeName));
       const field = (key: 'label' | 'payeeName' | 'reference' | 'notes', label: string) => <div className="po-field"><FloatingField htmlFor={id(key)} label={label}>

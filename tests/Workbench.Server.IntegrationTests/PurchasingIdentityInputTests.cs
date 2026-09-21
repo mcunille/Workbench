@@ -5,6 +5,40 @@ namespace Workbench.Server.IntegrationTests;
 
 public sealed class PurchasingIdentityInputTests
 {
+    [Theory]
+    [InlineData(" example.com ", "https://example.com")]
+    [InlineData("www.example.com/shop?q=gem%20stone#stock", "https://www.example.com/shop?q=gem%20stone#stock")]
+    [InlineData(" https://example.com/Shop?q=One#Two ", "https://example.com/Shop?q=One#Two")]
+    [InlineData(" HTTP://example.com/shop ", "HTTP://example.com/shop")]
+    [InlineData(null, null)]
+    [InlineData(" \t ", null)]
+    public void SupplierWebsiteDefaultsToHttpsAndPreservesExplicitUrls(string? input, string? expected)
+    {
+        // GIVEN optional website text WHEN normalized for saving THEN only whitespace and a missing scheme change.
+        var normalized = PurchasingIdentityInput.Normalize(Contact with { Website = input });
+        Assert.Equal(expected, normalized.Website);
+        Assert.Empty(PurchasingIdentityInput.Validate(normalized));
+    }
+
+    [Theory]
+    [InlineData("not-a-website")]
+    [InlineData("/relative")]
+    [InlineData("//example.com")]
+    [InlineData("https:/example.com")]
+    [InlineData("ftp://example.com")]
+    [InlineData("javascript:alert(1)")]
+    [InlineData("mailto:owner@example.com")]
+    [InlineData("example.com/white space")]
+    [InlineData("example.com\\path")]
+    [InlineData("user@example.com")]
+    [InlineData("https://user:password@example.com")]
+    public void SupplierWebsiteNormalizationDoesNotBypassValidation(string input)
+    {
+        // GIVEN malformed or unsupported website input WHEN normalized THEN the server still rejects it by field.
+        var normalized = PurchasingIdentityInput.Normalize(Contact with { Website = input });
+        Assert.Contains("supplier.website", PurchasingIdentityInput.Validate(normalized));
+    }
+
     private static SupplierContent Contact => new(" Supplier ", " Contact ", " a@example.test ", " +1 555 ext 2 ", " https://example.test ", " First\nSecond ");
     [Fact]
     public void ProfilesAcceptUserDefinedPlainHandles()

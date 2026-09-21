@@ -5260,7 +5260,8 @@
           "updatedAtUtc",
           "poReference",
           "supplierOrderReference",
-          "platform"
+          "platform",
+          "firstItemDescription"
         ],
         "type": "object",
         "properties": {
@@ -5293,6 +5294,12 @@
             ]
           },
           "platform": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "firstItemDescription": {
             "type": [
               "null",
               "string"
@@ -5990,7 +5997,8 @@
           "platform",
           "state",
           "orderDate",
-          "revision"
+          "revision",
+          "firstItemDescription"
         ],
         "type": "object",
         "properties": {
@@ -6044,6 +6052,12 @@
               "string"
             ],
             "format": "int32"
+          },
+          "firstItemDescription": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },

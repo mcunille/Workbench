@@ -25,7 +25,7 @@ it('opens purchase orders and replaces a new draft URL after its receipt without
   await screen.findByText('Saved; current version could not be loaded.');
   expect(window.location.pathname).toBe('/purchase-orders/saved');
   fireEvent.click(screen.getByRole('button', { name: 'Load current draft' }));
-  await waitFor(() => expect(screen.getByLabelText('Title')).not.toBeDisabled());
+  await waitFor(() => expect(screen.getByLabelText('Custom title (optional)')).not.toBeDisabled());
   expect(writes).toBe(1); expect(reads).toBe(2);
   fireEvent.click(screen.getByRole('button', { name: 'Back to purchase orders' }));
   await screen.findByRole('heading', { name: 'No purchase orders yet.' });
