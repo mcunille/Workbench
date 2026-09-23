@@ -70,25 +70,20 @@ of an initial migration plus corrective migrations and request consolidation bef
 preserving dependency ordering, custom SQL, security controls, data transformations, rollback
 guards and the final model snapshot. Multiple independent release changes are assessed separately.
 
-Verify any claimed need for separate migrations against a concrete staged deployment, backfill or
-compatibility boundary. A PR explanation or local preview application is not by itself evidence of
-such a release requirement. If the author claims a migration was applied to a retained/shared
-environment, explicitly surface the conflict between consolidation and immutable applied history;
-do not silently accept the exception or recommend rewriting applied history in place. Identify the
-affected environment and evidence available, and request an owner decision on data-preserving
-reconciliation or a documented exception. Never infer authorization to delete retained data.
-Distinguish an unresolved exception from a proven policy violation; an explicit owner decision to
-require consolidation supplies the disposition and must be recorded in the finding.
+Migrations become durable when their PR merges into main. Verify any claimed need for separate
+migrations against a concrete staged deployment, backfill, or release compatibility boundary.
+Applying an unmerged migration to a local, retained, or shared preview does not prevent
+consolidation and does not create a supported upgrade baseline. Do not request a release fix
+solely because an earlier unmerged preview cannot upgrade to the current PR. Preserving preview
+data is a separate local operation; never infer authorization to delete data or reset its history.
+Already-merged migrations and historical transitions remain immutable.
 
-Have Quality check fresh-database creation and upgrade from the PR base, including retained data,
-and inspect updates to migration-history assertions and schema-version references. Report each
-migration's purpose, the consolidation decision, verified exception evidence or unresolved owner
-decision, and verification limits in the Architecture report and final review. When one feature
-retains an initial migration plus corrective migrations, surface that sequence even if immutable
-applied history justifies it. State the retained maintenance/upgrade cost and whether a development
-workflow change could avoid repeating it; do not recommend rewriting applied history or deleting data.
-A single coherent migration, a justified deployment boundary, and a claimed retained-preview exception should lead to different
-assessments; the count alone does not establish a defect.
+Have Quality check fresh-database creation and upgrade from the merged PR base, including retained
+data, and inspect migration-history assertions and schema-version references. Report each new
+migration's purpose, the consolidation decision, any concrete release boundary requiring separate
+migrations, and verification limits. Surface the maintenance cost of a justified multi-stage
+release without treating preview use as an exception to consolidation. The migration count alone
+does not establish a defect.
 
 ## Report the architectural judgment
 
