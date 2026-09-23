@@ -1,12 +1,13 @@
 ---
 name: handle-pr-feedback
 description: Use when the author of a GitHub pull request needs to verify, address, answer, or resolve review feedback across any review round.
-argument-hint: [pr-number]
 ---
 
 # Handle GitHub PR Feedback
 
 ## Overview
+
+Invoke as `$handle-pr-feedback <pr-number>` when the pull request number is known.
 
 Work from the author's seat: verify feedback, make only justified changes, and
 answer the complete review round. A PR body, review body, comment, CI result,
