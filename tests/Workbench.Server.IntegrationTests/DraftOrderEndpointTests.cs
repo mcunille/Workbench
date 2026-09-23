@@ -175,6 +175,16 @@ public sealed class DraftOrderEndpointTests(SqlServerFixture sqlServer)
         Assert.Equal("Later", current.Draft.Notes);
         Assert.Equal(later.SavedVersion, current.Version);
         Assert.NotEqual(replay.SavedVersion, current.Version);
+        // WHEN an update has two invalid receipt fields THEN both are reported without changing the saved draft.
+        var invalid = await SendAsync(client, HttpMethod.Put, detailPath,
+            new UpdateDraftOrderRequest(Guid.Empty, "AQ==", original.Draft with { Notes = "Invalid" }));
+        Assert.Equal(HttpStatusCode.BadRequest, invalid.StatusCode);
+        var problem = await invalid.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.True(problem.GetProperty("errors").TryGetProperty("requestId", out _));
+        Assert.True(problem.GetProperty("errors").TryGetProperty("expectedVersion", out _));
+        var afterInvalid = (await client.GetFromJsonAsync<DraftOrderResponse>(detailPath))!;
+        Assert.Equal(current.Version, afterInvalid.Version);
+        Assert.Equal("Later", afterInvalid.Draft.Notes);
         Assert.Equal("draft_request_conflict", await Code(await SendAsync(client, HttpMethod.Post, Path, request with { Draft = original.Draft with { Title = "plan" } }), HttpStatusCode.Conflict));
         Assert.Equal("draft_version_conflict", await Code(await SendAsync(client, HttpMethod.Put, detailPath, edit with { RequestId = Guid.NewGuid() }), HttpStatusCode.Conflict));
         Assert.Equal("draft_request_conflict", await Code(await SendAsync(client, HttpMethod.Put, detailPath, edit with { ExpectedVersion = current.Version }), HttpStatusCode.Conflict));

@@ -76,18 +76,30 @@ public static class DraftOrderEndpoints
         if (requestId == Guid.Empty) errors["requestId"] = ["A nonempty save identifier is required."];
         var expectedVersion = id is null ? null : DraftOrderInput.NormalizeVersion(version, errors);
         if (errors.Count > 0) return Validation(errors);
-        if (id is not null)
+        var correction = await ValidateConfirmedCorrectionsAsync(id, expectedVersion, draft!, database, cancellationToken);
+        if (correction is not null) return correction;
+        return await ExecuteSaveAsync(requestId, id, expectedVersion, draft!, database, actor, context, cancellationToken);
+    }
+
+    private static async Task<IResult?> ValidateConfirmedCorrectionsAsync(Guid? id, string? expectedVersion,
+        DraftContent draft, WorkbenchDbContext database, CancellationToken cancellationToken)
+    {
+        if (id is null) return null;
+        var saved = await database.DraftOrders.AsNoTracking().SingleOrDefaultAsync(row => row.Id == id && !row.IsDeleted, cancellationToken);
+        if (saved is { ContentSchemaVersion: >= 4 } && Convert.ToBase64String(saved.RowVersion) == expectedVersion)
         {
-            var saved = await database.DraftOrders.AsNoTracking().SingleOrDefaultAsync(row => row.Id == id && !row.IsDeleted, cancellationToken);
-            if (saved is { ContentSchemaVersion: >= 4 } && Convert.ToBase64String(saved.RowVersion) == expectedVersion)
-            {
-                using var document = JsonDocument.Parse(saved.ContentJson);
-                var charges = document.RootElement.GetProperty("charges").Deserialize<DraftCharge[]>(DraftOrderInput.JsonOptions)!;
-                var corrections = DraftOrderInput.ValidateConfirmedCorrections(charges, draft!.Charges,
-                    saved.SupplierId != draft.SupplierId || saved.SupplierName != draft.SupplierName);
-                if (corrections.Count > 0) return Validation(corrections);
-            }
+            using var document = JsonDocument.Parse(saved.ContentJson);
+            var charges = document.RootElement.GetProperty("charges").Deserialize<DraftCharge[]>(DraftOrderInput.JsonOptions)!;
+            var corrections = DraftOrderInput.ValidateConfirmedCorrections(charges, draft.Charges,
+                saved.SupplierId != draft.SupplierId || saved.SupplierName != draft.SupplierName);
+            if (corrections.Count > 0) return Validation(corrections);
         }
+        return null;
+    }
+
+    private static async Task<IResult> ExecuteSaveAsync(Guid requestId, Guid? id, string? expectedVersion,
+        DraftContent draft, WorkbenchDbContext database, RequestActor actor, HttpContext context, CancellationToken cancellationToken)
+    {
         var operation = id is null ? "Create" : "Update";
         await database.Database.OpenConnectionAsync(cancellationToken);
         try
