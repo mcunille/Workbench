@@ -67,6 +67,27 @@ audit, and durable replay evidence together. UUID version tokens reject stale ed
 retain their codes and history. The [BK-01 design](specs/2026-09-21-bk-01-accounting-foundation.md)
 defines later first-posting, retention, cutover, and reconciliation obligations.
 
+### Atomic journal foundation
+
+BK-02 adds immutable source events, journal entries/lines, posting receipts and a first-posting policy
+freeze. The internal `Accounting.PostJournal` procedure requires an outer transaction and has no
+runtime execute grant. Future typed source commands own their authorization, source revision and
+transaction; the kernel validates exact same-currency balanced entries at the SQL boundary. No
+production source adapter or financial write endpoint is enabled in this increment.
+
+The kernel and configuration writer share the tenant accounting application lock. First posting
+freezes currency, scale, fiscal calendar and planned start boundary; any referenced account is
+ineligible for archive until a later design can prove historical/open-item safety. Tenant-qualified
+keys, RLS, direct-DML denials and source/request uniqueness protect atomic history across replicas.
+Amounts use decimal(28,4), checked wider accumulation and scale 0–4; no silent rounding is allowed.
+
+Journal and trial-balance GET APIs independently require `AccountingReportsRead`, use exact decimal
+strings and capture each response in a SERIALIZABLE read. Posting and recorded-time cutoffs apply
+together. Recorded time is not commit order and paginated reads are not frozen export snapshots.
+The [BK-02 design](specs/2026-09-23-bk-02-atomic-journal.md) records the approved contract and limits.
+Bookkeeping activation, production sources, correction/period controls and retained financial files
+remain gated by the parent prerequisites.
+
 ### Collection records export
 
 The [H7 export](specs/2026-09-08-h7-collection-export.md) retrieves current text records as CSV v1.

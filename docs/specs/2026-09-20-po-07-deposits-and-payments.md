@@ -9,6 +9,10 @@ subsequently agreed product policies and proposes the bounded configuration/acco
 delivery. Its role-based authorization replaces the original persona-based proposal below; the
 remaining PO-07 stories are not implicitly approved by those policy decisions.
 
+The accepted [BK-02 atomic journal design](2026-09-23-bk-02-atomic-journal.md) defines the
+database posting boundary, first-posting protections and basic journal/trial-balance readback.
+It does not enable production bookkeeping.
+
 ## Decision and evidence
 
 Build one double-entry general ledger with a supplier subledger. Purchasing owns source documents

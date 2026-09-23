@@ -1,8 +1,9 @@
 # Accounting setup
 
 Accounting setup records a business's policies, general chart of accounts, mappings, and intended
-transaction coverage. It does not yet record journals, bills, payments, or opening balances, produce
-financial reports, or close periods. Completing setup does not activate bookkeeping.
+transaction coverage. An internal journal foundation supplies read-only journal and trial-balance
+APIs, but no financial posting action is enabled. Bills, payments, opening balances, report screens,
+exports and period closing remain unavailable. Completing setup does not activate bookkeeping.
 
 ## Access
 
@@ -12,7 +13,7 @@ An administrator can explicitly assign accounting access to themselves.
 
 - **Accounting administrator** can manage setup. The role also supplies permissions for reporting,
   reconciliation, and period closing as those later capabilities become available.
-- **Accounting reader** supplies financial-report viewing and export permissions for later reports.
+- **Accounting reader** can read journal APIs and has an export permission reserved for later exports.
   It cannot open or change accounting setup.
 
 Neither accounting role grants user administration or supplier-payment authority. Existing tenant-user
@@ -53,6 +54,8 @@ for later recognition rules. Naming or mapping an account does not create a fina
 Archive keeps the account's code reserved and preserves its identity and revision history. Current
 mapping targets and included funding accounts must be reassigned or removed from coverage before
 archive. Include archived accounts in browsing to restore an account; restore retains its identity.
+An account referenced by a journal cannot be archived, even when its net balance is zero. Historical
+account labels remain in journal snapshots when current account descriptions change.
 
 ## Transaction coverage
 
@@ -72,5 +75,27 @@ request; on a conflict, review the current saved values before reapplying the pr
 successful old retry returns its receipt and never rolls back newer settings or role membership.
 Unsaved drafts are private browser memory and are lost on reload or loss of access.
 
+The first journal freezes currency, scale, fiscal calendar and planned starting approach/date.
+These fields cannot change afterward. The freeze is not acceptance of starting balances or permission
+to use the application for real bookkeeping; those release gates remain separate.
+
+## Journal read APIs
+
+Accounting readers and administrators can use these authenticated beta GET routes:
+
+- `/api/beta/accounting/journals` lists recorded entries; append `/{id}` for source evidence and lines.
+- `/api/beta/accounting/accounts/{id}/journal` lists an account's journal lines.
+- `/api/beta/accounting/trial-balance` reports exact debit/credit activity and debit-minus-credit balances.
+
+Amounts are decimal strings. Lists default to 50 rows and allow up to 100 per page. Responses include
+posting-date and UTC recorded-time cutoffs; pagination preserves those cutoffs. Both filters must
+match for an event to appear. Trial-balance totals cover the entire filtered ledger, not just the page.
+An empty ledger has zero activity; it does not prove that a business has no opening balances.
+
+Each response is internally consistent. Recorded timestamps are not commit timestamps, so entries
+that were in flight can become visible between pages. These APIs are not frozen exports or reconciled
+financial statements. No report screen or financial write route is delivered with this foundation.
+
 The [BK-01 specification](specs/2026-09-21-bk-01-accounting-foundation.md) owns the accepted boundaries;
+the [BK-02 specification](specs/2026-09-23-bk-02-atomic-journal.md) defines the journal boundary;
 the [PO-07 prerequisites](specs/2026-09-20-po-07-deposits-and-payments.md) describe later bookkeeping gates.

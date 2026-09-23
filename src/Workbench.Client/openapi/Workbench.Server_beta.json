@@ -4514,6 +4514,337 @@
           }
         }
       }
+    },
+    "/api/beta/accounting/journals": {
+      "get": {
+        "tags": [
+          "Accounting reports"
+        ],
+        "parameters": [
+          {
+            "name": "postingThrough",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "recordedThrough",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JournalPage"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/beta/accounting/journals/{id}": {
+      "get": {
+        "tags": [
+          "Accounting reports"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JournalDetail"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/beta/accounting/accounts/{id}/journal": {
+      "get": {
+        "tags": [
+          "Accounting reports"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "postingThrough",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "recordedThrough",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountJournalPage"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/beta/accounting/trial-balance": {
+      "get": {
+        "tags": [
+          "Accounting reports"
+        ],
+        "parameters": [
+          {
+            "name": "postingThrough",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "recordedThrough",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TrialBalancePage"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -5059,6 +5390,136 @@
             "items": {
               "type": "string"
             }
+          }
+        }
+      },
+      "AccountJournalLine": {
+        "required": [
+          "journalId",
+          "sequence",
+          "sourceEventId",
+          "ordinal",
+          "postingDate",
+          "recordedAtUtc",
+          "currency",
+          "scale",
+          "accountCode",
+          "accountName",
+          "accountType",
+          "accountPurpose",
+          "debit",
+          "credit"
+        ],
+        "type": "object",
+        "properties": {
+          "journalId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "sequence": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          },
+          "sourceEventId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "ordinal": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "postingDate": {
+            "type": "string",
+            "format": "date"
+          },
+          "recordedAtUtc": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "currency": {
+            "type": "string"
+          },
+          "scale": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "accountCode": {
+            "type": "string"
+          },
+          "accountName": {
+            "type": "string"
+          },
+          "accountType": {
+            "type": "string"
+          },
+          "accountPurpose": {
+            "type": "string"
+          },
+          "debit": {
+            "type": "string"
+          },
+          "credit": {
+            "type": "string"
+          }
+        }
+      },
+      "AccountJournalPage": {
+        "required": [
+          "accountId",
+          "items",
+          "nextCursor",
+          "postingThrough",
+          "recordedThrough",
+          "wholeFilterTotals",
+          "pageTotals"
+        ],
+        "type": "object",
+        "properties": {
+          "accountId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AccountJournalLine"
+            }
+          },
+          "nextCursor": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "postingThrough": {
+            "type": "string",
+            "format": "date"
+          },
+          "recordedThrough": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "wholeFilterTotals": {
+            "$ref": "#/components/schemas/ReportTotals"
+          },
+          "pageTotals": {
+            "$ref": "#/components/schemas/ReportTotals"
+          },
+          "activityLabel": {
+            "type": "string",
+            "default": "Recorded journal activity"
           }
         }
       },
@@ -6656,6 +7117,316 @@
           }
         }
       },
+      "JournalDetail": {
+        "required": [
+          "header",
+          "lines",
+          "source"
+        ],
+        "type": "object",
+        "properties": {
+          "header": {
+            "$ref": "#/components/schemas/JournalHeader"
+          },
+          "lines": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/JournalLine"
+            }
+          },
+          "source": {
+            "$ref": "#/components/schemas/JournalSourceEvidence"
+          }
+        }
+      },
+      "JournalHeader": {
+        "required": [
+          "id",
+          "sequence",
+          "sourceEventId",
+          "sourceKind",
+          "sourceId",
+          "sourceRevision",
+          "eventKind",
+          "configurationVersion",
+          "currency",
+          "scale",
+          "documentDate",
+          "effectiveDate",
+          "postingDate",
+          "recordedAtUtc",
+          "actorId",
+          "reference",
+          "reason",
+          "debitTotal",
+          "creditTotal"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "sequence": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          },
+          "sourceEventId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "sourceKind": {
+            "type": "string"
+          },
+          "sourceId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "sourceRevision": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "eventKind": {
+            "type": "string"
+          },
+          "configurationVersion": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "currency": {
+            "type": "string"
+          },
+          "scale": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "documentDate": {
+            "type": "string",
+            "format": "date"
+          },
+          "effectiveDate": {
+            "type": "string",
+            "format": "date"
+          },
+          "postingDate": {
+            "type": "string",
+            "format": "date"
+          },
+          "recordedAtUtc": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "actorId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "reference": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "reason": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "debitTotal": {
+            "type": "string"
+          },
+          "creditTotal": {
+            "type": "string"
+          }
+        }
+      },
+      "JournalLine": {
+        "required": [
+          "ordinal",
+          "accountId",
+          "accountVersion",
+          "accountCode",
+          "accountName",
+          "accountType",
+          "accountPurpose",
+          "debit",
+          "credit"
+        ],
+        "type": "object",
+        "properties": {
+          "ordinal": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "accountId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "accountVersion": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "accountCode": {
+            "type": "string"
+          },
+          "accountName": {
+            "type": "string"
+          },
+          "accountType": {
+            "type": "string"
+          },
+          "accountPurpose": {
+            "type": "string"
+          },
+          "debit": {
+            "type": "string"
+          },
+          "credit": {
+            "type": "string"
+          }
+        }
+      },
+      "JournalPage": {
+        "required": [
+          "items",
+          "nextCursor",
+          "postingThrough",
+          "recordedThrough",
+          "wholeFilterTotals",
+          "pageTotals"
+        ],
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/JournalHeader"
+            }
+          },
+          "nextCursor": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "postingThrough": {
+            "type": "string",
+            "format": "date"
+          },
+          "recordedThrough": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "wholeFilterTotals": {
+            "$ref": "#/components/schemas/ReportTotals"
+          },
+          "pageTotals": {
+            "$ref": "#/components/schemas/ReportTotals"
+          },
+          "activityLabel": {
+            "type": "string",
+            "default": "Recorded journal activity"
+          }
+        }
+      },
+      "JournalSourceEvidence": {
+        "required": [
+          "id",
+          "sourceKind",
+          "sourceId",
+          "sourceRevision",
+          "eventKind",
+          "ruleVersion",
+          "actorId",
+          "documentDate",
+          "effectiveDate",
+          "postingDate",
+          "reference",
+          "reason",
+          "snapshotJson",
+          "snapshotSha256",
+          "recordedAtUtc"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "sourceKind": {
+            "type": "string"
+          },
+          "sourceId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "sourceRevision": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "eventKind": {
+            "type": "string"
+          },
+          "ruleVersion": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "actorId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "documentDate": {
+            "type": "string",
+            "format": "date"
+          },
+          "effectiveDate": {
+            "type": "string",
+            "format": "date"
+          },
+          "postingDate": {
+            "type": "string",
+            "format": "date"
+          },
+          "reference": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "reason": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "snapshotJson": {
+            "type": "string"
+          },
+          "snapshotSha256": {
+            "type": "string"
+          },
+          "recordedAtUtc": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
       "LinkAcquisitionRequest": {
         "required": [
           "expectedItemVersion",
@@ -7174,6 +7945,21 @@
         },
         "additionalProperties": false
       },
+      "ReportTotals": {
+        "required": [
+          "debit",
+          "credit"
+        ],
+        "type": "object",
+        "properties": {
+          "debit": {
+            "type": "string"
+          },
+          "credit": {
+            "type": "string"
+          }
+        }
+      },
       "RestoreItemRequest": {
         "required": [
           "expectedVersion"
@@ -7525,6 +8311,101 @@
           }
         }
       },
+      "TrialBalanceAccount": {
+        "required": [
+          "accountId",
+          "code",
+          "name",
+          "isArchived",
+          "debitActivity",
+          "creditActivity",
+          "debitMinusCredit"
+        ],
+        "type": "object",
+        "properties": {
+          "accountId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "code": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "isArchived": {
+            "type": "boolean"
+          },
+          "debitActivity": {
+            "type": "string"
+          },
+          "creditActivity": {
+            "type": "string"
+          },
+          "debitMinusCredit": {
+            "type": "string"
+          }
+        }
+      },
+      "TrialBalancePage": {
+        "required": [
+          "items",
+          "nextCursor",
+          "postingThrough",
+          "recordedThrough",
+          "currency",
+          "scale",
+          "wholeFilterTotals",
+          "pageTotals"
+        ],
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TrialBalanceAccount"
+            }
+          },
+          "nextCursor": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "postingThrough": {
+            "type": "string",
+            "format": "date"
+          },
+          "recordedThrough": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "currency": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "scale": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "wholeFilterTotals": {
+            "$ref": "#/components/schemas/ReportTotals"
+          },
+          "pageTotals": {
+            "$ref": "#/components/schemas/ReportTotals"
+          },
+          "activityLabel": {
+            "type": "string",
+            "default": "Recorded journal activity"
+          }
+        }
+      },
       "UpdateAccountingAccountRequest": {
         "required": [
           "requestId",
@@ -7775,6 +8656,9 @@
     },
     {
       "name": "Accounting"
+    },
+    {
+      "name": "Accounting reports"
     }
   ]
 }
