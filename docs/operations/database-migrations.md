@@ -166,3 +166,25 @@ not an automatic upgrade path for shared or production databases. The final
 schema retains all constraints, RLS predicates, restricted grants and rollback
 guards. Backup manifest validation continues to recognize the retired development
 markers so their retained backups remain usable for guarded recovery.
+
+### Maintaining the current schema contract
+
+`Persistence/CurrentSchema.cs` declares the ordered release migration history; its final entry
+is the current application boundary used by readiness and newly emitted blob manifests.
+Append an ordinary migration there when adding its EF migration. `CurrentSchemaTests` compares
+the complete contract with the compiled EF inventory, independently of applied database history.
+The SQL migration must still advance the readiness procedure's marker explicitly. Historical
+migration SQL and upgrade fixture IDs remain immutable.
+
+Current-history integration assertions use `MigrationHistoryAssertions` to compare every ID in
+order, including explicitly named retained preview migrations. Dedicated migration tests check
+readiness against the shared current marker; recovery tests check the emitted backup marker.
+Acquisition and financial tests assert their own preservation and domain behavior without
+repeating a SQL-definition marker check. They need no literal or total-count update.
+Fixed upgrade tests, such as supplier migration consolidation, migrate to their named historical
+boundary so their independent one-migration assertion survives later releases.
+
+Backup compatibility remains a separate explicit allowlist in `StorageMaintenanceCommand`.
+Retain the outgoing current marker there when advancing the release, with independent literal
+cases in `BlobManifestValidationTests`; being an EF migration alone does not grant compatibility.
+Unknown markers remain rejected, and guarded restore and downgrade requirements are unchanged.

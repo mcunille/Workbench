@@ -21,49 +21,14 @@ public sealed class DatabaseMigrationTests(SqlServerFixture sqlServer)
             database.AdminConnectionString,
             CancellationToken.None);
 
+        // THEN the applied history exactly matches the current release manifest.
+        await MigrationHistoryAssertions.AssertCurrentAsync(database.AdminConnectionString);
+        // AND the stored default advances too: later migrations guard against this predecessor marker.
         await using var connection = new SqlConnection(database.AdminConnectionString);
         await connection.OpenAsync();
-        await using var command = new SqlCommand(
-            "SELECT [MigrationId] FROM [dbo].[__EFMigrationsHistory] ORDER BY [MigrationId]",
-            connection);
-        await using var reader = await command.ExecuteReaderAsync();
-        var migrations = new List<string>();
-        while (await reader.ReadAsync())
-        {
-            migrations.Add(reader.GetString(0));
-        }
-
-        // THEN document storage and its forward authority guard follow the established schema history.
-        Assert.Collection(
-            migrations,
-            migration => Assert.EndsWith("_InitialSchema", migration, StringComparison.Ordinal),
-            migration => Assert.EndsWith("_EstablishSecurityBoundaries", migration, StringComparison.Ordinal),
-            migration => Assert.EndsWith("_AddBlobAndOperationalProviders", migration, StringComparison.Ordinal),
-            migration => Assert.EndsWith("_AddDeploymentQueueTelemetry", migration, StringComparison.Ordinal),
-            migration => Assert.EndsWith("_DeferInvitationIdentityClaim", migration, StringComparison.Ordinal),
-            migration => Assert.EndsWith("_AddProviderRetryDelay", migration, StringComparison.Ordinal),
-            migration => Assert.EndsWith("_AddCollectionNotebook", migration, StringComparison.Ordinal),
-            migration => Assert.EndsWith("_AddItemPhotographs", migration, StringComparison.Ordinal),
-            migration => Assert.EndsWith("_AddItemDetailEditing", migration, StringComparison.Ordinal),
-            migration => Assert.EndsWith("_AddItemArchiving", migration, StringComparison.Ordinal),
-            migration => Assert.EndsWith("_AddOnlineRecovery", migration, StringComparison.Ordinal),
-            migration => Assert.EndsWith("_AddItemRestoration", migration, StringComparison.Ordinal),
-            migration => Assert.EndsWith("_AddAcquisitionContext", migration, StringComparison.Ordinal),
-            migration => Assert.EndsWith("_AddSharedAcquisitions", migration, StringComparison.Ordinal),
-            migration => Assert.EndsWith("_AddAcquisitionDocuments", migration, StringComparison.Ordinal),
-            migration => Assert.EndsWith("_AddDraftSupplierOrders", migration, StringComparison.Ordinal),
-            migration => Assert.EndsWith("_AddSupplierIdentityAndPurchaseReferences", migration, StringComparison.Ordinal),
-            migration => Assert.EndsWith("_AddSupplierBasedDraftPricing", migration, StringComparison.Ordinal),
-            migration => Assert.EndsWith("_PrepareRetainedBetaFinancialUpgrade", migration, StringComparison.Ordinal),
-            migration => Assert.EndsWith("_AddDraftFinancialAdjustments", migration, StringComparison.Ordinal),
-            migration => Assert.EndsWith("_ProtectConfirmedSupplierChargeCorrections", migration, StringComparison.Ordinal),
-            migration => Assert.EndsWith("_ConsolidateBetaDraftCommands", migration, StringComparison.Ordinal),
-            migration => Assert.EndsWith("_RemoveHistoricalDraftReplay", migration, StringComparison.Ordinal),
-            migration => Assert.EndsWith("_IntegrateBetaDraftFinancialAdjustments", migration, StringComparison.Ordinal),
-            migration => Assert.Equal("20260918060000_AddPurchaseOrderCommitment", migration),
-            migration => Assert.Equal("20260918061646_AddPurchaseOrderDocuments", migration),
-            migration => Assert.Equal("20260918063409_HardenPurchaseOrderDocumentAuthority", migration),
-            migration => Assert.Equal("20260921041331_MakeSupplierProfilesCustom", migration));
+        await using var definition = new SqlCommand("SELECT OBJECT_DEFINITION(OBJECT_ID(N'Security.ReadDatabaseReadiness'))", connection);
+        Assert.Contains($"@ExpectedMigration nvarchar(150)=N'{CurrentSchema.MigrationId}'",
+            (string)(await definition.ExecuteScalarAsync())!);
     }
 
     [Theory]
@@ -124,6 +89,7 @@ public sealed class DatabaseMigrationTests(SqlServerFixture sqlServer)
         {
             CommandType = System.Data.CommandType.StoredProcedure,
         };
+        readiness.Parameters.AddWithValue("@ExpectedMigration", CurrentSchema.MigrationId);
         await using var state = await readiness.ExecuteReaderAsync();
         Assert.True(await state.ReadAsync());
         Assert.True(state.GetBoolean(state.GetOrdinal("CompatibleMigration")));
@@ -184,12 +150,12 @@ public sealed class DatabaseMigrationTests(SqlServerFixture sqlServer)
         await Task.WhenAll(first, second);
 
         // THEN both complete successfully, history appears once, and the current schema exists.
-        Assert.Equal(28, await CountAsync(database.AdminConnectionString, "[dbo].[__EFMigrationsHistory]"));
+        await MigrationHistoryAssertions.AssertCurrentAsync(database.AdminConnectionString);
         Assert.Equal(1, await ObjectCountAsync(database.AdminConnectionString, "Storage.Revisions"));
         Assert.Equal(1, await ObjectCountAsync(database.AdminConnectionString, "Operations.WorkItems"));
         // AND another invocation observes the completed schema without applying it again.
         await DatabaseMigrator.MigrateAsync(connectionString, timeout.Token);
-        Assert.Equal(28, await CountAsync(database.AdminConnectionString, "[dbo].[__EFMigrationsHistory]"));
+        await MigrationHistoryAssertions.AssertCurrentAsync(database.AdminConnectionString);
     }
 
     [Fact]
@@ -228,7 +194,7 @@ public sealed class DatabaseMigrationTests(SqlServerFixture sqlServer)
         await SetMigrationLockAsync(lockConnection, acquire: false);
         using var retryTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(45));
         await DatabaseMigrator.MigrateAsync(connectionString, retryTimeout.Token);
-        Assert.Equal(28, await CountAsync(database.AdminConnectionString, "[dbo].[__EFMigrationsHistory]"));
+        await MigrationHistoryAssertions.AssertCurrentAsync(database.AdminConnectionString);
         Assert.Equal(1, await ObjectCountAsync(database.AdminConnectionString, "Storage.Revisions"));
     }
 

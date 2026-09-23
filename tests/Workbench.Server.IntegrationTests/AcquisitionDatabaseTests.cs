@@ -134,8 +134,6 @@ public sealed class AcquisitionDatabaseTests(SqlServerFixture sqlServer)
         // WHEN upgrading the actual previous schema THEN all existing records and tokens survive exactly.
         await DatabaseMigrator.MigrateAsync(database.AdminConnectionString, default);
         Assert.Equal(before, await RetainedAsync(admin));
-        await using var marker = new SqlCommand("SELECT OBJECT_DEFINITION(OBJECT_ID(N'Security.ReadDatabaseReadiness'))", admin);
-        Assert.Contains("20260921041331_MakeSupplierProfilesCustom", (string)(await marker.ExecuteScalarAsync())!);
         await using var tokenRead = new SqlCommand("SELECT RowVersion FROM Inventory.Items WHERE Id=@id", admin);
         tokenRead.Parameters.AddWithValue("@id", id);
         var version = (byte[])(await tokenRead.ExecuteScalarAsync())!;
