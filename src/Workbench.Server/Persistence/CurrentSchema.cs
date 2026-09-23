@@ -36,6 +36,7 @@ public static class CurrentSchema
         "20260918061646_AddPurchaseOrderDocuments",
         "20260918063409_HardenPurchaseOrderDocumentAuthority",
         "20260921041331_MakeSupplierProfilesCustom",
+        "20260921051843_AddAccountingFoundation",
     ]);
 
     public static string MigrationId => Migrations[^1];

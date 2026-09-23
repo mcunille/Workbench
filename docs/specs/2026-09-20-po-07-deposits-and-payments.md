@@ -4,6 +4,11 @@
 prerequisite implementation require approval. This replaces the unimplemented aggregate
 "Confirm supplier total" proposal. No runtime or schema changes are delivered by this design.
 
+The [BK-01 implementation specification](2026-09-21-bk-01-accounting-foundation.md) records the
+subsequently agreed product policies and proposes the bounded configuration/accounts/authorization
+delivery. Its role-based authorization replaces the original persona-based proposal below; the
+remaining PO-07 stories are not implicitly approved by those policy decisions.
+
 ## Decision and evidence
 
 Build one double-entry general ledger with a supplier subledger. Purchasing owns source documents
@@ -36,18 +41,19 @@ posting rejects them until PO-15 supplies transaction/functional amounts, FX rat
 settlement gains/losses and foreign-currency reconciliation. Do not aggregate foreign amounts or
 silently declare the first PO currency to be the business currency.
 
-Double-entry does not alone decide accrual versus cash-basis reporting or the correct recognition
-date. Before accepting this design, confirm these policies under BK-01:
+Double-entry does not alone decide reporting views or the correct recognition date. The BK-01
+discussion established the following product boundaries; business-specific values and the bounded
+implementation choices remain explicit in its linked specification:
 
 | Decision | Recommended boundary / remaining decision |
 | --- | --- |
-| Reporting framework and jurisdiction | Owner/bookkeeper identifies applicable framework and tax regime. This proposal does not assert IFRS, GAAP or tax compliance. |
-| Accounting basis | Accrual general ledger; cash-basis tax/reporting adjustments are a separate capability if required. |
+| Reporting framework and jurisdiction | Country and state/region are business configuration; authorized users record applicable framework and tax-policy decisions. Jurisdiction selection alone does not enable tax calculations or assert IFRS, GAAP or tax compliance. |
+| Accounting basis | Accrual general ledger; eventual accrual and cash-basis reporting views are a separate design and never rewrite posted transactions. |
 | Functional currency and precision | Explicit business choice and supported currency scale before first posting; no change after postings in this release. |
 | Recognition and classification | Explicit expense, inventory/asset, prepayment, recoverable tax and nonrecoverable tax mappings. Define ownership/control transfer and uninvoiced receipt treatment before inventory purchases can post. |
-| Cutover | Choose a clean start or reconciled opening balances and outstanding supplier items at a dated cutover. Never infer history from existing POs. |
-| Authority | Owner initially administers accounting; explicit Bookkeeper authority may post/reconcile, while Owner alone configures and closes periods. Ordinary membership is insufficient. |
-| Record retention | Approve accounting-document retention and retention holds for the jurisdiction before real bookkeeping use; existing seven-day removal is insufficient as the accounting policy. |
+| Cutover | Enter complete history from a genuine zero-balance beginning, or use reconciled opening balances and outstanding supplier items at a dated cutover. An empty database is not evidence of no prior activity. Never infer history from existing POs. |
+| Authority | Owner and Bookkeeper are personas, not authorization rules. Assignable roles supply explicit permissions for business actions, accounting configuration, reconciliation, period controls, reporting, and role administration. Authorized business actions create their required journal effects automatically; there is no extra blanket posting permission. |
+| Record retention | Preserve posted accounting history and archive accounts instead of deleting history. Configure supporting-document retention separately and enforce it with holds under BK-07 before real bookkeeping use; existing seven-day removal is insufficient as the accounting policy. |
 
 Reference grounding: the [IFRS Conceptual Framework, paragraph 1.17](https://www.ifrs.org/content/dam/ifrs/publications/pdf-standards/english/2022/issued/part-a/conceptual-framework-for-financial-reporting.pdf?bypass=on)
 distinguishes accrual effects from the timing of cash flows. [IAS 21, paragraph 21](https://www.ifrs.org/content/dam/ifrs/publications/pdf-standards/english/2024/issued/part-a/ias-21-the-effects-of-changes-in-foreign-exchange-rates.pdf?bypass=on)
@@ -64,7 +70,7 @@ The inventory recognition portion of BK-04 is Core for the intended gemstone pur
 
 | ID / gate | User story | Observable acceptance | Depends on |
 | --- | --- | --- | --- |
-| BK-01 / Core | As an owner, I want explicit accounting policies, accounts and permissions so that postings have a stable meaning. | Approve the policy table above; set functional currency, scale, fiscal calendar and cutover; create typed asset/liability/equity/income/expense accounts and controlled mappings; configure bank/cash and supplier control accounts; inventory complete-statement transaction coverage; archive accounts without deleting history; prevent posting by ordinary members. | Design approval |
+| BK-01 / Core | As an owner, I want explicit accounting policies, accounts and permissions so that postings have a stable meaning. | Approve the bounded [BK-01 design](2026-09-21-bk-01-accounting-foundation.md); configure jurisdiction, functional currency, scale, fiscal calendar and start/cutover plan; create general typed asset/liability/equity/income/expense accounts and controlled mappings; configure bank/cash and supplier control accounts; inventory complete-statement transaction coverage; archive accounts without deleting history; enforce role-derived permissions without persona checks or a blanket posting permission. | Design approval |
 | BK-02 / Core | As a bookkeeper, I want an atomic double-entry journal so that every recorded event is balanced and traceable. | Every posted journal balances exactly, has at least two nonzero lines, approved accounts and a unique source-event identity; journal/source/receipt commit together; direct runtime mutation and unbalanced posting fail at the database boundary; retries and replica races create one result. | BK-01 |
 | BK-03 / Core | As a bookkeeper, I want corrections and period controls so that historical balances cannot be silently changed. | Distinguish document/effective/posting dates and UTC recording time; reject closed-period postings; atomically reverse/repost with a reason and linked evidence; preserve source revisions; serialize close-versus-post races; corrections after close use an open period. | BK-02 |
 | BK-04 / Core | As a bookkeeper, I want classified purchase recognition so that purchases affect the right accounts at the right time. | Define and test expense/prepayment/inventory/tax rules, invoice-before-receipt and receipt-before-invoice cases; independent recognition events prevent invoice and receipt double-counting; every component and rounding difference has an approved treatment; missing mappings block posting. | BK-01–03 |
@@ -97,8 +103,9 @@ splits avoid a dependency cycle and make the foundation verifiable before paymen
 5. Finish BK-10 cutover and BK-11 reconciliation, then BK-09 close before production bookkeeping use.
 
 Implement these as focused PRs with additive migrations. Do not implement PO-07 as a standalone
-payment table and retrofit the journal later. The next implementation story is BK-01, after policy
-approval, not PO-07. This design does not authorize creating GitHub issues or production changes.
+payment table and retrofit the journal later. The next implementation story is BK-01, after its bounded
+design is approved, not PO-07. Separately authorized follow-up design issues are linked from BK-01;
+this specification does not itself authorize further collaboration writes or production changes.
 
 ## Journal and source contract
 

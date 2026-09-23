@@ -5,7 +5,9 @@ param(
     [Parameter(Mandatory)][string]$SqlNetwork,
     [Parameter(Mandatory)][string]$SecretDirectory,
     [Parameter(Mandatory)][string]$AdminPasswordFile,
-    [string]$AdminEmail = 'smoke-admin@example.test'
+    [string]$AdminEmail = 'smoke-admin@example.test',
+    [ValidatePattern('\A172\.(1[6-9]|2[0-9]|3[01])\z')]
+    [string]$IngressPrefix = '172.29'
 )
 $ErrorActionPreference = 'Stop'
 $repositoryRoot = Split-Path -Parent $PSScriptRoot
@@ -50,9 +52,9 @@ try {
         WORKBENCH_PUBLIC_HOST = 'localhost'
         WORKBENCH_PUBLIC_ORIGIN = 'https://localhost'
         WORKBENCH_SECRET_DIRECTORY = ([IO.Path]::GetFullPath($SecretDirectory)).Replace('\', '/')
-        WORKBENCH_KNOWN_PROXY = "172.29.$octet.2"
-        WORKBENCH_INGRESS_SUBNET = "172.29.$octet.0/24"
-        WORKBENCH_INGRESS_DYNAMIC_RANGE = "172.29.$octet.128/25"
+        WORKBENCH_KNOWN_PROXY = "$IngressPrefix.$octet.2"
+        WORKBENCH_INGRESS_SUBNET = "$IngressPrefix.$octet.0/24"
+        WORKBENCH_INGRESS_DYNAMIC_RANGE = "$IngressPrefix.$octet.128/25"
         WORKBENCH_STORAGE_PROVIDER = 'FileSystem'
         WORKBENCH_BLOB_CONTAINER_URI = ''
         WORKBENCH_DELIVERY_PROVIDER = 'Disabled'

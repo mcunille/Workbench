@@ -114,6 +114,13 @@ public static class TenantUserEndpoints
         await using var transaction = await database.Database.BeginTransactionAsync(
             IsolationLevel.Serializable,
             cancellationToken);
+        // Serialize user state transitions with accounting membership changes before either reads users/roles.
+        var membershipLock = "Accounting.Roles:" + actor.TenantId.ToString("D").ToLowerInvariant();
+        await database.Database.ExecuteSqlInterpolatedAsync($"""
+            DECLARE @LockResult int;
+            EXEC @LockResult=sys.sp_getapplock @Resource={membershipLock},@LockMode='Exclusive',@LockOwner='Transaction',@LockTimeout=15000;
+            IF @LockResult<0 THROW 50909,'User administration is busy.',1;
+            """, cancellationToken);
         var user = await database.Users.SingleOrDefaultAsync(user => user.Id == userId, cancellationToken);
         if (user is null)
         {

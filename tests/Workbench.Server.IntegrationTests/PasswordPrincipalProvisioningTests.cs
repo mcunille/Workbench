@@ -164,6 +164,18 @@ public sealed class PasswordPrincipalProvisioningTests(SqlServerFixture sqlServe
                     (principal.Role == "workbench_web" && operation is "SELECT" or "INSERT");
                 Assert.Equal(expected ? 1 : 0, Convert.ToInt32(await inventoryPermission.ExecuteScalarAsync()));
             }
+            // AND role/claim authority cannot be reintroduced by principal reprovisioning.
+            foreach (var table in new[] { "Roles", "RoleClaims", "UserRoles", "UserClaims" })
+            {
+                foreach (var operation in new[] { "SELECT", "INSERT", "UPDATE", "DELETE" })
+                {
+                    await using var identityPermission = new SqlCommand("SELECT HAS_PERMS_BY_NAME(@object, 'OBJECT', @operation)", connection);
+                    identityPermission.Parameters.AddWithValue("@object", $"Identity.{table}");
+                    identityPermission.Parameters.AddWithValue("@operation", operation);
+                    var expected = principal.Role == "workbench_migrator" || (principal.Role == "workbench_web" && operation == "SELECT");
+                    Assert.Equal(expected ? 1 : 0, Convert.ToInt32(await identityPermission.ExecuteScalarAsync()));
+                }
+            }
             // AND the provider retry readiness probe retains the same restricted workload authority.
             foreach (var table in new[] { "Acquisitions", "AcquisitionItems", "AcquisitionCreationRecords", "AcquisitionDocuments", "AcquisitionDocumentOperations" })
             {

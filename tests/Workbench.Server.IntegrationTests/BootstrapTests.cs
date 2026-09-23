@@ -67,7 +67,8 @@ public sealed class BootstrapTests(SqlServerFixture sqlServer)
         Assert.True(await reader.ReadAsync());
         Assert.Equal(1, reader.GetInt32(0));
         Assert.Equal(1, reader.GetInt32(1));
-        Assert.Equal(2, reader.GetInt32(2));
+        // THEN provisioning adds the two unassigned accounting role definitions alongside tenant roles.
+        Assert.Equal(4, reader.GetInt32(2));
         Assert.Equal(1, reader.GetInt32(3));
     }
 

@@ -53,6 +53,13 @@ recovery or recreation as a separate local operation; it does not add a release 
 obligation. This policy does not authorize deleting databases, discarding data, or automatically
 resetting migration-history rows.
 
+The accounting foundation starts with `20260921051843_AddAccountingFoundation`, after
+`20260921041331_MakeSupplierProfilesCustom`. This single accounting migration advances readiness from the supplier-profile marker. The foundation preserves existing users and POs, creates
+unassigned accounting-role definitions, and protects accounting and role/claim writes. Fresh creation
+and upgrade from the preceding schema are required verification paths. Down is blocked with error
+50020 to preserve configuration, role-assignment, revision, and receipt evidence. Use a reviewed forward
+correction or protected restore; the prior application's readiness marker does not accept this schema.
+
 ## Authoring and validating a migration
 
 Keep migrations deterministic and reversible where SQL Server permits. Review generated SQL and
@@ -117,6 +124,7 @@ This inventory describes checked-in migration behavior, not permission to execut
 | `20260918061646_AddPurchaseOrderDocuments` | `AddPurchaseOrderCommitment` | Adds PO-owned private document metadata and durable request evidence, tenant-qualified ownership, RLS and restricted prepare/finalize procedures. Reserves up to 20 current or pending files per ordered PO, serializes parent versions and uses the existing publication, reconciliation and seven-day retention lifecycle. Preserves acquisition documents and ordered-content revisions. Advances readiness and backup markers; deploy the matching application. | Always blocked; retain metadata and command evidence through forward correction or guarded paired recovery. |
 | `20260918063409_HardenPurchaseOrderDocumentAuthority` | `AddPurchaseOrderDocuments` | Revalidates enabled tenant and active actor authority for document reservations, binds request replay to the original actor, and rechecks authority during finalization. A suspension during publication produces a terminal conflict and retains published bytes for cleanup. Kept as a separate forward migration because the predecessor was already applied to the retained local preview; its applied history is immutable. Advances readiness and backup markers. | Always blocked; retain authority controls through forward correction or guarded paired recovery. |
 | `20260921041331_MakeSupplierProfilesCustom` | `HardenPurchaseOrderDocumentAuthority` | Adds the optional JSON collection of custom platform/handle pairs and updates the restricted supplier writer in one release migration. Preserves existing supplier values, row versions and receipts; advances readiness and backup markers. Verify fresh creation, PR-base upgrade, legacy replay and restricted-writer validation. Deploy the matching API/client. | Always blocked; preserve handles and request evidence through forward correction or guarded recovery. |
+| `20260921051843_AddAccountingFoundation` | `MakeSupplierProfilesCustom` | Adds tenant accounting configuration, general accounts, revisions, receipts and two explicitly assigned accounting roles. Restricted commands validate current actor authority; runtime Identity role/claim writes are denied. Retains existing data without granting accounting access or creating balances. Advances readiness and backup markers; stop older writers and deploy the matching application. Verify fresh creation and upgrade from the predecessor. | Always blocked (50020); preserve configuration and authorization history through forward correction or guarded recovery. |
 
 Product behavior, user-visible concurrency/retry rules and the shipped feature inventory belong in
 [collection documentation](../collection.md). Provider retry/backoff behavior belongs in
@@ -124,7 +132,7 @@ Product behavior, user-visible concurrency/retry rules and the shipped feature i
 The [migration source](../../src/Workbench.Server/Persistence/Migrations) is authoritative for SQL.
 
 
-The current required migration is `20260921041331_MakeSupplierProfilesCustom`.
+The current required migration is `20260921051843_AddAccountingFoundation`.
 
 `MakeSupplierProfilesCustom` directly follows `HardenPurchaseOrderDocumentAuthority`.
 It adds custom supplier reference pairs in one migration, preserving existing supplier data,

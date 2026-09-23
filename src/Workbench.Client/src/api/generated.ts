@@ -4013,10 +4013,601 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/beta/tenant/accounting-roles": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AccountingRoleResponse"][];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/beta/tenant/users/{userId}/accounting-roles": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    userId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AccountingRoleAssignmentResponse"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    userId: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["AccountingRoleAssignmentRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AccountingRoleAssignmentResponse"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/beta/accounting/catalog": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AccountingCatalogResponse"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/beta/accounting/setup": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AccountingSetupResponse"];
+                    };
+                };
+            };
+        };
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["SaveAccountingConfigurationRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AccountingSaveResponse"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["HttpValidationProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/beta/accounting/accounts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: {
+                    cursor?: string;
+                    query?: string;
+                    includeArchived?: boolean;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AccountingAccountPage"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["CreateAccountingAccountsRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AccountingSaveResponse"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["HttpValidationProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/beta/accounting/accounts/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["UpdateAccountingAccountRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AccountingSaveResponse"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["HttpValidationProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/beta/accounting/accounts/{id}/archive": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["ArchiveAccountingAccountRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AccountingSaveResponse"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["HttpValidationProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        AccountingAccountContent: {
+            code: string;
+            name: string;
+            type: string;
+            purpose: string;
+            description: null | string;
+        };
+        AccountingAccountPage: {
+            items: components["schemas"]["AccountingAccountResponse"][];
+            nextCursor: null | string;
+        };
+        AccountingAccountResponse: {
+            /** Format: uuid */
+            id: string;
+            code: string;
+            name: string;
+            type: string;
+            purpose: string;
+            description: null | string;
+            isArchived: boolean;
+            version: string;
+        };
+        AccountingCatalogResponse: {
+            version: string;
+            countries: components["schemas"]["AccountingCountry"][];
+            currencies: components["schemas"]["AccountingCurrency"][];
+            accountTypes: string[];
+            accountPurposes: string[];
+            mappingSlots: string[];
+            starterAccounts: components["schemas"]["AccountingAccountContent"][];
+        };
+        AccountingConfiguration: {
+            policies: components["schemas"]["AccountingPolicies"];
+            mappings: components["schemas"]["AccountingMapping"][];
+            coverage: components["schemas"]["AccountingCoverage"][];
+        };
+        AccountingCountry: {
+            code: string;
+            name: string;
+            regions: components["schemas"]["AccountingOption"][];
+        };
+        AccountingCoverage: {
+            /** Format: uuid */
+            accountId: string;
+            included: boolean;
+            exclusionRationale: null | string;
+            evidenceKind: null | string;
+            /** Format: date */
+            fromDate: null | string;
+            /** Format: date */
+            toDate: null | string;
+            evidenceReference: null | string;
+            rationale: null | string;
+            attestedComplete: boolean;
+            classes: components["schemas"]["CoverageClass"][];
+        };
+        AccountingCurrency: {
+            code: string;
+            name: string;
+            /** Format: int32 */
+            scale: number | string;
+        };
+        AccountingMapping: {
+            slot: string;
+            /** Format: uuid */
+            accountId: string;
+        };
+        AccountingOption: {
+            code: string;
+            name: string;
+        };
+        AccountingPolicies: {
+            country: null | string;
+            region: null | string;
+            currency: null | string;
+            /** Format: int32 */
+            scale: null | number | string;
+            /** Format: int32 */
+            fiscalStartMonth: null | number | string;
+            startApproach: null | string;
+            /** Format: date */
+            plannedStartDate: null | string;
+            /** Format: int32 */
+            retentionYears: null | number | string;
+            retentionRationale: null | string;
+            frameworkNotes: null | string;
+        };
+        AccountingRoleAssignmentRequest: {
+            /** Format: uuid */
+            requestId: string;
+            expectedVersion: string;
+            roleIds: string[];
+        };
+        AccountingRoleAssignmentResponse: {
+            /** Format: uuid */
+            userId: string;
+            roleIds: string[];
+            version: string;
+        };
+        AccountingRoleResponse: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            permissions: string[];
+        };
+        AccountingSaveResponse: {
+            /** Format: uuid */
+            requestId: string;
+            savedVersion: string;
+            accountIds: string[];
+        };
+        AccountingSetupResponse: {
+            configuration: components["schemas"]["AccountingConfiguration"];
+            version: string;
+            setupComplete: boolean;
+            bookkeepingAvailable: boolean;
+            missingItems: string[];
+            blockers: string[];
+        };
         AccountState: number;
         AcquisitionDocumentOperationResponse: {
             /** Format: uuid */
@@ -4078,6 +4669,12 @@ export interface components {
         AntiforgeryResponse: {
             requestToken: string;
         };
+        ArchiveAccountingAccountRequest: {
+            /** Format: uuid */
+            requestId: string;
+            expectedVersion: string;
+            isArchived: boolean;
+        };
         ArchiveItemRequest: {
             expectedVersion: null | string;
         };
@@ -4114,6 +4711,18 @@ export interface components {
             requestId: string;
             expectedVersion: string;
             orderDate: string;
+        };
+        CoverageClass: {
+            label: string;
+            sourceReference: null | string;
+            policyReference: null | string;
+            reconciliationReference: null | string;
+            prerequisiteReference: null | string;
+        };
+        CreateAccountingAccountsRequest: {
+            /** Format: uuid */
+            requestId: string;
+            accounts: components["schemas"]["AccountingAccountContent"][];
         };
         CreateAcquisitionRequest: {
             /** Format: uuid */
@@ -4458,6 +5067,12 @@ export interface components {
         RestoreItemRequest: {
             expectedVersion: null | string;
         };
+        SaveAccountingConfigurationRequest: {
+            /** Format: uuid */
+            requestId: string;
+            expectedVersion: string;
+            configuration: components["schemas"]["AccountingConfiguration"];
+        };
         SaveDraftOrderResponse: {
             /** Format: uuid */
             requestId: string;
@@ -4538,6 +5153,14 @@ export interface components {
             id: string;
             email: null | string;
             state: components["schemas"]["AccountState"];
+        };
+        UpdateAccountingAccountRequest: {
+            /** Format: uuid */
+            requestId: string;
+            expectedVersion: string;
+            code: string;
+            name: string;
+            description: null | string;
         };
         UpdateAcquisitionRequest: {
             expectedItemVersion: null | string;

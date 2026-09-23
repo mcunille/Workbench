@@ -59,6 +59,7 @@ in-memory work is durably saved.
   commitment, inventory, acquisition, invoice, payment obligation or accounting entry; confirming
   a source charge amount does not post a financial event. Unresolved legacy reference prices
   remain outside estimates until the owner gives them a pricing basis.
+- [Accounting setup](docs/accounting.md): explicit jurisdiction, currency, fiscal calendar, general accounts, mapping candidates and statement-coverage planning, managed through two accounting roles. Setup does not create entries or activate bookkeeping.
 - Work orders, general-ledger accounting, and commerce remain future workflows.
   Public collection profiles and community are exploratory, not committed scope.
 - Tenant isolation and explicit authorization are invariants. Important state changes

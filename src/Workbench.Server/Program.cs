@@ -10,6 +10,7 @@ using Microsoft.Extensions.Diagnostics.HealthChecks;
 using System.Security.Claims;
 using Workbench.Server.Application;
 using Workbench.Server.Administration;
+using Workbench.Server.Accounting;
 using Workbench.Server.Authorization;
 using Workbench.Server.Contracts;
 using Workbench.Server.Health;
@@ -223,6 +224,8 @@ builder.Services
     });
 builder.Services.AddAuthorization(options =>
 {
+    foreach (var permission in new[] { "AccountingConfigurationRead", "AccountingConfigurationManage" })
+        options.AddPolicy(permission, policy => policy.RequireClaim(SessionCookieHandler.PermissionClaimType, permission));
     options.AddPolicy(
         WorkbenchPermissions.TenantUsersManage,
         policy => policy.RequireClaim(
@@ -286,6 +289,8 @@ app.MapPurchaseOrders();
 app.MapSuppliers();
 app.MapWorkbenchRecovery();
 app.MapTenantUserAdministration();
+app.MapAccountingRoleAdministration();
+app.MapAccounting();
 
 app.MapHealthChecks("/health/live", new HealthCheckOptions
 {

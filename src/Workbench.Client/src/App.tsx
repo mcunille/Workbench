@@ -1,3 +1,4 @@
+import { AccountingSetup } from './features/accounting/AccountingSetup';
 import { SupplierList } from './features/purchasing/SupplierList';
 import { SupplierEditor } from './features/purchasing/SupplierEditor';
 import {
@@ -129,10 +130,13 @@ function SignedInApplication({
     supplierMemory.clear();
     void refresh();
   }, [refresh, supplierMemory]);
+  const rolesSaved = useCallback(() => { void refresh('permissions'); }, [refresh]);
   if (!identity) return null;
   const canManageUsers = identity.permissions.includes(
     'TenantUsersManage',
   );
+  const canReadAccounting = identity.permissions.includes('AccountingConfigurationRead');
+  const canManageAccounting = identity.permissions.includes('AccountingConfigurationManage');
   const path = navigation.path;
   const archivePath = path === '/inventory/archive';
   const collectionPath =
@@ -183,6 +187,7 @@ function SignedInApplication({
             <Icon name="cart" />
             <span className="navigation-label">Purchase orders</span>
           </a>
+          {canReadAccounting ? <a className="navigation-destination" href="/accounting" title={navigationCollapsed ? 'Accounting' : undefined} aria-current={path === '/accounting' ? 'page' : undefined} onClick={navigation.follow}><Icon name="list" /><span className="navigation-label">Accounting</span></a> : null}
           <div className="navigation-secondary">
             {canManageUsers ? (
               <a
@@ -321,10 +326,10 @@ function SignedInApplication({
               <p className="lede">{identity.email}</p>
               <Sessions />
             </>
-          ) : path === '/administration' && canManageUsers ? (
+          ) : path === '/accounting' ? (canReadAccounting ? <AccountingSetup canManage={canManageAccounting} onAuthLost={authLost} onDirtyChange={navigation.setDirty} /> : <><h1>Access denied</h1><p>Your roles do not permit accounting configuration.</p></>) : path === '/administration' && canManageUsers ? (
             <>
               <h1>Administration</h1>
-              <TenantUsers />
+              <TenantUsers onAuthLost={authLost} onRolesSaved={rolesSaved} onDirtyChange={navigation.setDirty} />
             </>
           ) : (
             <>

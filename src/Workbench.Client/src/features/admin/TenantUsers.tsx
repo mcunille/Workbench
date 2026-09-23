@@ -1,5 +1,6 @@
+import { AccountingRoles } from './AccountingRoles';
 import { FloatingField } from '../../FloatingField';
-import { useEffect, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import {
   disableTenantUser,
   getTenantUsers,
@@ -23,7 +24,13 @@ function stateLabel(state: number): string {
   return 'Unknown';
 }
 
-export function TenantUsers() {
+export function TenantUsers({ onAuthLost, onRolesSaved, onDirtyChange }: { onAuthLost?(): void; onRolesSaved?(): void; onDirtyChange?(dirty: boolean, uncertain: boolean): void }) {
+  const [roleUser, setRoleUser] = useState<TenantUser>();
+  const [roleChangePending, setRoleChangePending] = useState(false);
+  const roleDraftChanged = useCallback((dirty: boolean, uncertain: boolean) => {
+    setRoleChangePending(uncertain);
+    onDirtyChange?.(dirty, uncertain);
+  }, [onDirtyChange]);
   const [users, setUsers] = useState<TenantUser[]>();
   const [message, setMessage] = useState<string>();
 
@@ -115,6 +122,7 @@ export function TenantUsers() {
                 <small>{stateLabel(user.state)}</small>
               </span>
               <span className="button-row">
+                {user.state === accountState.enabled ? <button className="secondary" type="button" disabled={roleChangePending} onClick={() => { if (!roleChangePending) setRoleUser(user); }}>Accounting roles</button> : null}
                 <button className="secondary" type="button" onClick={() => void recover(user)}>
                   Recovery
                 </button>
@@ -137,6 +145,7 @@ export function TenantUsers() {
       ) : (
         <p role="status">Loading tenant users…</p>
       )}
+      {roleUser ? <AccountingRoles key={roleUser.id} userId={roleUser.id} email={roleUser.email ?? 'Account'} close={() => setRoleUser(undefined)} onAuthLost={onAuthLost} onRolesSaved={onRolesSaved} onDirtyChange={roleDraftChanged} /> : null}
       {message ? <p className="form-message" role="status">{message}</p> : null}
     </section>
   );
