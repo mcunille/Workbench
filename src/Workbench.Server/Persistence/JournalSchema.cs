@@ -90,9 +90,17 @@ internal static class JournalSchema
             OR @SourceSnapshot IS NULL OR DATALENGTH(@SourceSnapshot)>262144 OR ISJSON(@SourceSnapshot,OBJECT)<>1
             OR @Lines IS NULL OR DATALENGTH(@Lines)>1048576 OR ISJSON(@Lines,ARRAY)<>1
             THROW 51000,'Invalid journal evidence or dates.',1;
-          IF EXISTS(SELECT 1 FROM Accounting.SourceEvents WHERE TenantId=@TenantId AND SourceKind=@SourceKind COLLATE Latin1_General_100_BIN2
-             AND SourceId=@SourceId AND SourceRevision=@SourceRevision AND EventKind=@EventKind COLLATE Latin1_General_100_BIN2)
-             THROW 51009,'The source revision already has a journal.',1;
+          DECLARE @ExistingSourceEventId uniqueidentifier;
+          SELECT @ExistingSourceEventId=Id FROM Accounting.SourceEvents WITH(UPDLOCK,HOLDLOCK)
+            WHERE TenantId=@TenantId AND SourceKind=@SourceKind COLLATE Latin1_General_100_BIN2
+              AND SourceId=@SourceId AND SourceRevision=@SourceRevision
+              AND EventKind=@EventKind COLLATE Latin1_General_100_BIN2;
+          IF @ExistingSourceEventId IS NOT NULL
+          BEGIN
+            DECLARE @SourceConflictMessage nvarchar(2048)=N'Source event already posted: '
+              +CONVERT(nvarchar(36),@ExistingSourceEventId)+N'.';
+            THROW 51009,@SourceConflictMessage,1;
+          END;
           DECLARE @ConfigPayload nvarchar(max),@ConfigVersion uniqueidentifier;
           SELECT @ConfigPayload=Payload,@ConfigVersion=Version FROM Accounting.Configurations WITH(UPDLOCK,HOLDLOCK) WHERE TenantId=@TenantId;
           IF @ConfigPayload IS NULL THROW 51000,'Accounting configuration is incomplete.',1;

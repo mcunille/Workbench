@@ -251,12 +251,14 @@ public sealed class JournalKernelTests(SqlServerFixture sqlServer)
         await using var admin = await OpenPrivilegedTenantAsync(context);
         var sourceId = Guid.NewGuid();
         var sourceRevision = Guid.NewGuid();
+        Guid existingSourceEventId;
         await using (var first = (SqlTransaction)await admin.BeginTransactionAsync())
         {
             await using var command = NewKernelCommand(context, admin, first, ValidLines(context),
                 sourceId: sourceId, sourceRevision: sourceRevision, ruleVersion: 1);
             await using var result = await command.ExecuteReaderAsync();
             Assert.True(await result.ReadAsync());
+            existingSourceEventId = result.GetGuid(0);
             await result.DisposeAsync();
             await first.CommitAsync();
         }
@@ -266,7 +268,9 @@ public sealed class JournalKernelTests(SqlServerFixture sqlServer)
             await using var command = NewKernelCommand(context, admin, second, ValidLines(context),
                 sourceId: sourceId, sourceRevision: sourceRevision, ruleVersion: 2);
             // THEN the source identity conflicts; a rule change cannot bypass one-event uniqueness.
-            Assert.Equal(51009, (await Assert.ThrowsAsync<SqlException>(() => command.ExecuteNonQueryAsync())).Number);
+            var conflict = await Assert.ThrowsAsync<SqlException>(() => command.ExecuteNonQueryAsync());
+            Assert.Equal(51009, conflict.Number);
+            Assert.Contains(existingSourceEventId.ToString("D"), conflict.Message, StringComparison.OrdinalIgnoreCase);
         }
         Assert.Equal(1, await context.CountAsync("SourceEvents"));
         Assert.Equal(1, await context.CountAsync("JournalEntries"));

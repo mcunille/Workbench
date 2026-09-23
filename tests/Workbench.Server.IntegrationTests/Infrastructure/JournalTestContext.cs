@@ -275,7 +275,20 @@ internal sealed class JournalTestContext : IAsyncDisposable
               SELECT @Amount=Amount,@Currency=Currency,@DebitId=DebitAccountId,@CreditId=CreditAccountId
                 FROM Accounting.SyntheticSources WITH(UPDLOCK,HOLDLOCK)
                 WHERE TenantId=@TenantId AND Id=@SourceId AND Revision=@ExpectedSourceRevision AND FrozenAtUtc IS NULL;
-              IF @Amount IS NULL THROW 51009,''Synthetic source changed or was already frozen.'',1;
+              IF @Amount IS NULL
+              BEGIN
+                DECLARE @ExistingSourceEventId uniqueidentifier;
+                SELECT @ExistingSourceEventId=Id FROM Accounting.SourceEvents
+                  WHERE TenantId=@TenantId AND SourceKind=N''Synthetic'' AND SourceId=@SourceId
+                    AND SourceRevision=@ExpectedSourceRevision AND EventKind=N''Posted'';
+                IF @ExistingSourceEventId IS NOT NULL
+                BEGIN
+                  DECLARE @ConflictMessage nvarchar(2048)=N''Synthetic source event already posted: ''
+                    +CONVERT(nvarchar(36),@ExistingSourceEventId)+N''.'';
+                  THROW 51009,@ConflictMessage,1;
+                END;
+                THROW 51009,''Synthetic source changed or was already frozen.'',1;
+              END;
               IF @DebitId=@CreditId THROW 51000,''Synthetic source requires two accounts.'',1;
               IF NOT EXISTS(SELECT 1 FROM Accounting.Configurations WHERE TenantId=@TenantId
                 AND Version=@ExpectedConfigurationVersion

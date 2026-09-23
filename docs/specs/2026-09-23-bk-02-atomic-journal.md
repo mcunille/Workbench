@@ -1,6 +1,6 @@
 # BK-02: atomic double-entry journal
 
-**Status:** Accepted — owner approved on 2026-09-23; implementation in progress.
+**Status:** Implemented — owner approved on 2026-09-23.
 
 Parent: [PO-07 bookkeeping prerequisites](2026-09-20-po-07-deposits-and-payments.md).
 Prerequisite: [implemented BK-01](2026-09-21-bk-01-accounting-foundation.md).

@@ -51,6 +51,9 @@ public sealed class JournalConcurrencyTests(SqlServerFixture sqlServer)
         // THEN precisely one request commits and the other identifies an existing source conflict.
         Assert.Single(outcomes, x => x.Error is null);
         Assert.Single(outcomes, x => x.Error?.Number == 51009);
+        var posted = outcomes.Single(x => x.Error is null).Result!;
+        var conflict = outcomes.Single(x => x.Error?.Number == 51009).Error!;
+        Assert.Contains(posted.SourceEventId.ToString("D"), conflict.Message, StringComparison.OrdinalIgnoreCase);
         Assert.Equal(1, await context.CountAsync("JournalEntries"));
         Assert.Equal(1, await context.CountAsync("PostingReceipts"));
     }
