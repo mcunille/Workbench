@@ -10,8 +10,9 @@ it.each([
 ] as const)('uses available purchase context: %s', (value, state, expected) => {
   // GIVEN available custom, supplier or item context, or a completely empty purchase.
   const purchase = value;
+  const originalTitle = purchase.title;
   // WHEN deriving a display label THEN context takes precedence over the neutral fallback.
   expect(purchaseLabel(purchase, state)).toBe(expected);
   // AND deriving a label never changes the saved title.
-  expect(purchase.title).toBe(value.title);
+  expect(purchase.title).toBe(originalTitle);
 });

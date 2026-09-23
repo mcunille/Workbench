@@ -81,20 +81,58 @@ public sealed class RecoveryTests(SqlServerFixture sqlServer) : IAsyncLifetime
     [Fact]
     public async Task RecoveryConsumptionRejectsOversizedPasswordBeforeChangingTheAccount()
     {
-        using var client = _application.CreateClient();
+        const string newPassword = "Recovered Correct Horse 3#";
+        using var signedInClient = _application.CreateClient();
+        using var requestClient = _application.CreateClient();
+        using var originalCredentialsClient = _application.CreateClient();
+        using var oldCredentialsClient = _application.CreateClient();
+        using var newCredentialsClient = _application.CreateClient();
+
+        // GIVEN an existing authenticated session and an unused recovery token.
+        Assert.Equal(HttpStatusCode.NoContent, (await PostWithAntiforgeryAsync(
+            signedInClient,
+            "/api/beta/auth/login",
+            new { email = AuthTestApplication.AdminEmail, password = AuthTestApplication.AdminPassword })).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await signedInClient.GetAsync("/api/beta/auth/me")).StatusCode);
         await PostWithAntiforgeryAsync(
-            client,
+            requestClient,
             "/api/beta/auth/recovery",
             new { email = AuthTestApplication.AdminEmail });
         var token = Assert.Single(_application.Factory.Services
             .GetRequiredService<DevelopmentIdentityMessageDelivery>().Messages).Token;
 
+        // WHEN an oversized replacement password is submitted.
         var response = await PostWithAntiforgeryAsync(
-            client,
+            requestClient,
             "/api/beta/auth/recovery/consume",
             new { token, newPassword = $"Aa1!{new string('x', WorkbenchPasswordPolicy.MaximumLength)}" });
 
+        // THEN the request is rejected without changing the credential or revoking the session.
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Equal(HttpStatusCode.NoContent, (await PostWithAntiforgeryAsync(
+            originalCredentialsClient,
+            "/api/beta/auth/login",
+            new { email = AuthTestApplication.AdminEmail, password = AuthTestApplication.AdminPassword })).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await signedInClient.GetAsync("/api/beta/auth/me")).StatusCode);
+
+        // WHEN the same token is consumed with a valid password.
+        var consumed = await PostWithAntiforgeryAsync(
+            requestClient,
+            "/api/beta/auth/recovery/consume",
+            new { token, newPassword });
+
+        // THEN the credential changes and the pre-existing session is revoked.
+        Assert.Equal(HttpStatusCode.NoContent, consumed.StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, (await signedInClient.GetAsync("/api/beta/auth/me")).StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, (await PostWithAntiforgeryAsync(
+            oldCredentialsClient,
+            "/api/beta/auth/login",
+            new { email = AuthTestApplication.AdminEmail, password = AuthTestApplication.AdminPassword })).StatusCode);
+        Assert.Equal(HttpStatusCode.NoContent, (await PostWithAntiforgeryAsync(
+            newCredentialsClient,
+            "/api/beta/auth/login",
+            new { email = AuthTestApplication.AdminEmail, password = newPassword })).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await newCredentialsClient.GetAsync("/api/beta/auth/me")).StatusCode);
     }
 
     [Fact]

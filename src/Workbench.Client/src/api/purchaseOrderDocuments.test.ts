@@ -3,7 +3,7 @@ import { http, HttpResponse } from 'msw';
 import { vi } from 'vitest';
 import { server } from '../test/server';
 vi.stubGlobal('window', { location: { origin: 'http://localhost:3000' } });
-const { changePurchaseDocument, downloadPurchaseDocument, getPurchaseDocumentOperation, uploadPurchaseDocument } = await import('./purchaseOrderDocuments');
+const { changePurchaseDocument, downloadPurchaseDocument, getPurchaseDocumentOperation, PurchaseDocumentConflict, uploadPurchaseDocument } = await import('./purchaseOrderDocuments');
 const { ApiError } = await import('./auth');
 const { ItemValidationError } = await import('./items');
 const url = '*/api/beta/purchase-orders/order/documents';
@@ -33,9 +33,22 @@ it('uses checked JSON removal and a read-only status lookup', async () => {
   expect(await getPurchaseDocumentOperation('order', 'request')).toEqual({ state: 'Completed' });
 });
 it.each([400, 413, 415, 422, 409, 503, 401])('exposes HTTP %i without treating it as a saved document', async status => {
-  // GIVEN a rejected upload WHEN sending THEN the status remains actionable.
-  server.use(http.post(url, () => HttpResponse.json({}, { status })));
-  await expect(uploadPurchaseDocument('order', { ...command, file: new File(['x'], 'x.pdf') })).rejects.toBeInstanceOf([400, 413, 415, 422].includes(status) ? ItemValidationError : ApiError);
+  // GIVEN a rejected upload with a server reason for actionable validation or conflict responses.
+  const title = `Purchase file rejection ${status}`;
+  server.use(http.post(url, () => HttpResponse.json({ title }, { status })));
+  // WHEN sending THEN each response retains its intended classification and details.
+  const failure: unknown = await uploadPurchaseDocument('order', { ...command, file: new File(['x'], 'x.pdf') }).then(() => undefined, error => error);
+  if ([400, 413, 415, 422].includes(status)) {
+    expect(failure).toBeInstanceOf(ItemValidationError);
+    expect(failure).toMatchObject({ status: 400, errors: { document: [status === 413 ? 'Choose a file no larger than 10 MiB.' : title] } });
+  } else if (status === 409) {
+    expect(failure).toBeInstanceOf(PurchaseDocumentConflict);
+    expect(failure).toMatchObject({ status: 409, reason: title });
+  } else {
+    expect(failure).toBeInstanceOf(ApiError);
+    expect(Object.getPrototypeOf(failure)).toBe(ApiError.prototype);
+    expect(failure).toMatchObject({ status });
+  }
 });
 it('does not initiate a browser download when authenticated delivery fails', async () => {
   // GIVEN unavailable storage WHEN downloading THEN no success blob is constructed.

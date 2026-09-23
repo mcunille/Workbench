@@ -207,12 +207,16 @@ it('protects unsaved contact changes while a conflict comparison read is still p
 });
 it('keeps supplier edits keyboard-copyable while preserving the uncertain command', async () => {
   // GIVEN a supplier save with no confirmed response.
-  vi.mocked(createSupplier).mockRejectedValue(new TypeError('Network'));
-  render(<SupplierEditor {...props()} />);
+  vi.mocked(createSupplier).mockRejectedValueOnce(new TypeError('Network')).mockResolvedValueOnce(receipt);
+  vi.mocked(getSupplier).mockResolvedValueOnce(saved);
+  const callbacks = props();
+  render(<SupplierEditor {...callbacks} />);
   fireEvent.change(screen.getByLabelText('Supplier name'), { target: { value: 'Retained supplier' } });
   fireEvent.click(screen.getByRole('button', { name: 'Save supplier' }));
   await screen.findByRole('button', { name: 'Retry save' });
-  const original = vi.mocked(createSupplier).mock.calls.at(-1)![0];
+  const initialCallCount = vi.mocked(createSupplier).mock.calls.length;
+  expect(initialCallCount).toBe(1);
+  const original = vi.mocked(createSupplier).mock.calls[0][0];
   // WHEN selecting recovery text THEN it is focusable while the source stays frozen.
   fireEvent.click(screen.getByRole('button', { name: 'Select supplier text' }));
   const recovery = screen.getByRole('textbox', { name: 'Supplier recovery text' });
@@ -221,7 +225,14 @@ it('keeps supplier edits keyboard-copyable while preserving the uncertain comman
   expect(screen.getByLabelText('Supplier name')).toBeDisabled();
   // AND a retry reuses the same command.
   fireEvent.click(screen.getByRole('button', { name: 'Retry save' }));
-  await waitFor(() => expect(vi.mocked(createSupplier).mock.calls.at(-1)![0]).toBe(original));
+  await waitFor(() => expect(createSupplier).toHaveBeenCalledTimes(initialCallCount + 1));
+  expect(vi.mocked(createSupplier).mock.calls[initialCallCount][0]).toBe(original);
+  // THEN the confirmed replay finishes and opens the saved supplier.
+  expect(await screen.findByRole('heading', { name: 'Gems', level: 1 })).toBeVisible();
+  expect(callbacks.onCreated).toHaveBeenCalledOnce();
+  expect(callbacks.onCreated).toHaveBeenCalledWith('one');
+  expect(getSupplier).toHaveBeenCalledWith('one');
+  expect(createSupplier).toHaveBeenCalledTimes(initialCallCount + 1);
 });
 it.each(['conflict-read-failed', 'saved-read-failed', 'blocked', 'comparison'] as const)('keeps frozen supplier text selectable after %s without resubmitting', async state => {
   // GIVEN local contact edits whose save conflicts, is blocked, or needs a confirmation read.
