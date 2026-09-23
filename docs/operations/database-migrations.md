@@ -38,11 +38,20 @@ bootstrap, routine migrations, and existing-database precautions. See
 [principal provisioning and secret delivery](database-principals.md#provisioning-and-secret-delivery)
 for password/Entra identities and the tenant proof key.
 
-Never rewrite shipped migrations or retained database history. The unmerged purchasing release uses one consolidated migration; retained previews carrying its earlier three-migration history are left intact and require a separately planned transition before running the consolidated build. Databases with pre-consolidation
-provider migration history are not supported upgrade baselines: use a fresh disposable database for
-verification, and preserve retained data before planning an explicit transition. Unsupported
-schemas require an explicit transition or deliberately disposable replacement; no database or
-migration-history rows are automatically reset.
+Migrations become durable when their pull request is merged into `main`. Never rewrite merged
+migrations. Before merge, consolidate development-only migrations into one migration per coherent
+release change, even if an earlier revision was run in a local, retained, or shared preview.
+Running unmerged code does not establish a supported upgrade baseline or justify a corrective
+migration solely to preserve that preview's migration sequence.
+
+Verify fresh-database creation and upgrade from the merged PR base. Separate migrations within a
+PR still need a concrete staged deployment, backfill, or release compatibility boundary. Historical
+preview transitions documented below are already merged history, not exceptions for new PRs.
+
+Use disposable databases to verify unmerged changes. If preview data needs to be kept, handle its
+recovery or recreation as a separate local operation; it does not add a release compatibility
+obligation. This policy does not authorize deleting databases, discarding data, or automatically
+resetting migration-history rows.
 
 ## Authoring and validating a migration
 
