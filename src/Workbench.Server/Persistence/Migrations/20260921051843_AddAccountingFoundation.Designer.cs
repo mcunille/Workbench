@@ -1591,6 +1591,9 @@ namespace Workbench.Server.Persistence.Migrations
                         .ValueGeneratedOnAddOrUpdate()
                         .HasColumnType("rowversion");
 
+                    b.Property<string>("SocialProfilesJson")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<Guid>("TenantId")
                         .HasColumnType("uniqueidentifier");
 

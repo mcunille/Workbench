@@ -20,8 +20,10 @@ internal static class AccountingSchema
         migrationBuilder.Sql($"""
             GRANT EXECUTE ON [Accounting].[Save] TO [workbench_web];
             DECLARE @Readiness nvarchar(max)=OBJECT_DEFINITION(OBJECT_ID(N'[Security].[ReadDatabaseReadiness]'));
+            IF @Readiness IS NULL OR CHARINDEX(N'20260921041331_MakeSupplierProfilesCustom',@Readiness)=0
+                THROW 50020,'Unsupported accounting readiness predecessor.',1;
             SET @Readiness=REPLACE(@Readiness,N'CREATE PROCEDURE',N'ALTER PROCEDURE');
-            SET @Readiness=REPLACE(@Readiness,N'20260918063409_HardenPurchaseOrderDocumentAuthority',N'{migrationId}');
+            SET @Readiness=REPLACE(@Readiness,N'20260921041331_MakeSupplierProfilesCustom',N'{migrationId}');
             EXEC sys.sp_executesql @Readiness;
             """);
     }

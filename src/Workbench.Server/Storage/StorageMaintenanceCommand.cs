@@ -151,8 +151,7 @@ public static class StorageMaintenanceCommand
     // Keep former current markers here when advancing the release contract.
     private static bool IsSupportedSchema(string schema) =>
         schema == CurrentSchema.MigrationId || schema is
-            "20260921051843_AddAccountingFoundation"
-            or "20260921041331_MakeSupplierProfilesCustom"
+            "20260921041331_MakeSupplierProfilesCustom"
             or "20260918063409_HardenPurchaseOrderDocumentAuthority"
             or "20260918061646_AddPurchaseOrderDocuments"
             or "20260918060000_AddPurchaseOrderCommitment"

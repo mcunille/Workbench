@@ -38,14 +38,23 @@ bootstrap, routine migrations, and existing-database precautions. See
 [principal provisioning and secret delivery](database-principals.md#provisioning-and-secret-delivery)
 for password/Entra identities and the tenant proof key.
 
-Never rewrite shipped migrations or retained database history. The unmerged purchasing release uses one consolidated migration; retained previews carrying its earlier three-migration history are left intact and require a separately planned transition before running the consolidated build. Databases with pre-consolidation
-provider migration history are not supported upgrade baselines: use a fresh disposable database for
-verification, and preserve retained data before planning an explicit transition. Unsupported
-schemas require an explicit transition or deliberately disposable replacement; no database or
-migration-history rows are automatically reset.
+Migrations become durable when their pull request is merged into `main`. Never rewrite merged
+migrations. Before merge, consolidate development-only migrations into one migration per coherent
+release change, even if an earlier revision was run in a local, retained, or shared preview.
+Running unmerged code does not establish a supported upgrade baseline or justify a corrective
+migration solely to preserve that preview's migration sequence.
+
+Verify fresh-database creation and upgrade from the merged PR base. Separate migrations within a
+PR still need a concrete staged deployment, backfill, or release compatibility boundary. Historical
+preview transitions documented below are already merged history, not exceptions for new PRs.
+
+Use disposable databases to verify unmerged changes. If preview data needs to be kept, handle its
+recovery or recreation as a separate local operation; it does not add a release compatibility
+obligation. This policy does not authorize deleting databases, discarding data, or automatically
+resetting migration-history rows.
 
 The accounting foundation starts with `20260921051843_AddAccountingFoundation`, after
-`20260921041331_MakeSupplierProfilesCustom`. The forward `ReconcileAccountingReadiness` migration aligns the readiness marker after these branches converge without rewriting applied history. The foundation preserves existing users and POs, creates
+`20260921041331_MakeSupplierProfilesCustom`. This single accounting migration advances readiness from the supplier-profile marker. The foundation preserves existing users and POs, creates
 unassigned accounting-role definitions, and protects accounting and role/claim writes. Fresh creation
 and upgrade from the preceding schema are required verification paths. Down is blocked with error
 50020 to preserve configuration, role-assignment, revision, and receipt evidence. Use a reviewed forward
@@ -117,15 +126,13 @@ This inventory describes checked-in migration behavior, not permission to execut
 | `20260921041331_MakeSupplierProfilesCustom` | `HardenPurchaseOrderDocumentAuthority` | Adds the optional JSON collection of custom platform/handle pairs and updates the restricted supplier writer in one release migration. Preserves existing supplier values, row versions and receipts; advances readiness and backup markers. Verify fresh creation, PR-base upgrade, legacy replay and restricted-writer validation. Deploy the matching API/client. | Always blocked; preserve handles and request evidence through forward correction or guarded recovery. |
 | `20260921051843_AddAccountingFoundation` | `MakeSupplierProfilesCustom` | Adds tenant accounting configuration, general accounts, revisions, receipts and two explicitly assigned accounting roles. Restricted commands validate current actor authority; runtime Identity role/claim writes are denied. Retains existing data without granting accounting access or creating balances. Advances readiness and backup markers; stop older writers and deploy the matching application. Verify fresh creation and upgrade from the predecessor. | Always blocked (50020); preserve configuration and authorization history through forward correction or guarded recovery. |
 
-| `20260923043000_ReconcileAccountingReadiness` | `AddAccountingFoundation` | Reconciles readiness after the supplier-profile and accounting branches converge. Preserves both applied migrations and all retained data; advances readiness and backup markers. Kept separate because the accounting migration was already applied to a retained preview. | Always blocked; use forward correction or guarded recovery. |
-
 Product behavior, user-visible concurrency/retry rules and the shipped feature inventory belong in
 [collection documentation](../collection.md). Provider retry/backoff behavior belongs in
 [identity delivery and worker operations](blob-and-service-providers.md#identity-delivery-and-worker).
 The [migration source](../../src/Workbench.Server/Persistence/Migrations) is authoritative for SQL.
 
 
-The current required migration is `20260923043000_ReconcileAccountingReadiness`.
+The current required migration is `20260921051843_AddAccountingFoundation`.
 
 `MakeSupplierProfilesCustom` directly follows `HardenPurchaseOrderDocumentAuthority`.
 It adds custom supplier reference pairs in one migration, preserving existing supplier data,
