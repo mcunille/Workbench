@@ -12,9 +12,21 @@ internal static class PurchasingIdentityInput
         ContactName = Trim(input.ContactName),
         Email = Trim(input.Email),
         Phone = Trim(input.Phone),
-        Website = Trim(input.Website),
+        Website = NormalizeWebsite(input.Website),
+        SocialProfiles = input.SocialProfiles is { Count: > 0 } profiles ? profiles.Select(profile => profile is null ? null! : new SupplierSocialProfile(profile.Label?.Trim()!, profile.Handle?.Trim()!)).ToArray() : null,
         PostalAddress = string.IsNullOrWhiteSpace(input.PostalAddress) ? null : input.PostalAddress
     };
+    private static string? NormalizeWebsite(string? input)
+    {
+        var website = Trim(input);
+        if (website is null) return null;
+        // Preserve explicit schemes, including unsupported ones, for authoritative validation below.
+        var colon = website.IndexOf(':');
+        if (colon >= 0 && Uri.CheckSchemeName(website[..colon])) return website;
+        var candidate = "https://" + website;
+        return !website.StartsWith('/') && Uri.TryCreate(candidate, UriKind.Absolute, out var uri)
+            && uri.Host.Contains('.') ? candidate : website;
+    }
     public static Dictionary<string, string[]> Validate(SupplierContent? input, bool required = true, string prefix = "supplier.")
     {
         var errors = new Dictionary<string, string[]>();
@@ -29,8 +41,23 @@ internal static class PurchasingIdentityInput
             errors[prefix + "email"] = ["Enter one email address."];
         if (input.Website is { } website && (website.Length > 2048 || website.Any(c => char.IsControl(c) || char.IsWhiteSpace(c)) || website.Contains('\\') ||
             !Uri.TryCreate(website, UriKind.Absolute, out var uri) || uri.Scheme is not ("http" or "https") || string.IsNullOrEmpty(uri.Host) || !string.IsNullOrEmpty(uri.UserInfo)))
-            errors[prefix + "website"] = ["Use an absolute HTTP or HTTPS website without credentials."];
+            errors[prefix + "website"] = ["Enter a valid HTTP or HTTPS website without spaces or credentials."];
         if (input.PostalAddress?.Length > 2000) errors[prefix + "postalAddress"] = ["Use at most 2000 characters."];
+        if (input.SocialProfiles is { } profiles)
+        {
+            if (profiles.Count > 20) errors[prefix + "socialProfiles"] = ["Use at most 20 social handles."];
+            var labels = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            for (var index = 0; index < profiles.Count; index++)
+            {
+                var profile = profiles[index];
+                var key = $"socialProfiles[{index}]";
+                Field(profile?.Label, 100, key + ".label");
+                Field(profile?.Handle, 2048, key + ".handle");
+                if (string.IsNullOrWhiteSpace(profile?.Label)) errors[prefix + key + ".label"] = ["Enter a platform or label."];
+                else if (!labels.Add(profile.Label.Trim())) errors[prefix + key + ".label"] = ["Use each platform or label only once."];
+                if (string.IsNullOrWhiteSpace(profile?.Handle)) errors[prefix + key + ".handle"] = ["Enter a handle or reference."];
+            }
+        }
         return errors;
     }
     public static string? Query(string? query) => Trim(query)?.ToUpperInvariant();

@@ -114,6 +114,11 @@ one-off supplier details directly on a draft. Contact name, email, phone, websit
 are optional. Duplicate supplier names are allowed. Archiving a supplier removes it from default
 selection while keeping its saved orders and details; it can be reactivated later.
 
+Supplier directory websites accept domains such as `example.com` or `www.example.com/shop`;
+saving trims surrounding whitespace and adds `https://` when the scheme is omitted. Explicit
+HTTP/HTTPS schemes, paths, queries and fragments are preserved. Websites remain optional;
+malformed addresses, other schemes, spaces and embedded credentials are rejected by the server.
+
 Selecting a supplier copies their details onto this draft. Editing the directory never rewrites
 saved purchases. **Use current supplier details** previews a refresh for this draft; confirm the
 replacement and then save. **Keep details as one-off** removes the directory link while retaining
@@ -229,3 +234,13 @@ unchanged. Confirming removes the draft from purchase orders and returns to the 
 be restored through the application. If another member changed it, review the current version
 before requesting deletion again. An uncertain deletion offers **Check and retry deletion** with
 the original request; do not create a new request to resolve a lost response.
+
+## Supplier social handles
+
+Use **Add social** in a supplier's **Social handles (optional)** section to record a **Platform** and
+**URL / Handle** of your choosing. For example, enter **Discord** and **gemdealer**, or a marketplace name
+and seller identifier. Edit either field, or use **Remove** to remove a pair, then save the supplier.
+Both fields are required for each added row; labels must be unique ignoring case. Up to 20 pairs
+are supported. Handles are plain text kept for reference; they need not be web addresses and
+have no opening action. The website is separate, and purchase-order snapshots stay unchanged.
+See the [supplier handles design](specs/2026-09-20-supplier-profiles.md).

@@ -10,6 +10,22 @@ function handlers() {
   server.use(http.get('*/api/beta/accounting/catalog', () => HttpResponse.json(catalog)), http.get('*/api/beta/accounting/setup', () => HttpResponse.json(setup)), http.get('*/api/beta/accounting/accounts', () => HttpResponse.json({ items: [], nextCursor: null })), http.get('*/api/beta/auth/antiforgery', () => HttpResponse.json({ requestToken: 'test' })));
 }
 describe('Accounting setup', () => {
+  it.each([false, true])('marks pending saves uncertain for navigation (edited: %s)', async edited => {
+    // GIVEN a setup save whose response has not arrived
+    handlers(); const changed = vi.fn(); let release!: () => void;
+    const pendingResponse = new Promise<void>(resolve => { release = resolve; });
+    server.use(http.put('*/api/beta/accounting/setup', async () => { await pendingResponse; return HttpResponse.json({ savedVersion: 'v2', accountIds: [] }); }));
+    render(<AccountingSetup canManage onAuthLost={vi.fn()} onDirtyChange={changed} />);
+    const notes = await screen.findByLabelText('Framework and tax policy notes (optional)');
+    if (edited) fireEvent.change(notes, { target: { value: 'Pending policy' } });
+    // WHEN saving THEN navigation must treat both unchanged and edited commands as uncertain
+    fireEvent.click(screen.getByRole('button', { name: 'Save setup' }));
+    try { await waitFor(() => expect(changed).toHaveBeenLastCalledWith(true, true)); }
+    finally { release(); await screen.findByText('Accounting setup saved. Bookkeeping is not yet available.'); }
+    // AND a confirmed save clears the navigation warning
+    await screen.findByText('Accounting setup saved. Bookkeeping is not yet available.');
+    await waitFor(() => expect(changed).toHaveBeenLastCalledWith(false, false));
+  });
   it('preserves a rejected draft and routes hidden policy errors to the field', async () => {
     // GIVEN a policy validation error returned while another section is open
     handlers();

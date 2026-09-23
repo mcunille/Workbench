@@ -41,7 +41,7 @@ export function AccountingSetup({ canManage, onAuthLost, onDirtyChange }: Props)
   function changeDraft(next: Configuration) { setDraft(next); setErrors({}); setMessage(''); }
   const pending = useRef<{ requestId: string; expectedVersion: string; configuration: Configuration } | undefined>(undefined);
   const dirty = !!draft && JSON.stringify(draft) !== JSON.stringify(saved?.configuration);
-  useEffect(() => { onDirtyChange(dirty || accountDirty || uncertain, uncertain || accountUncertain); }, [dirty, accountDirty, uncertain, accountUncertain, onDirtyChange]);
+  useEffect(() => { onDirtyChange(dirty || accountDirty || uncertain || busy, uncertain || accountUncertain || busy); }, [dirty, accountDirty, uncertain, accountUncertain, busy, onDirtyChange]);
   useEffect(() => () => onDirtyChange(false, false), [onDirtyChange]);
   const fail = useCallback((error: unknown) => {
     if (error instanceof ApiError && [401,403].includes(error.status)) { setDraft(undefined); setSaved(undefined); setAccounts([]); setConflict(undefined); setErrors({}); setMessage(''); setDenied(true); pending.current = undefined; setUncertain(false); setAccountDirty(false); onAuthLost(); return; }

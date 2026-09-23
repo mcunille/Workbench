@@ -1,6 +1,6 @@
 # Review Council
 
-Read with SKILL.md for every review round. The orchestrator is the sixth agent, not an additional worker. The five specialist assignments are independent; preparation precedes their parallel review, and reconciliation follows all reports.
+Read with SKILL.md for every review round. The orchestrator is the sixth agent, not an additional worker. The five specialist assignments are independent; preparation precedes their parallel or batched review, and reconciliation follows all reports.
 
 ## Dispatch and execution
 
@@ -12,13 +12,15 @@ Give every specialist a self-contained brief containing:
 - Relevant prior findings and replies to validate, with explicit ownership of each thread. All prior threads must have an owner; the orchestrator covers cross-domain and unassigned threads.
 - The report contract below and ownership of any shared verification resources.
 
-Launch all five specialists before waiting on any one result. Specialists form initial judgments independently, without other specialists' conclusions. The orchestrator uses that interval to check scope, trace cross-domain behavior, and maintain a ledger of agents, revisions, assigned prior threads, verification ownership, and completion status.
+Launch all five specialists together when capacity allows. Otherwise automatically launch as many distinct specialists as available worker slots permit, collect their reports, and launch the remaining specialists as slots become available. With one worker slot, run five successive specialists. Preserve completed reports before releasing task-owned workers if the runtime requires that to free slots; do not interrupt unrelated agents. No additional user approval is needed for this scheduling fallback.
+
+Specialists form initial judgments independently, without other specialists' conclusions. Start each specialist with a fresh context and self-contained brief rather than forking a conversation containing earlier findings. Give later batches the same original scope and evidence brief, without earlier findings or orchestrator conclusions; reconcile only after all five reports arrive. The orchestrator uses the review interval to check scope, trace cross-domain behavior, and maintain a ledger of agents, revisions, assigned prior threads, verification ownership, execution mode, and completion status.
 
 Quality coordinates commands that share build outputs, databases, ports, or browser sessions. Other agents request such checks through the orchestrator or use independently isolated, permitted probes. Serializing conflicting verification does not serialize the specialist reviews. Do not modify tracked files to obtain evidence; use disposable scratch resources under the existing review permissions.
 
 Wait for every specialist's report before final reconciliation. An explicit, justified no-applicable-concerns report counts as participation; silence, failure, or a report against another revision does not. A completed static review can report unavailable runtime verification, but must name the unverified scenarios.
 
-For a recoverable worker failure, make at most one replacement/retry for that role, retaining the same immutable scope and recovered evidence. If it remains unavailable, mark the council INCOMPLETE, name the missing role and blocker, and preserve established findings. Do not replace it with the orchestrator's own domain assessment. If initial launch cannot meet the parallel capacity requirement, do not start a staggered substitute council.
+For a recoverable worker failure, make at most one replacement/retry for that role, retaining the same immutable scope and recovered evidence. If it remains unavailable, mark the council INCOMPLETE, name the missing role and blocker, and preserve established findings. Do not replace it with the orchestrator's own domain assessment. Limited parallel capacity triggers batching, not a worker-failure retry or an incomplete verdict. If no worker slot can be made available or subagent tools are unavailable, report the missing specialists and mark the council INCOMPLETE.
 
 If the PR head changes, keep existing findings labeled with their reviewed SHA. Re-select scope under SKILL.md and run all five specialists for the new round before claiming completion for that head. Previous results may inform the new round but cannot silently become evidence for changed code.
 
@@ -40,17 +42,19 @@ Every specialist returns:
 
 1. Role, reviewed SHAs/range, completion status, inspected scope, and justified inapplicable areas.
 2. Checks performed and outcomes, identifying static inspection, mock-based tests, and real runtime execution separately; include exact commands and source provenance where applicable, without secrets.
-3. Candidate findings, or an explicit no-findings statement for the inspected scope.
+3. Candidate findings, including evidence-backed nonblocking architectural debt and tradeoffs, or an explicit no-findings statement for the inspected scope. Architecture must separately record material migration exceptions and change-locality costs under `design-review.md`; no required fixes does not mean no observations to surface.
 4. Assigned prior-thread dispositions: satisfied, still open, conceded, or deferred, each with evidence. Resolved/outdated UI status is not proof. Keep an established required finding still open until evidence supports satisfaction or concession. Use deferred only for an explicit, documented deferral with its reason and outstanding work; deferral does not clear a required finding for the verdict.
 5. Coverage limits, unresolved hypotheses, and blockers, separate from substantiated findings.
 
-Each candidate finding includes a role-local ID, title, proposed Critical/High/Medium/Low severity, required-fix or nonblocking disposition, violated requirement/contract/invariant, concrete trigger, affected path, observable impact, evidence, verification limits, and recommended corrective outcome. Include file/line/diff side or explain why it is unanchorable; include related prior-thread IDs. A recommendation should describe a concrete benefit rather than imply an unproven defect.
+Each candidate finding includes a role-local ID, title, proposed Critical/High/Medium/Low severity, required-fix or nonblocking disposition, violated requirement/contract/invariant (or concrete maintenance cost for a nonblocking recommendation), concrete trigger, affected path, observable impact, evidence, verification limits, and recommended corrective outcome. Include file/line/diff side or explain why it is unanchorable; include related prior-thread IDs. A recommendation should describe a concrete benefit rather than imply an unproven defect. Justified retained tradeoffs may be labeled nonblocking observations without inventing a violation or corrective change.
 
 ## Reconciliation and severity
 
 The orchestrator validates supporting code and relevant check evidence, rather than accepting a specialist's conclusion as proof. Request focused clarification from the relevant agents when evidence conflicts. Decide through evidence, not votes, agent seniority, or the highest proposed severity; retain unresolved uncertainty in coverage limits.
 
 Merge candidates only when they describe the same underlying defect and corrective action. Preserve contributing roles/IDs, distinct triggers, affected locations, domain impacts, evidence, limits, and prior-thread links. Choose a representative changed-line anchor without dropping supporting locations. Similar symptoms with separate causes or fixes remain separate findings. Record why disputed candidates were merged, downgraded, or excluded in the working reconciliation ledger; retain material disagreements in the final assessment.
+
+Before finalizing, account for every material architectural observation in the specialist reports: include it in the user-visible assessment and proposed grouped body, merge it without losing its cost or tradeoff, or exclude it with a recorded evidence-based reason. Being nonblocking, generated, inherited from existing conventions, or justified by an exception is not an exclusion reason by itself. An exception can justify retaining the implementation while leaving a maintenance cost worth surfacing. Preserve publication approval and scope: recommendations do not authorize filing issues or starting a refactor.
 
 Assign every accepted finding one final impact severity:
 

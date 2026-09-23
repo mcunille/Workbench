@@ -1,6 +1,6 @@
 ---
 name: review-pr
-description: Review GitHub pull requests through a parallel Review Council covering product, architecture, security, quality, and documentation, including initial and follow-up reviews.
+description: Review GitHub pull requests through a Review Council covering product, architecture, security, quality, and documentation, including initial and follow-up reviews.
 argument-hint: [pr-number]
 ---
 
@@ -33,9 +33,9 @@ After approval, publish exactly one GitHub review with event `COMMENT`, plus onl
 
 The agent running this skill is the **Orchestrator Agent**. Every review round uses six agents total: this orchestrator plus distinct **Product**, **Architecture**, **Security**, **Quality**, and **Documentation Review Agents**. Read [review-council.md](references/review-council.md) before dispatch for the specialist briefs, shared report contract, severity rules, and reconciliation procedure.
 
-After selecting scope, launch all five specialists before waiting for findings. Keep the orchestrator active on scope, prior feedback, and cross-domain interactions during their independent review. Invoke every specialist even for a small or follow-up review; each scales its work to the change and explicitly explains any inapplicable scope. Do not replace agents with role-play, skip a domain, or silently run sequential batches.
+After selecting scope, check available worker capacity. Launch all five specialists together when five worker slots are available; otherwise automatically run them in batches sized to the available slots, including one specialist at a time when necessary. Announce the execution mode and capacity constraint without asking for permission to batch. Keep the orchestrator active on scope, prior feedback, and cross-domain interactions during their independent review. Invoke every specialist even for a small or follow-up review; each scales its work to the change and explicitly explains any inapplicable scope. Do not replace agents with role-play or skip a domain.
 
-Check that the runtime permits at least six concurrent agents total and has five worker slots available. If capacity is insufficient, report **Council status: INCOMPLETE**, identify the constraint, and do not claim council completion or issue APPROVE. Permitted preliminary inspection may continue, but cannot substitute for the council. All agents inherit this skill's read-only and publication boundaries; only the orchestrator may publish the exact user-approved payload.
+All batches review the same immutable scope and must return all five specialist reports before reconciliation. Batching alone does not make the council incomplete. If subagents are unavailable or a required specialist cannot complete, report **Council status: INCOMPLETE**, identify the missing coverage, and withhold APPROVE. Permitted preliminary inspection may continue, but cannot substitute for the council. All agents inherit this skill's read-only and publication boundaries; only the orchestrator may publish the exact user-approved payload.
 
 ## Review workflow
 
@@ -45,7 +45,7 @@ Check that the runtime permits at least six concurrent agents total and has five
 2. On a follow-up, independently validate every author reply, including replies in review threads and top-level replies to unanchorable findings. Read the claimed commit or code, inspect a cited issue when relevant, and run affected repository-native verification when feasible. A user request not to rerun tests is a coverage limit to report, not permission to treat author or CI claims as proof.
 3. Record every prior thread as **satisfied**, **still open**, **conceded**, or **deferred**. Distinguish an outdated thread from a resolved one. A resolved thread without an explanatory reply is still an author claim that requires validation.
 4. Anchor new findings to a changed file and line where possible. Preserve the observed diff side for each anchor: `RIGHT` for additions and context, `LEFT` for deletions. Put concerns that genuinely cannot be line-anchored under **Unanchorable findings** in the grouped review body.
-5. Wait for all five specialist reports, validate their evidence, and reconcile findings using `references/review-council.md`. Preserve coverage limits, provenance, and prior-thread dispositions. Assign every accepted finding Critical, High, Medium, or Low severity and a separate required-fix or nonblocking disposition.
+5. Wait for all five specialist reports, validate their evidence, and reconcile findings using `references/review-council.md`. Preserve coverage limits, provenance, prior-thread dispositions, and material architectural debt and tradeoffs, including nonblocking observations and justified exceptions. Assign every accepted finding Critical, High, Medium, or Low severity and a separate required-fix or nonblocking disposition.
 6. Read `references/github-operations.md` when GitHub mechanics are needed. Treat `null` GraphQL line values and REST anchor data carefully rather than inventing an anchor.
 
 ## Verdict and output contract
@@ -61,11 +61,11 @@ Choose the verdict deterministically:
 
 Before any GitHub write, present the exact proposed text and anchors in chat and obtain explicit approval for this round. Reuse an already-approved preview as described above. Keep the review assessment in chat even when the user selects inline-only publication:
 
-1. Council status and each specialist's completion/coverage, followed by the exact verdict line when available (otherwise an explicit withheld-verdict explanation; do not publish a grouped verdict body until a verdict is available)
+1. Council status, parallel or batched execution mode, and each specialist's completion/coverage, followed by the exact verdict line when available (otherwise an explicit withheld-verdict explanation; do not publish a grouped verdict body until a verdict is available)
 2. Reviewed SHA and full-diff or anchored-delta scope, including escalation reason
 3. Verification and coverage limits: distinguish static inspection, mocked checks, and actual runtime execution; name material untested boundaries and the scenarios they leave unverified
 4. Prior-thread dispositions: satisfied / still open / conceded / deferred
-5. New line-anchored findings or labeled Unanchorable findings
+5. New line-anchored findings or labeled Unanchorable findings, with required fixes distinguished from nonblocking recommendations. When material architectural debt or tradeoffs were identified, include an **Architectural debt and tradeoffs** section in both the chat assessment and proposed grouped review body, following `references/design-review.md`. Preserve this assessment in chat when the user selects inline-only publication. An APPROVE verdict does not permit omitting it.
 6. Exact comments, replies, and grouped review body proposed for publication, or explicitly no body for inline-only publication
 
 Immediately before posting, read the PR head SHA again. If it differs from the reviewed SHA, do not publish anything: inspect the new state, produce a new exact preview, and obtain new approval. If it matches, serialize the approved payload programmatically, post the approved thread replies, then submit one review at the reviewed SHA with `event: COMMENT`. When a grouped body is approved, its first line is exactly the approved verdict line. For inline-only publication, include no visible body; see the connector handling in `references/github-operations.md`. Read back the published review and comments to verify the approved text, anchors, and absence of an unrequested summary.
@@ -74,7 +74,7 @@ Immediately before posting, read the PR head SHA again. If it differs from the r
 
 Stop and correct course if any of these occur:
 
-- Claiming a complete council with a missing specialist, mixed revisions, sequential substitutes, or insufficient parallel capacity.
+- Claiming a complete council with a missing specialist, mixed revisions, or orchestrator role-play substituted for a specialist.
 - Posting before an exact preview and current-round approval, including under urgency.
 - Selecting `APPROVE` or `REQUEST_CHANGES` as a GitHub event instead of `COMMENT`.
 - Trusting an author reply, CI result, or review text without independent validation.
@@ -83,9 +83,10 @@ Stop and correct course if any of these occur:
 - Publishing after the head changed, even if the new changes appear trivial.
 - Treating the first 100 review threads or a non-paginated top-level comment read as the complete review conversation.
 - Omitting the verdict from an approved grouped body, adding a summary to an inline-only review, or leaving required findings without a disposition or clear unanchorable label.
+- Reporting no findings or no nonblocking comments after dropping material architectural observations merely because they are conventional, generated, pre-existing, or justified by an exception.
 
 ## Related
 
-- `references/review-council.md` for mandatory parallel delegation, domain responsibilities, and finding reconciliation.
+- `references/review-council.md` for specialist scheduling, domain responsibilities, and finding reconciliation.
 - `references/github-operations.md` for GitHub CLI, REST, GraphQL, git, and publication mechanics.
 - The target repository's instructions for verification commands, review policy, and technical context.

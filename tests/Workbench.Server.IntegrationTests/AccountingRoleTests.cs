@@ -189,7 +189,7 @@ public sealed class AccountingRoleTests(SqlServerFixture sqlServer)
     {
         // GIVEN tenants and users created under the previous production schema.
         await using var application = await AuthTestApplication.CreateAsync(sqlServer,
-            priorMigration: "20260918063409_HardenPurchaseOrderDocumentAuthority");
+            priorMigration: "20260921041331_MakeSupplierProfilesCustom");
         // WHEN upgrading the existing database.
         await Workbench.Server.Persistence.DatabaseMigrator.MigrateAsync(application.AdminConnectionString, default);
         using var admin = await LoginAsync(application, AuthTestApplication.AdminEmail);
