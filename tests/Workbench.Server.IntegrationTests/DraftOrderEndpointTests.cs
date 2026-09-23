@@ -135,6 +135,30 @@ public sealed class DraftOrderEndpointTests(SqlServerFixture sqlServer)
     }
 
     [Fact]
+    public async Task InvalidUpdateReceiptFieldsDoNotChangeSavedDraft()
+    {
+        // GIVEN a saved draft with a known version and content.
+        await using var application = await AuthTestApplication.CreateAsync(sqlServer);
+        using var client = application.CreateClient();
+        await LoginAsync(client);
+        var saved = await Create(client, Empty with { Notes = "Original" });
+        var path = $"{Path}/{saved.DraftOrderId}";
+
+        // WHEN an update has both an empty request identifier and an invalid version.
+        var response = await SendAsync(client, HttpMethod.Put, path,
+            new UpdateDraftOrderRequest(Guid.Empty, "AQ==", Empty with { Notes = "Changed" }));
+
+        // THEN both receipt fields are rejected and the saved draft is unchanged.
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        var problem = await response.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.True(problem.GetProperty("errors").TryGetProperty("requestId", out _));
+        Assert.True(problem.GetProperty("errors").TryGetProperty("expectedVersion", out _));
+        var current = (await client.GetFromJsonAsync<DraftOrderResponse>(path))!;
+        Assert.Equal(saved.SavedVersion, current.Version);
+        Assert.Equal("Original", current.Draft.Notes);
+    }
+
+    [Fact]
     public async Task CompactReceiptReplaysAfterLaterEditsAndRejectsChangedBusinessInput()
     {
         // GIVEN a normalized priced draft and its original receipt.
