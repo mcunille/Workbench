@@ -135,30 +135,6 @@ public sealed class DraftOrderEndpointTests(SqlServerFixture sqlServer)
     }
 
     [Fact]
-    public async Task InvalidUpdateReceiptFieldsDoNotChangeSavedDraft()
-    {
-        // GIVEN a saved draft with a known version and content.
-        await using var application = await AuthTestApplication.CreateAsync(sqlServer);
-        using var client = application.CreateClient();
-        await LoginAsync(client);
-        var saved = await Create(client, Empty with { Notes = "Original" });
-        var path = $"{Path}/{saved.DraftOrderId}";
-
-        // WHEN an update has both an empty request identifier and an invalid version.
-        var response = await SendAsync(client, HttpMethod.Put, path,
-            new UpdateDraftOrderRequest(Guid.Empty, "AQ==", Empty with { Notes = "Changed" }));
-
-        // THEN both receipt fields are rejected and the saved draft is unchanged.
-        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
-        var problem = await response.Content.ReadFromJsonAsync<JsonElement>();
-        Assert.True(problem.GetProperty("errors").TryGetProperty("requestId", out _));
-        Assert.True(problem.GetProperty("errors").TryGetProperty("expectedVersion", out _));
-        var current = (await client.GetFromJsonAsync<DraftOrderResponse>(path))!;
-        Assert.Equal(saved.SavedVersion, current.Version);
-        Assert.Equal("Original", current.Draft.Notes);
-    }
-
-    [Fact]
     public async Task CompactReceiptReplaysAfterLaterEditsAndRejectsChangedBusinessInput()
     {
         // GIVEN a normalized priced draft and its original receipt.
@@ -199,6 +175,16 @@ public sealed class DraftOrderEndpointTests(SqlServerFixture sqlServer)
         Assert.Equal("Later", current.Draft.Notes);
         Assert.Equal(later.SavedVersion, current.Version);
         Assert.NotEqual(replay.SavedVersion, current.Version);
+        // WHEN an update has two invalid receipt fields THEN both are reported without changing the saved draft.
+        var invalid = await SendAsync(client, HttpMethod.Put, detailPath,
+            new UpdateDraftOrderRequest(Guid.Empty, "AQ==", original.Draft with { Notes = "Invalid" }));
+        Assert.Equal(HttpStatusCode.BadRequest, invalid.StatusCode);
+        var problem = await invalid.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.True(problem.GetProperty("errors").TryGetProperty("requestId", out _));
+        Assert.True(problem.GetProperty("errors").TryGetProperty("expectedVersion", out _));
+        var afterInvalid = (await client.GetFromJsonAsync<DraftOrderResponse>(detailPath))!;
+        Assert.Equal(current.Version, afterInvalid.Version);
+        Assert.Equal("Later", afterInvalid.Draft.Notes);
         Assert.Equal("draft_request_conflict", await Code(await SendAsync(client, HttpMethod.Post, Path, request with { Draft = original.Draft with { Title = "plan" } }), HttpStatusCode.Conflict));
         Assert.Equal("draft_version_conflict", await Code(await SendAsync(client, HttpMethod.Put, detailPath, edit with { RequestId = Guid.NewGuid() }), HttpStatusCode.Conflict));
         Assert.Equal("draft_request_conflict", await Code(await SendAsync(client, HttpMethod.Put, detailPath, edit with { ExpectedVersion = current.Version }), HttpStatusCode.Conflict));
