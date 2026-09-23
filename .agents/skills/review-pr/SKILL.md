@@ -31,7 +31,7 @@ After approval, publish exactly one GitHub review with event `COMMENT`, plus onl
 
 ## Review Council
 
-The agent running this skill is the **Orchestrator Agent**. Every review round uses six agents total: this orchestrator plus distinct **Product**, **Architecture**, **Security**, **Quality**, and **Documentation Review Agents**. Read [review-council.md](references/review-council.md) before dispatch for the specialist briefs, shared report contract, severity rules, and reconciliation procedure.
+The agent running this skill is the **Orchestrator Agent**. Every review round uses six agents total: this orchestrator plus distinct **Product**, **Architecture**, **Security**, **Quality**, and **Documentation Review Agents**. Read [review-council.md](references/review-council.md) before dispatch for the model assignments and availability checks, specialist briefs, shared report contract, severity rules, and reconciliation procedure. Pass the assigned model and reasoning effort explicitly for each specialist; an unavailable assignment must be reported, not silently substituted.
 
 After selecting scope, check available worker capacity. Launch all five specialists together when five worker slots are available; otherwise automatically run them in batches sized to the available slots, including one specialist at a time when necessary. Announce the execution mode and capacity constraint without asking for permission to batch. Keep the orchestrator active on scope, prior feedback, and cross-domain interactions during their independent review. Invoke every specialist even for a small or follow-up review; each scales its work to the change and explicitly explains any inapplicable scope. Do not replace agents with role-play or skip a domain.
 
@@ -61,7 +61,7 @@ Choose the verdict deterministically:
 
 Before any GitHub write, present the exact proposed text and anchors in chat and obtain explicit approval for this round. Reuse an already-approved preview as described above. Keep the review assessment in chat even when the user selects inline-only publication:
 
-1. Council status, parallel or batched execution mode, and each specialist's completion/coverage, followed by the exact verdict line when available (otherwise an explicit withheld-verdict explanation; do not publish a grouped verdict body until a verdict is available)
+1. Council status, parallel or batched execution mode, and each specialist's completion/coverage, model, and reasoning effort (distinguishing requested settings from runtime confirmation), followed by the exact verdict line when available (otherwise an explicit withheld-verdict explanation; do not publish a grouped verdict body until a verdict is available)
 2. Reviewed SHA and full-diff or anchored-delta scope, including escalation reason
 3. Verification and coverage limits: distinguish static inspection, mocked checks, and actual runtime execution; name material untested boundaries and the scenarios they leave unverified
 4. Prior-thread dispositions: satisfied / still open / conceded / deferred
