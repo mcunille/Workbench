@@ -2,10 +2,10 @@
 
 ## Scope and completion
 
-- Proceed with clearly requested, bounded changes through implementation and verification. Ask for design approval before architectural changes, material changes to public contracts, or decisions with significant unresolved tradeoffs. Once a design is approved, continue through the agreed completion criteria without repeating approval requests.
+- Use the applicable superpowers skills for design, planning, execution, debugging, and internal review. Complete the selected workflow's design and planning handoffs before implementation; a request for a bounded change does not skip its short design review. Preserve approval of an already reviewed artifact, but do not treat it as approval of a later artifact that has not been presented.
 - Continue until the requested behavior is implemented, relevant checks pass, and any requested running application has been inspected. Fix failures caused by the change. Report unrelated failures and concrete blockers accurately.
 - Preserve the repository skills' separate approval gates for publishing review comments and other collaboration writes. Merging and production operations require explicit authorization; implementation approval alone does not authorize them.
-- Once requested implementation is complete and verified, commit the scoped changes and open or update a ready-for-review pull request. Create a draft only when requested. This authorizes implementation delivery, not publication of review comments or other separately gated collaboration writes.
+- Once requested implementation is complete and verified, commit the scoped changes and open or update a ready-for-review pull request. This is the repository's preselected option for superpowers:finishing-a-development-branch; do not ask the integration-menu question again. Create a draft only when requested. This authorizes implementation delivery, not publication of review comments or other separately gated collaboration writes.
 - Keep incidental cleanup small, directly related, and low-risk. Surface broader refactors and design tradeoffs separately with evidence and affected locations; obtain the required approval before filing issues. Preserve unrelated working-tree changes, and inspect logs and diffs before concluding work in another checkout is safe to discard.
 
 ## Verification
@@ -20,11 +20,10 @@
 
 ## Planning artifacts
 
-- Write a focused specification in `docs/specs/` when the change needs durable requirements or design reasoning under `CONTRIBUTING.md`. Obtain design approval at the boundaries defined above; an already approved design does not need another approval merely because a plan was written.
-- Maintain an implementation plan for work with multiple dependent deliverables or substantial coordination. Record scope, dependencies, acceptance criteria, verification, and progress; small bounded changes can proceed directly.
-- Implementation plans are temporary working artifacts. Do not commit them.
-- After writing an implementation plan, recommend one execution option with a brief reason and start the recommended option automatically instead of asking the user to choose. For small or sequential plans, use inline execution; for multiple independent tasks, use subagent-driven execution only when subagents are available and permitted.
-- For design, multi-step implementation, delegation, difficult debugging, or internal implementation review, read the relevant section of [the development workflow](docs/development-workflow.md). It defines task briefs, recovery notes, evidence-based debugging, and review expectations without adding approval gates.
+- Keep durable specifications in `docs/specs/`, including those produced by superpowers:brainstorming. Follow `CONTRIBUTING.md` for changes needing a durable spec and the selected superpowers workflow for its review handoffs.
+- Use superpowers:writing-plans when an implementation plan is required. Follow its task structure, self-review, and user handoff, including plan review and execution-method selection before implementation. Bounded work follows the brainstorming skill's short in-chat design path.
+- Save implementation plans in the ignored `docs/superpowers/plans/` directory. They are temporary working artifacts; do not commit them. Keep execution ledgers and task artifacts in the selected execution skill's ignored workspace.
+- Read [the development workflow](docs/development-workflow.md) for repository integration rules, verification ownership, and local skill routing. It supplements superpowers rather than defining a second development process.
 
 ## Development credentials
 

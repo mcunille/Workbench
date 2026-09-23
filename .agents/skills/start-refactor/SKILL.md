@@ -13,8 +13,9 @@ bounded evidence, not a mathematical proof of equivalence.
 
 Follow the user's explicit scope and existing authorization. Root [AGENTS.md](../../../AGENTS.md)
 owns approval and delivery boundaries; [CONTRIBUTING.md](../../../CONTRIBUTING.md) owns application
-verification. Resolve routine details and continue through implementation and PR delivery without
-asking again for permission already given. Read the relevant sections of
+verification. Complete the applicable superpowers:brainstorming design handoff before refactoring;
+for bounded work, present the short in-chat design and wait for its approval. Preserve approval of
+an already reviewed design, then continue through verification and PR delivery. Read
 [the development workflow](../../../docs/development-workflow.md) for planning and internal review.
 
 Keep the refactor within one project or feature folder. Allowed moves include method/function
@@ -46,10 +47,11 @@ Read only the relevant stack reference:
 - [dotnet.md](references/dotnet.md) for `src/Workbench.Server` or `src/Workbench.Database`.
 - [web.md](references/web.md) for `src/Workbench.Client`.
 
-State the target and make a short untracked plan covering the safety net, structural changes,
-verification, and delivery. Use inline execution for tightly coupled moves. Independent inventory
-or review work may use subagents when available and permitted; serialize edits and tests sharing
-source, build outputs, or databases. Keep current model settings.
+Include the target, safety net, structural changes, verification, and delivery in the short design.
+Bounded work needs no implementation-plan document. If scope requires a written plan, use
+superpowers:writing-plans and its execution handoff. Follow the selected superpowers workflow for
+delegation, model selection, and internal review; serialize edits and tests sharing source, build
+outputs, or databases.
 
 Run the affected stack's suite on unchanged code and record the command and outcome. Investigate
 baseline failures before changing that target; distinguish unrelated or unavailable checks from

@@ -26,6 +26,11 @@ delivery: edits, tests, commits, and a non-force push to the discovered PR head
 repository through an explicitly verified remote and refspec. It does not
 authorize broader changes or a push to an inferred/default destination.
 
+Inspect and validate feedback before selecting a fix. Before editing, complete the applicable
+superpowers design and planning handoffs under the root guidance. Invocation authorizes delivery
+within this scope; it does not approve a design or plan that has not yet been presented. Preserve
+approval when the proposed fix is already covered by the reviewed design and plan.
+
 The exact preview and fresh per-round approval gate collaboration writes only:
 issue creation, comments, replies, summaries, reviews, and thread resolution.
 Those actions remain forbidden before approval. Preserve push-before-draft:
