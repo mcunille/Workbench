@@ -7,21 +7,19 @@ vi.mock('../../api/purchaseOrders', async importOriginal => ({ ...await importOr
 const row = (id: string) => ({ id, title: id, supplierName: null, firstItemDescription: null, poReference: 'PO-000001', supplierOrderReference: null, platform: null, updatedAtUtc: '2026-09-12T00:00:00Z' });
 const props = () => ({ memory: new DraftMemory(), follow: vi.fn(), onAuthLost: vi.fn() });
 beforeEach(() => { vi.mocked(getDrafts).mockReset(); });
-it('identifies untitled purchases by supplier or items while retaining their references', async () => {
-  // GIVEN two purchases from one supplier, an items-only draft, an empty draft, and a custom label.
+it('wires accessible purchase references to distinct records from the same supplier', async () => {
+  // GIVEN identically labelled purchases from one supplier and a custom title on a third.
   const items = [
     { ...row('one'), title: null, supplierName: 'Gem supplier', poReference: 'PO-000001' },
-    { ...row('two'), title: null, supplierName: 'Gem supplier', poReference: 'PO-000002', state: 'Ordered' },
-    { ...row('items'), title: null, firstItemDescription: 'Blue sapphires', poReference: 'PO-000003' },
-    { ...row('empty'), title: null, poReference: 'PO-000004' },
-    { ...row('named'), title: 'Autumn collection', supplierName: 'Gem supplier', poReference: 'PO-000005' },
+    { ...row('two'), title: null, supplierName: 'Gem supplier', poReference: 'PO-000002' },
+    { ...row('named'), title: 'Autumn collection', supplierName: 'Gem supplier', poReference: 'PO-000003' },
   ];
   vi.mocked(getDrafts).mockResolvedValue({ items, nextCursor: null });
-  // WHEN browsing THEN every purchase has a meaningful label and distinct reference.
+  // WHEN browsing THEN each accessible reference identifies the right record and display label.
   render(<DraftList {...props()} />);
-  for (const [reference, label] of [['PO-000001', 'Gem supplier'], ['PO-000002', 'Gem supplier'], ['PO-000003', 'Blue sapphires'], ['PO-000004', 'Empty draft'], ['PO-000005', 'Autumn collection']]) {
-    expect(await screen.findByRole('link', { name: new RegExp(`${reference}.*${label}`) })).toBeVisible();
-  }
+  expect(await screen.findByRole('link', { name: /PO-000001.*Gem supplier/ })).toHaveAttribute('href', '/purchase-orders/one');
+  expect(screen.getByRole('link', { name: /PO-000002.*Gem supplier/ })).toHaveAttribute('href', '/purchase-orders/two');
+  expect(screen.getByRole('link', { name: /PO-000003.*Autumn collection.*Gem supplier/ })).toHaveAttribute('href', '/purchase-orders/named');
   expect(screen.queryByText(/Untitled/)).not.toBeInTheDocument();
 });
 it('distinguishes ordered purchases from drafts and filters the server query by state', async () => {

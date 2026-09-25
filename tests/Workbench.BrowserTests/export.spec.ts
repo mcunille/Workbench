@@ -145,6 +145,7 @@ test('H7 cancelling preparation rejects a late complete response and lets the co
   // WHEN cancelling THEN no download is offered, even after the complete response is released.
   await page.getByRole('button', { name: 'Cancel', exact: true }).click();
   release(); await settled;
+  await expect(page.getByRole('status')).toContainText('cancelled');
   await expect(page.getByRole('link', { name: 'Download CSV', exact: true })).toHaveCount(0);
   await expect(page.getByRole('radio', { name: 'Active records', exact: true })).toBeChecked();
   // THEN another explicit preparation succeeds.

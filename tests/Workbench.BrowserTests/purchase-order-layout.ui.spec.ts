@@ -1,27 +1,32 @@
 import { expect, test } from './diagnostic-fixture';
-import { useAuthenticatedSession as signIn } from './auth-fixture';
+import { useInterceptedSession } from './intercepted-auth-fixture';
 
 for (const width of [320, 390, 600, 1440]) test(`purchase-order search keeps results anchored at ${width}px`, async ({ page }) => {
-  // GIVEN a saved draft and a settled list at the target viewport.
-  await signIn(page);
+  // GIVEN deterministic list responses owned before the first navigation at each viewport.
+  const title = 'Layout anchor';
+  const row = { id: '00000000-0000-4000-8000-000000000001', title, supplierName: null,
+    firstItemDescription: null, poReference: 'PO-000001', supplierOrderReference: null,
+    platform: null, state: 'Draft', updatedAtUtc: '2026-09-01T12:00:00Z' };
+  let release!: () => void;
+  const delayed = new Promise<void>(resolve => { release = resolve; });
+  let received!: () => void;
+  const searchReceived = new Promise<void>(resolve => { received = resolve; });
+  await page.route('**/api/beta/items', route => route.fulfill({ json: { items: [], nextCursor: null } }));
+  await page.route('**/api/beta/purchase-orders**', async route => {
+    expect(route.request().method()).toBe('GET');
+    expect(new URL(route.request().url()).pathname).toBe('/api/beta/purchase-orders');
+    if (new URL(route.request().url()).searchParams.get('query')) { received(); await delayed; }
+    await route.fulfill({ json: { items: [row], nextCursor: null } });
+  });
+  await useInterceptedSession(page);
   await page.setViewportSize({ width, height: 900 });
-  const title = `Layout anchor ${width} ${Date.now()}`;
-  await page.goto('/purchase-orders/new');
-  await page.getByLabel('Custom title (optional)', { exact: true }).fill(title);
-  await page.getByRole('button', { name: 'Save draft', exact: true }).click();
-  await expect(page).toHaveURL(/\/purchase-orders\/[a-f0-9-]{36}$/);
   await page.goto('/purchase-orders');
   await expect(page.getByText(title, { exact: true })).toBeVisible();
   const panel = page.locator('.po-draft-panel');
   const top = (await panel.boundingBox())!.y;
-  let release!: () => void;
-  const delayed = new Promise<void>(resolve => { release = resolve; });
-  await page.route('**/api/beta/purchase-orders?*', async route => {
-    await delayed;
-    await route.continue();
-  });
   // WHEN typing starts and a slow search is pending THEN controls and feedback do not move the results.
   await page.getByRole('searchbox').fill(title);
+  await searchReceived;
   await expect(page.getByRole('status')).toContainText('Loading purchases');
   await expect.poll(async () => (await panel.boundingBox())!.y).toBeCloseTo(top, 0);
   release();
@@ -29,6 +34,7 @@ for (const width of [320, 390, 600, 1440]) test(`purchase-order search keeps res
   await expect.poll(async () => (await panel.boundingBox())!.y).toBeCloseTo(top, 0);
   // WHEN clearing THEN the original position and keyboard path remain intact.
   await page.getByRole('button', { name: 'Clear search' }).click();
+  await expect(page.getByRole('searchbox')).toBeFocused();
   await expect(page.getByRole('status')).not.toContainText('Loading purchases');
   await expect.poll(async () => (await panel.boundingBox())!.y).toBeCloseTo(top, 0);
   // AND enlarged text can grow naturally without clipping or horizontal page overflow.
