@@ -50,7 +50,7 @@ public sealed class JournalMigrationTests(SqlServerFixture sqlServer)
         Assert.Equal(configured, await Save(configurationRequest, "Configure", configuration, Guid.Empty));
         await MigrationHistoryAssertions.AssertCurrentAsync(application.AdminConnectionString);
         await using var count = new SqlCommand("SELECT COUNT(*) FROM dbo.__EFMigrationsHistory WHERE MigrationId>N'20260921051843_AddAccountingFoundation'", admin);
-        Assert.Equal(1, await count.ExecuteScalarAsync());
+        Assert.Equal(2, await count.ExecuteScalarAsync());
         // AND migration creates no invented financial entries or policy freeze.
         foreach (var table in new[] { "SourceEvents", "JournalEntries", "JournalLines", "PostingReceipts", "PolicyFreezes" })
         {

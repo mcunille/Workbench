@@ -21,13 +21,16 @@ public sealed class PasswordPrincipalProvisioningTests(SqlServerFixture sqlServe
         await inputs.ProvisionAsync(database);
         await inputs.ProvisionAsync(database);
         // THEN each financial table is readable but cannot be changed directly by the web role.
-        foreach (var table in new[] { "PolicyFreezes", "SourceEvents", "JournalEntries", "JournalLines", "PostingReceipts" })
+        foreach (var table in new[] { "PolicyFreezes", "SourceEvents", "JournalEntries", "JournalLines", "PostingReceipts",
+            "Periods", "PeriodClosures", "PeriodCloseReceipts" })
         {
             Assert.Equal(1, await ScalarAsync(database, $"SELECT COUNT(*) FROM sys.database_permissions WHERE grantee_principal_id=DATABASE_PRINCIPAL_ID('workbench_web') AND major_id=OBJECT_ID('Accounting.{table}') AND permission_name='SELECT' AND state='G'"));
             Assert.Equal(3, await ScalarAsync(database, $"SELECT COUNT(*) FROM sys.database_permissions WHERE grantee_principal_id=DATABASE_PRINCIPAL_ID('workbench_web') AND major_id=OBJECT_ID('Accounting.{table}') AND permission_name IN ('INSERT','UPDATE','DELETE') AND state='D'"));
         }
         // AND provisioning grants no direct kernel authority and installs no synthetic source command.
         Assert.Equal(0, await ScalarAsync(database, "SELECT COUNT(*) FROM sys.database_permissions WHERE grantee_principal_id IN (DATABASE_PRINCIPAL_ID('workbench_web'),DATABASE_PRINCIPAL_ID('workbench_worker'),DATABASE_PRINCIPAL_ID('public')) AND major_id=OBJECT_ID('Accounting.PostJournal') AND permission_name='EXECUTE' AND state IN ('G','W')"));
+        foreach (var kernel in new[] { "EnsureOpenPeriod", "ClosePeriod" })
+            Assert.Equal(0, await ScalarAsync(database, $"SELECT COUNT(*) FROM sys.database_permissions WHERE grantee_principal_id IN (DATABASE_PRINCIPAL_ID('workbench_web'),DATABASE_PRINCIPAL_ID('workbench_worker'),DATABASE_PRINCIPAL_ID('public')) AND major_id=OBJECT_ID('Accounting.{kernel}') AND permission_name='EXECUTE' AND state IN ('G','W')"));
         Assert.Equal(0, await ScalarAsync(database, "SELECT COUNT(*) FROM sys.procedures WHERE schema_id=SCHEMA_ID('Accounting') AND name LIKE '%Synthetic%'"));
     }
 

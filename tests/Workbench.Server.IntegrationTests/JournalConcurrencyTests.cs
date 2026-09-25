@@ -190,7 +190,7 @@ public sealed class JournalConcurrencyTests(SqlServerFixture sqlServer)
         catch (SqlException exception) { return (null, exception); }
     }
 
-    private sealed class AccountingLockGate : IAsyncDisposable
+    internal sealed class AccountingLockGate : IAsyncDisposable
     {
         private readonly SqlConnection _connection;
         private readonly SqlTransaction _transaction;

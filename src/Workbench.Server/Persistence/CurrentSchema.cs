@@ -38,6 +38,7 @@ public static class CurrentSchema
         "20260921041331_MakeSupplierProfilesCustom",
         "20260921051843_AddAccountingFoundation",
         "20260923010000_AddAtomicJournal",
+        "20260925044758_AddAccountingPeriodControls",
     ]);
 
     public static string MigrationId => Migrations[^1];
