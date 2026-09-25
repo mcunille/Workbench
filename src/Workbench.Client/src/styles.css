@@ -464,6 +464,7 @@ textarea[aria-invalid="true"] {
   margin-inline: auto;
   padding: 3rem;
 }
+.workspace-sheet { min-width: 0; }
 .page-heading {
   display: flex;
   align-items: flex-start;

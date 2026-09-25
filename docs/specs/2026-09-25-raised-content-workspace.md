@@ -1,25 +1,26 @@
 # Raised content workspace
 
-**Status:** Proposed
+**Status:** Implemented
 
 ## Status and intent
 
-Product proposal for review. The owner selected this visual direction through an
-interactive mockup on 2026-09-25, then requested a proposal that can be implemented.
-This document records that direction and proposes its production boundaries; application
-implementation has not started. Review this written proposal before implementation planning.
+The owner selected this visual direction through an interactive mockup on 2026-09-25.
+The shared authenticated shell now places the content sheet in front of the desktop
+navigation backdrop. Focused navigation browser checks cover sheet geometry and the
+interaction layer. Owner review of the localhost preview and the full release gates
+remain pending before PR delivery.
 
 People using Workbench should perceive their collection, purchasing, and other active
-work as the foreground. The navigation provides a stable, quieter backdrop. The current
-desktop shell places a raised glass sidebar over the workspace; this proposal reverses
-that visual hierarchy while retaining Workbench's Tanzanite identity.
+work as the foreground. The solid neutral navigation provides a stable, quieter backdrop. The earlier
+desktop shell placed a raised glass sidebar over the workspace; this implementation
+reverses that visual hierarchy while retaining Workbench's Tanzanite identity.
 
 The supplied Shopify image inspired the relationship between surfaces, not a replacement
 brand, navigation structure, or collection design.
 
 ## Selected visual direction
 
-- Recess the desktop navigation into the shared atmospheric canvas. Remove its raised
+- Recess the desktop navigation into a solid neutral surface. Remove its raised
   right-hand bevel, rounded right corners, lateral shadow, and concentrated reflections.
 - Raise one continuous content sheet beside it. The sheet begins immediately at the
   navigation boundary and meets the viewport's top, right, and bottom edges with no outer
@@ -31,7 +32,8 @@ brand, navigation structure, or collection design.
   outer margins does not put headings, controls, or records against the sheet edge.
 - Place the fine material edge and shallow reflections on the sheet's left boundary.
   Use a soft shadow falling toward the sidebar to make the sheet read as foreground.
-  Keep the body of the sheet neutral and calm, with no tint over photographs.
+  Restore the original blue/violet atmospheric gradients over the canvas within the
+  sheet. Keep them faint at the top, with no tint over photographs.
 - Dark appearance uses the existing indigo, blue, and periwinkle Tanzanite palette.
   Light appearance uses the existing neutral Quartz treatment with a cool silver edge.
   Preserve Light, Dark, and Auto appearance behavior. Do not add a material selector.
@@ -78,11 +80,12 @@ shadows, reflections, or color distinctions. Text and controls retain required c
 
 ## Implementation boundaries
 
-The likely primary changes are in `src/Workbench.Client/src/navigation.css` and
-`src/Workbench.Client/src/styles.css`, with a small shell adjustment in `App.tsx` if a
-separate full-width sheet wrapper is needed. Reuse existing appearance tokens and scope
-any new sheet tokens to the authenticated shell. Avoid applying backdrop blur across
-the entire long reading surface; keep decorative effects localized to the exposed edge.
+The implementation uses `src/Workbench.Client/src/navigation.css` and
+`src/Workbench.Client/src/styles.css`, with a presentation wrapper around the existing
+authenticated `main` in `App.tsx`. The appearance spectrum is inherited by the desktop
+sheet edge and mobile pill. The sheet body repeats the original canvas atmosphere;
+the desktop menu is solid `--surface`. Edge effects stay near the exposed boundary
+without full-surface backdrop blur.
 
 Apply the shared sheet consistently to existing authenticated routes, including
 collection, purchasing, supplier, account, accounting, and administration views where
@@ -135,18 +138,19 @@ long purchasing editor, plus account/administration overlays and permission-depe
 navigation. Assess meaningful behavioral changes with available mutation tooling; report
 any limitation rather than claiming CSS rendering has been mutation-tested.
 
-Run current-source verification and container smoke gates from `CONTRIBUTING.md` for
-the implementation. Refresh the isolated preview using `scripts/dev-up.ps1` and inspect
-the affected workflows in the browser. Attach representative dark/light, expanded/rail,
-and mobile evidence to the implementation PR through the supported attachment workflow;
-keep screenshots outside Git history.
+The focused `navigation.spec.ts` browser selection passed from current source (11/11).
+The isolated localhost preview was refreshed and inspected at dark/light desktop widths
+through 2400px and mobile widths down to 320px. The current-source `verify.ps1` and
+`smoke-container.ps1` delivery gates remain pending, as do the wider affected browser
+selection and PR attachment of representative external visual evidence. Keep screenshots
+outside Git history and attach reviewed evidence through the supported PR workflow.
 
 The interactive sample mockup has exercised comparison, collapse, local search, details,
 sample creation, navigation, appearance switching, and widths down to 320px. That is
 prototype evidence only; it does not establish production behavior, full accessibility,
 or completion of repository application gates.
 
-Deliver the implementation through a ready-for-review PR after the written proposal and
-required implementation plan are reviewed. A client-only revert restores the previous
-surface treatment without data conversion. Merge and production rollout remain separately
-authorized operations.
+The written proposal and implementation plan were reviewed before source changes.
+Deliver through a ready-for-review PR after preview feedback and release gates. A
+client-only revert restores the previous surface treatment without data conversion.
+Merge and production rollout remain separately authorized operations.
