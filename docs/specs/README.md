@@ -80,7 +80,11 @@ Scale the document to the change, but normally cover:
 10. residual risks and unresolved questions.
 
 When implementation makes a spec true, update the appropriate living documentation and change the
-spec status to **Implemented**. Preserve the spec so future contributors can understand why the
-current design exists.
+spec status to **Implemented**. Preserve the reasoning so future contributors can understand why
+the current design exists. Retain specs with distinct constraints, alternatives, unresolved work,
+or required historical evidence. During an authorized [documentation cleanup](../../.agents/skills/doc-audit/SKILL.md),
+a redundant spec may be retired after its durable knowledge is distilled into maintained docs
+and its references and retention needs are accounted for. Implementation status alone is not
+evidence that a spec is redundant.
 
 The implemented [PO-03 specification](2026-09-16-po-03-itemized-quantities-and-prices.md) consolidates supplier-based line pricing, its V4 compatibility contract and migration requirements.
