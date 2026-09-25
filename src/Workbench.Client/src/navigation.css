@@ -38,6 +38,7 @@
   }
 }
 @media (min-width: 48.001rem) {
+  .app-shell, .workspace-layout { background: var(--canvas); }
   .workspace-nav {
     top: 0;
     height: 100dvh;
@@ -46,7 +47,7 @@
     border: 0;
     border-inline-end: 1px solid transparent;
     border-radius: 0;
-    background: var(--surface);
+    background: var(--canvas);
     box-shadow: none;
     backdrop-filter: none;
     -webkit-backdrop-filter: none;

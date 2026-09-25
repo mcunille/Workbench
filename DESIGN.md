@@ -377,8 +377,9 @@ implementation and review workflow.
 
 The shared stylesheet implements Tanzanite throughout the existing workspace. Reading,
 editing, and photographic surfaces stay opaque. The desktop content sheet restores the
-blue/violet canvas atmosphere and carries the raised material edge beside a solid neutral
-navigation backdrop; the mobile dock and public account cards use restrained glass.
+blue/violet canvas atmosphere and carries the raised material edge beside a solid
+`--canvas` navigation backdrop; the mobile dock and public account cards use
+restrained glass.
 Route structure, permissions, and workflows are unchanged.
 
 | Shared token | Dark | Light |
@@ -446,10 +447,11 @@ permission checks. Search remains in the collection. The
 Above 48rem, use a 14.3125rem expanded pane (minimum 229px) and a 4.5rem icon rail.
 Below 900px, default to the icon rail while retaining the expand/collapse control. Remember
 the user's narrow and desktop collapse choices separately when resizing. At 48rem and below, retain the mobile
-pill described below. The desktop navigation uses a solid neutral surface,
-flush with the viewport's top and left edges. One opaque canvas sheet begins at its
-right boundary and reaches the viewport's top, right, and bottom edges without an outer
-inset. Its left corners use a 16px radius; its right corners are square. The sheet repeats
+pill described below. The desktop navigation and full authenticated backdrop use solid
+`--canvas` (`#08090c` dark, white light), including behind the sheet's left corners.
+The menu remains flush with the viewport's top and left edges. One opaque canvas sheet
+begins at its right boundary and reaches the viewport's top, right, and bottom edges
+without an outer inset. Its left corners use a 16px radius; its right corners are square. The sheet repeats
 the original blue/violet gradients over the neutral canvas. A fine left bevel, shallow
 reflection, and soft shadow toward navigation carry the depth. The outer
 sheet spans the full remaining width, including ultrawide screens; its inner reading

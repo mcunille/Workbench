@@ -38,20 +38,27 @@ test('desktop sheet fills the viewport beside navigation while reading content s
   const reading = page.getByRole('main');
   for (const dark of [false, true]) {
     await setAppearance(page, dark);
-    // WHEN appearance changes THEN content keeps the canvas atmosphere and the menu is solid.
+    // WHEN appearance changes THEN the menu and the full backdrop share the canvas color.
     const material = await page.evaluate(() => {
       const nav = getComputedStyle(document.querySelector('.workspace-nav')!);
       const sheet = getComputedStyle(document.querySelector('.workspace-sheet')!);
+      const layout = getComputedStyle(document.querySelector('.workspace-layout')!);
+      const shell = getComputedStyle(document.querySelector('.app-shell')!);
       return {
         menuColor: nav.backgroundColor,
         menuImage: nav.backgroundImage,
+        layoutColor: layout.backgroundColor,
+        shellColor: shell.backgroundColor,
         sheetColor: sheet.backgroundColor,
         sheetImage: sheet.backgroundImage,
       };
     });
-    expect(material.menuColor).toBe(dark ? 'rgb(18, 19, 23)' : 'rgb(255, 255, 255)');
+    const canvasColor = dark ? 'rgb(8, 9, 12)' : 'rgb(255, 255, 255)';
+    expect(material.menuColor).toBe(canvasColor);
     expect(material.menuImage).toBe('none');
-    expect(material.sheetColor).toBe(dark ? 'rgb(8, 9, 12)' : 'rgb(255, 255, 255)');
+    expect(material.layoutColor).toBe(canvasColor);
+    expect(material.shellColor).toBe(canvasColor);
+    expect(material.sheetColor).toBe(canvasColor);
     expect(material.sheetImage.match(/radial-gradient/g)).toHaveLength(2);
     for (const collapsed of [false, true]) {
       if (collapsed) await nav.getByRole('button', { name: 'Collapse navigation' }).click();
@@ -71,6 +78,7 @@ test('desktop sheet fills the viewport beside navigation while reading content s
         expect(s.y).toBeCloseTo(0, 0);
         expect(s.x + s.width).toBeCloseTo(width, 0);
         expect(s.height).toBeGreaterThanOrEqual(1000);
+        expect((await page.locator('.workspace-layout').boundingBox())!.height).toBeGreaterThanOrEqual(s.height);
         expect(r.x - s.x).toBeCloseTo(s.x + s.width - r.x - r.width, 0);
         expect(r.width).toBeLessThanOrEqual(76 * await page.evaluate(() => parseFloat(getComputedStyle(document.documentElement).fontSize)));
         expect(await reading.evaluate(el => parseFloat(getComputedStyle(el).paddingLeft))).toBeGreaterThan(0);
@@ -85,11 +93,11 @@ test('desktop sheet fills the viewport beside navigation while reading content s
   }
 });
 
-test('focused skip link stays above the glass pane', async ({ page }) => {
-  // GIVEN a desktop workspace with a glass pane.
+test('focused skip link stays above the raised sheet', async ({ page }) => {
+  // GIVEN a desktop workspace with a raised content sheet.
   await page.setViewportSize({ width: 1280, height: 900 });
   await useAuthenticatedSession(page);
-  // WHEN the keyboard skip link receives focus THEN the pane cannot cover it.
+  // WHEN the keyboard skip link receives focus THEN the sheet cannot cover it.
   const skip = page.getByRole('link', { name: 'Skip to content' });
   await skip.focus();
   expect(await skip.evaluate(el => {

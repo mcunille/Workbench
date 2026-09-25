@@ -6,7 +6,7 @@ history, not a backlog and not a substitute for current documentation.
 ## Find a decision
 
 [Raised content workspace](2026-09-25-raised-content-workspace.md) records the implemented
-desktop atmospheric content sheet in front of a solid navigation backdrop, retaining
+desktop atmospheric content sheet in front of a solid canvas navigation backdrop, retaining
 Tanzanite and Quartz edge materials. Local preview review and full release gates remain pending.
 
 [Beta API lifecycle and purchasing consolidation](2026-09-16-beta-api-lifecycle.md)

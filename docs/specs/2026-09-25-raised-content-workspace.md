@@ -11,7 +11,8 @@ interaction layer. Owner review of the localhost preview and the full release ga
 remain pending before PR delivery.
 
 People using Workbench should perceive their collection, purchasing, and other active
-work as the foreground. The solid neutral navigation provides a stable, quieter backdrop. The earlier
+work as the foreground. The solid canvas navigation provides a stable, quieter
+backdrop. The earlier
 desktop shell placed a raised glass sidebar over the workspace; this implementation
 reverses that visual hierarchy while retaining Workbench's Tanzanite identity.
 
@@ -20,8 +21,10 @@ brand, navigation structure, or collection design.
 
 ## Selected visual direction
 
-- Recess the desktop navigation into a solid neutral surface. Remove its raised
-  right-hand bevel, rounded right corners, lateral shadow, and concentrated reflections.
+- Recess the desktop navigation into a solid `--canvas` surface. Paint the full
+  authenticated backdrop with the same color so the sheet's rounded left corners do
+  not reveal a different surface. Remove the menu's raised right-hand bevel, rounded
+  right corners, lateral shadow, and concentrated reflections.
 - Raise one continuous content sheet beside it. The sheet begins immediately at the
   navigation boundary and meets the viewport's top, right, and bottom edges with no outer
   inset. On long pages, it extends through the full document; short pages fill the available
@@ -84,7 +87,8 @@ The implementation uses `src/Workbench.Client/src/navigation.css` and
 `src/Workbench.Client/src/styles.css`, with a presentation wrapper around the existing
 authenticated `main` in `App.tsx`. The appearance spectrum is inherited by the desktop
 sheet edge and mobile pill. The sheet body repeats the original canvas atmosphere;
-the desktop menu is solid `--surface`. Edge effects stay near the exposed boundary
+the desktop menu and authenticated page backdrop use solid `--canvas`. Edge effects
+stay near the exposed boundary
 without full-surface backdrop blur.
 
 Apply the shared sheet consistently to existing authenticated routes, including
