@@ -14,7 +14,8 @@ public sealed record JournalHeader(Guid Id, long Sequence, Guid SourceEventId, s
 public sealed record JournalLine(int Ordinal, Guid AccountId, Guid AccountVersion, string AccountCode,
     string AccountName, string AccountType, string AccountPurpose, string Debit, string Credit);
 
-public sealed record JournalDetail(JournalHeader Header, IReadOnlyList<JournalLine> Lines, JournalSourceEvidence Source);
+public sealed record JournalDetail(JournalHeader Header, IReadOnlyList<JournalLine> Lines,
+    JournalSourceEvidence Source, IReadOnlyList<JournalCorrectionEvidence> Corrections);
 
 public sealed record ReportTotals(string Debit, string Credit);
 

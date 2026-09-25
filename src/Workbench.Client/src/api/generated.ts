@@ -4761,6 +4761,62 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/beta/accounting/periods": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query: {
+                    from: string;
+                    through: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AccountingPeriodPage"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -4835,6 +4891,22 @@ export interface components {
         AccountingOption: {
             code: string;
             name: string;
+        };
+        AccountingPeriodItem: {
+            /** Format: date */
+            periodStart: string;
+            /** Format: date */
+            periodEnd: string;
+            /** Format: date */
+            fiscalYearStart: string;
+            state: string;
+            /** Format: uuid */
+            closureId: null | string;
+            /** Format: date-time */
+            closedAtUtc: null | string;
+        };
+        AccountingPeriodPage: {
+            items: components["schemas"]["AccountingPeriodItem"][];
         };
         AccountingPolicies: {
             country: null | string;
@@ -5256,10 +5328,29 @@ export interface components {
             createdAtUtc: string;
             photo: null | components["schemas"]["ItemPhotoResponse"];
         };
+        JournalCorrectionEvidence: {
+            /** Format: uuid */
+            correctionId: string;
+            role: string;
+            /** Format: uuid */
+            originalJournalId: string;
+            /** Format: uuid */
+            reversalJournalId: string;
+            /** Format: uuid */
+            replacementJournalId: null | string;
+            reason: string;
+            /** Format: date */
+            postingDate: string;
+            /** Format: date-time */
+            recordedAtUtc: string;
+            snapshotJson: string;
+            snapshotSha256: string;
+        };
         JournalDetail: {
             header: components["schemas"]["JournalHeader"];
             lines: components["schemas"]["JournalLine"][];
             source: components["schemas"]["JournalSourceEvidence"];
+            corrections: components["schemas"]["JournalCorrectionEvidence"][];
         };
         JournalHeader: {
             /** Format: uuid */
