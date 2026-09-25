@@ -195,13 +195,14 @@ public sealed class AccountingPeriodTests(SqlServerFixture sqlServer)
     }
 
     [Theory]
-    [InlineData("{\"schemaVersion\":1,\"kind\":\"SyntheticReconciliation\",\"periodStart\":\"2026-09-01\",\"unexpected\":true}")]
-    [InlineData("{\"schemaVersion\":1,\"kind\":\"SyntheticReconciliation\",\"kind\":\"Other\",\"periodStart\":\"2026-09-01\"}")]
-    [InlineData("{\"schemaVersion\":1,\"kind\":\"SyntheticReconciliation\",\"periodStart\":\"2026-10-01\"}")]
-    [InlineData("{\"schemaVersion\":1,\"kind\":\"SyntheticReconciliation\",\"periodStart \":\"2026-10-01\"}")]
-    [InlineData("{\"schemaVersion\":1,\"kind\":\"SyntheticReconciliation\",\"periodStart\":\"2026-09-01 \"}")]
-    public async Task CloseRejectsNoncanonicalEvidenceEnvelope(string evidence)
+    [InlineData("unknown-field", "{\"schemaVersion\":1,\"kind\":\"SyntheticReconciliation\",\"periodStart\":\"2026-09-01\",\"unexpected\":true}")]
+    [InlineData("duplicate-kind", "{\"schemaVersion\":1,\"kind\":\"SyntheticReconciliation\",\"kind\":\"Other\",\"periodStart\":\"2026-09-01\"}")]
+    [InlineData("wrong-month", "{\"schemaVersion\":1,\"kind\":\"SyntheticReconciliation\",\"periodStart\":\"2026-10-01\"}")]
+    [InlineData("padded-key", "{\"schemaVersion\":1,\"kind\":\"SyntheticReconciliation\",\"periodStart \":\"2026-10-01\"}")]
+    [InlineData("padded-month", "{\"schemaVersion\":1,\"kind\":\"SyntheticReconciliation\",\"periodStart\":\"2026-09-01 \"}")]
+    public async Task CloseRejectsNoncanonicalEvidenceEnvelope(string caseId, string evidence)
     {
+        _ = caseId;
         // GIVEN configured accounting and evidence with an unknown, duplicated or mismatched field.
         await using var controls = await JournalControlTestContext.OpenAsync(sqlServer);
         var before = await controls.HistorySnapshotAsync();
