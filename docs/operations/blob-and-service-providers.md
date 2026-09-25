@@ -325,6 +325,15 @@ immutable create-only publication, tenant authorization before provider access, 
 fencing for consequential worker transitions. Keep these requirements when changing provider code;
 an operator's shared-volume declaration or lexical path check alone does not establish them.
 
+Identity abuse controls must retain independent, operation-specific budgets for recovery requests,
+invitation creation, and recovery/invitation token consumption. Apply both account/token and
+trusted-network budgets before expensive work, using the existing identity normalization rules.
+Persist sensitive partitions as keyed hashes with one shared key across replicas; key rotation and
+expired-partition cleanup remain explicit operational requirements. Unknown accounts must consume
+equivalent budgets and receive non-enumerating responses. SQL limiter failure must deny the operation
+with a stable service-unavailable response; an in-memory production fallback is not permitted.
+These are retained acceptance requirements, not a claim of new runtime verification.
+
 Verification must cover interruption/resume and rollback for filesystem/Azure migration in both
 directions, SMTP TLS/certificate/authentication failures and successful delivery, protected outbox
 expiry, multi-replica abuse controls, and sentinel secrets through the configured telemetry pipeline.
