@@ -11,6 +11,17 @@
 # every edit and must stay fast.
 set -eu
 
+# Workbench disables the page-privileged Live integration before any engine lookup.
+# Check every argument so leading options cannot move a Live verb past the guard.
+for arg in "$@"; do
+  case "$arg" in
+    [lL][iI][vV][eE]|[lL][iI][vV][eE]-*)
+      echo "impeccable: Live integration is disabled in Workbench (security finding #2)." >&2
+      exit 1 ;;
+  esac
+done
+
+
 # True when the candidate answers the engine handshake (prints
 # "impeccable-engine <version>", exit 0). Quiet and fast (<100ms).
 # IMPECCABLE_LAUNCHER_PROBE marks the child as a probe: a copy of this

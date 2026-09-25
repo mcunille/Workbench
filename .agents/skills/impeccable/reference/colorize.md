@@ -75,12 +75,4 @@ When deriving OKLCH ramps, vary lightness and reduce chroma near white and black
 
 When the palette earns its place, hand off to `$impeccable polish` for the final pass.
 
-## Live-mode signature params
-
-When invoked from live mode, every variant declares a `color-amount` parameter. Author CSS against `var(--p-color-amount, 0.5)` so the user can move from neutral to the variant's full color strategy without regeneration.
-
-```json
-{"id":"color-amount","kind":"range","min":0,"max":1,"step":0.05,"default":0.5,"label":"Color amount"}
-```
-
-Add at most two variant-specific parameters, such as palette, temperature, or tint behavior. Follow [live.md](live.md)'s parameter contract.
+Live-mode variant controls are disabled in Workbench. Use ordinary source edits and browser inspection to evaluate palette changes.

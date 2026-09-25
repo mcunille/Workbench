@@ -83,6 +83,21 @@ The skill's hookless workflow supports manual detection over the changed targets
 post-edit notices and the stop-time design pass are intentionally unavailable. Do not restore
 project hook manifests through `impeccable hooks on` or tooling repair/update commands.
 
+Impeccable Live is disabled in this repository. Its page-injected UI exposes a reusable
+credential for the local helper's source-reading and editing APIs. Both launchers reject
+`live` and `live-*` arguments, regardless of case or position, before engine lookup or
+download. This also disables the helper-backed critique overlay. Use ordinary browser
+inspection, the standalone detector, and agent-led source edits instead. A target literally
+named `live` or beginning with `live-` must be expressed as a path such as `./live`.
+
+Do not bypass this restriction by invoking an external engine directly or restoring Live
+setup during a tooling update. The restriction contains the repository integration; it
+does not repair external engines or terminate existing helper processes. Re-enabling Live
+requires a reviewed upstream boundary that keeps credentials and filesystem authority
+outside the inspected page. Verify the launcher contract with
+`node --test tests/Workbench.BuildTests/ImpeccableLaunchers.test.mjs`; CI runs it on Windows
+and Linux.
+
 Any future automatic hooks must run trusted tooling maintained outside the checkout. If
 that tooling executes repository code, it must verify the code against independently trusted
 provenance before execution; moving only the launcher is insufficient. Hook approval and trust
