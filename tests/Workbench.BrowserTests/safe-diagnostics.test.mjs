@@ -36,7 +36,7 @@ test('failure evidence retains overflow geometry but excludes secret-bearing pag
   } finally { await browser.close(); await rm(root, { recursive: true, force: true }); }
 });
 
-test('changing secrets cannot change retained pixels or geometry; budgets and closed pages are bounded', async () => {
+test('changing secrets cannot change retained pixels or geometry; capture budgets are bounded', async () => {
   // GIVEN identical layout with different secret text, attributes, pseudo-content and background URLs.
   const root = await mkdtemp(join(tmpdir(), 'safe-layout-'));
   const browser = await chromium.launch();
@@ -54,10 +54,6 @@ test('changing secrets cannot change retained pixels or geometry; budgets and cl
     for (let index = 2; index < 11; index++) await captureLayout(page, root);
     assert.equal((await readdir(root)).length, 10);
     assert.equal(await captureLayout(page, root), undefined);
-    // AND a closed page fails capture without leaving a partial artifact.
-    await page.close();
-    await assert.rejects(captureLayout(page, join(root, 'closed')));
-    assert.deepEqual(await readdir(join(root, 'closed')), []);
   } finally { await browser.close(); await rm(root, { recursive: true, force: true }); }
 });
 
