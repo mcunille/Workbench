@@ -60,6 +60,9 @@ Use `handle-pr-feedback` for the author's feedback round: inspect and validate f
 then complete applicable superpowers design/planning handoffs before editing. Its invocation
 authorizes in-scope delivery, while its exact-preview gate governs collaboration writes.
 Use `impeccable` for UI design and implementation within the selected superpowers design process.
+Use [doc-audit](../.agents/skills/doc-audit/SKILL.md) for requested documentation audits and
+cleanup: identify obsolete or duplicated material and preserve durable decisions in maintained
+docs before retiring specs. Audit discovery is read-only; cleanup follows existing authorization.
 
 Internal implementation review does not invoke the PR Review Council or authorize GitHub review
 publication. Use `review-pr` for a user-requested review from the reviewer's seat and preserve its

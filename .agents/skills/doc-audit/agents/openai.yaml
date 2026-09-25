@@ -1,0 +1,4 @@
+interface:
+  display_name: "Documentation Audit"
+  short_description: "Prune stale docs and preserve durable knowledge"
+  default_prompt: "Use $doc-audit to review repository documentation for obsolete or duplicated material and propose where to preserve durable decisions and constraints."
