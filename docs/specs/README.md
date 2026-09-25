@@ -17,6 +17,10 @@ records the implemented general-account setup and two-role authorization model,
 and links the separate reporting, portability, migration, and jurisdiction-reporting design issues.
 Setup completeness does not activate bookkeeping.
 
+[BK-03 corrections and period controls](2026-09-24-bk-03-corrections-and-period-controls.md)
+records the implemented internal atomic reversal/replacement and closed-period enforcement on the
+BK-02 journal. Production close remains gated by BK-09–11; no production correction adapter is enabled.
+
 | Area | Records |
 | --- | --- |
 | Foundation | [Base architecture](2026-08-31-base-application-architecture.md), [data/identity/tenancy](2026-09-01-data-identity-tenancy.md). Current release-unit rationale lives in [Architecture](../ARCHITECTURE.md#application-structure), and generated-contract/error guidance in [API lifecycle](../api-lifecycle.md#generated-contracts-and-api-errors). |

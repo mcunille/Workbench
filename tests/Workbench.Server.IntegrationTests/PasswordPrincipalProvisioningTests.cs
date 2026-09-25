@@ -21,14 +21,69 @@ public sealed class PasswordPrincipalProvisioningTests(SqlServerFixture sqlServe
         await inputs.ProvisionAsync(database);
         await inputs.ProvisionAsync(database);
         // THEN each financial table is readable but cannot be changed directly by the web role.
-        foreach (var table in new[] { "PolicyFreezes", "SourceEvents", "JournalEntries", "JournalLines", "PostingReceipts" })
+        foreach (var table in new[] { "PolicyFreezes", "SourceEvents", "JournalEntries", "JournalLines", "PostingReceipts",
+            "Periods", "PeriodClosures", "PeriodCloseReceipts", "CorrectionGroups", "CorrectionReceipts" })
         {
             Assert.Equal(1, await ScalarAsync(database, $"SELECT COUNT(*) FROM sys.database_permissions WHERE grantee_principal_id=DATABASE_PRINCIPAL_ID('workbench_web') AND major_id=OBJECT_ID('Accounting.{table}') AND permission_name='SELECT' AND state='G'"));
             Assert.Equal(3, await ScalarAsync(database, $"SELECT COUNT(*) FROM sys.database_permissions WHERE grantee_principal_id=DATABASE_PRINCIPAL_ID('workbench_web') AND major_id=OBJECT_ID('Accounting.{table}') AND permission_name IN ('INSERT','UPDATE','DELETE') AND state='D'"));
         }
         // AND provisioning grants no direct kernel authority and installs no synthetic source command.
         Assert.Equal(0, await ScalarAsync(database, "SELECT COUNT(*) FROM sys.database_permissions WHERE grantee_principal_id IN (DATABASE_PRINCIPAL_ID('workbench_web'),DATABASE_PRINCIPAL_ID('workbench_worker'),DATABASE_PRINCIPAL_ID('public')) AND major_id=OBJECT_ID('Accounting.PostJournal') AND permission_name='EXECUTE' AND state IN ('G','W')"));
+        foreach (var kernel in new[] { "EnsureOpenPeriod", "ClosePeriod", "CorrectJournal" })
+            Assert.Equal(0, await ScalarAsync(database, $"SELECT COUNT(*) FROM sys.database_permissions WHERE grantee_principal_id IN (DATABASE_PRINCIPAL_ID('workbench_web'),DATABASE_PRINCIPAL_ID('workbench_worker'),DATABASE_PRINCIPAL_ID('public')) AND major_id=OBJECT_ID('Accounting.{kernel}') AND permission_name='EXECUTE' AND state IN ('G','W')"));
         Assert.Equal(0, await ScalarAsync(database, "SELECT COUNT(*) FROM sys.procedures WHERE schema_id=SCHEMA_ID('Accounting') AND name LIKE '%Synthetic%'"));
+    }
+
+    [Fact]
+    public async Task ReprovisioningRemovesOnlyAccidentalInternalKernelExecuteGrants()
+    {
+        // GIVEN provisioned roles with accidental direct EXECUTE grants on internal journal/period kernels.
+        await using var database = await sqlServer.CreateMigratedDatabaseAsync();
+        using var inputs = new Inputs();
+        await inputs.ProvisionAsync(database);
+        var kernels = new[] { "PostJournal", "EnsureOpenPeriod", "ClosePeriod", "CorrectJournal" };
+        var principals = new[] { "workbench_web", "workbench_worker", "public" };
+        foreach (var kernel in kernels)
+            foreach (var principal in principals)
+                await ExecuteAsync(database, $"GRANT EXECUTE ON OBJECT::[Accounting].[{kernel}] TO [{principal}]");
+        // WHEN principal provisioning runs again.
+        await inputs.ProvisionAsync(database);
+        // THEN each named grant is removed, and restricted runtime SQL cannot call a kernel.
+        foreach (var kernel in kernels)
+        {
+            Assert.Equal(0, await ScalarAsync(database, $"SELECT COUNT(*) FROM sys.database_permissions WHERE grantee_principal_id IN (DATABASE_PRINCIPAL_ID('workbench_web'),DATABASE_PRINCIPAL_ID('workbench_worker'),DATABASE_PRINCIPAL_ID('public')) AND major_id=OBJECT_ID('Accounting.{kernel}') AND permission_name='EXECUTE' AND state IN ('G','W')"));
+            foreach (var role in new[] { "workbench_web", "workbench_worker" })
+            {
+                await using var restricted = new SqlConnection(await database.CreateRoleUserAsync(role));
+                await restricted.OpenAsync();
+                await using var execute = new SqlCommand($"EXEC Accounting.[{kernel}]", restricted);
+                Assert.Equal(229, (await Assert.ThrowsAsync<SqlException>(() => execute.ExecuteNonQueryAsync())).Number);
+            }
+        }
+    }
+
+    [Fact]
+    public async Task ReprovisioningPreservesKernelDenialOverInheritedSchemaGrant()
+    {
+        // GIVEN an inherited public Accounting schema grant overridden by object-level kernel DENYs.
+        await using var database = await sqlServer.CreateMigratedDatabaseAsync();
+        using var inputs = new Inputs();
+        await inputs.ProvisionAsync(database);
+        var kernels = new[] { "PostJournal", "EnsureOpenPeriod", "ClosePeriod", "CorrectJournal" };
+        await ExecuteAsync(database, "GRANT EXECUTE ON SCHEMA::[Accounting] TO [public]");
+        foreach (var kernel in kernels)
+            await ExecuteAsync(database, $"DENY EXECUTE ON OBJECT::[Accounting].[{kernel}] TO [public]");
+        // WHEN provisioning is repeated with those protective direct DENYs in place.
+        await inputs.ProvisionAsync(database);
+        // THEN the DENYs remain and a real restricted principal still cannot execute a kernel.
+        await using var restricted = new SqlConnection(await database.CreateRoleUserAsync("workbench_web"));
+        await restricted.OpenAsync();
+        foreach (var kernel in kernels)
+        {
+            Assert.Equal(1, await ScalarAsync(database, $"SELECT COUNT(*) FROM sys.database_permissions WHERE grantee_principal_id=DATABASE_PRINCIPAL_ID('public') AND major_id=OBJECT_ID('Accounting.{kernel}') AND permission_name='EXECUTE' AND state='D'"));
+            await using var execute = new SqlCommand($"EXEC Accounting.[{kernel}]", restricted);
+            Assert.Equal(229, (await Assert.ThrowsAsync<SqlException>(() => execute.ExecuteNonQueryAsync())).Number);
+        }
     }
 
     [Fact]
@@ -46,7 +101,6 @@ public sealed class PasswordPrincipalProvisioningTests(SqlServerFixture sqlServe
     }
 
     [Theory]
-    [InlineData("GRANT EXECUTE ON OBJECT::[Accounting].[PostJournal] TO [workbench_web]")]
     [InlineData("GRANT INSERT ON OBJECT::[Accounting].[JournalLines] TO [workbench_web]")]
     [InlineData("GRANT UPDATE ON OBJECT::[Inventory].[Items] TO [workbench_web]")]
     [InlineData("GRANT DELETE ON OBJECT::[Inventory].[Items] TO [workbench_web]")]

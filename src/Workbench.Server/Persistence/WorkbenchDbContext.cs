@@ -111,6 +111,8 @@ public partial class WorkbenchDbContext : IdentityDbContext<
         ConfigureDraftOrders(modelBuilder);
         ConfigureAccounting(modelBuilder);
         ConfigureJournal(modelBuilder);
+        ConfigureAccountingPeriods(modelBuilder);
+        ConfigureJournalCorrections(modelBuilder);
     }
 
     private void ConfigureInventory(ModelBuilder modelBuilder)
