@@ -202,7 +202,13 @@ repeating a SQL-definition marker check. They need no literal or total-count upd
 Fixed upgrade tests, such as supplier migration consolidation, migrate to their named historical
 boundary so their independent one-migration assertion survives later releases.
 
-Backup compatibility remains a separate explicit allowlist in `StorageMaintenanceCommand`.
-Retain the outgoing current marker there when advancing the release, with independent literal
-cases in `BlobManifestValidationTests`; being an EF migration alone does not grant compatibility.
-Unknown markers remain rejected, and guarded restore and downgrade requirements are unchanged.
+Backup manifest compatibility automatically includes known releases in `CurrentSchema.Migrations`
+from `20260907194500_AddItemDetailEditing`, the first supported boundary, onward.
+`StorageMaintenanceCommand` also retains six fixed exceptions for retired development markers
+whose backups remain supported. Ordinary migrations need no additional backup allowlist or
+literal test entry: `BlobManifestValidationTests` enumerates the known supported releases and
+independently checks the fixed boundary, retired markers, unsupported versions, and exact-pair
+bindings. A marker must be known, not merely fall within the supported timestamp range.
+Revisit this compatibility policy when changing the manifest format or storage recovery behavior.
+Schema acceptance does not prove backup integrity; manifest bindings, retained entries, and blob
+bytes must still pass recovery verification. Guarded restore and downgrade requirements are unchanged.
