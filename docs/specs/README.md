@@ -21,6 +21,10 @@ Setup completeness does not activate bookkeeping.
 records the implemented internal atomic reversal/replacement and closed-period enforcement on the
 BK-02 journal. Production close remains gated by BK-09–11; no production correction adapter is enabled.
 
+[BK-04 classified purchase recognition](2026-09-25-bk-04-classified-purchase-recognition.md)
+proposes internal recognition and invoice matching, classified cost/tax treatment and minimal
+receipt-recognition records. Detailed policies await review; no production posting is enabled.
+
 | Area | Records |
 | --- | --- |
 | Foundation | [Base architecture](2026-08-31-base-application-architecture.md), [data/identity/tenancy](2026-09-01-data-identity-tenancy.md). Current release-unit rationale lives in [Architecture](../ARCHITECTURE.md#application-structure), and generated-contract/error guidance in [API lifecycle](../api-lifecycle.md#generated-contracts-and-api-errors). |
