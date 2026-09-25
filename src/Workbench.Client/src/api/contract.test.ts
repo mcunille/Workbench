@@ -11,13 +11,13 @@ it('preserves request identity and antiforgery without negotiating a beta revisi
   // WHEN generated and direct calls use the shared transport.
   await apiFetch(input);
   await apiFetch(new URL('http://localhost/api/beta/items'));
-  // THEN no revision is added and the original body and token are unchanged.
-  for (const [request, init] of send.mock.calls) {
-    const headers = new Headers(init?.headers ?? (request instanceof Request ? request.headers : undefined));
-    expect(headers.has('X-Workbench-Api-Revision')).toBe(false);
+  // THEN the effective outgoing requests have no revision, and the write retains its exact body and token.
+  const requests = send.mock.calls.map(([request, init]) => new Request(request, init));
+  for (const request of requests) {
+    expect(request.headers.has('X-Workbench-Api-Revision')).toBe(false);
   }
-  expect(input.headers.get('X-CSRF-TOKEN')).toBe('csrf');
-  expect(await input.text()).toBe(body);
+  expect(requests[0].headers.get('X-CSRF-TOKEN')).toBe('csrf');
+  expect(await requests[0].text()).toBe(body);
 });
 
 it('returns endpoint conflicts without freezing subsequent writes', async () => {
