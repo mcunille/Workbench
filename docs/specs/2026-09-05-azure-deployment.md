@@ -225,7 +225,11 @@ After acceptance, maintain an untracked implementation plan with these ordered d
 
 Each issue checkbox must link to actual evidence. Unavailable cloud checks remain explicitly pending;
 local tests, Azurite, Bicep compilation, and a proposed runbook cannot substitute for hosted results.
-The issue and spec must not be marked complete/implemented while those criteria remain unmet.
+Implementation delivery and hosted acceptance are separate: the scoped Implemented status above
+records delivered infrastructure, not completion of every original acceptance target. Unmet criteria
+remain explicitly deferred or unverified in the [acceptance matrix](../operations/production-readiness.md).
+Preserve the measurement targets and reconsideration thresholds above; operator deferral does not
+turn them into successful measurements or establish full production acceptance.
 
 ## Sources checked for this proposal
 
