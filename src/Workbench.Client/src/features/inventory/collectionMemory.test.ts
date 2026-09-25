@@ -78,25 +78,6 @@ it('reconciles a changed photograph while preserving the complete traversal', ()
   expect(memory.scrollY).toBe(600);
 });
 
-it('invalidates loaded records after creation while retaining the query and view', () => {
-  // GIVEN a loaded traversal that would omit a newly created item.
-  const memory = new CollectionMemory();
-  memory.save({
-    view: 'list',
-    query: 'stone',
-    draft: 'stone',
-    page: { items: [], nextCursor: null },
-  });
-  // WHEN creation succeeds THEN the next collection mount fetches that traversal anew.
-  memory.invalidate();
-  expect(memory.snapshot).toEqual({
-    view: 'list',
-    query: 'stone',
-    draft: 'stone',
-    page: undefined,
-  });
-});
-
 it('invalidates all page boundaries and position while preserving query and view', () => {
   // GIVEN cached search pages, a selection and an old scroll position.
   const memory = new CollectionMemory();

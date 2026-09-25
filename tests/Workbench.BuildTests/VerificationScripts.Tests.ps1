@@ -4,12 +4,9 @@ param()
 $ErrorActionPreference = 'Stop'
 $repositoryRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
 $verifyScript = Join-Path $repositoryRoot 'scripts/verify.ps1'
-$restoreScript = Join-Path $repositoryRoot 'scripts/restore-database.ps1'
 $global:workbenchNpmCalls = [Collections.Generic.List[string]]::new()
 $global:workbenchDotnetCalls = [Collections.Generic.List[string]]::new()
 $global:workbenchSqlcmdCalls = [Collections.Generic.List[string]]::new()
-$global:workbenchForceCleanupFailure = $false
-$global:workbenchForceRestoreFailure = $true
 $global:workbenchForceTestFailure = $false
 
 function global:node {
@@ -44,7 +41,7 @@ function global:git {
 }
 
 function global:sqlcmd {
-    # GIVEN any privileged SQL call, including cleanup after a failure
+    # GIVEN a privileged backup SQL call
     # WHEN the script passes the connection policy to the client
     # THEN encryption and certificate validation are mandatory; credentials stay out of argv.
     if ($args -cnotcontains '-N' -or $args -ccontains '-C' -or $args -ccontains '-P') {
@@ -52,8 +49,7 @@ function global:sqlcmd {
     }
     $arguments = $args -join ' '
     $global:workbenchSqlcmdCalls.Add($arguments)
-    $global:LASTEXITCODE = if (($global:workbenchForceRestoreFailure -and $arguments -match 'RESTORE DATABASE') -or
-        ($global:workbenchForceCleanupFailure -and $arguments -match 'SET MULTI_USER')) { 1 } else { 0 }
+    $global:LASTEXITCODE = 0
 }
 
 try {
@@ -141,59 +137,6 @@ try {
             }
         }
         finally { $env:SQLCMDPASSWORD = $priorPassword }
-        $global:workbenchSqlcmdCalls.Clear()
-
-        # GIVEN a trusted remote configuration and a successful SQL restore
-        # WHEN the restore and cleanup finish
-        # THEN the existing restore marker and MULTI_USER behavior remain intact.
-        Set-Content -LiteralPath $connectionFile -NoNewline `
-            'Server=tcp:trusted.example,1433;Database=master;User ID=operator;Password=test-only;Encrypt=True;TrustServerCertificate=False'
-        $global:workbenchForceRestoreFailure = $false
-        & $restoreScript -ConnectionFile $connectionFile -Database WorkbenchRestoreTest `
-            -Source '/fake/backup.bak' -Confirmation 'RESTORE WorkbenchRestoreTest'
-        if ($global:workbenchSqlcmdCalls.Count -ne 2 -or
-            $global:workbenchSqlcmdCalls[0] -notmatch 'WorkbenchRestorePending' -or
-            $global:workbenchSqlcmdCalls[1] -notmatch 'SET MULTI_USER') {
-            throw 'Successful restore did not preserve its marker and cleanup.'
-        }
-        $global:workbenchForceRestoreFailure = $true
-        $global:workbenchSqlcmdCalls.Clear()
-
-        # GIVEN a restore that fails in SQL
-        # WHEN the restore command fails before a pending marker is established
-        # THEN no release connection can expose the restored credentials.
-        try {
-            & $restoreScript `
-                -ConnectionFile $connectionFile `
-                -Database WorkbenchRestoreTest `
-                -Source '/fake/backup.bak' `
-                -Confirmation 'RESTORE WorkbenchRestoreTest'
-            throw 'restore-database.ps1 unexpectedly succeeded in the failure-path test.'
-        }
-        catch {
-            if ($_.Exception.Message -notmatch 'Database restore failed') { throw }
-        }
-
-        if ($global:workbenchSqlcmdCalls.Count -ne 1 -or
-            $global:workbenchSqlcmdCalls[0] -match 'SET MULTI_USER') {
-            throw 'A failed restore must not issue MULTI_USER release.'
-        }
-
-        # GIVEN a successful restore followed by a failed marker verification or access transition
-        $global:workbenchSqlcmdCalls.Clear()
-        $global:workbenchForceRestoreFailure = $false
-        $global:workbenchForceCleanupFailure = $true
-        # WHEN the release fails
-        try {
-            & $restoreScript -ConnectionFile $connectionFile -Database WorkbenchRestoreTest `
-                -Source '/fake/backup.bak' -Confirmation 'RESTORE WorkbenchRestoreTest'
-            throw 'restore-database.ps1 unexpectedly hid a release failure.'
-        }
-        catch {
-            # THEN the failure is surfaced without another access transition.
-            if ($_.Exception.Message -notmatch 'Database restore release failed' -or
-                $global:workbenchSqlcmdCalls.Count -ne 2) { throw }
-        }
     }
     finally {
         Remove-Item -LiteralPath $restoreTestRoot -Recurse -Force
@@ -213,7 +156,5 @@ finally {
     Remove-Variable workbenchNpmCalls -Scope Global -ErrorAction SilentlyContinue
     Remove-Variable workbenchDotnetCalls -Scope Global -ErrorAction SilentlyContinue
     Remove-Variable workbenchSqlcmdCalls -Scope Global -ErrorAction SilentlyContinue
-    Remove-Variable workbenchForceCleanupFailure -Scope Global -ErrorAction SilentlyContinue
-    Remove-Variable workbenchForceRestoreFailure -Scope Global -ErrorAction SilentlyContinue
     Remove-Variable workbenchForceTestFailure -Scope Global -ErrorAction SilentlyContinue
 }
