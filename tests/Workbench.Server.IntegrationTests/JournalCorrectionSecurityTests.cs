@@ -167,17 +167,20 @@ public sealed class JournalCorrectionSecurityTests(SqlServerFixture sqlServer)
         }
         await AssertReplacement();
 
-        // WHEN the disposable kernel skips its replacement posting block.
+        // WHEN the disposable kernel skips replacement posting and falsely reports reversal only.
         var definition = await ReadKernelAsync(journal);
         var branchStart = definition.LastIndexOf("IF @ReplacementSourceRevision IS NOT NULL", StringComparison.Ordinal);
         Assert.True(branchStart >= 0);
         var mutated = definition.Remove(branchStart, "IF @ReplacementSourceRevision IS NOT NULL".Length)
             .Insert(branchStart, "IF 1=0");
+        var groupInsert = mutated.IndexOf("INSERT Accounting.CorrectionGroups(", StringComparison.Ordinal);
+        Assert.True(groupInsert > branchStart);
+        mutated = mutated.Insert(groupInsert, "SET @ReplacementSourceRevision=NULL;" + Environment.NewLine + "          ");
         Assert.NotEqual(definition, mutated);
         await AlterKernelAsync(journal, mutated);
         var assertion = await Record.ExceptionAsync(AssertReplacement);
         // THEN the complete-correction assertion fails, and the original kernel passes again.
-        Assert.NotNull(assertion);
+        Assert.IsAssignableFrom<Xunit.Sdk.XunitException>(assertion);
         await AlterKernelAsync(journal, definition);
         await AssertReplacement();
     }
