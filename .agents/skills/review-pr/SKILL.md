@@ -21,7 +21,7 @@ Never edit tracked files or retained application state, commit, push, file issue
 
 Disposable scratch artifacts for permitted verification are allowed; they must not change the reviewed source or retained environments.
 
-After approval, publish exactly one GitHub review with event `COMMENT`, plus only the thread replies the user approved. A grouped summary is the default; honor an explicit request for selected inline comments only, without a summary or verdict body. The verdict is an assessment, never a GitHub approval-state event. Approval of already-previewed text, including a selected subset or omission of the summary, authorizes that payload without another confirmation when the reviewed head is unchanged. New or materially revised text still needs approval.
+Default to proposing inline findings and necessary thread replies only, without a summary or verdict body. Keep the verdict and complete assessment in chat. Propose a grouped summary only when the user explicitly requests one. After approval, publish approved inline findings in one GitHub review with event `COMMENT`, plus only the thread replies the user approved. If there are no approved inline findings or explicitly requested and approved review body, do not create an empty review. The verdict is an assessment, never a GitHub approval-state event. Approval of already-previewed text, including a selected subset or omission of the summary, authorizes that payload without another confirmation when the reviewed head is unchanged. New or materially revised text still needs approval.
 
 ## Select scope
 
@@ -45,7 +45,7 @@ All batches review the same immutable scope and must return all five specialist 
    For design proposals or an explicit architectural review, also read [design-review.md](references/design-review.md). Evaluate whether the mechanisms are justified by the requirements, not only whether the proposal is internally consistent. A documentation-only architecture proposal still merits design scrutiny; prose corrections do not require an architecture audit.
 2. On a follow-up, independently validate every author reply, including replies in review threads and top-level replies to unanchorable findings. Read the claimed commit or code, inspect a cited issue when relevant, and run affected repository-native verification when feasible. A user request not to rerun tests is a coverage limit to report, not permission to treat author or CI claims as proof.
 3. Record every prior thread as **satisfied**, **still open**, **conceded**, or **deferred**. Distinguish an outdated thread from a resolved one. A resolved thread without an explanatory reply is still an author claim that requires validation.
-4. Anchor new findings to a changed file and line where possible. Preserve the observed diff side for each anchor: `RIGHT` for additions and context, `LEFT` for deletions. Put concerns that genuinely cannot be line-anchored under **Unanchorable findings** in the grouped review body.
+4. Anchor new findings to a changed file and line where possible. Preserve the observed diff side for each anchor: `RIGHT` for additions and context, `LEFT` for deletions. Put concerns that genuinely cannot be line-anchored under **Unanchorable findings** in chat. They remain part of the verdict; do not invent anchors or propose a summary to publish them. Include them in a grouped body only when the user explicitly requests that body.
 5. Wait for all five specialist reports, validate their evidence, and reconcile findings using `references/review-council.md`. Preserve coverage limits, provenance, prior-thread dispositions, and material architectural debt and tradeoffs, including nonblocking observations and justified exceptions. Assign every accepted finding Critical, High, Medium, or Low severity and a separate required-fix or nonblocking disposition.
 6. Read `references/github-operations.md` when GitHub mechanics are needed. Treat `null` GraphQL line values and REST anchor data carefully rather than inventing an anchor.
 
@@ -60,16 +60,16 @@ Choose the verdict deterministically:
 - `AI: **VERDICT: REQUEST CHANGES**` when any required finding remains open or a new required finding exists.
 - `AI: **VERDICT: REJECT**` only for a substantiated approach-level objection that should stop the change from landing as designed; include that objection as a finding, even when unanchorable.
 
-Before any GitHub write, present the exact proposed text and anchors in chat and obtain explicit approval for this round. Reuse an already-approved preview as described above. Keep the review assessment in chat even when the user selects inline-only publication:
+Before any GitHub write, present the exact proposed text and anchors in chat and obtain explicit approval for this round. Reuse an already-approved preview as described above. Keep the complete review assessment in chat; publication defaults to inline-only:
 
 1. Council status, parallel or batched execution mode, and each specialist's completion/coverage, model, and reasoning effort (distinguishing requested settings from runtime confirmation), followed by the exact verdict line when available (otherwise an explicit withheld-verdict explanation; do not publish a grouped verdict body until a verdict is available)
 2. Reviewed SHA and full-diff or anchored-delta scope, including escalation reason
 3. Verification and coverage limits: distinguish static inspection, mocked checks, and actual runtime execution; name material untested boundaries and the scenarios they leave unverified
 4. Prior-thread dispositions: satisfied / still open / conceded / deferred
-5. New line-anchored findings or labeled Unanchorable findings, with required fixes distinguished from nonblocking recommendations. When material architectural debt or tradeoffs were identified, include an **Architectural debt and tradeoffs** section in both the chat assessment and proposed grouped review body, following `references/design-review.md`. Preserve this assessment in chat when the user selects inline-only publication. An APPROVE verdict does not permit omitting it.
-6. Exact comments, replies, and grouped review body proposed for publication, or explicitly no body for inline-only publication
+5. New line-anchored findings or labeled Unanchorable findings, with required fixes distinguished from nonblocking recommendations. When material architectural debt or tradeoffs were identified, include an **Architectural debt and tradeoffs** section in the chat assessment and, only when explicitly requested, the proposed grouped review body, following `references/design-review.md`. An APPROVE verdict does not permit omitting it.
+6. Exact inline comments and necessary thread replies proposed for publication, with no review body by default. Propose a grouped review body only on explicit user request. If there is nothing to publish, report the assessment in chat without soliciting approval for an empty review.
 
-Immediately before posting, read the PR head SHA again. If it differs from the reviewed SHA, do not publish anything: inspect the new state, produce a new exact preview, and obtain new approval. If it matches, serialize the approved payload programmatically, post the approved thread replies, then submit one review at the reviewed SHA with `event: COMMENT`. When a grouped body is approved, its first line is exactly the approved verdict line. For inline-only publication, include no visible body; see the connector handling in `references/github-operations.md`. Read back the published review and comments to verify the approved text, anchors, and absence of an unrequested summary.
+Immediately before posting, read the PR head SHA again. If it differs from the reviewed SHA, do not publish anything: inspect the new state, produce a new exact preview, and obtain new approval. If it matches, serialize the approved payload programmatically, post the approved thread replies, then submit one review at the reviewed SHA with `event: COMMENT` only if there are approved inline findings or an explicitly requested and approved body. When a grouped body is approved, its first line is exactly the approved verdict line. For inline-only publication, include no visible body; see the connector handling in `references/github-operations.md`. Read back the published review and comments to verify the approved text, anchors, and absence of an unrequested summary.
 
 ## Red flags
 
@@ -83,7 +83,7 @@ Stop and correct course if any of these occur:
 - Editing, committing, filing an issue, resolving a thread, or publishing unapproved material from the reviewer seat.
 - Publishing after the head changed, even if the new changes appear trivial.
 - Treating the first 100 review threads or a non-paginated top-level comment read as the complete review conversation.
-- Omitting the verdict from an approved grouped body, adding a summary to an inline-only review, or leaving required findings without a disposition or clear unanchorable label.
+- Proposing a summary without an explicit request, creating an empty review, omitting the verdict from an approved grouped body, or leaving required findings without a disposition or clear unanchorable label.
 - Reporting no findings or no nonblocking comments after dropping material architectural observations merely because they are conventional, generated, pre-existing, or justified by an exception.
 
 ## Related
