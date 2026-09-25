@@ -45,9 +45,42 @@ public static class PasswordPrincipalProvisioning
             IF @result < 0 THROW 50030, 'Principal provisioning lock unavailable.', 1;
             -- Repair only accidental direct EXECUTE grants on the internal journal/period kernels.
             -- Keep this before the general role guard so unrelated unsafe grants still fail closed.
-            REVOKE EXECUTE ON OBJECT::[Accounting].[PostJournal] FROM [workbench_web], [workbench_worker], [public];
-            REVOKE EXECUTE ON OBJECT::[Accounting].[EnsureOpenPeriod] FROM [workbench_web], [workbench_worker], [public];
-            REVOKE EXECUTE ON OBJECT::[Accounting].[ClosePeriod] FROM [workbench_web], [workbench_worker], [public];
+            IF EXISTS(SELECT 1 FROM sys.database_permissions WHERE class=1 AND minor_id=0
+                AND major_id=OBJECT_ID(N'[Accounting].[PostJournal]') AND permission_name=N'EXECUTE'
+                AND grantee_principal_id=DATABASE_PRINCIPAL_ID(N'workbench_web') AND state IN ('G','W'))
+                REVOKE EXECUTE ON OBJECT::[Accounting].[PostJournal] FROM [workbench_web];
+            IF EXISTS(SELECT 1 FROM sys.database_permissions WHERE class=1 AND minor_id=0
+                AND major_id=OBJECT_ID(N'[Accounting].[PostJournal]') AND permission_name=N'EXECUTE'
+                AND grantee_principal_id=DATABASE_PRINCIPAL_ID(N'workbench_worker') AND state IN ('G','W'))
+                REVOKE EXECUTE ON OBJECT::[Accounting].[PostJournal] FROM [workbench_worker];
+            IF EXISTS(SELECT 1 FROM sys.database_permissions WHERE class=1 AND minor_id=0
+                AND major_id=OBJECT_ID(N'[Accounting].[PostJournal]') AND permission_name=N'EXECUTE'
+                AND grantee_principal_id=DATABASE_PRINCIPAL_ID(N'public') AND state IN ('G','W'))
+                REVOKE EXECUTE ON OBJECT::[Accounting].[PostJournal] FROM [public];
+            IF EXISTS(SELECT 1 FROM sys.database_permissions WHERE class=1 AND minor_id=0
+                AND major_id=OBJECT_ID(N'[Accounting].[EnsureOpenPeriod]') AND permission_name=N'EXECUTE'
+                AND grantee_principal_id=DATABASE_PRINCIPAL_ID(N'workbench_web') AND state IN ('G','W'))
+                REVOKE EXECUTE ON OBJECT::[Accounting].[EnsureOpenPeriod] FROM [workbench_web];
+            IF EXISTS(SELECT 1 FROM sys.database_permissions WHERE class=1 AND minor_id=0
+                AND major_id=OBJECT_ID(N'[Accounting].[EnsureOpenPeriod]') AND permission_name=N'EXECUTE'
+                AND grantee_principal_id=DATABASE_PRINCIPAL_ID(N'workbench_worker') AND state IN ('G','W'))
+                REVOKE EXECUTE ON OBJECT::[Accounting].[EnsureOpenPeriod] FROM [workbench_worker];
+            IF EXISTS(SELECT 1 FROM sys.database_permissions WHERE class=1 AND minor_id=0
+                AND major_id=OBJECT_ID(N'[Accounting].[EnsureOpenPeriod]') AND permission_name=N'EXECUTE'
+                AND grantee_principal_id=DATABASE_PRINCIPAL_ID(N'public') AND state IN ('G','W'))
+                REVOKE EXECUTE ON OBJECT::[Accounting].[EnsureOpenPeriod] FROM [public];
+            IF EXISTS(SELECT 1 FROM sys.database_permissions WHERE class=1 AND minor_id=0
+                AND major_id=OBJECT_ID(N'[Accounting].[ClosePeriod]') AND permission_name=N'EXECUTE'
+                AND grantee_principal_id=DATABASE_PRINCIPAL_ID(N'workbench_web') AND state IN ('G','W'))
+                REVOKE EXECUTE ON OBJECT::[Accounting].[ClosePeriod] FROM [workbench_web];
+            IF EXISTS(SELECT 1 FROM sys.database_permissions WHERE class=1 AND minor_id=0
+                AND major_id=OBJECT_ID(N'[Accounting].[ClosePeriod]') AND permission_name=N'EXECUTE'
+                AND grantee_principal_id=DATABASE_PRINCIPAL_ID(N'workbench_worker') AND state IN ('G','W'))
+                REVOKE EXECUTE ON OBJECT::[Accounting].[ClosePeriod] FROM [workbench_worker];
+            IF EXISTS(SELECT 1 FROM sys.database_permissions WHERE class=1 AND minor_id=0
+                AND major_id=OBJECT_ID(N'[Accounting].[ClosePeriod]') AND permission_name=N'EXECUTE'
+                AND grantee_principal_id=DATABASE_PRINCIPAL_ID(N'public') AND state IN ('G','W'))
+                REVOKE EXECUTE ON OBJECT::[Accounting].[ClosePeriod] FROM [public];
             -- Web/operator grants must match their migration-defined object access. DENY rows add no authority.
             -- Keep this allowlist and the successful provisioning test current when adding migration grants.
             -- Migrator intentionally retains database CONTROL and is not a restricted workload role.

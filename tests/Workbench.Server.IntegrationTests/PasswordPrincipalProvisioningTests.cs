@@ -63,6 +63,30 @@ public sealed class PasswordPrincipalProvisioningTests(SqlServerFixture sqlServe
     }
 
     [Fact]
+    public async Task ReprovisioningPreservesKernelDenialOverInheritedSchemaGrant()
+    {
+        // GIVEN an inherited public Accounting schema grant overridden by object-level kernel DENYs.
+        await using var database = await sqlServer.CreateMigratedDatabaseAsync();
+        using var inputs = new Inputs();
+        await inputs.ProvisionAsync(database);
+        var kernels = new[] { "PostJournal", "EnsureOpenPeriod", "ClosePeriod" };
+        await ExecuteAsync(database, "GRANT EXECUTE ON SCHEMA::[Accounting] TO [public]");
+        foreach (var kernel in kernels)
+            await ExecuteAsync(database, $"DENY EXECUTE ON OBJECT::[Accounting].[{kernel}] TO [public]");
+        // WHEN provisioning is repeated with those protective direct DENYs in place.
+        await inputs.ProvisionAsync(database);
+        // THEN the DENYs remain and a real restricted principal still cannot execute a kernel.
+        await using var restricted = new SqlConnection(await database.CreateRoleUserAsync("workbench_web"));
+        await restricted.OpenAsync();
+        foreach (var kernel in kernels)
+        {
+            Assert.Equal(1, await ScalarAsync(database, $"SELECT COUNT(*) FROM sys.database_permissions WHERE grantee_principal_id=DATABASE_PRINCIPAL_ID('public') AND major_id=OBJECT_ID('Accounting.{kernel}') AND permission_name='EXECUTE' AND state='D'"));
+            await using var execute = new SqlCommand($"EXEC Accounting.[{kernel}]", restricted);
+            Assert.Equal(229, (await Assert.ThrowsAsync<SqlException>(() => execute.ExecuteNonQueryAsync())).Number);
+        }
+    }
+
+    [Fact]
     public async Task BetaReceiptPermissionAllowsProvisioningWithoutRestoringRetiredWriters()
     {
         // GIVEN the current schema with its restricted receipt lookup grant.
