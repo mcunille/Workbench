@@ -25,8 +25,8 @@ public sealed class CredentialVerificationTests(SqlServerFixture sqlServer) : IA
 
     public async Task InitializeAsync()
     {
-        _database = await sqlServer.CreateDatabaseAsync();
-        await DatabaseMigrator.MigrateAsync(_database.AdminConnectionString, CancellationToken.None);
+        // GIVEN an isolated current schema before creating credentials and seeding local identities.
+        _database = await sqlServer.CreateMigratedDatabaseAsync();
         _webConnectionString = await _database.CreateWebUserAsync();
         _contextProof = new TenantContextProof(await _database.GetTenantContextProofKeyAsync());
         await SeedUsersAsync();

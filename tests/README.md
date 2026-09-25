@@ -73,3 +73,7 @@ than implying a whole-suite mutation score.
 
 See [Contributing](../CONTRIBUTING.md) for required verification commands and the
 [efficiency design](../docs/specs/2026-09-16-test-suite-efficiency.md) for this change's boundaries.
+
+The [SQL setup measurement record](../docs/specs/2026-09-24-test-sql-setup-results.md) maps the validation
+and antiforgery owners moved out of SQL lifecycles, lists the seven additional current-schema clone
+substitutions, and records their focused before/after measurements and regression probes.

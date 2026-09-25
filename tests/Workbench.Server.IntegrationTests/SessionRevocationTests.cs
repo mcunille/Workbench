@@ -22,8 +22,8 @@ public sealed class SessionRevocationTests(SqlServerFixture sqlServer) : IAsyncL
 
     public async Task InitializeAsync()
     {
-        _database = await sqlServer.CreateDatabaseAsync();
-        await DatabaseMigrator.MigrateAsync(_database.AdminConnectionString, CancellationToken.None);
+        // GIVEN an isolated current schema shared only by this test's two application replicas.
+        _database = await sqlServer.CreateMigratedDatabaseAsync();
         var webConnection = await _database.CreateWebUserAsync();
         var tenantContextProof = new TenantContextProof(await _database.GetTenantContextProofKeyAsync());
         await SeedUserAsync();

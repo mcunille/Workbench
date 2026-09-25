@@ -27,14 +27,6 @@ public sealed class AntiforgeryTests(SqlServerFixture sqlServer) : IAsyncLifetim
     }
 
     [Fact]
-    public async Task LoginRequiresAntiforgery()
-    {
-        var response = await _client.PostAsJsonAsync("/api/beta/auth/login", ValidLogin());
-
-        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
-    }
-
-    [Fact]
     public async Task LoginNeverAcceptsTenantIdentifier()
     {
         var response = await PostWithAntiforgeryAsync(
@@ -47,17 +39,6 @@ public sealed class AntiforgeryTests(SqlServerFixture sqlServer) : IAsyncLifetim
             });
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
-    }
-
-    [Fact]
-    public async Task AntiforgeryCookieIsHttpOnlyAndStrictSameSite()
-    {
-        var response = await _client.GetAsync("/api/beta/auth/antiforgery");
-
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        Assert.Contains(response.Headers.GetValues("Set-Cookie"), value =>
-            value.Contains("HttpOnly", StringComparison.OrdinalIgnoreCase) &&
-            value.Contains("SameSite=Strict", StringComparison.OrdinalIgnoreCase));
     }
 
     [Fact]

@@ -21,8 +21,8 @@ public sealed class TenantIsolationTests(SqlServerFixture sqlServer) : IAsyncLif
 
     public async Task InitializeAsync()
     {
-        _database = await sqlServer.CreateDatabaseAsync();
-        await DatabaseMigrator.MigrateAsync(_database.AdminConnectionString, CancellationToken.None);
+        // GIVEN an isolated current schema with its own proof key and restricted web credential.
+        _database = await sqlServer.CreateMigratedDatabaseAsync();
         _webConnectionString = await _database.CreateWebUserAsync();
         _tenantContextProof = new TenantContextProof(await _database.GetTenantContextProofKeyAsync());
         await _database.SeedTenantAuditRowsAsync(_tenantA, _tenantB);

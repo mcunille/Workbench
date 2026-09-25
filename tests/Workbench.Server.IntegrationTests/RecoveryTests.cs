@@ -135,14 +135,6 @@ public sealed class RecoveryTests(SqlServerFixture sqlServer) : IAsyncLifetime
         Assert.Equal(HttpStatusCode.OK, (await newCredentialsClient.GetAsync("/api/beta/auth/me")).StatusCode);
     }
 
-    [Fact]
-    public void SessionTokensRequireTheExactEncodedEntropyLength()
-    {
-        var oversizedToken = Microsoft.AspNetCore.WebUtilities.WebEncoders.Base64UrlEncode(new byte[33]);
-
-        Assert.False(SessionToken.TryHash(oversizedToken, out _));
-    }
-
     [Theory]
     [InlineData("/api/beta/auth/recovery/consume", true)]
     [InlineData("/api/beta/auth/recovery/consume", false)]
