@@ -77,3 +77,7 @@ See [Contributing](../CONTRIBUTING.md) for required verification commands and th
 The [SQL setup measurement record](../docs/specs/2026-09-24-test-sql-setup-results.md) maps the validation
 and antiforgery owners moved out of SQL lifecycles, lists the seven additional current-schema clone
 substitutions, and records their focused before/after measurements and regression probes.
+
+The [browser ownership measurement record](../docs/specs/2026-09-25-test-browser-ownership-results.md)
+maps responsive geometry to intercepted cases, identifies retained live retry/persistence/download
+journeys, and records the reduced label/encoding matrices, discovery changes and fault probes.

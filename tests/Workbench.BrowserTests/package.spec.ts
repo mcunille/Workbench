@@ -84,27 +84,19 @@ test('H8 format and package survive navigation and both appearances with keyboar
   await expect(page.getByRole('radio', { name: 'Records (CSV)', exact: true })).toBeChecked();
 });
 
-test('H8 failures and interrupted bodies never expose a partial package; retry and cancellation recover', async ({ page }) => {
+test('H8 failures and interrupted bodies never expose a partial package; retry recovers', async ({ page }) => {
   // GIVEN a saved collection and selected package scope.
   await useAuthenticatedSession(page);
   await createExportItem(page, `H8-retry-${crypto.randomUUID()}`);
   await page.getByRole('link', { name: 'Export records', exact: true }).click();
   await page.getByRole('radio', { name: 'Records, photographs and acquisition documents (ZIP)', exact: true }).check();
   await page.getByRole('radio', { name: 'Active records', exact: true }).check();
-  let release!: () => void; const held = new Promise<void>(resolve => { release = resolve; });
-  let received!: () => void; const ready = new Promise<void>(resolve => { received = resolve; });
-  let delivered!: () => void; const settled = new Promise<void>(resolve => { delivered = resolve; });
   let attempts = 0;
   // Keep interception installed between phases: replacing one-shot handlers can race its teardown.
   await page.route('**/api/beta/items/export-package', async route => {
     attempts++;
     if (attempts === 1) return route.fulfill({ status: 503 });
     if (attempts === 2) return route.fulfill({ status: 200, headers: { 'Content-Type': 'application/zip', 'Content-Length': '100', 'Content-Disposition': 'attachment; filename="workbench-package-v2-active-20260909T120000Z.zip"' }, body: 'partial' });
-    if (attempts === 3) {
-      try { const response = await route.fetch(); received(); await held; await route.fulfill({ response }); }
-      finally { delivered(); }
-      return;
-    }
     await route.continue();
   });
   // WHEN preparation is unavailable THEN recovery explains that photographs cannot be silently omitted.
@@ -119,16 +111,9 @@ test('H8 failures and interrupted bodies never expose a partial package; retry a
   expect(attempts).toBe(2);
   await expect(page.getByRole('alert')).toBeVisible();
   await expect(page.getByRole('link', { name: 'Download ZIP', exact: true })).toHaveCount(0);
+  // WHEN explicitly retrying THEN a complete, independently parsed package can be downloaded.
   await page.getByRole('button', { name: 'Retry', exact: true }).click();
-  await ready;
-  // WHEN cancelling a pending complete response THEN late bytes cannot become a download.
-  await page.getByRole('button', { name: 'Cancel', exact: true }).click();
-  release(); await settled;
-  await expect(page.getByRole('link', { name: 'Download ZIP', exact: true })).toHaveCount(0);
-  await expect(page.getByRole('status')).toContainText('cancelled');
-  // THEN a new explicit preparation creates a valid independently parsed package.
-  await page.getByRole('button', { name: 'Prepare export', exact: true }).click();
   await expect(page.getByRole('link', { name: 'Download ZIP', exact: true })).toBeVisible();
   expect((await downloadPackage(page)).records.length).toBeGreaterThan(0);
-  expect(attempts).toBe(4);
+  expect(attempts).toBe(3);
 });

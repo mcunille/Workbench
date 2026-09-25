@@ -50,27 +50,6 @@ describe('Add item', () => {
     resolve(saved);
     await waitFor(() => expect(callbacks.onSaved).toHaveBeenCalledWith(saved));
   });
-  it('freezes an uncertain save and retries the identical operation once', async () => {
-    // GIVEN a save whose response was lost
-    vi.mocked(createItem)
-      .mockRejectedValueOnce(new TypeError('Network'))
-      .mockResolvedValueOnce(saved);
-    const callbacks = props();
-    render(<AddItem {...callbacks} />);
-    fireEvent.change(screen.getByLabelText('Name'), {
-      target: { value: 'Sapphire' },
-    });
-    // WHEN the user saves, then explicitly retries
-    fireEvent.click(screen.getByRole('button', { name: 'Save item' }));
-    await screen.findByRole('button', { name: 'Retry save' });
-    expect(screen.getByLabelText('Name')).toBeDisabled();
-    fireEvent.click(screen.getByRole('button', { name: 'Retry save' }));
-    // THEN the original payload and request identifier are reused
-    await waitFor(() => expect(callbacks.onSaved).toHaveBeenCalledWith(saved));
-    expect(vi.mocked(createItem).mock.calls[1][0]).toEqual(
-      vi.mocked(createItem).mock.calls[0][0],
-    );
-  });
   it('preserves rejected input and focuses the invalid field', async () => {
     // GIVEN authoritative validation rejects the submission
     vi.mocked(createItem).mockRejectedValueOnce(

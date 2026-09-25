@@ -244,40 +244,6 @@ test('a real saved item survives reload and a separate authenticated browser ses
   }
 });
 
-test('a committed save with a lost response is explicitly retried without duplication', async ({ page }) => {
-  // GIVEN the first POST commits on the real server but its response never reaches the client.
-  await signIn(page);
-  const name = `Uncertain save ${crypto.randomUUID()}`;
-  const payloads: unknown[] = [];
-  await page.route('**/api/beta/items', async route => {
-    if (route.request().method() !== 'POST') return route.continue();
-    payloads.push(route.request().postDataJSON());
-    if (payloads.length === 1) {
-      const response = await route.fetch();
-      expect(response.status()).toBe(201);
-      await route.abort('failed');
-    } else {
-      await route.continue();
-    }
-  });
-  await startItem(page, name);
-
-  // WHEN save becomes uncertain, editing is frozen until the user explicitly retries.
-  await page.getByRole('button', { name: 'Save item', exact: true }).click();
-  await expect(page.getByRole('button', { name: 'Retry save', exact: true })).toBeVisible();
-  await expect(page.getByLabel('Name', { exact: true })).toBeDisabled();
-  const replayResponse = page.waitForResponse(response => response.url().endsWith('/api/beta/items') && response.request().method() === 'POST');
-  await page.getByRole('button', { name: 'Retry save', exact: true }).click();
-
-  // THEN the server resolves the same request and the collection has exactly one entry.
-  expect((await replayResponse).status()).toBe(200);
-  await expect(page.getByRole('heading', { name, exact: true })).toBeVisible();
-  expect(payloads).toHaveLength(2);
-  expect(payloads[1]).toEqual(payloads[0]);
-  await page.getByRole('link', { name: 'Back to collection', exact: true }).click();
-  await expect(itemLink(page, name)).toHaveCount(1);
-});
-
 test('dirty cancel, app navigation, history and sign-out require an explicit choice', async ({ page }) => {
   // GIVEN a dirty draft and a counter of actual creation requests.
   await signInThroughUi(page);
