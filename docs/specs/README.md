@@ -18,8 +18,8 @@ and links the separate reporting, portability, migration, and jurisdiction-repor
 Setup completeness does not activate bookkeeping.
 
 [BK-03 corrections and period controls](2026-09-24-bk-03-corrections-and-period-controls.md)
-proposes atomic reversal/replacement and closed-period enforcement on the BK-02 journal.
-Written-spec review is pending; production close remains gated by BK-09–11.
+records the accepted design for atomic reversal/replacement and closed-period enforcement on the
+BK-02 journal. Implementation is pending; production close remains gated by BK-09–11.
 
 | Area | Records |
 | --- | --- |

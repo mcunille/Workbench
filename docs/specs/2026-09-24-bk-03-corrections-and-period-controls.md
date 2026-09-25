@@ -1,6 +1,6 @@
 # BK-03: corrections and period controls
 
-**Status:** Proposed — scope approved on 2026-09-24; written-spec review pending.
+**Status:** Accepted — scope and written spec approved on 2026-09-24; implementation-plan review pending.
 
 Parent: [PO-07 bookkeeping prerequisites](2026-09-20-po-07-deposits-and-payments.md).
 Prerequisites: [BK-01 accounting foundation](2026-09-21-bk-01-accounting-foundation.md)
