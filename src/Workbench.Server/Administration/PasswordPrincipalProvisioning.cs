@@ -81,6 +81,18 @@ public static class PasswordPrincipalProvisioning
                 AND major_id=OBJECT_ID(N'[Accounting].[ClosePeriod]') AND permission_name=N'EXECUTE'
                 AND grantee_principal_id=DATABASE_PRINCIPAL_ID(N'public') AND state IN ('G','W'))
                 REVOKE EXECUTE ON OBJECT::[Accounting].[ClosePeriod] FROM [public];
+            IF EXISTS(SELECT 1 FROM sys.database_permissions WHERE class=1 AND minor_id=0
+                AND major_id=OBJECT_ID(N'[Accounting].[CorrectJournal]') AND permission_name=N'EXECUTE'
+                AND grantee_principal_id=DATABASE_PRINCIPAL_ID(N'workbench_web') AND state IN ('G','W'))
+                REVOKE EXECUTE ON OBJECT::[Accounting].[CorrectJournal] FROM [workbench_web];
+            IF EXISTS(SELECT 1 FROM sys.database_permissions WHERE class=1 AND minor_id=0
+                AND major_id=OBJECT_ID(N'[Accounting].[CorrectJournal]') AND permission_name=N'EXECUTE'
+                AND grantee_principal_id=DATABASE_PRINCIPAL_ID(N'workbench_worker') AND state IN ('G','W'))
+                REVOKE EXECUTE ON OBJECT::[Accounting].[CorrectJournal] FROM [workbench_worker];
+            IF EXISTS(SELECT 1 FROM sys.database_permissions WHERE class=1 AND minor_id=0
+                AND major_id=OBJECT_ID(N'[Accounting].[CorrectJournal]') AND permission_name=N'EXECUTE'
+                AND grantee_principal_id=DATABASE_PRINCIPAL_ID(N'public') AND state IN ('G','W'))
+                REVOKE EXECUTE ON OBJECT::[Accounting].[CorrectJournal] FROM [public];
             -- Web/operator grants must match their migration-defined object access. DENY rows add no authority.
             -- Keep this allowlist and the successful provisioning test current when adding migration grants.
             -- Migrator intentionally retains database CONTROL and is not a restricted workload role.
@@ -115,6 +127,8 @@ public static class PasswordPrincipalProvisioning
                                     (N'workbench_web', N'[Accounting].[Periods]', N'SELECT'),
                                     (N'workbench_web', N'[Accounting].[PeriodClosures]', N'SELECT'),
                                     (N'workbench_web', N'[Accounting].[PeriodCloseReceipts]', N'SELECT'),
+                                    (N'workbench_web', N'[Accounting].[CorrectionGroups]', N'SELECT'),
+                                    (N'workbench_web', N'[Accounting].[CorrectionReceipts]', N'SELECT'),
                                     (N'workbench_web', N'[Accounting].[Save]', N'EXECUTE'),
                                     (N'workbench_web', N'[Identity].[Users]', N'SELECT,INSERT,UPDATE,DELETE'),
                                     (N'workbench_web', N'[Identity].[Roles]', N'SELECT'),

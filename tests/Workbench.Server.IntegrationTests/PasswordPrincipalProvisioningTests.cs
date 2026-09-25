@@ -22,14 +22,14 @@ public sealed class PasswordPrincipalProvisioningTests(SqlServerFixture sqlServe
         await inputs.ProvisionAsync(database);
         // THEN each financial table is readable but cannot be changed directly by the web role.
         foreach (var table in new[] { "PolicyFreezes", "SourceEvents", "JournalEntries", "JournalLines", "PostingReceipts",
-            "Periods", "PeriodClosures", "PeriodCloseReceipts" })
+            "Periods", "PeriodClosures", "PeriodCloseReceipts", "CorrectionGroups", "CorrectionReceipts" })
         {
             Assert.Equal(1, await ScalarAsync(database, $"SELECT COUNT(*) FROM sys.database_permissions WHERE grantee_principal_id=DATABASE_PRINCIPAL_ID('workbench_web') AND major_id=OBJECT_ID('Accounting.{table}') AND permission_name='SELECT' AND state='G'"));
             Assert.Equal(3, await ScalarAsync(database, $"SELECT COUNT(*) FROM sys.database_permissions WHERE grantee_principal_id=DATABASE_PRINCIPAL_ID('workbench_web') AND major_id=OBJECT_ID('Accounting.{table}') AND permission_name IN ('INSERT','UPDATE','DELETE') AND state='D'"));
         }
         // AND provisioning grants no direct kernel authority and installs no synthetic source command.
         Assert.Equal(0, await ScalarAsync(database, "SELECT COUNT(*) FROM sys.database_permissions WHERE grantee_principal_id IN (DATABASE_PRINCIPAL_ID('workbench_web'),DATABASE_PRINCIPAL_ID('workbench_worker'),DATABASE_PRINCIPAL_ID('public')) AND major_id=OBJECT_ID('Accounting.PostJournal') AND permission_name='EXECUTE' AND state IN ('G','W')"));
-        foreach (var kernel in new[] { "EnsureOpenPeriod", "ClosePeriod" })
+        foreach (var kernel in new[] { "EnsureOpenPeriod", "ClosePeriod", "CorrectJournal" })
             Assert.Equal(0, await ScalarAsync(database, $"SELECT COUNT(*) FROM sys.database_permissions WHERE grantee_principal_id IN (DATABASE_PRINCIPAL_ID('workbench_web'),DATABASE_PRINCIPAL_ID('workbench_worker'),DATABASE_PRINCIPAL_ID('public')) AND major_id=OBJECT_ID('Accounting.{kernel}') AND permission_name='EXECUTE' AND state IN ('G','W')"));
         Assert.Equal(0, await ScalarAsync(database, "SELECT COUNT(*) FROM sys.procedures WHERE schema_id=SCHEMA_ID('Accounting') AND name LIKE '%Synthetic%'"));
     }
@@ -41,7 +41,7 @@ public sealed class PasswordPrincipalProvisioningTests(SqlServerFixture sqlServe
         await using var database = await sqlServer.CreateMigratedDatabaseAsync();
         using var inputs = new Inputs();
         await inputs.ProvisionAsync(database);
-        var kernels = new[] { "PostJournal", "EnsureOpenPeriod", "ClosePeriod" };
+        var kernels = new[] { "PostJournal", "EnsureOpenPeriod", "ClosePeriod", "CorrectJournal" };
         var principals = new[] { "workbench_web", "workbench_worker", "public" };
         foreach (var kernel in kernels)
             foreach (var principal in principals)
@@ -69,7 +69,7 @@ public sealed class PasswordPrincipalProvisioningTests(SqlServerFixture sqlServe
         await using var database = await sqlServer.CreateMigratedDatabaseAsync();
         using var inputs = new Inputs();
         await inputs.ProvisionAsync(database);
-        var kernels = new[] { "PostJournal", "EnsureOpenPeriod", "ClosePeriod" };
+        var kernels = new[] { "PostJournal", "EnsureOpenPeriod", "ClosePeriod", "CorrectJournal" };
         await ExecuteAsync(database, "GRANT EXECUTE ON SCHEMA::[Accounting] TO [public]");
         foreach (var kernel in kernels)
             await ExecuteAsync(database, $"DENY EXECUTE ON OBJECT::[Accounting].[{kernel}] TO [public]");

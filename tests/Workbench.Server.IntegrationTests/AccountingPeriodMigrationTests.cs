@@ -1,6 +1,7 @@
 // Copyright (c) 2026 The White Stag Collection.
 
 using Microsoft.Data.SqlClient;
+using System.Text.Json;
 using Workbench.Server.IntegrationTests.Infrastructure;
 using Workbench.Server.Persistence;
 using Xunit;
@@ -23,6 +24,8 @@ public sealed class AccountingPeriodMigrationTests(SqlServerFixture sqlServer)
         var febResult = await journal.PostAsync(feb, febRequest, postingDate: new DateTime(2028, 2, 29));
         await journal.PostAsync(apr, postingDate: new DateTime(2028, 4, 1));
         var before = await SnapshotAsync();
+        using (var history = JsonDocument.Parse(before))
+            Assert.Equal(2, history.RootElement[0].GetProperty("JournalEntries").GetArrayLength());
         // WHEN the period release migration upgrades the database.
         await DatabaseMigrator.MigrateAsync(journal.Application.AdminConnectionString, default);
         // THEN historical financial bytes and replay results remain unchanged.
@@ -57,7 +60,7 @@ public sealed class AccountingPeriodMigrationTests(SqlServerFixture sqlServer)
                   (SELECT * FROM Accounting.PostingReceipts ORDER BY RequestId FOR JSON PATH) PostingReceipts
                 FOR JSON PATH;
                 """, connection);
-            return (string)(await command.ExecuteScalarAsync())!;
+            return await JournalControlTestContext.ReadCompleteJsonAsync(command);
         }
     }
 

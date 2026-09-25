@@ -137,7 +137,204 @@ namespace Workbench.Server.Persistence.Migrations
                 schema: "Accounting",
                 table: "PeriodClosures",
                 columns: new[] { "TenantId", "ActorId" });
+            migrationBuilder.CreateTable(
+                name: "CorrectionGroups",
+                schema: "Accounting",
+                columns: table => new
+                {
+                    TenantId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    OriginalSourceEventId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    OriginalJournalId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    ReversalSourceEventId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    ReversalJournalId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    ReversalRequestId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    ReplacementSourceEventId = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
+                    ReplacementJournalId = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
+                    ReplacementRequestId = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
+                    ReplacementSourceRevision = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
+                    ActorId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    PostingDate = table.Column<DateOnly>(type: "date", nullable: false),
+                    Reason = table.Column<string>(type: "nvarchar(2000)", maxLength: 2000, nullable: false),
+                    EvidenceJson = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    EvidenceSha256 = table.Column<byte[]>(type: "binary(32)", fixedLength: true, maxLength: 32, nullable: false),
+                    RecordedAtUtc = table.Column<DateTimeOffset>(type: "datetimeoffset", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_CorrectionGroups", x => new { x.TenantId, x.Id });
+                    table.CheckConstraint("CK_CorrectionGroups_Evidence", "LEN(TRIM([Reason]))>0 AND DATALENGTH([Reason])<=4000 AND ISJSON([EvidenceJson],OBJECT)=1 AND DATALENGTH([EvidenceJson])<=262144 AND DATALENGTH([EvidenceSha256])=32");
+                    table.CheckConstraint("CK_CorrectionGroups_Roles", "[OriginalJournalId]<>[ReversalJournalId] AND (([ReplacementJournalId] IS NULL AND [ReplacementSourceEventId] IS NULL AND [ReplacementRequestId] IS NULL AND [ReplacementSourceRevision] IS NULL) OR ([ReplacementJournalId] IS NOT NULL AND [ReplacementSourceEventId] IS NOT NULL AND [ReplacementRequestId] IS NOT NULL AND [ReplacementSourceRevision] IS NOT NULL AND [ReplacementJournalId]<>[OriginalJournalId] AND [ReplacementJournalId]<>[ReversalJournalId]))");
+                    table.ForeignKey(
+                        name: "FK_CorrectionGroups_JournalEntries_TenantId_OriginalJournalId",
+                        columns: x => new { x.TenantId, x.OriginalJournalId },
+                        principalSchema: "Accounting",
+                        principalTable: "JournalEntries",
+                        principalColumns: new[] { "TenantId", "Id" },
+                        onDelete: ReferentialAction.Restrict);
+                    table.ForeignKey(
+                        name: "FK_CorrectionGroups_JournalEntries_TenantId_ReplacementJournalId",
+                        columns: x => new { x.TenantId, x.ReplacementJournalId },
+                        principalSchema: "Accounting",
+                        principalTable: "JournalEntries",
+                        principalColumns: new[] { "TenantId", "Id" },
+                        onDelete: ReferentialAction.Restrict);
+                    table.ForeignKey(
+                        name: "FK_CorrectionGroups_JournalEntries_TenantId_ReversalJournalId",
+                        columns: x => new { x.TenantId, x.ReversalJournalId },
+                        principalSchema: "Accounting",
+                        principalTable: "JournalEntries",
+                        principalColumns: new[] { "TenantId", "Id" },
+                        onDelete: ReferentialAction.Restrict);
+                    table.ForeignKey(
+                        name: "FK_CorrectionGroups_PostingReceipts_TenantId_ReplacementRequestId",
+                        columns: x => new { x.TenantId, x.ReplacementRequestId },
+                        principalSchema: "Accounting",
+                        principalTable: "PostingReceipts",
+                        principalColumns: new[] { "TenantId", "RequestId" },
+                        onDelete: ReferentialAction.Restrict);
+                    table.ForeignKey(
+                        name: "FK_CorrectionGroups_PostingReceipts_TenantId_ReversalRequestId",
+                        columns: x => new { x.TenantId, x.ReversalRequestId },
+                        principalSchema: "Accounting",
+                        principalTable: "PostingReceipts",
+                        principalColumns: new[] { "TenantId", "RequestId" },
+                        onDelete: ReferentialAction.Restrict);
+                    table.ForeignKey(
+                        name: "FK_CorrectionGroups_SourceEvents_TenantId_OriginalSourceEventId",
+                        columns: x => new { x.TenantId, x.OriginalSourceEventId },
+                        principalSchema: "Accounting",
+                        principalTable: "SourceEvents",
+                        principalColumns: new[] { "TenantId", "Id" },
+                        onDelete: ReferentialAction.Restrict);
+                    table.ForeignKey(
+                        name: "FK_CorrectionGroups_SourceEvents_TenantId_ReplacementSourceEventId",
+                        columns: x => new { x.TenantId, x.ReplacementSourceEventId },
+                        principalSchema: "Accounting",
+                        principalTable: "SourceEvents",
+                        principalColumns: new[] { "TenantId", "Id" },
+                        onDelete: ReferentialAction.Restrict);
+                    table.ForeignKey(
+                        name: "FK_CorrectionGroups_SourceEvents_TenantId_ReversalSourceEventId",
+                        columns: x => new { x.TenantId, x.ReversalSourceEventId },
+                        principalSchema: "Accounting",
+                        principalTable: "SourceEvents",
+                        principalColumns: new[] { "TenantId", "Id" },
+                        onDelete: ReferentialAction.Restrict);
+                    table.ForeignKey(
+                        name: "FK_CorrectionGroups_Users_TenantId_ActorId",
+                        columns: x => new { x.TenantId, x.ActorId },
+                        principalSchema: "Identity",
+                        principalTable: "Users",
+                        principalColumns: new[] { "TenantId", "Id" },
+                        onDelete: ReferentialAction.Restrict);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "CorrectionReceipts",
+                schema: "Accounting",
+                columns: table => new
+                {
+                    TenantId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    RequestId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    ActorId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    SourceCommandKind = table.Column<string>(type: "nvarchar(64)", maxLength: 64, nullable: false),
+                    SourceCommandVersion = table.Column<int>(type: "int", nullable: false),
+                    CanonicalInput = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    InputSha256 = table.Column<byte[]>(type: "binary(32)", fixedLength: true, maxLength: 32, nullable: false),
+                    CorrectionId = table.Column<Guid>(type: "uniqueidentifier", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_CorrectionReceipts", x => new { x.TenantId, x.RequestId });
+                    table.CheckConstraint("CK_CorrectionReceipts_Input", "[RequestId]<>'00000000-0000-0000-0000-000000000000' AND [SourceCommandVersion]>0 AND ISJSON([CanonicalInput],OBJECT)=1 AND DATALENGTH([CanonicalInput])<=262144 AND DATALENGTH([InputSha256])=32");
+                    table.ForeignKey(
+                        name: "FK_CorrectionReceipts_CorrectionGroups_TenantId_CorrectionId",
+                        columns: x => new { x.TenantId, x.CorrectionId },
+                        principalSchema: "Accounting",
+                        principalTable: "CorrectionGroups",
+                        principalColumns: new[] { "TenantId", "Id" },
+                        onDelete: ReferentialAction.Restrict);
+                    table.ForeignKey(
+                        name: "FK_CorrectionReceipts_Users_TenantId_ActorId",
+                        columns: x => new { x.TenantId, x.ActorId },
+                        principalSchema: "Identity",
+                        principalTable: "Users",
+                        principalColumns: new[] { "TenantId", "Id" },
+                        onDelete: ReferentialAction.Restrict);
+                });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_CorrectionGroups_TenantId_ActorId",
+                schema: "Accounting",
+                table: "CorrectionGroups",
+                columns: new[] { "TenantId", "ActorId" });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_CorrectionGroups_TenantId_OriginalJournalId",
+                schema: "Accounting",
+                table: "CorrectionGroups",
+                columns: new[] { "TenantId", "OriginalJournalId" },
+                unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "IX_CorrectionGroups_TenantId_OriginalSourceEventId",
+                schema: "Accounting",
+                table: "CorrectionGroups",
+                columns: new[] { "TenantId", "OriginalSourceEventId" });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_CorrectionGroups_TenantId_ReplacementJournalId",
+                schema: "Accounting",
+                table: "CorrectionGroups",
+                columns: new[] { "TenantId", "ReplacementJournalId" },
+                unique: true,
+                filter: "[ReplacementJournalId] IS NOT NULL");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_CorrectionGroups_TenantId_ReplacementRequestId",
+                schema: "Accounting",
+                table: "CorrectionGroups",
+                columns: new[] { "TenantId", "ReplacementRequestId" });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_CorrectionGroups_TenantId_ReplacementSourceEventId",
+                schema: "Accounting",
+                table: "CorrectionGroups",
+                columns: new[] { "TenantId", "ReplacementSourceEventId" });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_CorrectionGroups_TenantId_ReversalJournalId",
+                schema: "Accounting",
+                table: "CorrectionGroups",
+                columns: new[] { "TenantId", "ReversalJournalId" },
+                unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "IX_CorrectionGroups_TenantId_ReversalRequestId",
+                schema: "Accounting",
+                table: "CorrectionGroups",
+                columns: new[] { "TenantId", "ReversalRequestId" });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_CorrectionGroups_TenantId_ReversalSourceEventId",
+                schema: "Accounting",
+                table: "CorrectionGroups",
+                columns: new[] { "TenantId", "ReversalSourceEventId" });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_CorrectionReceipts_TenantId_ActorId",
+                schema: "Accounting",
+                table: "CorrectionReceipts",
+                columns: new[] { "TenantId", "ActorId" });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_CorrectionReceipts_TenantId_CorrectionId",
+                schema: "Accounting",
+                table: "CorrectionReceipts",
+                columns: new[] { "TenantId", "CorrectionId" });
             AccountingPeriodSchema.Up(migrationBuilder);
+            JournalCorrectionSchema.Up(migrationBuilder);
         }
 
         /// <inheritdoc />

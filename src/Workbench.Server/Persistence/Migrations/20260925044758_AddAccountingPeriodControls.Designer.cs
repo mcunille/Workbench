@@ -243,8 +243,6 @@ namespace Workbench.Server.Persistence.Migrations
 
                     b.HasAlternateKey("TenantId", "Id");
 
-                    b.HasAlternateKey("TenantId", "PeriodStart", "Id");
-
                     b.HasIndex("TenantId", "ActorId");
 
                     b.ToTable("PeriodClosures", "Accounting", t =>
@@ -340,6 +338,141 @@ namespace Workbench.Server.Persistence.Migrations
                     b.HasIndex("TenantId", "RecordedAtUtc");
 
                     b.ToTable("Revisions", "Accounting");
+                });
+
+            modelBuilder.Entity("Workbench.Server.Accounting.JournalCorrectionGroup", b =>
+                {
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("ActorId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("EvidenceJson")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<byte[]>("EvidenceSha256")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("binary(32)")
+                        .IsFixedLength();
+
+                    b.Property<Guid>("OriginalJournalId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("OriginalSourceEventId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateOnly>("PostingDate")
+                        .HasColumnType("date");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
+
+                    b.Property<DateTimeOffset>("RecordedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid?>("ReplacementJournalId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid?>("ReplacementRequestId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid?>("ReplacementSourceEventId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid?>("ReplacementSourceRevision")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("ReversalJournalId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("ReversalRequestId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("ReversalSourceEventId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("TenantId", "Id");
+
+                    b.HasIndex("TenantId", "ActorId");
+
+                    b.HasIndex("TenantId", "OriginalJournalId")
+                        .IsUnique();
+
+                    b.HasIndex("TenantId", "OriginalSourceEventId");
+
+                    b.HasIndex("TenantId", "ReplacementJournalId")
+                        .IsUnique()
+                        .HasFilter("[ReplacementJournalId] IS NOT NULL");
+
+                    b.HasIndex("TenantId", "ReplacementRequestId");
+
+                    b.HasIndex("TenantId", "ReplacementSourceEventId");
+
+                    b.HasIndex("TenantId", "ReversalJournalId")
+                        .IsUnique();
+
+                    b.HasIndex("TenantId", "ReversalRequestId");
+
+                    b.HasIndex("TenantId", "ReversalSourceEventId");
+
+                    b.ToTable("CorrectionGroups", "Accounting", t =>
+                        {
+                            t.HasCheckConstraint("CK_CorrectionGroups_Evidence", "LEN(TRIM([Reason]))>0 AND DATALENGTH([Reason])<=4000 AND ISJSON([EvidenceJson],OBJECT)=1 AND DATALENGTH([EvidenceJson])<=262144 AND DATALENGTH([EvidenceSha256])=32");
+
+                            t.HasCheckConstraint("CK_CorrectionGroups_Roles", "[OriginalJournalId]<>[ReversalJournalId] AND (([ReplacementJournalId] IS NULL AND [ReplacementSourceEventId] IS NULL AND [ReplacementRequestId] IS NULL AND [ReplacementSourceRevision] IS NULL) OR ([ReplacementJournalId] IS NOT NULL AND [ReplacementSourceEventId] IS NOT NULL AND [ReplacementRequestId] IS NOT NULL AND [ReplacementSourceRevision] IS NOT NULL AND [ReplacementJournalId]<>[OriginalJournalId] AND [ReplacementJournalId]<>[ReversalJournalId]))");
+                        });
+                });
+
+            modelBuilder.Entity("Workbench.Server.Accounting.JournalCorrectionReceipt", b =>
+                {
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("RequestId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("ActorId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("CanonicalInput")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<Guid>("CorrectionId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<byte[]>("InputSha256")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("binary(32)")
+                        .IsFixedLength();
+
+                    b.Property<string>("SourceCommandKind")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<int>("SourceCommandVersion")
+                        .HasColumnType("int");
+
+                    b.HasKey("TenantId", "RequestId");
+
+                    b.HasIndex("TenantId", "ActorId");
+
+                    b.HasIndex("TenantId", "CorrectionId");
+
+                    b.ToTable("CorrectionReceipts", "Accounting", t =>
+                        {
+                            t.HasCheckConstraint("CK_CorrectionReceipts_Input", "[RequestId]<>'00000000-0000-0000-0000-000000000000' AND [SourceCommandVersion]>0 AND ISJSON([CanonicalInput],OBJECT)=1 AND DATALENGTH([CanonicalInput])<=262144 AND DATALENGTH([InputSha256])=32");
+                        });
                 });
 
             modelBuilder.Entity("Workbench.Server.Accounting.JournalEntry", b =>
@@ -2400,16 +2533,16 @@ namespace Workbench.Server.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
+                    b.HasOne("Workbench.Server.Accounting.AccountingPeriod", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId", "PeriodStart")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
                     b.HasOne("Workbench.Server.Accounting.AccountingPeriodClosure", null)
                         .WithMany()
                         .HasForeignKey("TenantId", "PeriodStart", "ClosureId")
                         .HasPrincipalKey("TenantId", "PeriodStart", "Id")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("Workbench.Server.Accounting.AccountingPeriod", null)
-                        .WithMany()
-                        .HasForeignKey("TenantId", "PeriodStart")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
                 });
@@ -2470,6 +2603,83 @@ namespace Workbench.Server.Persistence.Migrations
                         .WithMany()
                         .HasForeignKey("TenantId", "ActorId")
                         .HasPrincipalKey("TenantId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Workbench.Server.Accounting.JournalCorrectionGroup", b =>
+                {
+                    b.HasOne("Workbench.Server.Identity.WorkbenchUser", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId", "ActorId")
+                        .HasPrincipalKey("TenantId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Workbench.Server.Accounting.JournalEntry", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId", "OriginalJournalId")
+                        .HasPrincipalKey("TenantId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Workbench.Server.Accounting.JournalSourceEvent", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId", "OriginalSourceEventId")
+                        .HasPrincipalKey("TenantId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Workbench.Server.Accounting.JournalEntry", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId", "ReplacementJournalId")
+                        .HasPrincipalKey("TenantId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("Workbench.Server.Accounting.JournalPostingReceipt", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId", "ReplacementRequestId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("Workbench.Server.Accounting.JournalSourceEvent", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId", "ReplacementSourceEventId")
+                        .HasPrincipalKey("TenantId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("Workbench.Server.Accounting.JournalEntry", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId", "ReversalJournalId")
+                        .HasPrincipalKey("TenantId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Workbench.Server.Accounting.JournalPostingReceipt", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId", "ReversalRequestId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Workbench.Server.Accounting.JournalSourceEvent", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId", "ReversalSourceEventId")
+                        .HasPrincipalKey("TenantId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Workbench.Server.Accounting.JournalCorrectionReceipt", b =>
+                {
+                    b.HasOne("Workbench.Server.Identity.WorkbenchUser", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId", "ActorId")
+                        .HasPrincipalKey("TenantId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Workbench.Server.Accounting.JournalCorrectionGroup", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId", "CorrectionId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
                 });
