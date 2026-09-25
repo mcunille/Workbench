@@ -224,7 +224,7 @@ builder.Services
     });
 builder.Services.AddAuthorization(options =>
 {
-    foreach (var permission in new[] { "AccountingConfigurationRead", "AccountingConfigurationManage" })
+    foreach (var permission in new[] { "AccountingConfigurationRead", "AccountingConfigurationManage", "AccountingReportsRead" })
         options.AddPolicy(permission, policy => policy.RequireClaim(SessionCookieHandler.PermissionClaimType, permission));
     options.AddPolicy(
         WorkbenchPermissions.TenantUsersManage,
@@ -291,6 +291,7 @@ app.MapWorkbenchRecovery();
 app.MapTenantUserAdministration();
 app.MapAccountingRoleAdministration();
 app.MapAccounting();
+app.MapJournalReports();
 
 app.MapHealthChecks("/health/live", new HealthCheckOptions
 {

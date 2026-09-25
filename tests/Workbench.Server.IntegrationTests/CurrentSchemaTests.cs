@@ -19,8 +19,5 @@ public sealed class CurrentSchemaTests
         Assert.Equal(CurrentSchema.Migrations.Order(StringComparer.Ordinal), CurrentSchema.Migrations);
         Assert.Equal(CurrentSchema.Migrations.Distinct(StringComparer.Ordinal), CurrentSchema.Migrations);
         Assert.Equal(CurrentSchema.Migrations[^1], CurrentSchema.MigrationId);
-        // AND this unmerged accounting release has one migration after supplier profiles.
-        Assert.Equal("20260921051843_AddAccountingFoundation", CurrentSchema.MigrationId);
-        Assert.Single(CurrentSchema.Migrations, id => id.Contains("Accounting", StringComparison.Ordinal));
     }
 }

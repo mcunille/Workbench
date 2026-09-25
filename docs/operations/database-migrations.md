@@ -125,6 +125,7 @@ This inventory describes checked-in migration behavior, not permission to execut
 | `20260918063409_HardenPurchaseOrderDocumentAuthority` | `AddPurchaseOrderDocuments` | Revalidates enabled tenant and active actor authority for document reservations, binds request replay to the original actor, and rechecks authority during finalization. A suspension during publication produces a terminal conflict and retains published bytes for cleanup. Kept as a separate forward migration because the predecessor was already applied to the retained local preview; its applied history is immutable. Advances readiness and backup markers. | Always blocked; retain authority controls through forward correction or guarded paired recovery. |
 | `20260921041331_MakeSupplierProfilesCustom` | `HardenPurchaseOrderDocumentAuthority` | Adds the optional JSON collection of custom platform/handle pairs and updates the restricted supplier writer in one release migration. Preserves existing supplier values, row versions and receipts; advances readiness and backup markers. Verify fresh creation, PR-base upgrade, legacy replay and restricted-writer validation. Deploy the matching API/client. | Always blocked; preserve handles and request evidence through forward correction or guarded recovery. |
 | `20260921051843_AddAccountingFoundation` | `MakeSupplierProfilesCustom` | Adds tenant accounting configuration, general accounts, revisions, receipts and two explicitly assigned accounting roles. Restricted commands validate current actor authority; runtime Identity role/claim writes are denied. Retains existing data without granting accounting access or creating balances. Advances readiness and backup markers; stop older writers and deploy the matching application. Verify fresh creation and upgrade from the predecessor. | Always blocked (50020); preserve configuration and authorization history through forward correction or guarded recovery. |
+| `20260923010000_AddAtomicJournal` | `AddAccountingFoundation` | Adds immutable journal/source/receipt records, first-posting policy freeze, exact SQL posting validation and used-account archive protection. No runtime posting grant or production source adapter. Preserves BK-01 data and replay bytes; advances readiness and backup markers. Verify fresh creation and upgrade from the merged BK-01 schema. Stop older writers and deploy the matching application. | Always blocked (50020); preserve financial history through forward correction or guarded recovery. |
 
 Product behavior, user-visible concurrency/retry rules and the shipped feature inventory belong in
 [collection documentation](../collection.md). Provider retry/backoff behavior belongs in
@@ -132,7 +133,7 @@ Product behavior, user-visible concurrency/retry rules and the shipped feature i
 The [migration source](../../src/Workbench.Server/Persistence/Migrations) is authoritative for SQL.
 
 
-The current required migration is `20260921051843_AddAccountingFoundation`.
+The current required migration is `20260923010000_AddAtomicJournal`.
 
 `MakeSupplierProfilesCustom` directly follows `HardenPurchaseOrderDocumentAuthority`.
 It adds custom supplier reference pairs in one migration, preserving existing supplier data,
@@ -201,7 +202,13 @@ repeating a SQL-definition marker check. They need no literal or total-count upd
 Fixed upgrade tests, such as supplier migration consolidation, migrate to their named historical
 boundary so their independent one-migration assertion survives later releases.
 
-Backup compatibility remains a separate explicit allowlist in `StorageMaintenanceCommand`.
-Retain the outgoing current marker there when advancing the release, with independent literal
-cases in `BlobManifestValidationTests`; being an EF migration alone does not grant compatibility.
-Unknown markers remain rejected, and guarded restore and downgrade requirements are unchanged.
+Backup manifest compatibility automatically includes known releases in `CurrentSchema.Migrations`
+from `20260907194500_AddItemDetailEditing`, the first supported boundary, onward.
+`StorageMaintenanceCommand` also retains six fixed exceptions for retired development markers
+whose backups remain supported. Ordinary migrations need no additional backup allowlist or
+literal test entry: `BlobManifestValidationTests` enumerates the known supported releases and
+independently checks the fixed boundary, retired markers, unsupported versions, and exact-pair
+bindings. A marker must be known, not merely fall within the supported timestamp range.
+Revisit this compatibility policy when changing the manifest format or storage recovery behavior.
+Schema acceptance does not prove backup integrity; manifest bindings, retained entries, and blob
+bytes must still pass recovery verification. Guarded restore and downgrade requirements are unchanged.

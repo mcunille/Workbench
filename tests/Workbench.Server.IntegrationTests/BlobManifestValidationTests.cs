@@ -8,37 +8,31 @@ namespace Workbench.Server.IntegrationTests;
 
 public sealed class BlobManifestValidationTests
 {
+    public static IEnumerable<object[]> SupportedReleaseSchemas => CurrentSchema.Migrations
+        .SkipWhile(schema => schema != "20260907194500_AddItemDetailEditing")
+        .Select(schema => new object[] { schema });
+
+    [Theory]
+    [MemberData(nameof(SupportedReleaseSchemas))]
+    public void KnownReleasesFromBackupSupportBoundaryAcceptAnExactManifest(string schema)
+    {
+        // GIVEN a known release at or after the first supported backup boundary.
+        var manifest = Manifest() with { SchemaVersion = schema };
+        // WHEN validating THEN new releases and their predecessors need no separate compatibility registration.
+        StorageMaintenanceCommand.ValidateManifest(manifest, manifest.Database, manifest.InstallationId, manifest.Entries);
+    }
+
     [Theory]
     [InlineData("20260907194500_AddItemDetailEditing")]
-    [InlineData("20260907224158_AddItemArchiving")]
-    [InlineData("20260907225320_AddOnlineRecovery")]
-    [InlineData("20260908010000_AddItemRestoration")]
-    [InlineData("20260909034719_AddAcquisitionContext")]
-    [InlineData("20260910071000_AddSharedAcquisitions")]
-    [InlineData("20260911184933_AddAcquisitionDocuments")]
-    [InlineData("20260912030844_AddDraftSupplierOrders")]
-    [InlineData("20260912064156_AddSupplierIdentityAndPurchaseReferences")]
     [InlineData("20260916183834_AddStructuredDraftOrderLines")]
-    [InlineData("20260918020000_IntegrateBetaDraftFinancialAdjustments")]
     [InlineData("20260918030000_AddPurchaseOrderCommitment")]
     [InlineData("20260918040000_HardenPurchaseOrderCommitmentValidation")]
     [InlineData("20260918050000_ProjectRetainedPurchaseOrderLines")]
-    [InlineData("20260918060000_AddPurchaseOrderCommitment")]
-    [InlineData("20260918061646_AddPurchaseOrderDocuments")]
-    [InlineData("20260918063409_HardenPurchaseOrderDocumentAuthority")]
-    [InlineData("20260921041331_MakeSupplierProfilesCustom")]
-    [InlineData("20260921051843_AddAccountingFoundation")]
-    [InlineData("20260917015000_PrepareRetainedBetaFinancialUpgrade")]
-    [InlineData("20260917010000_AddSupplierBasedDraftPricing")]
-    [InlineData("20260917080000_ConsolidateBetaDraftCommands")]
-    [InlineData("20260918010000_RemoveHistoricalDraftReplay")]
-    [InlineData("20260917020000_AddDraftFinancialAdjustments")]
-    [InlineData("20260917030000_ProtectConfirmedSupplierChargeCorrections")]
     [InlineData("20260912033355_TightenDraftSourceLinkValidation")]
     [InlineData("20260912045432_AddDraftOrderDeletion")]
-    public void EverySupportedSchemaAcceptsAnExactManifest(string schema)
+    public void FirstSupportedBoundaryAndRetiredMarkersRemainAccepted(string schema)
     {
-        // GIVEN an exact retained-content manifest from each supported release.
+        // GIVEN an independently pinned boundary or a retired marker absent from the current migration inventory.
         var manifest = Manifest() with { SchemaVersion = schema };
         // WHEN validating its database, installation and ordered entries THEN compatibility is retained.
         StorageMaintenanceCommand.ValidateManifest(manifest, manifest.Database, manifest.InstallationId, manifest.Entries);
@@ -80,10 +74,12 @@ public sealed class BlobManifestValidationTests
 
     [Theory]
     [InlineData("20260904061204_InitialSchema")]
+    [InlineData("20260907082353_AddItemPhotographs")]
+    [InlineData("20260921051844_UnknownSchema")]
     [InlineData("99999999999999_FutureSchema")]
     public void KnownButUnsupportedAndFutureSchemasRemainRejected(string schema)
     {
-        // GIVEN an EF migration predating supported manifests or an unknown future boundary.
+        // GIVEN a known pre-support release or an unknown marker within or beyond the supported date range.
         var manifest = Manifest() with { SchemaVersion = schema };
         // WHEN validating THEN neither inventory membership nor ordering grants compatibility.
         Assert.Throws<InvalidDataException>(() => StorageMaintenanceCommand.ValidateManifest(
