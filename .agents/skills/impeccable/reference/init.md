@@ -1,6 +1,6 @@
 # Init flow
 
-`init` captures durable product truth in PRODUCT.md. It does not invent a visual world and does not write DESIGN.md; [new-work.md](new-work.md) creates or expands one, and [document.md](document.md) records an incumbent one. Existing runnable web projects may also receive `.impeccable/live/config.json`.
+`init` captures durable product truth in PRODUCT.md. It does not invent a visual world and does not write DESIGN.md; [new-work.md](new-work.md) creates or expands one, and [document.md](document.md) records an incumbent one. Live configuration is disabled in Workbench.
 
 ## Step 1: Load current state
 
@@ -16,7 +16,7 @@ Never silently overwrite an existing file or offer DESIGN.md during init. If ano
 
 ## Step 2: Explore the project
 
-Before asking, scan enough to avoid making the user repeat known facts: product docs and copy; package/config and app boundaries; features, workflows, routes, and roles; names, logos, legal/proof assets, and brand commitments; platform/accessibility signals; and the dev command/entry when live mode applies.
+Before asking, scan enough to avoid making the user repeat known facts: product docs and copy; package/config and app boundaries; features, workflows, routes, and roles; names, logos, legal/proof assets, and brand commitments; platform/accessibility signals; and the dev command/entry for browser inspection.
 
 Treat repository evidence as a hypothesis, not user approval. Note visual maturity without documenting, extending, or replacing the world.
 

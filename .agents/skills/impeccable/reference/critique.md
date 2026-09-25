@@ -11,7 +11,7 @@ Resolve one stable target, run two independent assessments, synthesize a design 
 - A skipped detector is a failed critique run unless `impeccable detect` is missing or crashes after a real attempt.
 - Viewable targets require browser inspection when available.
 - Any local server started only for critique visualization must run in the background, have a recorded stop method, and be stopped before final reporting unless the user asks to keep it.
-- Do not claim a user-visible overlay exists unless script injection succeeded and the detector ran in the page.
+- Do not promise a Live overlay. Report only browser observations and CLI detector results actually obtained.
 - The question is the LAST thing in the response. Write the entire report out first, then ask; nothing follows the question. Prose emitted after a structured question is withheld until the user answers it, so a report written after the question reads as if the critique never ran.
 - A run that ends with neither the targeted questions nor a literal `Questions skipped: <reason>` line is an incomplete run. The report is not the finish; the close is.
 
@@ -88,7 +88,7 @@ skipped/failed browser steps with concrete reasons.
 
 After Assessment B returns usable CLI findings, reuse them. Do not rerun `impeccable detect` in the parent unless Assessment B failed, was truncated, or omitted count, rule names, or file locations.
 
-Codex failure accounting: final Run Notes must include target slug, ignore list, assessment independence, CLI detector, browser visibility, overlay injection, live-server cleanup, temp-file cleanup, and any fallback signal used. Do not run repo status checks, late API spelunking, or unrelated verification after the report is assembled.
+Codex failure accounting: final Run Notes must include target slug, ignore list, assessment independence, CLI detector, browser inspection, temp-file cleanup, and any fallback signal used. Do not run repo status checks, late API spelunking, or unrelated verification after the report is assembled.
 
 ### Generate Combined Critique Report
 
@@ -139,7 +139,7 @@ Be honest with scores. A 4 means genuinely excellent. Most real interfaces score
 
 **Deterministic scan**: Summarize what the automated detector found, with counts and file locations. Note any additional issues the detector caught that you missed, and flag any false positives.
 
-**Visual overlays** (if injection succeeded): Tell the user that overlays are now visible in the **[Human]** tab in their browser, highlighting the detected issues. Summarize what the console output reported. If browser visualization was attempted but injection failed, say that no reliable user-visible overlay is available and report the fallback signal instead.
+**Browser observations:** Summarize what was inspected in the rendered page and identify the supporting screenshots or observations. If browser inspection was unavailable or failed, give the concrete reason and fallback evidence. Do not promise a Live overlay; that integration is disabled in Workbench.
 
 #### Overall Impression
 A brief gut reaction: what works, what doesn't, and the single biggest opportunity.
@@ -179,7 +179,7 @@ Provocative questions that might unlock better solutions:
 - "What would a confident version of this look like?"
 
 #### Run Notes
-Keep this compact. Include status for target slug, ignore list, assessment independence, CLI detector, browser visibility, overlay injection, live server cleanup, and temp-file cleanup. For failed or skipped steps, give the concrete observed reason and the fallback signal used. In the final chat response, also include snapshot write and trend read status after persistence has run.
+Keep this compact. Include status for target slug, ignore list, assessment independence, CLI detector, browser inspection, and temp-file cleanup. For failed or skipped steps, give the concrete observed reason and the fallback signal used. In the final chat response, also include snapshot write and trend read status after persistence has run.
 
 Codex Run Notes are final-chat only. Do not include this section in the persisted snapshot body, because persistence, trend read, and temp cleanup happen after the snapshot write and would otherwise archive stale status such as "pending after persistence."
 
