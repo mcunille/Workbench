@@ -50,6 +50,10 @@ Follow the selected superpowers execution skill's review and fix loop. Review th
 or branch range, not just the last commit, and verify the integrated result against current source.
 Use the skill's fallback when required review tooling is unavailable and disclose missing coverage.
 
+Use [test-audit](../.agents/skills/test-audit/SKILL.md) when authoring or reviewing tests,
+or for requested test audits. Its authoring gate supplements TDD and the
+[test-ownership guidance](../tests/README.md); audit discovery remains read-only until
+implementation is authorized. Read its campaign reference only for subsystem-wide audits.
 Use `start-refactor` for bounded behavior-preserving refactors after the applicable superpowers
 design handoff. Its characterization, mutation, and coverage requirements supplement the process.
 Use `handle-pr-feedback` for the author's feedback round: inspect and validate feedback first,
