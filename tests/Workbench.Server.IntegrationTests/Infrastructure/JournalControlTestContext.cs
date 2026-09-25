@@ -38,13 +38,13 @@ internal sealed class JournalControlTestContext : IAsyncDisposable
 
     public async Task<PeriodCloseResult> CloseAsync(DateOnly month, Guid? requestId = null,
         SqlConnection? connection = null, string reason = "Synthetic reconciliation complete",
-        string? evidenceJson = null)
+        string? evidenceJson = null, Guid? expectedConfigurationVersion = null)
     {
         await using var command = new SqlCommand("EXEC Accounting.CloseSyntheticPeriod @ActorId=@actor,@SessionId=@session,@RequestId=@request,@ExpectedConfigurationVersion=@version,@PeriodStart=@month,@Reason=@reason,@Evidence=@evidence", connection ?? Journal.Connection);
         command.Parameters.AddWithValue("@actor", JournalTestContext.ActorId);
         command.Parameters.AddWithValue("@session", Journal.SessionId);
         command.Parameters.AddWithValue("@request", requestId ?? Guid.NewGuid());
-        command.Parameters.AddWithValue("@version", Journal.ConfigurationVersion);
+        command.Parameters.AddWithValue("@version", expectedConfigurationVersion ?? Journal.ConfigurationVersion);
         command.Parameters.Add(new SqlParameter("@month", SqlDbType.Date) { Value = month.ToDateTime(TimeOnly.MinValue) });
         command.Parameters.AddWithValue("@reason", reason);
         command.Parameters.AddWithValue("@evidence", (object?)evidenceJson ?? DBNull.Value);

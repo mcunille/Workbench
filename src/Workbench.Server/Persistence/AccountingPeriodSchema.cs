@@ -73,7 +73,8 @@ internal static class AccountingPeriodSchema
             @Currency nvarchar(3)=JSON_VALUE(@Payload,'$.policies.currency'),
             @StartApproach nvarchar(40)=JSON_VALUE(@Payload,'$.policies.startApproach'),
             @StartDate date=TRY_CONVERT(date,JSON_VALUE(@Payload,'$.policies.plannedStartDate'),23);
-          IF @FiscalMonth NOT BETWEEN 1 AND 12 OR @Scale NOT BETWEEN 0 AND 4
+          IF @FiscalMonth IS NULL OR @FiscalMonth NOT BETWEEN 1 AND 12
+            OR @Scale IS NULL OR @Scale NOT BETWEEN 0 AND 4
             OR @Currency IS NULL OR @StartApproach IS NULL OR @StartDate IS NULL
             THROW 51000,'Accounting calendar is incomplete.',1;
           IF @MonthEnd<@StartDate OR @PostingDate<@StartDate
@@ -123,18 +124,22 @@ internal static class AccountingPeriodSchema
           IF EXISTS(SELECT 1 FROM OPENJSON(@Evidence) GROUP BY [key] HAVING COUNT(*)>1)
             OR EXISTS(SELECT 1 FROM OPENJSON(@CanonicalInput) GROUP BY [key] HAVING COUNT(*)>1)
             THROW 51000,'Duplicate closure fields are not allowed.',1;
+          DECLARE @PeriodText nvarchar(10)=CONVERT(nvarchar(10),@PeriodStart,23);
           IF (SELECT COUNT(*) FROM OPENJSON(@Evidence))<>3
+            OR (SELECT COUNT(*) FROM OPENJSON(@Evidence) WHERE
+                CONVERT(varbinary(max),[key])=CONVERT(varbinary(max),N'schemaVersion')
+                AND [type]=2 AND CONVERT(varbinary(max),[value])=CONVERT(varbinary(max),N'1'))<>1
+            OR (SELECT COUNT(*) FROM OPENJSON(@Evidence) WHERE
+                CONVERT(varbinary(max),[key])=CONVERT(varbinary(max),N'kind')
+                AND [type]=1 AND DATALENGTH([value]) BETWEEN 2 AND 128
+                AND [value] COLLATE Latin1_General_100_BIN2 NOT LIKE '%[^A-Za-z0-9._-]%')<>1
+            OR (SELECT COUNT(*) FROM OPENJSON(@Evidence) WHERE
+                CONVERT(varbinary(max),[key])=CONVERT(varbinary(max),N'periodStart')
+                AND [type]=1 AND CONVERT(varbinary(max),[value])=CONVERT(varbinary(max),@PeriodText))<>1
             OR EXISTS(SELECT 1 FROM OPENJSON(@Evidence) WHERE
-                ([key] COLLATE Latin1_General_100_BIN2='schemaVersion' AND ([type]<>2 OR [value]<>'1')) OR
-                ([key] COLLATE Latin1_General_100_BIN2='kind' AND [type]<>1) OR
-                ([key] COLLATE Latin1_General_100_BIN2='periodStart' AND [type]<>1) OR
-                [key] COLLATE Latin1_General_100_BIN2 NOT IN ('schemaVersion','kind','periodStart'))
-            OR NOT EXISTS(SELECT 1 FROM OPENJSON(@Evidence) WHERE [key] COLLATE Latin1_General_100_BIN2='schemaVersion')
-            OR NOT EXISTS(SELECT 1 FROM OPENJSON(@Evidence) WHERE [key] COLLATE Latin1_General_100_BIN2='kind')
-            OR NOT EXISTS(SELECT 1 FROM OPENJSON(@Evidence) WHERE [key] COLLATE Latin1_General_100_BIN2='periodStart')
-            OR JSON_VALUE(@Evidence,'$.periodStart')<>CONVERT(nvarchar(10),@PeriodStart,23)
-            OR DATALENGTH(JSON_VALUE(@Evidence,'$.kind')) NOT BETWEEN 2 AND 128
-            OR JSON_VALUE(@Evidence,'$.kind') COLLATE Latin1_General_100_BIN2 LIKE '%[^A-Za-z0-9._-]%'
+                CONVERT(varbinary(max),[key]) NOT IN
+                (CONVERT(varbinary(max),N'schemaVersion'),CONVERT(varbinary(max),N'kind'),
+                 CONVERT(varbinary(max),N'periodStart')))
             THROW 51000,'Invalid versioned closure evidence.',1;
           DECLARE @ExpectedInput nvarchar(max)=(SELECT @PeriodStart periodStart,
             @ExpectedConfigurationVersion expectedConfigurationVersion,@Reason reason,@Evidence evidence

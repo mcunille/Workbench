@@ -1,6 +1,7 @@
 // Copyright (c) 2026 The White Stag Collection.
 
 using Microsoft.Data.SqlClient;
+using System.Text.Json.Nodes;
 using Workbench.Server.IntegrationTests.Infrastructure;
 using Xunit;
 
@@ -51,6 +52,29 @@ public sealed class AccountingPeriodTests(SqlServerFixture sqlServer)
         const string changedRegion = """{"policies":{"country":"US","region":"WA","currency":"USD","scale":2,"fiscalStartMonth":1,"startApproach":"OpeningBalances","plannedStartDate":"2026-01-01"},"mappings":[],"coverage":[]}""";
         await journal.SaveAsync(Guid.NewGuid(), "Configure", changedRegion,
             expectedVersion: journal.ConfigurationVersion);
+    }
+
+    [Theory]
+    [InlineData("scale", "0")]
+    [InlineData("fiscalStartMonth", "4")]
+    [InlineData("plannedStartDate", "\"2026-02-01\"")]
+    [InlineData("startApproach", "\"FromBeginning\"")]
+    public async Task EmptyMonthCloseFreezesEachCalendarPolicy(string field, string replacementJson)
+    {
+        // GIVEN an empty closed month with no first-journal policy freeze.
+        await using var controls = await JournalControlTestContext.OpenAsync(sqlServer);
+        var journal = controls.Journal;
+        await controls.CloseAsync(new DateOnly(2026, 9, 1));
+        var before = await controls.HistorySnapshotAsync();
+        var payload = JsonNode.Parse("""{"policies":{"country":"US","region":"CA","currency":"USD","scale":2,"fiscalStartMonth":1,"startApproach":"OpeningBalances","plannedStartDate":"2026-01-01"},"mappings":[],"coverage":[]}""")!;
+        payload["policies"]![field] = JsonNode.Parse(replacementJson);
+        // WHEN an administrator changes one independently frozen policy field.
+        var rejected = await Assert.ThrowsAsync<SqlException>(() => journal.SaveAsync(
+            Guid.NewGuid(), "Configure", payload.ToJsonString(), expectedVersion: journal.ConfigurationVersion));
+        // THEN the empty closure still freezes that field without inventing a first journal.
+        Assert.Equal(50909, rejected.Number);
+        Assert.Equal(before, await controls.HistorySnapshotAsync());
+        Assert.Equal(0, await journal.CountAsync("PolicyFreezes"));
     }
 
     [Fact]
@@ -134,17 +158,61 @@ public sealed class AccountingPeriodTests(SqlServerFixture sqlServer)
     [InlineData("{\"schemaVersion\":1,\"kind\":\"SyntheticReconciliation\",\"periodStart\":\"2026-09-01\",\"unexpected\":true}")]
     [InlineData("{\"schemaVersion\":1,\"kind\":\"SyntheticReconciliation\",\"kind\":\"Other\",\"periodStart\":\"2026-09-01\"}")]
     [InlineData("{\"schemaVersion\":1,\"kind\":\"SyntheticReconciliation\",\"periodStart\":\"2026-10-01\"}")]
+    [InlineData("{\"schemaVersion\":1,\"kind\":\"SyntheticReconciliation\",\"periodStart \":\"2026-10-01\"}")]
+    [InlineData("{\"schemaVersion\":1,\"kind\":\"SyntheticReconciliation\",\"periodStart\":\"2026-09-01 \"}")]
     public async Task CloseRejectsNoncanonicalEvidenceEnvelope(string evidence)
     {
         // GIVEN configured accounting and evidence with an unknown, duplicated or mismatched field.
         await using var controls = await JournalControlTestContext.OpenAsync(sqlServer);
+        var before = await controls.HistorySnapshotAsync();
+        var auditBefore = await CloseAuditCountAsync(controls.Journal.Connection);
         // WHEN the typed disposable adapter submits that evidence.
         var rejected = await Assert.ThrowsAsync<SqlException>(() =>
             controls.CloseAsync(new DateOnly(2026, 9, 1), evidenceJson: evidence));
         // THEN the close and receipt are absent.
         Assert.Equal(51000, rejected.Number);
-        Assert.Equal(0, await controls.Journal.CountAsync("PeriodClosures"));
-        Assert.Equal(0, await controls.Journal.CountAsync("PeriodCloseReceipts"));
+        Assert.Equal(before, await controls.HistorySnapshotAsync());
+        Assert.Equal(auditBefore, await CloseAuditCountAsync(controls.Journal.Connection));
+    }
+
+    [Fact]
+    public async Task CloseRejectsKindBeyondScalarJsonLimitWithoutHistory()
+    {
+        // GIVEN a valid envelope except for a 4001-character kind identifier.
+        await using var controls = await JournalControlTestContext.OpenAsync(sqlServer);
+        var before = await controls.HistorySnapshotAsync();
+        var auditBefore = await CloseAuditCountAsync(controls.Journal.Connection);
+        var evidence = "{\"schemaVersion\":1,\"kind\":\"" + new string('A', 4001) +
+            "\",\"periodStart\":\"2026-09-01\"}";
+        // WHEN the typed adapter asks the kernel to close the month.
+        var rejected = await Assert.ThrowsAsync<SqlException>(() =>
+            controls.CloseAsync(new DateOnly(2026, 9, 1), evidenceJson: evidence));
+        // THEN the bounded identifier fails without period, closure, receipt, or audit append.
+        Assert.Equal(51000, rejected.Number);
+        Assert.Equal(before, await controls.HistorySnapshotAsync());
+        Assert.Equal(auditBefore, await CloseAuditCountAsync(controls.Journal.Connection));
+    }
+
+    [Theory]
+    [InlineData("scale")]
+    [InlineData("fiscalStartMonth")]
+    public async Task CloseRejectsIncompleteNumericCalendarAsInvalidState(string missingField)
+    {
+        // GIVEN a saved but incomplete accounting policy with one numeric field omitted.
+        await using var controls = await JournalControlTestContext.OpenAsync(sqlServer);
+        var payload = JsonNode.Parse("""{"policies":{"country":"US","region":"CA","currency":"USD","scale":2,"fiscalStartMonth":1,"startApproach":"OpeningBalances","plannedStartDate":"2026-01-01"},"mappings":[],"coverage":[]}""")!;
+        payload["policies"]!.AsObject().Remove(missingField);
+        var saved = await controls.Journal.SaveAsync(Guid.NewGuid(), "Configure", payload.ToJsonString(),
+            expectedVersion: controls.Journal.ConfigurationVersion);
+        var before = await controls.HistorySnapshotAsync();
+        var auditBefore = await CloseAuditCountAsync(controls.Journal.Connection);
+        // WHEN close tries to materialize September from the incomplete calendar.
+        var rejected = await Assert.ThrowsAsync<SqlException>(() => controls.CloseAsync(
+            new DateOnly(2026, 9, 1), expectedConfigurationVersion: saved.Version));
+        // THEN the expected invalid-state error is returned without durable history.
+        Assert.Equal(51000, rejected.Number);
+        Assert.Equal(before, await controls.HistorySnapshotAsync());
+        Assert.Equal(auditBefore, await CloseAuditCountAsync(controls.Journal.Connection));
     }
 
     [Fact]
@@ -223,5 +291,52 @@ public sealed class AccountingPeriodTests(SqlServerFixture sqlServer)
         var rejected = await Assert.ThrowsAsync<SqlException>(() => invalid.ExecuteNonQueryAsync());
         // THEN the tenant-and-month-qualified relationship blocks the mismatch.
         Assert.Equal(547, rejected.Number);
+    }
+
+    [Fact]
+    public async Task ClosedPeriodHistoryIsInvisibleToAnotherTenant()
+    {
+        // GIVEN a completed close in tenant A.
+        await using var controls = await JournalControlTestContext.OpenAsync(sqlServer);
+        var journal = controls.Journal;
+        var closure = await controls.CloseAsync(new DateOnly(2026, 9, 1));
+        Assert.Equal(1, await journal.CountAsync("Periods"));
+        Assert.Equal(1, await journal.CountAsync("PeriodClosures"));
+        Assert.Equal(1, await journal.CountAsync("PeriodCloseReceipts"));
+        // WHEN a restricted connection proves tenant B identity.
+        await using var otherTenant = await journal.OpenOtherTenantAsync();
+        // THEN no part of the close history crosses the RLS boundary.
+        foreach (var table in new[] { "Periods", "PeriodClosures", "PeriodCloseReceipts" })
+            Assert.Equal(0, await journal.CountAsync(table, otherTenant));
+
+        // AND a tenant B receipt cannot point at tenant A's closure, even if tenant B has that month.
+        await using var admin = new SqlConnection(journal.Application.AdminConnectionString);
+        await admin.OpenAsync();
+        await using (var period = new SqlCommand("""
+            INSERT Accounting.Periods(TenantId,PeriodStart,PeriodEnd,FiscalYearStart,ConfigurationVersion,
+              Currency,Scale,FiscalStartMonth,StartApproach,AccountingStartDate,CreatedAtUtc)
+            VALUES(@tenant,'2026-09-01','2026-09-30','2026-01-01',NEWID(),
+              'USD',2,1,N'OpeningBalances','2026-01-01',SYSUTCDATETIME());
+            """, admin))
+        {
+            period.Parameters.AddWithValue("@tenant", JournalTestContext.OtherTenantId);
+            await period.ExecuteNonQueryAsync();
+        }
+        await using var receipt = new SqlCommand("""
+            INSERT Accounting.PeriodCloseReceipts(TenantId,RequestId,ActorId,CommandKind,CommandVersion,
+              CanonicalInput,InputSha256,ClosureId,PeriodStart,RecordedAtUtc)
+            VALUES(@tenant,NEWID(),@actor,N'Period.Close',1,N'{}',0x0000000000000000000000000000000000000000000000000000000000000000,
+              @closure,'2026-09-01',SYSUTCDATETIME());
+            """, admin);
+        receipt.Parameters.AddWithValue("@tenant", JournalTestContext.OtherTenantId);
+        receipt.Parameters.AddWithValue("@actor", AuthTestApplication.OtherTenantUserId);
+        receipt.Parameters.AddWithValue("@closure", closure.ClosureId);
+        Assert.Equal(547, (await Assert.ThrowsAsync<SqlException>(() => receipt.ExecuteNonQueryAsync())).Number);
+    }
+
+    private static async Task<int> CloseAuditCountAsync(SqlConnection connection)
+    {
+        await using var command = new SqlCommand("SELECT COUNT(*) FROM Security.TenantSecurityAuditEvents WHERE Action=N'Accounting.ClosePeriod'", connection);
+        return (int)(await command.ExecuteScalarAsync() ?? throw new InvalidOperationException("Audit count returned null."));
     }
 }

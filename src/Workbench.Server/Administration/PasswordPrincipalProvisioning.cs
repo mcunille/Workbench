@@ -43,6 +43,11 @@ public static class PasswordPrincipalProvisioning
             EXEC @result = sys.sp_getapplock @Resource=N'Workbench.PasswordProvisioning',
                 @LockMode=N'Exclusive', @LockOwner=N'Transaction', @LockTimeout=30000;
             IF @result < 0 THROW 50030, 'Principal provisioning lock unavailable.', 1;
+            -- Repair only accidental direct EXECUTE grants on the internal journal/period kernels.
+            -- Keep this before the general role guard so unrelated unsafe grants still fail closed.
+            REVOKE EXECUTE ON OBJECT::[Accounting].[PostJournal] FROM [workbench_web], [workbench_worker], [public];
+            REVOKE EXECUTE ON OBJECT::[Accounting].[EnsureOpenPeriod] FROM [workbench_web], [workbench_worker], [public];
+            REVOKE EXECUTE ON OBJECT::[Accounting].[ClosePeriod] FROM [workbench_web], [workbench_worker], [public];
             -- Web/operator grants must match their migration-defined object access. DENY rows add no authority.
             -- Keep this allowlist and the successful provisioning test current when adding migration grants.
             -- Migrator intentionally retains database CONTROL and is not a restricted workload role.
