@@ -327,6 +327,20 @@ The browser uses one public origin. In production, ASP.NET Core serves the compi
 API. During development, the client development server may proxy API requests, but that convenience
 must not create a second production architecture.
 
+Development projects remain independently runnable: starting the server does not implicitly own
+the client development lifecycle. Production combines client and API behind one origin to avoid an
+additional authentication and coordinated-release boundary. Node is a build dependency only;
+ASP.NET Core already serves the client, so another runtime would add image size and attack surface
+without a needed capability. Separate static hosting remains an option when measured traffic
+justifies it. The publish target in `Workbench.Server.csproj` and the Dockerfile own packaging mechanics;
+[Contributing](../CONTRIBUTING.md) owns toolchain pins and release verification.
+
+Health endpoints separate process availability from dependency readiness. `/health/live` has no
+remote dependency checks; `/health/ready` includes required dependency checks and returns `503` on
+failure while liveness can remain `200`. Dependency outages must not become destructive restart loops.
+`HealthEndpointTests.cs` covers process liveness and `HealthEndpointSqlTests` in the same file exercises
+the readiness/liveness distinction; the published-output and container checks cover release packaging.
+
 The server is organized as a modular monolith. Each product module owns its application boundary,
 domain rules, database objects, and migrations. Cross-module work uses explicit contracts rather
 than reaching into another module's internals. The modules deploy and operate together until
