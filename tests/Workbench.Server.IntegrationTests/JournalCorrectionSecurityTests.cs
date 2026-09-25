@@ -86,6 +86,103 @@ public sealed class JournalCorrectionSecurityTests(SqlServerFixture sqlServer)
     }
 
     [Fact]
+    [Trait("Category", "MutationProbe")]
+    public async Task DuplicateReversalAssertionDetectsRemovedKernelCheck()
+    {
+        // GIVEN a corrected original and the kernel's documented duplicate conflict.
+        await using var controls = await JournalControlTestContext.OpenAsync(sqlServer);
+        var journal = controls.Journal;
+        var original = await journal.PostAsync(await journal.CreateSourceAsync("300"));
+        await CorrectionAssertions.KernelAsync(controls, original.JournalId);
+        async Task AssertDuplicateConflict() => Assert.Equal(51009, (await Assert.ThrowsAsync<SqlException>(() =>
+            CorrectionAssertions.KernelAsync(controls, original.JournalId))).Number);
+        await AssertDuplicateConflict();
+
+        // WHEN only the disposable kernel's duplicate-original lookup is removed.
+        var definition = await ReadKernelAsync(journal);
+        var lookupStart = definition.IndexOf(" OR EXISTS(SELECT 1 FROM Accounting.CorrectionGroups", StringComparison.Ordinal);
+        Assert.True(lookupStart >= 0);
+        var lookupEnd = definition.IndexOf("ReversalJournalId=@OriginalJournalId))", lookupStart, StringComparison.Ordinal)
+            + "ReversalJournalId=@OriginalJournalId))".Length;
+        Assert.True(lookupEnd > lookupStart);
+        var mutated = definition.Remove(lookupStart, lookupEnd - lookupStart);
+        Assert.NotEqual(definition, mutated);
+        await AlterKernelAsync(journal, mutated);
+        var assertion = await Record.ExceptionAsync(AssertDuplicateConflict);
+        // THEN the contract assertion detects the changed SQL error; the unique key still blocks a duplicate row.
+        Assert.IsAssignableFrom<Xunit.Sdk.XunitException>(assertion);
+        await AlterKernelAsync(journal, definition);
+        await AssertDuplicateConflict();
+    }
+
+    [Fact]
+    [Trait("Category", "MutationProbe")]
+    public async Task RevokedReplayAssertionDetectsReceiptMovedBeforeAuthority()
+    {
+        // GIVEN a successful correction receipt and an actor whose accounting role is now revoked.
+        await using var controls = await JournalControlTestContext.OpenAsync(sqlServer);
+        var journal = controls.Journal;
+        var original = await journal.PostAsync(await journal.CreateSourceAsync("300"));
+        var request = Guid.NewGuid();
+        await CorrectionAssertions.KernelAsync(controls, original.JournalId, request: request);
+        await CorrectionAssertions.AdminAsync(journal,
+            "DELETE ur FROM [Identity].[UserRoles] ur JOIN Administration.AccountingRoles ar ON ar.TenantId=ur.TenantId AND ar.RoleId=ur.RoleId");
+        async Task AssertDenied() => Assert.Equal(51003, (await Assert.ThrowsAsync<SqlException>(() =>
+            CorrectionAssertions.KernelAsync(controls, original.JournalId, request: request))).Number);
+        await AssertDenied();
+
+        // WHEN the disposable kernel moves receipt replay ahead of current-authority validation.
+        var definition = await ReadKernelAsync(journal);
+        var authorityStart = definition.IndexOf("BEGIN TRY", StringComparison.Ordinal);
+        var receiptStart = definition.IndexOf("IF EXISTS(SELECT 1 FROM Accounting.CorrectionReceipts", StringComparison.Ordinal);
+        Assert.True(authorityStart >= 0 && receiptStart > authorityStart);
+        var receiptEnd = definition.IndexOf("RETURN;", receiptStart, StringComparison.Ordinal);
+        receiptEnd = definition.IndexOf("END;", receiptEnd, StringComparison.Ordinal) + "END;".Length;
+        Assert.True(receiptEnd > receiptStart);
+        var receiptBlock = definition[receiptStart..receiptEnd];
+        var mutated = definition.Remove(receiptStart, receiptEnd - receiptStart)
+            .Insert(authorityStart, receiptBlock + Environment.NewLine + "          ");
+        await AlterKernelAsync(journal, mutated);
+        var assertion = await Record.ExceptionAsync(AssertDenied);
+        // THEN the same denial assertion fails on replay and passes after restoration.
+        Assert.IsAssignableFrom<Xunit.Sdk.XunitException>(assertion);
+        await AlterKernelAsync(journal, definition);
+        await AssertDenied();
+    }
+
+    [Fact]
+    [Trait("Category", "MutationProbe")]
+    public async Task CompleteReplacementAssertionDetectsSkippedPosting()
+    {
+        // GIVEN a complete correction whose result includes a replacement journal.
+        await using var controls = await JournalControlTestContext.OpenAsync(sqlServer);
+        var journal = controls.Journal;
+        async Task AssertReplacement()
+        {
+            var before = await journal.CountAsync("JournalEntries");
+            var original = await journal.PostAsync(await journal.CreateSourceAsync("300"));
+            var result = await controls.CorrectAsync(original.JournalId, new DateOnly(2026, 10, 1), "280");
+            Assert.NotNull(result.ReplacementJournalId);
+            Assert.Equal(before + 3, await journal.CountAsync("JournalEntries"));
+        }
+        await AssertReplacement();
+
+        // WHEN the disposable kernel skips its replacement posting block.
+        var definition = await ReadKernelAsync(journal);
+        var branchStart = definition.LastIndexOf("IF @ReplacementSourceRevision IS NOT NULL", StringComparison.Ordinal);
+        Assert.True(branchStart >= 0);
+        var mutated = definition.Remove(branchStart, "IF @ReplacementSourceRevision IS NOT NULL".Length)
+            .Insert(branchStart, "IF 1=0");
+        Assert.NotEqual(definition, mutated);
+        await AlterKernelAsync(journal, mutated);
+        var assertion = await Record.ExceptionAsync(AssertReplacement);
+        // THEN the complete-correction assertion fails, and the original kernel passes again.
+        Assert.NotNull(assertion);
+        await AlterKernelAsync(journal, definition);
+        await AssertReplacement();
+    }
+
+    [Fact]
     public async Task KernelAndDurableTablesDenyDirectRuntimeWritesAndOtherTenantSeesNoHistory()
     {
         // GIVEN a committed correction visible to its tenant through a real restricted connection.
@@ -162,6 +259,23 @@ public sealed class JournalCorrectionSecurityTests(SqlServerFixture sqlServer)
         var mutated = mutate(definition);
         Assert.NotEqual(definition, mutated);
         await using var command = new SqlCommand(mutated.Replace("CREATE PROCEDURE", "ALTER PROCEDURE", StringComparison.Ordinal), admin);
+        await command.ExecuteNonQueryAsync();
+    }
+
+    private static async Task<string> ReadKernelAsync(JournalTestContext journal)
+    {
+        await using var admin = new SqlConnection(journal.Application.AdminConnectionString);
+        await admin.OpenAsync();
+        return (string)(await CorrectionAssertions.ScalarAsync(admin,
+            "SELECT OBJECT_DEFINITION(OBJECT_ID(N'Accounting.CorrectJournal'))"))!;
+    }
+
+    private static async Task AlterKernelAsync(JournalTestContext journal, string definition)
+    {
+        await using var admin = new SqlConnection(journal.Application.AdminConnectionString);
+        await admin.OpenAsync();
+        await using var command = new SqlCommand(
+            definition.Replace("CREATE PROCEDURE", "ALTER PROCEDURE", StringComparison.Ordinal), admin);
         await command.ExecuteNonQueryAsync();
     }
 }

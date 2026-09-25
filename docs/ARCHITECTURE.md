@@ -85,8 +85,22 @@ Journal and trial-balance GET APIs independently require `AccountingReportsRead`
 strings and capture each response in a SERIALIZABLE read. Posting and recorded-time cutoffs apply
 together. Recorded time is not commit order and paginated reads are not frozen export snapshots.
 The [BK-02 design](specs/2026-09-23-bk-02-atomic-journal.md) records the approved contract and limits.
-Bookkeeping activation, production sources, correction/period controls and retained financial files
-remain gated by the parent prerequisites.
+
+BK-03 adds durable calendar months, immutable closures and receipts, and correction groups with exact
+inverse and optional replacement entries. Posting and correction use the same tenant lock as closing;
+new commands reject a closed month, while matching committed receipts replay after closure only with
+current authority. Closing an empty month freezes the calendar without fabricating a first journal.
+The restricted `Accounting.ClosePeriod` and `Accounting.CorrectJournal` procedures have no runtime
+execute grant. New tables use tenant RLS, tenant-qualified links and denied direct runtime writes.
+Only disposable SQL tests install a synthetic writer; no production source or close adapter exists.
+
+All new reversal, replacement, internal receipt and group rows in one correction share a single
+database-owned recorded time. This makes recorded-time report cutoffs include a complete correction
+atomically while preserving the original committed records. Journal detail adds current correction
+relationships; the period GET reports explicit ranges of up to 120 months without materializing an
+open month. The [BK-03 design](specs/2026-09-24-bk-03-corrections-and-period-controls.md) records
+the constraints. Bookkeeping activation, production sources, reconciliation acceptance, public close
+and correction actions, and retained financial files remain gated by the parent prerequisites.
 
 ### Collection records export
 

@@ -76,16 +76,20 @@ successful old retry returns its receipt and never rolls back newer settings or 
 Unsaved drafts are private browser memory and are lost on reload or loss of access.
 
 The first journal freezes currency, scale, fiscal calendar and planned starting approach/date.
-These fields cannot change afterward. The freeze is not acceptance of starting balances or permission
-to use the application for real bookkeeping; those release gates remain separate.
+An internally closed month also freezes these fields, even when no journal has been posted; it does
+not invent a first-journal reference. These freezes are not acceptance of starting balances or
+permission to use the application for real bookkeeping; those release gates remain separate.
 
 ## Journal read APIs
 
 Accounting readers and administrators can use these authenticated beta GET routes:
 
-- `/api/beta/accounting/journals` lists recorded entries; append `/{id}` for source evidence and lines.
+- `/api/beta/accounting/journals` lists recorded entries; append `/{id}` for source evidence, lines,
+  and current correction relationships with their immutable reason and evidence digest.
 - `/api/beta/accounting/accounts/{id}/journal` lists an account's journal lines.
 - `/api/beta/accounting/trial-balance` reports exact debit/credit activity and debit-minus-credit balances.
+- `/api/beta/accounting/periods?from=YYYY-MM-01&through=YYYY-MM-01` reads up to 120 inclusive
+  calendar months, including eligible months that are open but not materialized in storage.
 
 Amounts are decimal strings. Lists default to 50 rows and allow up to 100 per page. Responses include
 posting-date and UTC recorded-time cutoffs; pagination preserves those cutoffs. Both filters must
@@ -95,7 +99,19 @@ An empty ledger has zero activity; it does not prove that a business has no open
 Each response is internally consistent. Recorded timestamps are not commit timestamps, so entries
 that were in flight can become visible between pages. These APIs are not frozen exports or reconciled
 financial statements. No report screen or financial write route is delivered with this foundation.
+An internal correction appends an exact reversal and optional replacement with one database-owned
+recorded time for all new components. A recorded-time cutoff therefore includes either the whole
+committed correction or none of it. Original entries and their timestamps remain unchanged; posting
+date and recorded-time filters still apply independently. Current journal detail can show later
+correction relationships even when an earlier report cutoff excludes the correction.
+
+Period closure and correction writes are internal primitives exercised only with synthetic sources
+in disposable test databases. The closure evidence v1 envelope requires schema version 1, a bounded
+nonblank typed kind, and the exact canonical period start; the synthetic kind is
+`SyntheticReconciliation`. A production reconciliation schema and close checklist remain future work.
 
 The [BK-01 specification](specs/2026-09-21-bk-01-accounting-foundation.md) owns the accepted boundaries;
 the [BK-02 specification](specs/2026-09-23-bk-02-atomic-journal.md) defines the journal boundary;
+the [BK-03 specification](specs/2026-09-24-bk-03-corrections-and-period-controls.md) defines internal
+period and correction controls;
 the [PO-07 prerequisites](specs/2026-09-20-po-07-deposits-and-payments.md) describe later bookkeeping gates.

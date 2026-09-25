@@ -11,6 +11,46 @@ namespace Workbench.Server.IntegrationTests;
 public sealed class AccountingPeriodTests(SqlServerFixture sqlServer)
 {
     [Fact]
+    [Trait("Category", "MutationProbe")]
+    public async Task ClosedMonthAssertionDetectsRemovedSqlGuard()
+    {
+        // GIVEN a closed September month and a posting assertion that rejects new commands.
+        await using var controls = await JournalControlTestContext.OpenAsync(sqlServer);
+        var journal = controls.Journal;
+        await controls.CloseAsync(new DateOnly(2026, 9, 1));
+        async Task AssertClosed()
+        {
+            var source = await journal.CreateSourceAsync();
+            Assert.Equal(51009, (await Assert.ThrowsAsync<SqlException>(() =>
+                journal.PostAsync(source, postingDate: new DateTime(2026, 9, 15)))).Number);
+        }
+        await AssertClosed();
+
+        // WHEN the disposable period procedure omits its closure lookup.
+        await using var admin = new SqlConnection(journal.Application.AdminConnectionString);
+        await admin.OpenAsync();
+        await using var definitionCommand = new SqlCommand(
+            "SELECT OBJECT_DEFINITION(OBJECT_ID(N'Accounting.EnsureOpenPeriod'))", admin);
+        var definition = (string)(await definitionCommand.ExecuteScalarAsync())!;
+        var guardStart = definition.IndexOf("IF EXISTS(SELECT 1 FROM Accounting.PeriodClosures", StringComparison.Ordinal);
+        Assert.True(guardStart >= 0);
+        var guardEnd = definition.IndexOf("THROW 51009,'The posting period is closed.',1;", guardStart, StringComparison.Ordinal)
+            + "THROW 51009,'The posting period is closed.',1;".Length;
+        Assert.True(guardEnd > guardStart);
+        var mutated = definition.Remove(guardStart, guardEnd - guardStart)
+            .Insert(guardStart, "PRINT N'closure guard removed';");
+        Assert.NotEqual(definition, mutated);
+        await using (var alter = new SqlCommand(mutated.Replace("CREATE PROCEDURE", "ALTER PROCEDURE", StringComparison.Ordinal), admin))
+            await alter.ExecuteNonQueryAsync();
+        var assertion = await Record.ExceptionAsync(AssertClosed);
+        // THEN the same closed-month assertion fails; restoring the SQL makes it pass again.
+        Assert.IsAssignableFrom<Xunit.Sdk.XunitException>(assertion);
+        await using (var restore = new SqlCommand(definition.Replace("CREATE PROCEDURE", "ALTER PROCEDURE", StringComparison.Ordinal), admin))
+            await restore.ExecuteNonQueryAsync();
+        await AssertClosed();
+    }
+
+    [Fact]
     public async Task ClosedMonthRejectsNewPostingButReplaysOriginalRequest()
     {
         // GIVEN an existing posting and its durable request identity.

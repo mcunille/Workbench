@@ -1,6 +1,7 @@
 # BK-03: corrections and period controls
 
-**Status:** Accepted — scope and written spec approved on 2026-09-24; implementation-plan review pending.
+**Status:** Implemented — internal period and correction primitives, readback and disposable SQL
+coverage are checked in. Production close, correction and bookkeeping activation remain gated.
 
 Parent: [PO-07 bookkeeping prerequisites](2026-09-20-po-07-deposits-and-payments.md).
 Prerequisites: [BK-01 accounting foundation](2026-09-21-bk-01-accounting-foundation.md)
@@ -67,6 +68,10 @@ A closure stores tenant/period, stable ID, actor, database UTC time, nonblank re
 bounded evidence snapshot and SHA-256 digest, plus its command receipt. One closure per period;
 no reopening or deletion. BK-03 permits independent month closure internally, without claiming the
 completed financial-close checklist or fiscal-year close semantics.
+Closure evidence v1 is a strict object with `schemaVersion: 1`, a bounded nonblank typed `kind`,
+and a canonical `periodStart` equal to the command month. Duplicate and unknown fields reject.
+The disposable test adapter uses `SyntheticReconciliation`; production reconciliation evidence
+requires a later versioned schema. This envelope alone does not establish release-close acceptance.
 
 All new records have tenant RLS, tenant-qualified foreign keys, restrictive deletion and runtime
 DML denial. Constrain calendar boundaries and uniqueness in SQL. Current state is derived from
@@ -141,6 +146,11 @@ is never proof that a real financial source is independent.
 6. Append source revisions/events, journal entries, correction links/evidence, audit and the single
    correction receipt, then commit together. Any failed validation, dependency resolution or insert
    rolls back the entire operation, including period materialization and source changes.
+
+All newly created components of one correction share one database-owned `RecordedAtUtc` before
+commit, so a recorded-time cutoff cannot expose only half of that correction. The implementation
+normalizes only the exact newly generated replacement source-event, journal and internal receipt
+IDs within the outer transaction. It never changes timestamps of previously committed records.
 
 An inverse preserves historical account snapshots even if the account was renamed since posting.
 The inverse path is narrowly restricted to the stored original; it does not create a general bypass
