@@ -1,5 +1,22 @@
 @echo off
 setlocal
+rem Workbench rejects Live before engine lookup. SHIFT leaves the original %* intact.
+:workbench_live_check
+if not "%~1"=="" goto workbench_live_argument
+if [%1]==[] goto workbench_live_checked
+shift /1
+goto workbench_live_check
+:workbench_live_argument
+set "workbench_arg=%~1"
+if /I "%workbench_arg%"=="live" goto workbench_live_disabled
+if /I "%workbench_arg:~0,5%"=="live-" goto workbench_live_disabled
+shift /1
+goto workbench_live_check
+:workbench_live_disabled
+echo impeccable: Live integration is disabled in Workbench (security finding #2). 1>&2
+exit /b 1
+:workbench_live_checked
+
 rem Impeccable launcher (Windows). Runs bin\windows-<arch>\impeccable.exe next
 rem to this file, else a cached or freshly downloaded engine binary.
 rem
