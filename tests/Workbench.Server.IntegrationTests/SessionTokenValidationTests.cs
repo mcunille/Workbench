@@ -9,6 +9,16 @@ namespace Workbench.Server.IntegrationTests;
 public sealed class SessionTokenValidationTests
 {
     [Fact]
+    public void SessionTokensRequireTheExactEncodedEntropyLength()
+    {
+        // GIVEN a valid base64url encoding with one byte too much entropy.
+        var oversizedToken = Microsoft.AspNetCore.WebUtilities.WebEncoders.Base64UrlEncode(new byte[33]);
+
+        // WHEN validating the token THEN its length is rejected without any application or SQL fixture.
+        Assert.False(SessionToken.TryHash(oversizedToken, out _));
+    }
+
+    [Fact]
     public async Task ResolveTreatsMalformedTokenAsUnauthenticated()
     {
         // GIVEN a malformed token and deliberately unusable SQL configuration.

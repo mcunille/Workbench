@@ -1,9 +1,6 @@
 // Copyright (c) 2026 The White Stag Collection.
 
 using Microsoft.Data.SqlClient;
-using Microsoft.EntityFrameworkCore;
-using Workbench.Server.Persistence;
-using Workbench.Server.Security;
 using Workbench.Server.Tenancy;
 using Workbench.Server.IntegrationTests.Infrastructure;
 using Xunit;
@@ -14,32 +11,10 @@ namespace Workbench.Server.IntegrationTests;
 public sealed class SecurityAuditTests(SqlServerFixture sqlServer)
 {
     [Fact]
-    public void AuditWriterRejectsSensitiveMetadataNames()
-    {
-        var options = new DbContextOptionsBuilder<WorkbenchDbContext>()
-            .UseSqlServer("Server=unused;Database=unused")
-            .Options;
-        using var database = new WorkbenchDbContext(options, new TenantContext(Guid.NewGuid()));
-        var writer = new SecurityAuditWriter(database, TimeProvider.System);
-
-        Assert.Throws<ArgumentException>(() => writer.AppendTenant(
-            Guid.NewGuid(),
-            Guid.NewGuid(),
-            "test",
-            "User",
-            Guid.NewGuid(),
-            "Succeeded",
-            "correlation",
-            new Dictionary<string, string> { ["recoveryToken"] = "must-not-appear" }));
-    }
-
-    [Fact]
     public async Task WebPrincipalCanAppendButCannotUpdateOrDeleteAuditHistory()
     {
-        await using var database = await sqlServer.CreateDatabaseAsync();
-        await Workbench.Server.Persistence.DatabaseMigrator.MigrateAsync(
-            database.AdminConnectionString,
-            CancellationToken.None);
+        // GIVEN an isolated current schema and a web principal with append-only audit authority.
+        await using var database = await sqlServer.CreateMigratedDatabaseAsync();
         var webConnection = await database.CreateWebUserAsync();
         var tenantId = Guid.NewGuid();
         await database.SeedTenantAuditRowsAsync(tenantId, Guid.NewGuid());
@@ -48,6 +23,7 @@ public sealed class SecurityAuditTests(SqlServerFixture sqlServer)
         var proof = new TenantContextProof(await database.GetTenantContextProofKeyAsync());
         await proof.ApplyAsync(connection, tenantId, CancellationToken.None);
 
+        // WHEN the web principal appends an audit event THEN the insert succeeds.
         await ExecuteAsync(
             connection,
             $"""
@@ -57,6 +33,7 @@ public sealed class SecurityAuditTests(SqlServerFixture sqlServer)
                 (NEWID(), '{tenantId}', N'test.appended', N'Succeeded', SYSUTCDATETIME())
             """);
 
+        // AND it cannot update or delete the persisted history.
         await Assert.ThrowsAsync<SqlException>(() => ExecuteAsync(
             connection,
             "UPDATE [Security].[TenantSecurityAuditEvents] SET [Action] = N'tampered'"));

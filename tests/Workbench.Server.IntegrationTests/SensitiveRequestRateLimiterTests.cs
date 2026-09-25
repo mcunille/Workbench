@@ -5,7 +5,6 @@ using System.Security.Cryptography;
 using Microsoft.Data.SqlClient;
 using Workbench.Server.Identity;
 using Workbench.Server.IntegrationTests.Infrastructure;
-using Workbench.Server.Persistence;
 using Xunit;
 using Workbench.Server.Tenancy;
 
@@ -17,19 +16,21 @@ public sealed class SensitiveRequestRateLimiterTests(SqlServerFixture sqlServer)
     [Fact]
     public async Task SqlLimiterSharesAWindowAcrossApplicationReplicas()
     {
-        await using var database = await sqlServer.CreateDatabaseAsync();
-        await DatabaseMigrator.MigrateAsync(database.AdminConnectionString, CancellationToken.None);
+        // GIVEN an isolated current schema for the replicas' shared durable rate limit.
+        await using var database = await sqlServer.CreateMigratedDatabaseAsync();
         var webConnection = await database.CreateWebUserAsync();
         var proof = new TenantContextProof(await database.GetTenantContextProofKeyAsync());
         var first = new SqlSensitiveRequestRateLimiter(webConnection, proof);
         var second = new SqlSensitiveRequestRateLimiter(webConnection, proof);
 
+        // WHEN replicas alternate requests THEN they consume the same five permits.
         for (var request = 0; request < 5; request++)
         {
             Assert.True(await (request % 2 == 0 ? first : second)
                 .TryAcquireAsync("shared-login-window", CancellationToken.None));
         }
 
+        // AND the next request is rejected by the shared persisted limit.
         Assert.False(await second.TryAcquireAsync("shared-login-window", CancellationToken.None));
         // THEN the stored partition cannot be reproduced with an unkeyed dictionary hash.
         await using var inspection = new SqlConnection(database.AdminConnectionString);
@@ -42,8 +43,8 @@ public sealed class SensitiveRequestRateLimiterTests(SqlServerFixture sqlServer)
     [Fact]
     public async Task WebPrincipalCannotOverrideLimiterTimeWindowOrPermitCount()
     {
-        await using var database = await sqlServer.CreateDatabaseAsync();
-        await DatabaseMigrator.MigrateAsync(database.AdminConnectionString, CancellationToken.None);
+        // GIVEN an isolated current schema and the same restricted web authority as production.
+        await using var database = await sqlServer.CreateMigratedDatabaseAsync();
         var webConnection = await database.CreateWebUserAsync();
         await using var connection = new SqlConnection(webConnection);
         await connection.OpenAsync();
@@ -59,14 +60,15 @@ public sealed class SensitiveRequestRateLimiterTests(SqlServerFixture sqlServer)
         command.Parameters.AddWithValue("@WindowSeconds", int.MaxValue);
         command.Parameters.AddWithValue("@PermitLimit", int.MaxValue);
 
+        // WHEN the web principal supplies its own quota parameters THEN SQL rejects the call.
         await Assert.ThrowsAsync<SqlException>(() => command.ExecuteNonQueryAsync());
     }
 
     [Fact]
     public async Task SqlLimiterOpportunisticallyRemovesExpiredPartitions()
     {
-        await using var database = await sqlServer.CreateDatabaseAsync();
-        await DatabaseMigrator.MigrateAsync(database.AdminConnectionString, CancellationToken.None);
+        // GIVEN an isolated current schema in which only this test seeds expired partitions.
+        await using var database = await sqlServer.CreateMigratedDatabaseAsync();
         var webConnection = await database.CreateWebUserAsync();
         await using (var connection = new SqlConnection(database.AdminConnectionString))
         {
@@ -83,6 +85,7 @@ public sealed class SensitiveRequestRateLimiterTests(SqlServerFixture sqlServer)
             await seed.ExecuteNonQueryAsync();
         }
 
+        // WHEN the web principal acquires a current permit THEN it succeeds.
         Assert.True(await new SqlSensitiveRequestRateLimiter(webConnection, new TenantContextProof(await database.GetTenantContextProofKeyAsync()))
             .TryAcquireAsync("current-partition", CancellationToken.None));
 
@@ -91,6 +94,7 @@ public sealed class SensitiveRequestRateLimiterTests(SqlServerFixture sqlServer)
         await using var verify = new SqlCommand(
             "SELECT COUNT(*) FROM [Security].[SensitiveRequestLimits] WHERE [WindowStartedAtUtc] < '2001-01-01'",
             verifyConnection);
+        // AND the expired partitions have been removed from SQL.
         Assert.Equal(0, Convert.ToInt32(await verify.ExecuteScalarAsync()));
     }
 }
