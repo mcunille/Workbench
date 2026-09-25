@@ -258,7 +258,11 @@ internal sealed class JournalTestContext : IAsyncDisposable
               OR @Failpoint NOT IN (0,1,2,3) THROW 51000,''Invalid synthetic source command.'',1;
             DECLARE @LockResult int,@Resource nvarchar(255)=N''Accounting:''+CONVERT(nvarchar(36),@TenantId);
             EXEC @LockResult=sys.sp_getapplock @Resource=@Resource,@LockMode=''Exclusive'',@LockOwner=''Transaction'',@LockTimeout=10000;
-            IF @LockResult<0 THROW 51009,''Accounting is being changed. Retry.'',1;
+            IF @LockResult<0
+            BEGIN
+              DECLARE @LockFailure nvarchar(2048)=CONCAT(N''Synthetic accounting lock failed: result='',@LockResult,N'', session='',@@SPID);
+              THROW 51009,@LockFailure,1;
+            END;
             -- Authorization and replay must precede all mutable source, configuration and account checks.
             EXEC Accounting.RequirePermission @ActorId,@SessionId,N''AccountingConfigurationManage'';
             DECLARE @CanonicalInput nvarchar(max)=(SELECT @SourceId sourceId,@ExpectedSourceRevision sourceRevision,

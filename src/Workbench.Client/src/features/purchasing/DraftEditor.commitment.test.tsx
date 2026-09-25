@@ -222,26 +222,31 @@ it('keeps a reviewed amendment frozen and retries the original request after a l
 
 it.each([['Draft', saved, 'Record as ordered'], ['Ordered', ordered, 'Create amendment']] as const)('applies the same scroll transition to the %s toolbar', async (_state, purchase, action) => {
   // GIVEN a purchase at the top of its editing or ordered page.
-  let reportIntersection!: IntersectionObserverCallback;
-  const disconnect = vi.fn();
+  const observers = new Map<Element, IntersectionObserverCallback>();
   vi.stubGlobal('IntersectionObserver', class {
-    constructor(callback: IntersectionObserverCallback) { reportIntersection = callback; }
-    observe = vi.fn();
-    disconnect = disconnect;
+    private target?: Element;
+    private callback: IntersectionObserverCallback;
+    constructor(callback: IntersectionObserverCallback) { this.callback = callback; }
+    observe(target: Element) { this.target = target; observers.set(target, this.callback); }
+    disconnect() { if (this.target) observers.delete(this.target); }
   });
   try {
     vi.mocked(getDraft).mockReset().mockResolvedValue(purchase);
     const view = render(<DraftEditor {...props()} />);
     const toolbar = (await screen.findByRole('button', { name: action })).closest('.po-editor-toolbar');
+    // AND the displayed toolbar's marker is observed after any loading-view replacement.
+    const marker = toolbar!.previousElementSibling!;
+    await waitFor(() => expect(observers.has(marker)).toBe(true));
+    const reportIntersection = observers.get(marker)!;
     expect(toolbar).not.toHaveClass('is-pinned');
     // WHEN its top marker scrolls above the viewport THEN the shared toolbar gains its opaque treatment.
-    act(() => reportIntersection([{ isIntersecting: false, boundingClientRect: { top: -10 } } as IntersectionObserverEntry], {} as IntersectionObserver));
+    await act(async () => reportIntersection([{ target: marker, isIntersecting: false, boundingClientRect: { top: -10 } } as IntersectionObserverEntry], {} as IntersectionObserver));
     expect(toolbar).toHaveClass('is-pinned');
     // WHEN returning to the top THEN it becomes transparent again.
-    act(() => reportIntersection([{ isIntersecting: true, boundingClientRect: { top: 10 } } as IntersectionObserverEntry], {} as IntersectionObserver));
+    await act(async () => reportIntersection([{ target: marker, isIntersecting: true, boundingClientRect: { top: 10 } } as IntersectionObserverEntry], {} as IntersectionObserver));
     expect(toolbar).not.toHaveClass('is-pinned');
     // AND leaving the page releases the scroll observer.
     view.unmount();
-    expect(disconnect).toHaveBeenCalled();
+    expect(observers.size).toBe(0);
   } finally { vi.unstubAllGlobals(); }
 });
