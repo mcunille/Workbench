@@ -7,6 +7,7 @@ internal static class PurchaseRecognitionSchema
 {
     internal static void Up(MigrationBuilder migrationBuilder, string migrationId)
     {
+        migrationBuilder.Sql(PurchaseRecognitionPosting.Sql);
         migrationBuilder.Sql("""
             ALTER TABLE Purchasing.RecognitionUnits ADD CONSTRAINT FK_RecognitionUnits_OrderRevision
               FOREIGN KEY(TenantId,PurchaseOrderId,PurchaseOrderRevision)
