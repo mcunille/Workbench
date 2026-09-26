@@ -8,8 +8,9 @@ The owner selected this visual direction through an interactive mockup on 2026-0
 The shared authenticated shell now places the content sheet in front of the desktop
 navigation backdrop. Focused navigation browser checks cover sheet geometry and the
 interaction layer. The owner reviewed and approved the localhost visual direction,
-including the narrower continuous sheet edge. Final container smoke and current-source
-delivery checks remain before PR delivery.
+including the narrower continuous sheet edge. Current-source container smoke and the
+full browser suite passed after the final fallback fix; a final preview refresh remains
+before PR delivery.
 
 People using Workbench should perceive their collection, purchasing, and other active
 work as the foreground. The solid canvas navigation provides a stable, quieter
@@ -150,9 +151,14 @@ preview was refreshed and inspected at dark/light desktop widths through 2400px 
 mobile widths down to 320px. The owner approved the narrowed 5px edge. `verify.ps1`
 passed on the preceding visual commit (`459b7a4`): 517 client, 121 browser, and 1268
 integration tests plus published checks. The subsequent desktop-only fallback fix has
-passed its current-source focused browser selection; container smoke and final-source
-delivery review remain pending. Keep screenshots outside Git history and attach reviewed
-evidence through the supported PR workflow.
+passed its current-source focused browser selection. On that final source,
+`smoke-container.ps1` passed the SQL-backed hardened container checks, and the full
+browser suite passed 122/122 cases. Public CA and SMTP paths were not exercised.
+A manual temporary removal of the desktop sheet paint failed the targeted browser
+assertion, then exact source restoration and the focused green run confirmed recovery;
+this is not an automated mutation score. Final scoped review found no new issues.
+The preview has not yet been refreshed after the fallback fix. Keep screenshots outside
+Git history and attach reviewed evidence through the supported PR workflow.
 
 The interactive sample mockup has exercised comparison, collapse, local search, details,
 sample creation, navigation, appearance switching, and widths down to 320px. That is
@@ -160,6 +166,6 @@ prototype evidence only; it does not establish production behavior, full accessi
 or completion of repository application gates.
 
 The written proposal and implementation plan were reviewed before source changes.
-Deliver through a ready-for-review PR after preview feedback and release gates. A
+Deliver through a ready-for-review PR after the final-source preview refresh. A
 client-only revert restores the previous surface treatment without data conversion.
 Merge and production rollout remain separately authorized operations.

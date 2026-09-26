@@ -8,7 +8,8 @@ history, not a backlog and not a substitute for current documentation.
 [Raised content workspace](2026-09-25-raised-content-workspace.md) records the implemented
 desktop atmospheric content sheet in front of a solid canvas navigation backdrop, retaining
 Tanzanite and Quartz edge materials. The owner approved the local visual direction;
-current-source container smoke and delivery review remain pending.
+current-source container smoke, full browser coverage, and scoped review passed.
+The final-source preview refresh remains before PR delivery.
 
 [Beta API lifecycle and purchasing consolidation](2026-09-16-beta-api-lifecycle.md)
 records the approved transition for issue #120.
