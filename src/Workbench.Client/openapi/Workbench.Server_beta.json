@@ -4845,6 +4845,63 @@
           }
         }
       }
+    },
+    "/api/beta/accounting/periods": {
+      "get": {
+        "tags": [
+          "Accounting reports"
+        ],
+        "parameters": [
+          {
+            "name": "from",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "through",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountingPeriodPage"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -5170,6 +5227,62 @@
           },
           "name": {
             "type": "string"
+          }
+        }
+      },
+      "AccountingPeriodItem": {
+        "required": [
+          "periodStart",
+          "periodEnd",
+          "fiscalYearStart",
+          "state",
+          "closureId",
+          "closedAtUtc"
+        ],
+        "type": "object",
+        "properties": {
+          "periodStart": {
+            "type": "string",
+            "format": "date"
+          },
+          "periodEnd": {
+            "type": "string",
+            "format": "date"
+          },
+          "fiscalYearStart": {
+            "type": "string",
+            "format": "date"
+          },
+          "state": {
+            "type": "string"
+          },
+          "closureId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "closedAtUtc": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          }
+        }
+      },
+      "AccountingPeriodPage": {
+        "required": [
+          "items"
+        ],
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AccountingPeriodItem"
+            }
           }
         }
       },
@@ -7117,11 +7230,68 @@
           }
         }
       },
+      "JournalCorrectionEvidence": {
+        "required": [
+          "correctionId",
+          "role",
+          "originalJournalId",
+          "reversalJournalId",
+          "replacementJournalId",
+          "reason",
+          "postingDate",
+          "recordedAtUtc",
+          "snapshotJson",
+          "snapshotSha256"
+        ],
+        "type": "object",
+        "properties": {
+          "correctionId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "role": {
+            "type": "string"
+          },
+          "originalJournalId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "reversalJournalId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "replacementJournalId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "reason": {
+            "type": "string"
+          },
+          "postingDate": {
+            "type": "string",
+            "format": "date"
+          },
+          "recordedAtUtc": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "snapshotJson": {
+            "type": "string"
+          },
+          "snapshotSha256": {
+            "type": "string"
+          }
+        }
+      },
       "JournalDetail": {
         "required": [
           "header",
           "lines",
-          "source"
+          "source",
+          "corrections"
         ],
         "type": "object",
         "properties": {
@@ -7136,6 +7306,12 @@
           },
           "source": {
             "$ref": "#/components/schemas/JournalSourceEvidence"
+          },
+          "corrections": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/JournalCorrectionEvidence"
+            }
           }
         }
       },

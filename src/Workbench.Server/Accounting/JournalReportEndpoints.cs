@@ -34,6 +34,7 @@ public static class JournalReportEndpoints
         group.MapGet("/accounts/{id:guid}/journal", BrowseAccount).Produces<AccountJournalPage>()
             .ProducesProblem(400).ProducesProblem(404).ProducesProblem(409).ProducesProblem(422);
         group.MapGet("/trial-balance", ReadTrialBalance).Produces<TrialBalancePage>().ProducesProblem(400).ProducesProblem(409).ProducesProblem(422);
+        group.MapGet("/periods", AccountingPeriodReports.Read).Produces<AccountingPeriodPage>().ProducesProblem(400).ProducesProblem(409);
     }
 
     private static Task<IResult> BrowseJournals(HttpContext http, string? postingThrough, string? recordedThrough, int? pageSize, string? cursor, WorkbenchDbContext database,

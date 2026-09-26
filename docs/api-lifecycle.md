@@ -10,6 +10,19 @@ state why, the simpler compatible alternatives considered, affected callers and 
 and rollout/recovery behavior. Obtain explicit approval before implementation, including during
 beta. See [design principles](DESIGN-PRINCIPLES.md#13-evolve-apis-deliberately).
 
+## Generated contracts and API errors
+
+Server-generated OpenAPI owns the client API declarations. Regenerate the checked-in TypeScript
+declarations with server contract changes; do not hand-edit them or maintain duplicate handwritten
+response interfaces. Handwritten copies can compile after the server changes, concealing drift.
+The generation/drift gate in [Contributing](../CONTRIBUTING.md) makes that mismatch visible.
+
+Unknown API routes return API Problem Details rather than the React shell. Production error responses
+retain stable status/title/type and a trace identifier without exception messages, stack traces,
+paths, configuration, or secrets. SPA fallback is for unmatched non-API GET/HEAD navigation only.
+Keep these boundaries intact in both the test host and published output; client navigation must
+never turn an API failure into a successful HTML response.
+
 ## Callers and rollout
 
 The bundled frontend and server are deployed together against one evolving `/api/beta`

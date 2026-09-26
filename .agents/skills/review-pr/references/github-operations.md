@@ -80,13 +80,12 @@ Run the boundary regression suite with `./tests/Workbench.BuildTests/ReviewBound
 
 Immediately before every publication round, run the metadata read again and compare its `headRefOid` to the reviewed SHA. A mismatch cancels publication and requires a new review preview and explicit approval.
 
-Post the approved selection of line-anchored comments and, when requested, the grouped verdict body in one comment-only review at the reviewed head. Derive `<side>` from the observed diff hunk: use `RIGHT` for additions and context, and `LEFT` for deletions. Use the line number on that observed side; do not hard-code `RIGHT` or transplant a line number from the other side. Use programmatic JSON serialization rather than hand-written shell JSON, especially for multiline bodies and quotes.
+Default to one comment-only review containing the approved line-anchored comments and no review body. Add a grouped verdict body only when explicitly requested and its exact text approved. If there are no approved inline comments or requested and approved body, skip review creation; approved thread replies can still be posted separately. Derive `<side>` from the observed diff hunk: use `RIGHT` for additions and context, and `LEFT` for deletions. Use the line number on that observed side; do not hard-code `RIGHT` or transplant a line number from the other side. Use programmatic JSON serialization rather than hand-written shell JSON, especially for multiline bodies and quotes.
 
 ```powershell
 $review = @{
   commit_id = '<reviewed-head-sha>'
   event = 'COMMENT'
-  body = "AI: **VERDICT: REQUEST CHANGES**`n`n<approved grouped body>"
   comments = @(
     @{ path = 'path/to/file'; line = <observed-line>; side = '<side>'; body = 'AI: <approved finding>' }
   )
@@ -95,7 +94,7 @@ $reviewJson = $review | ConvertTo-Json -Depth 8 -Compress
 $reviewJson | gh api "repos/<owner>/<repo>/pulls/<n>/reviews" --method POST --input -
 ```
 
-For approved inline-only publication, omit `body` from the REST payload. A connector may require a
+The default REST payload above omits `body`. Only for an explicitly requested and approved grouped body, set `$review.body` to that exact text before serialization, starting with the approved verdict line. A connector may require a
 nonempty review argument even when inline comments are supplied. Prefer a supported API path that
 accepts an absent body; if the connector accepts a whitespace-only body, it may be used to produce
 no visible summary. Do not invent summary text to satisfy a wrapper. After a failed or uncertain

@@ -221,7 +221,7 @@ public sealed class JournalConcurrencyTests(SqlServerFixture sqlServer, ITestOut
         }
     }
 
-    private sealed class AccountingLockGate : IAsyncDisposable
+    internal sealed class AccountingLockGate : IAsyncDisposable
     {
         private readonly SqlConnection _connection;
         private readonly SqlTransaction _transaction;

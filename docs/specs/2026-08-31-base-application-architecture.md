@@ -6,6 +6,15 @@ and the [acceptance matrix](../operations/production-readiness.md) for current s
 
 **Living architecture:** [`docs/ARCHITECTURE.md`](../ARCHITECTURE.md)
 
+## Outstanding implementation evidence
+
+Source inspection on 2026-09-25 at `6f98771` did not establish the automated module-dependency
+checks or OpenTelemetry hosted/self-hosted exports required below. Those remain original acceptance
+requirements, not delivered capabilities or abandoned decisions. The current closed-schema console
+logger is described in [Architecture](../ARCHITECTURE.md#observability-and-audit); it does not by
+itself satisfy the OpenTelemetry requirement. Resolve these gaps through implementation evidence
+or an explicitly approved replacement decision before claiming complete architectural acceptance.
+
 ## Summary
 
 Workbench will begin as a portable, containerized modular monolith with a React and TypeScript

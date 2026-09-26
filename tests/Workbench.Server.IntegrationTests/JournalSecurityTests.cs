@@ -17,8 +17,14 @@ public sealed class JournalSecurityTests(SqlServerFixture sqlServer)
         // WHEN SQL bypasses the typed source adapter.
         await using (var kernel = new SqlCommand("EXEC Accounting.PostJournal", context.Connection))
             Assert.Equal(229, (await Assert.ThrowsAsync<SqlException>(() => kernel.ExecuteNonQueryAsync())).Number);
+        foreach (var periodKernel in new[] { "EnsureOpenPeriod", "ClosePeriod" })
+        {
+            await using var deniedKernel = new SqlCommand($"EXEC Accounting.[{periodKernel}]", context.Connection);
+            Assert.Equal(229, (await Assert.ThrowsAsync<SqlException>(() => deniedKernel.ExecuteNonQueryAsync())).Number);
+        }
         // THEN every durable journal table rejects each direct DML verb.
-        foreach (var table in new[] { "PolicyFreezes", "SourceEvents", "JournalEntries", "JournalLines", "PostingReceipts" })
+        foreach (var table in new[] { "PolicyFreezes", "SourceEvents", "JournalEntries", "JournalLines", "PostingReceipts",
+            "Periods", "PeriodClosures", "PeriodCloseReceipts" })
             foreach (var statement in new[]
             {
             $"INSERT Accounting.[{table}] DEFAULT VALUES",
@@ -82,6 +88,7 @@ public sealed class JournalSecurityTests(SqlServerFixture sqlServer)
         await using var otherTenant = await context.OpenOtherTenantAsync();
         Assert.Equal(0, await context.CountAsync("JournalEntries", otherTenant));
         Assert.Equal(0, await context.CountAsync("PostingReceipts", otherTenant));
+        Assert.Equal(0, await context.CountAsync("Periods", otherTenant));
     }
 
     [Fact]
@@ -121,9 +128,13 @@ public sealed class JournalSecurityTests(SqlServerFixture sqlServer)
         async Task AssertEditRejected() => Assert.Equal(50909,
             (await Assert.ThrowsAsync<SqlException>(() => context.SaveAsync(Guid.NewGuid(), "Configure", changedPolicy,
                 expectedVersion: context.ConfigurationVersion))).Number);
-        // WHEN the same assertion is run before and after disabling only the disposable Save guard.
+        // WHEN the same assertion is run before and after disabling both effective freeze guards
+        // in this disposable database.
         await AssertEditRejected();
         await MutateProcedureAsync(context, "Save", definition => definition.Replace(
+            "IF EXISTS(SELECT 1 FROM Accounting.Periods p WHERE p.TenantId=@TenantId AND (",
+            "IF 1=0 AND EXISTS(SELECT 1 FROM Accounting.Periods p WHERE p.TenantId=@TenantId AND (",
+            StringComparison.Ordinal).Replace(
             "IF EXISTS(SELECT 1 FROM Accounting.PolicyFreezes f WHERE f.TenantId=@TenantId AND (",
             "IF 1=0 AND EXISTS(SELECT 1 FROM Accounting.PolicyFreezes f WHERE f.TenantId=@TenantId AND (",
             StringComparison.Ordinal));

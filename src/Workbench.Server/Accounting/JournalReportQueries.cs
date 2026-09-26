@@ -112,8 +112,9 @@ internal static class JournalReportQueries
                         reader.GetString(4), reader.GetString(5), reader.GetString(6),
                         FormatSmall(reader.GetDecimal(7), header.Scale), FormatSmall(reader.GetDecimal(8), header.Scale)));
             }
+            var corrections = await JournalCorrectionQueries.ForJournal(id, database, ct);
             await tx.CommitAsync(ct);
-            return Results.Ok(new JournalDetail(header, lines, source));
+            return Results.Ok(new JournalDetail(header, lines, source, corrections));
         }
         catch (SqlException e) when (e.Number == 8115) { return Results.Problem(statusCode: 422, title: "Report totals exceed the supported range."); }
         catch (SqlException e) when (Retryable(e)) { return Retry(); }

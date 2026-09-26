@@ -97,7 +97,7 @@ evidence shows it prevents the current requirements from being met. Do not inven
 an architectural review appear useful, or silently promote advice when asked to publish it.
 
 When material debt or tradeoffs exist, include **Architectural debt and tradeoffs** in the final
-chat assessment and proposed grouped review body, even with an APPROVE verdict. For each item,
+chat assessment, even with an APPROVE verdict. Include it in a grouped review body only when the user explicitly requests that body. For each item,
 state the affected paths and measured scope, the concrete recurring cost or risk, why the current
 approach is necessary or avoidable, and a bounded improvement or explicit acceptance decision.
 Distinguish debt introduced by the PR from existing debt it exercises. Give actionable findings

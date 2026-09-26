@@ -319,9 +319,17 @@ development is a separate boundary: ignored `.env.dev` includes migrator setting
 `scripts/dev-env.ps1` for explicit migration commands; the web connection uses only the web principal.
 New checkout previews use isolated `scripts/dev-up.ps1` credentials instead; see [setup](../setup.md).
 
-Migration execution verifies target database identity, current schema version, expected release
-version, and artifact hash. It acquires a database application lock so only one migrator runs. It
-records safe provenance and outcome without secrets. Web startup never applies migrations.
+The original design requires migration execution to verify target database identity, current schema
+version, expected release version, and artifact hash, with safe provenance/outcome recording and a
+database lock serializing migrators. Web startup never applies migrations.
+
+Source inspection on 2026-09-25 at `6f98771` established that the database CLI checks the expected
+database name and delegates migration to EF. Real-SQL tests cover concurrent migration and cancellation
+of a waiting migrator. CLI enforcement of expected-release and artifact-hash verification, and the
+full provenance record required above, remains unestablished. The [release runbook](../operations/azure-release.md)
+requires separate source/image checks; that procedure does not prove CLI enforcement. Preserve this
+requirement pending implementation evidence or an approved replacement, rather than treating the
+phase's Implemented status as evidence that all provenance checks exist.
 
 ## Migration and release strategy
 
@@ -445,8 +453,8 @@ with locked dependencies and nonzero exit codes on any skipped or failed gate:
 # data, migrate forward, and verify data plus isolation.
 ./scripts/verify-migrations.ps1 -Scenario Upgrade
 
-# In a disposable database only, remove and reapply the SQL security boundary
-# while preserving the declarative schema and its data.
+# In a disposable database, verify that retained metadata cannot be removed
+# by a destructive Down migration.
 ./scripts/verify-migrations.ps1 -Scenario ReversibleRollback
 
 # Restore a disposable SQL backup, run mandatory sanitization, and prove every
@@ -459,6 +467,10 @@ with locked dependencies and nonzero exit codes on any skipped or failed gate:
 
 Names may be adjusted only if the accepted implementation plan records the exact replacement. The
 scenarios and evidence may not be weakened or replaced with provider fakes.
+
+The [migration runbook](../operations/database-migrations.md#authoring-and-validating-a-migration) owns current scenario
+semantics. `ReversibleRollback` retains its historical name; later retained-metadata protections
+changed its required outcome to refusal of destructive rollback, not removal of today's security boundary.
 
 ## Verification matrix
 

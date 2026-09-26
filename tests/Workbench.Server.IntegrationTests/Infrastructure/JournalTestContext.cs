@@ -31,9 +31,9 @@ internal sealed class JournalTestContext : IAsyncDisposable
         ProofKey = proofKey;
     }
 
-    public static async Task<JournalTestContext> OpenAsync(SqlServerFixture fixture)
+    public static async Task<JournalTestContext> OpenAsync(SqlServerFixture fixture, string? priorMigration = null)
     {
-        var application = await AuthTestApplication.CreateAsync(fixture);
+        var application = await AuthTestApplication.CreateAsync(fixture, priorMigration: priorMigration);
         try
         {
             await using var admin = new SqlConnection(application.AdminConnectionString);
@@ -94,7 +94,7 @@ internal sealed class JournalTestContext : IAsyncDisposable
         return (byte[])(await command.ExecuteScalarAsync() ?? throw new InvalidOperationException("Missing tenant proof key."));
     }
 
-    public async Task ConfigureAsync(int scale = 2, string currency = "USD", string startDate = "2026-01-01")
+    public async Task ConfigureAsync(int scale = 2, string currency = "USD", string startDate = "2026-01-01", int fiscalStartMonth = 1)
     {
         var payload = JsonSerializer.Serialize(new
         {
@@ -104,7 +104,7 @@ internal sealed class JournalTestContext : IAsyncDisposable
                 region = "CA",
                 currency,
                 scale,
-                fiscalStartMonth = 1,
+                fiscalStartMonth,
                 startApproach = "OpeningBalances",
                 plannedStartDate = startDate
             },

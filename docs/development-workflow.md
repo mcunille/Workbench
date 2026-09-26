@@ -69,6 +69,27 @@ publication. Use `review-pr` for a user-requested review from the reviewer's sea
 read-only contract and publication gate. `handle-pr-feedback` retains its separate permissions for
 comments, issues, replies, and thread resolution.
 
+## Developer tooling trust boundary
+
+Treat scripts and tool configuration in a checkout as untrusted until reviewed, including
+changes on a branch of an otherwise trusted repository. Workbench intentionally has no
+repository-local automatic Codex hooks: post-edit and stop events must not execute the
+mutable Impeccable launchers in `.agents/skills/impeccable/scripts/`. A check inside a
+launcher, or disabling its detector in Impeccable configuration, happens after that
+launcher has already begun executing and does not protect this boundary.
+
+Use Impeccable manually after reviewing the checkout's executable tooling and configuration.
+The skill's hookless workflow supports manual detection over the changed targets; automatic
+post-edit notices and the stop-time design pass are intentionally unavailable. Do not restore
+project hook manifests through `impeccable hooks on` or tooling repair/update commands.
+
+Any future automatic hooks must run trusted tooling maintained outside the checkout. If
+that tooling executes repository code, it must verify the code against independently trusted
+provenance before execution; moving only the launcher is insufficient. Hook approval and trust
+enforcement belong outside the mutable repository as well. Removing the committed registrations
+closes the current automatic execution path, but cannot prevent an untrusted branch from
+introducing new hooks or changing repository guidance. Review those changes before trusting them.
+
 ## Delivery
 
 Verified implementation is delivered through a ready-for-review PR; this is the already-selected
