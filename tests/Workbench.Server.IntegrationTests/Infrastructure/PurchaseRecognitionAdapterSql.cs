@@ -10,6 +10,7 @@ internal static class PurchaseRecognitionAdapterSql
         CREATE TABLE Purchasing.FixtureRecognitionSources(TenantId uniqueidentifier NOT NULL,Id uniqueidentifier NOT NULL,Revision uniqueidentifier NOT NULL,
           PurchaseOrderId uniqueidentifier NOT NULL,SupplierId uniqueidentifier NOT NULL,Currency varchar(3) NOT NULL,
           Classification varchar(16) NOT NULL,Side varchar(16) NOT NULL,SourceComponentKey nvarchar(200) NOT NULL DEFAULT N'line-1',EvidenceJson nvarchar(max) NOT NULL,
+          CorrectionAllowed bit NOT NULL DEFAULT 0,DependencyKind varchar(40) NULL,
           PRIMARY KEY(TenantId,Id,Revision,SourceComponentKey));
         EXEC(N'CREATE PROCEDURE Purchasing.PostFixtureRecognition
           @ActorId uniqueidentifier,@SessionId uniqueidentifier,@RequestId uniqueidentifier,@Command nvarchar(max)
@@ -52,5 +53,56 @@ internal static class PurchaseRecognitionAdapterSql
           END CATCH;
         END');
         GRANT EXECUTE ON Purchasing.PostFixtureRecognition TO workbench_web;
+        INSERT [Identity].RoleClaims(TenantId,RoleId,ClaimType,ClaimValue)
+          SELECT TenantId,RoleId,N'workbench/permission',N'PurchaseRecognitionFixtureCorrect'
+          FROM Administration.AccountingRoles WHERE Kind='Administrator';
+        EXEC(N'CREATE PROCEDURE Purchasing.CorrectFixtureRecognition
+          @ActorId uniqueidentifier,@SessionId uniqueidentifier,@RequestId uniqueidentifier,@Command nvarchar(max)
+        AS BEGIN
+          SET NOCOUNT ON; SET XACT_ABORT ON;
+          BEGIN TRY
+            BEGIN TRANSACTION;
+            DECLARE @TenantId uniqueidentifier=TRY_CONVERT(uniqueidentifier,SESSION_CONTEXT(N''TenantId'')),@LockResult int,
+              @Resource nvarchar(255)=N''Accounting:''+CONVERT(nvarchar(36),SESSION_CONTEXT(N''TenantId''));
+            EXEC @LockResult=sys.sp_getapplock @Resource=@Resource,@LockMode=''Exclusive'',@LockOwner=''Transaction'',@LockTimeout=10000;
+            IF @LockResult<0 THROW 51009,''Accounting is being changed.'',1;
+            BEGIN TRY
+              EXEC Accounting.RequirePermission @ActorId,@SessionId,N''PurchaseRecognitionFixtureCorrect'';
+            END TRY BEGIN CATCH
+              IF ERROR_NUMBER()=50903 THROW 51003,''Current source correction authority is required.'',1;
+              THROW;
+            END CATCH;
+            -- Durable upstream source authority and later dependencies are adapter-owned, never caller flags.
+            IF ISJSON(@Command,OBJECT)<>1 THROW 51000,''Invalid fixture envelope.'',1;
+              IF EXISTS(SELECT 1 FROM Purchasing.RecognitionSideEvents e WITH(UPDLOCK,HOLDLOCK)
+                LEFT JOIN Purchasing.FixtureRecognitionSources f WITH(UPDLOCK,HOLDLOCK) ON f.TenantId=e.TenantId AND f.Id=e.SourceId AND f.Revision=e.SourceRevision AND f.SourceComponentKey=e.SourceComponentKey
+                WHERE e.TenantId=@TenantId AND e.UnitId=TRY_CONVERT(uniqueidentifier,JSON_VALUE(@Command,''$.unitId'')) AND (f.Id IS NULL OR f.CorrectionAllowed=0))
+                THROW 51003,''Source-specific correction permission is required.'',1;
+            IF NOT EXISTS(SELECT 1 FROM Purchasing.RecognitionGroupReceipts WHERE TenantId=@TenantId AND RequestId=@RequestId)
+            BEGIN
+              IF EXISTS(SELECT 1 FROM Purchasing.RecognitionSideEvents e JOIN Purchasing.FixtureRecognitionSources f WITH(UPDLOCK,HOLDLOCK)
+                ON f.TenantId=e.TenantId AND f.Id=e.SourceId AND f.Revision=e.SourceRevision AND f.SourceComponentKey=e.SourceComponentKey
+                WHERE e.TenantId=@TenantId AND e.UnitId=TRY_CONVERT(uniqueidentifier,JSON_VALUE(@Command,''$.unitId'')) AND f.DependencyKind IS NOT NULL)
+                THROW 51009,''A later source dependency requires its owning adapter.'',1;
+              IF EXISTS(SELECT 1 FROM OPENJSON(@Command,''$.replacement.sides'') s
+                LEFT JOIN Purchasing.FixtureRecognitionSources f WITH(UPDLOCK,HOLDLOCK)
+                  ON f.TenantId=@TenantId AND f.Id=TRY_CONVERT(uniqueidentifier,JSON_VALUE(s.value,''$.sourceId''))
+                  AND f.Revision=TRY_CONVERT(uniqueidentifier,JSON_VALUE(s.value,''$.sourceRevision''))
+                  AND CONVERT(varbinary(max),f.SourceComponentKey)=CONVERT(varbinary(max),JSON_VALUE(s.value,''$.sourceComponentKey''))
+                LEFT JOIN Purchasing.RecognitionUnits u ON u.TenantId=@TenantId AND u.Id=TRY_CONVERT(uniqueidentifier,JSON_VALUE(@Command,''$.unitId''))
+                WHERE f.Id IS NULL OR u.Id IS NULL OR f.CorrectionAllowed=0 OR f.DependencyKind IS NOT NULL
+                  OR f.PurchaseOrderId<>u.PurchaseOrderId OR f.SupplierId<>u.SupplierId OR f.Currency<>u.Currency
+                  OR f.Classification<>JSON_VALUE(@Command,''$.replacement.classification'') OR f.Side<>JSON_VALUE(s.value,''$.side'')
+                  OR CONVERT(varbinary(max),f.EvidenceJson)<>CONVERT(varbinary(max),JSON_QUERY(s.value,''$.evidence'')))
+                THROW 51004,''Replacement source is unavailable or its durable evidence changed.'',1;
+            END;
+            EXEC Purchasing.CorrectRecognition @ActorId,@SessionId,@RequestId,N''PurchaseRecognitionFixtureCorrect'',@Command;
+            COMMIT;
+          END TRY BEGIN CATCH
+            IF @@TRANCOUNT>0 ROLLBACK;
+            THROW;
+          END CATCH;
+        END');
+        GRANT EXECUTE ON Purchasing.CorrectFixtureRecognition TO workbench_web;
         """;
 }

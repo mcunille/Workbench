@@ -1,4 +1,6 @@
-﻿using System;
+// Copyright (c) 2026 The White Stag Collection.
+
+using System;
 using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
@@ -93,6 +95,9 @@ namespace Workbench.Server.Persistence.Migrations
                     Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
                     TenantId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
                     UnitId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    OriginalMatchId = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
+                    ReplacementMatchId = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
+                    ReplacementUnitId = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
                     ActorId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
                     Operation = table.Column<string>(type: "varchar(16)", unicode: false, maxLength: 16, nullable: false),
                     PostingDate = table.Column<DateOnly>(type: "date", nullable: false),
@@ -262,11 +267,6 @@ namespace Workbench.Server.Persistence.Migrations
                 table: "RecognitionCorrectionGroups",
                 columns: new[] { "TenantId", "ActorId" });
 
-            migrationBuilder.CreateIndex(
-                name: "IX_RecognitionCorrectionGroups_TenantId_UnitId",
-                schema: "Purchasing",
-                table: "RecognitionCorrectionGroups",
-                columns: new[] { "TenantId", "UnitId" });
 
             migrationBuilder.CreateIndex(
                 name: "IX_RecognitionGroupReceipts_TenantId_ActorId",
@@ -355,6 +355,123 @@ namespace Workbench.Server.Persistence.Migrations
                 schema: "Purchasing",
                 table: "RecognitionUnits",
                 columns: new[] { "TenantId", "SupplierId" });
+
+            migrationBuilder.CreateTable(
+                name: "RecognitionEventCorrections",
+                schema: "Purchasing",
+                columns: table => new
+                {
+                    TenantId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    OriginalEventId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    CorrectionGroupId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    ReplacementEventId = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
+                    AccountingCorrectionGroupId = table.Column<Guid>(type: "uniqueidentifier", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_RecognitionEventCorrections", x => new { x.TenantId, x.OriginalEventId });
+                    table.ForeignKey(
+                        name: "FK_RecognitionEventCorrections_CorrectionGroups_TenantId_AccountingCorrectionGroupId",
+                        columns: x => new { x.TenantId, x.AccountingCorrectionGroupId },
+                        principalSchema: "Accounting",
+                        principalTable: "CorrectionGroups",
+                        principalColumns: new[] { "TenantId", "Id" },
+                        onDelete: ReferentialAction.Restrict);
+                    table.ForeignKey(
+                        name: "FK_RecognitionEventCorrections_RecognitionCorrectionGroups_TenantId_CorrectionGroupId",
+                        columns: x => new { x.TenantId, x.CorrectionGroupId },
+                        principalSchema: "Purchasing",
+                        principalTable: "RecognitionCorrectionGroups",
+                        principalColumns: new[] { "TenantId", "Id" },
+                        onDelete: ReferentialAction.Restrict);
+                    table.ForeignKey(
+                        name: "FK_RecognitionEventCorrections_RecognitionSideEvents_TenantId_OriginalEventId",
+                        columns: x => new { x.TenantId, x.OriginalEventId },
+                        principalSchema: "Purchasing",
+                        principalTable: "RecognitionSideEvents",
+                        principalColumns: new[] { "TenantId", "Id" },
+                        onDelete: ReferentialAction.Restrict);
+                    table.ForeignKey(
+                        name: "FK_RecognitionEventCorrections_RecognitionSideEvents_TenantId_ReplacementEventId",
+                        columns: x => new { x.TenantId, x.ReplacementEventId },
+                        principalSchema: "Purchasing",
+                        principalTable: "RecognitionSideEvents",
+                        principalColumns: new[] { "TenantId", "Id" },
+                        onDelete: ReferentialAction.Restrict);
+                });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_RecognitionCorrectionGroups_TenantId_OriginalMatchId",
+                schema: "Purchasing",
+                table: "RecognitionCorrectionGroups",
+                columns: new[] { "TenantId", "OriginalMatchId" });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_RecognitionCorrectionGroups_TenantId_ReplacementMatchId",
+                schema: "Purchasing",
+                table: "RecognitionCorrectionGroups",
+                columns: new[] { "TenantId", "ReplacementMatchId" });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_RecognitionCorrectionGroups_TenantId_ReplacementUnitId",
+                schema: "Purchasing",
+                table: "RecognitionCorrectionGroups",
+                columns: new[] { "TenantId", "ReplacementUnitId" });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_RecognitionCorrectionGroups_TenantId_UnitId",
+                schema: "Purchasing",
+                table: "RecognitionCorrectionGroups",
+                columns: new[] { "TenantId", "UnitId" },
+                unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "IX_RecognitionEventCorrections_TenantId_AccountingCorrectionGroupId",
+                schema: "Purchasing",
+                table: "RecognitionEventCorrections",
+                columns: new[] { "TenantId", "AccountingCorrectionGroupId" });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_RecognitionEventCorrections_TenantId_CorrectionGroupId",
+                schema: "Purchasing",
+                table: "RecognitionEventCorrections",
+                columns: new[] { "TenantId", "CorrectionGroupId" });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_RecognitionEventCorrections_TenantId_ReplacementEventId",
+                schema: "Purchasing",
+                table: "RecognitionEventCorrections",
+                columns: new[] { "TenantId", "ReplacementEventId" });
+
+            migrationBuilder.AddForeignKey(
+                name: "FK_RecognitionCorrectionGroups_RecognitionMatches_TenantId_OriginalMatchId",
+                schema: "Purchasing",
+                table: "RecognitionCorrectionGroups",
+                columns: new[] { "TenantId", "OriginalMatchId" },
+                principalSchema: "Purchasing",
+                principalTable: "RecognitionMatches",
+                principalColumns: new[] { "TenantId", "Id" },
+                onDelete: ReferentialAction.Restrict);
+
+            migrationBuilder.AddForeignKey(
+                name: "FK_RecognitionCorrectionGroups_RecognitionMatches_TenantId_ReplacementMatchId",
+                schema: "Purchasing",
+                table: "RecognitionCorrectionGroups",
+                columns: new[] { "TenantId", "ReplacementMatchId" },
+                principalSchema: "Purchasing",
+                principalTable: "RecognitionMatches",
+                principalColumns: new[] { "TenantId", "Id" },
+                onDelete: ReferentialAction.Restrict);
+
+            migrationBuilder.AddForeignKey(
+                name: "FK_RecognitionCorrectionGroups_RecognitionUnits_TenantId_ReplacementUnitId",
+                schema: "Purchasing",
+                table: "RecognitionCorrectionGroups",
+                columns: new[] { "TenantId", "ReplacementUnitId" },
+                principalSchema: "Purchasing",
+                principalTable: "RecognitionUnits",
+                principalColumns: new[] { "TenantId", "Id" },
+                onDelete: ReferentialAction.Restrict);
             PurchaseRecognitionSchema.Up(migrationBuilder, "20260926210900_AddPurchaseRecognition");
         }
 

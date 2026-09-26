@@ -14,6 +14,7 @@ public partial class WorkbenchDbContext
     public DbSet<RecognitionComponent> RecognitionComponents => Set<RecognitionComponent>();
     public DbSet<RecognitionMatch> RecognitionMatches => Set<RecognitionMatch>();
     public DbSet<RecognitionCorrectionGroup> RecognitionCorrectionGroups => Set<RecognitionCorrectionGroup>();
+    public DbSet<RecognitionEventCorrection> RecognitionEventCorrections => Set<RecognitionEventCorrection>();
     public DbSet<RecognitionGroupReceipt> RecognitionGroupReceipts => Set<RecognitionGroupReceipt>();
 
     private void ConfigurePurchaseRecognition(ModelBuilder builder)
@@ -47,6 +48,26 @@ public partial class WorkbenchDbContext
         group.HasOne<RecognitionUnit>().WithMany().HasForeignKey(x => new { x.TenantId, x.UnitId })
             .HasPrincipalKey(x => new { x.TenantId, x.Id }).OnDelete(DeleteBehavior.Restrict);
         group.HasOne<WorkbenchUser>().WithMany().HasForeignKey(x => new { x.TenantId, x.ActorId })
+            .HasPrincipalKey(x => new { x.TenantId, x.Id }).OnDelete(DeleteBehavior.Restrict);
+        group.HasOne<RecognitionUnit>().WithMany().HasForeignKey(x => new { x.TenantId, x.ReplacementUnitId })
+            .HasPrincipalKey(x => new { x.TenantId, x.Id }).OnDelete(DeleteBehavior.Restrict);
+        group.HasOne<RecognitionMatch>().WithMany().HasForeignKey(x => new { x.TenantId, x.OriginalMatchId })
+            .HasPrincipalKey(x => new { x.TenantId, x.Id }).OnDelete(DeleteBehavior.Restrict);
+        group.HasOne<RecognitionMatch>().WithMany().HasForeignKey(x => new { x.TenantId, x.ReplacementMatchId })
+            .HasPrincipalKey(x => new { x.TenantId, x.Id }).OnDelete(DeleteBehavior.Restrict);
+        group.HasIndex(x => new { x.TenantId, x.UnitId }).IsUnique();
+
+        var correction = builder.Entity<RecognitionEventCorrection>();
+        correction.ToTable("RecognitionEventCorrections", "Purchasing");
+        correction.HasKey(x => new { x.TenantId, x.OriginalEventId });
+        correction.HasQueryFilter(x => (Guid?)x.TenantId == TenantContext.TenantId);
+        correction.HasOne<RecognitionSideEvent>().WithMany().HasForeignKey(x => new { x.TenantId, x.OriginalEventId })
+            .HasPrincipalKey(x => new { x.TenantId, x.Id }).OnDelete(DeleteBehavior.Restrict);
+        correction.HasOne<RecognitionSideEvent>().WithMany().HasForeignKey(x => new { x.TenantId, x.ReplacementEventId })
+            .HasPrincipalKey(x => new { x.TenantId, x.Id }).OnDelete(DeleteBehavior.Restrict);
+        correction.HasOne<RecognitionCorrectionGroup>().WithMany().HasForeignKey(x => new { x.TenantId, x.CorrectionGroupId })
+            .HasPrincipalKey(x => new { x.TenantId, x.Id }).OnDelete(DeleteBehavior.Restrict);
+        correction.HasOne<JournalCorrectionGroup>().WithMany().HasForeignKey(x => new { x.TenantId, x.AccountingCorrectionGroupId })
             .HasPrincipalKey(x => new { x.TenantId, x.Id }).OnDelete(DeleteBehavior.Restrict);
 
         var side = builder.Entity<RecognitionSideEvent>();

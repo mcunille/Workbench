@@ -43,7 +43,8 @@ internal sealed class PurchaseRecognitionTestContext : IAsyncDisposable
             var slots = new[] { "Expense", "Inventory", "Prepayment", "RecoverableTax", "GoodsReceivedNotInvoiced", "SupplierPayable" };
             var created = await result.Journal.SaveAsync(Guid.NewGuid(), "CreateAccounts", JsonSerializer.Serialize(slots.Select((slot, i) => new
             {
-                code = (1000 + i).ToString(), name = slot,
+                code = (1000 + i).ToString(),
+                name = slot,
                 type = slot == "Expense" ? "Expense" : slot is "GoodsReceivedNotInvoiced" or "SupplierPayable" ? "Liability" : "Asset",
                 purpose = slot == "SupplierPayable" ? "SupplierPayable" : "General"
             })));
@@ -64,26 +65,41 @@ internal sealed class PurchaseRecognitionTestContext : IAsyncDisposable
     {
         var evidence = new
         {
-            schemaVersion = 1, rationale = "Reviewed source evidence", recognitionBasis = recognitionBasis ?? (classification == "Inventory" ? "ControlTransferred" : "ServicePerformed"),
-            serviceDescription = "Performed service", serviceStartDate = "2026-01-01", serviceEndDate = "2026-02-01",
-            controlTransferDate = "2026-02-01", inTransit = false, estimateBasis = "Approved supplier estimate",
-            invoiceEligible = eligible, presentObligation = eligible, enforceableRight = eligible,
-            taxPolicyReference = "Approved tax policy", taxEntitlement = true,
-            sourceCapacityQuantity = "1", sourceCapacityAmount = (decimal.Parse(cost, System.Globalization.CultureInfo.InvariantCulture) + decimal.Parse(tax, System.Globalization.CultureInfo.InvariantCulture)).ToString(System.Globalization.CultureInfo.InvariantCulture)
+            schemaVersion = 1,
+            rationale = "Reviewed source evidence",
+            recognitionBasis = recognitionBasis ?? (classification == "Inventory" ? "ControlTransferred" : "ServicePerformed"),
+            serviceDescription = "Performed service",
+            serviceStartDate = "2026-01-01",
+            serviceEndDate = "2026-02-01",
+            controlTransferDate = "2026-02-01",
+            inTransit = false,
+            estimateBasis = "Approved supplier estimate",
+            invoiceEligible = eligible,
+            presentObligation = eligible,
+            enforceableRight = eligible,
+            taxPolicyReference = "Approved tax policy",
+            taxEntitlement = true,
+            sourceCapacityQuantity = "1",
+            sourceCapacityAmount = (decimal.Parse(cost, System.Globalization.CultureInfo.InvariantCulture) + decimal.Parse(tax, System.Globalization.CultureInfo.InvariantCulture)).ToString(System.Globalization.CultureInfo.InvariantCulture)
         };
         var source = Guid.NewGuid(); var revision = Guid.NewGuid();
         var command = JsonSerializer.SerializeToNode(new
         {
-            schemaVersion = 1, operation = "Post", expectedConfigurationVersion = Journal.ConfigurationVersion,
-            purchaseOrderId = PurchaseOrderId, expectedPurchaseOrderVersion = PurchaseOrderVersion, supplierId = SupplierId,
-            currency = "USD", postingDate = "2026-02-01",
+            schemaVersion = 1,
+            operation = "Post",
+            expectedConfigurationVersion = Journal.ConfigurationVersion,
+            purchaseOrderId = PurchaseOrderId,
+            expectedPurchaseOrderVersion = PurchaseOrderVersion,
+            supplierId = SupplierId,
+            currency = "USD",
+            postingDate = "2026-02-01",
             units = new[] { new { unitId = Guid.NewGuid(), classification, goodsReference = "Goods-1", quantity = "1", quantityUnit = "each", expectedPriorEventRevision = 0,
                 sides = new[] { new { side, eventRevision = 1, sourceId = source, sourceRevision = revision, sourceComponentKey = "line-1", subdivisionKey = "whole", sourceQuantity = "1", sourceAmount = evidence.sourceCapacityAmount,
                     documentDate = "2026-02-01", effectiveDate = "2026-02-01", evidence, components = new[] { new { componentKey = "base", kind = "BaseCost", amount = cost }, new { componentKey = "tax", kind = "RecoverableTax", amount = tax } } } } } }
         })!.AsObject();
         await using var admin = new SqlConnection(Journal.Application.AdminConnectionString);
         await admin.OpenAsync();
-        await using var store = new SqlCommand("INSERT Purchasing.FixtureRecognitionSources(TenantId,Id,Revision,PurchaseOrderId,SupplierId,Currency,Classification,Side,EvidenceJson) VALUES(@tenant,@id,@revision,@po,@supplier,'USD',@classification,@side,@evidence)", admin);
+        await using var store = new SqlCommand("INSERT Purchasing.FixtureRecognitionSources(TenantId,Id,Revision,PurchaseOrderId,SupplierId,Currency,Classification,Side,EvidenceJson,CorrectionAllowed) VALUES(@tenant,@id,@revision,@po,@supplier,'USD',@classification,@side,@evidence,1)", admin);
         store.Parameters.AddWithValue("@tenant", JournalTestContext.TenantId); store.Parameters.AddWithValue("@id", source);
         store.Parameters.AddWithValue("@revision", revision); store.Parameters.AddWithValue("@po", PurchaseOrderId);
         store.Parameters.AddWithValue("@supplier", SupplierId); store.Parameters.AddWithValue("@classification", classification);

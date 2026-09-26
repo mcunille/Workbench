@@ -191,6 +191,17 @@ dependency order, and optionally rebuild the two sides under the approved replac
 Reject attempts to correct only one matched journal or to reuse the original source identity as
 an unrelated new event. Preserve the original effective dates as required by BK-03.
 
+Replacement uses a fresh immutable successor unit, explicitly linked from the correction group
+and original/replacement event links. The original unit retains its classification and quantity;
+an approved classification change belongs to its successor. The successor preserves tenant, PO,
+supplier, currency and each side's source identity/component/subdivision and effective date,
+uses a new upstream source revision and the next event revision, and is the target of any later
+correction. Consumers follow these links across generations instead of assuming one unit ID.
+`expectedEventRevisions` contains the complete current `{ side, eventRevision }` set. Replacement
+input includes both sides for a matched unit and must use a previously unused `replacement.unitId`.
+Reversed claims release active source capacity and rounding only from the correction posting date;
+ordinary later-recorded postings cannot reuse that release at an earlier posting-date cutoff.
+
 All corrections, replacement events, match reversals/replacements, journals, receipts and audit
 commit as one group with one database-owned recorded instant. Exact inverses use original journal
 lines; replacement and matching lines are derived from the typed rules. If multiple BK-03 kernel

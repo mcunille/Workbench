@@ -2181,6 +2181,9 @@ namespace Workbench.Server.Persistence.Migrations
                         .IsUnicode(false)
                         .HasColumnType("varchar(16)");
 
+                    b.Property<Guid?>("OriginalMatchId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<DateOnly>("PostingDate")
                         .HasColumnType("date");
 
@@ -2192,6 +2195,12 @@ namespace Workbench.Server.Persistence.Migrations
                     b.Property<DateTimeOffset>("RecordedAtUtc")
                         .HasColumnType("datetimeoffset");
 
+                    b.Property<Guid?>("ReplacementMatchId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid?>("ReplacementUnitId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<Guid>("TenantId")
                         .HasColumnType("uniqueidentifier");
 
@@ -2202,12 +2211,47 @@ namespace Workbench.Server.Persistence.Migrations
 
                     b.HasIndex("TenantId", "ActorId");
 
-                    b.HasIndex("TenantId", "UnitId");
+                    b.HasIndex("TenantId", "OriginalMatchId");
+
+                    b.HasIndex("TenantId", "ReplacementMatchId");
+
+                    b.HasIndex("TenantId", "ReplacementUnitId");
+
+                    b.HasIndex("TenantId", "UnitId")
+                        .IsUnique();
 
                     b.ToTable("RecognitionCorrectionGroups", "Purchasing", t =>
                         {
                             t.HasCheckConstraint("CK_RecognitionCorrectionGroups_Operation", "[Operation] IN ('Reverse','Replace') AND DATALENGTH([Reason])>0 AND DATALENGTH([Reason])<=4000");
                         });
+                });
+
+            modelBuilder.Entity("Workbench.Server.Purchasing.RecognitionEventCorrection", b =>
+                {
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("OriginalEventId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid?>("AccountingCorrectionGroupId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("CorrectionGroupId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid?>("ReplacementEventId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("TenantId", "OriginalEventId");
+
+                    b.HasIndex("TenantId", "AccountingCorrectionGroupId");
+
+                    b.HasIndex("TenantId", "CorrectionGroupId");
+
+                    b.HasIndex("TenantId", "ReplacementEventId");
+
+                    b.ToTable("RecognitionEventCorrections", "Purchasing");
                 });
 
             modelBuilder.Entity("Workbench.Server.Purchasing.RecognitionGroupReceipt", b =>
@@ -2282,8 +2326,6 @@ namespace Workbench.Server.Persistence.Migrations
                         .HasColumnType("uniqueidentifier");
 
                     b.HasKey("Id");
-
-                    b.HasAlternateKey("TenantId", "Id");
 
                     b.HasIndex("TenantId", "CorrectionGroupId");
 
@@ -3534,12 +3576,58 @@ namespace Workbench.Server.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
+                    b.HasOne("Workbench.Server.Purchasing.RecognitionMatch", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId", "OriginalMatchId")
+                        .HasPrincipalKey("TenantId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("Workbench.Server.Purchasing.RecognitionMatch", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId", "ReplacementMatchId")
+                        .HasPrincipalKey("TenantId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("Workbench.Server.Purchasing.RecognitionUnit", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId", "ReplacementUnitId")
+                        .HasPrincipalKey("TenantId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("Workbench.Server.Purchasing.RecognitionUnit", null)
                         .WithMany()
                         .HasForeignKey("TenantId", "UnitId")
                         .HasPrincipalKey("TenantId", "Id")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("Workbench.Server.Purchasing.RecognitionEventCorrection", b =>
+                {
+                    b.HasOne("Workbench.Server.Accounting.JournalCorrectionGroup", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId", "AccountingCorrectionGroupId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("Workbench.Server.Purchasing.RecognitionCorrectionGroup", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId", "CorrectionGroupId")
+                        .HasPrincipalKey("TenantId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Workbench.Server.Purchasing.RecognitionSideEvent", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId", "OriginalEventId")
+                        .HasPrincipalKey("TenantId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Workbench.Server.Purchasing.RecognitionSideEvent", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId", "ReplacementEventId")
+                        .HasPrincipalKey("TenantId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict);
                 });
 
             modelBuilder.Entity("Workbench.Server.Purchasing.RecognitionGroupReceipt", b =>

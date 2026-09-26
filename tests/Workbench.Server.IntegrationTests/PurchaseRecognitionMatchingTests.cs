@@ -46,22 +46,23 @@ public sealed class PurchaseRecognitionMatchingTests(SqlServerFixture sqlServer)
     }
 
     [Theory]
-    [InlineData("105", "5", "100", 105, -110)]
-    [InlineData("0", "0", "100", 0, 0)]
-    [InlineData("105", "5", "0", 105, -110)]
-    public async Task RecognitionClearsOriginalPrepayment(string cost, string tax, string estimate, decimal expectedCost, decimal expectedPayable)
+    [InlineData("Inventory", "105", "5", "100", 105, -110)]
+    [InlineData("Inventory", "0", "0", "100", 0, 0)]
+    [InlineData("Inventory", "105", "5", "0", 105, -110)]
+    [InlineData("Expense", "105", "5", "100", 105, -110)]
+    public async Task RecognitionClearsOriginalPrepayment(string classification, string cost, string tax, string estimate, decimal expectedCost, decimal expectedPayable)
     {
         // GIVEN an invoice-first unit whose prepayment mapping subsequently changes.
         await using var context = await PurchaseRecognitionTestContext.OpenAsync(sqlServer);
-        var invoice = await context.CommandAsync("Invoice", cost: cost, tax: tax);
+        var invoice = await context.CommandAsync("Invoice", classification, cost: cost, tax: tax);
         var first = await context.PostAsync(invoice.ToJsonString());
         var originalPrepayment = context.Accounts["Prepayment"];
         await RemapAsync(context, "Prepayment");
-        var receipt = await context.CommandAsync(cost: estimate);
+        var receipt = await context.CommandAsync(classification: classification, cost: estimate);
         Link(receipt, invoice);
         // WHEN recognition occurs THEN final invoice cost is recognized and the historical account clears.
         var result = await context.PostAsync(receipt.ToJsonString());
-        Assert.Equal(expectedCost, await context.BalanceAsync("Inventory"));
+        Assert.Equal(expectedCost, await context.BalanceAsync(classification));
         Assert.Equal(expectedPayable, await context.BalanceAsync("SupplierPayable"));
         Assert.Equal(decimal.Parse(tax, CultureInfo.InvariantCulture), await context.BalanceAsync("RecoverableTax"));
         Assert.Equal(0m, await BalanceAsync(context, originalPrepayment));

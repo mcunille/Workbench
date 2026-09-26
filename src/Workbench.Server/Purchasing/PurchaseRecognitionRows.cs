@@ -69,11 +69,23 @@ public sealed class RecognitionCorrectionGroup
     public Guid TenantId { get; set; }
     public Guid Id { get; set; }
     public Guid UnitId { get; set; }
+    public Guid? ReplacementUnitId { get; set; }
+    public Guid? OriginalMatchId { get; set; }
+    public Guid? ReplacementMatchId { get; set; }
     public Guid ActorId { get; set; }
     public string Operation { get; set; } = "";
     public DateOnly PostingDate { get; set; }
     public string Reason { get; set; } = "";
     public DateTimeOffset RecordedAtUtc { get; set; }
+}
+
+public sealed class RecognitionEventCorrection
+{
+    public Guid TenantId { get; set; }
+    public Guid OriginalEventId { get; set; }
+    public Guid CorrectionGroupId { get; set; }
+    public Guid? ReplacementEventId { get; set; }
+    public Guid? AccountingCorrectionGroupId { get; set; }
 }
 
 public sealed class RecognitionGroupReceipt

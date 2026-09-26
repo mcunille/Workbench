@@ -7,13 +7,33 @@ internal static class PurchaseRecognitionSchema
 {
     internal static void Up(MigrationBuilder migrationBuilder, string migrationId)
     {
+        migrationBuilder.Sql("""
+            CREATE VIEW Purchasing.ActiveRecognitionSideEvents AS
+              SELECT e.* FROM Purchasing.RecognitionSideEvents e WHERE NOT EXISTS
+                (SELECT 1 FROM Purchasing.RecognitionEventCorrections c WHERE c.TenantId=e.TenantId AND c.OriginalEventId=e.Id);
+            """);
+        migrationBuilder.Sql(PurchaseRecognitionCommandValidation.Sql);
         migrationBuilder.Sql(PurchaseRecognitionPosting.Sql);
+        migrationBuilder.Sql(PurchaseRecognitionCorrections.Sql);
+        migrationBuilder.Sql("""
+            DECLARE @Definition nvarchar(max)=OBJECT_DEFINITION(OBJECT_ID(N'Accounting.CorrectJournal'));
+            IF @Definition IS NULL OR CHARINDEX(N'IF @OriginalEventId IS NULL',@Definition)=0
+              THROW 50020,'Unsupported correction kernel predecessor.',1;
+            SET @Definition=REPLACE(@Definition,N'CREATE PROCEDURE',N'ALTER PROCEDURE');
+            SET @Definition=REPLACE(@Definition,N'IF @OriginalEventId IS NULL',N'
+              IF @SourceKind=N''PurchaseRecognition'' AND (@SourceCommandKind<>N''PurchaseRecognition.CorrectInternal'' OR NOT EXISTS(
+                SELECT 1 FROM Purchasing.RecognitionEventCorrections c JOIN Purchasing.RecognitionSideEvents e ON e.TenantId=c.TenantId AND e.Id=c.OriginalEventId
+                WHERE c.TenantId=@TenantId AND e.JournalId=@OriginalJournalId AND c.AccountingCorrectionGroupId IS NULL))
+                THROW 51009,''Purchase recognition requires its complete dependency correction.'',1;
+              IF @OriginalEventId IS NULL');
+            EXEC sys.sp_executesql @Definition;
+            """);
         migrationBuilder.Sql("""
             ALTER TABLE Purchasing.RecognitionUnits ADD CONSTRAINT FK_RecognitionUnits_OrderRevision
               FOREIGN KEY(TenantId,PurchaseOrderId,PurchaseOrderRevision)
               REFERENCES Purchasing.PurchaseOrderRevisions(TenantId,DraftOrderId,Revision);
             """);
-        foreach (var table in new[] { "RecognitionUnits", "RecognitionSideEvents", "RecognitionComponents", "RecognitionMatches", "RecognitionCorrectionGroups", "RecognitionGroupReceipts" })
+        foreach (var table in new[] { "RecognitionUnits", "RecognitionSideEvents", "RecognitionComponents", "RecognitionMatches", "RecognitionCorrectionGroups", "RecognitionEventCorrections", "RecognitionGroupReceipts" })
             migrationBuilder.Sql($"""
                 ALTER SECURITY POLICY Security.TenantIsolationPolicy
                     ADD FILTER PREDICATE Security.fn_tenant_access(TenantId) ON Purchasing.{table},
