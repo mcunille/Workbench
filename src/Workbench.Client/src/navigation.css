@@ -61,10 +61,10 @@
       radial-gradient(ellipse 55% 28rem at 95% -12rem, var(--atmosphere-violet), transparent 100%),
       var(--canvas);
     background-repeat: no-repeat;
-    box-shadow: inset 1px 0 0 var(--border-subtle), -12px 7px 26px -8px rgb(0 0 0 / 45%);
+    box-shadow: -12px 7px 26px -8px rgb(0 0 0 / 45%);
   }
   :root:not([data-theme="dark"]) .workspace-sheet {
-    box-shadow: inset 1px 0 0 var(--border-subtle), -12px 7px 26px -8px rgb(40 49 65 / 15%);
+    box-shadow: -12px 7px 26px -8px rgb(40 49 65 / 15%);
   }
   @supports (backdrop-filter: blur(1px)) {
     .workspace-sheet::before,
@@ -78,17 +78,23 @@
     }
     .workspace-sheet::before {
       opacity: 0.85;
-      mask-image: linear-gradient(90deg, rgb(0 0 0 / 0.4), transparent 0.625rem);
+      /* Three uneven catches fade into the canvas before reaching reading content. */
+      mask-image:
+        radial-gradient(ellipse 2.25rem 7rem at 0 5rem, #000b, transparent 100%),
+        radial-gradient(ellipse 1.5rem 10rem at 0 28rem, #000a, transparent 100%),
+        radial-gradient(ellipse 2.5rem 5rem at 0 51rem, #000b, transparent 100%);
     }
     .workspace-sheet::after {
-      padding: 1px;
+      opacity: 0.7;
       filter: brightness(1.5066176471) saturate(1.3117647059);
-      mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-      mask-composite: exclude;
-      clip-path: inset(0 calc(100% - 0.625rem) 0 0);
+      /* Fine glints are broken at the same quiet gaps, never a full-height rule. */
+      mask-image:
+        radial-gradient(ellipse 2px 6rem at 0 5rem, #000b, transparent 100%),
+        radial-gradient(ellipse 1px 9rem at 0 28rem, #0009, transparent 100%),
+        radial-gradient(ellipse 2px 4rem at 0 51rem, #000a, transparent 100%);
     }
     :root:not([data-theme="dark"]) .workspace-sheet::before { opacity: 0.55; }
-    :root:not([data-theme="dark"]) .workspace-sheet::after { filter: none; }
+    :root:not([data-theme="dark"]) .workspace-sheet::after { opacity: 0.5; filter: none; }
   }
 }
 @media (prefers-reduced-transparency: reduce), (forced-colors: active) {
