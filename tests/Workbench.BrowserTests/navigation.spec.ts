@@ -93,6 +93,45 @@ test('desktop sheet fills the viewport beside navigation while reading content s
   }
 });
 
+test('reduced transparency preserves the mobile canvas and removes desktop sheet shadow', async ({ page }) => {
+  // GIVEN an authenticated workspace with reduced transparency requested by the system.
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await useAuthenticatedSession(page);
+  const cdp = await page.context().newCDPSession(page);
+  try {
+    await cdp.send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-reduced-transparency', value: 'reduce' }] });
+    expect(await page.evaluate(() => matchMedia('(prefers-reduced-transparency: reduce)').matches)).toBe(true);
+    for (const dark of [false, true]) {
+      await setAppearance(page, dark);
+      for (const width of [1280, 390]) {
+        // WHEN the viewport crosses the desktop boundary THEN only desktop gains the opaque fallback.
+        await page.setViewportSize({ width, height: 900 });
+        const paint = await page.locator('.workspace-sheet').evaluate(element => {
+          const style = getComputedStyle(element);
+          return {
+            backgroundColor: style.backgroundColor,
+            backgroundImage: style.backgroundImage,
+            boxShadow: style.boxShadow,
+          };
+        });
+        if (width === 1280) {
+          // THEN the desktop sheet is opaque and has no decorative shadow in either appearance.
+          expect(paint.backgroundColor).toBe(dark ? 'rgb(18, 19, 23)' : 'rgb(255, 255, 255)');
+          expect(paint.boxShadow).toBe('none');
+        } else {
+          // THEN mobile keeps the original body atmosphere visible through its sheet wrapper.
+          expect(paint.backgroundColor).toBe('rgba(0, 0, 0, 0)');
+          expect(paint.backgroundImage).toBe('none');
+          expect(await page.evaluate(() => getComputedStyle(document.body).backgroundImage.match(/radial-gradient/g))).toHaveLength(2);
+        }
+      }
+    }
+  } finally {
+    await cdp.detach();
+  }
+});
+
 test('focused skip link stays above the raised sheet', async ({ page }) => {
   // GIVEN a desktop workspace with a raised content sheet.
   await page.setViewportSize({ width: 1280, height: 900 });

@@ -7,8 +7,9 @@
 The owner selected this visual direction through an interactive mockup on 2026-09-25.
 The shared authenticated shell now places the content sheet in front of the desktop
 navigation backdrop. Focused navigation browser checks cover sheet geometry and the
-interaction layer. Owner review of the localhost preview and the full release gates
-remain pending before PR delivery.
+interaction layer. The owner reviewed and approved the localhost visual direction,
+including the narrower continuous sheet edge. Final container smoke and current-source
+delivery checks remain before PR delivery.
 
 People using Workbench should perceive their collection, purchasing, and other active
 work as the foreground. The solid canvas navigation provides a stable, quieter
@@ -77,7 +78,8 @@ and authorization-dependent destinations. Do not clip popovers or focus rings to
 rounded sheet corners. Preserve sticky purchasing controls and their scroll behavior.
 
 With reduced motion, remove the existing transitions as today. With reduced transparency
-or unsupported material effects, use opaque neutral surfaces with a legible boundary.
+or unsupported material effects, use opaque neutral surfaces with a legible boundary
+on desktop; retain the existing atmospheric canvas behind the mobile content.
 Forced colors must expose navigation state and control boundaries without requiring
 shadows, reflections, or color distinctions. Text and controls retain required contrast.
 
@@ -142,12 +144,15 @@ long purchasing editor, plus account/administration overlays and permission-depe
 navigation. Assess meaningful behavioral changes with available mutation tooling; report
 any limitation rather than claiming CSS rendering has been mutation-tested.
 
-The focused `navigation.spec.ts` browser selection passed from current source (11/11).
-The isolated localhost preview was refreshed and inspected at dark/light desktop widths
-through 2400px and mobile widths down to 320px. The current-source `verify.ps1` and
-`smoke-container.ps1` delivery gates remain pending, as do the wider affected browser
-selection and PR attachment of representative external visual evidence. Keep screenshots
-outside Git history and attach reviewed evidence through the supported PR workflow.
+The focused `navigation.spec.ts` browser selection passed from current source (12/12),
+including rendered reduced-transparency desktop and mobile paint. The isolated localhost
+preview was refreshed and inspected at dark/light desktop widths through 2400px and
+mobile widths down to 320px. The owner approved the narrowed 5px edge. `verify.ps1`
+passed on the preceding visual commit (`459b7a4`): 517 client, 121 browser, and 1268
+integration tests plus published checks. The subsequent desktop-only fallback fix has
+passed its current-source focused browser selection; container smoke and final-source
+delivery review remain pending. Keep screenshots outside Git history and attach reviewed
+evidence through the supported PR workflow.
 
 The interactive sample mockup has exercised comparison, collapse, local search, details,
 sample creation, navigation, appearance switching, and widths down to 320px. That is

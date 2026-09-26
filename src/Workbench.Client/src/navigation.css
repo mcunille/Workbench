@@ -98,7 +98,13 @@
     box-shadow: none;
   }
   .workspace-nav::before, .workspace-nav::after { display: none; }
-  .workspace-sheet { background: var(--surface); box-shadow: none; }
+}
+@media (min-width: 48.001rem) and (prefers-reduced-transparency: reduce),
+       (min-width: 48.001rem) and (forced-colors: active) {
+  .workspace-sheet, :root:not([data-theme="dark"]) .workspace-sheet {
+    background: var(--surface);
+    box-shadow: none;
+  }
   .workspace-sheet::before, .workspace-sheet::after { display: none; }
 }
 @media (forced-colors: active) and (min-width: 48.001rem) {
