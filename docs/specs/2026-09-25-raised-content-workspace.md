@@ -33,10 +33,8 @@ brand, navigation structure, or collection design.
 - Keep the sheet's top-left and bottom-left corners rounded, initially at 16px. Its
   top-right and bottom-right corners are square. Internal page padding remains: removing
   outer margins does not put headings, controls, or records against the sheet edge.
-- Place two to three unequal, fixed-size light catches along the sheet's left boundary,
-  with quiet gaps and 24–40px inward feathering. Short fine glints give the edge a
-  material cue without a continuous divider or a diffuse glow. Use a soft shadow
-  falling toward the sidebar to make the sheet read as foreground.
+- Place the fine material edge and shallow reflections on the sheet's left boundary.
+  Use a soft shadow falling toward the sidebar to make the sheet read as foreground.
   Restore the original blue/violet atmospheric gradients over the canvas within the
   sheet. Keep them faint at the top, with no tint over photographs.
 - Dark appearance uses the existing indigo, blue, and periwinkle Tanzanite palette.
@@ -89,8 +87,8 @@ The implementation uses `src/Workbench.Client/src/navigation.css` and
 `src/Workbench.Client/src/styles.css`, with a presentation wrapper around the existing
 authenticated `main` in `App.tsx`. The appearance spectrum is inherited by the desktop
 sheet edge and mobile pill. The sheet body repeats the original canvas atmosphere;
-the desktop menu and authenticated page backdrop use solid `--canvas`. Fixed-size
-edge catches stay near the exposed boundary, even on long pages,
+the desktop menu and authenticated page backdrop use solid `--canvas`. Edge effects
+stay near the exposed boundary
 without full-surface backdrop blur.
 
 Apply the shared sheet consistently to existing authenticated routes, including

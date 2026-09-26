@@ -452,20 +452,18 @@ pill described below. The desktop navigation and full authenticated backdrop use
 The menu remains flush with the viewport's top and left edges. One opaque canvas sheet
 begins at its right boundary and reaches the viewport's top, right, and bottom edges
 without an outer inset. Its left corners use a 16px radius; its right corners are square. The sheet repeats
-the original blue/violet gradients over the neutral canvas. Three unequal, fixed-size
-light catches along the left edge feather 24–40px into the canvas with quiet gaps;
-short 1–2px glints replace a continuous divider. A soft shadow toward navigation
-carries the depth. The outer
+the original blue/violet gradients over the neutral canvas. A fine left bevel, shallow
+reflection, and soft shadow toward navigation carry the depth. The outer
 sheet spans the full remaining width, including ultrawide screens; its inner reading
 container remains independently constrained to 76rem and centered with existing page
 padding. The sheet does not create an internal scrollbar or clip navigation overlays.
 
 The accepted navigation materials are **Tanzanite for dark mode** and **Quartz for light
 mode**, on the desktop sheet edge and mobile pill. Tanzanite uses the reference stone's
-indigo, blue, and periwinkle, without pink or white glints. The desktop wide catches
-use 0.85 opacity, with narrower glints at 0.7 and the reference edge brightness and
-saturation of approximately 1.507/1.312. Quartz uses cool silver catches at 0.55
-opacity and narrower glints at 0.5. The desktop sheet body stays opaque without full-surface blur;
+indigo, blue, and periwinkle, without pink or white glints. Its saved 85% preview setting
+means 0.85 reflection opacity and edge brightness/saturation of approximately 1.507/1.312.
+Quartz uses neutral frosted glass and a cool silver edge at the saved 55% setting (0.55
+reflection opacity). The desktop sheet body stays opaque without full-surface blur;
 atmospheric color remains faint and concentrated at the top. The mobile material follows
 the entire pill perimeter while retaining its more opaque fill for readability over
 scrolling content.
