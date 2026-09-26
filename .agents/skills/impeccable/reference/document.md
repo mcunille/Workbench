@@ -4,7 +4,7 @@ DESIGN.md follows the [official DESIGN.md format spec](https://raw.githubusercon
 
 ## The frontmatter: token schema
 
-The YAML frontmatter is the machine-readable layer. It's what Stitch's linter validates and what the live panel renders tiles from. Keep it tight; every entry should correspond to a token the project actually uses.
+The YAML frontmatter is the machine-readable layer. It is what Stitch's linter validates; entries also describe the project's reusable design tokens. Keep it tight; every entry should correspond to a token the project actually uses.
 
 ```yaml
 ---
@@ -104,7 +104,7 @@ Build a structured draft from the discovered tokens. For each token class:
 
 ### Step 2b: Stage the frontmatter
 
-From the auto-extracted tokens, draft the YAML frontmatter now (you'll write it at the top of DESIGN.md in Step 4). This is the machine-readable layer: what the live panel and Stitch's linter consume.
+From the auto-extracted tokens, draft the YAML frontmatter now (you'll write it at the top of DESIGN.md in Step 4). This is the machine-readable layer consumed by Stitch's linter and design tooling.
 
 - **Colors**: one entry per extracted color. Key = descriptive slug (`oxblood-deep`, `editorial-magenta`, not `blue-800`). Value = whichever format the project treats as canonical (OKLCH or hex; see the frontmatter rules above). Don't split the source of truth: one format in the frontmatter, don't redefine the same token in prose with a different value.
 - **Typography**: one entry per role (`display`, `headline`, `title`, `body`, `label`). Typography is an object; include only the props that are real for the project (`fontFamily`, `fontSize`, `fontWeight`, `lineHeight`, `letterSpacing`, `fontFeature`, `fontVariation`).
@@ -250,9 +250,9 @@ Concrete visual guardrails grounded in the incumbent implementation or the user'
 
 ### Step 4b: Write .impeccable/design.json sidecar (extensions only)
 
-The frontmatter owns token primitives (colors, typography, rounded, spacing, components). The sidecar at `.impeccable/design.json` carries **what Stitch's schema can't hold**: tonal ramps per color, shadow/elevation tokens, motion tokens, breakpoints, full component HTML/CSS snippets (the panel renders these into a shadow DOM), and narrative (north star, rules, do's/don'ts). It extends the frontmatter, it doesn't duplicate it.
+The frontmatter owns token primitives (colors, typography, rounded, spacing, components). The sidecar at `.impeccable/design.json` carries **what Stitch's schema can't hold**: tonal ramps per color, shadow/elevation tokens, motion tokens, breakpoints, full component HTML/CSS snippets (suitable for isolated rendering), and narrative (north star, rules, do's/don'ts). It extends the frontmatter, it doesn't duplicate it.
 
-Regenerate the sidecar whenever you regenerate root `DESIGN.md`. If the user only asks to refresh the sidecar (e.g., from the live panel's stale-hint), preserve `DESIGN.md` and write only `.impeccable/design.json`.
+Regenerate the sidecar whenever you regenerate root `DESIGN.md`. If the user only asks to refresh the sidecar (for example, because its metadata is stale), preserve `DESIGN.md` and write only `.impeccable/design.json`.
 
 #### Schema
 
@@ -304,13 +304,13 @@ Regenerate the sidecar whenever you regenerate root `DESIGN.md`. If the user onl
 
 #### Component translation rules
 
-The `html` and `css` fields must be **self-contained, drop-in snippets** that render correctly when injected into a shadow DOM. The panel applies them directly: no post-processing, no framework runtime.
+The `html` and `css` fields must be **self-contained, drop-in snippets** that render correctly when injected into a shadow DOM. Consumers must be able to render them directly: no post-processing, no framework runtime.
 
 1. **Tailwind expansion.** If the source uses Tailwind (className="bg-primary text-white rounded-lg px-6 py-3"), expand every utility to literal CSS properties in the `css` string. Do **not** reference Tailwind classes; do **not** assume a Tailwind CSS bundle is loaded. Each component is self-contained.
 2. **Token resolution.** If the project exposes tokens as CSS custom properties on `:root` (e.g. `--color-primary`, `--radius-md`), reference them via `var(--color-primary)`; they inherit through the shadow DOM and stay live-bound. If tokens live only in JS theme objects (styled-components, CSS-in-JS), resolve to literal values at generation time.
 3. **Icons.** Inline as SVG. Do not reference Lucide/Heroicons packages, icon fonts, or `<img src="...">`. A typical icon is 16-24px; copy the SVG path data directly.
-4. **States.** Include `:hover`, `:focus-visible`, and (if meaningful) `:active` rules inline. A static default-only snapshot makes the panel feel dead. Hover + focus rules in the CSS make it feel alive.
-5. **Reset bloat.** Extract only the component's *distinctive* CSS (background, color, padding, border-radius, typography, transition). Skip universal resets (`box-sizing: border-box`, `line-height: inherit`, `-webkit-font-smoothing`). The panel already has a neutral canvas; don't re-ship resets.
+4. **States.** Include `:hover`, `:focus-visible`, and (if meaningful) `:active` rules inline. Include hover and focus rules so the snippets describe interactive states as well as their default appearance.
+5. **Reset bloat.** Extract only the component's *distinctive* CSS (background, color, padding, border-radius, typography, transition). Skip universal resets (`box-sizing: border-box`, `line-height: inherit`, `-webkit-font-smoothing`). Keep the snippets focused on component-specific styling.
 6. **Scoped class names.** Prefix every class with `ds-` (e.g. `ds-btn-primary`, `ds-input-search`) so component CSS doesn't collide with other components' CSS in the same shadow DOM.
 
 #### What to include
@@ -325,7 +325,7 @@ If the project has **no component library yet** (bare landing page, new project)
 
 #### Tonal ramps
 
-For each color token, generate an 8-step `tonalRamp` array: dark to light, same hue and chroma, stepped lightness from ~15% to ~95%. The panel renders this as a strip under the swatch. If the project already defines a tonal scale (Material `surface-container-low` family, Tailwind-style `blue-50..blue-900`), use those values. Otherwise synthesize in OKLCH.
+For each color token, generate an 8-step `tonalRamp` array: dark to light, same hue and chroma, stepped lightness from ~15% to ~95%. If the project already defines a tonal scale (Material `surface-container-low` family, Tailwind-style `blue-50..blue-900`), use those values. Otherwise synthesize in OKLCH.
 
 #### Narrative mapping
 
@@ -337,12 +337,12 @@ Pull directly from the DESIGN.md you just wrote:
 - `narrative.rules` → every `**The [Name] Rule.** [body]` across all sections, tagged with `section`
 - `narrative.dos` / `narrative.donts` → the bullet lists from Do's and Don'ts verbatim
 
-Do not reword. The panel shows these as secondary collapsible context; the same voice that's in the Markdown carries through.
+Do not reword. Preserve the same voice in the sidecar as in the Markdown.
 
 ### Step 5: Confirm and refine
 
 1. Show the user the full DESIGN.md you wrote. Briefly highlight the non-obvious creative choices (descriptive color names, atmosphere language, named rules).
-2. Mention that `.impeccable/design.json` was also written alongside; the live panel will now render this project's actual button/input/nav primitives instead of generic approximations.
+2. Mention that `.impeccable/design.json` was also written alongside; it records this project's actual button/input/nav primitives for design tooling. Do not promise a Live-panel result: Live is disabled in Workbench.
 3. Offer to refine any section: "Want me to revise a section, add component patterns I missed, or adjust the atmosphere language?"
 
 Your own write is the freshest source; subsequent commands in this session don't need a reload.

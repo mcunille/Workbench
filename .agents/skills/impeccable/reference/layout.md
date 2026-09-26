@@ -73,12 +73,4 @@ Answer each item with rendered or source evidence, then rerun the scan. Do not s
 
 When the structure holds, hand off to `$impeccable polish`.
 
-## Live-mode signature params
-
-Every variant declares a coarse `density` parameter and authors spacing against `var(--p-density, 1)`.
-
-```json
-{"id":"density","kind":"range","min":0.6,"max":1.4,"step":0.05,"default":1,"label":"Density"}
-```
-
-Add one structural parameter only when the topology genuinely branches. Follow [live.md](live.md)'s parameter contract.
+Live-mode variant controls are disabled in Workbench. Use ordinary source edits and browser inspection to evaluate changes.
