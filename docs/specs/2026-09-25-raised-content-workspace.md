@@ -9,8 +9,8 @@ The shared authenticated shell now places the content sheet in front of the desk
 navigation backdrop. Focused navigation browser checks cover sheet geometry and the
 interaction layer. The owner reviewed and approved the localhost visual direction,
 including the narrower continuous sheet edge. Current-source container smoke and the
-full browser suite passed after the final fallback fix; a final preview refresh remains
-before PR delivery.
+full browser suite passed after the final fallback fix. The refreshed preview passed
+desktop and mobile visual inspection.
 
 People using Workbench should perceive their collection, purchasing, and other active
 work as the foreground. The solid canvas navigation provides a stable, quieter
@@ -157,7 +157,10 @@ browser suite passed 122/122 cases. Public CA and SMTP paths were not exercised.
 A manual temporary removal of the desktop sheet paint failed the targeted browser
 assertion, then exact source restoration and the focused green run confirmed recovery;
 this is not an automated mutation score. Final scoped review found no new issues.
-The preview has not yet been refreshed after the fallback fix. Keep screenshots outside
+The final-source isolated preview was refreshed after the fallback fix. Dark and light
+inspection at 1440px and 2400px confirmed the 16px left and square right corners,
+flush top edge, no overflow, and a hit-testable Account menu; mobile at 320px and
+390px had no overflow, and no page errors were reported. Keep screenshots outside
 Git history and attach reviewed evidence through the supported PR workflow.
 
 The interactive sample mockup has exercised comparison, collapse, local search, details,
@@ -166,6 +169,6 @@ prototype evidence only; it does not establish production behavior, full accessi
 or completion of repository application gates.
 
 The written proposal and implementation plan were reviewed before source changes.
-Deliver through a ready-for-review PR after the final-source preview refresh. A
+Deliver through a ready-for-review PR. A
 client-only revert restores the previous surface treatment without data conversion.
 Merge and production rollout remain separately authorized operations.

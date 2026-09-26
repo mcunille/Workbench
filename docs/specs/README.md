@@ -9,7 +9,7 @@ history, not a backlog and not a substitute for current documentation.
 desktop atmospheric content sheet in front of a solid canvas navigation backdrop, retaining
 Tanzanite and Quartz edge materials. The owner approved the local visual direction;
 current-source container smoke, full browser coverage, and scoped review passed.
-The final-source preview refresh remains before PR delivery.
+The refreshed final-source preview passed desktop and mobile visual inspection.
 
 [Beta API lifecycle and purchasing consolidation](2026-09-16-beta-api-lifecycle.md)
 records the approved transition for issue #120.
