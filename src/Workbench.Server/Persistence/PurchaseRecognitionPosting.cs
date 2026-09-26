@@ -85,12 +85,15 @@ internal static class PurchaseRecognitionPosting
             OR EXISTS(SELECT 1 FROM @Nodes WHERE Name='schemaVersion' AND Value<>'1')
             OR JSON_VALUE(@Command,'$.operation') COLLATE Latin1_General_100_BIN2<>'Post'
             THROW 51000,'Invalid recognition identities, dates or policy version.',1;
-          -- Exact decimals: reject exponent notation, signs (except rounding), whitespace and discarded precision.
-          IF EXISTS(SELECT 1 FROM @Nodes n WHERE n.Name IN ('quantity','sourceQuantity','sourceAmount','sourceCapacityQuantity','sourceCapacityAmount','amount')
-            AND (n.Value COLLATE Latin1_General_100_BIN2 LIKE '%[^0-9.]%' OR LEFT(n.Value,1)='.' OR RIGHT(n.Value,1)='.'
-              OR LEN(n.Value)-LEN(REPLACE(n.Value,'.',''))>1 OR TRY_CONVERT(decimal(38,6),n.Value) IS NULL
-              OR LEN(SUBSTRING(n.Value,CHARINDEX('.',n.Value+'.')+1,100))>CASE WHEN n.Name IN ('quantity','sourceQuantity','sourceCapacityQuantity') THEN 6 ELSE 4 END
-              OR LEN(LEFT(n.Value,CHARINDEX('.',n.Value+'.')-1))>CASE WHEN n.Name IN ('quantity','sourceQuantity','sourceCapacityQuantity') THEN 22 ELSE 24 END))
+          -- Exact decimals: only a Rounding component may carry a leading minus sign.
+          IF EXISTS(SELECT 1 FROM @Nodes n
+            CROSS APPLY (SELECT CASE WHEN n.Name='amount' AND EXISTS(SELECT 1 FROM @Nodes k WHERE k.ParentId=n.ParentId AND k.Name='kind' AND k.Value='Rounding')
+              AND LEFT(n.Value,1)='-' THEN SUBSTRING(n.Value,2,4000) ELSE n.Value END UnsignedValue) v
+            WHERE n.Name IN ('quantity','sourceQuantity','sourceAmount','sourceCapacityQuantity','sourceCapacityAmount','amount')
+            AND (v.UnsignedValue COLLATE Latin1_General_100_BIN2 LIKE '%[^0-9.]%' OR LEFT(v.UnsignedValue,1)='.' OR RIGHT(v.UnsignedValue,1)='.'
+              OR LEN(v.UnsignedValue)=0 OR LEN(v.UnsignedValue)-LEN(REPLACE(v.UnsignedValue,'.',''))>1 OR TRY_CONVERT(decimal(38,6),n.Value) IS NULL
+              OR LEN(SUBSTRING(v.UnsignedValue,CHARINDEX('.',v.UnsignedValue+'.')+1,100))>CASE WHEN n.Name IN ('quantity','sourceQuantity','sourceCapacityQuantity') THEN 6 ELSE 4 END
+              OR LEN(LEFT(v.UnsignedValue,CHARINDEX('.',v.UnsignedValue+'.')-1))>CASE WHEN n.Name IN ('quantity','sourceQuantity','sourceCapacityQuantity') THEN 22 ELSE 24 END))
             THROW 51000,'Invalid exact decimal amount.',1;
           UPDATE @Nodes SET Canonical=CASE WHEN JsonType=1 THEN N'"'+STRING_ESCAPE(Value,'json')+N'"' ELSE Value END WHERE JsonType NOT IN (4,5);
           WHILE @Depth>=0
@@ -195,17 +198,41 @@ internal static class PurchaseRecognitionPosting
               THROW 51000,'Components must have distinct bounded identities.',1;
             INSERT @Components SELECT JSON_VALUE(value,'$.componentKey'),JSON_VALUE(value,'$.kind'),CONVERT(decimal(28,4),JSON_VALUE(value,'$.amount')),
               JSON_VALUE(value,'$.reason'),JSON_VALUE(value,'$.assignedCostComponentKey') FROM OPENJSON(@SideInput,'$.components');
-            IF EXISTS(SELECT 1 FROM @Components WHERE Kind COLLATE Latin1_General_100_BIN2 NOT IN ('BaseCost','RecoverableTax') OR Amount<>ROUND(Amount,@Scale,1))
+            IF EXISTS(SELECT 1 FROM @Components WHERE Kind COLLATE Latin1_General_100_BIN2 NOT IN
+                ('BaseCost','Discount','Freight','Charge','NonrecoverableTax','RecoverableTax','Rounding')
+                OR Amount<>ROUND(Amount,@Scale,1) OR (Kind<>'Rounding' AND Amount<0))
               THROW 51000,'Unsupported component kind or currency precision.',1;
+            IF EXISTS(SELECT 1 FROM @Components c WHERE c.Kind IN ('Discount','Freight','Charge','NonrecoverableTax','Rounding')
+                AND (c.AssignedCostComponentKey IS NULL OR NOT EXISTS(SELECT 1 FROM @Components b WHERE b.ComponentKey COLLATE Latin1_General_100_BIN2=c.AssignedCostComponentKey
+                  AND b.Kind IN ('BaseCost','Freight','Charge'))))
+              OR EXISTS(SELECT 1 FROM @Components WHERE Kind IN ('Freight','Charge','Rounding') AND NULLIF(Reason,'') IS NULL)
+              OR (SELECT COUNT(*) FROM @Components WHERE Kind='Rounding')>1
+              THROW 51000,'Component assignment, reason or rounding identity is invalid.',1;
+            DECLARE @MinorUnit decimal(28,4)=CASE @Scale WHEN 0 THEN 1 WHEN 1 THEN 0.1 WHEN 2 THEN 0.01 WHEN 3 THEN 0.001 ELSE 0.0001 END;
+            IF EXISTS(SELECT 1 FROM @Components WHERE Kind='Rounding' AND (ABS(Amount)>@MinorUnit OR @Side<>'Invoice'))
+              OR (EXISTS(SELECT 1 FROM @Components WHERE Kind='Rounding') AND EXISTS(
+                SELECT 1 FROM Purchasing.RecognitionSideEvents e WITH(UPDLOCK,HOLDLOCK)
+                JOIN Purchasing.RecognitionComponents c ON c.TenantId=e.TenantId AND c.EventId=e.Id
+                WHERE e.TenantId=@TenantId AND e.Side='Invoice' AND e.SourceId=@SourceId AND e.SourceRevision=@SourceRevision AND c.Kind='Rounding'))
+              THROW 51000,'Invoice source already has rounding or its bound is exceeded.',1;
             DECLARE @CostWide decimal(38,4),@TaxWide decimal(38,4),@Cost decimal(28,4),@Tax decimal(28,4);
-            SELECT @CostWide=COALESCE(SUM(CASE WHEN Kind='BaseCost' THEN CONVERT(decimal(38,4),Amount) ELSE 0 END),0),
+            SELECT @CostWide=COALESCE(SUM(CASE WHEN Kind='Discount' THEN -CONVERT(decimal(38,4),Amount)
+                WHEN Kind IN ('BaseCost','Freight','Charge','NonrecoverableTax','Rounding') THEN CONVERT(decimal(38,4),Amount) ELSE 0 END),0),
               @TaxWide=COALESCE(SUM(CASE WHEN Kind='RecoverableTax' THEN CONVERT(decimal(38,4),Amount) ELSE 0 END),0) FROM @Components;
-            IF @CostWide>999999999999999999999999.9999 OR @TaxWide>999999999999999999999999.9999
+            IF @CostWide<0 OR @CostWide>999999999999999999999999.9999 OR @TaxWide>999999999999999999999999.9999
               OR (@Side='Recognition' AND @TaxWide<>0) THROW 51000,'Component totals do not match the source.',1;
+            IF EXISTS(SELECT 1 FROM @Components b WHERE b.Kind IN ('BaseCost','Freight','Charge') AND
+                b.Amount+COALESCE((SELECT SUM(CASE WHEN c.Kind='Discount' THEN -CONVERT(decimal(38,4),c.Amount)
+                  WHEN c.Kind IN ('NonrecoverableTax','Rounding') THEN CONVERT(decimal(38,4),c.Amount) ELSE 0 END)
+                  FROM @Components c WHERE c.AssignedCostComponentKey COLLATE Latin1_General_100_BIN2=b.ComponentKey),0)<0)
+              THROW 51000,'Assigned cost component cannot become negative.',1;
             SET @Cost=CONVERT(decimal(28,4),@CostWide); SET @Tax=CONVERT(decimal(28,4),@TaxWide);
             IF @Cost+@Tax<>@SourceAmount OR @Cost+@Tax>999999999999999999999999.9999
               THROW 51000,'Component totals do not match the source.',1;
-            IF @Tax>0 AND (JSON_VALUE(@Evidence,'$.taxPolicyReference') IS NULL OR COALESCE(JSON_VALUE(@Evidence,'$.taxEntitlement'),'false')<>'true')
+            IF EXISTS(SELECT 1 FROM @Components WHERE Kind IN ('RecoverableTax','NonrecoverableTax') AND Amount>0)
+              AND JSON_VALUE(@Evidence,'$.taxPolicyReference') IS NULL
+              THROW 51000,'Tax requires reviewed policy evidence.',1;
+            IF @Tax>0 AND COALESCE(JSON_VALUE(@Evidence,'$.taxEntitlement'),'false')<>'true'
               THROW 51000,'Recoverable tax requires reviewed policy and current entitlement.',1;
             DECLARE @Lines TABLE(Slot varchar(40),AccountId uniqueidentifier,AccountVersion uniqueidentifier,Debit decimal(28,4),Credit decimal(28,4));
             DELETE @Lines;

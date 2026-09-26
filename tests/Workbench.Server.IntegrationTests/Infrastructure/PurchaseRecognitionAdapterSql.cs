@@ -10,7 +10,7 @@ internal static class PurchaseRecognitionAdapterSql
         CREATE TABLE Purchasing.FixtureRecognitionSources(TenantId uniqueidentifier NOT NULL,Id uniqueidentifier NOT NULL,Revision uniqueidentifier NOT NULL,
           PurchaseOrderId uniqueidentifier NOT NULL,SupplierId uniqueidentifier NOT NULL,Currency varchar(3) NOT NULL,
           Classification varchar(16) NOT NULL,Side varchar(16) NOT NULL,SourceComponentKey nvarchar(200) NOT NULL DEFAULT N'line-1',EvidenceJson nvarchar(max) NOT NULL,
-          PRIMARY KEY(TenantId,Id,Revision));
+          PRIMARY KEY(TenantId,Id,Revision,SourceComponentKey));
         EXEC(N'CREATE PROCEDURE Purchasing.PostFixtureRecognition
           @ActorId uniqueidentifier,@SessionId uniqueidentifier,@RequestId uniqueidentifier,@Command nvarchar(max)
         AS BEGIN
@@ -35,6 +35,7 @@ internal static class PurchaseRecognitionAdapterSql
                 LEFT JOIN Purchasing.FixtureRecognitionSources f WITH(UPDLOCK,HOLDLOCK)
                   ON f.TenantId=@TenantId AND f.Id=TRY_CONVERT(uniqueidentifier,JSON_VALUE(s.value,''$.sourceId''))
                   AND f.Revision=TRY_CONVERT(uniqueidentifier,JSON_VALUE(s.value,''$.sourceRevision''))
+                  AND f.SourceComponentKey COLLATE Latin1_General_100_BIN2=JSON_VALUE(s.value,''$.sourceComponentKey'') COLLATE Latin1_General_100_BIN2
                 WHERE f.Id IS NULL OR f.PurchaseOrderId<>TRY_CONVERT(uniqueidentifier,JSON_VALUE(@Command,''$.purchaseOrderId''))
                   OR f.SupplierId<>TRY_CONVERT(uniqueidentifier,JSON_VALUE(@Command,''$.supplierId''))
                   OR f.Currency<>JSON_VALUE(@Command,''$.currency'') OR f.Classification<>JSON_VALUE(u.value,''$.classification'')
