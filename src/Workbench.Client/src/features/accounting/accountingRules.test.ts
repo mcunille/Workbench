@@ -16,4 +16,13 @@ describe('accounting mapping eligibility', () => {
     expect(eligibleForMapping('Inventory', { type: 'Asset', purpose: 'General', isArchived: false })).toBe(true);
     expect(eligibleForMapping('Inventory', { type: 'Asset', purpose: 'SupplierAdvance', isArchived: false })).toBe(false);
   });
+  it('allows only active general liabilities for receipt accrual', () => {
+    // GIVEN a general liability, an asset, and an archived liability
+    const account = { type: 'Liability', purpose: 'General', isArchived: false };
+    // WHEN choosing the receipt-accrual mapping
+    // THEN only the active general liability is eligible
+    expect(eligibleForMapping('GoodsReceivedNotInvoiced', account)).toBe(true);
+    expect(eligibleForMapping('GoodsReceivedNotInvoiced', { ...account, type: 'Asset' })).toBe(false);
+    expect(eligibleForMapping('GoodsReceivedNotInvoiced', { ...account, isArchived: true })).toBe(false);
+  });
 });

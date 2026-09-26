@@ -5,10 +5,10 @@ public static class AccountingCatalog
 {
     public static readonly string[] Types = ["Asset", "Liability", "Equity", "Income", "Expense"];
     public static readonly string[] Purposes = ["General", "Bank", "Cash", "CardLiability", "SupplierPayable", "SupplierAdvance", "SupplierCreditReceivable", "SupplierRefundClearing"];
-    public static readonly string[] Slots = ["SupplierPayable", "SupplierAdvance", "SupplierCreditReceivable", "SupplierRefundClearing", "Inventory", "Expense", "Prepayment", "RecoverableTax"];
+    public static readonly string[] Slots = ["SupplierPayable", "SupplierAdvance", "SupplierCreditReceivable", "SupplierRefundClearing", "Inventory", "Expense", "Prepayment", "RecoverableTax", "GoodsReceivedNotInvoiced"];
     public static readonly AccountingConfiguration Empty = new(new(null, null, null, null, null, null, null, null, null, null), [], []);
     private static AccountingOption[] Regions(string source) => source.Split('|').Select(value => { var parts = value.Split(':'); return new AccountingOption(parts[0], parts[1]); }).ToArray();
-    public static readonly AccountingCatalogResponse Value = new("2026-09-21", [
+    public static readonly AccountingCatalogResponse Value = new("2026-09-26", [
         new("US", "United States", Regions("AL:Alabama|AK:Alaska|AZ:Arizona|AR:Arkansas|CA:California|CO:Colorado|CT:Connecticut|DE:Delaware|DC:District of Columbia|FL:Florida|GA:Georgia|HI:Hawaii|ID:Idaho|IL:Illinois|IN:Indiana|IA:Iowa|KS:Kansas|KY:Kentucky|LA:Louisiana|ME:Maine|MD:Maryland|MA:Massachusetts|MI:Michigan|MN:Minnesota|MS:Mississippi|MO:Missouri|MT:Montana|NE:Nebraska|NV:Nevada|NH:New Hampshire|NJ:New Jersey|NM:New Mexico|NY:New York|NC:North Carolina|ND:North Dakota|OH:Ohio|OK:Oklahoma|OR:Oregon|PA:Pennsylvania|RI:Rhode Island|SC:South Carolina|SD:South Dakota|TN:Tennessee|TX:Texas|UT:Utah|VT:Vermont|VA:Virginia|WA:Washington|WV:West Virginia|WI:Wisconsin|WY:Wyoming|AS:American Samoa|GU:Guam|MP:Northern Mariana Islands|PR:Puerto Rico|VI:US Virgin Islands")),
         new("CA", "Canada", Regions("AB:Alberta|BC:British Columbia|MB:Manitoba|NB:New Brunswick|NL:Newfoundland and Labrador|NS:Nova Scotia|NT:Northwest Territories|NU:Nunavut|ON:Ontario|PE:Prince Edward Island|QC:Quebec|SK:Saskatchewan|YT:Yukon")),
         new("AU", "Australia", Regions("ACT:Australian Capital Territory|NSW:New South Wales|NT:Northern Territory|QLD:Queensland|SA:South Australia|TAS:Tasmania|VIC:Victoria|WA:Western Australia")),
@@ -32,7 +32,7 @@ public static class AccountingCatalog
     public static string? RequiredType(string purpose) => purpose switch
     {
         "Bank" or "Cash" or "SupplierAdvance" or "SupplierCreditReceivable" or "Inventory" or "Prepayment" or "RecoverableTax" => "Asset",
-        "CardLiability" or "SupplierPayable" or "SupplierRefundClearing" => "Liability",
+        "CardLiability" or "SupplierPayable" or "SupplierRefundClearing" or "GoodsReceivedNotInvoiced" => "Liability",
         "Expense" => "Expense",
         _ => null
     };

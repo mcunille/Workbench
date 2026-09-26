@@ -9,6 +9,27 @@ public sealed class AccountingInputTests
     private static AccountingConfiguration Empty => new(new(null, null, null, null, null, null, null, null, null, null), [], []);
 
     [Fact]
+    public void ReceiptAccrualIsASupportedOptionalMapping()
+    {
+        // GIVEN an incomplete setup with a receipt-accrual assignment.
+        var configuration = Empty with { Mappings = [new AccountingMapping("GoodsReceivedNotInvoiced", Guid.NewGuid())] };
+        // WHEN validating the fixed catalog THEN the new slot is accepted without requiring all slots.
+        Assert.Empty(AccountingInput.Validate(configuration));
+        Assert.Contains("GoodsReceivedNotInvoiced", AccountingCatalog.Slots);
+        Assert.Equal("Liability", AccountingCatalog.RequiredType("GoodsReceivedNotInvoiced"));
+    }
+
+    [Fact]
+    public void RecognitionAssetMappingsUseDistinctAccounts()
+    {
+        // GIVEN inventory and prepayment assigned to the same asset account.
+        var account = Guid.NewGuid();
+        var configuration = Empty with { Mappings = [new AccountingMapping("Inventory", account), new AccountingMapping("Prepayment", account)] };
+        // WHEN validating configuration THEN shared recognition assets are rejected.
+        Assert.Contains("mappings", AccountingInput.Validate(configuration).Keys);
+    }
+
+    [Fact]
     public void IncompleteConfigurationIsAllowedButMalformedValuesAreRejected()
     {
         // GIVEN a resumable setup with no policies chosen.

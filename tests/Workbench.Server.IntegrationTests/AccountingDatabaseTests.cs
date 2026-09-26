@@ -81,6 +81,57 @@ public sealed class AccountingDatabaseTests(SqlServerFixture sqlServer)
         Assert.Equal(2, await CountAsync(context, "Receipts"));
     }
 
+    [Fact]
+    public async Task RecognitionHistoryTablesDenyRuntimeMutation()
+    {
+        // GIVEN a fresh migrated database and its restricted web principal.
+        await using var database = await sqlServer.CreateMigratedDatabaseAsync();
+        await using var connection = new SqlConnection(await database.CreateWebUserAsync());
+        await connection.OpenAsync();
+        // WHEN the runtime principal attempts direct mutation of recognition history
+        // THEN every table denies the statement before any financial evidence changes.
+        foreach (var table in new[] { "RecognitionUnits", "RecognitionSideEvents", "RecognitionComponents", "RecognitionMatches", "RecognitionCorrectionGroups", "RecognitionGroupReceipts" })
+        {
+            await using var command = new SqlCommand($"DELETE Purchasing.{table}", connection);
+            Assert.Equal(229, (await Assert.ThrowsAsync<SqlException>(() => command.ExecuteNonQueryAsync())).Number);
+        }
+    }
+
+    [Fact]
+    public async Task ReceiptAccrualMappingAcceptsOnlyActiveGeneralLiability()
+    {
+        // GIVEN active general liability, wrong-type, wrong-purpose, foreign, and archived accounts.
+        await using var context = await OpenAsync();
+        var created = await SaveAsync(context, Guid.NewGuid(), "CreateAccounts", """[{"code":"2200","name":"Accrual","type":"Liability","purpose":"General"},{"code":"1200","name":"Asset","type":"Asset","purpose":"General"},{"code":"2000","name":"AP","type":"Liability","purpose":"SupplierPayable"},{"code":"2210","name":"Old accrual","type":"Liability","purpose":"General"}]""");
+        var ids = JsonSerializer.Deserialize<Guid[]>(created.Ids)!;
+        await SaveAsync(context, Guid.NewGuid(), "ArchiveAccount", """{"isArchived":true}""", ids[3], created.Version);
+        var foreignId = Guid.NewGuid();
+        await using (var admin = new SqlConnection(context.Application.AdminConnectionString))
+        {
+            await admin.OpenAsync();
+            await using var foreign = new SqlCommand("""
+                INSERT Accounting.Accounts(Id,TenantId,Code,Name,Type,Purpose,Version)
+                VALUES(@id,'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb','2290','Foreign accrual','Liability','General',NEWID());
+                """, admin);
+            foreign.Parameters.AddWithValue("@id", foreignId);
+            await foreign.ExecuteNonQueryAsync();
+        }
+        string Configuration(Guid accountId) => JsonSerializer.Serialize(new { policies = new { }, mappings = new[] { new { slot = "GoodsReceivedNotInvoiced", accountId } }, coverage = Array.Empty<object>() });
+        // WHEN saving the eligible mapping THEN it persists under a new configuration version.
+        var valid = await SaveAsync(context, Guid.NewGuid(), "Configure", Configuration(ids[0]), version: Guid.Empty);
+        Assert.NotEqual(Guid.Empty, valid.Version);
+        // WHEN attempting invalid targets THEN SQL rejects every one without advancing the configuration.
+        foreach (var id in new[] { ids[1], ids[2], foreignId, ids[3] })
+            Assert.Equal(50900, (await Assert.ThrowsAsync<SqlException>(() => SaveAsync(context, Guid.NewGuid(), "Configure", Configuration(id), version: valid.Version))).Number);
+        var sharedAssets = JsonSerializer.Serialize(new { policies = new { }, mappings = new[] { new { slot = "Inventory", accountId = ids[1] }, new { slot = "Prepayment", accountId = ids[1] } }, coverage = Array.Empty<object>() });
+        Assert.Equal(50900, (await Assert.ThrowsAsync<SqlException>(() => SaveAsync(context, Guid.NewGuid(), "Configure", sharedAssets, version: valid.Version))).Number);
+        // THEN the original configuration and its revision remain the only saved setup.
+        await using var check = new SqlCommand("SELECT Version FROM Accounting.Configurations WHERE TenantId=@tenant", context.Connection);
+        check.Parameters.AddWithValue("@tenant", AuthTestApplication.TenantId);
+        Assert.Equal(valid.Version, (Guid)(await check.ExecuteScalarAsync())!);
+        Assert.Equal(1, await CountAsync(context, "Configurations"));
+    }
+
     [Theory]
     [InlineData("{\"policies\":{\"scale\":5},\"mappings\":[],\"coverage\":[]}")]
     [InlineData("{\"policies\":{\"plannedStartDate\":\"2026-02-30\"},\"mappings\":[],\"coverage\":[]}")]

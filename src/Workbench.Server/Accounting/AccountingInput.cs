@@ -59,7 +59,8 @@ public static class AccountingInput
         if (p.RetentionYears is < 1 or > 1000) errors["policies.retentionYears"] = ["Use 1–1000 years or leave unresolved."];
         CheckText(errors, "policies.retentionRationale", p.RetentionRationale, 2000);
         CheckText(errors, "policies.frameworkNotes", p.FrameworkNotes, 2000);
-        if (configuration.Mappings.Count > AccountingCatalog.Slots.Length || configuration.Mappings.Any(m => m is null || !AccountingCatalog.Slots.Contains(m.Slot) || m.AccountId == Guid.Empty) || configuration.Mappings.Where(m => m is not null).Select(m => m.Slot).Distinct().Count() != configuration.Mappings.Count)
+        if (configuration.Mappings.Count > AccountingCatalog.Slots.Length || configuration.Mappings.Any(m => m is null || !AccountingCatalog.Slots.Contains(m.Slot) || m.AccountId == Guid.Empty) || configuration.Mappings.Where(m => m is not null).Select(m => m.Slot).Distinct().Count() != configuration.Mappings.Count ||
+            configuration.Mappings.Where(m => m is not null && m.Slot is "Inventory" or "Prepayment" or "RecoverableTax").Select(m => m.AccountId).Distinct().Count() != configuration.Mappings.Count(m => m is not null && m.Slot is "Inventory" or "Prepayment" or "RecoverableTax"))
             errors["mappings"] = ["Use distinct supported slots with valid account identifiers."];
         if (configuration.Coverage.Count > 200 || configuration.Coverage.Any(c => c is null || c.AccountId == Guid.Empty) || configuration.Coverage.Where(c => c is not null).Select(c => c.AccountId).Distinct().Count() != configuration.Coverage.Count)
             errors["coverage"] = ["Use at most 200 distinct funding accounts."];
