@@ -21,7 +21,7 @@ public sealed class JournalConcurrencyTests(SqlServerFixture sqlServer, ITestOut
         var posting = CaptureAsync(async () => (JournalTestContext.PostingResult?)await context.PostAsync(source, connection: second));
         try
         {
-            await gate.WaitForBlockedAsync(second.ServerProcessId);
+            await gate.WaitForBlockedAsync(second);
             // WHEN observing the idle connection THEN another session cannot satisfy the barrier.
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(7));
             var observation = await gate.ObserveAsync(timeout.Token, context.Connection.ServerProcessId);
@@ -47,7 +47,7 @@ public sealed class JournalConcurrencyTests(SqlServerFixture sqlServer, ITestOut
         // WHEN both connections post one request while the barrier is held.
         var firstTask = CaptureAsync(async () => (JournalTestContext.PostingResult?)await context.PostAsync(source, request));
         var secondTask = CaptureAsync(async () => (JournalTestContext.PostingResult?)await context.PostAsync(source, request, connection: second));
-        await gate.WaitForBlockedAsync(context.Connection.ServerProcessId, second.ServerProcessId);
+        await gate.WaitForBlockedAsync(context.Connection, second);
         await gate.ReleaseAsync();
         var first = await firstTask;
         var repeated = await secondTask;
@@ -71,7 +71,7 @@ public sealed class JournalConcurrencyTests(SqlServerFixture sqlServer, ITestOut
         // WHEN both commands reach the tenant lock before either may proceed.
         var firstTask = CaptureAsync(async () => (JournalTestContext.PostingResult?)await context.PostAsync(source));
         var secondTask = CaptureAsync(async () => (JournalTestContext.PostingResult?)await context.PostAsync(source, connection: second));
-        await gate.WaitForBlockedAsync(context.Connection.ServerProcessId, second.ServerProcessId);
+        await gate.WaitForBlockedAsync(context.Connection, second);
         await gate.ReleaseAsync();
         var outcomes = new[] { await firstTask, await secondTask };
         // THEN precisely one request commits and the other identifies an existing source conflict.
@@ -100,7 +100,7 @@ public sealed class JournalConcurrencyTests(SqlServerFixture sqlServer, ITestOut
             await context.SaveAsync(Guid.NewGuid(), "Configure", changedPolicy,
             expectedVersion: context.ConfigurationVersion, connection: second); return null;
         });
-        await gate.WaitForBlockedAsync(context.Connection.ServerProcessId, second.ServerProcessId);
+        await gate.WaitForBlockedAsync(context.Connection, second);
         await gate.ReleaseAsync();
         var post = await postTask;
         var edit = await editTask;
@@ -131,9 +131,9 @@ public sealed class JournalConcurrencyTests(SqlServerFixture sqlServer, ITestOut
                 """{"isArchived":true}""", context.DebitAccountId, context.DebitAccountVersion, second); return null;
             });
         var firstTask = postFirst ? Post() : Archive();
-        await gate.WaitForBlockedAsync(postFirst ? context.Connection.ServerProcessId : second.ServerProcessId);
+        await gate.WaitForBlockedAsync(postFirst ? context.Connection : second);
         var secondTask = postFirst ? Archive() : Post();
-        await gate.WaitForBlockedAsync(context.Connection.ServerProcessId, second.ServerProcessId);
+        await gate.WaitForBlockedAsync(context.Connection, second);
         await gate.ReleaseAsync();
         var first = await firstTask;
         var secondResult = await secondTask;
@@ -169,9 +169,9 @@ public sealed class JournalConcurrencyTests(SqlServerFixture sqlServer, ITestOut
             });
         // WHEN the first command is observed waiting at the tenant lock before the second queues.
         var firstTask = postFirst ? Post() : Edit();
-        await gate.WaitForBlockedAsync(postFirst ? context.Connection.ServerProcessId : second.ServerProcessId);
+        await gate.WaitForBlockedAsync(postFirst ? context.Connection : second);
         var secondTask = postFirst ? Edit() : Post();
-        await gate.WaitForBlockedAsync(context.Connection.ServerProcessId, second.ServerProcessId);
+        await gate.WaitForBlockedAsync(context.Connection, second);
         await gate.ReleaseAsync();
         var first = await firstTask;
         var secondResult = await secondTask;
@@ -254,15 +254,22 @@ public sealed class JournalConcurrencyTests(SqlServerFixture sqlServer, ITestOut
             return new AccountingLockGate(connection, transaction, sessionId, adminConnectionString);
         }
 
-        public async Task WaitForBlockedAsync(params int[] sessionIds)
+        public Task WaitForBlockedAsync(params SqlConnection[] participants)
+            => WaitForBlockedBySessionAsync(_sessionId, participants);
+
+        public Task WaitForBlockedByAsync(SqlConnection holder, params SqlConnection[] participants)
+            => WaitForBlockedBySessionAsync(holder.ServerProcessId, participants);
+
+        private async Task WaitForBlockedBySessionAsync(int holderSessionId, SqlConnection[] participants)
         {
+            var sessionIds = participants.Select(connection => connection.ServerProcessId).ToArray();
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(7));
             var observed = "No participant request observed.";
             try
             {
                 while (true)
                 {
-                    var observation = await ObserveAsync(timeout.Token, sessionIds);
+                    var observation = await ObserveAsync(timeout.Token, holderSessionId, sessionIds);
                     observed = observation.Description;
                     if (sessionIds.All(observation.Waiting.Contains)) return;
                     await Task.Delay(30, timeout.Token);
@@ -270,11 +277,14 @@ public sealed class JournalConcurrencyTests(SqlServerFixture sqlServer, ITestOut
             }
             catch (OperationCanceledException exception) when (timeout.IsCancellationRequested)
             {
-                throw new TimeoutException($"Expected sessions {string.Join(",", sessionIds)} to wait on accounting barrier session {_sessionId}. {observed}", exception);
+                throw new TimeoutException($"Expected sessions {string.Join(",", sessionIds)} to wait on accounting lock holder session {holderSessionId}. {observed}", exception);
             }
         }
 
-        public async Task<(HashSet<int> Waiting, string Description)> ObserveAsync(CancellationToken cancellationToken, params int[] sessionIds)
+        public Task<(HashSet<int> Waiting, string Description)> ObserveAsync(CancellationToken cancellationToken, params int[] sessionIds)
+            => ObserveAsync(cancellationToken, _sessionId, sessionIds);
+
+        private async Task<(HashSet<int> Waiting, string Description)> ObserveAsync(CancellationToken cancellationToken, int holderSessionId, int[] sessionIds)
         {
             await using var observer = new SqlConnection(_adminConnectionString);
             await observer.OpenAsync(cancellationToken);
@@ -291,7 +301,7 @@ public sealed class JournalConcurrencyTests(SqlServerFixture sqlServer, ITestOut
                                 AND h.request_status='GRANT') THEN 1 ELSE 0 END
                     FROM sys.dm_exec_requests r WHERE r.session_id IN(@first,@second);
                     """, observer);
-            command.Parameters.AddWithValue("@holder", _sessionId);
+            command.Parameters.AddWithValue("@holder", holderSessionId);
             command.Parameters.AddWithValue("@first", sessionIds[0]);
             command.Parameters.AddWithValue("@second", sessionIds[^1]);
             var waiting = new HashSet<int>();

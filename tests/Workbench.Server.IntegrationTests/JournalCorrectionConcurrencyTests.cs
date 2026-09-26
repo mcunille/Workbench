@@ -20,7 +20,7 @@ public sealed class JournalCorrectionConcurrencyTests(SqlServerFixture sqlServer
         await using var gate = await JournalConcurrencyTests.AccountingLockGate.OpenAsync(controls.Journal.Application.AdminConnectionString);
         // WHEN the correction reaches the observed SQL barrier and its lock wait times out.
         var pending = controls.CorrectAsync(original.JournalId, new DateOnly(2026, 10, 1), "280", request);
-        await gate.WaitForBlockedAsync(1);
+        await gate.WaitForBlockedAsync(controls.Journal.Connection);
         Assert.Equal(51009, (await Assert.ThrowsAsync<SqlException>(() => pending)).Number);
         // THEN the entire transaction rolled back and an identical retry succeeds after the lock is released.
         Assert.Equal(before, await controls.HistorySnapshotAsync());
@@ -42,7 +42,7 @@ public sealed class JournalCorrectionConcurrencyTests(SqlServerFixture sqlServer
         var first = CaptureAsync(() => controls.CorrectAsync(original.JournalId, new DateOnly(2026, 10, 1), "280", request));
         var second = CaptureAsync(() => controls.CorrectAsync(original.JournalId, new DateOnly(2026, 10, 1), "280",
             sameRequest ? request : Guid.NewGuid(), sibling));
-        await gate.WaitForBlockedAsync(2);
+        await gate.WaitForBlockedAsync(controls.Journal.Connection, sibling);
         // WHEN both commands are released to compete for the same original.
         await gate.ReleaseAsync();
         var results = await Task.WhenAll(first, second);
@@ -81,22 +81,22 @@ public sealed class JournalCorrectionConcurrencyTests(SqlServerFixture sqlServer
             if (correctionFirst)
             {
                 var correcting = controls.CorrectAsync(original.JournalId, new DateOnly(2026, 10, 1), "280");
-                await gate.WaitForBlockedAsync(1);
+                await gate.WaitForBlockedAsync(controls.Journal.Connection);
                 await gate.ReleaseAsync();
                 await correcting;
                 var closing = controls.CloseAsync(new DateOnly(2026, 10, 1), connection: sibling);
-                await gate.WaitForBlockedAsync(1);
+                await gate.WaitForBlockedByAsync(journal.Connection, sibling);
                 await CorrectionAssertions.ScalarAsync(journal.Connection, "COMMIT TRANSACTION");
                 await closing;
             }
             else
             {
                 var closing = controls.CloseAsync(new DateOnly(2026, 10, 1));
-                await gate.WaitForBlockedAsync(1);
+                await gate.WaitForBlockedAsync(controls.Journal.Connection);
                 await gate.ReleaseAsync();
                 await closing;
                 var correcting = CaptureAsync(() => controls.CorrectAsync(original.JournalId, new DateOnly(2026, 10, 1), "280", connection: sibling));
-                await gate.WaitForBlockedAsync(1);
+                await gate.WaitForBlockedByAsync(journal.Connection, sibling);
                 await CorrectionAssertions.ScalarAsync(journal.Connection, "COMMIT TRANSACTION");
                 Assert.Equal(51009, (await correcting).Error!.Number);
             }
