@@ -173,12 +173,15 @@ public sealed class PurchaseRecognitionComponentTests(SqlServerFixture sqlServer
     [InlineData("unknown-nested")]
     [InlineData("duplicate-nested")]
     [InlineData("negative-assigned-cost")]
+    [InlineData("fractional-negative-assigned-cost")]
     public async Task InvalidBreakdownCannotCreateFinancialEvidence(string defect)
     {
         // GIVEN a durable source and a breakdown that violates one typed component rule.
         await using var context = await PurchaseRecognitionTestContext.OpenAsync(sqlServer);
         var command = await context.CommandAsync("Invoice", cost: defect == "negative-cost" ? "1" :
-            defect == "overflow" ? "999999999999999999999999.99" : defect == "negative-assigned-cost" ? "2" : "100");
+            defect == "overflow" ? "999999999999999999999999.99" : defect == "negative-assigned-cost" ? "2" :
+            defect == "fractional-negative-assigned-cost" ? "0.9999" : "100");
+        if (defect == "fractional-negative-assigned-cost") await SetScaleAsync(context, 4);
         var side = command["units"]![0]!["sides"]![0]!;
         string? json = null;
         switch (defect)
@@ -209,9 +212,17 @@ public sealed class PurchaseRecognitionComponentTests(SqlServerFixture sqlServer
                      {"componentKey":"large-base","kind":"BaseCost","amount":"3"},
                      {"componentKey":"discount","kind":"Discount","amount":"2","assignedCostComponentKey":"small-base"}]
                     """); break;
+            case "fractional-negative-assigned-cost":
+                side["components"] = JsonNode.Parse("""
+                    [{"componentKey":"small-base","kind":"BaseCost","amount":"1.0000"},
+                     {"componentKey":"other-base","kind":"BaseCost","amount":"1.0000"},
+                     {"componentKey":"discount","kind":"Discount","amount":"1.0001","assignedCostComponentKey":"small-base"}]
+                    """); break;
         }
         // WHEN posting THEN malformed, nonrepresentable or invalid allocation is rejected atomically.
-        Assert.Equal(51000, (await Assert.ThrowsAsync<SqlException>(() => context.PostAsync(json ?? command.ToJsonString()))).Number);
+        var error = await Assert.ThrowsAsync<SqlException>(() => context.PostAsync(json ?? command.ToJsonString()));
+        Assert.Equal(51000, error.Number);
+        if (defect == "fractional-negative-assigned-cost") Assert.Contains("Assigned cost component cannot become negative", error.Message, StringComparison.Ordinal);
         Assert.Equal(0, await context.CountAsync("RecognitionSideEvents"));
         Assert.Equal(0, await context.CountAsync("RecognitionGroupReceipts"));
         Assert.Equal(0, await context.Journal.CountAsync("JournalEntries"));
