@@ -52,6 +52,8 @@ internal static class PurchaseRecognitionPosting
             ('evidence','inTransit',3,0,10),('evidence','estimateBasis',1,0,4000),
             ('evidence','invoiceEligible',3,0,10),('evidence','presentObligation',3,0,10),('evidence','enforceableRight',3,0,10),
             ('evidence','taxPolicyReference',1,0,4000),('evidence','taxEntitlement',3,0,10),
+            ('evidence','varianceAmount',1,0,60),('evidence','varianceReason',1,0,4000),
+            ('evidence','varianceClassification',1,0,32),('evidence','inventoryAdjustmentState',1,0,80),
             ('evidence','documentRevision',1,0,400),('evidence','documentDigest',1,0,128);
           DECLARE @Nodes TABLE(Id int IDENTITY PRIMARY KEY,ParentId int,Depth int,Kind varchar(20),Name nvarchar(4000) COLLATE Latin1_General_100_BIN2,
             JsonType int,Value nvarchar(max) COLLATE Latin1_General_100_BIN2,Canonical nvarchar(max) COLLATE Latin1_General_100_BIN2);
@@ -81,15 +83,15 @@ internal static class PurchaseRecognitionPosting
             OR EXISTS(SELECT 1 FROM @Nodes WHERE Name IN ('postingDate','documentDate','effectiveDate','serviceStartDate','serviceEndDate','controlTransferDate')
               AND (DATALENGTH(Value)<>20 OR TRY_CONVERT(date,Value,23) IS NULL OR CONVERT(nvarchar(10),TRY_CONVERT(date,Value,23),23)<>Value))
             OR EXISTS(SELECT 1 FROM @Nodes WHERE JsonType=1 AND LEN(LTRIM(RTRIM(Value)))=0)
-            OR EXISTS(SELECT 1 FROM @Nodes WHERE Name IN ('classification','side','kind','recognitionBasis') AND DATALENGTH(Value)<>DATALENGTH(RTRIM(Value)))
+            OR EXISTS(SELECT 1 FROM @Nodes WHERE Name IN ('classification','side','kind','recognitionBasis','varianceClassification','inventoryAdjustmentState') AND DATALENGTH(Value)<>DATALENGTH(RTRIM(Value)))
             OR EXISTS(SELECT 1 FROM @Nodes WHERE Name='schemaVersion' AND Value<>'1')
             OR JSON_VALUE(@Command,'$.operation') COLLATE Latin1_General_100_BIN2<>'Post'
             THROW 51000,'Invalid recognition identities, dates or policy version.',1;
-          -- Exact decimals: only a Rounding component may carry a leading minus sign.
+          -- Exact decimals: only rounding and an explicitly reviewed variance may be signed.
           IF EXISTS(SELECT 1 FROM @Nodes n
-            CROSS APPLY (SELECT CASE WHEN n.Name='amount' AND EXISTS(SELECT 1 FROM @Nodes k WHERE k.ParentId=n.ParentId AND k.Name='kind' AND k.Value='Rounding')
+            CROSS APPLY (SELECT CASE WHEN (n.Name='varianceAmount' OR (n.Name='amount' AND EXISTS(SELECT 1 FROM @Nodes k WHERE k.ParentId=n.ParentId AND k.Name='kind' AND k.Value='Rounding')))
               AND LEFT(n.Value,1)='-' THEN SUBSTRING(n.Value,2,4000) ELSE n.Value END UnsignedValue) v
-            WHERE n.Name IN ('quantity','sourceQuantity','sourceAmount','sourceCapacityQuantity','sourceCapacityAmount','amount')
+            WHERE n.Name IN ('quantity','sourceQuantity','sourceAmount','sourceCapacityQuantity','sourceCapacityAmount','amount','varianceAmount')
             AND (v.UnsignedValue COLLATE Latin1_General_100_BIN2 LIKE '%[^0-9.]%' OR LEFT(v.UnsignedValue,1)='.' OR RIGHT(v.UnsignedValue,1)='.'
               OR LEN(v.UnsignedValue)=0 OR LEN(v.UnsignedValue)-LEN(REPLACE(v.UnsignedValue,'.',''))>1 OR TRY_CONVERT(decimal(38,6),n.Value) IS NULL
               OR LEN(SUBSTRING(v.UnsignedValue,CHARINDEX('.',v.UnsignedValue+'.')+1,100))>CASE WHEN n.Name IN ('quantity','sourceQuantity','sourceCapacityQuantity') THEN 6 ELSE 4 END
@@ -141,6 +143,7 @@ internal static class PurchaseRecognitionPosting
           INSERT @Units SELECT CONVERT(uniqueidentifier,JSON_VALUE(value,'$.unitId')),value FROM OPENJSON(@Canonical,'$.units');
           DECLARE @Now datetimeoffset=SYSUTCDATETIME(),@CommandId uniqueidentifier=NEWID();
           DECLARE @Events TABLE(Id uniqueidentifier,UnitId uniqueidentifier,JournalId uniqueidentifier);
+          DECLARE @Matches TABLE(Id uniqueidentifier);
           DECLARE @UnitId uniqueidentifier,@Unit nvarchar(max);
           DECLARE unit_cursor CURSOR LOCAL FAST_FORWARD FOR SELECT Id,Input FROM @Units ORDER BY Id;
           OPEN unit_cursor; FETCH NEXT FROM unit_cursor INTO @UnitId,@Unit;
@@ -148,13 +151,25 @@ internal static class PurchaseRecognitionPosting
           BEGIN
             DECLARE @Classification varchar(16)=JSON_VALUE(@Unit,'$.classification'),@Quantity decimal(28,6)=CONVERT(decimal(28,6),JSON_VALUE(@Unit,'$.quantity')),
               @Prior int=TRY_CONVERT(int,JSON_VALUE(@Unit,'$.expectedPriorEventRevision'));
-            IF @Classification COLLATE Latin1_General_100_BIN2 NOT IN ('Expense','Inventory') OR @Quantity<=0 OR @Prior IS NULL OR @Prior<>0
-              THROW 51000,'Invalid independent recognition unit.',1;
-            IF EXISTS(SELECT 1 FROM Purchasing.RecognitionUnits WHERE TenantId=@TenantId AND Id=@UnitId)
-              THROW 51009,'Recognition unit already has an event.',1;
-            -- Matching is installed by the following change; fail closed until both sides can commit together.
-            IF (SELECT COUNT(*) FROM OPENJSON(@Unit,'$.sides'))<>1 THROW 51000,'Independent posting requires exactly one side.',1;
-            DECLARE @SideInput nvarchar(max)=(SELECT value FROM OPENJSON(@Unit,'$.sides')),
+            IF @Classification COLLATE Latin1_General_100_BIN2 NOT IN ('Expense','Inventory') OR @Quantity<=0 OR @Prior IS NULL OR @Prior<0
+              THROW 51000,'Invalid recognition unit.',1;
+            DECLARE @Existing bit=CASE WHEN EXISTS(SELECT 1 FROM Purchasing.RecognitionUnits WHERE TenantId=@TenantId AND Id=@UnitId) THEN 1 ELSE 0 END;
+            IF @Existing=1 AND NOT EXISTS(SELECT 1 FROM Purchasing.RecognitionUnits WHERE TenantId=@TenantId AND Id=@UnitId
+                AND PurchaseOrderId=@PurchaseOrderId AND SupplierId=@SupplierId AND Currency=@Currency AND Classification=@Classification AND Quantity=@Quantity
+                AND CONVERT(varbinary(max),GoodsReference)=CONVERT(varbinary(max),JSON_VALUE(@Unit,'$.goodsReference'))
+                AND CONVERT(varbinary(max),QuantityUnit)=CONVERT(varbinary(max),JSON_VALUE(@Unit,'$.quantityUnit')))
+              THROW 51009,'Recognition unit identity or classification changed.',1;
+            IF (@Existing=0 AND @Prior<>0) OR (@Existing=1 AND
+                ((SELECT COUNT(*) FROM Purchasing.RecognitionSideEvents WHERE TenantId=@TenantId AND UnitId=@UnitId)<>1
+                 OR @Prior<>(SELECT MAX(EventRevision) FROM Purchasing.RecognitionSideEvents WHERE TenantId=@TenantId AND UnitId=@UnitId)))
+              THROW 51009,'Recognition prior event revision changed.',1;
+            DECLARE @SideCount int=(SELECT COUNT(*) FROM OPENJSON(@Unit,'$.sides')),@SideOrdinal int=0;
+            IF @SideCount NOT BETWEEN 1 AND 2 OR (@Existing=1 AND @SideCount<>1)
+              OR EXISTS(SELECT JSON_VALUE(value,'$.side') FROM OPENJSON(@Unit,'$.sides') GROUP BY JSON_VALUE(value,'$.side') HAVING COUNT(*)>1)
+              THROW 51000,'A unit accepts at most two distinct sides.',1;
+            WHILE @SideOrdinal<@SideCount
+            BEGIN
+            DECLARE @SideInput nvarchar(max)=(SELECT value FROM OPENJSON(@Unit,'$.sides') WHERE CONVERT(int,[key])=@SideOrdinal),
               @Side varchar(16),@EventRevision int,@SourceId uniqueidentifier,@SourceRevision uniqueidentifier,
               @SourceComponentKey nvarchar(200),@SubdivisionKey nvarchar(200),@SourceQuantity decimal(28,6),@SourceAmount decimal(28,4),
               @DocumentDate date,@EffectiveDate date,@Evidence nvarchar(max);
@@ -167,6 +182,15 @@ internal static class PurchaseRecognitionPosting
             IF @Side COLLATE Latin1_General_100_BIN2 NOT IN ('Recognition','Invoice') OR @EventRevision IS NULL OR @EventRevision<>1
               OR @SourceQuantity<>@Quantity OR @SourceQuantity<=0 OR @EffectiveDate>@PostingDate
               THROW 51000,'Invalid whole-unit side, revision or effective date.',1;
+            IF EXISTS(SELECT 1 FROM Purchasing.RecognitionSideEvents WHERE TenantId=@TenantId AND UnitId=@UnitId AND Side=@Side)
+              THROW 51009,'This unit already has the submitted side.',1;
+            DECLARE @PriorEventId uniqueidentifier=NULL,@PriorEvidence nvarchar(max)=NULL,@PriorCost decimal(28,4)=NULL,@PriorPostingDate date=NULL;
+            SELECT @PriorEventId=Id,@PriorEvidence=EvidenceJson,@PriorPostingDate=PostingDate
+              FROM Purchasing.RecognitionSideEvents WHERE TenantId=@TenantId AND UnitId=@UnitId AND Side<>@Side;
+            IF @PriorPostingDate>@PostingDate THROW 51000,'The second side cannot predate the first posting.',1;
+            SELECT @PriorCost=CONVERT(decimal(28,4),SUM(CASE WHEN Kind='Discount' THEN -CONVERT(decimal(38,4),Amount)
+              WHEN Kind='RecoverableTax' THEN 0 ELSE CONVERT(decimal(38,4),Amount) END))
+              FROM Purchasing.RecognitionComponents WHERE TenantId=@TenantId AND EventId=@PriorEventId;
             IF EXISTS(SELECT 1 FROM Purchasing.RecognitionSideEvents WITH(UPDLOCK,HOLDLOCK) WHERE TenantId=@TenantId AND Side=@Side
               AND SourceId=@SourceId AND SourceRevision=@SourceRevision AND SourceComponentKey=@SourceComponentKey AND SubdivisionKey=@SubdivisionKey)
               THROW 51009,'Source subdivision already has an event.',1;
@@ -234,18 +258,46 @@ internal static class PurchaseRecognitionPosting
               THROW 51000,'Tax requires reviewed policy evidence.',1;
             IF @Tax>0 AND COALESCE(JSON_VALUE(@Evidence,'$.taxEntitlement'),'false')<>'true'
               THROW 51000,'Recoverable tax requires reviewed policy and current entitlement.',1;
-            DECLARE @Lines TABLE(Slot varchar(40),AccountId uniqueidentifier,AccountVersion uniqueidentifier,Debit decimal(28,4),Credit decimal(28,4));
+            DECLARE @Variance decimal(28,4)=@Cost-@PriorCost;
+            IF @Side='Invoice' AND @PriorEventId IS NOT NULL AND @Variance<>0
+            BEGIN
+              IF JSON_VALUE(@Evidence,'$.varianceAmount') IS NULL OR CONVERT(decimal(28,4),JSON_VALUE(@Evidence,'$.varianceAmount'))<>@Variance
+                OR JSON_VALUE(@Evidence,'$.varianceReason') IS NULL OR COALESCE(JSON_VALUE(@Evidence,'$.varianceClassification'),'') COLLATE Latin1_General_100_BIN2<>@Classification
+                THROW 51000,'Cost difference requires exact reviewed variance evidence.',1;
+              -- The ungranted entrypoint consumes source-derived state; the trusted adapter must bind
+              -- this evidence to durable inventory, under this transaction's source/accounting lock.
+              IF @Classification='Inventory' AND COALESCE(JSON_VALUE(@Evidence,'$.inventoryAdjustmentState'),'') COLLATE Latin1_General_100_BIN2<>'Held'
+                THROW 51000,'Inventory state cannot receive this cost adjustment.',1;
+            END;
+            DECLARE @Lines TABLE(Slot varchar(40),AccountId uniqueidentifier,AccountVersion uniqueidentifier,Debit decimal(28,4),Credit decimal(28,4),Historical bit);
             DELETE @Lines;
-            INSERT @Lines(Slot,Debit,Credit) VALUES(CASE WHEN @Side='Recognition' THEN @Classification ELSE 'Prepayment' END,@Cost,0),
-              (CASE WHEN @Side='Recognition' THEN 'GoodsReceivedNotInvoiced' ELSE 'SupplierPayable' END,0,@Cost+@Tax);
-            IF @Tax>0 INSERT @Lines(Slot,Debit,Credit) VALUES('RecoverableTax',@Tax,0);
+            IF @PriorEventId IS NULL
+              INSERT @Lines(Slot,Debit,Credit,Historical) VALUES(CASE WHEN @Side='Recognition' THEN @Classification ELSE 'Prepayment' END,@Cost,0,0),
+                (CASE WHEN @Side='Recognition' THEN 'GoodsReceivedNotInvoiced' ELSE 'SupplierPayable' END,0,@Cost+@Tax,0);
+            ELSE IF @Side='Invoice'
+              INSERT @Lines(Slot,Debit,Credit,Historical) VALUES('GoodsReceivedNotInvoiced',@PriorCost,0,1),
+                (@Classification,CASE WHEN @Variance>0 THEN @Variance ELSE 0 END,CASE WHEN @Variance<0 THEN -@Variance ELSE 0 END,CASE WHEN @Classification='Expense' THEN 1 ELSE 0 END),
+                ('SupplierPayable',0,@Cost+@Tax,0);
+            ELSE
+              INSERT @Lines(Slot,Debit,Credit,Historical) VALUES(@Classification,@PriorCost,0,0),('Prepayment',0,@PriorCost,1);
+            IF @Tax>0 INSERT @Lines(Slot,Debit,Credit,Historical) VALUES('RecoverableTax',@Tax,0,0);
             UPDATE l SET AccountId=a.Id,AccountVersion=a.Version FROM @Lines l
               JOIN OPENJSON(@Config,'$.mappings') m ON JSON_VALUE(m.value,'$.slot') COLLATE Latin1_General_100_BIN2=l.Slot
               JOIN Accounting.Accounts a WITH(UPDLOCK,HOLDLOCK) ON a.TenantId=@TenantId AND a.Id=TRY_CONVERT(uniqueidentifier,JSON_VALUE(m.value,'$.accountId'))
                 AND a.ArchivedAtUtc IS NULL AND a.Type=CASE WHEN l.Slot='Expense' THEN 'Expense' WHEN l.Slot IN ('GoodsReceivedNotInvoiced','SupplierPayable') THEN 'Liability' ELSE 'Asset' END
-                AND a.Purpose=CASE WHEN l.Slot='SupplierPayable' THEN 'SupplierPayable' ELSE 'General' END;
+                AND a.Purpose=CASE WHEN l.Slot='SupplierPayable' THEN 'SupplierPayable' ELSE 'General' END WHERE l.Historical=0;
+            UPDATE l SET AccountId=a.Id,AccountVersion=a.Version FROM @Lines l
+              JOIN OPENJSON(@PriorEvidence,'$.accountMappings') m ON JSON_VALUE(m.value,'$.slot') COLLATE Latin1_General_100_BIN2=l.Slot
+              JOIN Accounting.Accounts a WITH(UPDLOCK,HOLDLOCK) ON a.TenantId=@TenantId AND a.Id=TRY_CONVERT(uniqueidentifier,JSON_VALUE(m.value,'$.accountId'))
+                AND a.ArchivedAtUtc IS NULL AND a.Type=CASE WHEN l.Slot='Expense' THEN 'Expense' WHEN l.Slot='GoodsReceivedNotInvoiced' THEN 'Liability' ELSE 'Asset' END
+                AND a.Purpose='General' WHERE l.Historical=1;
             IF EXISTS(SELECT 1 FROM @Lines WHERE AccountId IS NULL) OR EXISTS(SELECT AccountId FROM @Lines GROUP BY AccountId HAVING COUNT(*)>1)
               THROW 51004,'A required recognition mapping is unavailable or incompatible.',1;
+            -- Preserve mappings even for zero-only evidence. This SQL-owned enrichment is never an
+            -- accepted caller property; canonical replay remains bound to the original typed input.
+            DECLARE @Mappings nvarchar(max)=(SELECT Slot slot,AccountId accountId,AccountVersion accountVersion FROM @Lines ORDER BY Slot FOR JSON PATH);
+            SET @Evidence=JSON_MODIFY(@Evidence,'$.accountMappings',JSON_QUERY(@Mappings));
+            IF DATALENGTH(@Evidence)>262144 THROW 51000,'Recognition evidence exceeds its bound.',1;
             DELETE @Lines WHERE Debit=0 AND Credit=0;
             DECLARE @EventId uniqueidentifier=NEWID(),@JournalId uniqueidentifier=NULL,@JournalRequestId uniqueidentifier=NEWID(),@LinesJson nvarchar(max),@Snapshot nvarchar(max);
             IF EXISTS(SELECT 1 FROM @Lines)
@@ -269,6 +321,7 @@ internal static class PurchaseRecognitionPosting
               UPDATE Accounting.PolicyFreezes SET RecordedAtUtc=@Now WHERE TenantId=@TenantId AND FirstJournalId=@JournalId;
               UPDATE Security.TenantSecurityAuditEvents SET OccurredAtUtc=@Now WHERE TenantId=@TenantId AND TargetId=@JournalId AND Action='Accounting.PostJournal';
             END;
+            IF NOT EXISTS(SELECT 1 FROM Purchasing.RecognitionUnits WHERE TenantId=@TenantId AND Id=@UnitId)
             INSERT Purchasing.RecognitionUnits(TenantId,Id,PurchaseOrderId,PurchaseOrderRevision,SupplierId,Currency,GoodsReference,Classification,Quantity,QuantityUnit,PolicyVersion,CreatedAtUtc)
               VALUES(@TenantId,@UnitId,@PurchaseOrderId,@PoRevision,@SupplierId,@Currency,JSON_VALUE(@Unit,'$.goodsReference'),@Classification,@Quantity,JSON_VALUE(@Unit,'$.quantityUnit'),1,@Now);
             INSERT Purchasing.RecognitionSideEvents(TenantId,Id,UnitId,Side,EventRevision,SourceId,SourceRevision,SourceComponentKey,SubdivisionKey,SourceQuantity,SourceAmount,
@@ -278,14 +331,25 @@ internal static class PurchaseRecognitionPosting
             INSERT Purchasing.RecognitionComponents(TenantId,EventId,ComponentKey,Kind,Amount,Reason,AssignedCostComponentKey)
               SELECT @TenantId,@EventId,ComponentKey,Kind,Amount,Reason,AssignedCostComponentKey FROM @Components;
             INSERT @Events VALUES(@EventId,@UnitId,@JournalId);
+            IF @PriorEventId IS NOT NULL
+            BEGIN
+              DECLARE @MatchId uniqueidentifier=NEWID();
+              INSERT Purchasing.RecognitionMatches(TenantId,Id,UnitId,RecognitionEventId,InvoiceEventId,RecordedAtUtc)
+                VALUES(@TenantId,@MatchId,@UnitId,CASE WHEN @Side='Recognition' THEN @EventId ELSE @PriorEventId END,
+                  CASE WHEN @Side='Invoice' THEN @EventId ELSE @PriorEventId END,@Now);
+              INSERT @Matches VALUES(@MatchId);
+            END;
+            SET @SideOrdinal+=1;
+            END;
             FETCH NEXT FROM unit_cursor INTO @UnitId,@Unit;
           END;
           CLOSE unit_cursor; DEALLOCATE unit_cursor;
           DECLARE @UnitIds nvarchar(max)=(SELECT N'['+STRING_AGG(CONVERT(nvarchar(max),N'"'+CONVERT(nvarchar(36),Id)+N'"'),N',') WITHIN GROUP(ORDER BY Id)+N']' FROM @Units),
             @EventIds nvarchar(max)=(SELECT N'['+STRING_AGG(CONVERT(nvarchar(max),N'"'+CONVERT(nvarchar(36),Id)+N'"'),N',') WITHIN GROUP(ORDER BY Id)+N']' FROM @Events),
+            @MatchIds nvarchar(max)=(SELECT N'['+COALESCE(STRING_AGG(CONVERT(nvarchar(max),N'"'+CONVERT(nvarchar(36),Id)+N'"'),N','),N'')+N']' FROM @Matches),
             @JournalIds nvarchar(max)=(SELECT N'['+COALESCE(STRING_AGG(CONVERT(nvarchar(max),N'"'+CONVERT(nvarchar(36),JournalId)+N'"'),N',') WITHIN GROUP(ORDER BY JournalId),N'')+N']' FROM @Events WHERE JournalId IS NOT NULL),
             @Result nvarchar(max);
-          SET @Result=(SELECT @CommandId commandId,JSON_QUERY(@UnitIds) unitIds,JSON_QUERY(@EventIds) eventIds,JSON_QUERY(N'[]') matchIds,
+          SET @Result=(SELECT @CommandId commandId,JSON_QUERY(@UnitIds) unitIds,JSON_QUERY(@EventIds) eventIds,JSON_QUERY(@MatchIds) matchIds,
             CONVERT(uniqueidentifier,NULL) correctionGroupId,JSON_QUERY(@JournalIds) journalIds,@Now recordedAtUtc FOR JSON PATH,WITHOUT_ARRAY_WRAPPER,INCLUDE_NULL_VALUES);
           INSERT Purchasing.RecognitionGroupReceipts(TenantId,RequestId,ActorId,CommandKind,CommandVersion,CanonicalInput,InputSha256,ResultJson,RecordedAtUtc)
             VALUES(@TenantId,@RequestId,@ActorId,'Post',1,@Canonical,HASHBYTES('SHA2_256',CONVERT(varbinary(max),@Canonical)),@Result,@Now);
