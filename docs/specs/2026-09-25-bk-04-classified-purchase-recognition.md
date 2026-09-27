@@ -4,8 +4,11 @@
 branch. Focused SQL and API evidence covers posting, components, matching, correction, authority,
 concurrency and report readback. Fresh creation and upgrade from merged BK-03 preserve existing
 journal, source, configuration, correction, period-closure and receipt bytes, including exact replay.
-Full delivery gates, preview inspection and release delivery remain pending. Bookkeeping activation,
-production source adapters, public financial writes and production operations are not enabled.
+Local full verification passed from current source: 1,473 server, 519 client and 120 browser tests,
+plus formatting, generated API drift, builds and published-output probes. The separate hardened
+SQL-backed container smoke passed. Preview inspection and release delivery remain pending.
+Bookkeeping activation, production source adapters, public financial writes and production
+operations are not enabled.
 
 Parent: [PO-07 bookkeeping prerequisites](2026-09-20-po-07-deposits-and-payments.md).
 Prerequisites: [BK-01](2026-09-21-bk-01-accounting-foundation.md),
@@ -319,7 +322,3 @@ unaffected PO behavior. Report its URL and distinguish that inspection from disp
 recognition tests; no public recognition workflow exists to exercise yet. Internal review covers
 the complete change. Deliver verified implementation in a ready-for-review PR; merge and production
 operations remain separately authorized.
-
-For this specification-only stage, check links, arithmetic, scope and consistency with BK-01–03.
-Runtime, mutation, migration and browser verification have not run. Written-spec approval precedes
-the implementation-plan review and execution-method selection.
