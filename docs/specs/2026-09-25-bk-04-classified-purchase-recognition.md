@@ -6,7 +6,9 @@ concurrency and report readback. Fresh creation and upgrade from merged BK-03 pr
 journal, source, configuration, correction, period-closure and receipt bytes, including exact replay.
 Local full verification passed from current source: 1,473 server, 519 client and 120 browser tests,
 plus formatting, generated API drift, builds and published-output probes. The separate hardened
-SQL-backed container smoke passed. Preview inspection and release delivery remain pending.
+SQL-backed container smoke passed. The isolated preview confirmed mapping eligibility, save and
+reload, invalid-mapping rejection, empty report readback and ordinary PO amendments. Release
+delivery remains pending.
 Bookkeeping activation, production source adapters, public financial writes and production
 operations are not enabled.
 
