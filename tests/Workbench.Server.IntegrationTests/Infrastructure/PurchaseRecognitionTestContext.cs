@@ -11,7 +11,7 @@ internal sealed class PurchaseRecognitionTestContext : IAsyncDisposable
     public SqlConnection Connection => Journal.Connection;
     public Guid PurchaseOrderId { get; } = Guid.NewGuid();
     public Guid SupplierId { get; } = Guid.NewGuid();
-    public string PurchaseOrderVersion { get; private set; } = "";
+    public string PurchaseOrderVersion { get; set; } = "";
     public Dictionary<string, Guid> Accounts { get; } = [];
     private PurchaseRecognitionTestContext(JournalTestContext journal) => Journal = journal;
 

@@ -15,6 +15,7 @@ internal static class PurchaseRecognitionSchema
         migrationBuilder.Sql(PurchaseRecognitionCommandValidation.Sql);
         migrationBuilder.Sql(PurchaseRecognitionPosting.Sql);
         migrationBuilder.Sql(PurchaseRecognitionCorrections.Sql);
+        PurchaseRecognitionPurchaseGuard.Up(migrationBuilder);
         migrationBuilder.Sql("""
             DECLARE @Definition nvarchar(max)=OBJECT_DEFINITION(OBJECT_ID(N'Accounting.CorrectJournal'));
             IF @Definition IS NULL OR CHARINDEX(N'IF @OriginalEventId IS NULL',@Definition)=0
