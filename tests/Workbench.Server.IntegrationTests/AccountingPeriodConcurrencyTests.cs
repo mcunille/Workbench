@@ -24,11 +24,11 @@ public sealed class AccountingPeriodConcurrencyTests(SqlServerFixture sqlServer)
         {
             // WHEN posting obtains the lock and retains its outer transaction, close must wait.
             var posting = journal.PostAsync(source, postingDate: new DateTime(2026, 9, 15));
-            await gate.WaitForBlockedAsync(1);
+            await gate.WaitForBlockedAsync(journal.Connection);
             await gate.ReleaseAsync();
             var posted = await posting;
             var closing = controls.CloseAsync(new DateOnly(2026, 9, 1), connection: closer);
-            await gate.WaitForBlockedAsync(1);
+            await gate.WaitForBlockedByAsync(journal.Connection, closer);
             await ExecuteAsync(journal.Connection, "COMMIT TRANSACTION");
             var closed = await closing;
             // THEN the close follows the committed journal and both durable records exist.
@@ -55,12 +55,12 @@ public sealed class AccountingPeriodConcurrencyTests(SqlServerFixture sqlServer)
         {
             // WHEN closure obtains the lock and retains its outer transaction, posting must wait.
             var closing = controls.CloseAsync(new DateOnly(2026, 9, 1));
-            await gate.WaitForBlockedAsync(1);
+            await gate.WaitForBlockedAsync(journal.Connection);
             await gate.ReleaseAsync();
             var closed = await closing;
             var posting = journal.PostAsync(source, connection: poster,
                 postingDate: new DateTime(2026, 9, 15));
-            await gate.WaitForBlockedAsync(1);
+            await gate.WaitForBlockedByAsync(journal.Connection, poster);
             await ExecuteAsync(journal.Connection, "COMMIT TRANSACTION");
             var rejected = await Assert.ThrowsAsync<SqlException>(() => posting);
             // THEN closure wins and posting leaves no financial receipt or journal.
@@ -85,7 +85,7 @@ public sealed class AccountingPeriodConcurrencyTests(SqlServerFixture sqlServer)
             journal.Application.AdminConnectionString);
         // WHEN the post times out at the common lock.
         var posting = journal.PostAsync(source, request, postingDate: new DateTime(2026, 9, 15));
-        await gate.WaitForBlockedAsync(1);
+        await gate.WaitForBlockedAsync(journal.Connection);
         var rejected = await Assert.ThrowsAsync<SqlException>(() => posting);
         // THEN its transaction left no period or financial rows, and the identity can retry.
         Assert.Equal(51009, rejected.Number);
