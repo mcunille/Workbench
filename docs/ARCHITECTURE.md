@@ -102,6 +102,28 @@ open month. The [BK-03 design](specs/2026-09-24-bk-03-corrections-and-period-con
 the constraints. Bookkeeping activation, production sources, reconciliation acceptance, public close
 and correction actions, and retained financial files remain gated by the parent prerequisites.
 
+### Classified purchase recognition
+
+BK-04 adds Purchasing-owned immutable units, side events, components, explicit matches, correction
+groups and receipts. Restricted `Purchasing.PostRecognition` and `Purchasing.CorrectRecognition`
+derive journals through the accounting kernel in the source transaction; neither has a runtime
+execute grant. The release installs no production source adapter, permission or financial write route.
+Tenant-qualified links, RLS and direct-write denials protect the new evidence tables.
+
+Whole units carry Expense or Inventory classification. Receipt-first posting accrues cost; invoice-first
+posting records prepayment. Matching clears historical account mappings and posts reviewed differences.
+Strict typed input, exact currency-scale arithmetic, source-wide capacity across surviving revisions,
+one bounded invoice rounding component, and posting-date floors reject unsupported matches. A shared
+tenant accounting lock serializes configuration, source authority, PO supplier identity, posting,
+correction and closing. Once any recognition history exists, the PO supplier identity is frozen.
+
+Corrections discover the complete stored dependency group and append inverses and optional replacement
+events with one database-owned instant. The generic accounting kernel refuses isolated correction of
+a recognition journal. Authorized journal detail includes immutable recognition and matching evidence;
+posting-date and recorded-time report filters continue to select financial activity independently.
+Bookkeeping remains unavailable. See the [BK-04 design](specs/2026-09-25-bk-04-classified-purchase-recognition.md)
+for the intentionally limited source, inventory and reconciliation contracts.
+
 ### Collection records export
 
 The [H7 export](specs/2026-09-08-h7-collection-export.md) retrieves current text records as CSV v1.

@@ -129,6 +129,11 @@ public sealed class AccountingDatabaseTests(SqlServerFixture sqlServer)
         await using var check = new SqlCommand("SELECT Version FROM Accounting.Configurations WHERE TenantId=@tenant", context.Connection);
         check.Parameters.AddWithValue("@tenant", AuthTestApplication.TenantId);
         Assert.Equal(valid.Version, (Guid)(await check.ExecuteScalarAsync())!);
+        check.CommandText = "SELECT Payload FROM Accounting.Configurations WHERE TenantId=@tenant";
+        using var retained = JsonDocument.Parse((string)(await check.ExecuteScalarAsync())!);
+        var mapping = Assert.Single(retained.RootElement.GetProperty("mappings").EnumerateArray());
+        Assert.Equal("GoodsReceivedNotInvoiced", mapping.GetProperty("slot").GetString());
+        Assert.Equal(ids[0], mapping.GetProperty("accountId").GetGuid());
         Assert.Equal(1, await CountAsync(context, "Configurations"));
     }
 

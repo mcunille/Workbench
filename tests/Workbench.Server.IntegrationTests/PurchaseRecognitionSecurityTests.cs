@@ -1,6 +1,7 @@
 // Copyright (c) 2026 The White Stag Collection.
 using Microsoft.Data.SqlClient;
 using Workbench.Server.IntegrationTests.Infrastructure;
+using Workbench.Server.Tenancy;
 using Xunit;
 
 namespace Workbench.Server.IntegrationTests;
@@ -70,6 +71,27 @@ public sealed class PurchaseRecognitionSecurityTests(SqlServerFixture sqlServer)
         Assert.Equal(51003, (await Assert.ThrowsAsync<SqlException>(() => correction
             ? context.CorrectAsync(input.ToJsonString(), request) : context.PostAsync(input.ToJsonString(), request))).Number);
         Assert.Equal(correction ? 2 : 1, await context.CountAsync("RecognitionGroupReceipts"));
+        // AND the internal kernel independently rechecks authority even if a trusted adapter omits its own check.
+        await using var admin = new SqlConnection(context.Journal.Application.AdminConnectionString);
+        await admin.OpenAsync();
+        await new TenantContextProof(context.Journal.ProofKey).ApplyAsync(admin, JournalTestContext.TenantId, default);
+        await using var direct = new SqlCommand($"""
+            BEGIN TRY
+              BEGIN TRANSACTION;
+              EXEC Purchasing.{(correction ? "CorrectRecognition" : "PostRecognition")}
+                @ActorId=@actor,@SessionId=@session,@RequestId=@request,@RequiredPermission=@permission,@Command=@input;
+              COMMIT;
+            END TRY BEGIN CATCH
+              IF @@TRANCOUNT>0 ROLLBACK;
+              THROW;
+            END CATCH;
+            """, admin);
+        direct.Parameters.AddWithValue("@actor", JournalTestContext.ActorId);
+        direct.Parameters.AddWithValue("@session", context.Journal.SessionId);
+        direct.Parameters.AddWithValue("@request", request);
+        direct.Parameters.AddWithValue("@permission", correction ? "PurchaseRecognitionFixtureCorrect" : "PurchaseRecognitionFixturePost");
+        direct.Parameters.AddWithValue("@input", input.ToJsonString());
+        Assert.Equal(51003, (await Assert.ThrowsAsync<SqlException>(() => direct.ExecuteNonQueryAsync())).Number);
     }
 
     [Fact]

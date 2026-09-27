@@ -1,8 +1,11 @@
 # BK-04: classified purchase recognition
 
-**Status:** Proposed for written-spec review. The owner approved the internal-foundation scope;
-the detailed policies below and the subsequent implementation plan still require review.
-No runtime implementation or production bookkeeping activation is claimed.
+**Status:** Approved design and implementation plan; internal foundation implemented on the BK-04
+branch. Focused SQL and API evidence covers posting, components, matching, correction, authority,
+concurrency and report readback. Fresh creation and upgrade from merged BK-03 preserve existing
+journal, source, configuration, correction, period-closure and receipt bytes, including exact replay.
+Full delivery gates, preview inspection and release delivery remain pending. Bookkeeping activation,
+production source adapters, public financial writes and production operations are not enabled.
 
 Parent: [PO-07 bookkeeping prerequisites](2026-09-20-po-07-deposits-and-payments.md).
 Prerequisites: [BK-01](2026-09-21-bk-01-accounting-foundation.md),

@@ -109,6 +109,8 @@ public sealed class PurchaseRecognitionReportTests(SqlServerFixture sqlServer)
             Assert.Equal(HttpStatusCode.OK, list.StatusCode);
             using var body = JsonDocument.Parse(await list.Content.ReadAsStringAsync());
             Assert.Single(body.RootElement.GetProperty("items").EnumerateArray());
+            Assert.Equal(originalJournals.Single(x => x.Side == "Recognition").JournalId,
+                body.RootElement.GetProperty("items")[0].GetProperty("id").GetGuid());
             Assert.Equal("100.00", body.RootElement.GetProperty("wholeFilterTotals").GetProperty("debit").GetString());
         }
         using (var trial = await reader.GetAsync($"/api/beta/accounting/trial-balance?recordedThrough={beforeMatch}"))
@@ -152,6 +154,8 @@ public sealed class PurchaseRecognitionReportTests(SqlServerFixture sqlServer)
             Assert.Equal(HttpStatusCode.OK, list.StatusCode);
             using var body = JsonDocument.Parse(await list.Content.ReadAsStringAsync());
             Assert.Equal(2, body.RootElement.GetProperty("items").GetArrayLength());
+            Assert.Equal(originalJournals.Select(x => x.JournalId).Order(),
+                body.RootElement.GetProperty("items").EnumerateArray().Select(x => x.GetProperty("id").GetGuid()).Order());
             Assert.All(body.RootElement.GetProperty("items").EnumerateArray(), item =>
             {
                 Assert.False(item.TryGetProperty("recognition", out _));
@@ -172,6 +176,8 @@ public sealed class PurchaseRecognitionReportTests(SqlServerFixture sqlServer)
             Assert.Equal(HttpStatusCode.OK, list.StatusCode);
             using var body = JsonDocument.Parse(await list.Content.ReadAsStringAsync());
             Assert.Equal(2, body.RootElement.GetProperty("items").GetArrayLength());
+            Assert.Equal(originalJournals.Select(x => x.JournalId).Order(),
+                body.RootElement.GetProperty("items").EnumerateArray().Select(x => x.GetProperty("id").GetGuid()).Order());
             Assert.Equal("205.00", body.RootElement.GetProperty("wholeFilterTotals").GetProperty("debit").GetString());
         }
     }

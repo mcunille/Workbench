@@ -11,6 +11,7 @@ public sealed class PurchaseRecognitionPostingTests(SqlServerFixture sqlServer)
     [Theory]
     [InlineData("unknown")]
     [InlineData("duplicate")]
+    [InlineData("duplicate-side")]
     [InlineData("wrong-type")]
     [InlineData("precision")]
     [InlineData("source-total")]
@@ -28,6 +29,7 @@ public sealed class PurchaseRecognitionPostingTests(SqlServerFixture sqlServer)
         switch (defect)
         {
             case "unknown": unit["accountId"] = Guid.NewGuid(); break;
+            case "duplicate-side": unit["sides"]!.AsArray().Add(side.DeepClone()); break;
             case "wrong-type": unit["quantity"] = 1; break;
             case "precision": side["components"]![0]!["amount"] = "100.001"; break;
             case "source-total": side["components"]![0]!["amount"] = "101"; break;
