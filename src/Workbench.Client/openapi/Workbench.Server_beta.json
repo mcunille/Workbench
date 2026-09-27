@@ -7291,7 +7291,8 @@
           "header",
           "lines",
           "source",
-          "corrections"
+          "corrections",
+          "recognition"
         ],
         "type": "object",
         "properties": {
@@ -7312,6 +7313,16 @@
             "items": {
               "$ref": "#/components/schemas/JournalCorrectionEvidence"
             }
+          },
+          "recognition": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/PurchaseRecognitionEvidence"
+              }
+            ]
           }
         }
       },
@@ -8073,6 +8084,227 @@
               "null",
               "string"
             ]
+          }
+        }
+      },
+      "PurchaseRecognitionComponent": {
+        "required": [
+          "componentKey",
+          "kind",
+          "amount",
+          "reason",
+          "assignedCostComponentKey"
+        ],
+        "type": "object",
+        "properties": {
+          "componentKey": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "amount": {
+            "type": "string"
+          },
+          "reason": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "assignedCostComponentKey": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "PurchaseRecognitionCorrectionRelationship": {
+        "required": [
+          "groupId",
+          "role",
+          "originalUnitId",
+          "replacementUnitId",
+          "originalMatchId",
+          "replacementMatchId",
+          "originalEventId",
+          "replacementEventId",
+          "originalJournalId",
+          "reversalJournalId",
+          "replacementJournalId"
+        ],
+        "type": "object",
+        "properties": {
+          "groupId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "role": {
+            "type": "string"
+          },
+          "originalUnitId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "replacementUnitId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "originalMatchId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "replacementMatchId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "originalEventId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "replacementEventId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "originalJournalId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "reversalJournalId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "replacementJournalId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          }
+        }
+      },
+      "PurchaseRecognitionEvidence": {
+        "required": [
+          "unitId",
+          "eventId",
+          "side",
+          "journalRole",
+          "eventRevision",
+          "classification",
+          "goodsReference",
+          "quantity",
+          "quantityUnit",
+          "sourceId",
+          "sourceRevision",
+          "sourceComponentKey",
+          "subdivisionKey",
+          "sourceQuantity",
+          "sourceAmount",
+          "evidenceJson",
+          "evidenceSha256",
+          "components",
+          "matchIds",
+          "correctionGroups"
+        ],
+        "type": "object",
+        "properties": {
+          "unitId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "eventId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "side": {
+            "type": "string"
+          },
+          "journalRole": {
+            "type": "string"
+          },
+          "eventRevision": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "classification": {
+            "type": "string"
+          },
+          "goodsReference": {
+            "type": "string"
+          },
+          "quantity": {
+            "type": "string"
+          },
+          "quantityUnit": {
+            "type": "string"
+          },
+          "sourceId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "sourceRevision": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "sourceComponentKey": {
+            "type": "string"
+          },
+          "subdivisionKey": {
+            "type": "string"
+          },
+          "sourceQuantity": {
+            "type": "string"
+          },
+          "sourceAmount": {
+            "type": "string"
+          },
+          "evidenceJson": {
+            "type": "string"
+          },
+          "evidenceSha256": {
+            "type": "string"
+          },
+          "components": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PurchaseRecognitionComponent"
+            }
+          },
+          "matchIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          "correctionGroups": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PurchaseRecognitionCorrectionRelationship"
+            }
           }
         }
       },
