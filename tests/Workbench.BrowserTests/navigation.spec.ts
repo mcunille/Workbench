@@ -226,6 +226,19 @@ test('forced colors keep current navigation and profile controls usable', async 
   // WHEN the current destination is rendered THEN its boundary remains visible.
   await expect(current).toHaveAttribute('aria-current', 'page');
   expect(await current.evaluate(el => getComputedStyle(el).outlineStyle)).not.toBe('none');
+  // AND the raised desktop sheet retains a contrasting boundary without decorative effects.
+  const sheetBoundary = await page.locator('.workspace-sheet').evaluate(element => {
+    const style = getComputedStyle(element);
+    return {
+      width: parseFloat(style.outlineWidth),
+      style: style.outlineStyle,
+      color: style.outlineColor,
+      surface: style.backgroundColor,
+    };
+  });
+  expect(sheetBoundary.width).toBeGreaterThanOrEqual(1);
+  expect(sheetBoundary.style).not.toBe('none');
+  expect(sheetBoundary.color).not.toBe(sheetBoundary.surface);
   // AND the profile can open and its account destination can be clicked.
   await nav.getByRole('button', { name: 'User menu' }).click();
   await expect(nav.getByRole('link', { name: 'Account', exact: true })).toBeVisible();
