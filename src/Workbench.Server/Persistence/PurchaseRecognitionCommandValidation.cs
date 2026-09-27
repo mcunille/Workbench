@@ -73,6 +73,8 @@ internal static class PurchaseRecognitionCommandValidation
             OR EXISTS(SELECT 1 FROM @Nodes WHERE Name IN ('postingDate','documentDate','effectiveDate','serviceStartDate','serviceEndDate','controlTransferDate')
               AND (DATALENGTH(Value)<>20 OR TRY_CONVERT(date,Value,23) IS NULL OR CONVERT(nvarchar(10),TRY_CONVERT(date,Value,23),23)<>Value))
             OR EXISTS(SELECT 1 FROM @Nodes WHERE JsonType=1 AND LEN(LTRIM(RTRIM(Value)))=0)
+            OR EXISTS(SELECT 1 FROM @Nodes n JOIN @Nodes p ON p.Id=n.ParentId WHERE p.Kind='evidence' AND n.JsonType=1
+              AND LEN(TRIM(NCHAR(9)+NCHAR(10)+NCHAR(11)+NCHAR(12)+NCHAR(13)+NCHAR(32)+NCHAR(133)+NCHAR(160)+NCHAR(5760)+NCHAR(8192)+NCHAR(8193)+NCHAR(8194)+NCHAR(8195)+NCHAR(8196)+NCHAR(8197)+NCHAR(8198)+NCHAR(8199)+NCHAR(8200)+NCHAR(8201)+NCHAR(8202)+NCHAR(8232)+NCHAR(8233)+NCHAR(8239)+NCHAR(8287)+NCHAR(12288) FROM n.Value))=0)
             OR EXISTS(SELECT 1 FROM @Nodes WHERE Name IN ('classification','side','kind','recognitionBasis','varianceClassification','inventoryAdjustmentState') AND DATALENGTH(Value)<>DATALENGTH(RTRIM(Value)))
             OR EXISTS(SELECT 1 FROM @Nodes WHERE Name='schemaVersion' AND Value<>'1')
             OR (@IsCorrection=0 AND JSON_VALUE(@Command,'$.operation') COLLATE Latin1_General_100_BIN2<>'Post')

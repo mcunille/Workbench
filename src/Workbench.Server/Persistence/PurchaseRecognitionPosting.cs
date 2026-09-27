@@ -142,7 +142,8 @@ internal static class PurchaseRecognitionPosting
               GROUP BY SourceId HAVING SUM(CONVERT(decimal(38,6),SourceQuantity))>@CapacityQuantity-@SourceQuantity
                 OR SUM(CONVERT(decimal(38,4),SourceAmount))>@CapacityAmount-@SourceAmount)
               THROW 51009,'Source capacity is already claimed.',1;
-            IF @Side='Recognition' AND (NULLIF(JSON_VALUE(@Evidence,'$.estimateBasis'),'') IS NULL
+            -- The first side establishes accrual or prepayment; a preceding side in this command counts too.
+            IF @Side='Recognition' AND ((@PriorEventId IS NULL AND NULLIF(JSON_VALUE(@Evidence,'$.estimateBasis'),'') IS NULL)
                 OR (@Classification='Inventory' AND (COALESCE(JSON_VALUE(@Evidence,'$.recognitionBasis'),'')<>'ControlTransferred'
                   OR JSON_VALUE(@Evidence,'$.controlTransferDate') IS NULL OR CONVERT(date,JSON_VALUE(@Evidence,'$.controlTransferDate'),23)>@EffectiveDate
                   OR JSON_VALUE(@Evidence,'$.inTransit') IS NULL))
@@ -152,7 +153,8 @@ internal static class PurchaseRecognitionPosting
                   OR CONVERT(date,JSON_VALUE(@Evidence,'$.serviceEndDate'),23)>@EffectiveDate)))))
               THROW 51000,'Recognition evidence does not establish the selected classification.',1;
             IF @Side='Invoice' AND (COALESCE(JSON_VALUE(@Evidence,'$.invoiceEligible'),'false')<>'true'
-              OR COALESCE(JSON_VALUE(@Evidence,'$.presentObligation'),'false')<>'true' OR COALESCE(JSON_VALUE(@Evidence,'$.enforceableRight'),'false')<>'true')
+              OR COALESCE(JSON_VALUE(@Evidence,'$.presentObligation'),'false')<>'true'
+              OR (@PriorEventId IS NULL AND COALESCE(JSON_VALUE(@Evidence,'$.enforceableRight'),'false')<>'true'))
               THROW 51000,'Invoice does not establish an obligation and enforceable future right.',1;
             DECLARE @Components TABLE(ComponentKey nvarchar(200),Kind varchar(32),Amount decimal(28,4),Reason nvarchar(2000),AssignedCostComponentKey nvarchar(200));
             DELETE @Components;

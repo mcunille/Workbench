@@ -22,8 +22,9 @@ records the implemented internal atomic reversal/replacement and closed-period e
 BK-02 journal. Production close remains gated by BK-09–11; no production correction adapter is enabled.
 
 [BK-04 classified purchase recognition](2026-09-25-bk-04-classified-purchase-recognition.md)
-proposes internal recognition and invoice matching, classified cost/tax treatment and minimal
-receipt-recognition records. Detailed policies await review; no production posting is enabled.
+records the approved, implemented internal recognition and invoice matching foundation, classified
+cost/tax treatment and immutable receipt-recognition records. `BookkeepingAvailable` remains false;
+no production posting adapter or public financial-write UI is enabled.
 
 | Area | Records |
 | --- | --- |

@@ -28,6 +28,9 @@ public sealed class PurchaseRecognitionMatchingTests(SqlServerFixture sqlServer)
         var invoice = await context.CommandAsync("Invoice", classification, cost, tax);
         Link(invoice, receipt);
         await ApproveVarianceAsync(context, invoice, decimal.Parse(cost, CultureInfo.InvariantCulture) - decimal.Parse(estimate, CultureInfo.InvariantCulture), classification);
+        // AND completed recognition leaves no enforceable right to future goods or services.
+        invoice["units"]![0]!["sides"]![0]!["evidence"]!["enforceableRight"] = false;
+        await StoreEvidenceAsync(context, invoice["units"]![0]!["sides"]![0]!);
         var oldAccrual = context.Accounts["GoodsReceivedNotInvoiced"];
         var oldCost = context.Accounts[classification];
         await RemapAsync(context, "GoodsReceivedNotInvoiced");
@@ -60,6 +63,9 @@ public sealed class PurchaseRecognitionMatchingTests(SqlServerFixture sqlServer)
         await RemapAsync(context, "Prepayment");
         var receipt = await context.CommandAsync(classification: classification, cost: estimate);
         Link(receipt, invoice);
+        // AND the reviewed invoice has fixed cost, so recognition needs no receipt-first estimate basis.
+        receipt["units"]![0]!["sides"]![0]!["evidence"]!.AsObject().Remove("estimateBasis");
+        await StoreEvidenceAsync(context, receipt["units"]![0]!["sides"]![0]!);
         // WHEN recognition occurs THEN final invoice cost is recognized and the historical account clears.
         var result = await context.PostAsync(receipt.ToJsonString());
         Assert.Equal(expectedCost, await context.BalanceAsync(classification));
@@ -82,6 +88,10 @@ public sealed class PurchaseRecognitionMatchingTests(SqlServerFixture sqlServer)
         var receipt = await context.CommandAsync();
         var invoice = await context.CommandAsync("Invoice", cost: "105", tax: "5");
         await ApproveVarianceAsync(context, invoice, 5, "Inventory");
+        // AND only the first side supplies the timing-specific estimate or future-right evidence.
+        var secondSide = (invoiceFirst ? receipt : invoice)["units"]![0]!["sides"]![0]!;
+        secondSide["evidence"]!.AsObject().Remove(invoiceFirst ? "estimateBasis" : "enforceableRight");
+        await StoreEvidenceAsync(context, secondSide);
         var command = invoiceFirst ? invoice : receipt;
         command["units"]![0]!["sides"]!.AsArray().Add((invoiceFirst ? receipt : invoice)["units"]![0]!["sides"]![0]!.DeepClone());
         var request = Guid.NewGuid();
@@ -202,6 +212,72 @@ public sealed class PurchaseRecognitionMatchingTests(SqlServerFixture sqlServer)
         var duplicate = await context.CommandAsync("Invoice"); Link(duplicate, receipt);
         Assert.Equal(51009, (await Assert.ThrowsAsync<SqlException>(() => context.PostAsync(duplicate.ToJsonString()))).Number);
         Assert.Equal(3, await context.CountAsync("RecognitionSideEvents"));
+    }
+
+    [Theory]
+    [InlineData(false, false)]
+    [InlineData(true, false)]
+    [InlineData(false, true)]
+    [InlineData(true, true)]
+    public async Task FirstSideStillRequiresEstimateOrFutureRight(bool invoiceFirst, bool combined)
+    {
+        // GIVEN a first side whose durable evidence lacks the basis for accrual or prepayment.
+        await using var context = await PurchaseRecognitionTestContext.OpenAsync(sqlServer);
+        var command = await context.CommandAsync(invoiceFirst ? "Invoice" : "Recognition");
+        if (combined)
+        {
+            var second = await context.CommandAsync(invoiceFirst ? "Recognition" : "Invoice");
+            command["units"]![0]!["sides"]!.AsArray().Add(second["units"]![0]!["sides"]![0]!.DeepClone());
+        }
+        var first = command["units"]![0]!["sides"]![0]!;
+        var validEvidence = first["evidence"]!.DeepClone();
+        first["evidence"]!.AsObject().Remove(invoiceFirst ? "enforceableRight" : "estimateBasis");
+        await StoreEvidenceAsync(context, first);
+        // WHEN submitted alone or before another side THEN no financial state can commit.
+        Assert.Equal(51000, (await Assert.ThrowsAsync<SqlException>(() => context.PostAsync(command.ToJsonString()))).Number);
+        Assert.Equal(0, await context.CountAsync("RecognitionUnits"));
+        Assert.Equal(0, await context.CountAsync("RecognitionSideEvents"));
+        Assert.Equal(0, await context.CountAsync("RecognitionGroupReceipts"));
+        Assert.Equal(0, await context.Journal.CountAsync("JournalEntries"));
+        // AND restoring only the missing evidence permits the same arrival order.
+        first["evidence"] = validEvidence;
+        await StoreEvidenceAsync(context, first);
+        Assert.Equal(combined ? 2 : 1, (await context.PostAsync(command.ToJsonString())).EventIds.Length);
+    }
+
+    [Theory]
+    [InlineData("rationale")]
+    [InlineData("estimateBasis")]
+    [InlineData("serviceDescription")]
+    [InlineData("varianceReason")]
+    public async Task EvidenceTextRequiresMeaningfulContentWithoutNormalizingStoredText(string field)
+    {
+        // GIVEN durable service evidence with a provided text value made entirely of whitespace.
+        await using var context = await PurchaseRecognitionTestContext.OpenAsync(sqlServer);
+        var command = await context.CommandAsync(classification: "Expense");
+        var side = command["units"]![0]!["sides"]![0]!;
+        const string whitespace = "\t\r\n\v\f\u0085\u00a0\u1680\u2000\u2001\u2002\u2003\u2004\u2005\u2006\u2007\u2008\u2009\u200a\u2028\u2029\u202f\u205f\u3000 ";
+        side["evidence"]![field] = whitespace;
+        await StoreEvidenceAsync(context, side);
+        // WHEN posting THEN the kernel rejects visually empty evidence without financial writes.
+        Assert.Equal(51000, (await Assert.ThrowsAsync<SqlException>(() => context.PostAsync(command.ToJsonString()))).Number);
+        Assert.Equal(0, await context.CountAsync("RecognitionSideEvents"));
+        Assert.Equal(0, await context.CountAsync("RecognitionGroupReceipts"));
+        Assert.Equal(0, await context.Journal.CountAsync("JournalEntries"));
+        // AND meaningful text surrounded by the same whitespace posts and retains its exact bytes.
+        var meaningful = whitespace + "Reviewed service evidence" + whitespace;
+        side["evidence"]![field] = meaningful;
+        await StoreEvidenceAsync(context, side);
+        var request = Guid.NewGuid();
+        var result = await context.PostAsync(command.ToJsonString(), request);
+        await using var read = new SqlCommand("SELECT EvidenceJson FROM Purchasing.RecognitionSideEvents WHERE Id=@id", context.Connection);
+        read.Parameters.AddWithValue("@id", Assert.Single(result.EventIds));
+        var stored = JsonNode.Parse((string)(await read.ExecuteScalarAsync())!)!;
+        Assert.Equal(meaningful, stored[field]!.GetValue<string>());
+        Assert.Equal(JsonSerializer.Serialize(result), JsonSerializer.Serialize(await context.PostAsync(command.ToJsonString(), request)));
+        // AND trimming that evidence changes the canonical command and cannot replay the original receipt.
+        side["evidence"]![field] = "Reviewed service evidence";
+        Assert.Equal(51009, (await Assert.ThrowsAsync<SqlException>(() => context.PostAsync(command.ToJsonString(), request))).Number);
     }
 
     private static void Link(JsonObject second, JsonObject first)
