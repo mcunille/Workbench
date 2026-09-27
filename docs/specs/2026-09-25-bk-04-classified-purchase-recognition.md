@@ -90,6 +90,14 @@ For multiple units from one source component, retain an explicit subdivision ide
 aggregate quantity/amount against the trusted source revision under the same transaction. A new
 subdivision ID is not permission to exceed the source.
 
+The current trusted source revision supplies the capacity limit. All surviving claims for the
+same logical source, side and component count against that limit, including claims retained on
+earlier revisions after another subdivision is corrected. A new revision never creates a fresh
+allocation budget. Trusted adapters verify current revision eligibility for every new posting or
+replacement, and serialize eligibility changes with posting under the tenant accounting lock.
+An authorized exact receipt retry does not revalidate mutable revision eligibility. Previously
+posted older revisions remain eligible targets of a complete authorized correction.
+
 The second side must explicitly name the unit and expected prior event revision. It verifies
 supplier, PO, currency, classification and quantity compatibility; amount differences require the
 variance approval described below. Matching and the second side's posting commit together. There
@@ -181,6 +189,8 @@ the reason and its own identity. Larger discrepancies or unassigned differences 
 Expense/Inventory or Prepayment with the same recognition timing as that component; it never plugs
 RecoverableTax or an unrelated expense account. Across invoice subdivisions, enforce the bound
 once for the whole source, not once per unit. The final cost must remain nonnegative.
+That single rounding-component limit includes surviving claims on every source revision; moving
+one subdivision to a new revision does not permit another while an earlier revision retains one.
 
 ## Corrections and dependency closure
 
@@ -201,6 +211,7 @@ correction. Consumers follow these links across generations instead of assuming 
 input includes both sides for a matched unit and must use a previously unused `replacement.unitId`.
 Reversed claims release active source capacity and rounding only from the correction posting date;
 ordinary later-recorded postings cannot reuse that release at an earlier posting-date cutoff.
+This source-level date floor follows the logical source across all revisions as well.
 
 All corrections, replacement events, match reversals/replacements, journals, receipts and audit
 commit as one group with one database-owned recorded instant. Exact inverses use original journal

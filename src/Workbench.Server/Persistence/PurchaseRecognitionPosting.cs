@@ -130,14 +130,15 @@ internal static class PurchaseRecognitionPosting
               THROW 51009,'An existing source subdivision requires a correction.',1;
             IF EXISTS(SELECT 1 FROM Purchasing.RecognitionSideEvents e JOIN Purchasing.RecognitionEventCorrections c ON c.TenantId=e.TenantId AND c.OriginalEventId=e.Id
               JOIN Purchasing.RecognitionCorrectionGroups g ON g.TenantId=c.TenantId AND g.Id=c.CorrectionGroupId
-              WHERE e.TenantId=@TenantId AND e.Side=@Side AND e.SourceId=@SourceId AND e.SourceRevision=@SourceRevision AND g.PostingDate>@PostingDate)
+              WHERE e.TenantId=@TenantId AND e.Side=@Side AND e.SourceId=@SourceId AND g.PostingDate>@PostingDate)
               THROW 51000,'A source claim cannot predate the correction releasing its capacity.',1;
             DECLARE @CapacityQuantity decimal(28,6)=CONVERT(decimal(28,6),JSON_VALUE(@Evidence,'$.sourceCapacityQuantity')),
               @CapacityAmount decimal(28,4)=CONVERT(decimal(28,4),JSON_VALUE(@Evidence,'$.sourceCapacityAmount'));
             IF @CapacityQuantity<=0 OR @SourceQuantity>@CapacityQuantity OR @SourceAmount>@CapacityAmount
               THROW 51000,'Source claim exceeds its capacity.',1;
+            -- Revised source evidence changes the approved limit, never the surviving allocation budget.
             IF EXISTS(SELECT 1 FROM Purchasing.ActiveRecognitionSideEvents WHERE TenantId=@TenantId AND Side=@Side
-              AND SourceId=@SourceId AND SourceRevision=@SourceRevision AND SourceComponentKey=@SourceComponentKey
+              AND SourceId=@SourceId AND SourceComponentKey=@SourceComponentKey
               GROUP BY SourceId HAVING SUM(CONVERT(decimal(38,6),SourceQuantity))>@CapacityQuantity-@SourceQuantity
                 OR SUM(CONVERT(decimal(38,4),SourceAmount))>@CapacityAmount-@SourceAmount)
               THROW 51009,'Source capacity is already claimed.',1;
@@ -175,7 +176,7 @@ internal static class PurchaseRecognitionPosting
               OR (EXISTS(SELECT 1 FROM @Components WHERE Kind='Rounding') AND EXISTS(
                 SELECT 1 FROM Purchasing.ActiveRecognitionSideEvents e WITH(UPDLOCK,HOLDLOCK)
                 JOIN Purchasing.RecognitionComponents c ON c.TenantId=e.TenantId AND c.EventId=e.Id
-                WHERE e.TenantId=@TenantId AND e.Side='Invoice' AND e.SourceId=@SourceId AND e.SourceRevision=@SourceRevision AND c.Kind='Rounding'))
+                WHERE e.TenantId=@TenantId AND e.Side='Invoice' AND e.SourceId=@SourceId AND c.Kind='Rounding'))
               THROW 51000,'Invoice source already has rounding or its bound is exceeded.',1;
             DECLARE @CostWide decimal(38,4),@TaxWide decimal(38,4),@Cost decimal(28,4),@Tax decimal(28,4);
             SELECT @CostWide=COALESCE(SUM(CASE WHEN Kind='Discount' THEN -CONVERT(decimal(38,4),Amount)

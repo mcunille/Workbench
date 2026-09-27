@@ -115,7 +115,11 @@ public sealed class PurchaseRecognitionCorrectionTests(SqlServerFixture sqlServe
                 correction["replacement"]!["sides"]![0]!["eventRevision"] = 2;
                 break;
             case "effective": side["effectiveDate"] = "2026-01-31"; break;
-            case "same-revision": side["sourceRevision"] = original["units"]![0]!["sides"]![0]!["sourceRevision"]!.DeepClone(); await StoreAsync(context, side); break;
+            case "same-revision":
+                side["sourceRevision"] = original["units"]![0]!["sides"]![0]!["sourceRevision"]!.DeepClone();
+                await StoreAsync(context, side);
+                await context.PublishSourceRevisionAsync(side);
+                break;
             case "same-unit": correction["replacement"]!["unitId"] = original["units"]![0]!["unitId"]!.DeepClone(); break;
             case "disposal":
             case "application":
@@ -192,8 +196,10 @@ public sealed class PurchaseRecognitionCorrectionTests(SqlServerFixture sqlServe
         Assert.Equal(2, await context.Journal.CountAsync("JournalEntries"));
     }
 
-    [Fact]
-    public async Task ReleasedCapacityAndRoundingCannotBeReusedBeforeCorrectionDate()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task ReleasedCapacityAndRoundingCannotBeReusedBeforeCorrectionDate(bool nextRevision)
     {
         // GIVEN a fully claimed invoice source with its one permitted rounding component, reversed in March.
         await using var context = await PurchaseRecognitionTestContext.OpenAsync(sqlServer);
@@ -204,6 +210,11 @@ public sealed class PurchaseRecognitionCorrectionTests(SqlServerFixture sqlServe
         await context.PostAsync(invoice.ToJsonString());
         var correction = await CorrectionAsync(context, invoice, null);
         await context.CorrectAsync(correction.ToJsonString());
+        if (nextRevision)
+        {
+            var revised = await CorrectionAsync(context, invoice, "100.01");
+            side["sourceRevision"] = revised["replacement"]!["sides"]![0]!["sourceRevision"]!.DeepClone();
+        }
         invoice["units"]![0]!["unitId"] = Guid.NewGuid().ToString();
         side["subdivisionKey"] = "replacement-allocation";
         // WHEN a fresh allocation would reuse the released claim before March THEN the temporal source floor rejects it.
@@ -216,6 +227,84 @@ public sealed class PurchaseRecognitionCorrectionTests(SqlServerFixture sqlServe
         Assert.Equal(100.01m, await context.BalanceAsync("Prepayment"));
         Assert.Equal(-100.01m, await context.BalanceAsync("SupplierPayable"));
         Assert.Equal(2, await context.CountAsync("RecognitionSideEvents"));
+    }
+
+    [Theory]
+    [InlineData("2", "90", "1", "50")]
+    [InlineData("3", "90", "0.5", "50")]
+    [InlineData("2", "100", "1", "0")]
+    public async Task SourceCapacityIncludesSurvivingClaimsFromEarlierRevisions(string capacityQuantity, string capacityAmount, string extraQuantity, string extraAmount)
+    {
+        // GIVEN A and B each claiming 1/50, followed by A2 claiming 1/40 on a new source revision while B survives.
+        await using var context = await PurchaseRecognitionTestContext.OpenAsync(sqlServer);
+        var first = await SharedSourceAsync(context);
+        var second = AnotherSubdivision(first, "B", "1", "50");
+        await context.PostAsync(first.ToJsonString());
+        await context.PostAsync(second.ToJsonString());
+        var correction = await CorrectionAsync(context, first, "40");
+        var replacement = correction["replacement"]!["sides"]![0]!;
+        await SetCapacityAsync(context, replacement, capacityQuantity, capacityAmount);
+        await context.CorrectAsync(correction.ToJsonString());
+        var extra = first.DeepClone().AsObject();
+        extra["units"] = new JsonArray(correction["replacement"]!.DeepClone());
+        extra["postingDate"] = "2026-03-01";
+        extra = AnotherSubdivision(extra, "C", extraQuantity, extraAmount);
+        // WHEN C fits the new revision alone but exceeds the logical source quantity or amount THEN SQL rejects it.
+        var error = await Assert.ThrowsAsync<SqlException>(() => context.PostAsync(extra.ToJsonString()));
+        Assert.Equal(51009, error.Number);
+        Assert.Contains("capacity", error.Message, StringComparison.Ordinal);
+        Assert.Equal(90m, await context.BalanceAsync("Inventory"));
+        Assert.Equal(3, await context.CountAsync("RecognitionSideEvents"));
+        Assert.Equal(3, await context.CountAsync("RecognitionGroupReceipts"));
+    }
+
+    [Fact]
+    public async Task ReplacementCannotAddRoundingWhileEarlierRevisionRetainsIt()
+    {
+        // GIVEN two invoice subdivisions, with the one approved rounding component retained by B on revision 1.
+        await using var context = await PurchaseRecognitionTestContext.OpenAsync(sqlServer);
+        var first = await SharedSourceAsync(context, "Invoice", "100.01");
+        var second = AnotherSubdivision(first, "B", "1", "50.01");
+        AddRounding(second["units"]![0]!["sides"]![0]!, "50");
+        await context.PostAsync(first.ToJsonString());
+        await context.PostAsync(second.ToJsonString());
+        var correction = await CorrectionAsync(context, first, "40.01");
+        var replacement = correction["replacement"]!["sides"]![0]!;
+        await SetCapacityAsync(context, replacement, "2", "90.02");
+        AddRounding(replacement, "40");
+        // WHEN unrounded A is replaced with another rounding component on revision 2 THEN the complete correction rolls back.
+        var error = await Assert.ThrowsAsync<SqlException>(() => context.CorrectAsync(correction.ToJsonString()));
+        Assert.Equal(51000, error.Number);
+        Assert.Contains("rounding", error.Message, StringComparison.Ordinal);
+        Assert.Equal(100.01m, await context.BalanceAsync("Prepayment"));
+        Assert.Equal(2, await context.CountAsync("RecognitionSideEvents"));
+        Assert.Equal(0, await context.CountAsync("RecognitionCorrectionGroups"));
+        Assert.Equal(0, await context.CountAsync("RecognitionEventCorrections"));
+        Assert.Equal(0, await context.Journal.CountAsync("CorrectionReceipts"));
+    }
+
+    [Fact]
+    public async Task SupersededLargerCapacityCannotAuthorizeNewClaimsButOriginalReceiptReplays()
+    {
+        // GIVEN capacity 3/100 on revision 1, with A corrected to revision 2 capacity 3/90 while B remains posted.
+        await using var context = await PurchaseRecognitionTestContext.OpenAsync(sqlServer);
+        var first = await SharedSourceAsync(context);
+        await SetCapacityAsync(context, first["units"]![0]!["sides"]![0]!, "3", "100");
+        var request = Guid.NewGuid();
+        var originalReceipt = await context.PostAsync(first.ToJsonString(), request);
+        await context.PostAsync(AnotherSubdivision(first, "B", "1", "50").ToJsonString());
+        var correction = await CorrectionAsync(context, first, "40");
+        await SetCapacityAsync(context, correction["replacement"]!["sides"]![0]!, "3", "90");
+        await context.CorrectAsync(correction.ToJsonString());
+        var stale = AnotherSubdivision(first, "C", "0.1", "5");
+        stale["postingDate"] = "2026-03-01";
+        // WHEN C fits remaining quantity and the obsolete amount limit THEN the adapter rejects its superseded revision.
+        Assert.Equal(51004, (await Assert.ThrowsAsync<SqlException>(() => context.PostAsync(stale.ToJsonString()))).Number);
+        Assert.Equal(90m, await context.BalanceAsync("Inventory"));
+        // AND an exact authorized retry returns its immutable receipt without revalidating mutable source eligibility.
+        var replay = await context.PostAsync(first.ToJsonString(), request);
+        Assert.Equal(JsonSerializer.Serialize(originalReceipt), JsonSerializer.Serialize(replay));
+        Assert.Equal(3, await context.CountAsync("RecognitionGroupReceipts"));
     }
 
     [Fact]
@@ -265,6 +354,43 @@ public sealed class PurchaseRecognitionCorrectionTests(SqlServerFixture sqlServe
         return receipt;
     }
 
+    private static async Task<JsonObject> SharedSourceAsync(PurchaseRecognitionTestContext context, string side = "Recognition", string capacity = "100")
+    {
+        var command = await context.CommandAsync(side, cost: "50");
+        var source = command["units"]![0]!["sides"]![0]!;
+        source["subdivisionKey"] = "A";
+        await SetCapacityAsync(context, source, "2", capacity);
+        return command;
+    }
+
+    private static JsonObject AnotherSubdivision(JsonObject source, string subdivision, string quantity, string amount)
+    {
+        var command = source.DeepClone().AsObject();
+        var unit = command["units"]![0]!;
+        unit["unitId"] = Guid.NewGuid().ToString();
+        unit["quantity"] = quantity;
+        var side = unit["sides"]![0]!;
+        side["eventRevision"] = 1;
+        side["subdivisionKey"] = subdivision;
+        side["sourceQuantity"] = quantity;
+        side["sourceAmount"] = amount;
+        side["components"]![0]!["amount"] = amount;
+        return command;
+    }
+
+    private static Task SetCapacityAsync(PurchaseRecognitionTestContext context, JsonNode side, string quantity, string amount)
+    {
+        side["evidence"]!["sourceCapacityQuantity"] = quantity;
+        side["evidence"]!["sourceCapacityAmount"] = amount;
+        return StoreAsync(context, side);
+    }
+
+    private static void AddRounding(JsonNode side, string baseAmount)
+    {
+        side["components"]![0]!["amount"] = baseAmount;
+        side["components"]!.AsArray().Add(JsonSerializer.SerializeToNode(new { componentKey = "round", kind = "Rounding", amount = "0.01", assignedCostComponentKey = "base", reason = "Approved source rounding" }));
+    }
+
     internal static async Task<JsonObject> CorrectionAsync(PurchaseRecognitionTestContext context, JsonObject original, string? cost, string classification = "Inventory")
     {
         var unit = original["units"]![0]!;
@@ -282,9 +408,10 @@ public sealed class PurchaseRecognitionCorrectionTests(SqlServerFixture sqlServe
                 var side = source["units"]![0]!["sides"]![0]!.DeepClone();
                 var generatedId = side["sourceId"]!.GetValue<string>();
                 side["sourceId"] = old["sourceId"]!.DeepClone();
+                side["subdivisionKey"] = old["subdivisionKey"]!.DeepClone();
                 side["eventRevision"] = old["eventRevision"]!.GetValue<int>() + 1;
                 side["effectiveDate"] = old["effectiveDate"]!.DeepClone();
-                await AdminAsync(context, "UPDATE Purchasing.FixtureRecognitionSources SET Id=@id WHERE Id=@generated", ("@id", side["sourceId"]!.GetValue<string>()), ("@generated", generatedId));
+                await context.PublishSourceRevisionAsync(side, generatedId);
                 replacement["sides"]!.AsArray().Add(side);
             }
         }

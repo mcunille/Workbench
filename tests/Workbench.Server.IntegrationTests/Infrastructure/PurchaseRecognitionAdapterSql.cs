@@ -12,6 +12,37 @@ internal static class PurchaseRecognitionAdapterSql
           Classification varchar(16) NOT NULL,Side varchar(16) NOT NULL,SourceComponentKey nvarchar(200) NOT NULL DEFAULT N'line-1',EvidenceJson nvarchar(max) NOT NULL,
           CorrectionAllowed bit NOT NULL DEFAULT 0,DependencyKind varchar(40) NULL,
           PRIMARY KEY(TenantId,Id,Revision,SourceComponentKey));
+        CREATE TABLE Purchasing.FixtureRecognitionSourceHeads(TenantId uniqueidentifier NOT NULL,Side varchar(16) NOT NULL,
+          SourceId uniqueidentifier NOT NULL,CurrentRevision uniqueidentifier NOT NULL,PRIMARY KEY(TenantId,Side,SourceId));
+        -- Administrative fixture publication is not granted to the web principal. Eligibility changes
+        -- serialize with posting/correction using the same tenant accounting lock.
+        EXEC(N'CREATE PROCEDURE Purchasing.PublishFixtureRecognitionRevision
+          @TenantId uniqueidentifier,@Side varchar(16),@SourceId uniqueidentifier,@Revision uniqueidentifier,@PreparedSourceId uniqueidentifier=NULL
+        AS BEGIN
+          SET NOCOUNT ON; SET XACT_ABORT ON;
+          BEGIN TRY
+            BEGIN TRANSACTION;
+            DECLARE @Resource nvarchar(255)=N''Accounting:''+CONVERT(nvarchar(36),@TenantId),@LockResult int;
+            EXEC @LockResult=sys.sp_getapplock @Resource=@Resource,@LockMode=''Exclusive'',@LockOwner=''Transaction'',@LockTimeout=10000;
+            IF @LockResult<0 THROW 51009,''Accounting is being changed.'',1;
+            IF @PreparedSourceId IS NOT NULL
+            BEGIN
+              IF @PreparedSourceId=@SourceId THROW 51000,''A prepared fixture revision requires its own identity.'',1;
+              UPDATE Purchasing.FixtureRecognitionSources SET Id=@SourceId
+                WHERE TenantId=@TenantId AND Side=@Side AND Id=@PreparedSourceId AND Revision=@Revision;
+              IF @@ROWCOUNT=0 THROW 51004,''The prepared fixture revision is unavailable.'',1;
+              DELETE Purchasing.FixtureRecognitionSourceHeads WHERE TenantId=@TenantId AND Side=@Side AND SourceId=@PreparedSourceId;
+            END;
+            IF NOT EXISTS(SELECT 1 FROM Purchasing.FixtureRecognitionSources WHERE TenantId=@TenantId AND Side=@Side AND Id=@SourceId AND Revision=@Revision)
+              THROW 51004,''The fixture revision is unavailable.'',1;
+            UPDATE Purchasing.FixtureRecognitionSourceHeads SET CurrentRevision=@Revision WHERE TenantId=@TenantId AND Side=@Side AND SourceId=@SourceId;
+            IF @@ROWCOUNT=0 INSERT Purchasing.FixtureRecognitionSourceHeads(TenantId,Side,SourceId,CurrentRevision) VALUES(@TenantId,@Side,@SourceId,@Revision);
+            COMMIT;
+          END TRY BEGIN CATCH
+            IF @@TRANCOUNT>0 ROLLBACK;
+            THROW;
+          END CATCH;
+        END');
         EXEC(N'CREATE PROCEDURE Purchasing.PostFixtureRecognition
           @ActorId uniqueidentifier,@SessionId uniqueidentifier,@RequestId uniqueidentifier,@Command nvarchar(max)
         AS BEGIN
@@ -37,7 +68,9 @@ internal static class PurchaseRecognitionAdapterSql
                   ON f.TenantId=@TenantId AND f.Id=TRY_CONVERT(uniqueidentifier,JSON_VALUE(s.value,''$.sourceId''))
                   AND f.Revision=TRY_CONVERT(uniqueidentifier,JSON_VALUE(s.value,''$.sourceRevision''))
                   AND f.SourceComponentKey COLLATE Latin1_General_100_BIN2=JSON_VALUE(s.value,''$.sourceComponentKey'') COLLATE Latin1_General_100_BIN2
-                WHERE f.Id IS NULL OR f.PurchaseOrderId<>TRY_CONVERT(uniqueidentifier,JSON_VALUE(@Command,''$.purchaseOrderId''))
+                LEFT JOIN Purchasing.FixtureRecognitionSourceHeads h WITH(UPDLOCK,HOLDLOCK) ON h.TenantId=f.TenantId AND h.Side=f.Side AND h.SourceId=f.Id
+                WHERE f.Id IS NULL OR h.SourceId IS NULL OR h.CurrentRevision<>f.Revision
+                  OR f.PurchaseOrderId<>TRY_CONVERT(uniqueidentifier,JSON_VALUE(@Command,''$.purchaseOrderId''))
                   OR f.SupplierId<>TRY_CONVERT(uniqueidentifier,JSON_VALUE(@Command,''$.supplierId''))
                   OR f.Currency<>JSON_VALUE(@Command,''$.currency'') OR f.Classification<>JSON_VALUE(u.value,''$.classification'')
                   OR f.Side<>JSON_VALUE(s.value,''$.side'')
@@ -89,8 +122,10 @@ internal static class PurchaseRecognitionAdapterSql
                   ON f.TenantId=@TenantId AND f.Id=TRY_CONVERT(uniqueidentifier,JSON_VALUE(s.value,''$.sourceId''))
                   AND f.Revision=TRY_CONVERT(uniqueidentifier,JSON_VALUE(s.value,''$.sourceRevision''))
                   AND CONVERT(varbinary(max),f.SourceComponentKey)=CONVERT(varbinary(max),JSON_VALUE(s.value,''$.sourceComponentKey''))
+                LEFT JOIN Purchasing.FixtureRecognitionSourceHeads h WITH(UPDLOCK,HOLDLOCK) ON h.TenantId=f.TenantId AND h.Side=f.Side AND h.SourceId=f.Id
                 LEFT JOIN Purchasing.RecognitionUnits u ON u.TenantId=@TenantId AND u.Id=TRY_CONVERT(uniqueidentifier,JSON_VALUE(@Command,''$.unitId''))
-                WHERE f.Id IS NULL OR u.Id IS NULL OR f.CorrectionAllowed=0 OR f.DependencyKind IS NOT NULL
+                WHERE f.Id IS NULL OR h.SourceId IS NULL OR h.CurrentRevision<>f.Revision
+                  OR u.Id IS NULL OR f.CorrectionAllowed=0 OR f.DependencyKind IS NOT NULL
                   OR f.PurchaseOrderId<>u.PurchaseOrderId OR f.SupplierId<>u.SupplierId OR f.Currency<>u.Currency
                   OR f.Classification<>JSON_VALUE(@Command,''$.replacement.classification'') OR f.Side<>JSON_VALUE(s.value,''$.side'')
                   OR CONVERT(varbinary(max),f.EvidenceJson)<>CONVERT(varbinary(max),JSON_QUERY(s.value,''$.evidence'')))

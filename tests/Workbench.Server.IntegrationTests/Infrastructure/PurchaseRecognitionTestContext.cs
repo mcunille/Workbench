@@ -105,7 +105,21 @@ internal sealed class PurchaseRecognitionTestContext : IAsyncDisposable
         store.Parameters.AddWithValue("@supplier", SupplierId); store.Parameters.AddWithValue("@classification", classification);
         store.Parameters.AddWithValue("@side", side); store.Parameters.AddWithValue("@evidence", JsonSerializer.Serialize(evidence));
         await store.ExecuteNonQueryAsync();
+        await PublishSourceRevisionAsync(command["units"]![0]!["sides"]![0]!);
         return command;
+    }
+
+    public async Task PublishSourceRevisionAsync(JsonNode source, string? preparedSourceId = null)
+    {
+        await using var admin = new SqlConnection(Journal.Application.AdminConnectionString);
+        await admin.OpenAsync();
+        await using var command = new SqlCommand("EXEC Purchasing.PublishFixtureRecognitionRevision @TenantId=@tenant,@Side=@side,@SourceId=@id,@Revision=@revision,@PreparedSourceId=@prepared", admin);
+        command.Parameters.AddWithValue("@tenant", JournalTestContext.TenantId);
+        command.Parameters.AddWithValue("@side", source["side"]!.GetValue<string>());
+        command.Parameters.AddWithValue("@id", source["sourceId"]!.GetValue<string>());
+        command.Parameters.AddWithValue("@revision", source["sourceRevision"]!.GetValue<string>());
+        command.Parameters.AddWithValue("@prepared", (object?)preparedSourceId ?? DBNull.Value);
+        await command.ExecuteNonQueryAsync();
     }
 
     public Task<RecognitionResult> PostAsync(string commandJson, Guid? requestId = null, SqlConnection? connection = null)
