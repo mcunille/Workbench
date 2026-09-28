@@ -11,16 +11,63 @@ Optimize for retained knowledge and clear ownership, not deletion counts.
 
 ## Scope and authority
 
-An audit or review request produces findings without editing repository files. A request to
-apply cleanup authorizes the selected documentation edits; preserve existing authorization
+An audit or review request produces findings without changing reviewed documentation. Completing
+an audit also authorizes the review-ledger bookkeeping below, unless the user requests no writes.
+A request to apply cleanup authorizes the selected documentation edits; preserve existing authorization
 and follow root/scoped AGENTS.md and the [development workflow](../../../docs/development-workflow.md).
 Do not expand a documentation cleanup into code fixes, policy changes, issue publication,
 merging, or production operations. Ordinary documentation edits do not trigger a wider audit.
 
 Start with the requested scope and [documentation index](../../../docs/README.md). Name what
 was inspected and what remains uninspected; a sampled audit is not a repository-wide verdict.
-Keep working inventories and evidence in the workflow's ignored workspace, not another
-permanent audit document.
+Keep working inventories and detailed evidence in the workflow's ignored workspace, not another
+permanent audit document. The compact review ledger is the durable exception.
+
+## Select a repeatable batch and record completion
+
+Use [docs/doc-audit-ledger.json](../../../docs/doc-audit-ledger.json) across runs and checkouts.
+For an oldest/next batch, default to tracked Markdown specs under `docs/specs/`, excluding
+`README.md`; an explicit user scope or count takes precedence. Default to ten documents.
+
+For each existing candidate, read its latest Git committer timestamp with
+`git log -1 --format=%cI -- <path>` and its latest completed ledger review timestamp.
+Use the **later** timestamp as its queue date; never-reviewed documents use modification alone.
+Compare UTC instants, oldest first, then repository-relative path in ordinal order for ties.
+Do not use filename dates or filesystem mtimes: fresh checkouts reset mtimes. Show the selected
+paths and dates before reviewing. Age selects work; it does not establish obsolescence.
+
+Missing ledger means no recorded reviews, not permission to infer them from old status labels
+or commits. Malformed ledger, duplicate paths, invalid dates, or unavailable Git history require
+a reported correction or evidence limit; never silently reset progress or substitute checkout
+mtime. Surface dirty/untracked candidates separately and preserve those edits; fill an automatic
+batch from clean tracked candidates and report any resulting shortfall. Explicitly requested dirty
+documents can be inspected but cannot receive a completed revision record until the reviewed
+content is committed. Explicit read-only runs may report results and proposed ledger entries
+without writing them.
+
+The JSON contract is `{"version": 1, "reviews": [...]}`. Keep one latest completed entry per
+repository-relative path, sorted by path, with these required fields:
+
+- `path`: reviewed document path using forward slashes.
+- `reviewedAtUtc`: actual review-completion time, ISO 8601 UTC with `Z`.
+- `reviewedRevision`: full Git commit ID of the checkout inspected, not the later ledger commit.
+- `outcome`: `keep`, `update`, `consolidate`, `distill-then-delete`, `delete`, or `investigate`.
+- `note`: short finding or unresolved question, with concrete evidence and destination paths.
+
+After inspecting claims, evidence, preservation needs, and incoming references, record only
+completed reviews and include their findings in the delivered audit. `investigate` is a completed
+review with an unresolved finding and advances the queue; completion is not cleanup approval or
+proof that the document is current. Interrupted or merely selected documents do not advance.
+Preserve unrelated entries and unresolved findings when updating the ledger; Git retains earlier
+reviews. Re-read before writing to avoid overwriting another run's progress. Retain entries for
+deleted paths but exclude them from candidates; transfer an entry on rename only with verified
+Git rename history. A changed spec is ranked by the later modification/review date, not permanently
+skipped, and the stored revision identifies exactly what was reviewed.
+
+Validate the JSON and required fields, confirm recorded paths/revisions and completed count,
+then recompute the next batch. Report ledger changes separately from proposed cleanup. Follow
+repository delivery rules for this bookkeeping; no spec deletion, issue publication, or cleanup
+is authorized by recording an outcome.
 
 ## Review by claim, not age
 
