@@ -28,25 +28,115 @@ test('navigation respects the 900px collapse boundary and retains the mobile pil
   await expect.poll(async () => (await nav.boundingBox())!.width).toBe(72);
 });
 
-test('desktop navigation stays flush with the viewport on ultrawide screens', async ({ page }) => {
-  // GIVEN a workspace wider than the former 112rem layout cap.
+test('desktop sheet fills the viewport beside navigation while reading content stays centered', async ({ page }) => {
+  // GIVEN an authenticated desktop with reduced motion for stable geometry.
+  await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.setViewportSize({ width: 2400, height: 1000 });
   await useAuthenticatedSession(page);
   const nav = page.getByRole('navigation', { name: 'Workspace' });
-  // WHEN expanded or collapsed THEN the pane remains attached to the left viewport edge.
-  await expect.poll(async () => (await nav.boundingBox())!.x).toBe(0);
-  await nav.getByRole('button', { name: 'Collapse navigation' }).click();
-  await expect.poll(async () => (await nav.boundingBox())!.width).toBe(72);
-  expect((await nav.boundingBox())!.x).toBe(0);
-  // AND the page does not require horizontal scrolling.
-  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  const sheet = page.locator('.workspace-sheet');
+  const reading = page.getByRole('main');
+  for (const dark of [false, true]) {
+    await setAppearance(page, dark);
+    // WHEN appearance changes THEN the menu and the full backdrop share the canvas color.
+    const material = await page.evaluate(() => {
+      const nav = getComputedStyle(document.querySelector('.workspace-nav')!);
+      const sheet = getComputedStyle(document.querySelector('.workspace-sheet')!);
+      const layout = getComputedStyle(document.querySelector('.workspace-layout')!);
+      const shell = getComputedStyle(document.querySelector('.app-shell')!);
+      return {
+        menuColor: nav.backgroundColor,
+        menuImage: nav.backgroundImage,
+        layoutColor: layout.backgroundColor,
+        shellColor: shell.backgroundColor,
+        sheetColor: sheet.backgroundColor,
+        sheetImage: sheet.backgroundImage,
+      };
+    });
+    const canvasColor = dark ? 'rgb(8, 9, 12)' : 'rgb(255, 255, 255)';
+    expect(material.menuColor).toBe(canvasColor);
+    expect(material.menuImage).toBe('none');
+    expect(material.layoutColor).toBe(canvasColor);
+    expect(material.shellColor).toBe(canvasColor);
+    expect(material.sheetColor).toBe(canvasColor);
+    expect(material.sheetImage.match(/radial-gradient/g)).toHaveLength(2);
+    for (const collapsed of [false, true]) {
+      if (collapsed) await nav.getByRole('button', { name: 'Collapse navigation' }).click();
+      else if (await nav.getByRole('button', { name: 'Expand navigation' }).isVisible()) {
+        await nav.getByRole('button', { name: 'Expand navigation' }).click();
+      }
+      // WHEN each desktop width settles THEN the sheet fills the whole content column.
+      for (const width of [1280, 2400]) {
+        await page.setViewportSize({ width, height: 1000 });
+        await expect(sheet).toBeVisible();
+        const n = (await nav.boundingBox())!;
+        const s = (await sheet.boundingBox())!;
+        const r = (await reading.boundingBox())!;
+        expect(n.x).toBe(0);
+        expect(n.width).toBe(collapsed ? 72 : 229);
+        expect(s.x).toBeCloseTo(n.x + n.width, 0);
+        expect(s.y).toBeCloseTo(0, 0);
+        expect(s.x + s.width).toBeCloseTo(width, 0);
+        expect(s.height).toBeGreaterThanOrEqual(1000);
+        expect((await page.locator('.workspace-layout').boundingBox())!.height).toBeGreaterThanOrEqual(s.height);
+        expect(r.x - s.x).toBeCloseTo(s.x + s.width - r.x - r.width, 0);
+        expect(r.width).toBeLessThanOrEqual(76 * await page.evaluate(() => parseFloat(getComputedStyle(document.documentElement).fontSize)));
+        expect(await reading.evaluate(el => parseFloat(getComputedStyle(el).paddingLeft))).toBeGreaterThan(0);
+        // AND the specified right corners remain square in the rendered result.
+        expect(await sheet.evaluate(el => {
+          const style = getComputedStyle(el);
+          return [style.borderTopRightRadius, style.borderBottomRightRadius];
+        })).toEqual(['0px', '0px']);
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+      }
+    }
+  }
 });
 
-test('focused skip link stays above the glass pane', async ({ page }) => {
-  // GIVEN a desktop workspace with a glass pane.
+test('reduced transparency preserves the mobile canvas and removes desktop sheet shadow', async ({ page }) => {
+  // GIVEN an authenticated workspace with reduced transparency requested by the system.
+  await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.setViewportSize({ width: 1280, height: 900 });
   await useAuthenticatedSession(page);
-  // WHEN the keyboard skip link receives focus THEN the pane cannot cover it.
+  const cdp = await page.context().newCDPSession(page);
+  try {
+    await cdp.send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-reduced-transparency', value: 'reduce' }] });
+    expect(await page.evaluate(() => matchMedia('(prefers-reduced-transparency: reduce)').matches)).toBe(true);
+    for (const dark of [false, true]) {
+      await setAppearance(page, dark);
+      for (const width of [1280, 390]) {
+        // WHEN the viewport crosses the desktop boundary THEN only desktop gains the opaque fallback.
+        await page.setViewportSize({ width, height: 900 });
+        const paint = await page.locator('.workspace-sheet').evaluate(element => {
+          const style = getComputedStyle(element);
+          return {
+            backgroundColor: style.backgroundColor,
+            backgroundImage: style.backgroundImage,
+            boxShadow: style.boxShadow,
+          };
+        });
+        if (width === 1280) {
+          // THEN the desktop sheet is opaque and has no decorative shadow in either appearance.
+          expect(paint.backgroundColor).toBe(dark ? 'rgb(18, 19, 23)' : 'rgb(255, 255, 255)');
+          expect(paint.boxShadow).toBe('none');
+        } else {
+          // THEN mobile keeps the original body atmosphere visible through its sheet wrapper.
+          expect(paint.backgroundColor).toBe('rgba(0, 0, 0, 0)');
+          expect(paint.backgroundImage).toBe('none');
+          expect(await page.evaluate(() => getComputedStyle(document.body).backgroundImage.match(/radial-gradient/g))).toHaveLength(2);
+        }
+      }
+    }
+  } finally {
+    await cdp.detach();
+  }
+});
+
+test('focused skip link stays above the raised sheet', async ({ page }) => {
+  // GIVEN a desktop workspace with a raised content sheet.
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await useAuthenticatedSession(page);
+  // WHEN the keyboard skip link receives focus THEN the sheet cannot cover it.
   const skip = page.getByRole('link', { name: 'Skip to content' });
   await skip.focus();
   expect(await skip.evaluate(el => {
@@ -103,15 +193,57 @@ test('desktop pane preserves icon positions and keyboard access through collapse
   expect(toggleAfter.x + toggleAfter.width / 2).toBeCloseTo(initial.x + initial.width / 2, 0);
   // AND the account panel stays above content and Escape restores focus.
   await nav.getByRole('button', { name: 'User menu' }).click();
-  await nav.getByRole('link', { name: 'Account', exact: true }).focus();
+  const account = nav.getByRole('link', { name: 'Account', exact: true });
+  expect(await account.evaluate(el => {
+    const box = el.getBoundingClientRect();
+    return el.contains(document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2));
+  })).toBe(true);
+  await account.focus();
   await page.keyboard.press('Escape');
   await expect(nav.getByRole('button', { name: 'User menu' })).toBeFocused();
+  // AND a focused collapsed label remains hit-testable above the sheet.
+  await inventory.focus();
+  const label = inventory.locator('.navigation-label');
+  expect(await label.evaluate(el => {
+    const box = el.getBoundingClientRect();
+    return el.contains(document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2));
+  })).toBe(true);
   // WHEN reduced motion is requested THEN the pane switches without animation.
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await expand.click();
   expect(await page.locator('.workspace-layout').evaluate(el => getComputedStyle(el).transitionDuration)).toBe('0s');
   const directory = process.env.WORKBENCH_MENU_EVIDENCE_DIRECTORY;
   if (directory) await page.screenshot({ path: join(directory, 'navigation-desktop.png') });
+});
+
+test('forced colors keep current navigation and profile controls usable', async ({ page }) => {
+  // GIVEN an authenticated desktop using a forced-color palette.
+  await page.emulateMedia({ forcedColors: 'active', reducedMotion: 'reduce' });
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await useAuthenticatedSession(page);
+  const nav = page.getByRole('navigation', { name: 'Workspace' });
+  const current = nav.getByRole('link', { name: 'Inventory' });
+  // WHEN the current destination is rendered THEN its boundary remains visible.
+  await expect(current).toHaveAttribute('aria-current', 'page');
+  expect(await current.evaluate(el => getComputedStyle(el).outlineStyle)).not.toBe('none');
+  // AND the raised desktop sheet retains a contrasting boundary without decorative effects.
+  const sheetBoundary = await page.locator('.workspace-sheet').evaluate(element => {
+    const style = getComputedStyle(element);
+    return {
+      width: parseFloat(style.outlineWidth),
+      style: style.outlineStyle,
+      color: style.outlineColor,
+      surface: style.backgroundColor,
+    };
+  });
+  expect(sheetBoundary.width).toBeGreaterThanOrEqual(1);
+  expect(sheetBoundary.style).not.toBe('none');
+  expect(sheetBoundary.color).not.toBe(sheetBoundary.surface);
+  // AND the profile can open and its account destination can be clicked.
+  await nav.getByRole('button', { name: 'User menu' }).click();
+  await expect(nav.getByRole('link', { name: 'Account', exact: true })).toBeVisible();
+  await nav.getByRole('link', { name: 'Account', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Account' })).toBeVisible();
 });
 
 for (const width of [320, 390]) {
