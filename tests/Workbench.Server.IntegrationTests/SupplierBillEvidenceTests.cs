@@ -22,7 +22,9 @@ public sealed class SupplierBillEvidenceTests(SqlServerFixture sqlServer)
         var saved = await context.SaveAsync(Guid.NewGuid(), context.DraftCommand());
         var draft = DraftOrderInput.Normalize(DraftOrderPricingTests.Empty with
         {
-            SupplierId = null, SupplierName = "Replacement supplier", Notes = "Operational amendment",
+            SupplierId = null,
+            SupplierName = "Replacement supplier",
+            Notes = "Operational amendment",
             Entries = [DraftOrderPricingTests.Line with { Description = "Sapphire" }]
         });
         // WHEN the operational amendment would replace its supplier.

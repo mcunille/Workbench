@@ -62,7 +62,74 @@ public sealed class SupplierBillPostingTests(SqlServerFixture sqlServer)
         Assert.Equal(1, await context.Recognition.CountAsync("RecognitionMatches"));
     }
     [Theory]
+    [InlineData("Inventory", false)]
+    [InlineData("Expense", false)]
+    [InlineData("Expense", true)]
+    public async Task MatchedVarianceUsesOriginalClassification(string classification, bool variance)
+    {
+        // GIVEN recognized cost 100 and an invoice for the same stable unit.
+        await using var context = await OpenAsync(sqlServer);
+        var receipt = await context.Recognition.CommandAsync(classification: classification);
+        await context.Recognition.PostAsync(receipt.ToJsonString());
+        var draft = context.CompleteDraft(); var unit = draft["revision"]!["units"]![0]!;
+        unit["classification"] = classification;
+        unit["unitId"] = receipt["units"]![0]!["unitId"]!.DeepClone();
+        unit["expectedPriorEventRevision"] = 1;
+        if (variance)
+        {
+            unit["components"]![0]!["amount"] = "105.00"; draft["revision"]!["total"] = "115.00";
+            unit["evidence"]!["varianceAmount"] = "5.00";
+            unit["evidence"]!["varianceReason"] = "Final supplier price";
+            unit["evidence"]!["varianceClassification"] = classification;
+        }
+        var reviewed = await ReviewedAsync(context, draft);
+        // WHEN the reviewed invoice posts THEN the original classification owns any cost variance.
+        await context.ExecuteAsync("PostSupplierBill", Guid.NewGuid(), context.PostCommand(reviewed));
+        Assert.Equal(variance ? 105m : 100m, await context.Recognition.BalanceAsync(classification));
+        Assert.Equal(0m, await context.Recognition.BalanceAsync("GoodsReceivedNotInvoiced"));
+    }
+
+    [Fact]
+    public async Task InventoryVarianceWithoutHeldStateFailsClosed()
+    {
+        // GIVEN inventory recognized at 100 and an invoice asserting an unsupported revaluation.
+        await using var context = await OpenAsync(sqlServer);
+        var receipt = await context.Recognition.CommandAsync(); await context.Recognition.PostAsync(receipt.ToJsonString());
+        var draft = context.CompleteDraft(); var unit = draft["revision"]!["units"]![0]!;
+        unit["unitId"] = receipt["units"]![0]!["unitId"]!.DeepClone(); unit["expectedPriorEventRevision"] = 1;
+        unit["components"]![0]!["amount"] = "105.00"; draft["revision"]!["total"] = "115.00";
+        unit["evidence"]!["varianceAmount"] = "5.00"; unit["evidence"]!["varianceReason"] = "Price change";
+        unit["evidence"]!["varianceClassification"] = "Inventory";
+        var reviewed = await ReviewedAsync(context, draft);
+        // WHEN posting lacks authoritative held-inventory evidence THEN neither bill nor payable posts.
+        Assert.Equal(51000, (await Assert.ThrowsAsync<SqlException>(() => context.ExecuteAsync("PostSupplierBill", Guid.NewGuid(), context.PostCommand(reviewed)))).Number);
+        Assert.Equal(0m, await context.Recognition.BalanceAsync("SupplierPayable"));
+        Assert.Equal(100m, await context.Recognition.BalanceAsync("Inventory"));
+    }
+
+    [Fact]
+    public async Task ZeroAndMixedUnitsRetainEvidenceWithoutZeroOnlyJournals()
+    {
+        // GIVEN an invoice containing both classifications and a zero-valued unit.
+        await using var context = await OpenAsync(sqlServer);
+        var draft = context.CompleteDraft(); var units = draft["revision"]!["units"]!.AsArray();
+        var expense = units[0]!.DeepClone(); expense["unitId"] = Guid.NewGuid().ToString();
+        expense["componentKey"] = "expense"; expense["classification"] = "Expense"; units.Add(expense);
+        var zero = units[0]!.DeepClone(); zero["unitId"] = Guid.NewGuid().ToString(); zero["componentKey"] = "free";
+        zero["components"]![0]!["amount"] = "0"; zero["components"]![1]!["amount"] = "0"; units.Add(zero);
+        draft["revision"]!["total"] = "220.00";
+        var reviewed = await ReviewedAsync(context, draft);
+        // WHEN the adapter posts THEN every source event survives and no zero-only journal appears.
+        var posted = await context.ExecuteAsync("PostSupplierBill", Guid.NewGuid(), context.PostCommand(reviewed));
+        Assert.Equal(3, posted["recognitionEventIds"]!.AsArray().Count);
+        Assert.Equal(2, posted["journalIds"]!.AsArray().Count);
+        Assert.Equal(-220m, await context.Recognition.BalanceAsync("SupplierPayable"));
+        Assert.Equal(200m, await context.Recognition.BalanceAsync("Prepayment"));
+    }
+
+    [Theory]
     [InlineData("ProForma")]
+    [InlineData("Unreviewed")]
     [InlineData("StaleVersion")]
     [InlineData("CallerAmount")]
     [InlineData("ChangedDuplicateSet")]
@@ -70,7 +137,8 @@ public sealed class SupplierBillPostingTests(SqlServerFixture sqlServer)
     {
         // GIVEN a reviewed source which is non-posting or whose command/evidence changed.
         await using var context = await OpenAsync(sqlServer);
-        var reviewed = await ReviewedAsync(context, context.CompleteDraft(kind: scenario == "ProForma" ? "ProForma" : "Invoice"));
+        var draft = context.CompleteDraft(kind: scenario == "ProForma" ? "ProForma" : "Invoice");
+        var reviewed = scenario == "Unreviewed" ? await context.SaveAsync(Guid.NewGuid(), draft) : await ReviewedAsync(context, draft);
         var input = context.PostCommand(reviewed);
         if (scenario == "StaleVersion") input["billVersion"] = "0x0000000000000000";
         if (scenario == "CallerAmount") input["total"] = "1.00";

@@ -26,9 +26,13 @@ internal sealed class SupplierBillTestContext(PurchaseRecognitionTestContext rec
     }
     public JsonObject DraftCommand(string reference = "INV-1") => new()
     {
-        ["schemaVersion"] = 1, ["operation"] = "Create", ["billId"] = Guid.NewGuid().ToString(),
-        ["purchaseOrderId"] = Recognition.PurchaseOrderId.ToString(), ["supplierId"] = Recognition.SupplierId.ToString(),
-        ["currency"] = "USD", ["expectedPurchaseOrderVersion"] = Recognition.PurchaseOrderVersion,
+        ["schemaVersion"] = 1,
+        ["operation"] = "Create",
+        ["billId"] = Guid.NewGuid().ToString(),
+        ["purchaseOrderId"] = Recognition.PurchaseOrderId.ToString(),
+        ["supplierId"] = Recognition.SupplierId.ToString(),
+        ["currency"] = "USD",
+        ["expectedPurchaseOrderVersion"] = Recognition.PurchaseOrderVersion,
         ["revision"] = new JsonObject { ["kind"] = "Invoice", ["reference"] = reference }
     };
     public JsonObject CompleteDraft(string reference = "INV-1", string kind = "Invoice")
@@ -59,6 +63,19 @@ internal sealed class SupplierBillTestContext(PurchaseRecognitionTestContext rec
     }
     public Task<JsonObject> ReviewAsync(Guid requestId, JsonObject command)
         => ExecuteAsync("ReviewSupplierBill", requestId, command);
+    public async Task<(Guid DocumentId, Guid RevisionId)> SeedDocumentAsync()
+    {
+        var document = Guid.NewGuid(); var revision = Guid.NewGuid(); var attachment = Guid.NewGuid();
+        await AdminAsync($"""
+            INSERT Storage.Attachments(Id,TenantId,CreatedAtUtc) VALUES('{attachment}','{JournalTestContext.TenantId}',SYSUTCDATETIME());
+            INSERT Storage.Revisions(Id,TenantId,AttachmentId,OperationId,ActorUserId,ProviderAlias,Source,MediaType,Length,Sha256,State,CreatedAtUtc)
+              VALUES('{revision}','{JournalTestContext.TenantId}','{attachment}',NEWID(),'{JournalTestContext.ActorId}','local','PurchaseOrderDocumentOriginal','application/pdf',4,REPLICATE('A',64),1,SYSUTCDATETIME());
+            UPDATE Storage.Attachments SET CurrentRevisionId='{revision}' WHERE Id='{attachment}';
+            INSERT Purchasing.PurchaseOrderDocuments(Id,TenantId,OrderId,AttachmentId,RevisionId,Label,MediaType,Extension,Length,Sha256,CreatedAtUtc)
+              VALUES('{document}','{JournalTestContext.TenantId}','{Recognition.PurchaseOrderId}','{attachment}','{revision}','Invoice','application/pdf','pdf',4,REPLICATE('A',64),SYSUTCDATETIME());
+            """);
+        return (document, revision);
+    }
     public JsonObject PostCommand(JsonObject reviewed)
     {
         var command = Change(reviewed, "Post");
@@ -95,7 +112,9 @@ internal sealed class SupplierBillTestContext(PurchaseRecognitionTestContext rec
     {
         var command = new JsonObject
         {
-            ["schemaVersion"] = 1, ["operation"] = operation, ["billId"] = created["billId"]!.DeepClone(),
+            ["schemaVersion"] = 1,
+            ["operation"] = operation,
+            ["billId"] = created["billId"]!.DeepClone(),
             ["billVersion"] = created["version"]!.DeepClone(),
             ["expectedPurchaseOrderVersion"] = Recognition.PurchaseOrderVersion
         };

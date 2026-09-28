@@ -38,11 +38,12 @@ public sealed class SupplierBillQueryTests(SqlServerFixture sqlServer)
         Assert.Single(next["items"]!.AsArray());
         Assert.Equal(3, page["items"]!.AsArray().Concat(next["items"]!.AsArray()).Select(x => x!["billId"]!.ToString()).Distinct().Count());
         var id = Guid.Parse(posted["billId"]!.GetValue<string>());
-        var detail = await ReadAsync(context, "ReadSupplierBill", ("@BillId", id));
+        var detail = await new Workbench.Server.Purchasing.SupplierBillQueries(context.Journal.Connection)
+            .ReadAsync(JournalTestContext.ActorId, context.Journal.SessionId, id, default);
         // THEN evidence and result still identify the immutable financial source, with no paid/outstanding invention.
-        Assert.Equal("Posted", detail["state"]!.GetValue<string>());
-        Assert.Equal(posted["journalIds"]!.ToJsonString(), detail["posting"]!["journalIds"]!.ToJsonString());
-        Assert.Equal("110.00", detail["revision"]!["total"]!.GetValue<string>());
+        Assert.Equal("Posted", detail.State);
+        Assert.Equal(posted["journalIds"]!.ToJsonString(), detail.Posting!.Value.GetProperty("journalIds").GetRawText());
+        Assert.Equal("110.00", detail.Revision.GetProperty("total").GetString());
         var history = await ReadAsync(context, "ReadSupplierBillHistory", ("@BillId", id), ("@Take", 2));
         Assert.Equal(2, history["items"]!.AsArray().Count);
         var remaining = await ReadAsync(context, "ReadSupplierBillHistory", ("@BillId", id), ("@Take", 2), ("@AfterSequence", history["nextSequence"]!.GetValue<long>()));
@@ -60,20 +61,14 @@ public sealed class SupplierBillQueryTests(SqlServerFixture sqlServer)
         Assert.Equal(51003, (await Assert.ThrowsAsync<SqlException>(() => ReadAsync(context, "ReadSupplierBills", ("@PurchaseOrderId", context.Recognition.PurchaseOrderId)))).Number);
     }
 
-    [Fact]
-    public async Task RemovedEvidenceChangesAvailabilityWithoutRewritingPostedSnapshot()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task UnavailableEvidenceDoesNotRewritePostedSnapshot(bool recoveryMissing)
     {
         // GIVEN immutable private document metadata linked to a reviewed supplier invoice.
         await using var context = await OpenAsync(sqlServer);
-        var documentId = Guid.NewGuid(); var revisionId = Guid.NewGuid(); var attachmentId = Guid.NewGuid();
-        await context.AdminAsync($"""
-            INSERT Storage.Attachments(Id,TenantId,CreatedAtUtc) VALUES('{attachmentId}','{JournalTestContext.TenantId}',SYSUTCDATETIME());
-            INSERT Storage.Revisions(Id,TenantId,AttachmentId,OperationId,ActorUserId,ProviderAlias,Source,MediaType,Length,Sha256,State,CreatedAtUtc)
-              VALUES('{revisionId}','{JournalTestContext.TenantId}','{attachmentId}',NEWID(),'{JournalTestContext.ActorId}','local','UserUpload','application/pdf',4,REPLICATE('A',64),1,SYSUTCDATETIME());
-            UPDATE Storage.Attachments SET CurrentRevisionId='{revisionId}' WHERE Id='{attachmentId}';
-            INSERT Purchasing.PurchaseOrderDocuments(Id,TenantId,OrderId,AttachmentId,RevisionId,Label,MediaType,Extension,Length,Sha256,CreatedAtUtc)
-              VALUES('{documentId}','{JournalTestContext.TenantId}','{context.Recognition.PurchaseOrderId}','{attachmentId}','{revisionId}','Invoice','application/pdf','.pdf',4,REPLICATE('A',64),SYSUTCDATETIME());
-            """);
+        var (documentId, revisionId) = await context.SeedDocumentAsync();
         var draft = context.CompleteDraft();
         draft["revision"]!["documents"] = new JsonArray(new JsonObject { ["documentId"] = documentId.ToString(), ["revisionId"] = revisionId.ToString() });
         var reviewed = await SupplierBillPostingTests.ReviewedAsync(context, draft);
@@ -82,7 +77,9 @@ public sealed class SupplierBillQueryTests(SqlServerFixture sqlServer)
         var before = await ReadAsync(context, "ReadSupplierBill", ("@BillId", id));
         Assert.True(before["evidence"]?[0]?["available"]?.GetValue<bool>());
         // WHEN the document metadata records subsequent ordinary removal (BK-07 holds are not delivered).
-        await context.AdminAsync($"UPDATE Purchasing.PurchaseOrderDocuments SET RemovedAtUtc=SYSUTCDATETIME() WHERE Id='{documentId}'");
+        await context.AdminAsync(recoveryMissing
+            ? $"INSERT Storage.RecoveryFiles(TenantId,RevisionId,ReportId,Generation,Reason,AcceptedAtUtc) VALUES('{JournalTestContext.TenantId}','{revisionId}',NEWID(),1,'Missing',SYSUTCDATETIME())"
+            : $"UPDATE Purchasing.PurchaseOrderDocuments SET RemovedAtUtc=SYSUTCDATETIME() WHERE Id='{documentId}'");
         var after = await ReadAsync(context, "ReadSupplierBill", ("@BillId", id));
         // THEN live availability changes while immutable financial and document evidence survives.
         Assert.False(after["evidence"]![0]!["available"]!.GetValue<bool>());

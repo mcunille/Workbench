@@ -224,7 +224,11 @@ files keep their metadata and explain that another copy or administrator help is
 Files do not create structured invoice amounts, payments, credits or inventory and do not advance
 the agreed order revision. One file may contain several invoices, or one invoice may span files.
 Invoice numbers, due dates, amount comparisons and duplicate supplier-reference warnings remain
-future work. See the [attachment scope](specs/2026-09-18-po-06-invoices-and-purchase-documents.md).
+unavailable in the application. BK-05 provides an internal structured bill foundation with immutable
+revisions, review, duplicate resolutions and posting derived from stored components; it adds no bill
+entry UI or public write routes. Private file links report current availability without promising
+future evidence holds. See the [attachment scope](specs/2026-09-18-po-06-invoices-and-purchase-documents.md)
+and [bill foundation](specs/2026-09-27-bk-05-structured-supplier-bills.md).
 
 ## Delete an unwanted draft
 

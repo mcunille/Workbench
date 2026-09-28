@@ -55,6 +55,11 @@ public sealed class PasswordPrincipalProvisioningTests(SqlServerFixture sqlServe
         // WHEN contained principals are provisioned and provisioned again.
         await inputs.ProvisionAsync(database);
         await inputs.ProvisionAsync(database);
+        // AND the bill read procedures remain callable, without activating any bill mutation.
+        foreach (var query in new[] { "ReadSupplierBills", "ReadSupplierBill", "ReadSupplierBillHistory" })
+            Assert.Equal(1, await ScalarAsync(database, $"SELECT COUNT(*) FROM sys.database_permissions WHERE grantee_principal_id=DATABASE_PRINCIPAL_ID('workbench_web') AND major_id=OBJECT_ID('Purchasing.{query}') AND permission_name='EXECUTE' AND state='G'"));
+        foreach (var mutation in new[] { "SaveSupplierBill", "ReviewSupplierBill", "PostSupplierBill" })
+            Assert.Equal(0, await ScalarAsync(database, $"SELECT COUNT(*) FROM sys.database_permissions WHERE grantee_principal_id IN (DATABASE_PRINCIPAL_ID('workbench_web'),DATABASE_PRINCIPAL_ID('workbench_worker'),DATABASE_PRINCIPAL_ID('public')) AND major_id=OBJECT_ID('Purchasing.{mutation}') AND permission_name='EXECUTE' AND state IN ('G','W')"));
         // THEN each financial table is readable but cannot be changed directly by the web role.
         foreach (var table in new[] { "PolicyFreezes", "SourceEvents", "JournalEntries", "JournalLines", "PostingReceipts",
             "Periods", "PeriodClosures", "PeriodCloseReceipts", "CorrectionGroups", "CorrectionReceipts" })

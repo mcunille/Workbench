@@ -66,6 +66,10 @@ internal static class SupplierBillDraftCommands
             IF @Operation<>'Abandon'
             BEGIN
               DECLARE @DraftEvidence nvarchar(max),@Payload nvarchar(max)=JSON_QUERY(@Canonical,'$.revision');
+              DECLARE @Predecessor uniqueidentifier=TRY_CONVERT(uniqueidentifier,JSON_VALUE(@Payload,'$.predecessorBillId'));
+              IF @Predecessor IS NOT NULL AND (@Predecessor=@BillId OR NOT EXISTS(
+                SELECT 1 FROM Purchasing.SupplierBills WHERE TenantId=@TenantId AND Id=@Predecessor))
+                THROW 51004,'Predecessor bill unavailable.',1;
               EXEC Purchasing.ValidateBillEvidence @TenantId,@PoId,@Payload,@DraftEvidence OUTPUT;
               SET @RevisionId=NEWID();
               INSERT Purchasing.SupplierBillRevisions(TenantId,Id,BillId,Sequence,PurchaseOrderRevision,SupplierName,Payload,NormalizedReference,ActorId,RecordedAtUtc)

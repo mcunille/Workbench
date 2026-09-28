@@ -15,9 +15,9 @@ internal sealed class PurchaseRecognitionTestContext : IAsyncDisposable
     public Dictionary<string, Guid> Accounts { get; } = [];
     private PurchaseRecognitionTestContext(JournalTestContext journal) => Journal = journal;
 
-    public static async Task<PurchaseRecognitionTestContext> OpenAsync(SqlServerFixture fixture)
+    public static async Task<PurchaseRecognitionTestContext> OpenAsync(SqlServerFixture fixture, string? priorMigration = null)
     {
-        var result = new PurchaseRecognitionTestContext(await JournalTestContext.OpenAsync(fixture));
+        var result = new PurchaseRecognitionTestContext(await JournalTestContext.OpenAsync(fixture, priorMigration));
         try
         {
             await using var admin = new SqlConnection(result.Journal.Application.AdminConnectionString);

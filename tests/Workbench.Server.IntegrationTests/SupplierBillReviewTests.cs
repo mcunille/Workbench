@@ -62,7 +62,8 @@ public sealed class SupplierBillReviewTests(SqlServerFixture sqlServer)
         Assert.Equal(51009, (await Assert.ThrowsAsync<SqlException>(() => context.ReviewAsync(Guid.NewGuid(), review))).Number);
         review["resolutions"] = new JsonArray(new JsonObject
         {
-            ["conflictingBillId"] = second["billId"]!.DeepClone(), ["conflictingRevisionId"] = second["revisionId"]!.DeepClone(),
+            ["conflictingBillId"] = second["billId"]!.DeepClone(),
+            ["conflictingRevisionId"] = second["revisionId"]!.DeepClone(),
             ["reason"] = "The other document is the pro forma preceding this actual invoice"
         });
         Assert.Equal("Reviewed", (await context.ReviewAsync(Guid.NewGuid(), review))["state"]!.GetValue<string>());

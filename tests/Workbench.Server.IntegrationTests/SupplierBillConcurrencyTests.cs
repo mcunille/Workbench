@@ -40,8 +40,10 @@ public sealed class SupplierBillConcurrencyTests(SqlServerFixture sqlServer)
         Assert.Equal(-110m, await context.Recognition.BalanceAsync("SupplierPayable"));
     }
 
-    [Fact]
-    public async Task PostRetryRechecksBothPermissionsBeforeReturningReceipt()
+    [Theory]
+    [InlineData("SupplierBillsManage")]
+    [InlineData("SupplierBillsPost")]
+    public async Task PostRetryRechecksBothPermissionsBeforeReturningReceipt(string permission)
     {
         // GIVEN a posted invoice and its exact successful request.
         await using var context = await SupplierBillPostingTests.OpenAsync(sqlServer);
@@ -51,9 +53,95 @@ public sealed class SupplierBillConcurrencyTests(SqlServerFixture sqlServer)
         await context.AdminAsync("UPDATE Purchasing.DraftOrders SET UpdatedAtUtc=SYSUTCDATETIME()");
         Assert.Equal(posted.ToJsonString(), (await context.ExecuteAsync("PostSupplierBill", request, input)).ToJsonString());
         // AND losing either business permission denies that same replay without changing the posting.
-        await context.AdminAsync("DELETE [Identity].RoleClaims WHERE ClaimValue=N'SupplierBillsPost'");
+        await context.AdminAsync($"DELETE [Identity].RoleClaims WHERE ClaimValue=N'{permission}'");
         Assert.Equal(51003, (await Assert.ThrowsAsync<SqlException>(() => context.ExecuteAsync("PostSupplierBill", request, input))).Number);
         Assert.Equal(1, await context.Journal.CountAsync("JournalEntries"));
+    }
+
+    [Theory]
+    [InlineData(true, false)]
+    [InlineData(false, false)]
+    [InlineData(true, true)]
+    [InlineData(false, true)]
+    public async Task DuplicateCreationAndPeriodCloseRespectBothSerialOrders(bool postingFirst, bool closing)
+    {
+        // GIVEN a reviewed source and an independent writer changing a posting prerequisite.
+        await using var context = await SupplierBillPostingTests.OpenAsync(sqlServer);
+        var reviewed = await SupplierBillPostingTests.ReviewedAsync(context);
+        await using var sibling = await context.Journal.OpenSiblingAsync();
+        if (closing) await context.AdminAsync(JournalControlAdapterSql.Install);
+        Task Post() => context.ExecuteAsync("PostSupplierBill", Guid.NewGuid(), context.PostCommand(reviewed));
+        async Task Change()
+        {
+            if (!closing) { await context.SaveAsync(Guid.NewGuid(), context.CompleteDraft(), sibling); return; }
+            await using var command = new SqlCommand("EXEC Accounting.CloseSyntheticPeriod @ActorId=@actor,@SessionId=@session,@RequestId=@request,@ExpectedConfigurationVersion=@version,@PeriodStart='2026-02-01',@Reason=N'Reconciled',@Evidence=NULL", sibling);
+            command.Parameters.AddWithValue("@actor", JournalTestContext.ActorId); command.Parameters.AddWithValue("@session", context.Journal.SessionId);
+            command.Parameters.AddWithValue("@request", Guid.NewGuid()); command.Parameters.AddWithValue("@version", context.Journal.ConfigurationVersion);
+            await command.ExecuteNonQueryAsync();
+        }
+        // WHEN real transactions overlap THEN the second writer observes the first committed result.
+        var error = await PurchaseRecognitionConcurrencyTests.InOrderAsync(context.Recognition,
+            postingFirst ? context.Journal.Connection : sibling, postingFirst ? sibling : context.Journal.Connection,
+            postingFirst ? Post : Change, postingFirst ? Change : Post);
+        if (postingFirst) Assert.Null(error); else Assert.Equal(51009, error?.Number);
+        Assert.Equal(postingFirst ? 1 : 0, await context.Journal.CountAsync("JournalEntries"));
+        Assert.Equal(postingFirst ? -110m : 0m, await context.Recognition.BalanceAsync("SupplierPayable"));
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task DocumentRemovalAndPostingRespectBothSerialOrders(bool postingFirst)
+    {
+        // GIVEN a reviewed document and the existing restricted document removal command.
+        await using var context = await SupplierBillPostingTests.OpenAsync(sqlServer);
+        var (document, revision) = await context.SeedDocumentAsync();
+        var draft = context.CompleteDraft();
+        draft["revision"]!["documents"] = new JsonArray(new JsonObject { ["documentId"] = document.ToString(), ["revisionId"] = revision.ToString() });
+        var reviewed = await SupplierBillPostingTests.ReviewedAsync(context, draft);
+        var documentVersion = await context.ScalarAsync<byte[]>($"SELECT RowVersion FROM Purchasing.PurchaseOrderDocuments WHERE Id='{document}'");
+        await using var sibling = await context.Journal.OpenSiblingAsync();
+        Task Post() => context.ExecuteAsync("PostSupplierBill", Guid.NewGuid(), context.PostCommand(reviewed));
+        async Task Remove()
+        {
+            await using var command = new SqlCommand("""
+                BEGIN TRANSACTION;
+                EXEC Purchasing.PreparePurchaseOrderDocument @OrderId=@po,@RequestId=@request,@ExpectedOrderVersion=@poVersion,
+                  @Kind=2,@DocumentId=@document,@ExpectedDocumentVersion=@documentVersion,@ActorUserId=@actor;
+                EXEC Purchasing.FinishPurchaseOrderDocument @RequestId=@request,@Published=0;
+                COMMIT;
+                """, sibling);
+            command.Parameters.AddWithValue("@po", context.Recognition.PurchaseOrderId); command.Parameters.AddWithValue("@request", Guid.NewGuid());
+            command.Parameters.AddWithValue("@poVersion", Convert.FromHexString(context.Recognition.PurchaseOrderVersion[2..]));
+            command.Parameters.AddWithValue("@document", document); command.Parameters.AddWithValue("@documentVersion", documentVersion);
+            command.Parameters.AddWithValue("@actor", JournalTestContext.ActorId); await command.ExecuteNonQueryAsync();
+        }
+        var first = postingFirst ? context.Journal.Connection : sibling;
+        var second = postingFirst ? sibling : context.Journal.Connection;
+        await using var transaction = new SqlCommand("BEGIN TRANSACTION", first); await transaction.ExecuteNonQueryAsync();
+        try
+        {
+            // WHEN one source transaction retains its PO/document locks while the other arrives.
+            await (postingFirst ? Post() : Remove());
+            var competing = Record.ExceptionAsync(postingFirst ? Remove : Post);
+            await WaitForRowLockAsync(context, first.ServerProcessId, second.ServerProcessId);
+            transaction.CommandText = "COMMIT"; await transaction.ExecuteNonQueryAsync();
+            var error = await competing;
+            // THEN a completed removal prevents posting; a first posting retains its honest evidence.
+            if (postingFirst) Assert.Null(error); else Assert.Equal(51009, Assert.IsType<SqlException>(error).Number);
+            Assert.Equal(postingFirst ? 1 : 0, await context.Journal.CountAsync("JournalEntries"));
+        }
+        finally { transaction.CommandText = "IF @@TRANCOUNT>0 ROLLBACK"; await transaction.ExecuteNonQueryAsync(); }
+    }
+
+    private static async Task WaitForRowLockAsync(SupplierBillTestContext context, int holder, int waiter)
+    {
+        // Document commands coordinate on the PO row, not the accounting application lock.
+        await using var observer = new SqlConnection(context.Journal.Application.AdminConnectionString); await observer.OpenAsync();
+        await using var command = new SqlCommand("SELECT COUNT(*) FROM sys.dm_exec_requests WHERE session_id=@waiter AND blocking_session_id=@holder AND wait_type LIKE 'LCK_M_%' AND wait_resource LIKE 'KEY:%'", observer);
+        command.Parameters.AddWithValue("@holder", holder); command.Parameters.AddWithValue("@waiter", waiter);
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(7));
+        while ((int)(await command.ExecuteScalarAsync(timeout.Token))! != 1) await Task.Delay(30, timeout.Token);
     }
 
     private static async Task<(JsonObject? Result, SqlException? Error)> CaptureAsync(Task<JsonObject> task)

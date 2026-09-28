@@ -80,6 +80,7 @@ internal static class SupplierBillValidation
             OR EXISTS(SELECT 1 FROM @Nodes WHERE Name='schemaVersion' AND Value<>'1')
             OR EXISTS(SELECT 1 FROM @Nodes WHERE Name='currency' AND (DATALENGTH(Value)<>6 OR Value LIKE '%[^A-Z]%'))
             OR EXISTS(SELECT 1 FROM @Nodes WHERE Name='operation' AND Value NOT IN('Create','Revise','Abandon','Review','Post'))
+            OR EXISTS(SELECT 1 FROM @Nodes WHERE Name IN('operation','kind','classification','varianceClassification') AND DATALENGTH(Value)<>DATALENGTH(RTRIM(Value)))
             OR EXISTS(SELECT 1 FROM @Nodes n JOIN @Nodes p ON n.ParentId=p.Id WHERE p.Kind='revision' AND n.Name='kind' AND n.Value NOT IN('Invoice','ProForma'))
             THROW 51000,'Invalid supplier bill value.',1;
           IF EXISTS(SELECT 1 FROM @Nodes n CROSS APPLY(SELECT CASE WHEN LEFT(n.Value,1)='-' AND

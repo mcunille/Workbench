@@ -25,10 +25,16 @@ public sealed class SupplierBillCorrectionGuardTests(SqlServerFixture sqlServer)
         await context.AdminAsync("GRANT EXECUTE ON Purchasing.CorrectBillUnitForTest TO workbench_web");
         var correction = new JsonObject
         {
-            ["schemaVersion"] = 1, ["operation"] = "Reverse", ["expectedConfigurationVersion"] = context.Journal.ConfigurationVersion.ToString(),
-            ["purchaseOrderId"] = context.Recognition.PurchaseOrderId.ToString(), ["expectedPurchaseOrderVersion"] = context.Recognition.PurchaseOrderVersion,
-            ["unitId"] = draft["revision"]!["units"]![0]!["unitId"]!.DeepClone(), ["postingDate"] = "2026-02-02", ["reason"] = "Attempt generic correction",
-            ["expectedEventRevisions"] = new JsonArray(new JsonObject { ["side"] = "Invoice", ["eventRevision"] = 1 }), ["replacement"] = null
+            ["schemaVersion"] = 1,
+            ["operation"] = "Reverse",
+            ["expectedConfigurationVersion"] = context.Journal.ConfigurationVersion.ToString(),
+            ["purchaseOrderId"] = context.Recognition.PurchaseOrderId.ToString(),
+            ["expectedPurchaseOrderVersion"] = context.Recognition.PurchaseOrderVersion,
+            ["unitId"] = draft["revision"]!["units"]![0]!["unitId"]!.DeepClone(),
+            ["postingDate"] = "2026-02-02",
+            ["reason"] = "Attempt generic correction",
+            ["expectedEventRevisions"] = new JsonArray(new JsonObject { ["side"] = "Invoice", ["eventRevision"] = 1 }),
+            ["replacement"] = null
         };
         // WHEN generic correction tries to reverse the bill's unit THEN owning source history blocks it.
         var error = await Assert.ThrowsAsync<SqlException>(() => context.ExecuteAsync("CorrectBillUnitForTest", Guid.NewGuid(), correction));

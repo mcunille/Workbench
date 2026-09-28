@@ -222,7 +222,7 @@ public sealed class PurchaseRecognitionConcurrencyTests(SqlServerFixture sqlServ
         Assert.Equal(0m, await context.BalanceAsync("Inventory"));
     }
 
-    private static async Task<SqlException?> InOrderAsync(PurchaseRecognitionTestContext context, SqlConnection firstConnection, SqlConnection secondConnection, Func<Task> first, Func<Task> second)
+    internal static async Task<SqlException?> InOrderAsync(PurchaseRecognitionTestContext context, SqlConnection firstConnection, SqlConnection secondConnection, Func<Task> first, Func<Task> second)
     {
         await using var gate = await JournalConcurrencyTests.AccountingLockGate.OpenAsync(context.Journal.Application.AdminConnectionString);
         await ExecuteAsync(firstConnection, "BEGIN TRANSACTION");

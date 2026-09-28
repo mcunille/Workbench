@@ -1,7 +1,7 @@
 # BK-05: structured supplier bills
 
-**Status:** Proposed written specification. The owner approved the internal-foundation scope;
-this specification and its subsequent implementation plan require separate review before code.
+**Status:** Implemented as an internal foundation after owner approval of this specification and
+its implementation plan. Production bill entry and bookkeeping activation remain unavailable.
 
 Parent: [PO-07 bookkeeping prerequisites](2026-09-20-po-07-deposits-and-payments.md).
 Prerequisites: [BK-02](2026-09-23-bk-02-atomic-journal.md),

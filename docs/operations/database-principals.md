@@ -1,5 +1,11 @@
 # Database principals
 
+BK-05 bill mutations (`Purchasing.SaveSupplierBill`, `ReviewSupplierBill`, `PostSupplierBill`) have
+no `workbench_web` EXECUTE grant. The fixed `SupplierBillsManage` and `SupplierBillsPost` permissions
+are not assigned to production roles. Bill tables deny direct runtime writes; bounded read procedures
+require current management or accounting-report authority. Do not activate these commands as a
+deployment shortcut: public entry, evidence holds, corrections and reconciliation remain release gates.
+
 This is the authoritative operational matrix for Workbench database identities. Role names below
 are SQL roles; provision a distinct database user or managed identity for each workload. Application
 tenant administrators are not SQL operators. Never combine workload roles or give a restricted
