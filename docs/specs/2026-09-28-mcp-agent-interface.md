@@ -254,6 +254,13 @@ These are focused follow-on design decisions, not authorization to implement the
 an integration. This product spec intentionally does not choose database migrations, SDK versions,
 individual tool schemas, or an implementation task sequence.
 
+## Milestones and future agent handoffs
+
+The [milestones and user stories](2026-09-28-mcp-milestones-and-stories.md) define product outcomes,
+acceptance evidence, prerequisites, and parallel delivery tracks. Each story undergoes its own
+brainstorming, design, implementation, and validation before delivery; the roadmap is not an
+implementation plan or blanket approval to begin development.
+
 ## Evidence and references
 
 - Current application contracts: [Architecture](../ARCHITECTURE.md),

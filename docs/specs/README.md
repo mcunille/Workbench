@@ -8,6 +8,8 @@ history, not a backlog and not a substitute for current documentation.
 [MCP agent interface](2026-09-28-mcp-agent-interface.md) proposes full agent-eligible business
 workflow coverage through tenant-owned service principals with predefined role assignments.
 It is a product and architecture draft; identity/tenant administration remains human-only.
+Its [milestones and agent handoff stories](2026-09-28-mcp-milestones-and-stories.md) define delivery
+outcomes, dependencies, validation evidence, and parallel work.
 
 [Raised content workspace](2026-09-25-raised-content-workspace.md) records the implemented
 desktop atmospheric content sheet in front of a solid canvas navigation backdrop, retaining
