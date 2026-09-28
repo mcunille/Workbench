@@ -240,13 +240,14 @@ Return the resolved cutoffs in responses and bind filters/cutoffs to stable pagi
 Bound pages to 200 rows and source-detail envelopes to the command limits. Return whole-filter
 totals separately from page totals. Monetary values remain decimal strings.
 
-The implemented snapshot runs under the shared tenant Accounting lock. Cursors also bind route,
+The implemented database capture runs under the shared tenant Accounting lock, then commits and
+disposes its transaction before indexing evidence and computing responses. Cursors also bind route,
 page size and captured financial-group/journal sequence ceilings, so later commits cannot enter a
-continued report even with backdated postings or a future recorded cutoff. Snapshot metadata memory
-grows with tenant history; repeated per-item/line/source scans require at least quadratic CPU work
-for ordinary growing histories while holding that shared lock. Response bounds do not bound this
-processing cost. No measured latency, throughput or scalability claim is made; final review must
-triage this recorded limitation.
+continued report even with backdated postings or a future recorded cutoff. Duplicate-preserving keyed
+lookups replace repeated whole-history scans; indexing, projection and reconciliation observe request
+cancellation outside the lock. Database capture still holds the shared lock and loads metadata
+proportional to tenant history. Page bounds do not bound capture or total processing; capture memory
+and latency remain unmeasured, with no throughput or maximum-history claim.
 
 Reconcile each historical account, currency and control family, then roll up by supplier/PO/bill.
 Liability controls use credit minus debit; asset controls use debit minus credit. Aggregate item

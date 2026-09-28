@@ -158,17 +158,19 @@ are not installed. Commands and correction closures are bounded to 262,144 bytes
 
 Four GET accounting routes expose items, detail, history and reconciliation with AccountingReportsRead.
 Under a shared Accounting lock, each transaction captures journal/group sequence ceilings and reads
-tenant-qualified immutable metadata into an in-memory snapshot. Protected cursors bind those ceilings,
+tenant-qualified immutable metadata into an in-memory snapshot, then commits and disposes the
+transaction before indexing evidence and computing responses. Protected cursors bind those ceilings,
 tenant, route, filters, page size and inclusive posting/recorded cutoffs. Exact fixed-unit BigInteger
 aggregation compares all four control families against independent historical journal totals, including
 archived mappings and unknown or zero-net unattributed activity. Source validation follows durable
 source/revision/correction/receipt links and exact historical journal ordinals, not equal amounts or
 timestamps alone. The web role has narrow read access to three RLS-protected proof/identity functions.
 
-Pages contain at most 200 rows; this does not bound processing. Snapshot memory grows with tenant
-history, and repeated scans require at least quadratic CPU work for ordinary growing histories while
-the shared Accounting lock is held. No throughput, latency or scalability bound has been measured;
-this limitation remains recorded for complete-branch review.
+Pages contain at most 200 rows; this does not bound capture or processing. Duplicate-preserving keyed
+lookups replace repeated whole-history scans, and indexing, projection and reconciliation observe
+request cancellation outside the shared Accounting lock. Snapshot capture still holds that lock and
+loads metadata proportional to tenant history; capture memory and latency remain unmeasured. No
+throughput, latency or maximum-history bound has been established.
 
 The single forward migration follows merged BK-05. Supported recognition attribution can be rebuilt
 only after full source/group/item/movement/journal identity proof; it adds missing derived attribution

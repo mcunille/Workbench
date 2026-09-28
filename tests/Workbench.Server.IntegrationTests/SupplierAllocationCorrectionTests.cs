@@ -36,8 +36,10 @@ public sealed class SupplierAllocationCorrectionTests(SqlServerFixture sqlServer
         Assert.Equal(-100m, await context.Bills.ScalarAsync<decimal>($"SELECT SUM(Debit-Credit) FROM Accounting.JournalLines WHERE AccountId='{context.Bank}'"));
     }
 
-    [Fact]
-    public async Task ExplicitPartialReapplicationIsOneGroupAndPreservesCash()
+    [Theory]
+    [InlineData("expectedItemVersion")]
+    [InlineData("expectedFundingItemVersion")]
+    public async Task ExplicitPartialReapplicationIsOneGroupAndPreservesCash(string field)
     {
         // GIVEN a fully applied real deposit and an explicit retained application of forty.
         await using var context = await SupplierCorrectionFixture.OpenAsync(sqlServer);
@@ -57,6 +59,17 @@ public sealed class SupplierAllocationCorrectionTests(SqlServerFixture sqlServer
             ["expectedItemVersion"] = retain["targets"]![0]!["expectedItemVersion"]!.DeepClone(),
             ["amount"] = "40"
         });
+        // WHEN either original rowversion has a valid prefix followed by an extra hex byte.
+        var before = await SupplierOpenItemAtomicityTests.SnapshotAsync(context);
+        {
+            var malformed = reverse.DeepClone().AsObject();
+            var target = malformed["reapplications"]![0]!;
+            target[field] = target[field]!.GetValue<string>() + "00";
+            // THEN structural rejection leaves every persisted financial and audit row unchanged.
+            var error = await Assert.ThrowsAsync<SqlException>(() => context.Bills.ExecuteAsync("ReverseSupplierApplication", Guid.NewGuid(), malformed));
+            Assert.Equal(51000, error.Number);
+            Assert.Equal(before, await SupplierOpenItemAtomicityTests.SnapshotAsync(context));
+        }
         // WHEN the complete old application is reversed and the requested portion reapplied atomically.
         var result = await context.Bills.ExecuteAsync("ReverseSupplierApplication", Guid.NewGuid(), reverse);
         // THEN two immutable applications represent the edit and cash has not changed.

@@ -25,19 +25,26 @@ internal static class SupplierOpenItemQueries
         {
             var item = snapshot.SelectedItems.SingleOrDefault(i => i.Id == id);
             if (item is null) return Task.FromResult(JournalReportEndpoints.Unavailable());
-            var rows = snapshot.Movements.Where(m => m.ItemId == id && snapshot.Visible(m)).Select(m =>
+            var rows = snapshot.Evidence(snapshot.MovementsByItem, id).Where(snapshot.Visible).Select(m =>
             {
-                var journal = snapshot.Journals.Values.SingleOrDefault(j => j.SourceEventId == m.SourceEventId);
+                var journal = snapshot.Evidence(snapshot.JournalsBySource, m.SourceEventId).SingleOrDefault();
                 var source = snapshot.Sources.GetValueOrDefault(m.SourceEventId);
-                var application = snapshot.Applications.SingleOrDefault(a => a.Id == source?.SourceId);
-                var reversal = snapshot.Reversals.SingleOrDefault(r => r.Id == source?.SourceId);
-                var correction = snapshot.Corrections.SingleOrDefault(c => c.ReversalSourceEventId == m.SourceEventId);
+                var application = snapshot.Evidence(snapshot.ApplicationsById, source?.SourceId).SingleOrDefault();
+                var reversal = snapshot.Evidence(snapshot.ReversalsById, source?.SourceId).SingleOrDefault();
+                var correction = snapshot.Evidence(snapshot.CorrectionsByReversalSource, m.SourceEventId).SingleOrDefault();
+                var applications = snapshot.Evidence(snapshot.ApplicationsById, application?.Id)
+                    .Concat(snapshot.Evidence(snapshot.ApplicationsById, reversal?.ApplicationId))
+                    .Concat(source?.SourceKind == "SupplierPayment"
+                        ? snapshot.Evidence(snapshot.ApplicationsByFunding, source.SourceId).Where(a =>
+                            (a.FundingItemId == id || a.DebtItemId == id) && snapshot.Evidence(snapshot.MovementsByGroupSource,
+                                (a.GroupId, correction?.OriginalSourceEventId ?? m.SourceEventId)).Any())
+                        : [])
+                    // One application can match multiple branches of the original ownership predicate.
+                    .Distinct();
                 return new SupplierItemHistoryEntry(m.Id, m.ItemId, m.GroupId, snapshot.Groups[m.GroupId].Sequence,
                     m.EventKind, m.SourceEventId, journal?.Id,
-                    snapshot.Applications.Where(a => a.Id == application?.Id || a.Id == reversal?.ApplicationId ||
-                        (source?.SourceKind == "SupplierPayment" && a.FundingItemId == source.SourceId && (a.FundingItemId == id || a.DebtItemId == id) &&
-                         snapshot.Movements.Any(original => original.GroupId == a.GroupId && original.SourceEventId == (correction?.OriginalSourceEventId ?? m.SourceEventId))))
-                        .Select(a => a.Id).Order().ToArray(), correction?.Id, snapshot.PaymentCorrections.SingleOrDefault(p => p.GroupId == m.GroupId)?.Id,
+                    applications.Select(a => a.Id).Order().ToArray(), correction?.Id,
+                    snapshot.Evidence(snapshot.PaymentCorrectionsByGroup, m.GroupId).SingleOrDefault()?.Id,
                     m.PostingDate, snapshot.Groups[m.GroupId].RecordedAtUtc, Money(Units(m.Amount), snapshot.Scale));
             }).ToList();
             return Task.FromResult<IResult>(Results.Ok(snapshot.Page(rows, r => $"{r.GroupSequence:D20}:{r.Id:D}",

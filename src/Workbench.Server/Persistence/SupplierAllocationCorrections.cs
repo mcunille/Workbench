@@ -257,7 +257,9 @@ internal static class SupplierAllocationCorrections
             IF EXISTS(SELECT 1 FROM OPENJSON(@Canonical,'$.reapplications') e WHERE e.type<>5
                 OR (SELECT COUNT(*) FROM OPENJSON(e.value))<>6
                 OR EXISTS(SELECT 1 FROM OPENJSON(e.value) p WHERE p.[key] COLLATE Latin1_General_100_BIN2 NOT IN
-                    ('fundingItemId','expectedFundingItemVersion','billId','itemId','expectedItemVersion','amount') OR p.type<>1)
+                    ('fundingItemId','expectedFundingItemVersion','billId','itemId','expectedItemVersion','amount') OR p.type<>1
+                    OR (p.[key] IN('expectedFundingItemVersion','expectedItemVersion')
+                      AND (DATALENGTH(p.value)<>36 OR TRY_CONVERT(binary(8),p.value,1) IS NULL)))
                 OR TRY_CONVERT(decimal(28,4),JSON_VALUE(e.value,'$.amount'))<=0)
               THROW 51000,'Invalid explicit supplier reapplications.',1;
             IF EXISTS(SELECT 1 FROM OPENJSON(@Canonical,'$.reapplications') e WHERE NOT EXISTS(SELECT 1 FROM Purchasing.SupplierItemVersions v WITH(UPDLOCK,HOLDLOCK)

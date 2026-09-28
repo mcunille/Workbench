@@ -2,6 +2,7 @@
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Data.SqlClient;
 using System.Text.Json.Nodes;
 using Workbench.Server.Accounting;
 using Workbench.Server.IntegrationTests.Infrastructure;
@@ -14,6 +15,54 @@ namespace Workbench.Server.IntegrationTests;
 [Collection(SqlServerCollection.Name)]
 public sealed class SupplierReconciliationTests(SqlServerFixture sqlServer)
 {
+    [Fact]
+    public async Task CapturedReportReleasesAccountingBeforeResponseProcessing()
+    {
+        // GIVEN a real report capture and a separate writer connection in the same tenant.
+        await using var context = await SupplierPaymentTestContext.OpenAsync(sqlServer);
+        await context.RecordAsync(await context.CommandAsync());
+        await using var connection = await context.Allocation.Journal.OpenSiblingAsync();
+        await using var writer = await context.Allocation.Journal.OpenSiblingAsync();
+        await using var db = new WorkbenchDbContext(new DbContextOptionsBuilder<WorkbenchDbContext>().UseSqlServer(connection).Options,
+            new TenantContext(JournalTestContext.TenantId));
+        // WHEN response processing is held inside the existing callback while a writer requests ownership.
+        await SupplierReconciliationQueries.Run(new DefaultHttpContext(), db, new EphemeralDataProtectionProvider(), "reconciliation", async snapshot =>
+        {
+            await using var tx = (SqlTransaction)await writer.BeginTransactionAsync();
+            await using var command = new SqlCommand("""
+                DECLARE @result int,@resource nvarchar(255)=N'Accounting:'+CONVERT(nvarchar(36),@tenant);
+                EXEC @result=sys.sp_getapplock @Resource=@resource,@LockMode='Exclusive',@LockOwner='Transaction',@LockTimeout=0;
+                SELECT @result;
+                """, writer, tx);
+            command.Parameters.AddWithValue("@tenant", JournalTestContext.TenantId);
+            // THEN writer coordination is immediately available before the response finishes.
+            Assert.True((int)(await command.ExecuteScalarAsync())! >= 0, "Captured report still owns the Accounting lock during response processing.");
+            Assert.Null(db.Database.CurrentTransaction);
+            Assert.All(snapshot.Reconcile(), row => Assert.True(row.IsComplete));
+            return Results.Ok();
+        }, default);
+    }
+
+    [Fact]
+    public async Task CapturedReportObservesCancellationAtComputationBoundary()
+    {
+        // GIVEN a completed SQL capture with real payment evidence.
+        await using var context = await SupplierPaymentTestContext.OpenAsync(sqlServer);
+        await context.RecordAsync(await context.CommandAsync());
+        await using var connection = await context.Allocation.Journal.OpenSiblingAsync();
+        await using var db = new WorkbenchDbContext(new DbContextOptionsBuilder<WorkbenchDbContext>().UseSqlServer(connection).Options,
+            new TenantContext(JournalTestContext.TenantId));
+        using var cancellation = new CancellationTokenSource();
+        await SupplierReconciliationQueries.Run(new DefaultHttpContext(), db, new EphemeralDataProtectionProvider(), "reconciliation", snapshot =>
+        {
+            // WHEN cancellation arrives after capture, before pure response computation.
+            cancellation.Cancel();
+            // THEN computation itself observes it; a later SQL commit cannot satisfy this assertion.
+            Assert.Throws<OperationCanceledException>(() => snapshot.Reconcile());
+            return Task.FromResult<IResult>(Results.Ok());
+        }, cancellation.Token);
+    }
+
     [Fact]
     public async Task TwoCutoffsReproduceSeptemberBalances()
     {
