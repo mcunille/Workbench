@@ -18,6 +18,12 @@ internal static class SupplierBillSchema
         migrationBuilder.Sql(SupplierBillDraftCommands.Sql);
         migrationBuilder.Sql(SupplierBillPosting.Sql);
         SupplierBillCorrectionGuard.Up(migrationBuilder);
+        migrationBuilder.Sql("ALTER TABLE Purchasing.SupplierBillReceipts ADD Sequence bigint IDENTITY(1,1) NOT NULL; CREATE INDEX IX_SupplierBillReceipts_History ON Purchasing.SupplierBillReceipts(TenantId,BillId,Sequence);");
+        migrationBuilder.Sql(SupplierBillQueries.AuthoritySql);
+        migrationBuilder.Sql(SupplierBillQueries.ListSql);
+        migrationBuilder.Sql(SupplierBillQueries.DetailSql);
+        migrationBuilder.Sql(SupplierBillQueries.HistorySql);
+        migrationBuilder.Sql("GRANT EXECUTE ON Purchasing.ReadSupplierBills TO workbench_web; GRANT EXECUTE ON Purchasing.ReadSupplierBill TO workbench_web; GRANT EXECUTE ON Purchasing.ReadSupplierBillHistory TO workbench_web;");
         foreach (var table in new[] { "SupplierBills", "SupplierBillRevisions", "SupplierBillReceipts", "SupplierBillReviews", "SupplierBillEvidence", "SupplierBillPostings", "SupplierBillPostingEvents" })
             migrationBuilder.Sql($"""
                 ALTER SECURITY POLICY Security.TenantIsolationPolicy
