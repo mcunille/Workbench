@@ -17,6 +17,7 @@ internal static class SupplierBillSchema
         migrationBuilder.Sql(SupplierBillReviewCommands.Sql);
         migrationBuilder.Sql(SupplierBillDraftCommands.Sql);
         migrationBuilder.Sql(SupplierBillPosting.Sql);
+        SupplierBillCorrectionGuard.Up(migrationBuilder);
         foreach (var table in new[] { "SupplierBills", "SupplierBillRevisions", "SupplierBillReceipts", "SupplierBillReviews", "SupplierBillEvidence", "SupplierBillPostings", "SupplierBillPostingEvents" })
             migrationBuilder.Sql($"""
                 ALTER SECURITY POLICY Security.TenantIsolationPolicy
