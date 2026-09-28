@@ -2,6 +2,7 @@
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
+using System.Text.Json.Nodes;
 using Workbench.Server.Accounting;
 using Workbench.Server.IntegrationTests.Infrastructure;
 using Workbench.Server.Persistence;
@@ -134,6 +135,113 @@ public sealed class SupplierReconciliationTests(SqlServerFixture sqlServer)
         var historical = await Read(context, $"?recordedThrough={Uri.EscapeDataString(before.ToUniversalTime().ToString("O"))}");
         Assert.True(historical.IsComplete);
         Assert.Equal(("90.00", "120.00"), Pair(historical));
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task ApplicationAndReversalSourceIdentitiesCannotDetach(bool reapply)
+    {
+        // GIVEN authentic standalone allocation and reversal, optionally with reapplication in the reversal group.
+        await using var context = await SupplierCorrectionFixture.OpenAsync(sqlServer);
+        var bill = await context.Allocation.BillAsync("100");
+        var payment = await context.CommandAsync(); await context.RecordAsync(payment);
+        var funding = Guid.Parse(payment["paymentId"]!.ToString());
+        var applied = await context.Allocation.ApplyAsync(await context.Allocation.CommandAsync(funding, bill, "60"));
+        var application = Guid.Parse(applied["applicationIds"]![0]!.ToString());
+        var reverse = await SupplierCorrectionFixture.ReverseAsync(context, application);
+        if (reapply)
+        {
+            var retain = await context.Allocation.CommandAsync(funding, bill, "40", "2026-09-20");
+            reverse["reapplications"] = new JsonArray(new JsonObject
+            {
+                ["fundingItemId"] = funding.ToString(),
+                ["expectedFundingItemVersion"] = retain["expectedFundingItemVersion"]!.DeepClone(),
+                ["billId"] = bill.ToString(),
+                ["itemId"] = bill.ToString(),
+                ["expectedItemVersion"] = retain["targets"]![0]!["expectedItemVersion"]!.DeepClone(),
+                ["amount"] = "40"
+            });
+        }
+        await context.Bills.ExecuteAsync("ReverseSupplierApplication", Guid.NewGuid(), reverse);
+        var valid = await Read(context); Assert.True(valid.IsComplete);
+        var sources = JsonNode.Parse(await context.Bills.ScalarAsync<string>("""
+            SELECT Id,SourceId,SourceKind,EventKind,SourceRevision,PostingDate,RecordedAtUtc FROM Accounting.SourceEvents
+            WHERE SourceKind IN('SupplierApplication','SupplierApplicationReversal') ORDER BY SourceKind,Id FOR JSON PATH
+            """))!.AsArray();
+        Assert.Equal(reapply ? 3 : 2, sources.Count);
+        foreach (var source in sources)
+        {
+            var table = source!["SourceKind"]!.ToString() == "SupplierApplication" ? "SupplierApplications" : "SupplierApplicationReversals";
+            var sourceWhere = $"WHERE Id='{source["Id"]}'";
+            var ownerWhere = $"WHERE Id='{source["SourceId"]}'";
+            var faults = new[]
+            {
+                ("Accounting.SourceEvents", "SourceRevision", "NEWID()", source["SourceRevision"]!.ToString(), sourceWhere),
+                ("Accounting.SourceEvents", "SourceKind", "'PurchaseRecognition'", source["SourceKind"]!.ToString(), sourceWhere),
+                ("Accounting.SourceEvents", "EventKind", "'Invoice'", source["EventKind"]!.ToString(), sourceWhere),
+                ($"Purchasing.{table}", "PostingDate", "DATEADD(day,1,PostingDate)", source["PostingDate"]!.ToString(), ownerWhere),
+                ($"Purchasing.{table}", "RecordedAtUtc", "DATEADD(second,-1,RecordedAtUtc)", source["RecordedAtUtc"]!.ToString(), ownerWhere)
+            };
+            foreach (var (faultTable, column, changed, original, where) in faults)
+            {
+                // WHEN exactly one source or owner identity changes while all journal/item arithmetic remains intact.
+                await context.Bills.AdminAsync($"UPDATE {faultTable} SET {column}={changed} {where}");
+                var corrupt = await Read(context);
+                // THEN invalid-source readback identifies the detached evidence, even inside a composed group.
+                Assert.False(corrupt.IsComplete, $"Accepted detached {source["SourceKind"]}.{column} (reapply={reapply})");
+                Assert.Contains(corrupt.Controls.Items, c => c.InvalidSourceEvidenceCount > 0);
+                Assert.Equal(Pair(valid), Pair(corrupt));
+                await context.Bills.AdminAsync($"UPDATE {faultTable} SET {column}='{original}' {where}");
+                Assert.True((await Read(context)).IsComplete);
+            }
+        }
+    }
+
+    [Fact]
+    public async Task CompensationCannotOwnAStandaloneUnapplySharingItsPayment()
+    {
+        // GIVEN equal embedded and standalone applications sharing the same payment, bill and historical controls.
+        await using var context = await SupplierCorrectionFixture.OpenAsync(sqlServer);
+        var bill = await context.Allocation.BillAsync("150");
+        var payment = await context.CommandAsync("120"); await context.AllocateAsync(payment, bill, "60");
+        var posted = await context.RecordAsync(payment); var funding = Guid.Parse(payment["paymentId"]!.ToString());
+        var applied = await context.Allocation.ApplyAsync(await context.Allocation.CommandAsync(funding, bill, "60"));
+        var embedded = Guid.Parse(posted["applicationIds"]![0]!.ToString());
+        var standalone = Guid.Parse(applied["applicationIds"]![0]!.ToString());
+        await context.Bills.ExecuteAsync("ReverseSupplierApplication", Guid.NewGuid(), await SupplierCorrectionFixture.ReverseAsync(context, embedded));
+        await context.Bills.ExecuteAsync("ReverseSupplierApplication", Guid.NewGuid(), await SupplierCorrectionFixture.ReverseAsync(context, standalone));
+        Assert.True((await Read(context)).IsComplete);
+        await context.Bills.ExecuteAsync("CorrectSupplierPayment", Guid.NewGuid(), await SupplierCorrectionFixture.CorrectionAsync(context, funding));
+        var valid = await Read(context); Assert.True(valid.IsComplete);
+        Assert.Equal(("0.00", "150.00"), Pair(valid));
+        // WHEN a privileged fault redirects the valid embedded compensation to the standalone unapply's exact source/journal.
+        await context.Bills.AdminAsync($"""
+            DECLARE @standaloneSource uniqueidentifier,@standaloneJournal uniqueidentifier,@standaloneReversal uniqueidentifier,@correction uniqueidentifier;
+            SELECT @standaloneSource=s.Id,@standaloneJournal=j.Id,@standaloneReversal=r.Id
+              FROM Purchasing.SupplierApplicationReversals r JOIN Accounting.SourceEvents s ON s.SourceId=r.Id AND s.EventKind='Reverse'
+              JOIN Accounting.JournalEntries j ON j.SourceEventId=s.Id WHERE r.ApplicationId='{standalone}';
+            SELECT @correction=c.Id FROM Accounting.CorrectionGroups c JOIN Accounting.SourceEvents s ON s.Id=c.OriginalSourceEventId
+              JOIN Purchasing.SupplierApplicationReversals r ON r.Id=s.SourceId WHERE r.ApplicationId='{embedded}';
+            IF @standaloneSource IS NULL OR @correction IS NULL THROW 51000,'Fault requires both authentic unapplications and compensation.',1;
+            IF EXISTS(SELECT Ordinal,AccountId,AccountVersion,AccountPurpose,Debit,Credit FROM Accounting.JournalLines WHERE JournalId=@standaloneJournal
+              EXCEPT SELECT l.Ordinal,l.AccountId,l.AccountVersion,l.AccountPurpose,l.Debit,l.Credit FROM Accounting.JournalLines l
+              JOIN Accounting.CorrectionGroups c ON c.OriginalJournalId=l.JournalId WHERE c.Id=@correction)
+              THROW 51000,'Fault requires identical original historical lines.',1;
+            UPDATE Accounting.CorrectionGroups SET OriginalSourceEventId=@standaloneSource,OriginalJournalId=@standaloneJournal WHERE Id=@correction;
+            UPDATE s SET SourceId=@standaloneReversal,SnapshotJson=original.SnapshotJson,SnapshotSha256=original.SnapshotSha256
+              FROM Accounting.SourceEvents s JOIN Accounting.CorrectionGroups c ON c.ReversalSourceEventId=s.Id
+              JOIN Accounting.SourceEvents original ON original.Id=c.OriginalSourceEventId WHERE c.Id=@correction;
+            UPDATE c SET EvidenceJson=e.Json,EvidenceSha256=HASHBYTES('SHA2_256',CONVERT(varbinary(max),e.Json))
+              FROM Accounting.CorrectionGroups c JOIN Accounting.SourceEvents s ON s.Id=c.OriginalSourceEventId
+              CROSS APPLY(SELECT JSON_MODIFY(JSON_MODIFY(c.EvidenceJson,'$.originalSourceRevision',CONVERT(nvarchar(36),s.SourceRevision)),
+                '$.originalSnapshotSha256',CONVERT(varchar(64),s.SnapshotSha256,2)) Json) e WHERE c.Id=@correction;
+            """);
+        var corrupt = await Read(context);
+        // THEN funding identity and equal line/amount evidence cannot confer embedded compensation ownership.
+        Assert.False(corrupt.IsComplete);
+        Assert.Contains(corrupt.Controls.Items, c => c.InvalidSourceEvidenceCount > 0);
+        Assert.Equal(Pair(valid), Pair(corrupt));
     }
 
     [Fact]

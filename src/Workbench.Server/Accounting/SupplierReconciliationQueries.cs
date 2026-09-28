@@ -257,7 +257,7 @@ internal static class SupplierReconciliationQueries
             {
                 if (!Sources.TryGetValue(correction.OriginalSourceEventId, out var originalSource)) return false;
                 var ownsPaymentInverse = originalSource.SourceKind == "SupplierPayment" && originalSource.EventKind == "Payment" && PaymentCorrections.Any(p => p.GroupId == m.GroupId && p.OriginalPaymentId == originalSource.SourceId);
-                var ownsCompensation = originalSource.SourceKind == "SupplierApplicationReversal" && originalSource.EventKind == "Reverse" && Reversals.Any(r => r.Id == originalSource.SourceId &&
+                var ownsCompensation = Reversals.Any(r => ReversalSourceMatches(r, originalSource) &&
                     Applications.Any(a => a.Id == r.ApplicationId && PaymentCorrections.Any(p => p.GroupId == m.GroupId && p.OriginalPaymentId == a.FundingItemId &&
                         Movements.Any(open => open.ItemId == p.OriginalPaymentId && open.EventKind == "Open" && open.GroupId == a.GroupId))));
                 var ownerGroup = Groups[m.GroupId];
@@ -275,13 +275,24 @@ internal static class SupplierReconciliationQueries
             }
             if (m.EventKind == "Apply")
                 return attrs.Length == 1 && attrs[0].Amount == m.Amount && Applications.Any(a => a.GroupId == m.GroupId &&
-                    source.SourceId == a.Id && -a.Amount == m.Amount && (a.FundingItemId == m.ItemId || a.DebtItemId == m.ItemId));
+                    OwnerSourceMatches(source, "SupplierApplication", "Apply", a.Id, a.GroupId, a.PostingDate, a.RecordedAtUtc) &&
+                    -a.Amount == m.Amount && (a.FundingItemId == m.ItemId || a.DebtItemId == m.ItemId));
             if (m.EventKind == "ReverseApplication")
-                return attrs.Length == 1 && attrs[0].Amount == m.Amount && Reversals.Any(r => r.GroupId == m.GroupId && r.Id == source.SourceId &&
+                return attrs.Length == 1 && attrs[0].Amount == m.Amount && Reversals.Any(r => r.GroupId == m.GroupId && ReversalSourceMatches(r, source) &&
                     Applications.Any(a => a.Id == r.ApplicationId && a.Amount == m.Amount && (a.FundingItemId == m.ItemId || a.DebtItemId == m.ItemId)));
             if (m.EventKind != "Open" || attrs.Length != 1 || attrs[0].Amount != m.Amount) return false;
             return OpeningSourceMatches(m, item, source);
         }
+
+        private bool OwnerSourceMatches(JournalSourceEvent source, string kind, string eventKind, Guid id, Guid groupId,
+            DateOnly postingDate, DateTimeOffset recordedAtUtc) =>
+            source.SourceKind == kind && source.EventKind == eventKind && source.SourceId == id && source.SourceRevision == groupId &&
+            source.PostingDate == postingDate && source.RecordedAtUtc == recordedAtUtc &&
+            Groups.TryGetValue(groupId, out var group) && group.RecordedAtUtc == recordedAtUtc;
+
+        private bool ReversalSourceMatches(SupplierApplicationReversal reversal, JournalSourceEvent source) =>
+            OwnerSourceMatches(source, "SupplierApplicationReversal", "Reverse", reversal.Id, reversal.GroupId, reversal.PostingDate, reversal.RecordedAtUtc) &&
+            Applications.Any(a => a.Id == reversal.ApplicationId && a.PostingDate <= reversal.PostingDate);
 
         private bool OpeningSourceMatches(SupplierItemMovement m, SupplierOpenItem item, JournalSourceEvent source)
         {
