@@ -7,6 +7,19 @@ internal static class SupplierOpenItemSchema
 {
     internal static void Up(MigrationBuilder migrationBuilder, string migrationId)
     {
+        migrationBuilder.Sql(SupplierAllocationAvailability.Sql);
+        migrationBuilder.Sql(SupplierAllocationCommands.ControlSql);
+        migrationBuilder.Sql(SupplierAllocationCommands.KernelSql);
+        migrationBuilder.Sql(SupplierOpenItemEvents.Sql);
+        migrationBuilder.Sql(SupplierOpenItemValidation.Sql);
+        migrationBuilder.Sql(SupplierAllocationCommands.Sql);
+        migrationBuilder.Sql(SupplierOpenItemSourceIntegration.Sql);
+        migrationBuilder.Sql(SupplierOpenItemSourceIntegration.HooksSql);
+        migrationBuilder.Sql(SupplierOpenItemBackfill.Sql);
+        // Derivation reads legacy tables protected by this policy. Attaching new
+        // predicates first can self-block its compilation on the policy's Sch-M
+        // lock. New tables and evidence remain uncommitted until every predicate
+        // and runtime denial below is installed in this same migration transaction.
         foreach (var table in new[] { "SupplierOpenItems", "SupplierItemMovements", "SupplierApplications",
             "SupplierApplicationReversals", "SupplierControlAttributions", "SupplierPayments",
             "SupplierPaymentCorrections", "SupplierFinancialGroups", "SupplierFinancialReceipts",
@@ -20,11 +33,6 @@ internal static class SupplierOpenItemSchema
                 DENY INSERT,UPDATE,DELETE ON [Purchasing].[{table}] TO [workbench_web];
                 DENY INSERT,UPDATE,DELETE ON [Purchasing].[{table}] TO [workbench_worker];
                 """);
-        migrationBuilder.Sql(SupplierOpenItemEvents.Sql);
-        migrationBuilder.Sql(SupplierOpenItemValidation.Sql);
-        migrationBuilder.Sql(SupplierOpenItemSourceIntegration.Sql);
-        migrationBuilder.Sql(SupplierOpenItemSourceIntegration.HooksSql);
-        migrationBuilder.Sql(SupplierOpenItemBackfill.Sql);
         migrationBuilder.Sql($"""
             DECLARE @Definition nvarchar(max)=OBJECT_DEFINITION(OBJECT_ID(N'Security.ReadDatabaseReadiness'));
             IF @Definition IS NULL OR CHARINDEX(N'20260928034802_AddSupplierBills',@Definition)=0

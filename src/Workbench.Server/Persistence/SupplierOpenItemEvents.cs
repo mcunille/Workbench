@@ -21,6 +21,73 @@ internal static class SupplierOpenItemEvents
           DECLARE @Count int=(SELECT COUNT(*) FROM OPENJSON(@Events));
           IF @Count<1 OR @Count>1000 OR EXISTS(SELECT 1 FROM OPENJSON(@Events) WHERE [type]<>5)
             THROW 51000,'Invalid supplier event count or shape.',1;
+          IF JSON_VALUE(@Events,'$[0].applicationId') IS NOT NULL
+          BEGIN
+            -- The named command has posted real journals through the protected kernel.
+            -- Only immutable source/receipt identities enter this branch; no new item authority.
+            IF EXISTS(SELECT 1 FROM OPENJSON(@Events) e WHERE (SELECT COUNT(*) FROM OPENJSON(e.value))<>2
+                OR EXISTS(SELECT 1 FROM OPENJSON(e.value) p WHERE p.[key] COLLATE Latin1_General_100_BIN2 NOT IN('applicationId','journalId')
+                  OR p.type<>1 OR DATALENGTH(p.value)<>72 OR TRY_CONVERT(uniqueidentifier,p.value) IS NULL))
+              OR EXISTS(SELECT 1 FROM OPENJSON(@Events) e CROSS APPLY OPENJSON(e.value) p GROUP BY e.[key],p.[key] HAVING COUNT(*)>1)
+              THROW 51000,'Invalid supplier application event identity.',1;
+            DECLARE @Applications TABLE(Id uniqueidentifier PRIMARY KEY,FundingId uniqueidentifier,DebtId uniqueidentifier,
+              Amount decimal(28,4),PostingDate date,ActorId uniqueidentifier,SourceEventId uniqueidentifier,JournalId uniqueidentifier UNIQUE);
+            INSERT @Applications
+              SELECT s.SourceId,TRY_CONVERT(uniqueidentifier,JSON_VALUE(s.SnapshotJson,'$.fundingItemId')),
+                TRY_CONVERT(uniqueidentifier,JSON_VALUE(s.SnapshotJson,'$.debtItemId')),
+                TRY_CONVERT(decimal(28,4),JSON_VALUE(s.SnapshotJson,'$.amount')),j.PostingDate,s.ActorId,s.Id,j.Id
+              FROM OPENJSON(@Events) e
+              JOIN Accounting.JournalEntries j ON j.TenantId=@TenantId AND j.Id=TRY_CONVERT(uniqueidentifier,JSON_VALUE(e.value,'$.journalId')) AND j.RecordedAtUtc=@RecordedAtUtc
+              JOIN Accounting.SourceEvents s ON s.TenantId=j.TenantId AND s.Id=j.SourceEventId AND s.SourceKind='SupplierApplication'
+                AND s.SourceId=TRY_CONVERT(uniqueidentifier,JSON_VALUE(e.value,'$.applicationId')) AND s.SourceRevision=@GroupId
+                AND s.EventKind='Apply' AND s.RecordedAtUtc=@RecordedAtUtc AND s.PostingDate=j.PostingDate
+                AND TRY_CONVERT(uniqueidentifier,JSON_VALUE(s.SnapshotJson,'$.applicationId'))=s.SourceId
+                AND TRY_CONVERT(uniqueidentifier,JSON_VALUE(s.SnapshotJson,'$.groupId'))=@GroupId
+              JOIN Accounting.PostingReceipts p ON p.TenantId=@TenantId AND p.SourceEventId=s.Id AND p.JournalId=j.Id
+                AND p.SourceCommandKind='Supplier.Apply' AND p.ActorId=s.ActorId AND p.RecordedAtUtc=@RecordedAtUtc;
+            IF (SELECT COUNT(*) FROM @Applications)<>@Count OR (SELECT COUNT(DISTINCT ActorId) FROM @Applications)<>1
+              OR EXISTS(SELECT 1 FROM @Applications WHERE FundingId IS NULL OR DebtId IS NULL OR Amount IS NULL OR Amount<=0 OR FundingId=DebtId)
+              THROW 51004,'Supplier application source evidence is unavailable.',1;
+            IF EXISTS(SELECT 1 FROM @Applications a WHERE NOT EXISTS(
+              SELECT 1 FROM Purchasing.SupplierOpenItems f JOIN Purchasing.SupplierOpenItems d ON d.TenantId=f.TenantId
+                AND d.SupplierId=f.SupplierId AND d.PurchaseOrderId=f.PurchaseOrderId AND d.Currency=f.Currency
+              WHERE f.TenantId=@TenantId AND f.Id=a.FundingId AND d.Id=a.DebtId
+                AND f.Kind IN('Advance','CreditReceivable') AND d.Kind IN('Payable','RefundClearing')
+                AND f.SourcePostingDate<=a.PostingDate AND d.SourcePostingDate<=a.PostingDate
+                AND (d.Kind='RefundClearing' OR (d.BillId IS NOT NULL AND d.SourceKind='SupplierBill' AND d.SourceId=d.BillId
+                  AND EXISTS(SELECT 1 FROM Purchasing.SupplierBillPostings b WHERE b.TenantId=d.TenantId AND b.BillId=d.BillId AND b.RevisionId=d.SourceRevisionId)))
+                AND EXISTS(SELECT 1 FROM Accounting.JournalEntries j WHERE j.TenantId=@TenantId AND j.Id=a.JournalId AND j.Currency=f.Currency)))
+              THROW 51004,'Supplier application items are unavailable.',1;
+            DECLARE @Effects TABLE(Id uniqueidentifier PRIMARY KEY,ItemId uniqueidentifier,ApplicationId uniqueidentifier,
+              JournalId uniqueidentifier,SourceEventId uniqueidentifier,Ordinal int,PostingDate date,Amount decimal(28,4));
+            INSERT @Effects
+              SELECT NEWID(),items.ItemId,a.Id,a.JournalId,a.SourceEventId,items.Ordinal,a.PostingDate,-a.Amount
+              FROM @Applications a CROSS APPLY(VALUES(a.DebtId,1),(a.FundingId,2)) items(ItemId,Ordinal);
+            IF EXISTS(SELECT 1 FROM @Effects e WHERE (SELECT COUNT(*) FROM Purchasing.SupplierItemControl(@TenantId,e.ItemId))<>1
+              OR NOT EXISTS(SELECT 1 FROM Accounting.JournalLines l CROSS APPLY Purchasing.SupplierItemControl(@TenantId,e.ItemId) c
+                WHERE l.TenantId=@TenantId AND l.JournalId=e.JournalId AND l.Ordinal=e.Ordinal
+                  AND l.AccountId=c.AccountId AND l.AccountVersion=c.AccountVersion AND l.AccountPurpose=c.AccountPurpose
+                  AND ((e.Ordinal=1 AND l.Debit=-e.Amount AND l.Credit=0) OR (e.Ordinal=2 AND l.Credit=-e.Amount AND l.Debit=0))))
+              OR EXISTS(SELECT 1 FROM @Applications a WHERE (SELECT COUNT(*) FROM Accounting.JournalLines l WHERE l.TenantId=@TenantId AND l.JournalId=a.JournalId)<>2)
+              OR EXISTS(SELECT 1 FROM @Effects e JOIN Purchasing.SupplierControlAttributions a ON a.TenantId=@TenantId AND a.JournalId=e.JournalId)
+              THROW 51004,'Supplier application controls are not conserved.',1;
+            DECLARE @ApplicationMovements nvarchar(max)=(SELECT ItemId itemId,@GroupId groupId,PostingDate postingDate,
+              CONVERT(nvarchar(60),Amount) amount FROM @Effects FOR JSON PATH);
+            EXEC Purchasing.AssertSupplierAvailability @TenantId,@ApplicationMovements;
+            INSERT Purchasing.SupplierFinancialGroups(TenantId,Id,Operation,SourceId,RecordedAtUtc)
+              VALUES(@TenantId,@GroupId,'Apply',@GroupId,@RecordedAtUtc);
+            INSERT Purchasing.SupplierApplications(TenantId,Id,GroupId,FundingItemId,DebtItemId,PostingDate,Amount,ActorId,RecordedAtUtc)
+              SELECT @TenantId,Id,@GroupId,FundingId,DebtId,PostingDate,Amount,ActorId,@RecordedAtUtc FROM @Applications;
+            INSERT Purchasing.SupplierApplicationVersions(TenantId,ApplicationId) SELECT @TenantId,Id FROM @Applications;
+            UPDATE v SET ItemId=v.ItemId FROM Purchasing.SupplierItemVersions v
+              WHERE v.TenantId=@TenantId AND EXISTS(SELECT 1 FROM @Effects e WHERE e.ItemId=v.ItemId);
+            INSERT Purchasing.SupplierItemMovements(TenantId,Id,ItemId,GroupId,EventKind,SourceEventId,PostingDate,Amount,RecordedAtUtc)
+              SELECT @TenantId,Id,ItemId,@GroupId,'Apply',SourceEventId,PostingDate,Amount,@RecordedAtUtc FROM @Effects;
+            INSERT Purchasing.SupplierControlAttributions(TenantId,Id,GroupId,MovementId,JournalId,Ordinal,AccountId,AccountVersion,AccountPurpose,Amount)
+              SELECT @TenantId,NEWID(),@GroupId,e.Id,e.JournalId,e.Ordinal,l.AccountId,l.AccountVersion,l.AccountPurpose,e.Amount
+              FROM @Effects e JOIN Accounting.JournalLines l ON l.TenantId=@TenantId AND l.JournalId=e.JournalId AND l.Ordinal=e.Ordinal;
+            RETURN;
+          END;
           IF EXISTS(SELECT 1 FROM OPENJSON(@Events) e CROSS APPLY OPENJSON(e.value) p
               GROUP BY e.[key],p.[key] HAVING COUNT(*)>1)
             OR EXISTS(SELECT 1 FROM OPENJSON(@Events) e CROSS APPLY OPENJSON(e.value) p
@@ -135,6 +202,9 @@ internal static class SupplierOpenItemEvents
             @Attributed decimal(38,4)=(SELECT SUM(CONVERT(decimal(38,4),Amount)) FROM @Event);
           IF @Expected IS NULL OR @Expected<>@Attributed OR TRY_CONVERT(decimal(28,4),@Expected) IS NULL
             THROW 51000,'Supplier control group is not conserved.',1;
+          DECLARE @SourceMovements nvarchar(max)=(SELECT ItemId itemId,@GroupId groupId,PostingDate postingDate,
+            CONVERT(nvarchar(60),Amount) amount FROM @Event FOR JSON PATH);
+          EXEC Purchasing.AssertSupplierAvailability @TenantId,@SourceMovements;
           INSERT Purchasing.SupplierFinancialGroups(TenantId,Id,Operation,SourceId,RecordedAtUtc)
             SELECT TOP(1) @TenantId,@GroupId,CASE WHEN EXISTS(SELECT 1 FROM @Event WHERE CorrectionId IS NOT NULL) THEN 'CorrectSource' ELSE 'OpenRecognitionPayable' END,
               COALESCE(CorrectionId,BillId,RecognitionEventId),@RecordedAtUtc FROM @Event ORDER BY IsInverse DESC,RecognitionEventId;

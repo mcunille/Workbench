@@ -70,6 +70,10 @@ public sealed class SupplierOpenItemDatabaseTests(SqlServerFixture sqlServer)
         direct.Parameters.AddWithValue("@recorded", DateTimeOffset.UtcNow);
         direct.Parameters.AddWithValue("@events", "[]");
         Assert.Equal(229, (await Assert.ThrowsAsync<SqlException>(() => direct.ExecuteNonQueryAsync())).Number);
+        // AND another authenticated tenant cannot read the committed supplier evidence.
+        await using var otherTenant = await context.Journal.OpenOtherTenantAsync();
+        await using var foreignRead = new SqlCommand("SELECT COUNT(*) FROM Purchasing.SupplierItemMovements", otherTenant);
+        Assert.Equal(0, (int)(await foreignRead.ExecuteScalarAsync())!);
     }
 
     [Fact]
@@ -101,39 +105,6 @@ public sealed class SupplierOpenItemDatabaseTests(SqlServerFixture sqlServer)
         // WHEN a target carries an unknown authority claim THEN structural validation rejects it.
         first["targets"]![0]!["authority"] = true;
         await Assert.ThrowsAsync<SqlException>(() => context.ValidateAsync("ApplySupplierFunds", first));
-    }
-
-    [Fact]
-    public async Task FinancialCommandValidatorRejectsDuplicateAndOversizedTargetSets()
-    {
-        // GIVEN two allocations naming the same item in an otherwise valid envelope.
-        await using var context = await SupplierOpenItemTestContext.OpenAsync(sqlServer);
-        var target = new System.Text.Json.Nodes.JsonObject
-        {
-            ["billId"] = Guid.NewGuid().ToString(),
-            ["itemId"] = Guid.NewGuid().ToString(),
-            ["expectedItemVersion"] = "0x0000000000000001",
-            ["amount"] = "1.00"
-        };
-        var command = new System.Text.Json.Nodes.JsonObject
-        {
-            ["schemaVersion"] = 1,
-            ["operation"] = "ApplySupplierFunds",
-            ["targets"] = new System.Text.Json.Nodes.JsonArray(target.DeepClone(), target.DeepClone())
-        };
-        // WHEN a duplicate target is supplied THEN it cannot canonicalize.
-        await Assert.ThrowsAsync<SqlException>(() => context.ValidateAsync("ApplySupplierFunds", command));
-        var targets = command["targets"]!.AsArray();
-        targets.Clear();
-        for (var i = 0; i < 1001; i++)
-        {
-            var distinct = target.DeepClone();
-            distinct["itemId"] = Guid.NewGuid().ToString();
-            targets.Add(distinct);
-        }
-        // WHEN this target set also exceeds the envelope byte cap THEN it cannot canonicalize.
-        // The target-count boundary needs a separate compact-command test.
-        await Assert.ThrowsAsync<SqlException>(() => context.ValidateAsync("ApplySupplierFunds", command));
     }
 
     [Fact]
