@@ -51,15 +51,25 @@ public sealed class JournalCorrectionSecurityTests(SqlServerFixture sqlServer)
         var original = await journal.PostAsync(await journal.CreateSourceAsync("300"));
         var correct = await controls.CorrectAsync(original.JournalId, new DateOnly(2026, 10, 1), null);
         await CorrectionAssertions.ExactInverseAsync(controls, original.JournalId, correct.ReversalJournalId);
-        // WHEN only the disposable kernel's debit/credit swap is removed.
-        await MutateKernelAsync(journal, sql => sql.Replace(
+        // WHEN only the disposable core's debit/credit swap is removed; the source still calls its wrapper.
+        var definition = await ReadKernelAsync(journal);
+        var mutated = definition.Replace(
             "AccountCode,AccountName,AccountType,AccountPurpose,Credit,Debit",
-            "AccountCode,AccountName,AccountType,AccountPurpose,Debit,Credit", StringComparison.Ordinal));
-        var second = await journal.PostAsync(await journal.CreateSourceAsync("300"));
-        var mutant = await controls.CorrectAsync(second.JournalId, new DateOnly(2026, 10, 1), null);
-        var assertion = await Record.ExceptionAsync(() => CorrectionAssertions.ExactInverseAsync(controls, second.JournalId, mutant.ReversalJournalId));
-        // THEN the unchanged behavioral assertion kills the mutant.
-        Assert.IsAssignableFrom<Xunit.Sdk.XunitException>(assertion);
+            "AccountCode,AccountName,AccountType,AccountPurpose,Debit,Credit", StringComparison.Ordinal);
+        Assert.NotEqual(definition, mutated);
+        try
+        {
+            await AlterKernelAsync(journal, mutated);
+            var second = await journal.PostAsync(await journal.CreateSourceAsync("300"));
+            var mutant = await controls.CorrectAsync(second.JournalId, new DateOnly(2026, 10, 1), null);
+            var assertion = await Record.ExceptionAsync(() => CorrectionAssertions.ExactInverseAsync(controls, second.JournalId, mutant.ReversalJournalId));
+            // THEN the unchanged behavioral assertion kills the mutant.
+            Assert.IsAssignableFrom<Xunit.Sdk.XunitException>(assertion);
+        }
+        finally { await RestoreKernelAsync(journal, definition); }
+        var restored = await journal.PostAsync(await journal.CreateSourceAsync("300"));
+        var restoredCorrection = await controls.CorrectAsync(restored.JournalId, new DateOnly(2026, 10, 1), null);
+        await CorrectionAssertions.ExactInverseAsync(controls, restored.JournalId, restoredCorrection.ReversalJournalId);
     }
 
     [Fact]
@@ -71,18 +81,27 @@ public sealed class JournalCorrectionSecurityTests(SqlServerFixture sqlServer)
         var journal = controls.Journal;
         var original = await journal.PostAsync(await journal.CreateSourceAsync("300"));
         var request = Guid.NewGuid();
-        await CorrectionAssertions.KernelAsync(controls, original.JournalId, request: request);
+        await CorrectionAssertions.KernelAsync(controls, original.JournalId, request: request, executeCoreDirectly: true);
         await CorrectionAssertions.AdminAsync(journal,
             "DELETE ur FROM [Identity].[UserRoles] ur JOIN Administration.AccountingRoles ar ON ar.TenantId=ur.TenantId AND ar.RoleId=ur.RoleId");
         async Task AssertDenied() => Assert.Equal(51003, (await Assert.ThrowsAsync<SqlException>(() =>
-            CorrectionAssertions.KernelAsync(controls, original.JournalId, request: request))).Number);
+            CorrectionAssertions.KernelAsync(controls, original.JournalId, request: request, executeCoreDirectly: true))).Number);
         await AssertDenied();
-        // WHEN the disposable kernel no longer checks its trusted source permission.
-        await MutateKernelAsync(journal, sql => sql.Replace(
-            "EXEC Accounting.RequirePermission @ActorId,@SessionId,@RequiredPermission;", "PRINT N'';", StringComparison.Ordinal));
-        var assertion = await Record.ExceptionAsync(AssertDenied);
-        // THEN the same denial assertion fails because the mutant replays without authority.
-        Assert.IsAssignableFrom<Xunit.Sdk.XunitException>(assertion);
+        // WHEN the disposable core no longer checks its trusted source permission.
+        // Direct core execution isolates this invariant from the wrapper's separate authority guard.
+        var definition = await ReadKernelAsync(journal);
+        var mutated = definition.Replace(
+            "EXEC Accounting.RequirePermission @ActorId,@SessionId,@RequiredPermission;", "PRINT N'';", StringComparison.Ordinal);
+        Assert.NotEqual(definition, mutated);
+        try
+        {
+            await AlterKernelAsync(journal, mutated);
+            var assertion = await Record.ExceptionAsync(AssertDenied);
+            // THEN the same denial assertion fails because the mutant replays without core authority.
+            Assert.IsAssignableFrom<Xunit.Sdk.XunitException>(assertion);
+        }
+        finally { await RestoreKernelAsync(journal, definition); }
+        await AssertDenied();
     }
 
     [Fact]
@@ -107,11 +126,14 @@ public sealed class JournalCorrectionSecurityTests(SqlServerFixture sqlServer)
         Assert.True(lookupEnd > lookupStart);
         var mutated = definition.Remove(lookupStart, lookupEnd - lookupStart);
         Assert.NotEqual(definition, mutated);
-        await AlterKernelAsync(journal, mutated);
-        var assertion = await Record.ExceptionAsync(AssertDuplicateConflict);
-        // THEN the contract assertion detects the changed SQL error; the unique key still blocks a duplicate row.
-        Assert.IsAssignableFrom<Xunit.Sdk.XunitException>(assertion);
-        await AlterKernelAsync(journal, definition);
+        try
+        {
+            await AlterKernelAsync(journal, mutated);
+            var assertion = await Record.ExceptionAsync(AssertDuplicateConflict);
+            // THEN the contract assertion detects the changed SQL error; the unique key still blocks a duplicate row.
+            Assert.IsAssignableFrom<Xunit.Sdk.XunitException>(assertion);
+        }
+        finally { await RestoreKernelAsync(journal, definition); }
         await AssertDuplicateConflict();
     }
 
@@ -124,14 +146,15 @@ public sealed class JournalCorrectionSecurityTests(SqlServerFixture sqlServer)
         var journal = controls.Journal;
         var original = await journal.PostAsync(await journal.CreateSourceAsync("300"));
         var request = Guid.NewGuid();
-        await CorrectionAssertions.KernelAsync(controls, original.JournalId, request: request);
+        await CorrectionAssertions.KernelAsync(controls, original.JournalId, request: request, executeCoreDirectly: true);
         await CorrectionAssertions.AdminAsync(journal,
             "DELETE ur FROM [Identity].[UserRoles] ur JOIN Administration.AccountingRoles ar ON ar.TenantId=ur.TenantId AND ar.RoleId=ur.RoleId");
         async Task AssertDenied() => Assert.Equal(51003, (await Assert.ThrowsAsync<SqlException>(() =>
-            CorrectionAssertions.KernelAsync(controls, original.JournalId, request: request))).Number);
+            CorrectionAssertions.KernelAsync(controls, original.JournalId, request: request, executeCoreDirectly: true))).Number);
         await AssertDenied();
 
-        // WHEN the disposable kernel moves receipt replay ahead of current-authority validation.
+        // WHEN the disposable core moves receipt replay ahead of its current-authority validation.
+        // Direct core execution prevents the independent wrapper guard from masking this mutant.
         var definition = await ReadKernelAsync(journal);
         var authorityStart = definition.IndexOf("BEGIN TRY", StringComparison.Ordinal);
         var receiptStart = definition.IndexOf("IF EXISTS(SELECT 1 FROM Accounting.CorrectionReceipts", StringComparison.Ordinal);
@@ -142,11 +165,15 @@ public sealed class JournalCorrectionSecurityTests(SqlServerFixture sqlServer)
         var receiptBlock = definition[receiptStart..receiptEnd];
         var mutated = definition.Remove(receiptStart, receiptEnd - receiptStart)
             .Insert(authorityStart, receiptBlock + Environment.NewLine + "          ");
-        await AlterKernelAsync(journal, mutated);
-        var assertion = await Record.ExceptionAsync(AssertDenied);
-        // THEN the same denial assertion fails on replay and passes after restoration.
-        Assert.IsAssignableFrom<Xunit.Sdk.XunitException>(assertion);
-        await AlterKernelAsync(journal, definition);
+        Assert.NotEqual(definition, mutated);
+        try
+        {
+            await AlterKernelAsync(journal, mutated);
+            var assertion = await Record.ExceptionAsync(AssertDenied);
+            // THEN the same denial assertion fails on replay and passes after restoration.
+            Assert.IsAssignableFrom<Xunit.Sdk.XunitException>(assertion);
+        }
+        finally { await RestoreKernelAsync(journal, definition); }
         await AssertDenied();
     }
 
@@ -177,11 +204,14 @@ public sealed class JournalCorrectionSecurityTests(SqlServerFixture sqlServer)
         Assert.True(groupInsert > branchStart);
         mutated = mutated.Insert(groupInsert, "SET @ReplacementSourceRevision=NULL;" + Environment.NewLine + "          ");
         Assert.NotEqual(definition, mutated);
-        await AlterKernelAsync(journal, mutated);
-        var assertion = await Record.ExceptionAsync(AssertReplacement);
-        // THEN the complete-correction assertion fails, and the original kernel passes again.
-        Assert.IsAssignableFrom<Xunit.Sdk.XunitException>(assertion);
-        await AlterKernelAsync(journal, definition);
+        try
+        {
+            await AlterKernelAsync(journal, mutated);
+            var assertion = await Record.ExceptionAsync(AssertReplacement);
+            // THEN the complete-correction assertion fails, and the original kernel passes again.
+            Assert.IsAssignableFrom<Xunit.Sdk.XunitException>(assertion);
+        }
+        finally { await RestoreKernelAsync(journal, definition); }
         await AssertReplacement();
     }
 
@@ -253,16 +283,19 @@ public sealed class JournalCorrectionSecurityTests(SqlServerFixture sqlServer)
         Assert.Equal(before, await controls.HistorySnapshotAsync());
     }
 
-    private static async Task MutateKernelAsync(JournalTestContext journal, Func<string, string> mutate)
+    private static async Task RestoreKernelAsync(JournalTestContext journal, string definition)
     {
-        await using var admin = new SqlConnection(journal.Application.AdminConnectionString);
-        await admin.OpenAsync();
-        var definition = (string)(await CorrectionAssertions.ScalarAsync(admin,
-            "SELECT OBJECT_DEFINITION(OBJECT_ID(N'Accounting.CorrectJournal'))"))!;
-        var mutated = mutate(definition);
-        Assert.NotEqual(definition, mutated);
-        await using var command = new SqlCommand(mutated.Replace("CREATE PROCEDURE", "ALTER PROCEDURE", StringComparison.Ordinal), admin);
-        await command.ExecuteNonQueryAsync();
+        await AlterKernelAsync(journal, definition);
+        // Normalize SQL's CREATE/ALTER declaration; all remaining definition bytes must match.
+        Assert.Equal(NormalizeDeclaration(definition), NormalizeDeclaration(await ReadKernelAsync(journal)));
+
+        static string NormalizeDeclaration(string sql)
+        {
+            const string declaration = "CREATE PROCEDURE Accounting.CorrectJournalCore";
+            return sql.StartsWith(declaration, StringComparison.Ordinal)
+                ? "ALTER PROCEDURE Accounting.CorrectJournalCore" + sql[declaration.Length..]
+                : sql;
+        }
     }
 
     private static async Task<string> ReadKernelAsync(JournalTestContext journal)
@@ -270,7 +303,7 @@ public sealed class JournalCorrectionSecurityTests(SqlServerFixture sqlServer)
         await using var admin = new SqlConnection(journal.Application.AdminConnectionString);
         await admin.OpenAsync();
         return (string)(await CorrectionAssertions.ScalarAsync(admin,
-            "SELECT OBJECT_DEFINITION(OBJECT_ID(N'Accounting.CorrectJournal'))"))!;
+            "SELECT OBJECT_DEFINITION(OBJECT_ID(N'Accounting.CorrectJournalCore'))"))!;
     }
 
     private static async Task AlterKernelAsync(JournalTestContext journal, string definition)
