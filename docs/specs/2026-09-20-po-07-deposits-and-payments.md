@@ -13,6 +13,11 @@ The implemented [BK-02 atomic journal design](2026-09-23-bk-02-atomic-journal.md
 database posting boundary, first-posting protections and basic journal/trial-balance readback.
 It does not enable production bookkeeping.
 
+The implemented [BK-05 supplier bill foundation](2026-09-27-bk-05-structured-supplier-bills.md)
+adds internal immutable revisions, review, duplicate resolution and source-derived invoice posting
+through BK-04. Public bill entry, runtime mutation grants, evidence holds and bill corrections remain
+unavailable; this delivery does not enable production bookkeeping or payments.
+
 ## Decision and evidence
 
 Build one double-entry general ledger with a supplier subledger. Purchasing owns source documents

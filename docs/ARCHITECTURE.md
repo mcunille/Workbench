@@ -107,7 +107,7 @@ and correction actions, and retained financial files remain gated by the parent 
 BK-04 adds Purchasing-owned immutable units, side events, components, explicit matches, correction
 groups and receipts. Restricted `Purchasing.PostRecognition` and `Purchasing.CorrectRecognition`
 derive journals through the accounting kernel in the source transaction; neither has a runtime
-execute grant. The release installs no production source adapter, permission or financial write route.
+execute grant. There is no public financial write route or activated production source permission.
 Tenant-qualified links, RLS and direct-write denials protect the new evidence tables.
 
 Whole units carry Expense or Inventory classification. Receipt-first posting accrues cost; invoice-first
@@ -123,6 +123,19 @@ a recognition journal. Authorized journal detail includes immutable recognition 
 posting-date and recorded-time report filters continue to select financial activity independently.
 Bookkeeping remains unavailable. See the [BK-04 design](specs/2026-09-25-bk-04-classified-purchase-recognition.md)
 for the intentionally limited source, inventory and reconciliation contracts.
+
+### Structured supplier bills
+
+BK-05 adds a Purchasing-owned bill head, immutable revision/review/evidence tables, posting links and
+command receipts. Restricted SQL commands enforce tenant-qualified identity, versions, current
+permissions, exact totals and duplicate resolution. The posting adapter constructs BK-04 invoice
+events from the stored reviewed revision in the same transaction; generic corrections cannot detach
+bill-owned financial evidence. Read procedures expose bounded history and live file availability.
+The same tenant accounting lock serializes bill commands with period closing and PO changes.
+
+The single additive migration installs no runtime mutation grants or production role assignments;
+`BookkeepingAvailable` remains false. Public bill entry, allocation, bill corrections and physical
+evidence holds are separate release work. See the [BK-05 design](specs/2026-09-27-bk-05-structured-supplier-bills.md).
 
 ### Collection records export
 
