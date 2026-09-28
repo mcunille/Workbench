@@ -141,7 +141,8 @@ defines the evidence and release limits.
 ## Internal supplier bills
 
 BK-05 stores immutable bill revisions and reviews for an ordered PO. Explicit classified components
-must equal the declared total exactly. Invoice posting derives every recognition claim from the
+must equal the declared total exactly. Review checks currency precision, required component reasons,
+assigned cost bounds, tax policy evidence and the single-source rounding limit. Invoice posting derives every recognition claim from the
 reviewed revision; it cannot accept caller-supplied accounting overrides. Pro forma requests may be
 reviewed but cannot post. Posted bills cannot be edited, abandoned or corrected through generic
 recognition/journal commands; a complete bill correction workflow remains future work.
@@ -152,7 +153,8 @@ Editing creates another immutable revision and requires another review. Exact re
 permissions before returning the original receipt. Nonabandoned bills also prevent PO supplier changes.
 
 Bounded internal reads expose source history, posting links and honest current evidence availability.
-Document metadata/digests survive in reviewed snapshots; BK-07 physical retention holds are not yet
+History retains each review's PO version, supplier snapshot and captured evidence after revision or
+abandonment clears the current review. Document metadata/digests survive in reviewed snapshots; BK-07 physical retention holds are not yet
 delivered, so later removal or recovery loss can make the file unavailable. No paid/outstanding amount
 is inferred from these records. Runtime mutation grants and production role assignments for
 `SupplierBillsManage`/`SupplierBillsPost` remain absent. See the

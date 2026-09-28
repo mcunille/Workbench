@@ -50,11 +50,16 @@ internal static class SupplierBillReviewCommands
           @Resolutions nvarchar(max),@Evidence nvarchar(max) OUTPUT
         AS BEGIN
           SET NOCOUNT ON;
-          DECLARE @Payload nvarchar(max),@SupplierId uniqueidentifier,@PoId uniqueidentifier,@Reference nvarchar(200),@Kind varchar(16);
-          SELECT @Payload=r.Payload,@SupplierId=b.SupplierId,@PoId=b.PurchaseOrderId,@Reference=r.NormalizedReference
+          DECLARE @Payload nvarchar(max),@SupplierId uniqueidentifier,@PoId uniqueidentifier,@Reference nvarchar(200),@Kind varchar(16),@Currency varchar(3);
+          SELECT @Payload=r.Payload,@SupplierId=b.SupplierId,@PoId=b.PurchaseOrderId,@Reference=r.NormalizedReference,@Currency=b.Currency
             FROM Purchasing.SupplierBills b JOIN Purchasing.SupplierBillRevisions r ON r.TenantId=b.TenantId AND r.Id=b.CurrentRevisionId
             WHERE b.TenantId=@TenantId AND b.Id=@BillId AND r.Id=@RevisionId;
           IF @Payload IS NULL THROW 51009,'Bill revision changed.',1;
+          DECLARE @Config nvarchar(max),@Scale int;
+          SELECT @Config=Payload FROM Accounting.Configurations WHERE TenantId=@TenantId;
+          SET @Scale=TRY_CONVERT(int,JSON_VALUE(@Config,'$.policies.scale'));
+          IF @Scale IS NULL OR @Scale NOT BETWEEN 0 AND 4 OR JSON_VALUE(@Config,'$.policies.currency') COLLATE Latin1_General_100_BIN2<>@Currency
+            THROW 51000,'Bill currency or policy is invalid.',1;
           SET @Kind=JSON_VALUE(@Payload,'$.kind');
           IF @Reference IS NULL OR JSON_VALUE(@Payload,'$.documentDate') IS NULL OR JSON_VALUE(@Payload,'$.effectiveDate') IS NULL
             OR JSON_VALUE(@Payload,'$.postingDate') IS NULL OR JSON_VALUE(@Payload,'$.total') IS NULL
@@ -90,6 +95,25 @@ internal static class SupplierBillReviewCommands
               SELECT 1 FROM OPENJSON(u.Input,'$.components') b WHERE JSON_VALUE(b.value,'$.componentKey') COLLATE Latin1_General_100_BIN2=JSON_VALUE(c.value,'$.assignedCostComponentKey')
                 AND JSON_VALUE(b.value,'$.kind') IN('BaseCost','Freight','Charge')))
             THROW 51000,'Bill charges and adjustments require a named cost assignment.',1;
+          DECLARE @Components TABLE(UnitId uniqueidentifier,ComponentKey nvarchar(200) COLLATE Latin1_General_100_BIN2,
+            Kind varchar(32),Amount decimal(28,4),Reason nvarchar(2000),AssignedCostComponentKey nvarchar(200) COLLATE Latin1_General_100_BIN2);
+          INSERT @Components SELECT u.Id,JSON_VALUE(c.value,'$.componentKey'),JSON_VALUE(c.value,'$.kind'),
+            CONVERT(decimal(28,4),JSON_VALUE(c.value,'$.amount')),JSON_VALUE(c.value,'$.reason'),JSON_VALUE(c.value,'$.assignedCostComponentKey')
+            FROM @Units u CROSS APPLY OPENJSON(u.Input,'$.components') c;
+          DECLARE @MinorUnit decimal(28,4)=CASE @Scale WHEN 0 THEN 1 WHEN 1 THEN 0.1 WHEN 2 THEN 0.01 WHEN 3 THEN 0.001 ELSE 0.0001 END;
+          IF EXISTS(SELECT 1 FROM @Components WHERE Amount<>ROUND(Amount,@Scale,1)
+              OR (Kind IN('Freight','Charge','Rounding') AND NULLIF(Reason,'') IS NULL)
+              OR (Kind='Rounding' AND ABS(Amount)>@MinorUnit))
+            OR (SELECT COUNT(*) FROM @Components WHERE Kind='Rounding')>1
+            THROW 51000,'Bill component precision, reason or source rounding is invalid.',1;
+          IF EXISTS(SELECT 1 FROM @Components b WHERE b.Kind IN('BaseCost','Freight','Charge') AND
+              b.Amount+COALESCE((SELECT SUM(CASE WHEN c.Kind='Discount' THEN -CONVERT(decimal(38,4),c.Amount)
+                WHEN c.Kind IN('NonrecoverableTax','Rounding') THEN CONVERT(decimal(38,4),c.Amount) ELSE 0 END)
+                FROM @Components c WHERE c.UnitId=b.UnitId AND c.AssignedCostComponentKey=b.ComponentKey),0)<0)
+            THROW 51000,'Assigned bill cost component cannot become negative.',1;
+          IF EXISTS(SELECT 1 FROM @Units u JOIN @Components c ON c.UnitId=u.Id
+              WHERE c.Kind IN('RecoverableTax','NonrecoverableTax') AND c.Amount>0 AND JSON_VALUE(u.Input,'$.evidence.taxPolicyReference') IS NULL)
+            THROW 51000,'Bill tax requires reviewed policy evidence.',1;
           IF @Kind='Invoice' AND EXISTS(SELECT 1 FROM @Units WHERE JSON_VALUE(Input,'$.evidence.invoiceEligible')<>'true'
               OR JSON_VALUE(Input,'$.evidence.presentObligation')<>'true'
               OR (JSON_VALUE(Input,'$.expectedPriorEventRevision')='0' AND JSON_VALUE(Input,'$.evidence.enforceableRight')<>'true')

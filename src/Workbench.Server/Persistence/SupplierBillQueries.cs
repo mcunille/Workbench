@@ -60,7 +60,7 @@ internal static class SupplierBillQueries
               JSON_QUERY(p.ResultJson) posting,
               JSON_QUERY(COALESCE((SELECT JSON_VALUE(j.value,'$.documentId') documentId,JSON_VALUE(j.value,'$.revisionId') revisionId,
                   JSON_VALUE(j.value,'$.digest') digest,CONVERT(bigint,JSON_VALUE(j.value,'$.length')) length,JSON_VALUE(j.value,'$.label') label,
-                  CONVERT(bit,CASE WHEN d.Id IS NOT NULL AND d.RemovedAtUtc IS NULL AND s.State=1 AND a.DeletedAtUtc IS NULL
+                  CONVERT(bit,CASE WHEN d.Id IS NOT NULL AND d.RemovedAtUtc IS NULL AND s.State=1 AND a.Id IS NOT NULL AND a.DeletedAtUtc IS NULL
                     AND NOT EXISTS(SELECT 1 FROM Storage.RecoveryFiles f WHERE f.TenantId=@TenantId AND f.RevisionId=s.Id) THEN 1 ELSE 0 END) available
                 FROM OPENJSON(@Evidence) j LEFT JOIN Purchasing.PurchaseOrderDocuments d ON d.TenantId=@TenantId AND d.Id=CONVERT(uniqueidentifier,JSON_VALUE(j.value,'$.documentId'))
                 LEFT JOIN Storage.Revisions s ON s.TenantId=@TenantId AND s.Id=CONVERT(uniqueidentifier,JSON_VALUE(j.value,'$.revisionId'))
@@ -87,8 +87,24 @@ internal static class SupplierBillQueries
             INSERT @Page SELECT TOP(@Take+1) Sequence,Operation,ActorId,RecordedAtUtc,ResultJson,CanonicalInput FROM Purchasing.SupplierBillReceipts
               WHERE TenantId=@TenantId AND BillId=@BillId AND Sequence>@AfterSequence ORDER BY Sequence;
             IF (SELECT COUNT(*) FROM @Page)>@Take SELECT @Next=MAX(Sequence) FROM (SELECT TOP(@Take) Sequence FROM @Page ORDER BY Sequence) p;
-            SET @Result=(SELECT JSON_QUERY(COALESCE((SELECT TOP(@Take) Sequence sequence,Operation operation,ActorId actorId,RecordedAtUtc recordedAtUtc,
-                JSON_QUERY(ResultJson) result,JSON_QUERY(CanonicalInput) command FROM @Page ORDER BY Sequence FOR JSON PATH),N'[]')) items,
+            SET @Result=(SELECT JSON_QUERY(COALESCE((SELECT TOP(@Take) p.Sequence sequence,p.Operation operation,p.ActorId actorId,p.RecordedAtUtc recordedAtUtc,
+                JSON_QUERY(p.ResultJson) result,JSON_QUERY(p.CanonicalInput) command,
+                JSON_QUERY((SELECT r.Id revisionId,r.PurchaseOrderRevision purchaseOrderRevision,r.SupplierName supplierName,
+                  r.ActorId actorId,r.RecordedAtUtc recordedAtUtc,JSON_QUERY(r.Payload) payload FOR JSON PATH,WITHOUT_ARRAY_WRAPPER)) revision,
+                JSON_QUERY((SELECT v.Id reviewId,v.PurchaseOrderRevision purchaseOrderRevision,CONVERT(varchar(18),v.PurchaseOrderVersion,1) purchaseOrderVersion,
+                    v.ActorId actorId,v.Rationale rationale,v.RecordedAtUtc recordedAtUtc,JSON_QUERY(v.Resolutions) resolutions,
+                    JSON_QUERY(COALESCE((SELECT JSON_VALUE(j.value,'$.documentId') documentId,JSON_VALUE(j.value,'$.revisionId') revisionId,
+                        JSON_VALUE(j.value,'$.digest') digest,CONVERT(bigint,JSON_VALUE(j.value,'$.length')) length,JSON_VALUE(j.value,'$.label') label,
+                        CONVERT(bit,CASE WHEN d.Id IS NOT NULL AND d.RemovedAtUtc IS NULL AND s.State=1 AND a.Id IS NOT NULL AND a.DeletedAtUtc IS NULL
+                          AND NOT EXISTS(SELECT 1 FROM Storage.RecoveryFiles f WHERE f.TenantId=@TenantId AND f.RevisionId=s.Id) THEN 1 ELSE 0 END) available
+                      FROM OPENJSON(v.EvidenceJson) j
+                      LEFT JOIN Purchasing.PurchaseOrderDocuments d ON d.TenantId=@TenantId AND d.Id=CONVERT(uniqueidentifier,JSON_VALUE(j.value,'$.documentId'))
+                      LEFT JOIN Storage.Revisions s ON s.TenantId=@TenantId AND s.Id=CONVERT(uniqueidentifier,JSON_VALUE(j.value,'$.revisionId'))
+                      LEFT JOIN Storage.Attachments a ON a.TenantId=@TenantId AND a.Id=d.AttachmentId ORDER BY d.Id FOR JSON PATH),N'[]')) evidence
+                  FROM Purchasing.SupplierBillReviews v WHERE v.TenantId=@TenantId AND v.BillId=@BillId AND v.RevisionId=r.Id
+                    AND v.Id=TRY_CONVERT(uniqueidentifier,JSON_VALUE(p.ResultJson,'$.reviewId')) FOR JSON PATH,WITHOUT_ARRAY_WRAPPER)) review
+              FROM @Page p JOIN Purchasing.SupplierBillRevisions r ON r.TenantId=@TenantId AND r.BillId=@BillId
+                AND r.Id=CONVERT(uniqueidentifier,JSON_VALUE(p.ResultJson,'$.revisionId')) ORDER BY p.Sequence FOR JSON PATH),N'[]')) items,
                 @Next nextSequence FOR JSON PATH,WITHOUT_ARRAY_WRAPPER,INCLUDE_NULL_VALUES);
             COMMIT; SELECT @Result ResultJson;
           END TRY BEGIN CATCH IF @@TRANCOUNT>0 ROLLBACK; THROW; END CATCH;

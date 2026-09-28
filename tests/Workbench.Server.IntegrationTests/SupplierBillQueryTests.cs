@@ -9,6 +9,34 @@ namespace Workbench.Server.IntegrationTests;
 [Collection(SqlServerCollection.Name)]
 public sealed class SupplierBillQueryTests(SqlServerFixture sqlServer)
 {
+    [Theory]
+    [InlineData("Revise")]
+    [InlineData("Abandon")]
+    public async Task HistoricalReviewRetainsSnapshotsAndCurrentAvailability(string operation)
+    {
+        // GIVEN an immutable reviewed document whose current review pointer will subsequently be cleared.
+        await using var context = await OpenAsync(sqlServer);
+        var (document, revision) = await context.SeedDocumentAsync();
+        var draft = context.CompleteDraft();
+        draft["revision"]!["documents"] = new JsonArray(new JsonObject { ["documentId"] = document.ToString(), ["revisionId"] = revision.ToString() });
+        var reviewed = await SupplierBillPostingTests.ReviewedAsync(context, draft);
+        var id = Guid.Parse(reviewed["billId"]!.ToString());
+        await context.SaveAsync(Guid.NewGuid(), context.Change(reviewed, operation, operation == "Revise" ? context.CompleteDraft()["revision"]!.AsObject() : null));
+        var before = await ReadAsync(context, "ReadSupplierBillHistory", ("@BillId", id), ("@Take", 100));
+        var previous = before["items"]!.AsArray().Single(x => x!["operation"]!.ToString() == "Review")!;
+        // WHEN the linked file is later removed THEN historical readback retains its reviewed identity and reports the loss.
+        Assert.Equal(new string('A', 64), previous["review"]?["evidence"]?[0]?["digest"]?.GetValue<string>());
+        Assert.True(previous["review"]!["evidence"]![0]!["available"]!.GetValue<bool>());
+        await context.AdminAsync($"UPDATE Purchasing.PurchaseOrderDocuments SET RemovedAtUtc=SYSUTCDATETIME(),Label='Later label' WHERE Id='{document}'");
+        var after = await ReadAsync(context, "ReadSupplierBillHistory", ("@BillId", id), ("@Take", 100));
+        var history = after["items"]!.AsArray().Single(x => x!["operation"]!.ToString() == "Review")!;
+        Assert.Equal("Invoice", history["review"]!["evidence"]![0]!["label"]!.GetValue<string>());
+        Assert.False(history["review"]!["evidence"]![0]!["available"]!.GetValue<bool>());
+        Assert.Equal(context.Recognition.PurchaseOrderVersion, history["review"]!["purchaseOrderVersion"]!.GetValue<string>());
+        Assert.Equal("Recognition supplier", history["revision"]!["supplierName"]!.GetValue<string>());
+        Assert.Equal(1, history["revision"]!["purchaseOrderRevision"]!.GetValue<int>());
+    }
+
     private static async Task<SupplierBillTestContext> OpenAsync(SqlServerFixture fixture)
     {
         return await SupplierBillPostingTests.OpenAsync(fixture);

@@ -8,5 +8,6 @@ internal sealed record SupplierBillPage(IReadOnlyList<SupplierBillSummary> Items
 internal sealed record SupplierBillEvidence(Guid DocumentId, Guid RevisionId, string Digest, long Length, string Label, bool Available);
 internal sealed record SupplierBillDetail(Guid BillId, Guid PurchaseOrderId, Guid SupplierId, string Currency, string State,
     Guid RevisionId, string Version, string SupplierName, JsonElement Revision, JsonElement? Review, JsonElement? Posting, IReadOnlyList<SupplierBillEvidence> Evidence);
-internal sealed record SupplierBillHistoryItem(long Sequence, string Operation, Guid ActorId, DateTimeOffset RecordedAtUtc, JsonElement Result, JsonElement Command);
+internal sealed record SupplierBillHistoryItem(long Sequence, string Operation, Guid ActorId, DateTimeOffset RecordedAtUtc, JsonElement Result, JsonElement Command,
+    JsonElement? Revision, JsonElement? Review);
 internal sealed record SupplierBillHistoryPage(IReadOnlyList<SupplierBillHistoryItem> Items, long? NextSequence);

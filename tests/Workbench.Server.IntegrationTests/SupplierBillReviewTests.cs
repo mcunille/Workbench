@@ -78,4 +78,52 @@ public sealed class SupplierBillReviewTests(SqlServerFixture sqlServer)
         Assert.Equal("Reviewed", (await context.ReviewAsync(Guid.NewGuid(), context.ReviewCommand(saved)))["state"]?.GetValue<string>());
         Assert.Equal(0, await context.Journal.CountAsync("JournalEntries"));
     }
+
+    [Theory]
+    [InlineData("FreightReason")]
+    [InlineData("RoundingBound")]
+    [InlineData("SourceRoundingCount")]
+    [InlineData("AssignedCost")]
+    [InlineData("CurrencyScale")]
+    [InlineData("TaxPolicy")]
+    public async Task ReviewRejectsDeterministicallyUnsupportedComponents(string scenario)
+    {
+        // GIVEN complete source totals with a component policy that the invoice kernel cannot accept.
+        await using var context = await OpenAsync(sqlServer);
+        var draft = context.CompleteDraft(); var revision = draft["revision"]!;
+        var unit = revision["units"]![0]!; var components = unit["components"]!.AsArray();
+        if (scenario == "FreightReason")
+        {
+            components.Add(new JsonObject { ["componentKey"] = "freight", ["kind"] = "Freight", ["amount"] = "1", ["assignedCostComponentKey"] = "base" });
+            revision["total"] = "111";
+        }
+        if (scenario is "RoundingBound" or "SourceRoundingCount")
+        {
+            components.Add(new JsonObject { ["componentKey"] = "round", ["kind"] = "Rounding", ["amount"] = scenario == "RoundingBound" ? "0.02" : "0.01", ["assignedCostComponentKey"] = "base", ["reason"] = "Supplier rounding" });
+            revision["total"] = "110.02";
+            if (scenario == "SourceRoundingCount")
+            {
+                var second = unit.DeepClone(); second["unitId"] = Guid.NewGuid().ToString(); second["componentKey"] = "second";
+                revision["units"]!.AsArray().Add(second); revision["total"] = "220.02";
+            }
+        }
+        if (scenario == "AssignedCost")
+        {
+            components[0]!["amount"] = "5";
+            components.Add(new JsonObject { ["componentKey"] = "other-base", ["kind"] = "BaseCost", ["amount"] = "100" });
+            components.Add(new JsonObject { ["componentKey"] = "discount", ["kind"] = "Discount", ["amount"] = "10", ["assignedCostComponentKey"] = "base" });
+            revision["total"] = "105";
+        }
+        if (scenario == "CurrencyScale") { components[0]!["amount"] = "100.001"; revision["total"] = "110.001"; }
+        if (scenario == "TaxPolicy")
+        {
+            components[1]!["kind"] = "NonrecoverableTax"; components[1]!["assignedCostComponentKey"] = "base";
+            unit["evidence"]!.AsObject().Remove("taxPolicyReference");
+        }
+        var saved = await context.SaveAsync(Guid.NewGuid(), draft);
+        // WHEN reviewed THEN unsupported policy cannot be labeled Reviewed or retain a successful review receipt.
+        Assert.Equal(51000, (await Assert.ThrowsAsync<SqlException>(() => context.ReviewAsync(Guid.NewGuid(), context.ReviewCommand(saved)))).Number);
+        Assert.Equal(0, await context.ScalarAsync<int>("SELECT COUNT(*) FROM Purchasing.SupplierBillReviews"));
+        Assert.Equal("Draft", await context.ScalarAsync<string>("SELECT State FROM Purchasing.SupplierBills"));
+    }
 }
