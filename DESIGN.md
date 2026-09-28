@@ -440,7 +440,9 @@ reading order must agree, including on narrow screens and with enlarged text.
 
 Use a collapsible desktop navigation backdrop and a mobile bottom pill, sharing destinations and
 permission checks. Search remains in the collection. The
-[decision record](docs/specs/2026-09-09-refined-navigation.md) captures the accepted scope.
+[original navigation decision](docs/specs/2026-09-09-refined-navigation.md) retains interaction
+rationale; the [raised content workspace](docs/specs/2026-09-25-raised-content-workspace.md)
+records the current desktop material and layout.
 
 ### Desktop pane
 

@@ -4,8 +4,14 @@
 
 Scenario [#73](https://github.com/mcunille/Workbench/issues/73); first delivery
 [H9 / #74](https://github.com/mcunille/Workbench/issues/74). Product scope is accepted;
-the schema and API below are accepted. Approval implements H9 only. H10–H12 remain separate
-deliveries, with the extension boundaries below preventing H9 from obstructing them.
+the schema and API below record the accepted H9 contract. Its approval covered H9 only;
+references below to separate H10–H12 deliveries describe that original increment.
+[H10 shared acquisitions](2026-09-09-shared-acquisitions.md),
+[H11 documents](2026-09-11-h11-acquisition-documents.md) and
+[H12 exports](2026-09-11-h12-acquisition-export.md) have since been implemented separately.
+The [collection guide](../collection.md) and [export formats](../collection-export.md) own current
+behavior. Historical `/api/items` examples predate the [beta API transition](../api-lifecycle.md);
+current routes use `/api/beta/items`. The extension boundaries remain historical design rationale.
 
 ## Purpose and current evidence
 

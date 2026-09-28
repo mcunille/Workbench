@@ -1,0 +1,75 @@
+{
+  "version": 1,
+  "reviews": [
+    {
+      "path": "docs/specs/2026-09-07-h2-item-photographs.md",
+      "reviewedAtUtc": "2026-09-28T06:55:50Z",
+      "reviewedRevision": "4140bc233b7502b84b29d08bfd165e4e31a870ff",
+      "outcome": "update",
+      "note": "Label Existing implementation and consequences as the pre-H2 baseline: InventoryEndpoints now maps photographs and returns photo/version metadata. Preserve browser preparation, no-original fallback, bounded decoder limitations, atomic pair publication, replay and rejected alternatives. Current owners: docs/ARCHITECTURE.md Item photographs and docs/operations/blob-and-service-providers.md. Evidence: src/Workbench.Server/Inventory/InventoryEndpoints.cs, ItemPhotoService.cs and tests/Workbench.Server.IntegrationTests/ItemPhotoCommitTests.cs. Historical /api/items examples are superseded by docs/api-lifecycle.md /api/beta; retain historical intent with a successor note. Follow-up cleanup applied: pre-H2 baseline explicitly labeled; current collection/photo owners and beta API transition linked. Original delivery contract remains."
+    },
+    {
+      "path": "docs/specs/2026-09-07-h3-collection-search.md",
+      "reviewedAtUtc": "2026-09-28T06:55:50Z",
+      "reviewedRevision": "4140bc233b7502b84b29d08bfd165e4e31a870ff",
+      "outcome": "keep",
+      "note": "Retains literal substring versus full-text rationale, private in-memory state tradeoff, and explicitly historical SQL plan/latency and mutation evidence; docs/demos/README.md links that evidence. Current owners docs/collection.md and docs/ARCHITECTURE.md. Evidence: InventoryEndpoints.ListScopeAsync collation predicates and tests/Workbench.Server.IntegrationTests/InventorySearchTests.cs. Historical route examples follow the later docs/api-lifecycle.md beta transition; no current performance claim."
+    },
+    {
+      "path": "docs/specs/2026-09-07-h4-item-editing.md",
+      "reviewedAtUtc": "2026-09-28T06:55:50Z",
+      "reviewedRevision": "4140bc233b7502b84b29d08bfd165e4e31a870ff",
+      "outcome": "keep",
+      "note": "Retains no edit-operation ledger, uncertain acknowledgment versus current-state distinction, explicit reconciliation and shared-version tradeoffs. Current owners docs/collection.md and docs/ARCHITECTURE.md. Evidence: InventoryEndpoints.UpdateAsync and tests/Workbench.Server.IntegrationTests/ItemEditingDatabaseTests.cs for restricted writes, immutable creation replay and independent text/photo races. Referenced by H5 and docs/demos/README.md; preserve historical verification and API examples as design history."
+    },
+    {
+      "path": "docs/specs/2026-09-07-h5-item-archiving.md",
+      "reviewedAtUtc": "2026-09-28T06:55:50Z",
+      "reviewedRevision": "4140bc233b7502b84b29d08bfd165e4e31a870ff",
+      "outcome": "keep",
+      "note": "Already labels no-restore limitations as H5-only and links H6; do not misclassify them as current product defects. Retains archive-is-not-disposal, uncertain retry and no archive ledger rationale. Current owners docs/collection.md and docs/ARCHITECTURE.md; InventoryEndpoints.ArchiveAsync and ItemRestorationDatabaseTests preserve checked transitions. Incoming references include H6, inventory scenario and docs/demos/README.md historical evidence."
+    },
+    {
+      "path": "docs/specs/2026-09-07-h6-archive-recovery.md",
+      "reviewedAtUtc": "2026-09-28T06:55:50Z",
+      "reviewedRevision": "4140bc233b7502b84b29d08bfd165e4e31a870ff",
+      "outcome": "keep",
+      "note": "Retains delayed-restore/re-archive safety, explicit archive endpoint rationale and dated online-recovery integration/rollback evidence. Evidence: InventoryEndpoints.RestoreAsync and tests/Workbench.Server.IntegrationTests/ItemRestorationDatabaseTests.cs. Current owners docs/collection.md, docs/ARCHITECTURE.md and docs/operations/database-migrations.md. docs/demos/h6/README.md and docs/demos/README.md link verification anchors; no current runtime or migration acceptance was rerun."
+    },
+    {
+      "path": "docs/specs/2026-09-08-h7-collection-export.md",
+      "reviewedAtUtc": "2026-09-28T06:55:50Z",
+      "reviewedRevision": "4140bc233b7502b84b29d08bfd165e4e31a870ff",
+      "outcome": "update",
+      "note": "Add historical-v1/successor notice linking docs/specs/2026-09-11-h12-acquisition-export.md and docs/collection-export.md; current code emits workbench-records-v2 with acquisition fields. Preserve synchronous bounded preparation, SERIALIZABLE versus snapshot-isolation tradeoff and v1 decoding. Also recommend correcting docs/ARCHITECTURE.md Collection records export and Collection identity, which still say CSV v1 and no acquisition exports. Evidence: ItemExportEndpoints.cs and ItemAcquisitionExportTests.CsvV2PreservesOptionalFactsEveryMethodAndPartialDatesWithReversibleText. No cleanup had been applied at the initial review. Follow-up cleanup applied: v1 historical scope and H12/beta successors linked; docs/ARCHITECTURE.md corrected for CSV/ZIP v2, acquisition facts/documents and scoped relationships."
+    },
+    {
+      "path": "docs/specs/2026-09-09-acquisition-context.md",
+      "reviewedAtUtc": "2026-09-28T06:55:50Z",
+      "reviewedRevision": "4140bc233b7502b84b29d08bfd165e4e31a870ff",
+      "outcome": "update",
+      "note": "Clarify that H10-H12 remain separate deliveries describes original H9 scope and link their implemented successor specs. Current owners docs/collection.md, docs/collection-export.md and docs/ARCHITECTURE.md; preserve partial dates, separate identity/link model, replay evidence and shared-context tradeoffs. Evidence: AcquisitionEndpoints.MapAcquisitions acquisition-link route, AcquisitionConcurrencyTests and ItemAcquisitionExportTests; H11/H12 specs link extension-boundary anchors. Correct living architecture export contradiction as noted in H7; do not rewrite historical contracts. Follow-up cleanup applied: original H9-only approval distinguished from implemented H10-H12 successors; current collection/export owners and beta transition linked."
+    },
+    {
+      "path": "docs/specs/2026-09-09-refined-navigation.md",
+      "reviewedAtUtc": "2026-09-28T06:55:50Z",
+      "reviewedRevision": "4140bc233b7502b84b29d08bfd165e4e31a870ff",
+      "outcome": "update",
+      "note": "Mark desktop material/width as partially superseded by docs/specs/2026-09-25-raised-content-workspace.md and DESIGN.md authenticated navigation: original 13rem glass pane is now 14.3125rem/minimum 229px solid canvas beside raised content. Evidence: src/Workbench.Client/src/navigation.css. Preserve profile/mobile interaction decisions and rejected alternatives; repair current-direction references in docs/README.md, DESIGN.md and docs/specs/README.md. Follow-up cleanup applied: partial-supersession notice added; current-direction references in DESIGN.md, docs/README.md and docs/specs/README.md now link the raised-content successor. Original interaction rationale remains."
+    },
+    {
+      "path": "docs/specs/2026-09-09-worktree-development-environments.md",
+      "reviewedAtUtc": "2026-09-28T06:55:50Z",
+      "reviewedRevision": "4140bc233b7502b84b29d08bfd165e4e31a870ff",
+      "outcome": "keep",
+      "note": "Retains distinct built-preview versus HMR and dedicated-SQL versus shared-SQL tradeoffs, two-preview browser acceptance, and historical resource measurements. Current operational owner: docs/setup.md. Evidence: scripts/dev-environment/State.ps1, Source.ps1 and tests/Workbench.BuildTests/DevEnvironment.Tests.ps1; incoming links in docs/setup.md and docs/specs/README.md. Historical verification is not rerun."
+    },
+    {
+      "path": "docs/specs/local-self-host-update.md",
+      "reviewedAtUtc": "2026-09-28T06:55:50Z",
+      "reviewedRevision": "4140bc233b7502b84b29d08bfd165e4e31a870ff",
+      "outcome": "distill-then-delete",
+      "note": "Candidate after preservation: docs/operations/local-self-host.md owns update/checkpoint/recovery instructions and docs/operations/evidence/2026-09-07-local-self-host-update.md owns dated verification. Preserve the automatic-local-checkpoint versus external-attestation rationale and stopped-failure versus automatic rollback decision in that runbook, then repair docs/specs/README.md. Evidence: scripts/local-self-host/Update.ps1 New-UpdateCheckpoint and Invoke-LocalUpdate. External consumers and retention requirements remain unverified; deletion was not yet approved at the initial review. Follow-up cleanup approved and applied: checkpoint and stopped-failure rationale plus generated-configuration/source preservation now live in docs/operations/local-self-host.md; the redundant spec was retired and docs/specs/README.md repaired. Dated verification remains. Repository references and GitHub issue/PR search found no further live consumers; external bookmarks remain unverified."
+    }
+  ]
+}
