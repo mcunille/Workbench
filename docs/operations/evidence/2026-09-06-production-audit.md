@@ -59,7 +59,7 @@ successful initial installation.
 
 ## Operational requirements identified by the audit
 
-The subsequent [Azure release verification fixes](../../specs/azure-release-verification-fixes.md)
+The subsequent [Azure release verification fixes](https://github.com/mcunille/Workbench/blob/e5f6ef7dda7610975eb77c2848f42eaab4a160aa/docs/specs/azure-release-verification-fixes.md)
 add worker-only Graph delivery, versioned Entra manifests using client IDs for SQL SIDs,
 verified bootstrap revision deactivation, independent migration configuration, and five-minute
 evaluation for the two affected worker alerts. These implementation corrections do not close
@@ -116,7 +116,7 @@ Current sources establishing the implementation limits:
 Finish and review the missing operational implementation/procedures before an installation drill.
 Retain the accepted application architecture; design decisions still needed include the protected
 administrative/diagnostic environment, monitoring integration, and concrete backup/restore automation.
-The explicitly approved [Azure metadata boundary](../../specs/azure-forwarded-metadata-trust.md) permits
+The explicitly approved [Azure metadata boundary](https://github.com/mcunille/Workbench/blob/e5f6ef7dda7610975eb77c2848f42eaab4a160aa/docs/specs/azure-forwarded-metadata-trust.md) permits
 environment-wide trust for one hop of client IP/protocol only, with internal spoofing recorded as a
 residual risk. It does not waive the remaining production checks or apply to self-hosted deployments.
 

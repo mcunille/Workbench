@@ -4,6 +4,12 @@ Apply these controls before unrestricted ingress, in addition to the [ingress po
 and [browser protections](browser-security.md). Deployments and irreversible backup changes require
 an explicit review and approval. These templates do not enable public access or change workload images.
 
+The accepted scope combines explicit ingress policy, framing-only browser CSP, authentication-only
+SQL auditing and bounded log retention. It does not imply broad CSP, a paid Defender/registry tier,
+supply-chain signing or independently administered MUA. Public traffic, exact-image assessment,
+observed ingestion, delivered alerts and recovery drills remain separate acceptance decisions; see
+the [production acceptance matrix](production-readiness.md).
+
 ## Resource audit and notification configuration
 
 `infra/azure/security-controls.bicep` targets existing resources in one resource group. Supply

@@ -76,7 +76,7 @@ scoped to workloads that require them; migrator, operator, and maintenance acces
 
 ## Public origin and proxy trust
 
-The later approved [Azure forwarded metadata trust decision](azure-forwarded-metadata-trust.md)
+The later approved [Azure forwarded metadata trust decision](../operations/azure-deployment.md#trust-tls-and-readiness-acceptance)
 adds an explicit environment-boundary alternative to the exact peer configuration below. It is
 limited to address/protocol metadata and does not relax application or resource authorization.
 
@@ -141,7 +141,7 @@ down-migrations. Production traffic changes remain human-authorized.
 Configure Azure SQL point-in-time retention (initially seven days) and blob soft-delete/version
 retention (initially 30 days), both environment parameters. Retention alone is not a paired backup.
 The original stopped-writer checkpoint decision below predates the accepted
-[online backup/manual recovery](2026-09-07-online-backup-and-manual-recovery.md) design. Current
+[online backup/manual recovery](../operations/online-backup-recovery.md#sql-authoritative-recovery-policy) design. Current
 procedures distinguish [custom recovery sets](../operations/online-backup-recovery.md) from
 [Azure-native protection](../operations/azure-native-backup.md); native backup does not establish
 custom-set activation or a populated cross-store restore. Recovery still remains offline.

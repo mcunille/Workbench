@@ -44,7 +44,7 @@ not a price estimate. Keep `activate`, `grantAccess`, `workerEnabled`, `publishI
 false initially. There is deliberately no guessed trusted proxy address or CIDR in the example.
 The default `proxyTrustMode=KnownProxies` preserves explicit peer restrictions. An operator may
 instead explicitly select `AzureContainerApps` with both proxy arrays empty after accepting the
-[environment metadata trust boundary](../specs/azure-forwarded-metadata-trust.md). This is not
+[environment metadata trust boundary](#trust-tls-and-readiness-acceptance). This is not
 automatic Azure detection or permission to trust internal callers for application operations.
 
 ```powershell
@@ -74,6 +74,11 @@ The complete path includes [private host and secret preparation](azure-bootstrap
 when a private canonical-host route is unavailable, and [native backup setup](azure-native-backup.md).
 The main template alone does not perform these operator steps. Audit-only verification of this
 procedure does not claim a fresh deployment has been executed.
+
+The two-phase bootstrap retains system-assigned identities. An atomic no-start deployment would
+require separating identity creation from workloads, such as migrating to user-assigned identities.
+That larger change was deferred; explicit deactivation and verified zero replicas bound the current
+transient-startup limitation without introducing an idle process or disabling production validation.
 
 1. After authorization, run deployment `what-if`, inspect changes, then run `infra/azure/bootstrap.ps1 -Subscription <id> -ResourceGroup <name> -ParametersFile <file>` with all activation
    switches false. This creates the network, private SQL/blob/vault endpoints and DNS, logs, a bootstrap
@@ -178,8 +183,11 @@ In both modes, forwarded host is ignored and all authentication, authorization, 
 antiforgery, scoped identities, private endpoints and secret restrictions remain required. Verify
 that external forged leftmost values cannot change the effective client, and record the internal
 spoofing limitation as an accepted exception rather than a passing anti-spoof test. Public HTTPS,
-canonical links and secure cookies remain acceptance requirements. See the
-[approved design](../specs/azure-forwarded-metadata-trust.md) for rollback and verification criteria.
+canonical links and secure cookies remain acceptance requirements. Hosted acceptance must exercise
+real HTTPS/login and shared rate limits/session revocation across replicas; diagnostic header
+observations alone are insufficient. Stop public workloads before rolling back to `KnownProxies`;
+never guess peers or widen trusted networks. Peer discovery and Host checks did not distinguish
+the observed routes; a global rate-limit bucket was rejected for its shared availability cost.
 
 The app's allowlist is exactly `publicHost`; every HTTP probe explicitly supplies it. Startup allows
 120 seconds, liveness checks every 10 seconds without remote dependencies, and readiness uses a

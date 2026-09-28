@@ -2,6 +2,13 @@
   "version": 1,
   "reviews": [
     {
+      "path": "docs/specs/2026-09-06-inventory-domain-foundation.md",
+      "reviewedAtUtc": "2026-09-28T07:33:18Z",
+      "reviewedRevision": "552a97c9ae4e3f2b418ac5cb6c161dbf625bf10d",
+      "outcome": "keep",
+      "note": "Distinct accepted future contract: identity versus lot/product/purchase line, immutable tracking kind, movements versus measurements/money, assembly lineage and no universal root status. Partial-implementation label remains useful. InventoryDatabaseTests.DatabaseEnforcesPhysicalHoldingAndNonblankName rejects Lot; InventoryEndpoints preserves Individual creation and tenant authority. Current owner docs/ARCHITECTURE.md Collection identity links this foundation; docs/collection.md owns supported scope. H2/H4-H6/H9 and the scenario reference it. Preserve unfinished stock/composition requirements here; historical GemInv inspection was not rerun. Approved cleanup retains this separate spec because accepted lot, stock and assembly requirements remain unfinished; the implemented physical-schema copy and detailed GemInv comparison were removed. Current mechanics remain in docs/ARCHITECTURE.md."
+    },
+    {
       "path": "docs/specs/2026-09-07-h2-item-photographs.md",
       "reviewedAtUtc": "2026-09-28T06:55:50Z",
       "reviewedRevision": "4140bc233b7502b84b29d08bfd165e4e31a870ff",
@@ -63,13 +70,6 @@
       "reviewedRevision": "4140bc233b7502b84b29d08bfd165e4e31a870ff",
       "outcome": "keep",
       "note": "Retains distinct built-preview versus HMR and dedicated-SQL versus shared-SQL tradeoffs, two-preview browser acceptance, and historical resource measurements. Current operational owner: docs/setup.md. Evidence: scripts/dev-environment/State.ps1, Source.ps1 and tests/Workbench.BuildTests/DevEnvironment.Tests.ps1; incoming links in docs/setup.md and docs/specs/README.md. Historical verification is not rerun."
-    },
-    {
-      "path": "docs/specs/local-self-host-update.md",
-      "reviewedAtUtc": "2026-09-28T06:55:50Z",
-      "reviewedRevision": "4140bc233b7502b84b29d08bfd165e4e31a870ff",
-      "outcome": "distill-then-delete",
-      "note": "Candidate after preservation: docs/operations/local-self-host.md owns update/checkpoint/recovery instructions and docs/operations/evidence/2026-09-07-local-self-host-update.md owns dated verification. Preserve the automatic-local-checkpoint versus external-attestation rationale and stopped-failure versus automatic rollback decision in that runbook, then repair docs/specs/README.md. Evidence: scripts/local-self-host/Update.ps1 New-UpdateCheckpoint and Invoke-LocalUpdate. External consumers and retention requirements remain unverified; deletion was not yet approved at the initial review. Follow-up cleanup approved and applied: checkpoint and stopped-failure rationale plus generated-configuration/source preservation now live in docs/operations/local-self-host.md; the redundant spec was retired and docs/specs/README.md repaired. Dated verification remains. Repository references and GitHub issue/PR search found no further live consumers; external bookmarks remain unverified."
     }
   ]
 }

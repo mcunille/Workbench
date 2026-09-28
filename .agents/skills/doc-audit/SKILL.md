@@ -7,7 +7,30 @@ description: "Use when auditing repository documentation for obsolete, redundant
 
 Keep the smallest useful documentation set. Code and tests own implementation mechanics;
 durable docs explain intent, constraints, tradeoffs, and how people use or operate the system.
-Optimize for retained knowledge and clear ownership, not deletion counts.
+Optimize for retained knowledge and clear ownership, not deletion counts. Historical value alone
+is not a reason to maintain a separate document.
+
+## Prefer one maintained owner
+
+For each completed spec, compare its remaining useful content with the maintained guide before
+choosing an outcome. Identify the small set of facts that would be lost, name their destination,
+and prefer distill-then-delete when that owner can absorb them clearly. A unique paragraph,
+rejected alternative, approval sequence or old verification count does not justify keeping the
+whole spec. Git preserves chronology; retain dated evidence separately only when its scope still
+serves a concrete verification or retention need.
+
+Every **keep** finding must explain why this document needs to remain separate: for example,
+unfinished accepted requirements, a distinct current audience that consolidation would impair,
+or a specific evidence/retention obligation. Labels such as historical, accepted or implemented,
+existing links, and generic may-be-useful-later arguments are insufficient. Repair links rather
+than treating them as permanent ownership. A known active external consumer still needs the
+forwarding or migration treatment below.
+
+Do not substitute a historical banner for consolidation when reducing maintenance burden is the
+goal. Do not relocate whole specs into guides or an archive: preserve concise rationale and
+constraints, remove repeated mechanics/checklists, and report the net change in maintained files
+and text. Net reduction is evidence of simplification, not a quota that overrides unresolved
+contracts or required evidence.
 
 ## Scope and authority
 
@@ -58,11 +81,13 @@ After inspecting claims, evidence, preservation needs, and incoming references, 
 completed reviews and include their findings in the delivered audit. `investigate` is a completed
 review with an unresolved finding and advances the queue; completion is not cleanup approval or
 proof that the document is current. Interrupted or merely selected documents do not advance.
-Preserve unrelated entries and unresolved findings when updating the ledger; Git retains earlier
-reviews. Re-read before writing to avoid overwriting another run's progress. Retain entries for
-deleted paths but exclude them from candidates; transfer an entry on rename only with verified
-Git rename history. A changed spec is ranked by the later modification/review date, not permanently
-skipped, and the stored revision identifies exactly what was reviewed.
+Preserve unrelated entries and unresolved findings for existing documents; Git retains earlier
+reviews. Re-read before writing to avoid overwriting another run's progress. The ledger tracks
+existing documents, not retired history: remove a spec's entry with its authorized deletion.
+Prune older retired entries only after verifying Git deletion history; a temporarily missing or
+unapproved dirty deletion is not proof of retirement. Transfer an entry on rename only with
+verified Git rename history. A changed spec is ranked by the later modification/review date,
+not permanently skipped, and the stored revision identifies exactly what was reviewed.
 
 Validate the JSON and required fields, confirm recorded paths/revisions and completed count,
 then recompute the next batch. Report ledger changes separately from proposed cleanup. Follow
@@ -88,7 +113,7 @@ output. Propose the appropriate owner to fix after locating the drift; avoid han
 
 | Action | Evidence needed |
 | --- | --- |
-| Keep | Distinct current audience, procedure, contract, decision, or required historical record. |
+| Keep | A concrete reason this document must remain separate from the maintained owner; identify unfinished requirements, audience needs, or required evidence. |
 | Update | Confirmed stale claim and evidence for its replacement. |
 | Consolidate | Overlap with a named canonical owner; preserve distinct audience needs. |
 | Distill then delete | Redundant source with unique knowledge mapped to a durable destination. |
