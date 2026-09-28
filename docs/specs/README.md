@@ -32,6 +32,11 @@ records the approved, implemented internal recognition and invoice matching foun
 cost/tax treatment and immutable receipt-recognition records. `BookkeepingAvailable` remains false;
 no production posting adapter or public financial-write UI is enabled.
 
+[BK-06 supplier open items and allocations](2026-09-27-bk-06-supplier-open-items-and-allocations.md)
+records the approved scope and proposed implementation contract for supplier controls, payment
+primitives, historical allocation safety and reconciliation. Written-spec review is pending;
+it depends on BK-05 and does not enable production bookkeeping.
+
 | Area | Records |
 | --- | --- |
 | Foundation | [Base architecture](2026-08-31-base-application-architecture.md), [data/identity/tenancy](2026-09-01-data-identity-tenancy.md). Current release-unit rationale lives in [Architecture](../ARCHITECTURE.md#application-structure), and generated-contract/error guidance in [API lifecycle](../api-lifecycle.md#generated-contracts-and-api-errors). |
