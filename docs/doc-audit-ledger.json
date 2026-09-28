@@ -2,6 +2,34 @@
   "version": 1,
   "reviews": [
     {
+      "path": "docs/specs/2026-09-06-first-hobbyist-scenario.md",
+      "reviewedAtUtc": "2026-09-28T07:33:18Z",
+      "reviewedRevision": "552a97c9ae4e3f2b418ac5cb6c161dbf625bf10d",
+      "outcome": "investigate",
+      "note": "Preserve integrated phone/desktop and uncoached collector acceptance in Completion and validation. Issue #43 read on 2026-09-28 is CLOSED with all acceptance boxes checked, but its narrative still says the combined run and participant outcome are unevidenced; no comments resolve this conflict. Do not infer usability completion or reopen the issue from this audit. Current behavior owner docs/collection.md links this requirement; docs/design/h1-refinement/README.md and docs/specs/README.md also reference it. InventoryEndpoints and App.tsx support implemented collection scope, not human validation. Reconcile issue evidence with the owner before changing scenario status."
+    },
+    {
+      "path": "docs/specs/2026-09-06-h1-collection-notebook.md",
+      "reviewedAtUtc": "2026-09-28T07:33:18Z",
+      "reviewedRevision": "552a97c9ae4e3f2b418ac5cb6c161dbf625bf10d",
+      "outcome": "update",
+      "note": "Label Scope and evidence's current App.tsx description as the pre-H1 baseline and add historical-scope/successor links to docs/collection.md, docs/api-lifecycle.md and the navigation decisions. App.tsx now renders Collection; InventoryEndpoints maps /api/beta/items and later lifecycle commands. Preserve original H1 contracts, creation-request replay and in-memory draft rationale, plus explicitly dated verification; do not replace historical API examples silently. Evidence: InventoryEndpoints.CreateAsync/ReplayAsync and InventoryDatabaseTests. Incoming references: scenario, inventory foundation and docs/collection.md. No cleanup applied."
+    },
+    {
+      "path": "docs/specs/2026-09-06-inventory-domain-foundation.md",
+      "reviewedAtUtc": "2026-09-28T07:33:18Z",
+      "reviewedRevision": "552a97c9ae4e3f2b418ac5cb6c161dbf625bf10d",
+      "outcome": "keep",
+      "note": "Distinct accepted future contract: identity versus lot/product/purchase line, immutable tracking kind, movements versus measurements/money, assembly lineage and no universal root status. Partial-implementation label remains useful. InventoryDatabaseTests.DatabaseEnforcesPhysicalHoldingAndNonblankName rejects Lot; InventoryEndpoints preserves Individual creation and tenant authority. Current owner docs/ARCHITECTURE.md Collection identity links this foundation; docs/collection.md owns supported scope. H2/H4-H6/H9 and the scenario reference it. Preserve unfinished stock/composition requirements here; historical GemInv inspection was not rerun."
+    },
+    {
+      "path": "docs/specs/2026-09-06-ui-design-guidance.md",
+      "reviewedAtUtc": "2026-09-28T07:33:18Z",
+      "reviewedRevision": "552a97c9ae4e3f2b418ac5cb6c161dbf625bf10d",
+      "outcome": "keep",
+      "note": "Already distinguishes historical bronze/serif/radii from current DESIGN.md and successor decisions. Retains unique research dispositions, capability versus permission distinction, sensitive-state restrictions, manual assistive-technology/human acceptance and rejected framework/visual alternatives. Current Brand.tsx, SignInBrand.tsx and sign-in.css support successor styling; source inspection does not establish accessibility conformance. Incoming references include scenario, H1/H2, docs/design/README.md and specs index. Keep interaction/acceptance guidance here and current visual values in DESIGN.md; external research links were not revalidated."
+    },
+    {
       "path": "docs/specs/2026-09-07-h2-item-photographs.md",
       "reviewedAtUtc": "2026-09-28T06:55:50Z",
       "reviewedRevision": "4140bc233b7502b84b29d08bfd165e4e31a870ff",
@@ -37,11 +65,39 @@
       "note": "Retains delayed-restore/re-archive safety, explicit archive endpoint rationale and dated online-recovery integration/rollback evidence. Evidence: InventoryEndpoints.RestoreAsync and tests/Workbench.Server.IntegrationTests/ItemRestorationDatabaseTests.cs. Current owners docs/collection.md, docs/ARCHITECTURE.md and docs/operations/database-migrations.md. docs/demos/h6/README.md and docs/demos/README.md link verification anchors; no current runtime or migration acceptance was rerun."
     },
     {
+      "path": "docs/specs/2026-09-07-online-backup-and-manual-recovery.md",
+      "reviewedAtUtc": "2026-09-28T07:33:18Z",
+      "reviewedRevision": "552a97c9ae4e3f2b418ac5cb6c161dbf625bf10d",
+      "outcome": "keep",
+      "note": "Retains accepted SQL-authoritative loss policy and rejected write-pause, exact-pair-only and automatic-failover alternatives. OnlineBackup.CaptureAsync checks immutable version bytes and separates Incomplete from IntegrityChecked; FileRecoveryTests.ProviderFailureCannotBeAcceptedAsMissing preserves the access-failure boundary. Current owners docs/operations/online-backup-recovery.md and production-readiness.md distinguish optional custom capture from native backup and retain unverified populated recovery/hosted gates. Incoming links include base tenancy and Azure specs and recovery runbook. No hosted verification or deletion justification."
+    },
+    {
       "path": "docs/specs/2026-09-08-h7-collection-export.md",
       "reviewedAtUtc": "2026-09-28T06:55:50Z",
       "reviewedRevision": "4140bc233b7502b84b29d08bfd165e4e31a870ff",
       "outcome": "update",
       "note": "Add historical-v1/successor notice linking docs/specs/2026-09-11-h12-acquisition-export.md and docs/collection-export.md; current code emits workbench-records-v2 with acquisition fields. Preserve synchronous bounded preparation, SERIALIZABLE versus snapshot-isolation tradeoff and v1 decoding. Also recommend correcting docs/ARCHITECTURE.md Collection records export and Collection identity, which still say CSV v1 and no acquisition exports. Evidence: ItemExportEndpoints.cs and ItemAcquisitionExportTests.CsvV2PreservesOptionalFactsEveryMethodAndPartialDatesWithReversibleText. No cleanup had been applied at the initial review. Follow-up cleanup applied: v1 historical scope and H12/beta successors linked; docs/ARCHITECTURE.md corrected for CSV/ZIP v2, acquisition facts/documents and scoped relationships."
+    },
+    {
+      "path": "docs/specs/2026-09-08-h8-collection-package.md",
+      "reviewedAtUtc": "2026-09-28T07:33:18Z",
+      "reviewedRevision": "552a97c9ae4e3f2b418ac5cb6c161dbf625bf10d",
+      "outcome": "update",
+      "note": "Add explicit historical-v1 notice and link H12 successor docs/specs/2026-09-11-h12-acquisition-export.md plus docs/api-lifecycle.md. Current ItemPackageEndpoints emits workbench-package-v2 and ItemAcquisitionExportTests.PackageDeduplicatesSharedDocumentsAndDisclosesOnlySelectedRelationships asserts v2 acquisitions/documents; docs/collection-export.md owns v2 and retained v1 decoding. Preserve release-SQL-locks-before-blob-reads, immutable capture, all-or-nothing output and seven-day retention dependency in this design and docs/operations/blob-and-service-providers.md. Incoming links in collection guide, provider runbook and specs index remain valid. No cleanup applied."
+    },
+    {
+      "path": "docs/specs/2026-09-08-production-security-controls.md",
+      "reviewedAtUtc": "2026-09-28T07:33:18Z",
+      "reviewedRevision": "552a97c9ae4e3f2b418ac5cb6c161dbf625bf10d",
+      "outcome": "keep",
+      "note": "Compact accepted scope records deliberate framing-only CSP, authentication-only SQL audit, 30-day log policy with AzureActivity exception, and separately gated irreversible protection/exact-digest assessment. BrowserSecurityHeadersMiddleware and infra/azure/security-controls.bicep support inspected boundaries; current procedures live in docs/operations/azure-security-controls.md, azure-ingress.md and browser-security.md. production-readiness.md preserves narrower hosted evidence limits. Linked from specs index. Keep design limits distinct from operational instructions; no fresh scan, deployment or Azure service-policy validation performed."
+    },
+    {
+      "path": "docs/specs/2026-09-08-tanzanite-visual-language.md",
+      "reviewedAtUtc": "2026-09-28T07:33:18Z",
+      "reviewedRevision": "552a97c9ae4e3f2b418ac5cb6c161dbf625bf10d",
+      "outcome": "keep",
+      "note": "Distinct approval sequence and rejected split sign-in composition; already delegates current values to DESIGN.md and labels later shared-brand refinement. Brand.tsx omits stag/byline, SignInBrand.tsx retains them, and sign-in.css retains near-black canvas/glass/radii. DESIGN.md links both acceptance anchors; design references and specs index also depend on it. Preserve rationale here, current raised-workspace values in DESIGN.md and its 2026-09-25 successor; no new visual, accessibility or deployment verification claimed."
     },
     {
       "path": "docs/specs/2026-09-09-acquisition-context.md",
@@ -63,6 +119,20 @@
       "reviewedRevision": "4140bc233b7502b84b29d08bfd165e4e31a870ff",
       "outcome": "keep",
       "note": "Retains distinct built-preview versus HMR and dedicated-SQL versus shared-SQL tradeoffs, two-preview browser acceptance, and historical resource measurements. Current operational owner: docs/setup.md. Evidence: scripts/dev-environment/State.ps1, Source.ps1 and tests/Workbench.BuildTests/DevEnvironment.Tests.ps1; incoming links in docs/setup.md and docs/specs/README.md. Historical verification is not rerun."
+    },
+    {
+      "path": "docs/specs/azure-forwarded-metadata-trust.md",
+      "reviewedAtUtc": "2026-09-28T07:33:18Z",
+      "reviewedRevision": "552a97c9ae4e3f2b418ac5cb6c161dbf625bf10d",
+      "outcome": "keep",
+      "note": "Security decision retains observed short/full-host route discrepancy, environment-compromise residual risk, rejected IP discovery/host checks/global bucket and stopped rollback. PublicEndpointConfiguration.ConfigureProxy and PublicEndpointTests.AzureEnvironmentTrustAcceptsOnlyOneMetadataHop support explicit Azure opt-in, rightmost single hop, unchanged Host and conflicting-setting rejection. Current deployment owner docs/operations/azure-deployment.md links this decision; docs/operations/azure-ingress.md owns client ingress policy. docs/README.md, original Azure spec and production audit also reference it. No live proxy assumptions revalidated."
+    },
+    {
+      "path": "docs/specs/azure-release-verification-fixes.md",
+      "reviewedAtUtc": "2026-09-28T07:33:18Z",
+      "reviewedRevision": "552a97c9ae4e3f2b418ac5cb6c161dbf625bf10d",
+      "outcome": "keep",
+      "note": "Retains Graph worker-only authority and ambiguous-submission rationale, clientId SQL SID versus principalId RBAC distinction, and rejected larger identity migration behind transient bootstrap startup. Evidence: GraphIdentityMessageDelivery/QueuedGraphIdentityMessageDelivery, GraphDeliveryTests, EntraPrincipalProvisioning.GetSqlSid/ParseManifest, infra/azure/bootstrap.ps1 and modules/monitoring.bicep. Current owners docs/operations/blob-and-service-providers.md, database-principals.md and azure-deployment.md; production-readiness.md keeps fresh-bootstrap acceptance unverified. Historical production audit and deployment evidence link this record. Preserve rationale and evidence limits; no hosted checks rerun."
     },
     {
       "path": "docs/specs/local-self-host-update.md",
