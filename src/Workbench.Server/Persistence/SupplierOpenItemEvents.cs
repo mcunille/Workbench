@@ -21,7 +21,7 @@ internal static class SupplierOpenItemEvents
           DECLARE @Count int=(SELECT COUNT(*) FROM OPENJSON(@Events));
           IF @Count<1 OR @Count>1000 OR EXISTS(SELECT 1 FROM OPENJSON(@Events) WHERE [type]<>5)
             THROW 51000,'Invalid supplier event count or shape.',1;
-        """ + SupplierPaymentCommands.EventsSql + """
+        """ + SupplierPaymentCommands.EventsSql + SupplierAllocationCorrections.EventsSql + SupplierPaymentCorrections.EventsSql + """
           IF JSON_VALUE(@Events,'$[0].applicationId') IS NOT NULL
           BEGIN
             -- The named command has posted real journals through the protected kernel.
@@ -75,7 +75,26 @@ internal static class SupplierOpenItemEvents
             DECLARE @ApplicationMovements nvarchar(max)=(SELECT ItemId itemId,@GroupId groupId,PostingDate postingDate,
               CONVERT(nvarchar(60),Amount) amount FROM @Effects FOR JSON PATH);
             EXEC Purchasing.AssertSupplierAvailability @TenantId,@ApplicationMovements;
-            INSERT Purchasing.SupplierFinancialGroups(TenantId,Id,Operation,SourceId,RecordedAtUtc)
+            IF EXISTS(SELECT 1 FROM Purchasing.SupplierFinancialGroups WHERE TenantId=@TenantId AND Id=@GroupId)
+            BEGIN
+              DECLARE @ApplicationOwner uniqueidentifier,@ApplicationOwnerCommand uniqueidentifier,@ApplicationOwnerCanonical nvarchar(max),
+                @ApplicationOwnerGroup uniqueidentifier,@ApplicationOwnerInstant datetimeoffset,@ApplicationOwnerActor uniqueidentifier;
+              SELECT TOP(1) @ApplicationOwner=TRY_CONVERT(uniqueidentifier,JSON_VALUE(s.SnapshotJson,'$.ownerRequestId')),
+                @ApplicationOwnerCommand=TRY_CONVERT(uniqueidentifier,JSON_VALUE(s.SnapshotJson,'$.ownerCommandRequestId')),
+                @ApplicationOwnerCanonical=r.CanonicalInput,@ApplicationOwnerActor=a.ActorId
+                FROM @Applications a JOIN Accounting.SourceEvents s ON s.TenantId=@TenantId AND s.Id=a.SourceEventId
+                JOIN Accounting.PostingReceipts r ON r.TenantId=@TenantId AND r.JournalId=a.JournalId;
+              EXEC Purchasing.RequireSupplierComposition @ApplicationOwnerActor,@ApplicationOwner,@ApplicationOwnerCommand,N'ApplySupplierFunds',
+                @ApplicationOwnerCanonical,@ApplicationOwnerGroup OUTPUT,@ApplicationOwnerInstant OUTPUT;
+              IF @ApplicationOwnerGroup<>@GroupId OR @ApplicationOwnerInstant<>@RecordedAtUtc
+                OR EXISTS(SELECT 1 FROM @Applications a JOIN Accounting.SourceEvents s ON s.TenantId=@TenantId AND s.Id=a.SourceEventId
+                  JOIN Accounting.PostingReceipts r ON r.TenantId=@TenantId AND r.JournalId=a.JournalId
+                  WHERE COALESCE(JSON_VALUE(s.SnapshotJson,'$.ownerRequestId'),'')<>CONVERT(nvarchar(36),@ApplicationOwner)
+                    OR COALESCE(JSON_VALUE(s.SnapshotJson,'$.ownerCommandRequestId'),'')<>CONVERT(nvarchar(36),@ApplicationOwnerCommand)
+                    OR CONVERT(varbinary(max),r.CanonicalInput)<>CONVERT(varbinary(max),@ApplicationOwnerCanonical))
+                THROW 51004,'Supplier reapplication group disagrees with its owner.',1;
+            END
+            ELSE INSERT Purchasing.SupplierFinancialGroups(TenantId,Id,Operation,SourceId,RecordedAtUtc)
               VALUES(@TenantId,@GroupId,'Apply',@GroupId,@RecordedAtUtc);
             INSERT Purchasing.SupplierApplications(TenantId,Id,GroupId,FundingItemId,DebtItemId,PostingDate,Amount,ActorId,RecordedAtUtc)
               SELECT @TenantId,Id,@GroupId,FundingId,DebtId,PostingDate,Amount,ActorId,@RecordedAtUtc FROM @Applications;

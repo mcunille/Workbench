@@ -52,8 +52,10 @@ public sealed class SupplierOpenItemAtomicityTests(SqlServerFixture sqlServer)
     {
         // Full persisted rows catch partial updates as well as leaked inserts; database rowversion counters are not transactional.
         var tables = new[] { "Accounting.SourceEvents", "Accounting.JournalEntries", "Accounting.JournalLines", "Accounting.PostingReceipts",
-            "Accounting.PolicyFreezes", "Purchasing.SupplierPayments", "Purchasing.SupplierOpenItems", "Purchasing.SupplierItemVersions",
+            "Accounting.PolicyFreezes", "Accounting.Periods", "Accounting.CorrectionGroups", "Accounting.CorrectionReceipts",
+            "Purchasing.SupplierPayments", "Purchasing.SupplierPaymentVersions", "Purchasing.SupplierPaymentCorrections", "Purchasing.SupplierOpenItems", "Purchasing.SupplierItemVersions",
             "Purchasing.SupplierApplications", "Purchasing.SupplierItemMovements", "Purchasing.SupplierControlAttributions",
+            "Purchasing.SupplierApplicationVersions", "Purchasing.SupplierApplicationReversals",
             "Purchasing.SupplierFinancialGroups", "Purchasing.SupplierFinancialReceipts", "Security.TenantSecurityAuditEvents" };
         var snapshots = new List<string>();
         foreach (var table in tables.Where(t => includeSecurityAudit || t != "Security.TenantSecurityAuditEvents"))

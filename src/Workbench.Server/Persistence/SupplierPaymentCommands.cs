@@ -3,6 +3,50 @@ namespace Workbench.Server.Persistence;
 
 internal static class SupplierPaymentCommands
 {
+    // Identical pure command checks for recording and replacement preview.
+    internal const string InputValidationSql = """
+            IF (SELECT COUNT(*) FROM OPENJSON(@PaymentInput))<>20
+              OR EXISTS(SELECT 1 FROM OPENJSON(@PaymentInput) WHERE [key] COLLATE Latin1_General_100_BIN2 NOT IN
+                ('schemaVersion','operation','expectedConfigurationVersion','purchaseOrderId','expectedPurchaseOrderVersion','supplierId','currency',
+                 'postingDate','paymentId','paymentRevisionId','paymentDate','effectiveDate','amount','method','fundingAccountId',
+                 'expectedFundingAccountVersion','reference','notes','evidence','allocations')
+                OR ([key]='schemaVersion' AND type<>2) OR ([key]='allocations' AND type<>4) OR ([key]='evidence' AND type<>5)
+                OR ([key] IN('reference','notes') AND type NOT IN(0,1))
+                OR ([key] NOT IN('schemaVersion','allocations','evidence','reference','notes') AND type<>1))
+              OR EXISTS(SELECT 1 FROM OPENJSON(@PaymentInput,'$.allocations') e WHERE e.type<>5
+                OR (SELECT COUNT(*) FROM OPENJSON(e.value))<>4
+                OR EXISTS(SELECT 1 FROM OPENJSON(e.value) p WHERE p.[key] COLLATE Latin1_General_100_BIN2 NOT IN('billId','itemId','expectedItemVersion','amount') OR p.type<>1))
+              THROW 51000,'Invalid supplier payment fields.',1;
+            IF EXISTS(SELECT 1 FROM OPENJSON(@PaymentInput) WHERE [key] IN('expectedConfigurationVersion','purchaseOrderId','supplierId','paymentId','paymentRevisionId','fundingAccountId','expectedFundingAccountVersion')
+                AND (DATALENGTH(value)<>72 OR TRY_CONVERT(uniqueidentifier,value) IS NULL OR TRY_CONVERT(uniqueidentifier,value)='00000000-0000-0000-0000-000000000000'))
+              OR DATALENGTH(JSON_VALUE(@PaymentInput,'$.expectedPurchaseOrderVersion'))<>36
+              OR TRY_CONVERT(binary(8),JSON_VALUE(@PaymentInput,'$.expectedPurchaseOrderVersion'),1) IS NULL
+              OR EXISTS(SELECT 1 FROM OPENJSON(@PaymentInput,'$.allocations') e CROSS APPLY OPENJSON(e.value) p WHERE
+                (p.[key]='billId' AND (DATALENGTH(p.value)<>72 OR TRY_CONVERT(uniqueidentifier,p.value) IS NULL OR TRY_CONVERT(uniqueidentifier,p.value)='00000000-0000-0000-0000-000000000000'))
+                OR (p.[key]='expectedItemVersion' AND (DATALENGTH(p.value)<>36 OR TRY_CONVERT(binary(8),p.value,1) IS NULL))
+                OR (p.[key]='amount' AND TRY_CONVERT(decimal(28,4),p.value)<=0))
+              OR EXISTS(SELECT 1 FROM OPENJSON(@PaymentInput) WHERE [key] IN('postingDate','paymentDate','effectiveDate')
+                AND (DATALENGTH(value)<>20 OR TRY_CONVERT(date,value,23) IS NULL))
+              OR DATALENGTH(JSON_VALUE(@PaymentInput,'$.currency'))<>6
+              OR TRY_CONVERT(decimal(28,4),JSON_VALUE(@PaymentInput,'$.amount'))<=0
+              OR EXISTS(SELECT 1 FROM OPENJSON(@PaymentInput) WHERE [key]='method' AND value COLLATE Latin1_General_100_BIN2 NOT IN('Bank','Cash'))
+              OR EXISTS(SELECT 1 FROM OPENJSON(@PaymentInput) WHERE ([key]='reference' AND DATALENGTH(value)>400) OR ([key]='notes' AND DATALENGTH(value)>4000))
+              THROW 51000,'Invalid supplier payment values.',1;
+        """;
+
+    // Shared read-only evidence shape; live document proof remains in ValidateBillEvidence.
+    internal const string EvidenceValidationSql = """
+            IF (SELECT COUNT(*) FROM OPENJSON(@EvidenceInput))<>2
+              OR EXISTS(SELECT 1 FROM OPENJSON(@EvidenceInput) WHERE [key] COLLATE Latin1_General_100_BIN2 NOT IN('documents','missingEvidenceReason')
+                OR ([key]='documents' AND type<>4) OR ([key]='missingEvidenceReason' AND type NOT IN(0,1)))
+              OR EXISTS(SELECT 1 FROM OPENJSON(@EvidenceInput) WHERE [key]='missingEvidenceReason' AND DATALENGTH(value)>4000)
+              OR (NOT EXISTS(SELECT 1 FROM OPENJSON(@EvidenceInput,'$.documents')) AND NULLIF(TRIM(JSON_VALUE(@EvidenceInput,'$.missingEvidenceReason')),'') IS NULL)
+              OR EXISTS(SELECT 1 FROM OPENJSON(@EvidenceInput,'$.documents') d WHERE d.type<>5 OR (SELECT COUNT(*) FROM OPENJSON(d.value))<>2
+                OR EXISTS(SELECT 1 FROM OPENJSON(d.value) p WHERE p.[key] COLLATE Latin1_General_100_BIN2 NOT IN('documentId','revisionId')
+                  OR p.type<>1 OR DATALENGTH(p.value)<>72 OR TRY_CONVERT(uniqueidentifier,p.value) IS NULL OR TRY_CONVERT(uniqueidentifier,p.value)='00000000-0000-0000-0000-000000000000'))
+              THROW 51000,'Invalid supplier payment evidence.',1;
+        """;
+
     internal const string SupplierGuardSql = """
         DECLARE @Definition nvarchar(max)=OBJECT_DEFINITION(OBJECT_ID(N'Purchasing.SavePurchaseOrder')),
           @Anchor nvarchar(max)=N'EXEC Purchasing.ValidatePurchaseOrderContent @Draft,@TenantId,@TargetId,@Calculation OUTPUT;';
@@ -26,7 +70,7 @@ internal static class SupplierPaymentCommands
             CONVERT(nvarchar(40),JSON_VALUE(p.EvidenceJson,'$.advanceAccount.type')) AccountType,
             CONVERT(nvarchar(40),JSON_VALUE(p.EvidenceJson,'$.advanceAccount.purpose')) AccountPurpose
           FROM Purchasing.SupplierPayments p
-          JOIN Purchasing.SupplierFinancialGroups g ON g.TenantId=p.TenantId AND g.Id=p.GroupId AND g.Operation='RecordPayment' AND g.SourceId=p.Id AND g.RecordedAtUtc=p.RecordedAtUtc
+          JOIN Purchasing.SupplierFinancialGroups g ON g.TenantId=p.TenantId AND g.Id=p.GroupId AND ((g.Operation='RecordPayment' AND g.SourceId=p.Id) OR (g.Operation='CorrectPayment' AND EXISTS(SELECT 1 FROM Purchasing.SupplierPaymentCorrections pc WHERE pc.TenantId=p.TenantId AND pc.GroupId=g.Id AND pc.OriginalPaymentId=g.SourceId AND pc.ReplacementPaymentId=p.Id))) AND g.RecordedAtUtc=p.RecordedAtUtc
           JOIN Purchasing.SupplierOpenItems i ON i.TenantId=p.TenantId AND i.Id=p.Id AND i.Kind='Advance' AND i.SourceKind='SupplierPayment'
             AND i.SourceId=p.Id AND i.SourceRevisionId=p.RevisionId AND i.SourcePostingDate=p.PostingDate AND i.RecordedAtUtc=p.RecordedAtUtc
             AND i.SupplierId=p.SupplierId AND i.PurchaseOrderId=p.PurchaseOrderId AND i.Currency=p.Currency
@@ -37,7 +81,7 @@ internal static class SupplierPaymentCommands
           JOIN Accounting.JournalEntries j ON j.TenantId=s.TenantId AND j.SourceEventId=s.Id AND j.Currency=p.Currency AND j.PostingDate=p.PostingDate AND j.RecordedAtUtc=p.RecordedAtUtc
           JOIN Accounting.PostingReceipts r ON r.TenantId=s.TenantId AND r.SourceEventId=s.Id AND r.JournalId=j.Id AND r.SourceCommandKind='Supplier.Payment'
             AND r.ActorId=p.ActorId AND r.RecordedAtUtc=p.RecordedAtUtc AND CONVERT(varbinary(max),r.CanonicalInput)=CONVERT(varbinary(max),JSON_QUERY(p.EvidenceJson,'$.command'))
-          CROSS APPLY(SELECT COALESCE(SUM(CONVERT(decimal(38,4),a.Amount)),0) Amount,COUNT(*) Count FROM Purchasing.SupplierApplications a WHERE a.TenantId=p.TenantId AND a.GroupId=p.GroupId) applied
+          CROSS APPLY(SELECT COALESCE(SUM(CONVERT(decimal(38,4),a.Amount)),0) Amount,COUNT(*) Count FROM Purchasing.SupplierApplications a WHERE a.TenantId=p.TenantId AND a.GroupId=p.GroupId AND a.FundingItemId=p.Id) applied
           WHERE p.TenantId=@TenantId AND p.Id=@ItemId
             AND TRY_CONVERT(uniqueidentifier,JSON_VALUE(p.EvidenceJson,'$.groupId'))=p.GroupId
             AND TRY_CONVERT(decimal(28,4),JSON_VALUE(p.EvidenceJson,'$.command.amount'))=p.Amount AND applied.Amount<=p.Amount
@@ -46,18 +90,18 @@ internal static class SupplierPaymentCommands
             AND TRY_CONVERT(uniqueidentifier,JSON_VALUE(p.EvidenceJson,'$.advanceAccount.version')) IS NOT NULL
             AND applied.Count=(SELECT COUNT(*) FROM OPENJSON(p.EvidenceJson,'$.allocations'))
             AND NOT EXISTS(SELECT 1 FROM OPENJSON(p.EvidenceJson,'$.allocations') expected WHERE NOT EXISTS(
-              SELECT 1 FROM Purchasing.SupplierApplications a WHERE a.TenantId=p.TenantId AND a.GroupId=p.GroupId
+              SELECT 1 FROM Purchasing.SupplierApplications a WHERE a.TenantId=p.TenantId AND a.GroupId=p.GroupId AND a.FundingItemId=p.Id
                 AND a.Id=TRY_CONVERT(uniqueidentifier,JSON_VALUE(expected.value,'$.applicationId')) AND a.FundingItemId=p.Id
                 AND a.DebtItemId=TRY_CONVERT(uniqueidentifier,JSON_VALUE(expected.value,'$.itemId'))
                 AND a.Amount=TRY_CONVERT(decimal(28,4),JSON_VALUE(expected.value,'$.amount')) AND a.PostingDate=p.PostingDate AND a.RecordedAtUtc=p.RecordedAtUtc AND a.ActorId=p.ActorId))
-            AND (SELECT COUNT(*) FROM Purchasing.SupplierItemMovements m WHERE m.TenantId=p.TenantId AND m.GroupId=p.GroupId)=1+2*applied.Count
-            AND (SELECT COUNT(*) FROM Purchasing.SupplierItemMovements m WHERE m.TenantId=p.TenantId AND m.GroupId=p.GroupId AND m.ItemId=p.Id
+            AND (SELECT COUNT(*) FROM Purchasing.SupplierItemMovements m WHERE m.TenantId=p.TenantId AND m.GroupId=p.GroupId AND m.SourceEventId=s.Id)=1+2*applied.Count
+            AND (SELECT COUNT(*) FROM Purchasing.SupplierItemMovements m WHERE m.TenantId=p.TenantId AND m.GroupId=p.GroupId AND m.SourceEventId=s.Id AND m.ItemId=p.Id
               AND m.EventKind='Open' AND m.Amount=p.Amount AND m.SourceEventId=s.Id AND m.PostingDate=p.PostingDate AND m.RecordedAtUtc=p.RecordedAtUtc)=1
-            AND NOT EXISTS(SELECT 1 FROM Purchasing.SupplierItemMovements m WHERE m.TenantId=p.TenantId AND m.GroupId=p.GroupId
+            AND NOT EXISTS(SELECT 1 FROM Purchasing.SupplierItemMovements m WHERE m.TenantId=p.TenantId AND m.GroupId=p.GroupId AND m.SourceEventId=s.Id
               AND (m.SourceEventId<>s.Id OR m.PostingDate<>p.PostingDate OR m.RecordedAtUtc<>p.RecordedAtUtc))
-            AND NOT EXISTS(SELECT a.DebtItemId,-SUM(CONVERT(decimal(38,4),a.Amount)) Amount FROM Purchasing.SupplierApplications a WHERE a.TenantId=p.TenantId AND a.GroupId=p.GroupId GROUP BY a.DebtItemId
-              EXCEPT SELECT m.ItemId,SUM(CONVERT(decimal(38,4),m.Amount)) FROM Purchasing.SupplierItemMovements m WHERE m.TenantId=p.TenantId AND m.GroupId=p.GroupId AND m.ItemId<>p.Id AND m.EventKind='Apply' GROUP BY m.ItemId)
-            AND COALESCE((SELECT SUM(CONVERT(decimal(38,4),m.Amount)) FROM Purchasing.SupplierItemMovements m WHERE m.TenantId=p.TenantId AND m.GroupId=p.GroupId AND m.ItemId=p.Id AND m.EventKind='Apply'),0)=-applied.Amount
+            AND NOT EXISTS(SELECT a.DebtItemId,-SUM(CONVERT(decimal(38,4),a.Amount)) Amount FROM Purchasing.SupplierApplications a WHERE a.TenantId=p.TenantId AND a.GroupId=p.GroupId AND a.FundingItemId=p.Id GROUP BY a.DebtItemId
+              EXCEPT SELECT m.ItemId,SUM(CONVERT(decimal(38,4),m.Amount)) FROM Purchasing.SupplierItemMovements m WHERE m.TenantId=p.TenantId AND m.GroupId=p.GroupId AND m.SourceEventId=s.Id AND m.ItemId<>p.Id AND m.EventKind='Apply' GROUP BY m.ItemId)
+            AND COALESCE((SELECT SUM(CONVERT(decimal(38,4),m.Amount)) FROM Purchasing.SupplierItemMovements m WHERE m.TenantId=p.TenantId AND m.GroupId=p.GroupId AND m.SourceEventId=s.Id AND m.ItemId=p.Id AND m.EventKind='Apply'),0)=-applied.Amount
             AND (SELECT COUNT(*) FROM Accounting.JournalLines l WHERE l.TenantId=p.TenantId AND l.JournalId=j.Id AND l.Credit>0)=1
             AND EXISTS(SELECT 1 FROM Accounting.JournalLines l WHERE l.TenantId=p.TenantId AND l.JournalId=j.Id AND l.AccountId=p.FundingAccountId
               AND l.AccountVersion=p.FundingAccountVersion AND l.AccountPurpose=p.FundingAccountPurpose AND l.AccountPurpose IN('Bank','Cash')
@@ -79,15 +123,15 @@ internal static class SupplierPaymentCommands
                 JOIN Purchasing.SupplierControlAttributions a ON a.TenantId=m.TenantId AND a.MovementId=m.Id AND a.GroupId=m.GroupId
                 JOIN Accounting.JournalLines l ON l.TenantId=a.TenantId AND l.JournalId=a.JournalId AND l.Ordinal=a.Ordinal
                   AND l.AccountId=a.AccountId AND l.AccountVersion=a.AccountVersion AND l.AccountPurpose=a.AccountPurpose
-                WHERE m.TenantId=p.TenantId AND m.GroupId=p.GroupId AND m.EventKind='Apply'
+                WHERE m.TenantId=p.TenantId AND m.GroupId=p.GroupId AND m.SourceEventId=s.Id AND m.EventKind='Apply'
                   AND m.ItemId=TRY_CONVERT(uniqueidentifier,JSON_VALUE(expected.value,'$.itemId'))
                   AND m.Amount=-TRY_CONVERT(decimal(28,4),JSON_VALUE(expected.value,'$.amount')) AND a.Amount=m.Amount
                   AND a.JournalId=j.Id AND a.Ordinal=TRY_CONVERT(int,JSON_VALUE(expected.value,'$.ordinal'))
                   AND l.AccountPurpose='SupplierPayable')<>1)
-            AND NOT EXISTS(SELECT 1 FROM Purchasing.SupplierItemMovements m WHERE m.TenantId=p.TenantId AND m.GroupId=p.GroupId AND m.ItemId<>p.Id
+            AND NOT EXISTS(SELECT 1 FROM Purchasing.SupplierItemMovements m WHERE m.TenantId=p.TenantId AND m.GroupId=p.GroupId AND m.SourceEventId=s.Id AND m.ItemId<>p.Id
               AND (SELECT COUNT(*) FROM Purchasing.SupplierControlAttributions a WHERE a.TenantId=m.TenantId AND a.MovementId=m.Id)<>1)
             AND NOT EXISTS(SELECT 1 FROM Purchasing.SupplierControlAttributions a JOIN Purchasing.SupplierItemMovements m ON m.TenantId=a.TenantId AND m.Id=a.MovementId
-              WHERE a.TenantId=p.TenantId AND (a.GroupId=p.GroupId OR a.JournalId=j.Id) AND (a.GroupId<>p.GroupId OR a.JournalId<>j.Id OR m.GroupId<>p.GroupId
+              WHERE a.TenantId=p.TenantId AND (m.SourceEventId=s.Id OR a.JournalId=j.Id) AND (a.GroupId<>p.GroupId OR a.JournalId<>j.Id OR m.GroupId<>p.GroupId
                 OR NOT EXISTS(SELECT 1 FROM Accounting.JournalLines l WHERE l.TenantId=a.TenantId AND l.JournalId=a.JournalId AND l.Ordinal=a.Ordinal
                   AND l.AccountId=a.AccountId AND l.AccountVersion=a.AccountVersion AND l.AccountPurpose=a.AccountPurpose
                   AND ((m.ItemId=p.Id AND l.AccountPurpose='SupplierAdvance') OR (m.ItemId<>p.Id AND l.AccountPurpose='SupplierPayable'
@@ -222,7 +266,15 @@ internal static class SupplierPaymentCommands
               UNION ALL SELECT NEWID(),@Pay,'Apply',-Amount,NULL FROM @PayApplications;
             DECLARE @PayMovements nvarchar(max)=(SELECT ItemId itemId,@GroupId groupId,@PayDate postingDate,CONVERT(nvarchar(60),Amount) amount FROM @PayEffects FOR JSON PATH);
             EXEC Purchasing.AssertSupplierAvailability @TenantId,@PayMovements;
-            INSERT Purchasing.SupplierFinancialGroups(TenantId,Id,Operation,SourceId,RecordedAtUtc) VALUES(@TenantId,@GroupId,'RecordPayment',@Pay,@RecordedAtUtc);
+            IF EXISTS(SELECT 1 FROM Purchasing.SupplierFinancialGroups WHERE TenantId=@TenantId AND Id=@GroupId)
+            BEGIN
+              DECLARE @PayOwner uniqueidentifier=TRY_CONVERT(uniqueidentifier,JSON_VALUE(@PaySnapshot,'$.correctionRequestId')),
+                @PayOwnerCommand uniqueidentifier=TRY_CONVERT(uniqueidentifier,JSON_VALUE(@PaySnapshot,'$.correctionCommandRequestId')),
+                @PayOwnerGroup uniqueidentifier,@PayOwnerInstant datetimeoffset,@PayCanonical nvarchar(max)=JSON_QUERY(@PaySnapshot,'$.command');
+              EXEC Purchasing.RequireSupplierComposition @PayActor,@PayOwner,@PayOwnerCommand,N'RecordSupplierPayment',@PayCanonical,@PayOwnerGroup OUTPUT,@PayOwnerInstant OUTPUT;
+              IF @PayOwnerGroup<>@GroupId OR @PayOwnerInstant<>@RecordedAtUtc THROW 51004,'Payment replacement group disagrees with its owner.',1;
+            END
+            ELSE INSERT Purchasing.SupplierFinancialGroups(TenantId,Id,Operation,SourceId,RecordedAtUtc) VALUES(@TenantId,@GroupId,'RecordPayment',@Pay,@RecordedAtUtc);
             INSERT Purchasing.SupplierPayments(TenantId,Id,RevisionId,SupplierId,PurchaseOrderId,Currency,PaymentDate,EffectiveDate,PostingDate,Amount,Method,
               FundingAccountId,FundingAccountVersion,FundingAccountPurpose,Reference,Notes,EvidenceJson,ActorId,GroupId,RecordedAtUtc)
               VALUES(@TenantId,@Pay,@PayRevision,@PaySupplier,@PayPo,@PayCurrency,@PayPaymentDate,@PayEffective,@PayDate,@PayAmount,
@@ -250,8 +302,8 @@ internal static class SupplierPaymentCommands
         """;
 
     internal const string Sql = """
-        CREATE PROCEDURE Purchasing.RecordSupplierPayment
-          @ActorId uniqueidentifier,@SessionId uniqueidentifier,@RequestId uniqueidentifier,@Command nvarchar(max)
+        CREATE PROCEDURE Purchasing.RecordSupplierPaymentCore
+          @ActorId uniqueidentifier,@SessionId uniqueidentifier,@RequestId uniqueidentifier,@Command nvarchar(max),@OwnerRequestId uniqueidentifier=NULL
         AS BEGIN
           SET NOCOUNT ON; SET XACT_ABORT ON;
           BEGIN TRY
@@ -262,59 +314,30 @@ internal static class SupplierPaymentCommands
             SET @Resource=N'Accounting:'+CONVERT(nvarchar(36),@TenantId);
             EXEC @LockResult=sys.sp_getapplock @Resource=@Resource,@LockMode='Exclusive',@LockOwner='Transaction',@LockTimeout=10000;
             IF @LockResult<0 THROW 51009,'Accounting is being changed. Retry.',1;
-            BEGIN TRY EXEC Accounting.RequirePermission @ActorId,@SessionId,N'SupplierPaymentsRecord'; END TRY
+            DECLARE @PaymentPermission nvarchar(40)=CASE WHEN @OwnerRequestId IS NULL THEN N'SupplierPaymentsRecord' ELSE N'SupplierPaymentsCorrect' END;
+            BEGIN TRY EXEC Accounting.RequirePermission @ActorId,@SessionId,@PaymentPermission; END TRY
             BEGIN CATCH IF ERROR_NUMBER()=50903 THROW 51003,'Current supplier payment authority is required.',1; THROW; END CATCH;
             IF @RequestId IS NULL OR @RequestId='00000000-0000-0000-0000-000000000000' THROW 51000,'Invalid request identity.',1;
             EXEC Purchasing.ValidateSupplierFinancialCommand N'RecordSupplierPayment',@Command,@Canonical OUTPUT;
-            IF (SELECT COUNT(*) FROM OPENJSON(@Canonical))<>20
-              OR EXISTS(SELECT 1 FROM OPENJSON(@Canonical) WHERE [key] COLLATE Latin1_General_100_BIN2 NOT IN
-                ('schemaVersion','operation','expectedConfigurationVersion','purchaseOrderId','expectedPurchaseOrderVersion','supplierId','currency',
-                 'postingDate','paymentId','paymentRevisionId','paymentDate','effectiveDate','amount','method','fundingAccountId',
-                 'expectedFundingAccountVersion','reference','notes','evidence','allocations')
-                OR ([key]='schemaVersion' AND type<>2) OR ([key]='allocations' AND type<>4) OR ([key]='evidence' AND type<>5)
-                OR ([key] IN('reference','notes') AND type NOT IN(0,1))
-                OR ([key] NOT IN('schemaVersion','allocations','evidence','reference','notes') AND type<>1))
-              OR EXISTS(SELECT 1 FROM OPENJSON(@Canonical,'$.allocations') e WHERE e.type<>5
-                OR (SELECT COUNT(*) FROM OPENJSON(e.value))<>4
-                OR EXISTS(SELECT 1 FROM OPENJSON(e.value) p WHERE p.[key] COLLATE Latin1_General_100_BIN2 NOT IN('billId','itemId','expectedItemVersion','amount') OR p.type<>1))
-              THROW 51000,'Invalid supplier payment fields.',1;
-            IF EXISTS(SELECT 1 FROM OPENJSON(@Canonical) WHERE [key] IN('expectedConfigurationVersion','purchaseOrderId','supplierId','paymentId','paymentRevisionId','fundingAccountId','expectedFundingAccountVersion')
-                AND (DATALENGTH(value)<>72 OR TRY_CONVERT(uniqueidentifier,value) IS NULL OR TRY_CONVERT(uniqueidentifier,value)='00000000-0000-0000-0000-000000000000'))
-              OR DATALENGTH(JSON_VALUE(@Canonical,'$.expectedPurchaseOrderVersion'))<>36
-              OR TRY_CONVERT(binary(8),JSON_VALUE(@Canonical,'$.expectedPurchaseOrderVersion'),1) IS NULL
-              OR EXISTS(SELECT 1 FROM OPENJSON(@Canonical,'$.allocations') e CROSS APPLY OPENJSON(e.value) p WHERE
-                (p.[key]='billId' AND (DATALENGTH(p.value)<>72 OR TRY_CONVERT(uniqueidentifier,p.value) IS NULL OR TRY_CONVERT(uniqueidentifier,p.value)='00000000-0000-0000-0000-000000000000'))
-                OR (p.[key]='expectedItemVersion' AND (DATALENGTH(p.value)<>36 OR TRY_CONVERT(binary(8),p.value,1) IS NULL))
-                OR (p.[key]='amount' AND TRY_CONVERT(decimal(28,4),p.value)<=0))
-              OR EXISTS(SELECT 1 FROM OPENJSON(@Canonical) WHERE [key] IN('postingDate','paymentDate','effectiveDate')
-                AND (DATALENGTH(value)<>20 OR TRY_CONVERT(date,value,23) IS NULL))
-              OR DATALENGTH(JSON_VALUE(@Canonical,'$.currency'))<>6
-              OR TRY_CONVERT(decimal(28,4),JSON_VALUE(@Canonical,'$.amount'))<=0
-              OR EXISTS(SELECT 1 FROM OPENJSON(@Canonical) WHERE [key]='method' AND value COLLATE Latin1_General_100_BIN2 NOT IN('Bank','Cash'))
-              OR EXISTS(SELECT 1 FROM OPENJSON(@Canonical) WHERE ([key]='reference' AND DATALENGTH(value)>400) OR ([key]='notes' AND DATALENGTH(value)>4000))
-              THROW 51000,'Invalid supplier payment values.',1;
+            DECLARE @PaymentInput nvarchar(max)=@Canonical;
+        """ + InputValidationSql + """
             DECLARE @EvidenceInput nvarchar(max)=JSON_QUERY(@Canonical,'$.evidence');
-            IF (SELECT COUNT(*) FROM OPENJSON(@EvidenceInput))<>2
-              OR EXISTS(SELECT 1 FROM OPENJSON(@EvidenceInput) WHERE [key] COLLATE Latin1_General_100_BIN2 NOT IN('documents','missingEvidenceReason')
-                OR ([key]='documents' AND type<>4) OR ([key]='missingEvidenceReason' AND type NOT IN(0,1)))
-              OR EXISTS(SELECT 1 FROM OPENJSON(@EvidenceInput) WHERE [key]='missingEvidenceReason' AND DATALENGTH(value)>4000)
-              OR (NOT EXISTS(SELECT 1 FROM OPENJSON(@EvidenceInput,'$.documents')) AND NULLIF(TRIM(JSON_VALUE(@EvidenceInput,'$.missingEvidenceReason')),'') IS NULL)
-              OR EXISTS(SELECT 1 FROM OPENJSON(@EvidenceInput,'$.documents') d WHERE d.type<>5 OR (SELECT COUNT(*) FROM OPENJSON(d.value))<>2
-                OR EXISTS(SELECT 1 FROM OPENJSON(d.value) p WHERE p.[key] COLLATE Latin1_General_100_BIN2 NOT IN('documentId','revisionId')
-                  OR p.type<>1 OR DATALENGTH(p.value)<>72 OR TRY_CONVERT(uniqueidentifier,p.value) IS NULL OR TRY_CONVERT(uniqueidentifier,p.value)='00000000-0000-0000-0000-000000000000'))
-              THROW 51000,'Invalid supplier payment evidence.',1;
+        """ + EvidenceValidationSql + """
             IF EXISTS(SELECT 1 FROM OPENJSON(@Canonical,'$.allocations'))
             BEGIN
               BEGIN TRY EXEC Accounting.RequirePermission @ActorId,@SessionId,N'SupplierAllocationsManage'; END TRY
               BEGIN CATCH IF ERROR_NUMBER()=50903 THROW 51003,'Current supplier allocation authority is required.',1; THROW; END CATCH;
             END;
+            DECLARE @CompositionGroup uniqueidentifier,@CompositionInstant datetimeoffset;
+            IF @OwnerRequestId IS NOT NULL
+              EXEC Purchasing.RequireSupplierComposition @ActorId,@OwnerRequestId,@RequestId,N'RecordSupplierPayment',@Canonical,@CompositionGroup OUTPUT,@CompositionInstant OUTPUT;
             IF EXISTS(SELECT 1 FROM Purchasing.SupplierFinancialReceipts WHERE TenantId=@TenantId AND RequestId=@RequestId)
             BEGIN
               IF NOT EXISTS(SELECT 1 FROM Purchasing.SupplierFinancialReceipts WHERE TenantId=@TenantId AND RequestId=@RequestId
                 AND Operation='RecordSupplierPayment' AND ActorId=@ActorId AND CONVERT(varbinary(max),CanonicalInput)=CONVERT(varbinary(max),@Canonical))
                 THROW 51009,'Request identity has different content.',1;
               SELECT @Result=ResultJson FROM Purchasing.SupplierFinancialReceipts WHERE TenantId=@TenantId AND RequestId=@RequestId;
-              COMMIT; SELECT @Result ResultJson; RETURN;
+              COMMIT; IF @OwnerRequestId IS NULL SELECT @Result ResultJson; RETURN;
             END;
             DECLARE @Po uniqueidentifier=CONVERT(uniqueidentifier,JSON_VALUE(@Canonical,'$.purchaseOrderId')),
               @Supplier uniqueidentifier=CONVERT(uniqueidentifier,JSON_VALUE(@Canonical,'$.supplierId')),
@@ -324,8 +347,8 @@ internal static class SupplierPaymentCommands
               @Config uniqueidentifier=CONVERT(uniqueidentifier,JSON_VALUE(@Canonical,'$.expectedConfigurationVersion')),
               @Date date=CONVERT(date,JSON_VALUE(@Canonical,'$.postingDate'),23),@PaymentDate date=CONVERT(date,JSON_VALUE(@Canonical,'$.paymentDate'),23),
               @Effective date=CONVERT(date,JSON_VALUE(@Canonical,'$.effectiveDate'),23),@Currency varchar(3)=JSON_VALUE(@Canonical,'$.currency'),
-              @Amount decimal(28,4)=CONVERT(decimal(28,4),JSON_VALUE(@Canonical,'$.amount')),@Group uniqueidentifier=NEWID(),
-              @Now datetimeoffset=SYSUTCDATETIME(),@Payload nvarchar(max),@Scale int,@Advance uniqueidentifier;
+              @Amount decimal(28,4)=CONVERT(decimal(28,4),JSON_VALUE(@Canonical,'$.amount')),@Group uniqueidentifier=COALESCE(@CompositionGroup,NEWID()),
+              @Now datetimeoffset=COALESCE(@CompositionInstant,SYSUTCDATETIME()),@Payload nvarchar(max),@Scale int,@Advance uniqueidentifier;
             IF @PaymentDate>@Date OR @Effective>@Date OR @PaymentDate>CONVERT(date,@Now)
               THROW 51000,'Supplier payment dates are invalid.',1;
             IF EXISTS(SELECT 1 FROM Purchasing.SupplierPayments WHERE TenantId=@TenantId AND (Id=@Payment OR RevisionId=@Revision))
@@ -377,7 +400,8 @@ internal static class SupplierPaymentCommands
             INSERT @Line SELECT (SELECT COUNT(*)+1 FROM @Line),Id,Version,0,@Amount FROM Accounting.Accounts WHERE TenantId=@TenantId AND Id=@Funding;
             DECLARE @Documents nvarchar(max);
             EXEC Purchasing.ValidateBillEvidence @TenantId,@Po,@EvidenceInput,@Documents OUTPUT;
-            DECLARE @Snapshot nvarchar(max)=(SELECT 1 schemaVersion,@Group groupId,JSON_QUERY(@Canonical) command,
+            DECLARE @Snapshot nvarchar(max)=(SELECT 1 schemaVersion,@Group groupId,@OwnerRequestId correctionRequestId,
+              CASE WHEN @OwnerRequestId IS NOT NULL THEN @RequestId END correctionCommandRequestId,JSON_QUERY(@Canonical) command,
               JSON_QUERY((SELECT Id id,Version version,Code code,Name name,Type type,Purpose purpose FROM Accounting.Accounts WHERE TenantId=@TenantId AND Id=@Advance FOR JSON PATH,WITHOUT_ARRAY_WRAPPER)) advanceAccount,
               JSON_QUERY((SELECT Id id,Version version,Code code,Name name,Type type,Purpose purpose FROM Accounting.Accounts WHERE TenantId=@TenantId AND Id=@Funding FOR JSON PATH,WITHOUT_ARRAY_WRAPPER)) fundingAccount,
               JSON_QUERY((SELECT Id id,Name name FROM Purchasing.Suppliers WHERE TenantId=@TenantId AND Id=@Supplier FOR JSON PATH,WITHOUT_ARRAY_WRAPPER)) supplier,
@@ -389,7 +413,7 @@ internal static class SupplierPaymentCommands
               @Controls nvarchar(max)=(SELECT Ordinal ordinal,ItemId itemId FROM @Targets ORDER BY Position FOR JSON PATH),@KernelRequest uniqueidentifier=NEWID();
             IF NOT EXISTS(SELECT 1 FROM @Targets) SET @Controls=NULL;
             DECLARE @Posted TABLE(SourceEventId uniqueidentifier,JournalId uniqueidentifier,Sequence bigint,RecordedAtUtc datetimeoffset);
-            INSERT @Posted EXEC Accounting.PostJournal @ActorId,@SessionId,@KernelRequest,N'SupplierPaymentsRecord',N'Supplier.Payment',1,@Canonical,
+            INSERT @Posted EXEC Accounting.PostJournal @ActorId,@SessionId,@KernelRequest,@PaymentPermission,N'Supplier.Payment',1,@Canonical,
               N'SupplierPayment',@Payment,@Revision,N'Payment',1,@Config,@Currency,@PaymentDate,@Effective,@Date,NULL,NULL,@Snapshot,@Lines,@Controls;
             UPDATE s SET RecordedAtUtc=@Now FROM Accounting.SourceEvents s JOIN @Posted p ON p.SourceEventId=s.Id WHERE s.TenantId=@TenantId;
             UPDATE j SET RecordedAtUtc=@Now FROM Accounting.JournalEntries j JOIN @Posted p ON p.JournalId=j.Id WHERE j.TenantId=@TenantId;
@@ -403,8 +427,14 @@ internal static class SupplierPaymentCommands
               (SELECT CONVERT(varchar(18),CONVERT(binary(8),RowVersion),1) FROM Purchasing.SupplierPaymentVersions WHERE TenantId=@TenantId AND PaymentId=@Payment) version FOR JSON PATH,WITHOUT_ARRAY_WRAPPER);
             INSERT Purchasing.SupplierFinancialReceipts(TenantId,RequestId,Operation,ActorId,CanonicalInput,InputSha256,GroupId,ResultJson,RecordedAtUtc)
               VALUES(@TenantId,@RequestId,'RecordSupplierPayment',@ActorId,@Canonical,HASHBYTES('SHA2_256',CONVERT(varbinary(max),@Canonical)),@Group,@Result,@Now);
-            COMMIT; SELECT @Result ResultJson;
+            COMMIT; IF @OwnerRequestId IS NULL SELECT @Result ResultJson;
           END TRY BEGIN CATCH IF @@TRANCOUNT>0 ROLLBACK; THROW; END CATCH;
         END;
+        """;
+
+    internal const string WrapperSql = """
+        CREATE PROCEDURE Purchasing.RecordSupplierPayment
+          @ActorId uniqueidentifier,@SessionId uniqueidentifier,@RequestId uniqueidentifier,@Command nvarchar(max)
+        AS BEGIN SET NOCOUNT ON; EXEC Purchasing.RecordSupplierPaymentCore @ActorId,@SessionId,@RequestId,@Command; END;
         """;
 }

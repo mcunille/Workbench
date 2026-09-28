@@ -59,13 +59,7 @@ public sealed class SupplierOpenItemSecurityTests(SqlServerFixture sqlServer)
             await context.Allocation.ApplyAsync(input);
         }
         var operation = application ? "ApplySupplierFunds" : "RecordSupplierPayment";
-        var session = Guid.NewGuid();
-        await PurchaseRecognitionCorrectionTests.AdminAsync(context.Bills.Recognition, """
-            INSERT [Identity].UserRoles(TenantId,UserId,RoleId)
-              SELECT @tenant,@actor,RoleId FROM Administration.AccountingRoles WHERE TenantId=@tenant AND Kind='Administrator';
-            INSERT [Identity].Sessions(Id,TenantId,UserId,TokenHash,SecurityVersion,CreatedAtUtc,LastSeenAtUtc,IdleExpiresAtUtc,AbsoluteExpiresAtUtc)
-              SELECT @session,@tenant,@actor,CRYPT_GEN_RANDOM(32),SecurityVersion,SYSUTCDATETIME(),SYSUTCDATETIME(),DATEADD(hour,1,SYSUTCDATETIME()),DATEADD(hour,2,SYSUTCDATETIME()) FROM [Identity].Users WHERE Id=@actor;
-            """, ("@tenant", JournalTestContext.OtherTenantId), ("@actor", AuthTestApplication.OtherTenantUserId), ("@session", session));
+        var session = await AuthorizeOtherTenantAsync(context);
         await using var other = await context.Allocation.Journal.OpenOtherTenantAsync();
         var before = await SupplierOpenItemAtomicityTests.SnapshotAsync(context);
         await using var command = new SqlCommand($"EXEC Purchasing.{operation} @ActorId=@actor,@SessionId=@session,@RequestId=@request,@Command=@input", other);
@@ -83,5 +77,49 @@ public sealed class SupplierOpenItemSecurityTests(SqlServerFixture sqlServer)
         Assert.Equal(foreign.Number, missing.Number);
         Assert.Equal(foreign.Message, missing.Message);
         Assert.Equal(before, await SupplierOpenItemAtomicityTests.SnapshotAsync(context));
+    }
+
+    [Theory]
+    [InlineData("PreviewSupplierPaymentCorrection")]
+    [InlineData("CorrectSupplierPayment")]
+    [InlineData("ReverseSupplierApplication")]
+    public async Task AuthorizedForeignAndMissingCorrectionSourcesAreIndistinguishable(string operation)
+    {
+        // GIVEN real tenant A evidence and a separately authorized current tenant B actor.
+        await using var context = await SupplierCorrectionFixture.OpenAsync(sqlServer);
+        var bill = await context.Allocation.BillAsync("100");
+        var payment = await context.CommandAsync(); await context.AllocateAsync(payment, bill, "100");
+        var posted = await context.RecordAsync(payment);
+        var input = operation == "ReverseSupplierApplication"
+            ? await SupplierCorrectionFixture.ReverseAsync(context, Guid.Parse(posted["applicationIds"]![0]!.ToString()))
+            : await SupplierCorrectionFixture.CorrectionAsync(context, Guid.Parse(payment["paymentId"]!.ToString()));
+        var session = await AuthorizeOtherTenantAsync(context);
+        await using var other = await context.Allocation.Journal.OpenOtherTenantAsync();
+        var before = await SupplierOpenItemAtomicityTests.SnapshotAsync(context);
+        var signature = operation == "PreviewSupplierPaymentCorrection" ? "@actor,@session,@input" : "@actor,@session,@request,@input";
+        await using var command = new SqlCommand($"EXEC Purchasing.{operation} {signature}", other);
+        command.Parameters.AddWithValue("@actor", AuthTestApplication.OtherTenantUserId); command.Parameters.AddWithValue("@session", session);
+        command.Parameters.AddWithValue("@request", Guid.NewGuid()); command.Parameters.AddWithValue("@input", input.ToJsonString());
+        // WHEN the authorized actor submits existing foreign and nonexistent source contexts.
+        var foreign = await Assert.ThrowsAsync<SqlException>(() => command.ExecuteScalarAsync());
+        input["purchaseOrderId"] = Guid.NewGuid().ToString();
+        input[operation == "ReverseSupplierApplication" ? "applicationId" : "paymentId"] = Guid.NewGuid().ToString();
+        command.Parameters["@input"].Value = input.ToJsonString();
+        var missing = await Assert.ThrowsAsync<SqlException>(() => command.ExecuteScalarAsync());
+        // THEN detail is indistinguishable and no cross-tenant correction or preview mutation survives.
+        Assert.Equal(51009, foreign.Number); Assert.Equal(foreign.Number, missing.Number); Assert.Equal(foreign.Message, missing.Message);
+        Assert.Equal(before, await SupplierOpenItemAtomicityTests.SnapshotAsync(context));
+    }
+
+    private static async Task<Guid> AuthorizeOtherTenantAsync(SupplierPaymentTestContext context)
+    {
+        var session = Guid.NewGuid();
+        await PurchaseRecognitionCorrectionTests.AdminAsync(context.Bills.Recognition, """
+            INSERT [Identity].UserRoles(TenantId,UserId,RoleId)
+              SELECT @tenant,@actor,RoleId FROM Administration.AccountingRoles WHERE TenantId=@tenant AND Kind='Administrator';
+            INSERT [Identity].Sessions(Id,TenantId,UserId,TokenHash,SecurityVersion,CreatedAtUtc,LastSeenAtUtc,IdleExpiresAtUtc,AbsoluteExpiresAtUtc)
+              SELECT @session,@tenant,@actor,CRYPT_GEN_RANDOM(32),SecurityVersion,SYSUTCDATETIME(),SYSUTCDATETIME(),DATEADD(hour,1,SYSUTCDATETIME()),DATEADD(hour,2,SYSUTCDATETIME()) FROM [Identity].Users WHERE Id=@actor;
+            """, ("@tenant", JournalTestContext.OtherTenantId), ("@actor", AuthTestApplication.OtherTenantUserId), ("@session", session));
+        return session;
     }
 }

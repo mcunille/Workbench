@@ -88,8 +88,8 @@ internal static class SupplierAllocationCommands
         """;
 
     internal const string Sql = """
-        CREATE PROCEDURE Purchasing.ApplySupplierFunds
-          @ActorId uniqueidentifier,@SessionId uniqueidentifier,@RequestId uniqueidentifier,@Command nvarchar(max)
+        CREATE PROCEDURE Purchasing.ApplySupplierFundsCore
+          @ActorId uniqueidentifier,@SessionId uniqueidentifier,@RequestId uniqueidentifier,@Command nvarchar(max),@OwnerRequestId uniqueidentifier=NULL
         AS BEGIN
           SET NOCOUNT ON; SET XACT_ABORT ON;
           BEGIN TRY
@@ -126,20 +126,23 @@ internal static class SupplierAllocationCommands
               OR DATALENGTH(JSON_VALUE(@Canonical,'$.postingDate'))<>20 OR TRY_CONVERT(date,JSON_VALUE(@Canonical,'$.postingDate'),23) IS NULL
               OR DATALENGTH(JSON_VALUE(@Canonical,'$.currency'))<>6
               THROW 51000,'Invalid supplier application values.',1;
+            DECLARE @CompositionGroup uniqueidentifier,@CompositionInstant datetimeoffset;
+            IF @OwnerRequestId IS NOT NULL
+              EXEC Purchasing.RequireSupplierComposition @ActorId,@OwnerRequestId,@RequestId,N'ApplySupplierFunds',@Canonical,@CompositionGroup OUTPUT,@CompositionInstant OUTPUT;
             IF EXISTS(SELECT 1 FROM Purchasing.SupplierFinancialReceipts WHERE TenantId=@TenantId AND RequestId=@RequestId)
             BEGIN
               IF NOT EXISTS(SELECT 1 FROM Purchasing.SupplierFinancialReceipts WHERE TenantId=@TenantId AND RequestId=@RequestId
                 AND Operation='ApplySupplierFunds' AND ActorId=@ActorId AND CONVERT(varbinary(max),CanonicalInput)=CONVERT(varbinary(max),@Canonical))
                 THROW 51009,'Request identity has different content.',1;
               SELECT @Result=ResultJson FROM Purchasing.SupplierFinancialReceipts WHERE TenantId=@TenantId AND RequestId=@RequestId;
-              COMMIT; SELECT @Result ResultJson; RETURN;
+              COMMIT; IF @OwnerRequestId IS NULL SELECT @Result ResultJson; RETURN;
             END;
             DECLARE @PoId uniqueidentifier=CONVERT(uniqueidentifier,JSON_VALUE(@Canonical,'$.purchaseOrderId')),
               @SupplierId uniqueidentifier=CONVERT(uniqueidentifier,JSON_VALUE(@Canonical,'$.supplierId')),
               @FundingId uniqueidentifier=CONVERT(uniqueidentifier,JSON_VALUE(@Canonical,'$.fundingItemId')),
               @Config uniqueidentifier=CONVERT(uniqueidentifier,JSON_VALUE(@Canonical,'$.expectedConfigurationVersion')),
               @Currency varchar(3)=JSON_VALUE(@Canonical,'$.currency'),@Date date=CONVERT(date,JSON_VALUE(@Canonical,'$.postingDate'),23),
-              @Group uniqueidentifier=NEWID(),@Now datetimeoffset=SYSUTCDATETIME();
+              @Group uniqueidentifier=COALESCE(@CompositionGroup,NEWID()),@Now datetimeoffset=COALESCE(@CompositionInstant,SYSUTCDATETIME());
             IF NOT EXISTS(SELECT 1 FROM Purchasing.DraftOrders WITH(UPDLOCK,HOLDLOCK) WHERE TenantId=@TenantId AND Id=@PoId AND State='Ordered'
               AND IsDeleted=0 AND SupplierId=@SupplierId AND Currency=@Currency AND RowVersion=CONVERT(binary(8),JSON_VALUE(@Canonical,'$.expectedPurchaseOrderVersion'),1))
               THROW 51009,'Purchase revision changed.',1;
@@ -179,6 +182,7 @@ internal static class SupplierAllocationCommands
             WHILE @@FETCH_STATUS=0
             BEGIN
               SET @Snapshot=(SELECT @Application applicationId,@Group groupId,@FundingId fundingItemId,@Debt debtItemId,
+                @OwnerRequestId ownerRequestId,CASE WHEN @OwnerRequestId IS NOT NULL THEN @RequestId END ownerCommandRequestId,
                 CONVERT(nvarchar(60),@Amount) amount FOR JSON PATH,WITHOUT_ARRAY_WRAPPER);
               SET @ControlItems=(SELECT ordinal,itemId FROM(VALUES(1,@Debt),(2,@FundingId)) x(ordinal,itemId) FOR JSON PATH);
               SET @Lines=(SELECT ordinal,c.AccountId accountId,c.AccountVersion accountVersion,
@@ -208,8 +212,14 @@ internal static class SupplierAllocationCommands
               FOR JSON PATH,WITHOUT_ARRAY_WRAPPER);
             INSERT Purchasing.SupplierFinancialReceipts(TenantId,RequestId,GroupId,Operation,ActorId,CanonicalInput,InputSha256,ResultJson,RecordedAtUtc)
               VALUES(@TenantId,@RequestId,@Group,'ApplySupplierFunds',@ActorId,@Canonical,HASHBYTES('SHA2_256',CONVERT(varbinary(max),@Canonical)),@Result,@Now);
-            COMMIT; SELECT @Result ResultJson;
+            COMMIT; IF @OwnerRequestId IS NULL SELECT @Result ResultJson;
           END TRY BEGIN CATCH IF @@TRANCOUNT>0 ROLLBACK; THROW; END CATCH;
         END;
+        """;
+
+    internal const string WrapperSql = """
+        CREATE PROCEDURE Purchasing.ApplySupplierFunds
+          @ActorId uniqueidentifier,@SessionId uniqueidentifier,@RequestId uniqueidentifier,@Command nvarchar(max)
+        AS BEGIN SET NOCOUNT ON; EXEC Purchasing.ApplySupplierFundsCore @ActorId,@SessionId,@RequestId,@Command; END;
         """;
 }

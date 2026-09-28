@@ -48,7 +48,7 @@ internal sealed class SupplierAllocationTestContext(SupplierOpenItemTestContext 
 
     // These disposable source participants establish inputs only. Assertions always
     // exercise production Apply/availability; no test-written command receipts exist.
-    public async Task<Guid> SourceAsync(string kind = "Advance", string amount = "100", string date = "2026-09-10")
+    public async Task<Guid> SourceAsync(string kind = "Advance", string amount = "100", string date = "2026-09-10", Guid? otherAccount = null)
     {
         var purpose = kind switch { "Advance" => "SupplierAdvance", "CreditReceivable" => "SupplierCreditReceivable", _ => "SupplierRefundClearing" };
         var account = await Journal.SaveAsync(Guid.NewGuid(), "CreateAccounts",
@@ -71,7 +71,7 @@ internal sealed class SupplierAllocationTestContext(SupplierOpenItemTestContext 
         sql.Parameters.AddWithValue("@PoId", Items.Recognition.PurchaseOrderId);
         sql.Parameters.AddWithValue("@SupplierId", Items.Recognition.SupplierId);
         sql.Parameters.AddWithValue("@AccountId", accountId);
-        sql.Parameters.AddWithValue("@OtherAccountId", Items.Recognition.Accounts["Prepayment"]);
+        sql.Parameters.AddWithValue("@OtherAccountId", otherAccount ?? Items.Recognition.Accounts["Prepayment"]);
         sql.Parameters.AddWithValue("@Config", Journal.ConfigurationVersion);
         await sql.ExecuteNonQueryAsync();
         return item;
@@ -100,12 +100,13 @@ internal sealed class SupplierAllocationTestContext(SupplierOpenItemTestContext 
     public Task<string> VersionAsync(Guid item) => Bills.ScalarAsync<string>($"SELECT CONVERT(varchar(18),CONVERT(binary(8),RowVersion),1) FROM Purchasing.SupplierItemVersions WHERE ItemId='{item}'");
     public Task<decimal> BalanceAsync(Guid item) => Bills.ScalarAsync<decimal>($"SELECT COALESCE(SUM(Amount),0) FROM Purchasing.SupplierItemMovements WHERE ItemId='{item}'");
     public Task<JsonObject> ApplyAsync(JsonObject command, Guid? request = null) => Bills.ExecuteAsync("ApplySupplierFunds", request ?? Guid.NewGuid(), command);
-    public async Task ParticipantAsync(Guid funding, Guid debt, bool invalidProof = false)
+    public async Task ParticipantAsync(Guid funding, Guid debt, bool invalidProof = false, decimal amount = 100, string date = "2026-09-16")
     {
-        await using var command = new SqlCommand("EXEC Purchasing.ApplyFixtureSupplierParticipant @ActorId=@actor,@SessionId=@session,@Funding=@funding,@Debt=@debt,@Config=@config,@InvalidProof=@invalid", Journal.Connection);
+        await using var command = new SqlCommand("EXEC Purchasing.ApplyFixtureSupplierParticipant @ActorId=@actor,@SessionId=@session,@Funding=@funding,@Debt=@debt,@Config=@config,@InvalidProof=@invalid,@Amount=@amount,@Date=@date", Journal.Connection);
         command.Parameters.AddWithValue("@actor", JournalTestContext.ActorId); command.Parameters.AddWithValue("@session", Journal.SessionId);
         command.Parameters.AddWithValue("@funding", funding); command.Parameters.AddWithValue("@debt", debt);
         command.Parameters.AddWithValue("@config", Journal.ConfigurationVersion); command.Parameters.AddWithValue("@invalid", invalidProof);
+        command.Parameters.AddWithValue("@amount", amount); command.Parameters.AddWithValue("@date", date);
         await command.ExecuteNonQueryAsync();
     }
     public ValueTask DisposeAsync() => Items.DisposeAsync();
@@ -165,7 +166,7 @@ internal sealed class SupplierAllocationTestContext(SupplierOpenItemTestContext 
 
     private const string ParticipantSql = """
         CREATE PROCEDURE Purchasing.ApplyFixtureSupplierParticipant @ActorId uniqueidentifier,@SessionId uniqueidentifier,
-          @Funding uniqueidentifier,@Debt uniqueidentifier,@Config uniqueidentifier,@InvalidProof bit
+          @Funding uniqueidentifier,@Debt uniqueidentifier,@Config uniqueidentifier,@InvalidProof bit,@Amount decimal(28,4)=100,@Date date='2026-09-16'
         WITH EXECUTE AS OWNER AS BEGIN
           SET XACT_ABORT ON; SET NOCOUNT ON;
           BEGIN TRY
@@ -177,14 +178,14 @@ internal sealed class SupplierAllocationTestContext(SupplierOpenItemTestContext 
             EXEC sys.sp_getapplock @Resource=@Resource,@LockMode='Exclusive',@LockOwner='Transaction';
             EXEC Accounting.RequirePermission @ActorId,@SessionId,N'SupplierAllocationsManage';
             SET @Lines=(SELECT ordinal,c.AccountId accountId,c.AccountVersion accountVersion,
-              CASE WHEN ordinal=1 THEN '100' ELSE '0' END debit,CASE WHEN ordinal=2 THEN '100' ELSE '0' END credit
+              CONVERT(nvarchar(60),CASE WHEN ordinal=1 THEN @Amount ELSE 0 END) debit,CONVERT(nvarchar(60),CASE WHEN ordinal=2 THEN @Amount ELSE 0 END) credit
               FROM(VALUES(1,@Debt),(2,@Funding)) e(ordinal,itemId) CROSS APPLY Purchasing.SupplierItemControl(@Tenant,itemId) c FOR JSON PATH);
             SET @Proof=(SELECT ordinal,CASE WHEN @InvalidProof=1 AND ordinal=1 THEN NEWID() ELSE itemId END itemId
               FROM(VALUES(1,@Debt),(2,@Funding)) e(ordinal,itemId) FOR JSON PATH);
-            SET @Snapshot=(SELECT @Application applicationId,@Group groupId,@Funding fundingItemId,@Debt debtItemId,'100' amount FOR JSON PATH,WITHOUT_ARRAY_WRAPPER);
+            SET @Snapshot=(SELECT @Application applicationId,@Group groupId,@Funding fundingItemId,@Debt debtItemId,CONVERT(nvarchar(60),@Amount) amount FOR JSON PATH,WITHOUT_ARRAY_WRAPPER);
             DECLARE @Posted TABLE(SourceEventId uniqueidentifier,JournalId uniqueidentifier,Sequence bigint,RecordedAtUtc datetimeoffset);
             INSERT @Posted EXEC Accounting.PostJournal @ActorId,@SessionId,@Request,N'SupplierAllocationsManage',N'Supplier.Apply',1,N'{}',
-              N'SupplierApplication',@Application,@Group,N'Apply',1,@Config,N'USD','2026-09-16','2026-09-16','2026-09-16',NULL,NULL,@Snapshot,@Lines,@Proof;
+              N'SupplierApplication',@Application,@Group,N'Apply',1,@Config,N'USD',@Date,@Date,@Date,NULL,NULL,@Snapshot,@Lines,@Proof;
             SELECT @Now=RecordedAtUtc FROM @Posted;
             SET @Events=(SELECT @Application applicationId,JournalId journalId FROM @Posted FOR JSON PATH);
             EXEC Purchasing.AppendSupplierEventGroup @Tenant,@Group,@Now,@Events;
