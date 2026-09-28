@@ -3,8 +3,8 @@
 **Status:** Scenario requirements and historical delivery context. H1 merged in
 [PR #37](https://github.com/mcunille/Workbench/pull/37) on 2026-09-07.
 H1–H9 capabilities are now implemented in the collection workflow, including photographs, search,
-editing, archive/recovery, CSV/ZIP export and acquisition context. This scenario remains partially
-validated: implementation does not establish its integrated human usability acceptance below.
+editing, archive/recovery, CSV/ZIP export and acquisition context. Owner-reported scenario validation
+is recorded below; implementation alone does not establish human usability acceptance.
 The [collection guide](../collection.md) owns current behavior; the issue below owns delivery status.
 This is not a committed sprint forecast.
 
@@ -97,6 +97,11 @@ The accepted [H4 design](2026-09-07-h4-item-editing.md) settles concurrency-toke
 safe conditional retry, and explicit conflict recovery without expanding the domain scope.
 
 ## Completion and validation
+
+On 2026-09-28, the owner confirmed personally running this scenario when asked about the combined
+phone-to-desktop journey and hobbyist validation in issue #43. This records owner-run validation
+and clarifies the closed issue's older narrative saying no outcome was evidenced. No separate
+participant study, detailed observation log or new automated verification is claimed here.
 
 Each story issue carries its acceptance criteria and shared quality requirements: desktop/mobile
 usability, keyboard and accessible feedback, both themes, tenant isolation, truthful save/upload

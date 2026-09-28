@@ -3,6 +3,14 @@
 **Status: Implemented** — the owner approved implementation of H1 and the inventory foundation
 after reviewing the schema, GemInv comparison, and delivered-action boundary.
 
+This record preserves the original H1 delivery contract and dated verification. The
+[collection guide](../collection.md) owns current capabilities, including later photographs,
+search, editing and lifecycle workflows. The navigation below describes H1; subsequent
+[refined navigation](2026-09-09-refined-navigation.md) and
+[raised content workspace](2026-09-25-raised-content-workspace.md) decisions extend it.
+Historical `/api/items` examples predate the [beta API transition](../api-lifecycle.md);
+current application routes use `/api/beta/...`.
+
 ## Scope and evidence
 
 Implement [H1](2026-09-06-first-hobbyist-scenario.md): save a name, optional notes and storage
@@ -11,10 +19,11 @@ Apply the accepted [UI guidance](2026-09-06-ui-design-guidance.md), including ap
 and authenticated surfaces. Photos, search, editing, deletion, accounting, and taxonomy remain
 outside H1. A neutral missing-photo placeholder is sufficient.
 
-The current `App.tsx` displays session and user administration after sign-in. The server already
-provides authenticated tenant context, EF tenant filters and ownership interception, SQL tenant
-isolation, antiforgery protection, and generated API declarations. Extend these boundaries;
-retain React, semantic HTML, ordinary CSS, and the existing authentication behavior.
+At the pre-H1 design baseline, `App.tsx` displayed session and user administration after sign-in.
+The server already provided authenticated tenant context, EF tenant filters and ownership
+interception, SQL tenant isolation, antiforgery protection, and generated API declarations.
+H1 extended these boundaries while retaining React, semantic HTML, ordinary CSS, and the existing
+authentication behavior.
 
 ## Record and authority
 
