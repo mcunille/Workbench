@@ -93,6 +93,13 @@ public static class PasswordPrincipalProvisioning
                 AND major_id=OBJECT_ID(N'[Accounting].[CorrectJournal]') AND permission_name=N'EXECUTE'
                 AND grantee_principal_id=DATABASE_PRINCIPAL_ID(N'public') AND state IN ('G','W'))
                 REVOKE EXECUTE ON OBJECT::[Accounting].[CorrectJournal] FROM [public];
+            -- Repair only named recognition kernels; preserve explicit DENYs and reject other unsafe grants.
+            DECLARE @RecognitionRepair nvarchar(max)=N'';
+            SELECT @RecognitionRepair=COALESCE(STRING_AGG(CONVERT(nvarchar(max),N'REVOKE EXECUTE ON OBJECT::'+QUOTENAME(OBJECT_SCHEMA_NAME(p.major_id))+N'.'+QUOTENAME(OBJECT_NAME(p.major_id))+N' FROM '+QUOTENAME(USER_NAME(p.grantee_principal_id))+N';'),N''),N'')
+              FROM sys.database_permissions p WHERE p.class=1 AND p.minor_id=0 AND p.permission_name=N'EXECUTE' AND p.state IN('G','W')
+                AND p.major_id IN(OBJECT_ID(N'Purchasing.PostRecognition'),OBJECT_ID(N'Purchasing.CorrectRecognition'))
+                AND p.grantee_principal_id IN(DATABASE_PRINCIPAL_ID(N'workbench_web'),DATABASE_PRINCIPAL_ID(N'workbench_worker'),DATABASE_PRINCIPAL_ID(N'public'));
+            EXEC sys.sp_executesql @RecognitionRepair;
             -- Web/operator grants must match their migration-defined object access. DENY rows add no authority.
             -- Keep this allowlist and the successful provisioning test current when adding migration grants.
             -- Migrator intentionally retains database CONTROL and is not a restricted workload role.
@@ -115,6 +122,13 @@ public static class PasswordPrincipalProvisioning
                                     (N'workbench_web', N'[Administration].[AccountingRoleAssignments]', N'SELECT'),
                                     (N'workbench_web', N'[Administration].[AccountingRoleReceipts]', N'SELECT'),
                                     (N'workbench_web', N'[Administration].[AssignAccountingRoles]', N'EXECUTE'),
+                                    (N'workbench_web', N'[Purchasing].[RecognitionUnits]', N'SELECT'),
+                                    (N'workbench_web', N'[Purchasing].[RecognitionSideEvents]', N'SELECT'),
+                                    (N'workbench_web', N'[Purchasing].[RecognitionComponents]', N'SELECT'),
+                                    (N'workbench_web', N'[Purchasing].[RecognitionMatches]', N'SELECT'),
+                                    (N'workbench_web', N'[Purchasing].[RecognitionCorrectionGroups]', N'SELECT'),
+                                    (N'workbench_web', N'[Purchasing].[RecognitionEventCorrections]', N'SELECT'),
+                                    (N'workbench_web', N'[Purchasing].[RecognitionGroupReceipts]', N'SELECT'),
                                     (N'workbench_web', N'[Accounting].[Accounts]', N'SELECT'),
                                     (N'workbench_web', N'[Accounting].[Configurations]', N'SELECT'),
                                     (N'workbench_web', N'[Accounting].[Revisions]', N'SELECT'),

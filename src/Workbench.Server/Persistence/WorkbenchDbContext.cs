@@ -113,6 +113,7 @@ public partial class WorkbenchDbContext : IdentityDbContext<
         ConfigureJournal(modelBuilder);
         ConfigureAccountingPeriods(modelBuilder);
         ConfigureJournalCorrections(modelBuilder);
+        ConfigurePurchaseRecognition(modelBuilder);
     }
 
     private void ConfigureInventory(ModelBuilder modelBuilder)

@@ -12,6 +12,41 @@ namespace Workbench.Server.IntegrationTests;
 public sealed class PasswordPrincipalProvisioningTests(SqlServerFixture sqlServer)
 {
     [Fact]
+    public async Task RecognitionProvisioningPreservesReadAuthorityAndRepairsKernelGrants()
+    {
+        // GIVEN the release schema, with no fixture adapter and accidental kernel grants.
+        await using var database = await sqlServer.CreateMigratedDatabaseAsync();
+        using var inputs = new Inputs();
+        foreach (var kernel in new[] { "PostRecognition", "CorrectRecognition" })
+            foreach (var role in new[] { "workbench_web", "workbench_worker", "public" })
+                await ExecuteAsync(database, $"GRANT EXECUTE ON Purchasing.{kernel} TO [{role}]");
+        // WHEN provisioning and reprovisioning THEN runtime evidence stays readable and immutable.
+        await inputs.ProvisionAsync(database); await inputs.ProvisionAsync(database);
+        await using var restricted = new SqlConnection(await database.CreateRoleUserAsync("workbench_web"));
+        await restricted.OpenAsync();
+        foreach (var table in new[] { "RecognitionUnits", "RecognitionSideEvents", "RecognitionComponents", "RecognitionMatches", "RecognitionCorrectionGroups", "RecognitionEventCorrections", "RecognitionGroupReceipts" })
+        {
+            await using var read = new SqlCommand($"SELECT COUNT(*) FROM Purchasing.{table}", restricted);
+            Assert.Equal(0, await read.ExecuteScalarAsync());
+            await using var write = new SqlCommand($"DELETE Purchasing.{table}", restricted);
+            Assert.Equal(229, (await Assert.ThrowsAsync<SqlException>(() => write.ExecuteNonQueryAsync())).Number);
+        }
+        await using var worker = new SqlConnection(await database.CreateRoleUserAsync("workbench_worker"));
+        await worker.OpenAsync();
+        foreach (var kernel in new[] { "PostRecognition", "CorrectRecognition" })
+        {
+            Assert.Equal(0, await ScalarAsync(database, $"SELECT COUNT(*) FROM sys.database_permissions WHERE grantee_principal_id IN (DATABASE_PRINCIPAL_ID('workbench_web'),DATABASE_PRINCIPAL_ID('workbench_worker'),DATABASE_PRINCIPAL_ID('public')) AND major_id=OBJECT_ID('Purchasing.{kernel}') AND permission_name='EXECUTE' AND state IN ('G','W')"));
+            foreach (var runtime in new[] { restricted, worker })
+            {
+                await using var execute = new SqlCommand($"EXEC Purchasing.{kernel}", runtime);
+                Assert.Equal(229, (await Assert.ThrowsAsync<SqlException>(() => execute.ExecuteNonQueryAsync())).Number);
+            }
+        }
+        Assert.Equal(0, await ScalarAsync(database, "SELECT COUNT(*) FROM sys.objects WHERE schema_id=SCHEMA_ID('Purchasing') AND name LIKE '%Fixture%'"));
+        Assert.Equal(0, await ScalarAsync(database, "SELECT COUNT(*) FROM [Identity].RoleClaims WHERE ClaimValue LIKE 'PurchaseRecognitionFixture%'"));
+    }
+
+    [Fact]
     public async Task JournalProvisioningPreservesReadOnlyRuntimeAuthority()
     {
         // GIVEN the release schema without any test-only source adapter.

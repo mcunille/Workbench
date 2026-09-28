@@ -48,8 +48,10 @@ may contain Unicode. Account type and purpose are fixed at creation; edit descri
 an unused account and create a replacement when its financial meaning is wrong.
 
 Map supplier payables, advances, credits, and refund clearing to their matching control accounts.
-General inventory, expense, prepayment, and recoverable-tax mappings are classification candidates
-for later recognition rules. Naming or mapping an account does not create a financial entry.
+General inventory, expense, prepayment, and recoverable-tax mappings support the internal recognition
+rules. Receipt accrual (`GoodsReceivedNotInvoiced`) requires an active general liability account.
+Inventory, prepayment and recoverable-tax mappings must use distinct accounts. Naming or mapping
+an account does not create a financial entry.
 
 Archive keeps the account's code reserved and preserves its identity and revision history. Current
 mapping targets and included funding accounts must be reassigned or removed from coverage before
@@ -109,6 +111,32 @@ Period closure and correction writes are internal primitives exercised only with
 in disposable test databases. The closure evidence v1 envelope requires schema version 1, a bounded
 nonblank typed kind, and the exact canonical period start; the synthetic kind is
 `SyntheticReconciliation`. A production reconciliation schema and close checklist remain future work.
+
+## Internal purchase recognition
+
+BK-04 records an explicitly classified whole purchase unit as Expense or Inventory. Recognition
+before an invoice accrues cost against receipt accrual; an eligible invoice first records prepayment
+and supplier payable. An explicit match clears the original accrual or prepayment account, even after
+mapping changes, and posts only the approved cost difference. Inventory differences require durable
+held-inventory evidence. Equal amounts alone never match sources.
+
+Components distinguish cost, positive discount reductions, freight, charges, nonrecoverable tax,
+recoverable tax and signed rounding. Amounts must exactly fit the configured currency scale; one
+approved rounding component per invoice source may not exceed one minor unit in absolute value.
+Source capacity, rounding and released-capacity date limits span surviving source revisions. A
+second side cannot predate the first posting. Amount-only partial matches are unsupported.
+
+Correction discovers and reverses the complete dependency group and optionally replaces both sides
+with fresh revisions. Original evidence remains immutable, zero-value sides retain receipts without
+inventing journals, and retries require current authority. Journal detail exposes recognition units,
+components, matches and correction relationships to authorized accounting readers. Cutoff lists and
+trial balances retain the original activity when later corrections fall outside their filters.
+
+These commands have no runtime execute grants, production source adapters or public financial write
+routes. Synthetic adapters exist only in disposable tests. `BookkeepingAvailable` remains false;
+payments, bill entry, operational fulfillment, item valuation, cost of sales and production closing
+remain future work. The [BK-04 specification](specs/2026-09-25-bk-04-classified-purchase-recognition.md)
+defines the evidence and release limits.
 
 The [BK-01 specification](specs/2026-09-21-bk-01-accounting-foundation.md) owns the accepted boundaries;
 the [BK-02 specification](specs/2026-09-23-bk-02-atomic-journal.md) defines the journal boundary;

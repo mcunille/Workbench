@@ -84,6 +84,13 @@ public static class EntraPrincipalProvisioning
             IF @result < 0 THROW 50030, 'Principal provisioning lock unavailable.', 1;
             IF CAST(SERVERPROPERTY('EngineEdition') AS int) <> 5
                 THROW 50030, 'Entra provisioning requires Azure SQL Database.', 1;
+            -- Repair only named recognition kernels, preserving existing explicit DENYs.
+            DECLARE @RecognitionRepair nvarchar(max)=N'';
+            SELECT @RecognitionRepair=COALESCE(STRING_AGG(CONVERT(nvarchar(max),N'REVOKE EXECUTE ON OBJECT::'+QUOTENAME(OBJECT_SCHEMA_NAME(p.major_id))+N'.'+QUOTENAME(OBJECT_NAME(p.major_id))+N' FROM '+QUOTENAME(USER_NAME(p.grantee_principal_id))+N';'),N''),N'')
+              FROM sys.database_permissions p WHERE p.class=1 AND p.minor_id=0 AND p.permission_name=N'EXECUTE' AND p.state IN('G','W')
+                AND p.major_id IN(OBJECT_ID(N'Purchasing.PostRecognition'),OBJECT_ID(N'Purchasing.CorrectRecognition'))
+                AND p.grantee_principal_id IN(DATABASE_PRINCIPAL_ID(N'workbench_web'),DATABASE_PRINCIPAL_ID(N'workbench_worker'),DATABASE_PRINCIPAL_ID(N'public'));
+            EXEC sys.sp_executesql @RecognitionRepair;
             IF EXISTS (SELECT 1 FROM [Tenancy].[Tenants]) AND
                NOT EXISTS (SELECT 1 FROM [Security].[TenantContextKeys] WHERE [Id]=1 AND [ProofKey]=@proof)
                 THROW 50030, 'Provisioning cannot rotate an initialized installation proof.', 1;

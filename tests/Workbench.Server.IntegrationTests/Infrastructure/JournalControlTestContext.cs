@@ -17,9 +17,9 @@ internal sealed class JournalControlTestContext : IAsyncDisposable
     private JournalControlTestContext(JournalTestContext journal) => Journal = journal;
 
     public static async Task<JournalControlTestContext> OpenAsync(SqlServerFixture fixture,
-        int fiscalStartMonth = 1, string startDate = "2026-01-01")
+        int fiscalStartMonth = 1, string startDate = "2026-01-01", string? priorMigration = null)
     {
-        var journal = await JournalTestContext.OpenAsync(fixture);
+        var journal = await JournalTestContext.OpenAsync(fixture, priorMigration);
         try
         {
             await journal.CreateGeneralAccountsAsync();

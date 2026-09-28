@@ -5351,6 +5351,7 @@ export interface components {
             lines: components["schemas"]["JournalLine"][];
             source: components["schemas"]["JournalSourceEvidence"];
             corrections: components["schemas"]["JournalCorrectionEvidence"][];
+            recognition: null | components["schemas"]["PurchaseRecognitionEvidence"];
         };
         JournalHeader: {
             /** Format: uuid */
@@ -5545,6 +5546,63 @@ export interface components {
             /** Format: int32 */
             revision: number | string;
             firstItemDescription: null | string;
+        };
+        PurchaseRecognitionComponent: {
+            componentKey: string;
+            kind: string;
+            amount: string;
+            reason: null | string;
+            assignedCostComponentKey: null | string;
+        };
+        PurchaseRecognitionCorrectionRelationship: {
+            /** Format: uuid */
+            groupId: string;
+            role: string;
+            /** Format: uuid */
+            originalUnitId: string;
+            /** Format: uuid */
+            replacementUnitId: null | string;
+            /** Format: uuid */
+            originalMatchId: null | string;
+            /** Format: uuid */
+            replacementMatchId: null | string;
+            /** Format: uuid */
+            originalEventId: string;
+            /** Format: uuid */
+            replacementEventId: null | string;
+            /** Format: uuid */
+            originalJournalId: null | string;
+            /** Format: uuid */
+            reversalJournalId: null | string;
+            /** Format: uuid */
+            replacementJournalId: null | string;
+        };
+        PurchaseRecognitionEvidence: {
+            /** Format: uuid */
+            unitId: string;
+            /** Format: uuid */
+            eventId: string;
+            side: string;
+            journalRole: string;
+            /** Format: int32 */
+            eventRevision: number | string;
+            classification: string;
+            goodsReference: string;
+            quantity: string;
+            quantityUnit: string;
+            /** Format: uuid */
+            sourceId: string;
+            /** Format: uuid */
+            sourceRevision: string;
+            sourceComponentKey: string;
+            subdivisionKey: string;
+            sourceQuantity: string;
+            sourceAmount: string;
+            evidenceJson: string;
+            evidenceSha256: string;
+            components: components["schemas"]["PurchaseRecognitionComponent"][];
+            matchIds: string[];
+            correctionGroups: components["schemas"]["PurchaseRecognitionCorrectionRelationship"][];
         };
         RecoveryConsumeRequest: {
             token: string;

@@ -2,6 +2,7 @@ const requirements: Record<string, [string, string]> = {
   SupplierPayable: ['Liability', 'SupplierPayable'], SupplierAdvance: ['Asset', 'SupplierAdvance'],
   SupplierCreditReceivable: ['Asset', 'SupplierCreditReceivable'], SupplierRefundClearing: ['Liability', 'SupplierRefundClearing'],
   Inventory: ['Asset', 'General'], Expense: ['Expense', 'General'], Prepayment: ['Asset', 'General'], RecoverableTax: ['Asset', 'General'],
+  GoodsReceivedNotInvoiced: ['Liability', 'General'],
 };
 export function eligibleForMapping(slot: string, account: { type: string; purpose: string; isArchived: boolean }): boolean {
   const rule = requirements[slot];

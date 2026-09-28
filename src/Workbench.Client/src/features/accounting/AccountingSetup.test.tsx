@@ -10,6 +10,20 @@ function handlers() {
   server.use(http.get('*/api/beta/accounting/catalog', () => HttpResponse.json(catalog)), http.get('*/api/beta/accounting/setup', () => HttpResponse.json(setup)), http.get('*/api/beta/accounting/accounts', () => HttpResponse.json({ items: [], nextCursor: null })), http.get('*/api/beta/auth/antiforgery', () => HttpResponse.json({ requestToken: 'test' })));
 }
 describe('Accounting setup', () => {
+  it('shows and saves the receipt-accrual account mapping', async () => {
+    // GIVEN an active general liability supplied by the account catalog
+    handlers(); let saved: unknown;
+    const accrual = { id: 'accrual', code: '2250', name: 'Goods received accrual', type: 'Liability', purpose: 'General', description: null, isArchived: false, version: 'v1' };
+    server.use(http.get('*/api/beta/accounting/catalog', () => HttpResponse.json({ ...catalog, mappingSlots: ['GoodsReceivedNotInvoiced'] })), http.get('*/api/beta/accounting/accounts', () => HttpResponse.json({ items: [accrual], nextCursor: null })), http.put('*/api/beta/accounting/setup', async ({ request }) => { saved = await request.json(); return HttpResponse.json({ savedVersion: 'v2', accountIds: [] }); }));
+    render(<AccountingSetup canManage onAuthLost={vi.fn()} onDirtyChange={vi.fn()} />);
+    // WHEN the administrator selects and saves the accrual account
+    fireEvent.click(await screen.findByRole('button', { name: 'Accounts and mappings' }));
+    fireEvent.change(screen.getByLabelText('Goods Received Not Invoiced'), { target: { value: accrual.id } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save setup' }));
+    // THEN the named mapping and selected account appear in the saved command
+    await waitFor(() => expect(saved).toMatchObject({ configuration: { mappings: [{ slot: 'GoodsReceivedNotInvoiced', accountId: accrual.id }] } }));
+    expect(await screen.findByText('Accounting setup saved. Bookkeeping is not yet available.')).toBeVisible();
+  });
   it.each([false, true])('marks pending saves uncertain for navigation (edited: %s)', async edited => {
     // GIVEN a setup save whose response has not arrived
     handlers(); const changed = vi.fn(); let release!: () => void;

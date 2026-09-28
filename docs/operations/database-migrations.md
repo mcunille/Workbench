@@ -60,6 +60,17 @@ and upgrade from the preceding schema are required verification paths. Down is b
 50020 to preserve configuration, role-assignment, revision, and receipt evidence. Use a reviewed forward
 correction or protected restore; the prior application's readiness marker does not accept this schema.
 
+BK-04 ships one additive migration, `20260926210900_AddPurchaseRecognition`, from the merged
+`20260925044758_AddAccountingPeriodControls` baseline. It installs recognition tables and restricted
+posting/correction commands, updates receipt-accrual mapping validation and supplier-history guards,
+and advances readiness. It preserves existing BK-03 source, journal, configuration, correction,
+period-closure and receipt bytes; original request retries continue to return their original results.
+Fresh creation installs no synthetic adapters or financial source permissions. Runtime direct writes
+and command execution remain denied. Current binaries reject the predecessor, and the predecessor
+marker rejects the current schema. Down fails with 50020: use a reviewed forward correction or
+protected restore. Disposable migration tests establish these contracts; retained preview upgrades,
+production migration, full verification and cutover require their separate workflow and authority.
+
 ## Authoring and validating a migration
 
 Keep migrations deterministic and reversible where SQL Server permits. Review generated SQL and
@@ -127,6 +138,7 @@ This inventory describes checked-in migration behavior, not permission to execut
 | `20260921051843_AddAccountingFoundation` | `MakeSupplierProfilesCustom` | Adds tenant accounting configuration, general accounts, revisions, receipts and two explicitly assigned accounting roles. Restricted commands validate current actor authority; runtime Identity role/claim writes are denied. Retains existing data without granting accounting access or creating balances. Advances readiness and backup markers; stop older writers and deploy the matching application. Verify fresh creation and upgrade from the predecessor. | Always blocked (50020); preserve configuration and authorization history through forward correction or guarded recovery. |
 | `20260923010000_AddAtomicJournal` | `AddAccountingFoundation` | Adds immutable journal/source/receipt records, first-posting policy freeze, exact SQL posting validation and used-account archive protection. No runtime posting grant or production source adapter. Preserves BK-01 data and replay bytes; advances readiness and backup markers. Verify fresh creation and upgrade from the merged BK-01 schema. Stop older writers and deploy the matching application. | Always blocked (50020); preserve financial history through forward correction or guarded recovery. |
 | `20260925044758_AddAccountingPeriodControls` | `AddAtomicJournal` | Adds tenant-scoped monthly periods, immutable closures/receipts and atomic correction groups/receipts in one BK-03 migration. Backfills existing posted months as open; preserves all BK-02 journals, source snapshots and receipt bytes. Adds closed-month posting guards and restricted close/correction kernels without production write adapters. Advances readiness and backup markers. Stop incompatible writers; verify fresh creation and upgrade with retained BK-02 history before deploying the matching application. | Always blocked (50020); preserve closure and correction history through forward correction or guarded recovery. |
+| `20260926210900_AddPurchaseRecognition` | `AddAccountingPeriodControls` | Adds immutable classified purchase recognition, matching and group correction evidence; restricted commands, receipt-accrual mapping and PO supplier-history guards. Preserves BK-03 financial and replay bytes. Advances readiness; only matching binaries are compatible. No production source adapter, financial source permission or public write route. Verify fresh creation and merged BK-03 upgrade using disposable databases. | Always blocked (50020); preserve financial evidence through forward correction or guarded recovery. |
 
 Product behavior, user-visible concurrency/retry rules and the shipped feature inventory belong in
 [collection documentation](../collection.md). Provider retry/backoff behavior belongs in
@@ -134,7 +146,7 @@ Product behavior, user-visible concurrency/retry rules and the shipped feature i
 The [migration source](../../src/Workbench.Server/Persistence/Migrations) is authoritative for SQL.
 
 
-The current required migration is `20260925044758_AddAccountingPeriodControls`.
+The current required migration is `20260926210900_AddPurchaseRecognition`.
 
 `MakeSupplierProfilesCustom` directly follows `HardenPurchaseOrderDocumentAuthority`.
 It adds custom supplier reference pairs in one migration, preserving existing supplier data,
