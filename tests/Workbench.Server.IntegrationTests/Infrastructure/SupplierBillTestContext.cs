@@ -59,6 +59,13 @@ internal sealed class SupplierBillTestContext(PurchaseRecognitionTestContext rec
     }
     public Task<JsonObject> ReviewAsync(Guid requestId, JsonObject command)
         => ExecuteAsync("ReviewSupplierBill", requestId, command);
+    public JsonObject PostCommand(JsonObject reviewed)
+    {
+        var command = Change(reviewed, "Post");
+        command["revisionId"] = reviewed["revisionId"]!.DeepClone();
+        command["expectedConfigurationVersion"] = Journal.ConfigurationVersion.ToString();
+        return command;
+    }
     public Task<JsonObject> SaveAsync(Guid requestId, JsonObject command, SqlConnection? connection = null)
         => ExecuteAsync("SaveSupplierBill", requestId, command, connection);
     public async Task<JsonObject> ExecuteAsync(string procedure, Guid requestId, JsonObject command, SqlConnection? connection = null)

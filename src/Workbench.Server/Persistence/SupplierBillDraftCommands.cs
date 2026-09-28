@@ -65,13 +65,15 @@ internal static class SupplierBillDraftCommands
             END;
             IF @Operation<>'Abandon'
             BEGIN
+              DECLARE @DraftEvidence nvarchar(max),@Payload nvarchar(max)=JSON_QUERY(@Canonical,'$.revision');
+              EXEC Purchasing.ValidateBillEvidence @TenantId,@PoId,@Payload,@DraftEvidence OUTPUT;
               SET @RevisionId=NEWID();
               INSERT Purchasing.SupplierBillRevisions(TenantId,Id,BillId,Sequence,PurchaseOrderRevision,SupplierName,Payload,NormalizedReference,ActorId,RecordedAtUtc)
                 SELECT @TenantId,@RevisionId,@BillId,COALESCE(MAX(Sequence),0)+1,@PoRevision,@SupplierName,JSON_QUERY(@Canonical,'$.revision'),
                   Purchasing.NormalizeBillReference(JSON_VALUE(@Canonical,'$.revision.reference')),@ActorId,@Now
                 FROM Purchasing.SupplierBillRevisions WHERE TenantId=@TenantId AND BillId=@BillId;
             END;
-            UPDATE Purchasing.SupplierBills SET CurrentRevisionId=@RevisionId,State=CASE WHEN @Operation='Abandon' THEN 'Abandoned' ELSE 'Draft' END
+            UPDATE Purchasing.SupplierBills SET CurrentRevisionId=@RevisionId,CurrentReviewId=NULL,State=CASE WHEN @Operation='Abandon' THEN 'Abandoned' ELSE 'Draft' END
               WHERE TenantId=@TenantId AND Id=@BillId;
             SELECT @Result=(SELECT Id billId,CurrentRevisionId revisionId,CONVERT(varchar(18),CONVERT(binary(8),RowVersion),1) version,State state,@Now recordedAtUtc,
                 JSON_QUERY('[]') recognitionEventIds,JSON_QUERY('[]') journalIds,
