@@ -35,7 +35,9 @@ at a particular revision. Neither replaces current instructions.
 Vision and design principles own product intent. Architecture owns the implemented technical
 contracts. DESIGN.md owns visual values; [design references](design/README.md) and
 [experimental navigation](design-ideas/README.md) retain their distinct reference roles.
-See the [navigation decision](specs/2026-09-09-refined-navigation.md) for accepted interaction scope.
+See the [original navigation decision](specs/2026-09-09-refined-navigation.md) for interaction
+rationale and [raised content workspace](specs/2026-09-25-raised-content-workspace.md) for the
+current desktop material and layout.
 
 ## Change specifications
 

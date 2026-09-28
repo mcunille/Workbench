@@ -126,7 +126,9 @@ for the intentionally limited source, inventory and reconciliation contracts.
 
 ### Collection records export
 
-The [H7 export](specs/2026-09-08-h7-collection-export.md) retrieves current text records as CSV v1.
+Collection export retrieves current item and acquisition facts as CSV v2. The
+[H7 design](specs/2026-09-08-h7-collection-export.md) introduced CSV v1;
+[H12](specs/2026-09-11-h12-acquisition-export.md) added acquisition-aware CSV and ZIP v2.
 Collectors explicitly select active records or active plus archived records; search and loaded pages
 do not narrow the export. A bounded SERIALIZABLE read under the existing web principal and tenant
 RLS captures one collection state, releasing locks before encoding and delivery. Concurrent writes
@@ -134,18 +136,21 @@ may briefly wait. Preparation fails without a file above 10,000 records or 32 Mi
 preparation deadline, or on database failure. Each application instance admits two preparations.
 
 The authenticated, antiforgery-protected POST `/api/beta/items/export` buffers a complete private CSV
-attachment and revalidates the session before returning it. No job, shared link, server export file,
-or schema change is introduced. The browser offers Download only after the complete body arrives;
+attachment and revalidates the session before returning it. No job, shared link or server export file
+is introduced by export preparation. The browser offers Download only after the complete body arrives;
 its private file and selected scope survive ordinary navigation and appearance changes. Prepared
 files expire after ten minutes and clear on sign-out, identity change, or reload. This is a text
 portability feature, not a restorable backup. See the [CSV contract](collection-export.md).
 
-The H8 package endpoint, POST `/api/beta/items/export-package`, adds a bounded ZIP containing records.csv,
-manifest.json, README.txt and exact stored current detail photographs. It captures tenant-scoped SQL
-metadata before reading immutable provider bytes, verifies required photo lengths/digests, and prepares
-the complete archive in memory before session revalidation and delivery. A missing or corrupt required
-photo fails the whole preparation. The package shares the two-preparation capacity limit, permits
-10,000 records, bounds CSV to 32 MiB, manifest to 16 MiB and content/ZIP to 128 MiB, and uses a 120-second
+The package endpoint, POST `/api/beta/items/export-package`, returns a bounded ZIP containing CSV v2,
+manifest.json, README.txt, exact stored current detail photographs and acquisition documents.
+One tenant-scoped SQL snapshot captures items, acquisition facts and links, and immutable photo/document
+revision references. Provider reads then verify required lengths/digests outside the SQL transaction;
+the complete archive is prepared in memory before session revalidation and delivery. A missing,
+corrupt or unavailable required file fails the whole preparation. Shared acquisitions and documents
+appear once, with only in-scope item links; document contents are not redacted and may describe
+out-of-scope pieces. The package shares the two-preparation capacity limit, permits 10,000 records
+and 10,000 documents, bounds CSV to 32 MiB, manifest to 16 MiB and content/ZIP to 128 MiB, and uses a 120-second
 deadline. It includes neither thumbnails nor retired photographs and cannot restore an installation.
 See the [export contract](collection-export.md) for package contents and browser lifetime.
 
@@ -170,8 +175,9 @@ Tenant-scoped, paginated acquisition discovery and membership reads support shar
 membership browsing excludes archived pieces unless explicitly requested. Archive and restore
 retain connections. Archived item details and acquisition views opened from them are read-only;
 an active linked item can still edit the shared context. Conflict recovery preserves private
-in-session drafts and requires explicit reconciliation. Existing CSV/ZIP exports do not yet include
-acquisition context or documents.
+in-session drafts and requires explicit reconciliation. CSV v2 includes acquisition facts and partial
+date precision; ZIP v2 also includes current acquisition documents and scoped relationships, as
+described in [collection export](#collection-records-export).
 
 Acquisition documents have tenant-qualified acquisition and immutable attachment/revision links.
 Restricted prepare/finalize commands enforce active linkage, versions, capacity and mutation replay

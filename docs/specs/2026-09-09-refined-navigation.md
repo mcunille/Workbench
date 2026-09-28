@@ -1,10 +1,16 @@
 # Refined responsive navigation
 
+**Status: Implemented; desktop material, width and responsive defaults partially superseded.**
+The [raised content workspace](2026-09-25-raised-content-workspace.md) and current
+[style reference](../../DESIGN.md#authenticated-navigation) describe the 14.3125rem
+(minimum 229px) solid-canvas navigation beside raised content. The original desktop treatment
+below is historical; retain the profile/mobile interaction decisions and rejected alternatives.
+
 ## Decision and scope
 
-The accepted direction is a collapsible glass pane on desktop and a floating bottom pill
+The direction accepted for this increment was a collapsible glass pane on desktop and a floating bottom pill
 on mobile, refined through local preview feedback. The original proposal of an opaque
-sidebar and wrapping mobile top bar is superseded by this decision. The living
+sidebar and wrapping mobile top bar was superseded by this decision. The living
 [style reference](../../DESIGN.md#authenticated-navigation) guides future changes.
 
 The previous sidebar consumed space and scattered account controls. The desktop pane

@@ -153,6 +153,12 @@ tests the worker, then starts continuous worker and ingress and verifies trusted
 SQL and Caddy images, ports, credentials, certificates, and volumes remain unchanged.
 Do not run setup again to update an installation.
 
+The updater creates the paired local checkpoint automatically rather than requiring manual
+external-backup attestation. A complete checkpoint is a prerequisite for migration; it does not
+replace off-host disaster recovery or a successful restore drill. Existing generated Compose
+configuration remains installation state rather than being regenerated from setup defaults.
+The original source directory is retained because SQL mounts its configuration from there.
+
 Successful output gives the local URL and checkpoint directory beneath
 `<InstallationRoot>/updates/<release>/checkpoint`. Sign in, inspect retained data,
 refresh an authenticated page, and sign out. `update.json` records the installed
@@ -179,6 +185,10 @@ begins, failures attempt to keep ingress and writers stopped. The error and `upd
 report the failed phase and whether stopped workloads were verified. If this value is
 false or absent after interruption, inspect actual container state before proceeding.
 An incomplete journal blocks another update; the file lock alone does not authorize retry.
+
+The stopped failure state is deliberate: shipped migrations can prohibit rollback, so the updater
+does not automatically revert images, down-migrate, restore data or resume an interrupted update.
+Recovery requires the phase-specific review below.
 
 - Before `migration`, preserve the journal and partial checkpoint, resolve the reported
   problem, and verify that the previous Compose file/image and database remain unchanged.

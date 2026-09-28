@@ -2,6 +2,11 @@
 
 **Status: Implemented** — approved by the owner on 2026-09-08 and delivered for issue #55.
 
+This record preserves the original CSV v1 design. [H12](2026-09-11-h12-acquisition-export.md)
+subsequently introduced acquisition-aware CSV and ZIP v2. The [format guide](../collection-export.md)
+owns current downloads and decoding of previously downloaded v1 files. Historical `/api/items`
+examples below predate the [beta API transition](../api-lifecycle.md); current routes use `/api/beta/items`.
+
 ## Purpose and boundaries
 
 Let a collector retrieve every item in an explicitly chosen scope as documented, usable CSV.
