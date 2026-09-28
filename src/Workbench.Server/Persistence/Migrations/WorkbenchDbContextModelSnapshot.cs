@@ -2903,6 +2903,10 @@ namespace Workbench.Server.Persistence.Migrations
                     b.Property<Guid>("SourceId")
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<long>("Sequence").ValueGeneratedOnAdd().HasColumnType("bigint");
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Sequence"));
+                    b.HasIndex("TenantId", "Sequence").IsUnique();
+
                     b.HasKey("TenantId", "Id");
 
                     b.HasIndex("TenantId", "SourceId", "Operation")

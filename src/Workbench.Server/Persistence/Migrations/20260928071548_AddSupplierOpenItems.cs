@@ -18,6 +18,7 @@ namespace Workbench.Server.Persistence.Migrations
                 {
                     TenantId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
                     Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    Sequence = table.Column<long>(type: "bigint", nullable: false).Annotation("SqlServer:Identity", "1, 1"),
                     Operation = table.Column<string>(type: "varchar(40)", unicode: false, maxLength: 40, nullable: false),
                     SourceId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
                     RecordedAtUtc = table.Column<DateTimeOffset>(type: "datetimeoffset", nullable: false)
@@ -27,6 +28,8 @@ namespace Workbench.Server.Persistence.Migrations
                     table.PrimaryKey("PK_SupplierFinancialGroups", x => new { x.TenantId, x.Id });
                     table.CheckConstraint("CK_SupplierFinancialGroups_Operation", "[Operation] COLLATE Latin1_General_100_BIN2 IN ('OpenRecognitionPayable','RecordPayment','Apply','ReverseApplication','CorrectPayment','CorrectSource')");
                 });
+
+            migrationBuilder.CreateIndex(name: "IX_SupplierFinancialGroups_TenantId_Sequence", schema: "Purchasing", table: "SupplierFinancialGroups", columns: new[] { "TenantId", "Sequence" }, unique: true);
 
             migrationBuilder.CreateTable(
                 name: "SupplierOpenItems",

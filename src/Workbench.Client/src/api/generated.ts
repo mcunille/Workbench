@@ -4485,6 +4485,326 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/beta/accounting/supplier-open-items": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: {
+                    supplierId?: string;
+                    purchaseOrderId?: string;
+                    billId?: string;
+                    postingThrough?: string;
+                    recordedThrough?: string;
+                    pageSize?: number | string;
+                    cursor?: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["SupplierReportPageOfSupplierOpenItemSummary"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unprocessable Entity */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/beta/accounting/supplier-open-items/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: {
+                    supplierId?: string;
+                    purchaseOrderId?: string;
+                    billId?: string;
+                    postingThrough?: string;
+                    recordedThrough?: string;
+                    pageSize?: number | string;
+                    cursor?: string;
+                };
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["SupplierOpenItemSummary"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unprocessable Entity */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/beta/accounting/supplier-open-items/{id}/history": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: {
+                    supplierId?: string;
+                    purchaseOrderId?: string;
+                    billId?: string;
+                    postingThrough?: string;
+                    recordedThrough?: string;
+                    pageSize?: number | string;
+                    cursor?: string;
+                };
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["SupplierReportPageOfSupplierItemHistoryEntry"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unprocessable Entity */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/beta/accounting/supplier-reconciliation": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: {
+                    supplierId?: string;
+                    purchaseOrderId?: string;
+                    billId?: string;
+                    postingThrough?: string;
+                    recordedThrough?: string;
+                    pageSize?: number | string;
+                    cursor?: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["SupplierReconciliationSummary"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unprocessable Entity */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/beta/accounting/journals": {
         parameters: {
             query?: never;
@@ -5680,9 +6000,120 @@ export interface components {
             postalAddress: null | string;
             socialProfiles?: null | components["schemas"]["SupplierSocialProfile"][];
         };
+        SupplierControlBalance: {
+            /** Format: uuid */
+            accountId: null | string;
+            currency: string;
+            controlFamily: string;
+            journalAmount: string;
+            subledgerAmount: string;
+            difference: string;
+            /** Format: int32 */
+            missingAttributionCount: number | string;
+            /** Format: int32 */
+            duplicateAttributionCount: number | string;
+            /** Format: int32 */
+            invalidSourceEvidenceCount: number | string;
+            isComplete: boolean;
+        };
+        SupplierItemHistoryEntry: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            itemId: string;
+            /** Format: uuid */
+            groupId: string;
+            /** Format: int64 */
+            groupSequence: number | string;
+            eventKind: string;
+            /** Format: uuid */
+            sourceEventId: string;
+            /** Format: uuid */
+            journalId: null | string;
+            applicationIds: string[];
+            /** Format: uuid */
+            correctionId: null | string;
+            /** Format: uuid */
+            supplierCorrectionId: null | string;
+            /** Format: date */
+            postingDate: string;
+            /** Format: date-time */
+            recordedAtUtc: string;
+            amount: string;
+        };
+        SupplierOpenItemSummary: {
+            /** Format: uuid */
+            id: string;
+            kind: string;
+            /** Format: uuid */
+            supplierId: string;
+            /** Format: uuid */
+            purchaseOrderId: string;
+            /** Format: uuid */
+            billId: null | string;
+            currency: string;
+            sourceKind: string;
+            /** Format: uuid */
+            sourceId: string;
+            /** Format: uuid */
+            sourceRevisionId: string;
+            /** Format: date */
+            sourcePostingDate: string;
+            /** Format: date */
+            dueDate: null | string;
+            balance: string;
+            hasValidSource: boolean;
+            /** Format: date */
+            postingThrough: string;
+            /** Format: date-time */
+            recordedThrough: string;
+        };
         SupplierPageResponse: {
             items: components["schemas"]["SupplierResponse"][];
             nextCursor: null | string;
+        };
+        SupplierReconciliationSummary: {
+            controls: components["schemas"]["SupplierReportPageOfSupplierControlBalance"];
+            isComplete: boolean;
+            /** Format: int32 */
+            unresolvedTenantControlCount: number | string;
+        };
+        SupplierReportPageOfSupplierControlBalance: {
+            items: components["schemas"]["SupplierControlBalance"][];
+            nextCursor: null | string;
+            /** Format: date */
+            postingThrough: string;
+            /** Format: date-time */
+            recordedThrough: string;
+            wholeFilterTotals: components["schemas"]["SupplierReportTotals"];
+            pageTotals: components["schemas"]["SupplierReportTotals"];
+        };
+        SupplierReportPageOfSupplierItemHistoryEntry: {
+            items: components["schemas"]["SupplierItemHistoryEntry"][];
+            nextCursor: null | string;
+            /** Format: date */
+            postingThrough: string;
+            /** Format: date-time */
+            recordedThrough: string;
+            wholeFilterTotals: components["schemas"]["SupplierReportTotals"];
+            pageTotals: components["schemas"]["SupplierReportTotals"];
+        };
+        SupplierReportPageOfSupplierOpenItemSummary: {
+            items: components["schemas"]["SupplierOpenItemSummary"][];
+            nextCursor: null | string;
+            /** Format: date */
+            postingThrough: string;
+            /** Format: date-time */
+            recordedThrough: string;
+            wholeFilterTotals: components["schemas"]["SupplierReportTotals"];
+            pageTotals: components["schemas"]["SupplierReportTotals"];
+        };
+        SupplierReportTotals: {
+            payable: string;
+            advance: string;
+            creditReceivable: string;
+            refundClearing: string;
+            netSupplierPosition: string;
         };
         SupplierResponse: {
             /** Format: uuid */

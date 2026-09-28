@@ -74,6 +74,7 @@ public sealed class SupplierControlAttribution
 
 public sealed class SupplierFinancialGroup
 {
+    public long Sequence { get; set; }
     public Guid TenantId { get; set; }
     public Guid Id { get; set; }
     public string Operation { get; set; } = "";

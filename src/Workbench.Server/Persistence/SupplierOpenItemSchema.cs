@@ -10,6 +10,12 @@ internal static class SupplierOpenItemSchema
         migrationBuilder.Sql(SupplierAllocationAvailability.Sql);
         migrationBuilder.Sql(SupplierPaymentCommands.ControlSql);
         migrationBuilder.Sql(SupplierAllocationCommands.ControlSql);
+        migrationBuilder.Sql("GRANT SELECT ON Purchasing.SupplierItemControl TO workbench_web; GRANT SELECT ON Purchasing.SupplierPaymentControl TO workbench_web;");
+        migrationBuilder.Sql("""
+            CREATE FUNCTION Purchasing.SupplierReportBillIdentity(@TenantId uniqueidentifier,@BillId uniqueidentifier)
+            RETURNS TABLE AS RETURN SELECT Id FROM Purchasing.SupplierBills WHERE TenantId=@TenantId AND Id=@BillId;
+            """);
+        migrationBuilder.Sql("GRANT SELECT ON Purchasing.SupplierReportBillIdentity TO workbench_web;");
         migrationBuilder.Sql(SupplierAllocationCommands.KernelSql);
         migrationBuilder.Sql(SupplierPaymentCommands.KernelSql);
         migrationBuilder.Sql(SupplierAllocationCorrections.ControlSql);

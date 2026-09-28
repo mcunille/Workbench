@@ -41,6 +41,8 @@ public partial class WorkbenchDbContext
         group.ToTable("SupplierFinancialGroups", "Purchasing", t => t.HasCheckConstraint("CK_SupplierFinancialGroups_Operation",
             "[Operation] COLLATE Latin1_General_100_BIN2 IN ('OpenRecognitionPayable','RecordPayment','Apply','ReverseApplication','CorrectPayment','CorrectSource')"));
         group.HasKey(x => new { x.TenantId, x.Id });
+        group.Property(x => x.Sequence).UseIdentityColumn();
+        group.HasIndex(x => new { x.TenantId, x.Sequence }).IsUnique();
         group.HasQueryFilter(x => (Guid?)x.TenantId == TenantContext.TenantId);
         group.Property(x => x.Operation).HasMaxLength(40).IsUnicode(false);
         group.HasIndex(x => new { x.TenantId, x.SourceId, x.Operation }).IsUnique();
