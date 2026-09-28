@@ -8,13 +8,16 @@ internal static class SupplierBillSchema
     internal static void Up(MigrationBuilder migrationBuilder, string migrationId)
     {
         migrationBuilder.Sql(SupplierBillReviewCommands.TablesSql);
+        migrationBuilder.Sql(SupplierBillPosting.TablesSql);
+        migrationBuilder.Sql(SupplierBillPosting.KernelOutputSql);
         migrationBuilder.Sql(SupplierBillValidation.NormalizeSql);
         migrationBuilder.Sql(SupplierBillValidation.Sql);
         migrationBuilder.Sql(SupplierBillReviewCommands.EvidenceSql);
         migrationBuilder.Sql(SupplierBillReviewCommands.ValidateSql);
         migrationBuilder.Sql(SupplierBillReviewCommands.Sql);
         migrationBuilder.Sql(SupplierBillDraftCommands.Sql);
-        foreach (var table in new[] { "SupplierBills", "SupplierBillRevisions", "SupplierBillReceipts", "SupplierBillReviews", "SupplierBillEvidence" })
+        migrationBuilder.Sql(SupplierBillPosting.Sql);
+        foreach (var table in new[] { "SupplierBills", "SupplierBillRevisions", "SupplierBillReceipts", "SupplierBillReviews", "SupplierBillEvidence", "SupplierBillPostings", "SupplierBillPostingEvents" })
             migrationBuilder.Sql($"""
                 ALTER SECURITY POLICY Security.TenantIsolationPolicy
                   ADD FILTER PREDICATE Security.fn_tenant_access(TenantId) ON Purchasing.{table},
