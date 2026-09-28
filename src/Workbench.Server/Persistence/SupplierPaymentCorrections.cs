@@ -180,7 +180,6 @@ internal static class SupplierPaymentCorrections
         """ + SupplierPaymentCommands.InputValidationSql + """
             DECLARE @EvidenceInput nvarchar(max)=JSON_QUERY(@ReplacementCanonical,'$.evidence'),@ReplacementDocuments nvarchar(max);
         """ + SupplierPaymentCommands.EvidenceValidationSql + """
-            EXEC Purchasing.ValidateBillEvidence @TenantId,@Po,@EvidenceInput,@ReplacementDocuments OUTPUT;
             IF (SELECT COUNT(*) FROM OPENJSON(@ReplacementCanonical))<>20
               OR JSON_VALUE(@ReplacementCanonical,'$.purchaseOrderId')<>CONVERT(nvarchar(36),@Po)
               OR JSON_VALUE(@ReplacementCanonical,'$.supplierId')<>CONVERT(nvarchar(36),@Supplier)
@@ -263,6 +262,9 @@ internal static class SupplierPaymentCorrections
                   TRY_CONVERT(uniqueidentifier,JSON_VALUE(@ReplacementCanonical,'$.paymentId'))),
                   (TRY_CONVERT(uniqueidentifier,JSON_VALUE(a.value,'$.itemId')))) e(ItemId)
             ) effects GROUP BY itemId ORDER BY itemId FOR JSON PATH);
+          -- Document/storage locks follow the complete source and item/application coordination set.
+          IF @Replacement IS NOT NULL
+            EXEC Purchasing.ValidateBillEvidence @TenantId,@Po,@EvidenceInput,@ReplacementDocuments OUTPUT;
           SET @Canonical=JSON_MODIFY(@Canonical,'$.expectedPlanFingerprint',NULL);
           IF EXISTS(SELECT 1 FROM OPENJSON(@ApplicationJson) a WHERE JSON_VALUE(a.value,'$.reversalId') IS NOT NULL
               AND (JSON_VALUE(a.value,'$.reversalJournalId') IS NULL OR EXISTS(SELECT 1 FROM Accounting.CorrectionGroups

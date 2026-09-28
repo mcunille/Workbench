@@ -150,6 +150,63 @@ public sealed class SupplierPaymentCorrectionTests(SqlServerFixture sqlServer)
     }
 
     [Fact]
+    public async Task ReplacementEvidenceWaitsForCompleteCoordinationBeforeLocking()
+    {
+        // GIVEN a genuine application and replacement document, with no financial changes during preview.
+        await using var context = await SupplierCorrectionFixture.OpenAsync(sqlServer);
+        var bill = await context.Allocation.BillAsync("100"); var payment = await context.CommandAsync(); await context.RecordAsync(payment);
+        var funding = Guid.Parse(payment["paymentId"]!.ToString());
+        var applied = await context.Allocation.ApplyAsync(await context.Allocation.CommandAsync(funding, bill));
+        var application = Guid.Parse(applied["applicationIds"]![0]!.ToString());
+        var (document, revision) = await context.Bills.SeedDocumentAsync();
+        var replacement = await context.CommandAsync("100", "2026-09-20"); await context.AllocateAsync(replacement, bill, "100");
+        replacement["evidence"] = new JsonObject { ["documents"] = new JsonArray(new JsonObject { ["documentId"] = document.ToString(), ["revisionId"] = revision.ToString() }), ["missingEvidenceReason"] = null };
+        var correction = await SupplierCorrectionFixture.CorrectionAsync(context, funding, replacement);
+        var before = await SupplierOpenItemAtomicityTests.SnapshotAsync(context);
+        var evidenceErrors = new List<Exception?>();
+        await using var holder = new SqlConnection(context.Allocation.Journal.Application.AdminConnectionString); await holder.OpenAsync();
+        await using var observer = new SqlConnection(context.Allocation.Journal.Application.AdminConnectionString); await observer.OpenAsync();
+        foreach (var applicationCoordination in new[] { true, false })
+        {
+            var coordination = applicationCoordination ? "SupplierApplicationVersions" : "SupplierItemVersions";
+            var identity = applicationCoordination ? "ApplicationId" : "ItemId";
+            await using (var begin = new SqlCommand("BEGIN TRAN", holder)) await begin.ExecuteNonQueryAsync();
+            await using (var hold = new SqlCommand($"SELECT COUNT(*) FROM Purchasing.{coordination} WITH(UPDLOCK,HOLDLOCK,ROWLOCK) WHERE TenantId=@tenant AND {identity}=@id", holder))
+            {
+                hold.Parameters.AddWithValue("@tenant", JournalTestContext.TenantId); hold.Parameters.AddWithValue("@id", applicationCoordination ? application : funding);
+                Assert.Equal(1, (int)(await hold.ExecuteScalarAsync())!);
+            }
+            // WHEN preview waits for either application or final affected-item coordination.
+            var pending = SupplierCorrectionFixture.PreviewAsync(context, correction);
+            try
+            {
+                await using var wait = new SqlCommand("SELECT COUNT(*) FROM sys.dm_exec_requests WHERE session_id=@waiter AND blocking_session_id=@holder AND wait_type LIKE 'LCK_M_%' AND (wait_resource LIKE 'KEY:%' OR wait_resource LIKE 'PAGE:%' OR wait_resource LIKE 'OBJECT:%')", observer);
+                wait.Parameters.AddWithValue("@waiter", context.Allocation.Journal.Connection.ServerProcessId); wait.Parameters.AddWithValue("@holder", holder.ServerProcessId);
+                using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(7));
+                while ((int)(await wait.ExecuteScalarAsync(timeout.Token))! != 1) await Task.Yield();
+                // THEN an independent genuine evidence validation can still acquire its document/storage locks immediately.
+                await using (var begin = new SqlCommand("SET LOCK_TIMEOUT 0; BEGIN TRAN", observer)) await begin.ExecuteNonQueryAsync();
+                await using var evidence = new SqlCommand("DECLARE @validated nvarchar(max); EXEC Purchasing.ValidateBillEvidence @tenant,@po,@input,@validated OUTPUT; SELECT @validated;", observer);
+                evidence.Parameters.AddWithValue("@tenant", JournalTestContext.TenantId); evidence.Parameters.AddWithValue("@po", context.Bills.Recognition.PurchaseOrderId);
+                evidence.Parameters.AddWithValue("@input", replacement["evidence"]!.ToJsonString());
+                evidenceErrors.Add(await Record.ExceptionAsync(async () => Assert.Contains(document.ToString(), (string)(await evidence.ExecuteScalarAsync())!, StringComparison.OrdinalIgnoreCase)));
+            }
+            finally
+            {
+                await using var releaseEvidence = new SqlCommand("IF @@TRANCOUNT>0 ROLLBACK; SET LOCK_TIMEOUT -1", observer); await releaseEvidence.ExecuteNonQueryAsync();
+                await using var releaseCoordination = new SqlCommand("IF @@TRANCOUNT>0 ROLLBACK", holder); await releaseCoordination.ExecuteNonQueryAsync();
+                var plan = await pending;
+                Assert.Equal(correction["expectedPlanFingerprint"]!.ToString(), plan["fingerprint"]!.ToString());
+            }
+            Assert.Equal(before, await SupplierOpenItemAtomicityTests.SnapshotAsync(context));
+        }
+        // AND the same genuine replacement still commits once all coordination and evidence are available.
+        await context.Bills.ExecuteAsync("CorrectSupplierPayment", Guid.NewGuid(), correction);
+        Assert.Equal(0m, await context.Allocation.BalanceAsync(bill));
+        Assert.All(evidenceErrors, error => Assert.Null(error));
+    }
+
+    [Fact]
     public async Task ReplacementPreviewRequiresAvailableEvidenceWithoutWrites()
     {
         // GIVEN a replacement with a real available document owned by this PO.
