@@ -262,7 +262,8 @@ function SignedInApplication({
             </div>
           </div>
         </nav>
-        <main id="main" className="workspace">
+        <div className="workspace-sheet">
+          <main id="main" className="workspace">
           {signOutFailed ? (
             <p role="alert">
               We could not sign you out. Please try again.
@@ -339,7 +340,8 @@ function SignedInApplication({
               </a>
             </>
           )}
-        </main>
+          </main>
+        </div>
       </div>
       {navigation.confirmation ? (
         <DiscardDialog
