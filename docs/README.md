@@ -1,8 +1,8 @@
 # Workbench documentation
 
-Use the task table to find the owner of each current contract or procedure. Dated specs preserve
-reasoning, alternatives and acceptance constraints; evidence records preserve what was exercised
-at a particular revision. Neither replaces current instructions.
+Use the task table to find the owner of each current contract or procedure. Retained specs cover
+unfinished requirements or decisions needing a separate home; evidence records preserve what was
+exercised at a particular revision. Neither replaces current instructions.
 
 | Task | Start here / current owner |
 | --- | --- |
@@ -35,19 +35,21 @@ at a particular revision. Neither replaces current instructions.
 Vision and design principles own product intent. Architecture owns the implemented technical
 contracts. DESIGN.md owns visual values; [design references](design/README.md) and
 [experimental navigation](design-ideas/README.md) retain their distinct reference roles.
-See the [navigation decision](specs/2026-09-09-refined-navigation.md) for accepted interaction scope.
+See the [original navigation decision](specs/2026-09-09-refined-navigation.md) for interaction
+rationale and [raised content workspace](specs/2026-09-25-raised-content-workspace.md) for the
+current desktop material and layout.
 
 ## Change specifications
 
-[Specs](specs/README.md) retain constraints, alternatives, human-validation requirements and historical
-acceptance sequence. Implementation makes the corresponding living guide current; it does not turn
+[Specs](specs/README.md) retain distinct requirements and decisions. Completed designs are distilled
+into maintained guides when a separate spec no longer helps. Implementation does not turn
 an old verification record into fresh evidence. The [original production audit](operations/evidence/2026-09-06-production-audit.md)
 is historical context for the current acceptance matrix. The [cost worksheet](operations/deployment-costs.md)
 retains its own measurement and pricing limits.
 
 Local [test iteration](specs/2026-09-08-local-test-iteration.md),
 [concurrent verification](specs/2026-09-09-concurrent-verification-gate.md) and
-[forwarded metadata trust](specs/azure-forwarded-metadata-trust.md) remain distinct decisions.
+[forwarded metadata trust](operations/azure-deployment.md#trust-tls-and-readiness-acceptance) remain distinct decisions.
 
 ## Still to be decided
 

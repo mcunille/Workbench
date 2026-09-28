@@ -91,22 +91,33 @@ photos and in-session drafts are private to the authorized tenant; signing out c
 client state. Appearance is the persisted local preference. Accounting, commerce, bulk quantities,
 classification and valuation are separate workflows, not prerequisites for keeping a collection.
 
-The [first hobbyist scenario](specs/2026-09-06-first-hobbyist-scenario.md#completion-and-validation)
-retains the integrated phone-to-desktop journey and human-validation requirements. Automated tests,
-a recording or a completed technical increment do not establish that a collector can complete the
-journey without developer intervention.
+### Collector journey and validation
+
+The core journey is to record a real piece on a phone, recognize it by its photograph, return
+on desktop to search and correct its location, then retrieve the updated record on mobile.
+It must work without accounting setup, a formal taxonomy or developer intervention. The target
+collector may know only a descriptive name; the hobbyist persona is a working assumption rather
+than a research finding. An existing account and tenant are prerequisites; public registration
+and production deployment are separate concerns.
+
+Validate both appearances, Grid/List, keyboard access, narrow layouts, failed saves/uploads and
+conflict recovery. Automated checks and recordings do not establish uncoached usability; record
+completion, hesitation points and whether the record helps locate the physical piece.
+On 2026-09-28 the owner confirmed personally running the scenario tracked by
+[issue #43](https://github.com/mcunille/Workbench/issues/43). This is owner-reported validation,
+not a separate participant study, detailed observation log or fresh automated test result.
 
 ## Design records
 
 | Area | Historical reasoning and acceptance constraints |
 | --- | --- |
-| Save and browse | [H1](specs/2026-09-06-h1-collection-notebook.md) |
+| Save and browse | [Collection identity](ARCHITECTURE.md#collection-identity) |
 | Photographs | [H2](specs/2026-09-07-h2-item-photographs.md) |
 | Search | [H3](specs/2026-09-07-h3-collection-search.md) |
 | Edit | [H4](specs/2026-09-07-h4-item-editing.md) |
 | Archive | [H5](specs/2026-09-07-h5-item-archiving.md) |
 | Restore | [H6](specs/2026-09-07-h6-archive-recovery.md) |
-| CSV and photographs package | [H7](specs/2026-09-08-h7-collection-export.md), [H8](specs/2026-09-08-h8-collection-package.md) |
+| CSV and photographs package | [H7](specs/2026-09-08-h7-collection-export.md), [package constraints](operations/blob-and-service-providers.md#collection-package-preparation) |
 | Acquisition context | [H9](specs/2026-09-09-acquisition-context.md) |
 | Shared acquisition relationships | [H10](specs/2026-09-09-shared-acquisitions.md) |
 | Acquisition documents | [H11](specs/2026-09-11-h11-acquisition-documents.md) |

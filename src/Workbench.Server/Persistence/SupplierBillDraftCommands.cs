@@ -66,6 +66,10 @@ internal static class SupplierBillDraftCommands
             IF @Operation<>'Abandon'
             BEGIN
               DECLARE @DraftEvidence nvarchar(max),@Payload nvarchar(max)=JSON_QUERY(@Canonical,'$.revision');
+              IF @Operation='Revise' AND JSON_VALUE(@Payload,'$.kind')='Invoice' AND EXISTS(
+                SELECT 1 FROM Purchasing.SupplierBillRevisions WHERE TenantId=@TenantId AND BillId=@BillId AND Id=@RevisionId
+                  AND JSON_VALUE(Payload,'$.kind')='ProForma')
+                THROW 51009,'An actual invoice requires a new bill.',1;
               DECLARE @Predecessor uniqueidentifier=TRY_CONVERT(uniqueidentifier,JSON_VALUE(@Payload,'$.predecessorBillId'));
               IF @Predecessor IS NOT NULL AND (@Predecessor=@BillId OR NOT EXISTS(
                 SELECT 1 FROM Purchasing.SupplierBills WHERE TenantId=@TenantId AND Id=@Predecessor))

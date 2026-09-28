@@ -15,6 +15,40 @@ This guide covers Tanzanite across sign-in, collection, editors, account and adm
 recovery, invitations, and shared dialogs. Appearance follows the system until the user chooses Light or Dark;
 Tanzanite is the design language, not a separate persisted theme setting.
 
+The centered sign-in composition was selected over a split brand/form layout to keep one clear
+task and restrained brand presence. Its application extension shares visual tokens, not the
+sign-in geometry: the stag and maker attribution belong to sign-in; workspace and public account
+headers use the bench-pin Workbench wordmark.
+
+## Interaction and accessibility requirements
+
+Start with the essential task and reveal optional depth in context. Capability is distinct from
+permission; never expose empty future modules or infer authority from hidden controls. Preserve
+ordinary links, browser history, private navigation state and recoverable input. Only deliberately
+shareable state belongs in URLs; sensitive searches and drafts stay in authenticated memory.
+
+Use semantic HTML, persistent field labels, explicit units and accessible names. Reserve dialogs
+for bounded decisions, with an inert background and restored focus; sustained editing belongs on
+a page. Explain loading, empty, no-match, unavailable, expired-session and conflict states separately.
+Keep useful content on partial failure and label staleness. Show consequential success only after
+server confirmation; a toast is not its sole record. Do not promise offline saving without a
+durable queue and conflict design. Preserve password-manager completion and paste.
+
+Target WCAG 2.2 AA across complete workflows: 4.5:1 normal-text and 3:1 large-text/control contrast,
+visible unobscured focus, and 44px touch targets. Compact fine-pointer controls still need 24px
+targets or a documented exception. Verify 320 CSS-pixel reflow, 200% text enlargement and 400% zoom;
+only genuinely two-dimensional content gets a horizontal scrolling region. Preserve photograph
+color/aspect ratio, explicit financial units and unknown-versus-zero distinctions. Support reduced
+motion, reduced transparency and forced colors without obscuring state or controls.
+
+Acceptance includes real workflows in both appearances, keyboard, NVDA and VoiceOver, on-screen
+keyboard/short viewports, long content and RTL specimens. Record what was actually checked and
+any gaps; screenshots or automated accessibility checks alone do not establish conformance.
+Performance targets are LCP <=2.5s, INP <=200ms and CLS <=0.1 at the 75th percentile for mobile
+and desktop separately, not claims of measured results. Measure realistic cold/warm visits and
+route assets before adding a dependency or virtualization. Use native controls where suitable;
+a component framework needs a concrete behavior or accessibility benefit. Keep typography local.
+
 ## Tokens — Colors
 
 The table below describes the sign-in glass variant. Shared text, canvas, action, border,
@@ -365,8 +399,6 @@ library, or separate font installation is needed to reproduce this reference.
 - [Sign-in component](src/Workbench.Client/src/features/auth/SignIn.tsx): brand, copy,
   form semantics, pending/error feedback, and recovery link.
 - [Application shell](src/Workbench.Client/src/App.tsx): signed-out composition.
-- [Accepted sign-in specification](docs/specs/2026-09-08-tanzanite-visual-language.md#first-acceptance-sign-in): approval
-  scope and implementation requirements.
 - [Design principles](docs/DESIGN-PRINCIPLES.md): broader product and engineering guidance.
 
 Keep this guide synchronized with approved implementation changes. It documents visual
@@ -409,8 +441,6 @@ or use colored fills to imply inventory state. Reduced transparency falls back t
 chrome; reduced motion disables active translations. Forced colors retains native control
 boundaries and an explicit active navigation outline.
 
-See the [application extension specification](docs/specs/2026-09-08-tanzanite-visual-language.md#subsequent-acceptance-application-extension).
-
 ## Inventory reading order
 
 The collection places Add item first in the action group and combines the loaded count
@@ -440,7 +470,9 @@ reading order must agree, including on narrow screens and with enlarged text.
 
 Use a collapsible desktop navigation backdrop and a mobile bottom pill, sharing destinations and
 permission checks. Search remains in the collection. The
-[decision record](docs/specs/2026-09-09-refined-navigation.md) captures the accepted scope.
+[original navigation decision](docs/specs/2026-09-09-refined-navigation.md) retains interaction
+rationale; the [raised content workspace](docs/specs/2026-09-25-raised-content-workspace.md)
+records the current desktop material and layout.
 
 ### Desktop pane
 

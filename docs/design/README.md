@@ -1,8 +1,7 @@
 # Workbench UI visual reference
 
 This is a historical mockup. Its bronze palette, serif wordmark, compact stag branding and radii
-are superseded by [Tanzanite](../specs/2026-09-08-tanzanite-visual-language.md) and the current
-[DESIGN.md](../../DESIGN.md), including floating fields and refined navigation. The preserved
+are superseded by the current [Tanzanite guide](../../DESIGN.md), including floating fields and refined navigation. The preserved
 prototype and its checks do not describe the current application or authorize additional features.
 
 Open [workbench-ui-preview.html](workbench-ui-preview.html) in a browser after checking out or
@@ -11,8 +10,8 @@ The file embeds the mockup styles, application script, sample photographs and br
 Lucide and Floating UI scripts load from a public CDN for icons and tooltip positioning. It needs
 no build, server, account, development credentials or application API connection.
 
-This is the reviewed visual companion to the accepted
-[UI design guidance](../specs/2026-09-06-ui-design-guidance.md). It is an illustrative mockup, not
+Current [interaction and accessibility requirements](../../DESIGN.md#interaction-and-accessibility-requirements)
+supersede this visual companion's original guidance. It is an illustrative mockup, not
 application source or a reusable production component library. Its browser wrapper is confined
 to this documentation file and is not a proposed Workbench runtime dependency.
 
@@ -28,7 +27,7 @@ owner-supplied company artwork; the serif Workbench wordmark is a product treatm
 gemstone/jewelry photographs were generated for the mockup. Names, provenance, measurements,
 financial entries and work orders are fictional examples. Refreshing discards all changes.
 Appearance is also local to the preview session; this does not implement production preference
-persistence. Theme behavior and accessibility requirements in the specification remain authoritative.
+persistence. Theme behavior and accessibility requirements in DESIGN.md remain authoritative.
 
 ## Verification evidence and limits
 
