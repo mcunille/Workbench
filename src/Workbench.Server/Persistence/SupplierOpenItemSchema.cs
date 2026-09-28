@@ -22,6 +22,9 @@ internal static class SupplierOpenItemSchema
                 """);
         migrationBuilder.Sql(SupplierOpenItemEvents.Sql);
         migrationBuilder.Sql(SupplierOpenItemValidation.Sql);
+        migrationBuilder.Sql(SupplierOpenItemSourceIntegration.Sql);
+        migrationBuilder.Sql(SupplierOpenItemSourceIntegration.HooksSql);
+        migrationBuilder.Sql(SupplierOpenItemBackfill.Sql);
         migrationBuilder.Sql($"""
             DECLARE @Definition nvarchar(max)=OBJECT_DEFINITION(OBJECT_ID(N'Security.ReadDatabaseReadiness'));
             IF @Definition IS NULL OR CHARINDEX(N'20260928034802_AddSupplierBills',@Definition)=0

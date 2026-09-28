@@ -14,8 +14,8 @@ public sealed class SupplierOpenItemDatabaseTests(SqlServerFixture sqlServer)
         // GIVEN a real posted invoice-side payable and a restricted principal's fixture adapter.
         await using var context = await SupplierOpenItemTestContext.OpenAsync(sqlServer);
         var valid = await context.PostedInvoiceOpeningAsync();
-        // WHEN an opening group exactly covers the posted payable control line.
-        await context.ExecuteAsync("AppendOpening", valid);
+        // WHEN source integration has covered the control line THEN a second claimed owner is rejected.
+        Assert.Equal(51009, (await Assert.ThrowsAsync<SqlException>(() => context.ExecuteAsync("AppendOpening", valid))).Number);
         // THEN the independent journal-control amount and attributed movement agree.
         var acceptedAccountDifference = await context.ScalarAsync<decimal>("""
             SELECT COALESCE((SELECT SUM(l.Credit-l.Debit) FROM Accounting.JournalLines l
@@ -36,7 +36,7 @@ public sealed class SupplierOpenItemDatabaseTests(SqlServerFixture sqlServer)
                   +(SELECT COUNT(*) FROM Purchasing.SupplierControlAttributions)
                 """);
             // WHEN the group has no exact control coverage THEN no participant evidence commits.
-            await Assert.ThrowsAsync<SqlException>(() => context.ExecuteAsync("AppendOpening", invalid));
+            Assert.Equal(51004, (await Assert.ThrowsAsync<SqlException>(() => context.ExecuteAsync("AppendOpening", invalid))).Number);
             var afterRows = await context.ScalarAsync<int>("""
                 SELECT (SELECT COUNT(*) FROM Purchasing.SupplierFinancialGroups)
                   +(SELECT COUNT(*) FROM Purchasing.SupplierOpenItems)
@@ -52,8 +52,7 @@ public sealed class SupplierOpenItemDatabaseTests(SqlServerFixture sqlServer)
     {
         // GIVEN an accepted source-owned payable group and the actual web principal.
         await using var context = await SupplierOpenItemTestContext.OpenAsync(sqlServer);
-        var opening = await context.PostedInvoiceOpeningAsync();
-        await context.ExecuteAsync("AppendOpening", opening);
+        await context.PostedInvoiceOpeningAsync();
         Assert.Equal(1, await context.ScalarAsync<int>("SELECT COUNT(*) FROM Purchasing.SupplierItemMovements"));
         // WHEN the runtime attempts direct financial DML THEN the row remains immutable.
         var runtimeDirectWriteSucceeded = false;

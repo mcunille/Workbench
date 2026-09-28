@@ -8,9 +8,9 @@ internal sealed class SupplierBillTestContext(PurchaseRecognitionTestContext rec
 {
     public PurchaseRecognitionTestContext Recognition { get; } = recognition;
     public JournalTestContext Journal => Recognition.Journal;
-    public static async Task<SupplierBillTestContext> OpenAsync(SqlServerFixture fixture)
+    public static async Task<SupplierBillTestContext> OpenAsync(SqlServerFixture fixture, string? priorMigration = null)
     {
-        var context = new SupplierBillTestContext(await PurchaseRecognitionTestContext.OpenAsync(fixture));
+        var context = new SupplierBillTestContext(await PurchaseRecognitionTestContext.OpenAsync(fixture, priorMigration));
         try
         {
             await context.AdminAsync("""
