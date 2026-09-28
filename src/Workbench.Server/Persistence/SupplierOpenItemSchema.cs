@@ -8,11 +8,15 @@ internal static class SupplierOpenItemSchema
     internal static void Up(MigrationBuilder migrationBuilder, string migrationId)
     {
         migrationBuilder.Sql(SupplierAllocationAvailability.Sql);
+        migrationBuilder.Sql(SupplierPaymentCommands.ControlSql);
         migrationBuilder.Sql(SupplierAllocationCommands.ControlSql);
         migrationBuilder.Sql(SupplierAllocationCommands.KernelSql);
+        migrationBuilder.Sql(SupplierPaymentCommands.KernelSql);
         migrationBuilder.Sql(SupplierOpenItemEvents.Sql);
         migrationBuilder.Sql(SupplierOpenItemValidation.Sql);
         migrationBuilder.Sql(SupplierAllocationCommands.Sql);
+        migrationBuilder.Sql(SupplierPaymentCommands.Sql);
+        migrationBuilder.Sql(SupplierPaymentCommands.SupplierGuardSql);
         migrationBuilder.Sql(SupplierOpenItemSourceIntegration.Sql);
         migrationBuilder.Sql(SupplierOpenItemSourceIntegration.HooksSql);
         migrationBuilder.Sql(SupplierOpenItemBackfill.Sql);

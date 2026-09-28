@@ -22,7 +22,10 @@ internal static class SupplierAllocationCommands
             AND l.AccountPurpose=CASE i.Kind WHEN 'Advance' THEN 'SupplierAdvance' WHEN 'Payable' THEN 'SupplierPayable'
               WHEN 'CreditReceivable' THEN 'SupplierCreditReceivable' WHEN 'RefundClearing' THEN 'SupplierRefundClearing' END
             AND ((i.Kind IN('Advance','CreditReceivable') AND l.Debit=m.Amount AND l.Credit=0 AND l.AccountType='Asset')
-              OR (i.Kind IN('Payable','RefundClearing') AND l.Credit=m.Amount AND l.Debit=0 AND l.AccountType='Liability'));
+              OR (i.Kind IN('Payable','RefundClearing') AND l.Credit=m.Amount AND l.Debit=0 AND l.AccountType='Liability'))
+            AND i.SourceKind<>'SupplierPayment'
+          UNION ALL SELECT AccountId,AccountVersion,AccountCode,AccountName,AccountType,AccountPurpose
+            FROM Purchasing.SupplierPaymentControl(@TenantId,@ItemId);
         """;
 
     internal const string KernelSql = """

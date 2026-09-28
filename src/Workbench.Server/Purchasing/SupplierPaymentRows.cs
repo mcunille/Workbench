@@ -19,6 +19,8 @@ public sealed class SupplierPayment
     public string FundingAccountPurpose { get; set; } = "";
     public string? Reference { get; set; }
     public string? Notes { get; set; }
+    // Versioned immutable payment/source snapshot: stored account and party metadata,
+    // private document revisions or explicit missing evidence, and immediate allocations.
     public string EvidenceJson { get; set; } = "{}";
     public Guid ActorId { get; set; }
     public Guid GroupId { get; set; }

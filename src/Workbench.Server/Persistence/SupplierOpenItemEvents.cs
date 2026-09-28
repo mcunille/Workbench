@@ -21,6 +21,7 @@ internal static class SupplierOpenItemEvents
           DECLARE @Count int=(SELECT COUNT(*) FROM OPENJSON(@Events));
           IF @Count<1 OR @Count>1000 OR EXISTS(SELECT 1 FROM OPENJSON(@Events) WHERE [type]<>5)
             THROW 51000,'Invalid supplier event count or shape.',1;
+        """ + SupplierPaymentCommands.EventsSql + """
           IF JSON_VALUE(@Events,'$[0].applicationId') IS NOT NULL
           BEGIN
             -- The named command has posted real journals through the protected kernel.
