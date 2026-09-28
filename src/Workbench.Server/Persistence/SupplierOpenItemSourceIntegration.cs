@@ -120,6 +120,9 @@ internal static class SupplierOpenItemSourceIntegration
               WHERE c.Inverse=0 OR EXISTS(SELECT 1 FROM Purchasing.RecognitionEventCorrections link
                 JOIN Accounting.CorrectionGroups correction ON correction.TenantId=link.TenantId AND correction.Id=link.AccountingCorrectionGroupId
                 JOIN Accounting.JournalEntries original ON original.TenantId=correction.TenantId AND original.Id=correction.OriginalJournalId
+                JOIN Accounting.SourceEvents originalSource ON originalSource.TenantId=original.TenantId AND originalSource.Id=original.SourceEventId
+                  AND originalSource.SourceKind='PurchaseRecognition' AND originalSource.EventKind='Invoice'
+                  AND originalSource.SourceId=r.Id AND originalSource.SourceRevision=r.SourceRevision
                 WHERE link.TenantId=@TenantId AND link.OriginalEventId=c.EventId AND link.CorrectionGroupId=@CorrectionId
                   AND correction.OriginalJournalId=r.JournalId AND correction.OriginalSourceEventId=original.SourceEventId
                   AND correction.ReversalJournalId=j.Id AND correction.ReversalSourceEventId=j.SourceEventId

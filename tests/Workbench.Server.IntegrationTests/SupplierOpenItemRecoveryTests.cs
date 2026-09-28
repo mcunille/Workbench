@@ -127,6 +127,32 @@ public sealed class SupplierOpenItemRecoveryTests(SqlServerFixture sqlServer)
                 await context.AdminAsync($"UPDATE target SET {column}=original.{column} FROM Accounting.CorrectionGroups target JOIN Purchasing.RecoveryCorrectionBackup original ON original.Id=target.Id;");
             }
         }
+        // AND the original source row can lose recognition ownership without breaking any foreign key.
+        await context.AdminAsync("""
+            SELECT source.Id,source.SourceKind,source.SourceId,source.SourceRevision INTO Purchasing.RecoverySourceBackup
+              FROM Accounting.SourceEvents source JOIN Accounting.CorrectionGroups correction
+                ON correction.TenantId=source.TenantId AND correction.OriginalSourceEventId=source.Id;
+            """);
+        foreach (var (column, changed) in new[] { ("SourceRevision", "NEWID()"), ("SourceId", "NEWID()"), ("SourceKind", "N'Unsupported'") })
+        {
+            await context.AdminAsync($"DELETE Purchasing.SupplierControlAttributions; UPDATE source SET {column}={changed} FROM Accounting.SourceEvents source JOIN Purchasing.RecoverySourceBackup original ON original.Id=source.Id;");
+            try
+            {
+                await DeriveAsync(context);
+                // THEN only the independent bill can recover; neither the unknown original nor its correction is supported.
+                Assert.Equal(1, await context.ScalarAsync<int>("SELECT COUNT(*) FROM Purchasing.SupplierControlAttributions"));
+                Assert.False((await ReadAsync(context)).IsComplete);
+            }
+            finally
+            {
+                await context.AdminAsync($"UPDATE source SET {column}=original.{column} FROM Accounting.SourceEvents source JOIN Purchasing.RecoverySourceBackup original ON original.Id=source.Id;");
+            }
+            // AND restoring that exact source identity restores all four original attribution rows.
+            await DeriveAsync(context);
+            Assert.Equal(attribution, await context.ScalarAsync<string>("SELECT CONVERT(varchar(64),HASHBYTES('SHA2_256',(SELECT * FROM Purchasing.SupplierControlAttributions ORDER BY TenantId,Id FOR JSON PATH)),2)"));
+            Assert.Equal(before, await SupplierSnapshotAsync(context));
+            Assert.True((await ReadAsync(context)).IsComplete);
+        }
         await DeriveAsync(context);
         // THEN exact deterministic attribution and historical totals return without changing immutable money or receipts.
         Assert.True((await ReadAsync(context)).IsComplete);
