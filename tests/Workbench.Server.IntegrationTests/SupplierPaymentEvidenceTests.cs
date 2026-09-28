@@ -12,6 +12,40 @@ namespace Workbench.Server.IntegrationTests;
 [Collection(SqlServerCollection.Name)]
 public sealed class SupplierPaymentEvidenceTests(SqlServerFixture sqlServer)
 {
+    [Fact]
+    public async Task EqualDebtAttributionRelinkCannotGrantHistoricalPaymentAuthority()
+    {
+        // GIVEN two actual equal bills with distinct immutable payable-account versions and a real payment settling both.
+        await using var context = await SupplierPaymentTestContext.OpenAsync(sqlServer);
+        var first = await context.Allocation.BillAsync("50"); var payable = context.Bills.Recognition.Accounts["SupplierPayable"];
+        var firstVersion = await context.Bills.ScalarAsync<Guid>($"SELECT Version FROM Accounting.Accounts WHERE Id='{payable}'");
+        var code = await context.Bills.ScalarAsync<string>($"SELECT Code FROM Accounting.Accounts WHERE Id='{payable}'");
+        await context.Allocation.Journal.SaveAsync(Guid.NewGuid(), "UpdateAccount",
+            new JsonObject { ["code"] = code, ["name"] = "Renamed payable", ["description"] = "Current label" }.ToJsonString(), payable, firstVersion);
+        var second = await context.Allocation.BillAsync("50"); var payment = await context.CommandAsync();
+        await context.AllocateAsync(payment, first, "50"); await context.AllocateAsync(payment, second, "50");
+        var result = await context.RecordAsync(payment); var group = result["groupId"]!.GetValue<string>();
+        var query = $"SELECT COUNT(*) FROM Purchasing.SupplierItemControl('{JournalTestContext.TenantId}','{payment["paymentId"]}')";
+        Assert.Equal(1, await context.Bills.ScalarAsync<int>(query));
+        Assert.Equal(2, await context.Bills.ScalarAsync<int>($"SELECT COUNT(DISTINCT Ordinal) FROM Purchasing.SupplierControlAttributions WHERE GroupId='{group}'"));
+        var firstMovement = await context.Bills.ScalarAsync<Guid>($"SELECT Id FROM Purchasing.SupplierItemMovements WHERE GroupId='{group}' AND ItemId='{first}' AND EventKind='Apply'");
+        var secondMovement = await context.Bills.ScalarAsync<Guid>($"SELECT Id FROM Purchasing.SupplierItemMovements WHERE GroupId='{group}' AND ItemId='{second}' AND EventKind='Apply'");
+        var secondAttribution = await context.Bills.ScalarAsync<Guid>($"SELECT Id FROM Purchasing.SupplierControlAttributions WHERE GroupId='{group}' AND MovementId='{secondMovement}'");
+        try
+        {
+            // WHEN only the second attribution is relinked to the first equal movement, both line totals still agree.
+            await context.Bills.AdminAsync($"UPDATE Purchasing.SupplierControlAttributions SET MovementId='{firstMovement}' WHERE Id='{secondAttribution}'");
+            // THEN incomplete per-movement coverage cannot grant historical account authority.
+            Assert.Equal(0, await context.Bills.ScalarAsync<int>(query));
+        }
+        finally
+        {
+            await context.Bills.AdminAsync($"UPDATE Purchasing.SupplierControlAttributions SET MovementId='{secondMovement}' WHERE Id='{secondAttribution}'");
+        }
+        // AND restoring the one changed link restores the original valid proof.
+        Assert.Equal(1, await context.Bills.ScalarAsync<int>(query));
+    }
+
     [Theory]
     [InlineData("opening")]
     [InlineData("application")]

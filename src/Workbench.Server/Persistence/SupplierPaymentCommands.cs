@@ -72,8 +72,29 @@ internal static class SupplierPaymentCommands
               AND COALESCE((SELECT SUM(CONVERT(decimal(38,4),a.Amount)) FROM Purchasing.SupplierControlAttributions a WHERE a.TenantId=p.TenantId AND a.GroupId=p.GroupId AND a.JournalId=j.Id AND a.Ordinal=l.Ordinal
                 AND a.AccountId=l.AccountId AND a.AccountVersion=l.AccountVersion AND a.AccountPurpose=l.AccountPurpose),0)<>
                 CASE l.AccountPurpose WHEN 'SupplierPayable' THEN l.Credit-l.Debit ELSE l.Debit-l.Credit END)
+            -- Equal amounts on different lines cannot substitute for another
+            -- debt's evidence: each expected allocation owns one exact linkage.
+            AND NOT EXISTS(SELECT 1 FROM OPENJSON(p.EvidenceJson,'$.allocations') expected WHERE
+              (SELECT COUNT(*) FROM Purchasing.SupplierItemMovements m
+                JOIN Purchasing.SupplierControlAttributions a ON a.TenantId=m.TenantId AND a.MovementId=m.Id AND a.GroupId=m.GroupId
+                JOIN Accounting.JournalLines l ON l.TenantId=a.TenantId AND l.JournalId=a.JournalId AND l.Ordinal=a.Ordinal
+                  AND l.AccountId=a.AccountId AND l.AccountVersion=a.AccountVersion AND l.AccountPurpose=a.AccountPurpose
+                WHERE m.TenantId=p.TenantId AND m.GroupId=p.GroupId AND m.EventKind='Apply'
+                  AND m.ItemId=TRY_CONVERT(uniqueidentifier,JSON_VALUE(expected.value,'$.itemId'))
+                  AND m.Amount=-TRY_CONVERT(decimal(28,4),JSON_VALUE(expected.value,'$.amount')) AND a.Amount=m.Amount
+                  AND a.JournalId=j.Id AND a.Ordinal=TRY_CONVERT(int,JSON_VALUE(expected.value,'$.ordinal'))
+                  AND l.AccountPurpose='SupplierPayable')<>1)
+            AND NOT EXISTS(SELECT 1 FROM Purchasing.SupplierItemMovements m WHERE m.TenantId=p.TenantId AND m.GroupId=p.GroupId AND m.ItemId<>p.Id
+              AND (SELECT COUNT(*) FROM Purchasing.SupplierControlAttributions a WHERE a.TenantId=m.TenantId AND a.MovementId=m.Id)<>1)
             AND NOT EXISTS(SELECT 1 FROM Purchasing.SupplierControlAttributions a JOIN Purchasing.SupplierItemMovements m ON m.TenantId=a.TenantId AND m.Id=a.MovementId
-              WHERE a.TenantId=p.TenantId AND a.GroupId=p.GroupId AND (a.JournalId<>j.Id OR m.GroupId<>p.GroupId
+              WHERE a.TenantId=p.TenantId AND (a.GroupId=p.GroupId OR a.JournalId=j.Id) AND (a.GroupId<>p.GroupId OR a.JournalId<>j.Id OR m.GroupId<>p.GroupId
+                OR NOT EXISTS(SELECT 1 FROM Accounting.JournalLines l WHERE l.TenantId=a.TenantId AND l.JournalId=a.JournalId AND l.Ordinal=a.Ordinal
+                  AND l.AccountId=a.AccountId AND l.AccountVersion=a.AccountVersion AND l.AccountPurpose=a.AccountPurpose
+                  AND ((m.ItemId=p.Id AND l.AccountPurpose='SupplierAdvance') OR (m.ItemId<>p.Id AND l.AccountPurpose='SupplierPayable'
+                    AND EXISTS(SELECT 1 FROM OPENJSON(p.EvidenceJson,'$.allocations') expected
+                      WHERE TRY_CONVERT(uniqueidentifier,JSON_VALUE(expected.value,'$.itemId'))=m.ItemId
+                        AND TRY_CONVERT(int,JSON_VALUE(expected.value,'$.ordinal'))=a.Ordinal
+                        AND -TRY_CONVERT(decimal(28,4),JSON_VALUE(expected.value,'$.amount'))=m.Amount))))
                 OR (m.ItemId<>p.Id AND (m.EventKind<>'Apply' OR m.Amount<>a.Amount))
                 OR (m.ItemId=p.Id AND (m.EventKind<>'Open' OR a.Amount<>p.Amount-applied.Amount))));
         """;
