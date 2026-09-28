@@ -51,7 +51,7 @@ public sealed class PurchaseRecognitionConcurrencyTests(SqlServerFixture sqlServ
         Task Post() => context.PostAsync(input.ToJsonString());
         Task Amend() => AmendAsync(context, sibling, null);
         // WHEN one writer retains the common lock while the independent competing writer arrives.
-        var error = await InOrderAsync(context, postingFirst ? context.Connection : sibling,
+        var error = await InOrderAsync(context, postingFirst ? context.Connection : sibling, postingFirst ? sibling : context.Connection,
             postingFirst ? Post : Amend, postingFirst ? Amend : Post);
         // THEN only the serially permitted identity is durable.
         Assert.Equal(postingFirst ? 50415 : 51009, error?.Number);
@@ -71,7 +71,7 @@ public sealed class PurchaseRecognitionConcurrencyTests(SqlServerFixture sqlServ
         await using var sibling = await context.Journal.OpenSiblingAsync();
         RecognitionResult? first = null, second = null;
         // WHEN the duplicate arrives before the first source transaction commits.
-        var error = await InOrderAsync(context, context.Connection,
+        var error = await InOrderAsync(context, context.Connection, sibling,
             async () => first = await context.PostAsync(input.ToJsonString(), request),
             async () => second = await context.PostAsync(input.ToJsonString(), sameRequest ? request : Guid.NewGuid(), sibling));
         // THEN an exact retry returns the same complete receipt; a new request cannot duplicate the source.
@@ -93,7 +93,7 @@ public sealed class PurchaseRecognitionConcurrencyTests(SqlServerFixture sqlServ
         { invoice["units"]![0]!["unitId"] = receipt["units"]![0]!["unitId"]!.DeepClone(); invoice["units"]![0]!["expectedPriorEventRevision"] = 1; }
         await using var sibling = await context.Journal.OpenSiblingAsync();
         // WHEN both attempt the same next side before the first commits.
-        var error = await InOrderAsync(context, context.Connection,
+        var error = await InOrderAsync(context, context.Connection, sibling,
             () => context.PostAsync(first.ToJsonString()), () => context.PostAsync(second.ToJsonString(), connection: sibling));
         // THEN the loser cannot create another invoice, match or payable.
         Assert.Equal(51009, error?.Number);
@@ -118,7 +118,7 @@ public sealed class PurchaseRecognitionConcurrencyTests(SqlServerFixture sqlServ
         }
         await using var sibling = await context.Journal.OpenSiblingAsync();
         // WHEN their transactions overlap THEN the second sees the committed allocation and rejects.
-        var error = await InOrderAsync(context, context.Connection,
+        var error = await InOrderAsync(context, context.Connection, sibling,
             () => context.PostAsync(first.ToJsonString()), () => context.PostAsync(second.ToJsonString(), connection: sibling));
         Assert.Equal(51009, error?.Number);
         Assert.Equal(1, await context.CountAsync("RecognitionSideEvents"));
@@ -136,7 +136,7 @@ public sealed class PurchaseRecognitionConcurrencyTests(SqlServerFixture sqlServ
         payload["mappings"]!.AsArray().Single(x => x!["slot"]!.GetValue<string>() == "Prepayment")!["accountId"] = context.Accounts["Inventory"].ToString();
         await using var sibling = await context.Journal.OpenSiblingAsync();
         // WHEN the mapping change obtains the common lock first THEN posting rechecks the current version.
-        var error = await InOrderAsync(context, context.Connection,
+        var error = await InOrderAsync(context, context.Connection, sibling,
             () => context.Journal.SaveAsync(Guid.NewGuid(), "Configure", payload.ToJsonString(), expectedVersion: context.Journal.ConfigurationVersion),
             () => context.PostAsync(input.ToJsonString(), connection: sibling));
         Assert.Equal(51009, error?.Number);
@@ -155,7 +155,7 @@ public sealed class PurchaseRecognitionConcurrencyTests(SqlServerFixture sqlServ
         invoice["units"]![0]!["unitId"] = receipt["units"]![0]!["unitId"]!.DeepClone(); invoice["units"]![0]!["expectedPriorEventRevision"] = 1;
         await using var sibling = await context.Journal.OpenSiblingAsync();
         // WHEN correction commits first THEN the invoice cannot match superseded evidence.
-        var error = await InOrderAsync(context, context.Connection,
+        var error = await InOrderAsync(context, context.Connection, sibling,
             () => context.CorrectAsync(correction.ToJsonString()), () => context.PostAsync(invoice.ToJsonString(), connection: sibling));
         Assert.Equal(51009, error?.Number);
         Assert.Equal(0, await context.CountAsync("RecognitionMatches"));
@@ -182,7 +182,7 @@ public sealed class PurchaseRecognitionConcurrencyTests(SqlServerFixture sqlServ
             await command.ExecuteNonQueryAsync();
         }
         // WHEN close and posting overlap THEN a first close prevents posting; a first post is retained by close.
-        var error = await InOrderAsync(context, postingFirst ? context.Connection : sibling, postingFirst ? Post : Close, postingFirst ? Close : Post);
+        var error = await InOrderAsync(context, postingFirst ? context.Connection : sibling, postingFirst ? sibling : context.Connection, postingFirst ? Post : Close, postingFirst ? Close : Post);
         if (postingFirst) Assert.Null(error); else Assert.Equal(51009, error?.Number);
         Assert.Equal(postingFirst ? 1 : 0, await context.CountAsync("RecognitionSideEvents"));
         Assert.Equal(postingFirst ? 100m : 0m, await context.BalanceAsync("Inventory"));
@@ -209,7 +209,7 @@ public sealed class PurchaseRecognitionConcurrencyTests(SqlServerFixture sqlServ
             await command.ExecuteNonQueryAsync();
         }
         // WHEN publication and posting overlap THEN the locked current head governs new writes only.
-        var error = await InOrderAsync(context, postingFirst ? context.Connection : publisher, postingFirst ? Post : Publish, postingFirst ? Publish : Post);
+        var error = await InOrderAsync(context, postingFirst ? context.Connection : publisher, postingFirst ? publisher : context.Connection, postingFirst ? Post : Publish, postingFirst ? Publish : Post);
         if (postingFirst)
         {
             Assert.Null(error);
@@ -222,18 +222,18 @@ public sealed class PurchaseRecognitionConcurrencyTests(SqlServerFixture sqlServ
         Assert.Equal(0m, await context.BalanceAsync("Inventory"));
     }
 
-    private static async Task<SqlException?> InOrderAsync(PurchaseRecognitionTestContext context, SqlConnection firstConnection, Func<Task> first, Func<Task> second)
+    private static async Task<SqlException?> InOrderAsync(PurchaseRecognitionTestContext context, SqlConnection firstConnection, SqlConnection secondConnection, Func<Task> first, Func<Task> second)
     {
         await using var gate = await JournalConcurrencyTests.AccountingLockGate.OpenAsync(context.Journal.Application.AdminConnectionString);
         await ExecuteAsync(firstConnection, "BEGIN TRANSACTION");
         try
         {
             var firstTask = first();
-            await gate.WaitForBlockedAsync(1);
+            await gate.WaitForBlockedAsync(firstConnection);
             await gate.ReleaseAsync();
             await firstTask;
             var secondTask = CaptureAsync(second);
-            await gate.WaitForBlockedAsync(1);
+            await gate.WaitForBlockedByAsync(firstConnection, secondConnection);
             await ExecuteAsync(firstConnection, "COMMIT TRANSACTION");
             return await secondTask;
         }
