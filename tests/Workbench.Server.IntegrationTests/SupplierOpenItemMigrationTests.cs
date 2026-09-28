@@ -81,11 +81,25 @@ public sealed class SupplierOpenItemMigrationTests(SqlServerFixture sqlServer)
         Assert.Equal(before, await SnapshotAsync(context));
     }
 
-    private static Task<string> SnapshotAsync(PurchaseRecognitionTestContext context) => PurchaseRecognitionCorrectionTests.ScalarAsync<string>(context, """
+    internal static Task<string> SnapshotAsync(PurchaseRecognitionTestContext context) => new SupplierBillTestContext(context).ScalarAsync<string>("""
         SELECT CONVERT(varchar(64),HASHBYTES('SHA2_256',CONCAT(
           (SELECT * FROM Accounting.JournalEntries ORDER BY Id FOR JSON PATH),
           (SELECT * FROM Accounting.JournalLines ORDER BY JournalId,Ordinal FOR JSON PATH),
           (SELECT * FROM Accounting.SourceEvents ORDER BY Id FOR JSON PATH),
+          (SELECT * FROM Accounting.PostingReceipts ORDER BY TenantId,RequestId FOR JSON PATH),
+          (SELECT * FROM Accounting.CorrectionGroups ORDER BY TenantId,Id FOR JSON PATH),
+          (SELECT * FROM Accounting.CorrectionReceipts ORDER BY TenantId,RequestId FOR JSON PATH),
+          (SELECT * FROM Purchasing.SupplierBills ORDER BY Id FOR JSON PATH),
+          (SELECT * FROM Purchasing.SupplierBillRevisions ORDER BY Id FOR JSON PATH),
+          (SELECT * FROM Purchasing.SupplierBillReviews ORDER BY Id FOR JSON PATH),
+          (SELECT * FROM Purchasing.SupplierBillEvidence ORDER BY TenantId,ReviewId,DocumentId FOR JSON PATH),
+          (SELECT * FROM Purchasing.SupplierBillPostings ORDER BY TenantId,BillId FOR JSON PATH),
+          (SELECT * FROM Purchasing.SupplierBillPostingEvents ORDER BY TenantId,BillId,EventId FOR JSON PATH),
+          (SELECT * FROM Purchasing.SupplierBillReceipts ORDER BY TenantId,Sequence FOR JSON PATH),
+          (SELECT * FROM Purchasing.RecognitionUnits ORDER BY TenantId,Id FOR JSON PATH),
+          (SELECT * FROM Purchasing.RecognitionComponents ORDER BY TenantId,EventId,ComponentKey FOR JSON PATH),
+          (SELECT * FROM Purchasing.RecognitionMatches ORDER BY TenantId,Id FOR JSON PATH),
+          (SELECT * FROM Purchasing.RecognitionCorrectionGroups ORDER BY TenantId,Id FOR JSON PATH),
           (SELECT * FROM Purchasing.RecognitionSideEvents ORDER BY Id FOR JSON PATH),
           (SELECT * FROM Purchasing.RecognitionEventCorrections ORDER BY OriginalEventId FOR JSON PATH),
           (SELECT * FROM Purchasing.RecognitionGroupReceipts ORDER BY RequestId FOR JSON PATH))),2)

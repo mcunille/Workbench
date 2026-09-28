@@ -86,6 +86,57 @@ internal static class SupplierOpenItemSourceIntegration
               WHERE m.TenantId=@TenantId AND m.RecognitionEventId=c.EventId AND m.ItemId=c.ItemId AND m.Amount=c.Amount
                 AND m.EventKind=CASE WHEN c.Inverse=1 THEN 'ReverseSource' ELSE 'Open' END))
               THROW 51009,'Supplier source derivation is incomplete or already owned.',1;
+            -- The attribution index may be rebuilt from intact source/event evidence. Never
+            -- repair monetary events, overwrite conflicting attribution, or infer ownership.
+            DECLARE @Repair TABLE(JournalId uniqueidentifier PRIMARY KEY,MovementId uniqueidentifier,
+              Ordinal int,AccountId uniqueidentifier,AccountVersion uniqueidentifier,Amount decimal(28,4));
+            INSERT @Repair
+              SELECT c.JournalId,m.Id,l.Ordinal,l.AccountId,l.AccountVersion,c.Amount
+              FROM @Candidates c
+              JOIN Purchasing.RecognitionSideEvents r ON r.TenantId=@TenantId AND r.Id=c.EventId
+              JOIN Purchasing.RecognitionUnits u ON u.TenantId=r.TenantId AND u.Id=r.UnitId
+              JOIN Accounting.JournalEntries j ON j.TenantId=@TenantId AND j.Id=c.JournalId
+              JOIN Accounting.JournalLines l ON l.TenantId=j.TenantId AND l.JournalId=j.Id AND l.AccountPurpose='SupplierPayable'
+              JOIN Purchasing.SupplierItemMovements m ON m.TenantId=@TenantId AND m.RecognitionEventId=c.EventId
+                AND m.Id=CASE WHEN c.Inverse=1 THEN j.SourceEventId ELSE c.EventId END
+                AND m.ItemId=c.ItemId AND m.GroupId=@RecognitionRequestId AND m.SourceEventId=j.SourceEventId
+                AND m.EventKind=CASE WHEN c.Inverse=1 THEN 'ReverseSource' ELSE 'Open' END
+                AND m.Amount=c.Amount AND m.PostingDate=j.PostingDate AND m.RecordedAtUtc=@Now
+              JOIN Purchasing.SupplierFinancialGroups g ON g.TenantId=m.TenantId AND g.Id=m.GroupId
+                AND g.RecordedAtUtc=@Now
+                AND g.Operation=CASE WHEN @CorrectionId IS NULL THEN 'OpenRecognitionPayable' ELSE 'CorrectSource' END
+                AND g.SourceId=COALESCE(@CorrectionId,@BillId,(SELECT TOP(1) EventId FROM @Candidates ORDER BY Inverse DESC,EventId))
+              LEFT JOIN Purchasing.SupplierBillPostings p ON p.TenantId=@TenantId AND p.BillId=@BillId
+              LEFT JOIN Purchasing.SupplierBillRevisions b ON b.TenantId=p.TenantId AND b.Id=p.RevisionId AND b.BillId=p.BillId
+              JOIN Purchasing.SupplierOpenItems i ON i.TenantId=m.TenantId AND i.Id=m.ItemId AND i.Kind='Payable'
+                AND i.SupplierId=u.SupplierId AND i.PurchaseOrderId=u.PurchaseOrderId AND i.Currency=u.Currency
+                AND i.SourceId=COALESCE(@BillId,r.Id) AND i.SourceRevisionId=r.SourceRevision
+                AND i.SourceKind=CASE WHEN @BillId IS NULL THEN 'PurchaseRecognition' ELSE 'SupplierBill' END
+                AND ((@BillId IS NULL AND i.BillId IS NULL) OR i.BillId=@BillId)
+                AND i.SourcePostingDate=r.PostingDate AND i.RecordedAtUtc=r.RecordedAtUtc
+                AND CONVERT(varbinary(max),i.SourceSnapshotJson)=CONVERT(varbinary(max),COALESCE(b.Payload,r.EvidenceJson))
+                AND ((i.DueDate IS NULL AND JSON_VALUE(b.Payload,'$.dueDate') IS NULL)
+                  OR i.DueDate=TRY_CONVERT(date,JSON_VALUE(b.Payload,'$.dueDate')))
+              WHERE c.Inverse=0 OR EXISTS(SELECT 1 FROM Purchasing.RecognitionEventCorrections link
+                JOIN Accounting.CorrectionGroups correction ON correction.TenantId=link.TenantId AND correction.Id=link.AccountingCorrectionGroupId
+                JOIN Accounting.JournalEntries original ON original.TenantId=correction.TenantId AND original.Id=correction.OriginalJournalId
+                WHERE link.TenantId=@TenantId AND link.OriginalEventId=c.EventId AND link.CorrectionGroupId=@CorrectionId
+                  AND correction.OriginalJournalId=r.JournalId AND correction.OriginalSourceEventId=original.SourceEventId
+                  AND correction.ReversalJournalId=j.Id AND correction.ReversalSourceEventId=j.SourceEventId
+                  AND correction.RecordedAtUtc=@Now AND correction.PostingDate=j.PostingDate);
+            IF (SELECT COUNT(*) FROM @Repair)<>(SELECT COUNT(*) FROM @Candidates)
+              OR (SELECT COUNT(*) FROM Purchasing.SupplierItemMovements WHERE TenantId=@TenantId AND GroupId=@RecognitionRequestId)
+                <>(SELECT COUNT(*) FROM @Candidates)
+              OR EXISTS(SELECT 1 FROM Purchasing.SupplierControlAttributions a
+                WHERE a.TenantId=@TenantId AND (a.GroupId=@RecognitionRequestId
+                  OR EXISTS(SELECT 1 FROM @Repair e WHERE e.JournalId=a.JournalId OR e.MovementId=a.MovementId OR e.JournalId=a.Id))
+                AND NOT EXISTS(SELECT 1 FROM @Repair e WHERE a.Id=e.JournalId AND a.JournalId=e.JournalId
+                  AND a.GroupId=@RecognitionRequestId AND a.MovementId=e.MovementId AND a.Ordinal=e.Ordinal
+                  AND a.AccountId=e.AccountId AND a.AccountVersion=e.AccountVersion AND a.AccountPurpose='SupplierPayable' AND a.Amount=e.Amount))
+              RETURN;
+            INSERT Purchasing.SupplierControlAttributions(TenantId,Id,GroupId,MovementId,JournalId,Ordinal,AccountId,AccountVersion,AccountPurpose,Amount)
+              SELECT @TenantId,e.JournalId,@RecognitionRequestId,e.MovementId,e.JournalId,e.Ordinal,e.AccountId,e.AccountVersion,'SupplierPayable',e.Amount
+              FROM @Repair e WHERE NOT EXISTS(SELECT 1 FROM Purchasing.SupplierControlAttributions a WHERE a.TenantId=@TenantId AND a.Id=e.JournalId);
             RETURN;
           END;
           DECLARE @Events nvarchar(max)=(SELECT c.ItemId itemId,c.EventId recognitionEventId,c.JournalId journalId,
