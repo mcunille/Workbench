@@ -156,4 +156,5 @@ Exports contain current selected collection records and acquisition facts, with 
 and documents only in ZIP. They exclude edit/lifecycle history, creation replay payloads, identity
 and session data, and the rest of the application database. They cannot restore Workbench, and no
 import workflow is supplied. Use operational backup and recovery runbooks for application recovery.
-This guide owns the format contract; dated H7, H8 and H12 specs retain the design reasoning.
+This guide owns the format contract. [Package preparation](operations/blob-and-service-providers.md#collection-package-preparation)
+owns resource/retention rationale; the retained H7 and H12 specs cover their distinct design decisions.

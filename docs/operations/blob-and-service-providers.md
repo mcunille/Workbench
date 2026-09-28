@@ -385,4 +385,9 @@ copies; the preparation slots do not limit slow HTTP deliveries. Ordinary host a
 controls remain necessary. The browser retains a Blob up to 128 MiB until it expires or is cleared.
 Cancellation and failure dispose streams and release references/capacity; process termination leaves
 no temporary export file. Neither managed memory disposal nor object URL revocation promises secure
-erasure of previously delivered data. See the [package design](../specs/2026-09-08-h8-collection-package.md).
+erasure of previously delivered data. See the [package format](../collection-export.md).
+
+Bounded in-memory preparation avoids persisted artifacts, export leases and job-recovery state.
+Streaming an archive before verification would lose the all-or-nothing preparation outcome;
+holding SQL locks through provider reads would block writes for the full preparation deadline.
+Larger asynchronous exports need a separately designed authorization, expiry and recovery contract.

@@ -201,6 +201,12 @@ the public contract. Responses are private and not stored in HTTP caches. Drafts
 memory; only the System/Light/Dark appearance preference is persisted locally. Authentication
 loss clears protected client state.
 
+Creation request identity is separate from the server-assigned item ID so retries resolve the
+same operation while intentionally identical pieces remain valid separate records. Button disabling
+alone cannot settle a lost response. Drafts stay in memory to avoid leaving private collection data
+in browser storage after authentication ends. Bounded chronological traversal keeps every item
+reachable without an unbounded query; it does not promise a frozen collection snapshot.
+
 The accepted [inventory foundation](specs/2026-09-06-inventory-domain-foundation.md) separates
 classification, individual/lot tracking, measurements, stock movements, composition, acquisition,
 and valuation. Later lot and work-order features must preserve existing identities and record

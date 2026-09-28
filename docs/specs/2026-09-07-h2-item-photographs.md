@@ -14,7 +14,7 @@ below predate the [beta API transition](../api-lifecycle.md); current routes use
 Attach one optional photograph to a saved individual item, display it in Grid, List,
 and details, and allow replacement or removal without deleting or changing the item's
 descriptive identity. Follow the accepted [inventory foundation](2026-09-06-inventory-domain-foundation.md)
-and [UI guidance](2026-09-06-ui-design-guidance.md).
+and [UI guidance](../../DESIGN.md#interaction-and-accessibility-requirements).
 
 No multiple-photo library, original-file archive, photo editing/cropping UI, public
 sharing, item deletion, or H3/H4 search and descriptive editing ships here. Uploads use

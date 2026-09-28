@@ -399,7 +399,7 @@ control, retention, and tested restoration.
 
 Hosted guidance uses Azure SQL point-in-time recovery and platform backup controls. Self-hosting
 receives operator-run SQL backup and restore scripts. This original operator-run backup decision is
-extended by [online backup/manual recovery](2026-09-07-online-backup-and-manual-recovery.md).
+extended by [online backup/manual recovery](../operations/online-backup-recovery.md#sql-authoritative-recovery-policy).
 Current [Azure-native protection](../operations/azure-native-backup.md) includes scheduled backup;
 custom recovery sets have separate activation/evidence requirements. Restore remains human-operated.
 

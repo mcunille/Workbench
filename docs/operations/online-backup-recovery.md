@@ -5,10 +5,25 @@ Use that setup procedure for the accepted daily seven-day policy. The custom cap
 system below is an alternative and is not deployed by choosing native backup. Both routes feed the
 manual SQL-authoritative reconciliation procedure; native-restored bytes do not require custom catalogs.
 
-This workflow implements the [accepted SQL-authoritative policy](../specs/2026-09-07-online-backup-and-manual-recovery.md).
 Capture leaves production web, uploads and workers running. Recovery commands operate only on an
 isolated restored database/store with writers stopped. Existing self-hosted/offline snapshot commands
 remain supported and retain their confirmations.
+
+## SQL-authoritative recovery policy
+
+SQL owns records and blob references. Independently captured SQL and blob backups need not agree
+at one instant: the operator accepts explicitly reported missing files during manual recovery,
+with protected discrepancy reports and durable tenant-scoped notices. This preserves online backup
+availability without pretending the result is an exact pair or silently losing files. Provider
+access/enumeration failures cannot count as missing content. Blob names never create SQL records.
+
+Capture cannot freeze production, clean up apparent live orphans, or initiate restore/failover.
+Pending uploads and non-atomic inventory make live orphan deletion unsafe. Restore, sanitation,
+loss acceptance and cutover remain manual. Preserve original source/backup stores; cleanup authority
+applies only to verified unreferenced objects in the isolated recovered store. Keep recovery keys
+independently recoverable for every retained dependency, with their versions but no secrets in catalogs.
+When extending SQL retention, extend blob, catalog and key retention together to cover the recovery
+window and collection/retry margin.
 
 ## Deploy and verify backup collection
 
@@ -191,6 +206,12 @@ do not understand missing-file dispositions; rolling back requires a separately 
 release or isolated recovery, not dropping this migration.
 
 ## Evidence limits
+
+Retain acceptance coverage for concurrent upload/replace/delete during collection; version races,
+interruption and digest mismatch; stale report/generation/tenant/binding rejection; pending and
+retained-reference protection; missing-file notices and restored-session rejection. A populated
+cross-store recovery drill and real hosted alert/expiration checks require their own evidence.
+The [production acceptance matrix](production-readiness.md) records remaining deployment limits.
 
 Local tests and compiled templates are not hosted backup evidence. Record first manual collection,
 role-denial checks, alert delivery, and manual recovery results for the actual deployed image.

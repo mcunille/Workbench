@@ -98,7 +98,7 @@ the recovery or production claims of the manual drill.
 
 ## Azure release correction evidence (2026-09-07 UTC)
 
-The [release correction](../../specs/azure-release-verification-fixes.md) was verified locally against
+The [release correction](https://github.com/mcunille/Workbench/blob/e5f6ef7dda7610975eb77c2848f42eaab4a160aa/docs/specs/azure-release-verification-fixes.md) was verified locally against
 current main, including its invitation-claim and password-principal security fixes. The final
 `scripts/verify.ps1 -SkipDependencyInstall` run passed locked restore, formatting, generated API
 drift checks, release builds, 327 server tests, 18 client tests, six browser tests, all four migration
