@@ -134,8 +134,50 @@ bill-owned financial evidence. Read procedures expose bounded history and live f
 The same tenant accounting lock serializes bill commands with period closing and PO changes.
 
 The single additive migration installs no runtime mutation grants or production role assignments;
-`BookkeepingAvailable` remains false. Public bill entry, allocation, bill corrections and physical
+`BookkeepingAvailable` remains false. Public bill entry and allocation, bill corrections and physical
 evidence holds are separate release work. See the [BK-05 design](specs/2026-09-27-bk-05-structured-supplier-bills.md).
+
+### Supplier open items and allocations
+
+BK-06 adds immutable Purchasing-owned items, signed movements, applications/inverses, payment
+sources/corrections, control attribution, financial groups and canonical receipts. Tenant-qualified
+keys, RLS and denied direct runtime DML protect them. One group has a database-owned recorded instant;
+item/application/payment versions are coordination metadata, not mutable balances. Structured bill
+posting and supported non-bill recognition corrections derive item evidence atomically from stored
+source/journal ownership. Gross funding capacity and net journal effects remain distinct, including
+fully allocated payments with no advance journal line.
+
+Restricted commands enforce decimal(28,4), configured scale, one supplier/PO/currency, current
+authority before replay and historical capacity on both sides at every affected posting boundary.
+The tenant Accounting exclusive transaction lock precedes ordered PO/source, item/application and
+document locks. Payment correction recomputes a bounded versioned plan/fingerprint under those locks,
+inverts embedded and standalone effects according to their exact source ownership, and optionally
+posts a replacement. Generic corrections cannot detach supplier item/application history. Source-owned
+bill/credit correction participants are tested through disposable adapters; those business workflows
+are not installed. Commands and correction closures are bounded to 262,144 bytes and 1,000 targets/events.
+
+Four GET accounting routes expose items, detail, history and reconciliation with AccountingReportsRead.
+Under a shared Accounting lock, each transaction captures journal/group sequence ceilings and reads
+tenant-qualified immutable metadata into an in-memory snapshot. Protected cursors bind those ceilings,
+tenant, route, filters, page size and inclusive posting/recorded cutoffs. Exact fixed-unit BigInteger
+aggregation compares all four control families against independent historical journal totals, including
+archived mappings and unknown or zero-net unattributed activity. Source validation follows durable
+source/revision/correction/receipt links and exact historical journal ordinals, not equal amounts or
+timestamps alone. The web role has narrow read access to three RLS-protected proof/identity functions.
+
+Pages contain at most 200 rows; this does not bound processing. Snapshot memory grows with tenant
+history, and repeated scans require at least quadratic CPU work for ordinary growing histories while
+the shared Accounting lock is held. No throughput, latency or scalability bound has been measured;
+this limitation remains recorded for complete-branch review.
+
+The single forward migration follows merged BK-05. Supported recognition attribution can be rebuilt
+only after full source/group/item/movement/journal identity proof; it adds missing derived attribution
+without changing financial history. Conflicting, detached or unknown evidence remains unresolved.
+There is no runtime repair API. Runtime financial mutation grants and production write-permission
+assignments remain absent; `BookkeepingAvailable` stays false. BK-07 retention and public financial
+entry remain separate gates. See [supplier read APIs](accounting.md#supplier-open-items-and-read-apis),
+[migration/recovery boundaries](operations/database-migrations.md#supplier-open-item-migration-and-recovery)
+and the [BK-06 specification](specs/2026-09-27-bk-06-supplier-open-items-and-allocations.md).
 
 ### Collection records export
 

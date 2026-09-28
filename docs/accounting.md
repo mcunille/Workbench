@@ -1,9 +1,10 @@
 # Accounting setup
 
 Accounting setup records a business's policies, general chart of accounts, mappings, and intended
-transaction coverage. An internal journal foundation supplies read-only journal and trial-balance
-APIs, but no financial posting action is enabled. Bills, payments, opening balances, report screens,
-exports and period closing remain unavailable. Completing setup does not activate bookkeeping.
+transaction coverage. Internal accounting foundations supply read-only journal, trial-balance and
+supplier-control APIs, but no public financial posting action is enabled. Bill and payment entry,
+opening balances, report screens, exports and period closing remain unavailable. Completing setup
+does not activate bookkeeping.
 
 ## Access
 
@@ -134,7 +135,7 @@ trial balances retain the original activity when later corrections fall outside 
 
 These kernels have no runtime execute grants or public financial write routes. BK-05 supplies the
 internal bill-source adapter described below; synthetic receipt adapters exist only in disposable tests. `BookkeepingAvailable` remains false;
-payments, bill entry, operational fulfillment, item valuation, cost of sales and production closing
+public payment and bill entry, operational fulfillment, item valuation, cost of sales and production closing
 remain future work. The [BK-04 specification](specs/2026-09-25-bk-04-classified-purchase-recognition.md)
 defines the evidence and release limits.
 
@@ -159,6 +160,49 @@ delivered, so later removal or recovery loss can make the file unavailable. No p
 is inferred from these records. Runtime mutation grants and production role assignments for
 `SupplierBillsManage`/`SupplierBillsPost` remain absent. See the
 [BK-05 specification](specs/2026-09-27-bk-05-structured-supplier-bills.md).
+
+## Supplier open items and read APIs
+
+BK-06 derives immutable payable items from posted structured bills and supported invoice-side
+recognition. Recognition payables without a bill retain that distinction and cannot be allocated
+as bills. A zero-value bill retains evidence without creating a monetary item. PO estimates, invoice
+files, receipt accrual (GRNI) and invoice-first Prepayment are not allocatable supplier advances.
+
+Accounting readers and administrators can use these authenticated beta GET routes with
+`AccountingReportsRead`:
+
+- `/api/beta/accounting/supplier-open-items` lists items; append `/{id}` for an item or
+  `/{id}/history` for its immutable movements, application and correction links.
+- `/api/beta/accounting/supplier-reconciliation` compares independently aggregated journal and
+  subledger amounts by historical control account and currency.
+
+Reports separate Payable, Advance, CreditReceivable and RefundClearing. Net supplier position is
+Payable + RefundClearing - Advance - CreditReceivable. They retain fully settled items, historical
+account identities and unsupported evidence diagnostics. Missing, duplicate or invalid attribution
+prevents complete reconciliation even when differences net to zero. Supplier/PO/bill filters cannot
+hide tenant control activity whose owner is unknown. Zero AP does not prove a purchase is complete.
+
+Use `supplierId`, `purchaseOrderId` and `billId` filters, inclusive `postingThrough` and UTC
+`recordedThrough` cutoffs, and `pageSize` (default 50, maximum 200). Amounts are decimal strings at
+the configured scale. Pages distinguish whole-filter and page totals. Protected continuation cursors
+bind the tenant, route, filters, page size, resolved cutoffs and captured financial-group/journal
+ceilings, so newly committed backdated activity cannot change a continued report. Responses are
+private and non-cacheable; report permission does not grant private-file download access.
+
+Internal SQL commands record an actual Bank/Cash payment, apply advances to bills, reverse an
+application once, and preview/execute payment corrections with explicit replacement allocations.
+They do not initiate transfers. Same-PO/supplier/currency rules, exact scale, current authority,
+replay identity and both sides' capacity at every affected later posting date are enforced atomically.
+Fully allocated payments retain gross capacity evidence even when their journal has no advance line.
+Payment correction reverses recorded cash evidence; it is distinct from an actual supplier refund.
+
+These commands have no runtime mutation grants, assigned production write permissions or public
+write UI/routes. `BookkeepingAvailable` remains false. Credit/refund sources and complete bill
+correction workflows are future work; disposable adapters test their allocation-participant contracts
+only. BK-07 physical evidence holds remain future work. See the
+[BK-06 specification](specs/2026-09-27-bk-06-supplier-open-items-and-allocations.md) for implementation
+evidence and remaining release gates, and [Architecture](ARCHITECTURE.md#supplier-open-items-and-allocations)
+for the unmeasured reporting-cost limit.
 
 The [BK-01 specification](specs/2026-09-21-bk-01-accounting-foundation.md) owns the accepted boundaries;
 the [BK-02 specification](specs/2026-09-23-bk-02-atomic-journal.md) defines the journal boundary;

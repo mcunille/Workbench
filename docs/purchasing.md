@@ -230,6 +230,22 @@ entry UI or public write routes. Private file links report current availability 
 future evidence holds. See the [attachment scope](specs/2026-09-18-po-06-invoices-and-purchase-documents.md)
 and [bill foundation](specs/2026-09-27-bk-05-structured-supplier-bills.md).
 
+## Payment and allocation foundation
+
+BK-06 supplies internal supplier payment, allocation, reversal and correction commands plus
+[authorized supplier report APIs](accounting.md#supplier-open-items-and-read-apis). Posted bills
+produce immutable payable evidence; actual payments retain gross funding capacity and explicit
+applications on one supplier/PO/currency. Reports separate debt, advances, credits and refund clearing
+and preserve posting-date and recorded-time history. An estimate or uploaded file creates none of
+these financial effects, and zero payable balance does not mean the purchase is complete.
+
+There is no payment or allocation entry action in the purchase screen, no public financial-write
+route and no runtime financial mutation grant. Ordinary purchase planning and amendments still do
+not require accounting setup. Financial history prevents changing the PO supplier even after reversal.
+The bookkeeping availability flag stays false. Complete bill correction, credit/refund workflows and
+BK-07 physical evidence holds remain future work; their disposable allocation-participant tests do
+not provide business entrypoints. See the [BK-06 scope](specs/2026-09-27-bk-06-supplier-open-items-and-allocations.md).
+
 ## Delete an unwanted draft
 
 Open a saved draft and choose **Delete draft** beneath the form. The confirmation names the saved

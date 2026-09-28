@@ -1,19 +1,22 @@
 # BK-06: supplier open items and allocations
 
-**Status:** Scope and dependency approach approved; written specification awaiting owner review.
-No implementation or runtime verification is claimed by this document.
+**Status:** Approved specification and implementation plan; internal commands, immutable supplier
+evidence and authorized read APIs implemented. Targeted SQL/HTTP and mutation evidence is recorded
+below. Complete-branch review, current-source full verification, separate hardened container smoke
+and retained-preview/browser inspection remain pending. Production bookkeeping remains unavailable.
 
 Parent: [PO-07 bookkeeping prerequisites](2026-09-20-po-07-deposits-and-payments.md).
 Dependencies: [BK-02 journal](2026-09-23-bk-02-atomic-journal.md),
 [BK-03 periods and corrections](2026-09-24-bk-03-corrections-and-period-controls.md),
 [BK-04 recognition](2026-09-25-bk-04-classified-purchase-recognition.md), and
-[BK-05 structured bills](https://github.com/mcunille/Workbench/blob/1332972372b08c84a7ba7d8618d2bf12776a2d5c/docs/specs/2026-09-27-bk-05-structured-supplier-bills.md).
+[BK-05 structured bills](2026-09-27-bk-05-structured-supplier-bills.md).
 
 Baseline inspected: main `4140bc233b7502b84b29d08bfd165e4e31a870ff` and
 [PR #183](https://github.com/mcunille/Workbench/pull/183) head
-`1332972372b08c84a7ba7d8618d2bf12776a2d5c`. BK-05 is open at design time.
-Develop on its branch while necessary; refresh against its final merged implementation and retarget
-to main after merge. Do not merge BK-06 ahead of its dependency or modify BK-05's branch.
+`1332972372b08c84a7ba7d8618d2bf12776a2d5c`; BK-05 was open at design time. It has since merged.
+Implementation includes main `1be8631956c5025de793b3f2ea7c9e6d7bbb95db`, whose schema ends at
+`20260928034802_AddSupplierBills`. BK-06 adds only `20260928071548_AddSupplierOpenItems` after that
+durable base; development preview revisions do not create additional supported baselines.
 
 ## Outcome and delivery boundary
 
@@ -226,8 +229,8 @@ The complete immutable group shares one recorded instant across its journal and 
 
 ## Reconciliation and readback
 
-Add read-only accounting resources for supplier open items, item/application history and supplier
-control reconciliation under `/api/beta/accounting`. Require AccountingReportsRead. Supplier/PO/bill
+Implemented read-only accounting resources expose supplier open items, item/application history
+and supplier control reconciliation under `/api/beta/accounting`. Require AccountingReportsRead. Supplier/PO/bill
 filters are tenant-qualified and validated; foreign and missing identities are indistinguishable.
 Private document access continues to require its existing permission independently of report access.
 
@@ -236,6 +239,14 @@ inclusive cutoffs. Use one consistent database snapshot for journal, source and 
 Return the resolved cutoffs in responses and bind filters/cutoffs to stable pagination cursors.
 Bound pages to 200 rows and source-detail envelopes to the command limits. Return whole-filter
 totals separately from page totals. Monetary values remain decimal strings.
+
+The implemented snapshot runs under the shared tenant Accounting lock. Cursors also bind route,
+page size and captured financial-group/journal sequence ceilings, so later commits cannot enter a
+continued report even with backdated postings or a future recorded cutoff. Snapshot metadata memory
+grows with tenant history; repeated per-item/line/source scans require at least quadratic CPU work
+for ordinary growing histories while holding that shared lock. Response bounds do not bound this
+processing cost. No measured latency, throughput or scalability claim is made; final review must
+triage this recorded limitation.
 
 Reconcile each historical account, currency and control family, then roll up by supplier/PO/bill.
 Liability controls use credit minus debit; asset controls use debit minus credit. Aggregate item
@@ -263,6 +274,11 @@ This delivers BK-09's supplier-control readback prerequisite. It does not add pr
 claim statement reconciliation, tax filing, complete inventory valuation or complete books.
 Any rebuildable query projection is disposable; rebuild from preserved events and journal evidence,
 then rerun reconciliation. Rebuilding cannot erase an unknown journal or amend posted history.
+
+The implemented repair is narrower than a general projection rebuild: protected recognition
+derivation reconstructs only missing deterministic control-attribution rows whose full stored
+source/group/item/movement/journal ownership is still valid. Conflicting, detached and unknown
+evidence stays unresolved. Future bill/credit fixture adapters have no shipped repair workflow.
 
 ## Authority, retries and concurrency
 
@@ -354,3 +370,43 @@ Update living accounting, purchasing, architecture, principal and migration guid
 makes these contracts true. Deliver a ready-for-review PR after verification. Merging and production
 operations remain separately authorized. Written-spec approval precedes the ignored implementation
 plan; plan review and execution-method selection precede product implementation.
+
+## Implementation evidence and remaining gates
+
+The owner approved this specification and the subsequent plan before implementation. The branch
+implements the internal payment/allocation/correction and four-control readback boundary described
+above; living contracts are in [accounting](../accounting.md), [purchasing](../purchasing.md),
+[architecture](../ARCHITECTURE.md), [principals](../operations/database-principals.md) and
+[migrations](../operations/database-migrations.md). `BookkeepingAvailable` is false, runtime financial
+write grants are absent and new financial write permissions have no production assignments.
+
+Recorded targeted evidence at the corresponding implementation revisions:
+
+- Correction ownership, historical availability, replay and atomicity have real disposable SQL
+  regression coverage. The Task 6 lock-order review fix at `55bf934` passed its seven affected owners
+  after an observed behavioral failure; future bill/credit corrections remain disposable participant
+  adapters, not shipped business workflows.
+- Task 7 report revision `d75d476` passed 16 SQL/HTTP cases after the source-ownership review fix.
+  Selected mutations detected cursor binding, frozen continuation, missing coverage, exact historical
+  line ownership, decimal serialization and embedded-application compensation regressions. The initial
+  HTTP pre-implementation run failed on a Cache-Control assertion setup issue, so transport behavioral
+  RED was not established then. Later GREEN and mutations do not erase that process deviation.
+- Task 8 at `be18892` passed 81 migration/recovery/principal/schema/manifest cases and detected six
+  selected timeline, source-ownership, replay-authority, inverse-uniqueness, attribution and cursor
+  mutations. The subsequent original-correction-source proof fix at `0bda235` has its own observed
+  behavioral RED and four affected GREEN cases; the earlier 81-case result is not evidence for that
+  later amendment. All targeted runs rebuilt the source at their respective revisions.
+- Actual merged-BK-05 upgrade and guarded SQL recovery retained original financial/replay bytes,
+  restored supported attribution and kept missing-file disposition explicit. These are disposable SQL
+  drills, not a live Azure or paired blob-copy disaster drill. BK-07 holds remain unimplemented.
+
+The selected mutation probes are not an exhaustive mutation campaign or an aggregate score, and
+overlapping cohorts must not be added into a unique-test count. Ignored execution reports retain
+commands, timings, behavioral/setup distinctions, source restoration and scoped review evidence.
+
+Pending release gates: complete-branch internal review and any scoped fixes; the current-source
+`./scripts/verify.ps1` aggregate with exact counts/timings; independent `./scripts/smoke-container.ps1`;
+preserved isolated-preview refresh and browser inspection of accounting setup, ordinary PO behavior
+and authorized report responses; then ready-for-review PR delivery. Nonzero internal posting
+acceptance remains disposable SQL evidence. No public payment-entry browser workflow, production
+activation, merge or production operation is claimed or authorized by these results.

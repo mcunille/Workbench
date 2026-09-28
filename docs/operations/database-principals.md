@@ -4,7 +4,24 @@ BK-05 bill mutations (`Purchasing.SaveSupplierBill`, `ReviewSupplierBill`, `Post
 no `workbench_web` EXECUTE grant. The fixed `SupplierBillsManage` and `SupplierBillsPost` permissions
 are not assigned to production roles. Bill tables deny direct runtime writes; bounded read procedures
 require current management or accounting-report authority. Do not activate these commands as a
-deployment shortcut: public entry, evidence holds, corrections and reconciliation remain release gates.
+deployment shortcut: public entry, evidence holds, complete bill corrections and production
+reconciliation acceptance remain release gates.
+
+BK-06 supplier financial tables expose tenant-RLS SELECT to `workbench_web`; direct INSERT, UPDATE
+and DELETE remain denied to web and worker. `Purchasing.RecordSupplierPayment`, `ApplySupplierFunds`,
+`ReverseSupplierApplication`, `CorrectSupplierPayment`, correction preview and the derivation/kernel
+participants receive no runtime EXECUTE grant. `SupplierPaymentsRecord`, `SupplierPaymentsCorrect`
+and `SupplierAllocationsManage` receive no production role assignments. Do not grant them to enable
+the read-only reports; `BookkeepingAvailable` remains false.
+
+The web role additionally receives SELECT on `Purchasing.SupplierItemControl`,
+`SupplierPaymentControl` and `SupplierReportBillIdentity`. The first two validate stored control/source
+proof; the last exposes only a bill Id for report-filter validation, including zero-value bills.
+These functions use tenant-protected data and grant no direct bill-table browsing or private-file
+access. Worker function reads remain unavailable. Password-principal provisioning admits these exact
+read grants without broadening financial mutation authority. API reads require AccountingReportsRead;
+new write permissions are unnecessary for reporting. Supported recognition-attribution reconstruction
+is a protected maintenance/source-owner operation, not a web/worker repair command.
 
 This is the authoritative operational matrix for Workbench database identities. Role names below
 are SQL roles; provision a distinct database user or managed identity for each workload. Application

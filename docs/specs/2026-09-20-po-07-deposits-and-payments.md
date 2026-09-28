@@ -1,8 +1,9 @@
 # PO-07: ledger-backed purchase payments and bookkeeping prerequisites
 
-**Status:** Proposed — double-entry direction requested by the owner; detailed policies and
-prerequisite implementation require approval. This replaces the unimplemented aggregate
-"Confirm supplier total" proposal. No runtime or schema changes are delivered by this design.
+**Status:** Public PO-07 workflow remains proposed; BK-01–06 prerequisites have separate approved
+implementation boundaries described below. Remaining stories require their own approval and release
+evidence. This replaces the unimplemented aggregate "Confirm supplier total" proposal and does not
+activate production bookkeeping.
 
 The [BK-01 implementation specification](2026-09-21-bk-01-accounting-foundation.md) records the
 subsequently agreed product policies and proposes the bounded configuration/accounts/authorization
@@ -17,6 +18,16 @@ The implemented [BK-05 supplier bill foundation](2026-09-27-bk-05-structured-sup
 adds internal immutable revisions, review, duplicate resolution and source-derived invoice posting
 through BK-04. Public bill entry, runtime mutation grants, evidence holds and bill corrections remain
 unavailable; this delivery does not enable production bookkeeping or payments.
+
+The implemented [BK-06 supplier subledger](2026-09-27-bk-06-supplier-open-items-and-allocations.md)
+adds internal payment/allocation/reversal/correction commands and authorized open-item/history and
+four-control reconciliation reads. Posting-date and recorded-time cutoffs and continuation ceilings
+preserve historical readback. Targeted SQL/HTTP, supported-base upgrade and guarded SQL recovery
+evidence exists; complete-branch review, full release gates and retained-preview inspection are still
+pending. Runtime financial mutation grants, production write-permission assignments and public
+financial-write UI/routes remain absent. `BookkeepingAvailable` stays false. Future source-owned
+bill/credit correction participants have disposable tests only; BK-07 retention, BK-08 business
+sources and the remaining PO-07 release stories are not delivered by this increment.
 
 ## Decision and evidence
 
@@ -34,7 +45,8 @@ already require explainable corrections and closed-period protection. Current
 - PO-04 commits operational contents and preserves amendments; it creates no journal.
 - PO-05 uses four-place exact estimates and separates supplier and third-party charges.
 - [PO-06](2026-09-18-po-06-invoices-and-purchase-documents.md) implements private files only.
-  Structured bills, liability recognition and payment allocation do not exist.
+  It creates no financial effects. BK-04–06 now supply separate internal recognition, structured bill,
+  payment and allocation foundations; they do not enable the public bookkeeping workflow below.
 - `PurchaseOrderEndpoints.cs` and `PurchaseOrderContracts.cs` own commitment/revision APIs;
   `PurchaseOrderDocumentService.cs` owns purchase document storage. Extend their source boundaries,
   not their estimates into an accounting balance.
@@ -72,8 +84,9 @@ applicable reporting framework remains an owner/bookkeeper decision.
 
 ## Prerequisite user stories
 
-These are proposed delivery stories, not filed issues or claims of implementation. Acceptance is
-observable and each story needs its own bounded implementation spec where indicated. **Core**
+These are prerequisite delivery stories; the linked implementation updates above identify delivered
+internal boundaries and remaining gates. The table itself is not evidence that a story has shipped.
+Acceptance is observable and each story needs its own bounded implementation spec where indicated. **Core**
 blocks completion of PO-07; **Release** can follow its development but blocks real bookkeeping use.
 The inventory recognition portion of BK-04 is Core for the intended gemstone purchasing scenario.
 
@@ -112,8 +125,9 @@ splits avoid a dependency cycle and make the foundation verifiable before paymen
 5. Finish BK-10 cutover and BK-11 reconciliation, then BK-09 close before production bookkeeping use.
 
 Implement these as focused PRs with additive migrations. Do not implement PO-07 as a standalone
-payment table and retrofit the journal later. The next implementation story is BK-01, after its bounded
-design is approved, not PO-07. Separately authorized follow-up design issues are linked from BK-01;
+payment table and retrofit the journal later. BK-01–06 now have separate approved implementation
+boundaries; unfinished stories still need their own design and release approvals. Separately
+authorized follow-up design issues are linked from BK-01;
 this specification does not itself authorize further collaboration writes or production changes.
 
 ## Journal and source contract
