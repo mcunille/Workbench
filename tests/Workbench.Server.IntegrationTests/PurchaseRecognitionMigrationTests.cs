@@ -53,7 +53,7 @@ public sealed class PurchaseRecognitionMigrationTests(SqlServerFixture sqlServer
         await admin.OpenAsync();
         await using var count = new SqlCommand("SELECT COUNT(*) FROM dbo.__EFMigrationsHistory WHERE MigrationId>@prior", admin);
         count.Parameters.AddWithValue("@prior", PriorMigration);
-        Assert.Equal(1, await count.ExecuteScalarAsync());
+        Assert.Equal(CurrentSchema.Migrations.Count(m => string.CompareOrdinal(m, PriorMigration) > 0), await count.ExecuteScalarAsync());
         // AND a destructive rollback cannot erase the preserved history.
         var error = await Assert.ThrowsAsync<SqlException>(() => DatabaseMigrator.MigrateToAsync(
             journal.Application.AdminConnectionString, PriorMigration, default));

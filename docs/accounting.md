@@ -132,11 +132,33 @@ inventing journals, and retries require current authority. Journal detail expose
 components, matches and correction relationships to authorized accounting readers. Cutoff lists and
 trial balances retain the original activity when later corrections fall outside their filters.
 
-These commands have no runtime execute grants, production source adapters or public financial write
-routes. Synthetic adapters exist only in disposable tests. `BookkeepingAvailable` remains false;
+These kernels have no runtime execute grants or public financial write routes. BK-05 supplies the
+internal bill-source adapter described below; synthetic receipt adapters exist only in disposable tests. `BookkeepingAvailable` remains false;
 payments, bill entry, operational fulfillment, item valuation, cost of sales and production closing
 remain future work. The [BK-04 specification](specs/2026-09-25-bk-04-classified-purchase-recognition.md)
 defines the evidence and release limits.
+
+## Internal supplier bills
+
+BK-05 stores immutable bill revisions and reviews for an ordered PO. Explicit classified components
+must equal the declared total exactly. Review checks currency precision, required component reasons,
+assigned cost bounds, tax policy evidence and the single-source rounding limit. Invoice posting derives every recognition claim from the
+reviewed revision; it cannot accept caller-supplied accounting overrides. Pro forma requests may be
+reviewed but cannot post. Posted bills cannot be edited, abandoned or corrected through generic
+recognition/journal commands; a complete bill correction workflow remains future work.
+
+Normalized supplier references span all POs and currencies for that supplier. Review records reasons
+for the exact current set of conflicts, and posting rechecks that set under the shared financial lock.
+Editing creates another immutable revision and requires another review. Exact retries recheck current
+permissions before returning the original receipt. Nonabandoned bills also prevent PO supplier changes.
+
+Bounded internal reads expose source history, posting links and honest current evidence availability.
+History retains each review's PO version, supplier snapshot and captured evidence after revision or
+abandonment clears the current review. Document metadata/digests survive in reviewed snapshots; BK-07 physical retention holds are not yet
+delivered, so later removal or recovery loss can make the file unavailable. No paid/outstanding amount
+is inferred from these records. Runtime mutation grants and production role assignments for
+`SupplierBillsManage`/`SupplierBillsPost` remain absent. See the
+[BK-05 specification](specs/2026-09-27-bk-05-structured-supplier-bills.md).
 
 The [BK-01 specification](specs/2026-09-21-bk-01-accounting-foundation.md) owns the accepted boundaries;
 the [BK-02 specification](specs/2026-09-23-bk-02-atomic-journal.md) defines the journal boundary;

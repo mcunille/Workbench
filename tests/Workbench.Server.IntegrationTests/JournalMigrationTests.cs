@@ -41,7 +41,7 @@ public sealed class JournalMigrationTests(SqlServerFixture sqlServer)
         var configured = await Save(configurationRequest, "Configure", configuration, Guid.Empty);
         var before = await Snapshot();
 
-        // WHEN the one BK-02 release migration upgrades the merged base.
+        // WHEN the current release migrations upgrade the merged BK-01 base.
         await DatabaseMigrator.MigrateAsync(application.AdminConnectionString, default);
 
         // THEN existing rows and canonical receipt payloads remain byte-identical and still replay.
@@ -50,7 +50,7 @@ public sealed class JournalMigrationTests(SqlServerFixture sqlServer)
         Assert.Equal(configured, await Save(configurationRequest, "Configure", configuration, Guid.Empty));
         await MigrationHistoryAssertions.AssertCurrentAsync(application.AdminConnectionString);
         await using var count = new SqlCommand("SELECT COUNT(*) FROM dbo.__EFMigrationsHistory WHERE MigrationId>N'20260921051843_AddAccountingFoundation'", admin);
-        Assert.Equal(3, await count.ExecuteScalarAsync());
+        Assert.Equal(CurrentSchema.Migrations.Count(m => string.CompareOrdinal(m, "20260921051843_AddAccountingFoundation") > 0), await count.ExecuteScalarAsync());
         // AND migration creates no invented financial entries or policy freeze.
         foreach (var table in new[] { "SourceEvents", "JournalEntries", "JournalLines", "PostingReceipts", "PolicyFreezes" })
         {
