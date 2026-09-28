@@ -115,6 +115,8 @@ public partial class WorkbenchDbContext : IdentityDbContext<
         ConfigureJournalCorrections(modelBuilder);
         ConfigurePurchaseRecognition(modelBuilder);
         ConfigureSupplierBills(modelBuilder);
+        ConfigureSupplierOpenItems(modelBuilder);
+        ConfigureSupplierPayments(modelBuilder);
     }
 
     private void ConfigureInventory(ModelBuilder modelBuilder)

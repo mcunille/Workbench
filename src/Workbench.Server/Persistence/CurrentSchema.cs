@@ -41,6 +41,7 @@ public static class CurrentSchema
         "20260925044758_AddAccountingPeriodControls",
         "20260926210900_AddPurchaseRecognition",
         "20260928034802_AddSupplierBills",
+        "20260928071548_AddSupplierOpenItems",
     ]);
 
     public static string MigrationId => Migrations[^1];

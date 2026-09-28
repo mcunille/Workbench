@@ -1,0 +1,34 @@
+// Copyright (c) 2026 The White Stag Collection.
+using Microsoft.EntityFrameworkCore.Migrations;
+
+namespace Workbench.Server.Persistence;
+
+internal static class SupplierOpenItemSchema
+{
+    internal static void Up(MigrationBuilder migrationBuilder, string migrationId)
+    {
+        foreach (var table in new[] { "SupplierOpenItems", "SupplierItemMovements", "SupplierApplications",
+            "SupplierApplicationReversals", "SupplierControlAttributions", "SupplierPayments",
+            "SupplierPaymentCorrections", "SupplierFinancialGroups", "SupplierFinancialReceipts",
+            "SupplierItemVersions", "SupplierApplicationVersions", "SupplierPaymentVersions" })
+            migrationBuilder.Sql($"""
+                ALTER SECURITY POLICY [Security].[TenantIsolationPolicy]
+                  ADD FILTER PREDICATE [Security].[fn_tenant_access]([TenantId]) ON [Purchasing].[{table}],
+                  ADD BLOCK PREDICATE [Security].[fn_tenant_access]([TenantId]) ON [Purchasing].[{table}] AFTER INSERT,
+                  ADD BLOCK PREDICATE [Security].[fn_tenant_access]([TenantId]) ON [Purchasing].[{table}] AFTER UPDATE;
+                GRANT SELECT ON [Purchasing].[{table}] TO [workbench_web];
+                DENY INSERT,UPDATE,DELETE ON [Purchasing].[{table}] TO [workbench_web];
+                DENY INSERT,UPDATE,DELETE ON [Purchasing].[{table}] TO [workbench_worker];
+                """);
+        migrationBuilder.Sql(SupplierOpenItemEvents.Sql);
+        migrationBuilder.Sql(SupplierOpenItemValidation.Sql);
+        migrationBuilder.Sql($"""
+            DECLARE @Definition nvarchar(max)=OBJECT_DEFINITION(OBJECT_ID(N'Security.ReadDatabaseReadiness'));
+            IF @Definition IS NULL OR CHARINDEX(N'20260928034802_AddSupplierBills',@Definition)=0
+              THROW 50020,'Unsupported supplier open-item readiness predecessor.',1;
+            SET @Definition=REPLACE(@Definition,N'CREATE PROCEDURE',N'ALTER PROCEDURE');
+            SET @Definition=REPLACE(@Definition,N'20260928034802_AddSupplierBills',N'{migrationId}');
+            EXEC sys.sp_executesql @Definition;
+            """);
+    }
+}
