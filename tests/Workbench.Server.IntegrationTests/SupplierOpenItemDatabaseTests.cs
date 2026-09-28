@@ -15,7 +15,7 @@ public sealed class SupplierOpenItemDatabaseTests(SqlServerFixture sqlServer)
         await using var context = await SupplierOpenItemTestContext.OpenAsync(sqlServer);
         var valid = await context.PostedInvoiceOpeningAsync();
         // WHEN an opening group exactly covers the posted payable control line.
-        await context.ExecuteAsync("AppendOpening", valid, Guid.NewGuid());
+        await context.ExecuteAsync("AppendOpening", valid);
         // THEN the independent journal-control amount and attributed movement agree.
         var acceptedAccountDifference = await context.ScalarAsync<decimal>("""
             SELECT COALESCE((SELECT SUM(l.Credit-l.Debit) FROM Accounting.JournalLines l
@@ -31,17 +31,17 @@ public sealed class SupplierOpenItemDatabaseTests(SqlServerFixture sqlServer)
             if (mismatch == "MissingControlLine") invalid["events"]![0]!["ordinal"] = 999;
             var beforeRows = await context.ScalarAsync<int>("""
                 SELECT (SELECT COUNT(*) FROM Purchasing.SupplierFinancialGroups)
+                  +(SELECT COUNT(*) FROM Purchasing.SupplierOpenItems)
                   +(SELECT COUNT(*) FROM Purchasing.SupplierItemMovements)
                   +(SELECT COUNT(*) FROM Purchasing.SupplierControlAttributions)
-                  +(SELECT COUNT(*) FROM Purchasing.FixtureSupplierReceipts)
                 """);
-            // WHEN the group has no exact control coverage THEN group and receipt rows roll back together.
-            await Assert.ThrowsAsync<SqlException>(() => context.ExecuteAsync("AppendOpening", invalid, Guid.NewGuid()));
+            // WHEN the group has no exact control coverage THEN no participant evidence commits.
+            await Assert.ThrowsAsync<SqlException>(() => context.ExecuteAsync("AppendOpening", invalid));
             var afterRows = await context.ScalarAsync<int>("""
                 SELECT (SELECT COUNT(*) FROM Purchasing.SupplierFinancialGroups)
+                  +(SELECT COUNT(*) FROM Purchasing.SupplierOpenItems)
                   +(SELECT COUNT(*) FROM Purchasing.SupplierItemMovements)
                   +(SELECT COUNT(*) FROM Purchasing.SupplierControlAttributions)
-                  +(SELECT COUNT(*) FROM Purchasing.FixtureSupplierReceipts)
                 """);
             Assert.Equal(beforeRows, afterRows);
         }
@@ -53,7 +53,7 @@ public sealed class SupplierOpenItemDatabaseTests(SqlServerFixture sqlServer)
         // GIVEN an accepted source-owned payable group and the actual web principal.
         await using var context = await SupplierOpenItemTestContext.OpenAsync(sqlServer);
         var opening = await context.PostedInvoiceOpeningAsync();
-        await context.ExecuteAsync("AppendOpening", opening, Guid.NewGuid());
+        await context.ExecuteAsync("AppendOpening", opening);
         Assert.Equal(1, await context.ScalarAsync<int>("SELECT COUNT(*) FROM Purchasing.SupplierItemMovements"));
         // WHEN the runtime attempts direct financial DML THEN the row remains immutable.
         var runtimeDirectWriteSucceeded = false;
@@ -122,7 +122,7 @@ public sealed class SupplierOpenItemDatabaseTests(SqlServerFixture sqlServer)
             ["operation"] = "ApplySupplierFunds",
             ["targets"] = new System.Text.Json.Nodes.JsonArray(target.DeepClone(), target.DeepClone())
         };
-        // WHEN a duplicate target or more than 1,000 targets are supplied THEN neither canonicalizes.
+        // WHEN a duplicate target is supplied THEN it cannot canonicalize.
         await Assert.ThrowsAsync<SqlException>(() => context.ValidateAsync("ApplySupplierFunds", command));
         var targets = command["targets"]!.AsArray();
         targets.Clear();
@@ -132,6 +132,31 @@ public sealed class SupplierOpenItemDatabaseTests(SqlServerFixture sqlServer)
             distinct["itemId"] = Guid.NewGuid().ToString();
             targets.Add(distinct);
         }
+        // WHEN this target set also exceeds the envelope byte cap THEN it cannot canonicalize.
+        // The target-count boundary needs a separate compact-command test.
+        await Assert.ThrowsAsync<SqlException>(() => context.ValidateAsync("ApplySupplierFunds", command));
+    }
+
+    [Fact]
+    public async Task FinancialCommandValidatorDeduplicatesParsedItemIdentity()
+    {
+        // GIVEN two allocation targets with distinct item identities in an otherwise valid command.
+        await using var context = await SupplierOpenItemTestContext.OpenAsync(sqlServer);
+        var firstItem = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
+        var secondItem = "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb";
+        var command = new System.Text.Json.Nodes.JsonObject
+        {
+            ["schemaVersion"] = 1,
+            ["operation"] = "ApplySupplierFunds",
+            ["targets"] = new System.Text.Json.Nodes.JsonArray(
+                new System.Text.Json.Nodes.JsonObject { ["itemId"] = firstItem, ["amount"] = "1.00" },
+                new System.Text.Json.Nodes.JsonObject { ["itemId"] = secondItem, ["amount"] = "1.00" })
+        };
+        // WHEN the validator sees distinct parsed GUIDs THEN it accepts the command.
+        Assert.False(string.IsNullOrEmpty(await context.ValidateAsync("ApplySupplierFunds", command)));
+
+        // WHEN case changes the second text to the first GUID THEN the duplicate identity is rejected.
+        command["targets"]![1]!["itemId"] = firstItem.ToUpperInvariant();
         await Assert.ThrowsAsync<SqlException>(() => context.ValidateAsync("ApplySupplierFunds", command));
     }
 }

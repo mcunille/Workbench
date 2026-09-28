@@ -22,14 +22,13 @@ internal sealed class SupplierOpenItemTestContext(SupplierBillTestContext bills)
         catch { await context.DisposeAsync(); throw; }
     }
 
-    public async Task<JsonObject> ExecuteAsync(string operation, JsonObject command, Guid requestId, SqlConnection? connection = null)
+    public async Task<JsonObject> ExecuteAsync(string operation, JsonObject command, SqlConnection? connection = null)
     {
         var procedure = operation == "AppendOpening" ? "AppendFixtureSupplierEventGroup" : operation;
-        await using var sql = new SqlCommand($"EXEC Purchasing.{procedure} @ActorId=@actor,@SessionId=@session,@RequestId=@request,@Command=@command",
+        await using var sql = new SqlCommand($"EXEC Purchasing.{procedure} @ActorId=@actor,@SessionId=@session,@Command=@command",
             connection ?? Journal.Connection);
         sql.Parameters.AddWithValue("@actor", JournalTestContext.ActorId);
         sql.Parameters.AddWithValue("@session", Journal.SessionId);
-        sql.Parameters.AddWithValue("@request", requestId);
         sql.Parameters.AddWithValue("@command", command.ToJsonString());
         return JsonNode.Parse((string)(await sql.ExecuteScalarAsync())!)!.AsObject();
     }

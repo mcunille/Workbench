@@ -59,9 +59,16 @@ internal static class SupplierOpenItemValidation
                 ('billId','itemId','expectedItemVersion','amount','fundingItemId','expectedFundingItemVersion')
                 OR n.JsonType<>1))
             THROW 51000,'Invalid supplier allocation target property.',1;
+          IF EXISTS(SELECT 1 FROM @Nodes n JOIN @Nodes p ON p.Id=n.ParentId
+            JOIN @Nodes collection ON collection.Id=p.ParentId
+            WHERE p.JsonType=5 AND collection.Name IN ('allocations','targets','reapplications')
+              AND n.Name='itemId' AND (DATALENGTH(n.Value)<>72
+                OR TRY_CONVERT(uniqueidentifier,n.Value) IS NULL
+                OR TRY_CONVERT(uniqueidentifier,n.Value)='00000000-0000-0000-0000-000000000000'))
+            THROW 51000,'Invalid supplier allocation item identity.',1;
           IF EXISTS(SELECT 1 FROM @Nodes collection CROSS APPLY OPENJSON(collection.Value) target
             WHERE collection.Name IN ('allocations','targets','reapplications') AND collection.JsonType=4
-            GROUP BY collection.Id,JSON_VALUE(target.value,'$.itemId') HAVING COUNT(*)>1)
+            GROUP BY collection.Id,TRY_CONVERT(uniqueidentifier,JSON_VALUE(target.value,'$.itemId')) HAVING COUNT(*)>1)
             THROW 51000,'Duplicate supplier allocation target.',1;
           IF EXISTS(SELECT 1 FROM @Nodes WHERE Name IN('allocations','targets','reapplications')
             AND (JsonType<>4 OR (SELECT COUNT(*) FROM OPENJSON(Value))>1000))
