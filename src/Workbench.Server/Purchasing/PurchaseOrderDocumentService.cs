@@ -95,7 +95,7 @@ public sealed class PurchaseOrderDocumentService(WorkbenchDbContext database, IB
             }
             var operation = await LoadOperationAsync(requestId, cancellationToken);
             if (operation.State == 1) return Result(operation);
-            if (operation.State == 2) throw Conflict();
+            if (operation.State == 2) throw await ConflictAsync(operation, cancellationToken);
             if (content is not null)
             {
                 var revision = await database.AttachmentRevisions.AsNoTracking().SingleAsync(row => row.Id == operation.RevisionId, cancellationToken);
@@ -110,13 +110,14 @@ public sealed class PurchaseOrderDocumentService(WorkbenchDbContext database, IB
                 await transaction.CommitAsync(cancellationToken);
             }
             operation = await LoadOperationAsync(requestId, cancellationToken);
-            if (operation.State == 2) throw Conflict();
+            if (operation.State == 2) throw await ConflictAsync(operation, cancellationToken);
             return Result(operation);
         }
-        catch (SqlException error) when (error.Number is 50076 or 50077 or 50078 or 50079 or 50403 or 2601 or 2627)
+        catch (SqlException error) when (error.Number is 50076 or 50077 or 50078 or 50079 or 50403 or 51011 or 2601 or 2627)
         {
             throw new DocumentInputException(error.Number == 50403 ? 403 : error.Number == 50076 ? 400 : error.Number == 50078 ? 404 : 409,
-                error.Number is 2601 or 2627 ? "This request identifier was already used. Resolve its outcome before retrying." : error.Message);
+                error.Number is 2601 or 2627 ? "This request identifier was already used. Resolve its outcome before retrying." : error.Message,
+                error.Number == 51011 ? "financial_evidence_retained" : null);
         }
         finally
         {
@@ -153,7 +154,16 @@ public sealed class PurchaseOrderDocumentService(WorkbenchDbContext database, IB
     { CommandType = CommandType.StoredProcedure };
     private Task<PurchaseOrderDocumentOperation> LoadOperationAsync(Guid requestId, CancellationToken cancellationToken) =>
         database.PurchaseOrderDocumentOperations.AsNoTracking().SingleAsync(row => row.RequestId == requestId, cancellationToken);
-    private static DocumentInputException Conflict() => new(409, "The purchase order or document changed. Reload before trying again.");
+    private async Task<DocumentInputException> ConflictAsync(PurchaseOrderDocumentOperation operation, CancellationToken cancellationToken)
+    {
+        // Explain current removal eligibility after the existing context/command authorization.
+        // Do not infer or rewrite the historical cause of this durable conflict.
+        if (operation.Kind == 2 && await database.PurchaseOrderDocuments.AnyAsync(document =>
+            document.Id == operation.DocumentId && document.OrderId == operation.OrderId && document.RemovedAtUtc == null &&
+            database.FinancialEvidenceLinks.Any(link => link.DocumentId == document.Id), cancellationToken))
+            return new(409, "This document is retained as financial evidence. Use authorized retention disposal.", "financial_evidence_retained");
+        return new(409, "The purchase order or document changed. Reload before trying again.");
+    }
     private static PurchaseOrderDocumentOperationResponse Result(PurchaseOrderDocumentOperation operation) => new(operation.RequestId,
         operation.State switch { 0 => "Pending", 1 => "Completed", _ => "Conflict" }, operation.DocumentId,
         operation.ResultOrderVersion is null ? null : Convert.ToBase64String(operation.ResultOrderVersion));

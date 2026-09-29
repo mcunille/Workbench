@@ -327,6 +327,7 @@ namespace Workbench.Server.Persistence.Migrations
                 table: "FinancialEvidenceSets",
                 columns: new[] { "TenantId", "SupplierId" });
             FinancialEvidenceSchema.Create(migrationBuilder);
+            FinancialEvidenceStorageGuards.Create(migrationBuilder);
         }
 
         /// <inheritdoc />

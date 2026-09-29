@@ -117,7 +117,11 @@ public static class PurchaseOrderDocumentEndpoints
             return Results.Problem(statusCode: 410, title: "This document could not be recovered. Keep its record and contact the administrator, or add another copy.",
                 extensions: new Dictionary<string, object?> { ["code"] = "file_unavailable_after_recovery" });
         }
-        catch (DocumentInputException error) { return Results.Problem(statusCode: error.StatusCode, title: error.Message); }
+        catch (DocumentInputException error)
+        {
+            return Results.Problem(statusCode: error.StatusCode, title: error.Message,
+                extensions: error.Code is null ? null : new Dictionary<string, object?> { ["code"] = error.Code });
+        }
         catch (UnauthorizedAccessException) { return Results.Problem(statusCode: 403, title: "Document access is denied."); }
         catch (Exception error) when (error is IOException or InvalidDataException or SqlException or DbUpdateException or OperationCanceledException)
         { return Results.Problem(statusCode: 503, title: "The document operation could not be confirmed. Retry the same operation or check its saved status."); }

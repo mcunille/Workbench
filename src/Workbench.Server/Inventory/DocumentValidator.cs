@@ -302,7 +302,8 @@ public sealed class DocumentValidator
 
 public sealed record ValidatedDocument(string MediaType, string Extension);
 
-public sealed class DocumentInputException(int statusCode, string message) : Exception(message)
+public sealed class DocumentInputException(int statusCode, string message, string? code = null) : Exception(message)
 {
     public int StatusCode { get; } = statusCode;
+    public string? Code { get; } = code;
 }
