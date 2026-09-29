@@ -9,6 +9,38 @@ namespace Workbench.Server.IntegrationTests;
 [Collection(SqlServerCollection.Name)]
 public sealed class SupplierPaymentCorrectionTests(SqlServerFixture sqlServer)
 {
+    [Theory]
+    [InlineData(false, false)]
+    [InlineData(true, false)]
+    [InlineData(true, true)]
+    public async Task CorrectionRetainsMissingOriginalEvidenceAndSuccessorInheritsItsSet(bool replace, bool repeatsOriginal)
+    {
+        // GIVEN a posted payment with uploaded evidence whose bytes later become recovery-missing.
+        await using var context = await SupplierCorrectionFixture.OpenAsync(sqlServer);
+        using var storage = new PurchaseOrderDocumentEndpointTests.TestStorage();
+        var document = await FinancialEvidencePostingTests.UploadAsync(context.Bills, storage);
+        var original = await context.CommandAsync();
+        original["evidence"] = new JsonObject { ["documents"] = FinancialEvidencePostingTests.Documents(document), ["missingEvidenceReason"] = null };
+        await context.RecordAsync(original);
+        var originalSet = await context.Bills.ScalarAsync<Guid>("SELECT Id FROM Accounting.FinancialEvidenceSets");
+        var links = await context.Bills.ScalarAsync<string>("SELECT * FROM Accounting.FinancialEvidenceLinks FOR JSON PATH");
+        await context.Bills.AdminAsync($"INSERT Storage.RecoveryFiles(TenantId,RevisionId,ReportId,Generation,Reason,AcceptedAtUtc) VALUES('{JournalTestContext.TenantId}','{document.Revision}',NEWID(),1,'Missing',SYSUTCDATETIME())");
+        var replacement = replace ? await context.CommandAsync("90", "2026-09-20") : null;
+        if (repeatsOriginal) replacement!["evidence"] = original["evidence"]!.DeepClone();
+        if (repeatsOriginal)
+        {
+            var fabricated = replacement!.DeepClone().AsObject();
+            fabricated["evidence"]!["documents"]![0]!["revisionId"] = Guid.NewGuid().ToString();
+            Assert.Equal(51004, (await Assert.ThrowsAsync<SqlException>(() => SupplierCorrectionFixture.CorrectionAsync(context, Guid.Parse(original["paymentId"]!.ToString()), fabricated))).Number);
+        }
+        var correction = await SupplierCorrectionFixture.CorrectionAsync(context, Guid.Parse(original["paymentId"]!.ToString()), replacement);
+        // WHEN the owner reverses or replaces money THEN historical file availability does not block correction.
+        await context.Bills.ExecuteAsync("CorrectSupplierPayment", Guid.NewGuid(), correction);
+        Assert.Equal(links, await context.Bills.ScalarAsync<string>("SELECT * FROM Accounting.FinancialEvidenceLinks FOR JSON PATH"));
+        Assert.True(await context.Bills.ScalarAsync<bool>("SELECT Held FROM Storage.Attachments"));
+        if (replace) Assert.Equal(originalSet, await context.Bills.ScalarAsync<Guid>("SELECT InheritedEvidenceSetId FROM Accounting.FinancialEvidenceSets WHERE InheritedEvidenceSetId IS NOT NULL"));
+    }
+
     [Fact]
     public async Task ReplacementPreviewUsesRecordCommandValidation()
     {
@@ -184,12 +216,24 @@ public sealed class SupplierPaymentCorrectionTests(SqlServerFixture sqlServer)
                 wait.Parameters.AddWithValue("@waiter", context.Allocation.Journal.Connection.ServerProcessId); wait.Parameters.AddWithValue("@holder", holder.ServerProcessId);
                 using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(7));
                 while ((int)(await wait.ExecuteScalarAsync(timeout.Token))! != 1) await Task.Yield();
-                // THEN an independent genuine evidence validation can still acquire its document/storage locks immediately.
+                // THEN document/storage rows remain available before complete source coordination.
+                // Full validation also takes the PO coordination lock, so probe only these later locks.
                 await using (var begin = new SqlCommand("SET LOCK_TIMEOUT 0; BEGIN TRAN", observer)) await begin.ExecuteNonQueryAsync();
-                await using var evidence = new SqlCommand("DECLARE @validated nvarchar(max); EXEC Purchasing.ValidateBillEvidence @tenant,@po,@input,@validated OUTPUT; SELECT @validated;", observer);
+                await using var evidence = new SqlCommand("""
+                    SELECT COUNT(*) FROM Purchasing.PurchaseOrderDocuments WITH(UPDLOCK,HOLDLOCK)
+                      WHERE TenantId=@tenant AND OrderId=@po AND Id=@document AND RevisionId=@revision;
+                    SELECT COUNT(*) FROM Storage.Attachments WITH(UPDLOCK,HOLDLOCK)
+                      WHERE TenantId=@tenant AND Id=(SELECT AttachmentId FROM Purchasing.PurchaseOrderDocuments WHERE TenantId=@tenant AND Id=@document);
+                    SELECT COUNT(*) FROM Storage.Revisions WITH(UPDLOCK,HOLDLOCK)
+                      WHERE TenantId=@tenant AND Id=@revision;
+                    """, observer);
                 evidence.Parameters.AddWithValue("@tenant", JournalTestContext.TenantId); evidence.Parameters.AddWithValue("@po", context.Bills.Recognition.PurchaseOrderId);
-                evidence.Parameters.AddWithValue("@input", replacement["evidence"]!.ToJsonString());
-                evidenceErrors.Add(await Record.ExceptionAsync(async () => Assert.Contains(document.ToString(), (string)(await evidence.ExecuteScalarAsync())!, StringComparison.OrdinalIgnoreCase)));
+                evidence.Parameters.AddWithValue("@document", document); evidence.Parameters.AddWithValue("@revision", revision);
+                evidenceErrors.Add(await Record.ExceptionAsync(async () =>
+                {
+                    await using var rows = await evidence.ExecuteReaderAsync();
+                    do { Assert.True(await rows.ReadAsync()); Assert.Equal(1, rows.GetInt32(0)); } while (await rows.NextResultAsync());
+                }));
             }
             finally
             {

@@ -117,6 +117,7 @@ public partial class WorkbenchDbContext : IdentityDbContext<
         ConfigureSupplierBills(modelBuilder);
         ConfigureSupplierOpenItems(modelBuilder);
         ConfigureSupplierPayments(modelBuilder);
+        ConfigureFinancialEvidence(modelBuilder);
     }
 
     private void ConfigureInventory(ModelBuilder modelBuilder)
@@ -229,10 +230,11 @@ public partial class WorkbenchDbContext : IdentityDbContext<
     private void ConfigureStorage(ModelBuilder modelBuilder)
     {
         var attachment = modelBuilder.Entity<Attachment>();
-        attachment.ToTable("Attachments", "Storage");
+        attachment.ToTable("Attachments", "Storage", table => table.UseSqlOutputClause(false));
         attachment.HasKey(row => row.Id);
         attachment.IsTenantOwned(row => (Guid?)row.TenantId == TenantContext.TenantId);
         attachment.Property(row => row.Held).HasDefaultValue(false);
+        attachment.Property(row => row.IndependentHeld).HasDefaultValue(false);
         attachment.Property(row => row.RowVersion).IsRowVersion();
         attachment.HasOne<Tenant>().WithMany().HasForeignKey(row => row.TenantId)
             .OnDelete(DeleteBehavior.Restrict);

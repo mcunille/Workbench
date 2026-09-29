@@ -42,6 +42,7 @@ public static class CurrentSchema
         "20260926210900_AddPurchaseRecognition",
         "20260928034802_AddSupplierBills",
         "20260928071548_AddSupplierOpenItems",
+        "20260929010000_AddFinancialEvidenceRetention",
     ]);
 
     public static string MigrationId => Migrations[^1];
