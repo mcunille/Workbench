@@ -173,14 +173,19 @@ public sealed class FinancialEvidenceSecurityTests(SqlServerFixture sqlServer)
         await InstallAdapterAsync(context);
         var valid = await CommandAsync(context, Guid.Parse(posted["billId"]!.GetValue<string>()), document);
         var empty = valid.DeepClone().AsObject(); empty["reason"] = " \t\r\n ";
+        var enSpace = valid.DeepClone().AsObject(); enSpace["reason"] = "\u2002";
+        var verticalTab = valid.DeepClone().AsObject(); verticalTab["reason"] = "\u000B";
         var longReason = valid.DeepClone().AsObject(); longReason["reason"] = new string('x', 2001);
         var unknown = valid.DeepClone().AsObject(); unknown["extra"] = 1;
         var huge = valid.DeepClone().AsObject(); huge["reason"] = new string('x', 131073);
         var duplicate = valid.ToJsonString().Insert(1, "\"schemaVersion\":1,");
         // WHEN malformed envelopes reach the real command THEN they produce validation failures, not partial additions.
-        foreach (var input in new[] { empty.ToJsonString(), longReason.ToJsonString(), unknown.ToJsonString(), huge.ToJsonString(), duplicate })
+        foreach (var input in new[] { empty.ToJsonString(), enSpace.ToJsonString(), verticalTab.ToJsonString(), longReason.ToJsonString(), unknown.ToJsonString(), huge.ToJsonString(), duplicate })
             Assert.Equal(51000, (await Assert.ThrowsAsync<SqlException>(() => AppendRawAsync(context, input, Guid.NewGuid()))).Number);
         Assert.Equal(0, await context.ScalarAsync<int>("SELECT COUNT(*) FROM Accounting.FinancialEvidenceLinks"));
+        Assert.Equal(0, await context.ScalarAsync<int>("SELECT COUNT(*) FROM Accounting.FinancialEvidenceAdditions"));
+        Assert.Equal(0, await context.ScalarAsync<int>("SELECT COUNT(*) FROM Accounting.FinancialEvidenceReceipts"));
+        Assert.Equal(0, await context.ScalarAsync<int>("SELECT COUNT(*) FROM Storage.Attachments WHERE Held=1 OR IndependentHeld=1"));
         // AND the valid control proves those failures were validation-specific.
         await AppendAsync(context, valid, Guid.NewGuid());
         Assert.Equal(1, await context.ScalarAsync<int>("SELECT COUNT(*) FROM Accounting.FinancialEvidenceLinks"));

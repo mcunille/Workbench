@@ -118,7 +118,8 @@ internal static class FinancialEvidenceCapture
                   AND (DATALENGTH(value)<>72 OR TRY_CONVERT(uniqueidentifier,value) IS NULL OR TRY_CONVERT(uniqueidentifier,value)='00000000-0000-0000-0000-000000000000')))
               THROW 51000,'Invalid evidence addition fields.',1;
             DECLARE @Reason nvarchar(2000)=TRIM(NCHAR(9)+NCHAR(10)+NCHAR(13)+NCHAR(32)+NCHAR(160)+NCHAR(8195) FROM JSON_VALUE(@Command,'$.reason'));
-            IF LEN(@Reason)=0 THROW 51000,'A reason is required.',1;
+            IF LEN(TRIM(NCHAR(9)+NCHAR(10)+NCHAR(11)+NCHAR(12)+NCHAR(13)+NCHAR(32)+NCHAR(133)+NCHAR(160)+NCHAR(5760)+NCHAR(8192)+NCHAR(8193)+NCHAR(8194)+NCHAR(8195)+NCHAR(8196)+NCHAR(8197)+NCHAR(8198)+NCHAR(8199)+NCHAR(8200)+NCHAR(8201)+NCHAR(8202)+NCHAR(8232)+NCHAR(8233)+NCHAR(8239)+NCHAR(8287)+NCHAR(12288) FROM @Reason))=0
+              THROW 51000,'A reason is required.',1;
             DECLARE @TenantId uniqueidentifier=TRY_CONVERT(uniqueidentifier,SESSION_CONTEXT(N'TenantId')),@Lock int,
               @Resource nvarchar(255)=N'Accounting:'+CONVERT(nvarchar(36),SESSION_CONTEXT(N'TenantId')),
               @Kind varchar(32)=JSON_VALUE(@Command,'$.ownerKind'),@Owner uniqueidentifier=CONVERT(uniqueidentifier,JSON_VALUE(@Command,'$.ownerId')),
