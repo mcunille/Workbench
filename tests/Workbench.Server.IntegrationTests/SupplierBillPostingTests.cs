@@ -9,9 +9,9 @@ namespace Workbench.Server.IntegrationTests;
 [Collection(SqlServerCollection.Name)]
 public sealed class SupplierBillPostingTests(SqlServerFixture sqlServer)
 {
-    internal static async Task<SupplierBillTestContext> OpenAsync(SqlServerFixture fixture)
+    internal static async Task<SupplierBillTestContext> OpenAsync(SqlServerFixture fixture, string? priorMigration = null)
     {
-        var context = await SupplierBillTestContext.OpenAsync(fixture);
+        var context = await SupplierBillTestContext.OpenAsync(fixture, priorMigration);
         await context.AdminAsync("""
             GRANT EXECUTE ON Purchasing.ReviewSupplierBill TO workbench_web;
             GRANT EXECUTE ON Purchasing.PostSupplierBill TO workbench_web;

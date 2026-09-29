@@ -22,8 +22,8 @@ The refreshed final-source preview passed desktop and mobile visual inspection.
 records the approved transition for issue #120.
 
 [PO-07 bookkeeping foundation and prerequisites](2026-09-20-po-07-deposits-and-payments.md)
-proposes ledger-backed payments, structured supplier bills, and prerequisite accounting stories.
-It remains a design proposal, not implemented bookkeeping.
+retains the public payment workflow and remaining bookkeeping prerequisites. BK-01–06 supply
+internal foundations with their own documented boundaries; production bookkeeping remains unavailable.
 
 [BK-01 accounting configuration, accounts, and authorization](2026-09-21-bk-01-accounting-foundation.md)
 records the implemented general-account setup and two-role authorization model,
@@ -38,6 +38,14 @@ BK-02 journal. Production close remains gated by BK-09–11; no production corre
 records the approved, implemented internal recognition and invoice matching foundation, classified
 cost/tax treatment and immutable receipt-recognition records. `BookkeepingAvailable` remains false;
 no production posting adapter or public financial-write UI is enabled.
+
+[BK-06 supplier open items and allocations](2026-09-27-bk-06-supplier-open-items-and-allocations.md)
+records the approved, implemented internal payment/allocation/correction boundary and authorized
+four-control read APIs with frozen posting/recorded cutoffs. BK-05 is merged. Targeted SQL/HTTP,
+mutation and supported-base upgrade/guarded SQL recovery evidence is recorded; complete-branch
+review, full verification, container smoke and retained-preview inspection remain pending.
+Reporting cost is unmeasured and grows with history. No runtime write grants, public financial
+entry, BK-07 physical holds or production bookkeeping activation are delivered.
 
 | Area | Records |
 | --- | --- |

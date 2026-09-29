@@ -294,7 +294,7 @@ internal static class CorrectionAssertions
 {
     internal static async Task<Guid> KernelAsync(JournalControlTestContext controls, Guid original,
         Guid? replacementRevision = null, bool completeReplacement = false, string canonical = "{}",
-        Guid? request = null, Guid? actor = null, Guid? session = null)
+        Guid? request = null, Guid? actor = null, Guid? session = null, bool executeCoreDirectly = false)
     {
         var journal = controls.Journal;
         await using var admin = new SqlConnection(journal.Application.AdminConnectionString);
@@ -321,6 +321,11 @@ internal static class CorrectionAssertions
               THROW;
             END CATCH;
             """, admin);
+        // Only core mutation probes bypass the generic wrapper's independent authority check.
+        // Ordinary callers retain the wrapper path; this option exists only in the disposable fixture.
+        if (executeCoreDirectly)
+            command.CommandText = command.CommandText.Replace("EXEC Accounting.CorrectJournal ",
+                "EXEC Accounting.CorrectJournalCore ", StringComparison.Ordinal);
         command.Parameters.AddWithValue("@actor", actor ?? JournalTestContext.ActorId);
         command.Parameters.AddWithValue("@session", session ?? journal.SessionId);
         command.Parameters.AddWithValue("@request", request ?? Guid.NewGuid());

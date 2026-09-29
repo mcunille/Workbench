@@ -19,7 +19,7 @@ public sealed class SupplierBillMigrationTests(SqlServerFixture sqlServer)
         var source = await context.CommandAsync("Invoice"); var request = Guid.NewGuid();
         var posted = await context.PostAsync(source.ToJsonString(), request);
         var before = await SnapshotAsync(context.Journal.Connection);
-        // WHEN the one BK-05 migration applies from its durable predecessor.
+        // WHEN the current BK-05 and BK-06 migrations apply from the BK-04 predecessor.
         await DatabaseMigrator.MigrateAsync(context.Journal.Application.AdminConnectionString, default);
         // THEN source bytes and the old command's result remain exact, including the kernel output adaptation.
         Assert.Equal(before, await SnapshotAsync(context.Journal.Connection));
@@ -28,7 +28,7 @@ public sealed class SupplierBillMigrationTests(SqlServerFixture sqlServer)
         await using var admin = new SqlConnection(context.Journal.Application.AdminConnectionString); await admin.OpenAsync();
         await using var count = new SqlCommand("SELECT COUNT(*) FROM dbo.__EFMigrationsHistory WHERE MigrationId>@prior", admin);
         count.Parameters.AddWithValue("@prior", PriorMigration);
-        Assert.Equal(1, await count.ExecuteScalarAsync());
+        Assert.Equal(2, await count.ExecuteScalarAsync());
         Assert.Equal(50020, (await Assert.ThrowsAsync<SqlException>(() => DatabaseMigrator.MigrateToAsync(context.Journal.Application.AdminConnectionString, PriorMigration, default))).Number);
         Assert.Equal(before, await SnapshotAsync(context.Journal.Connection));
     }
@@ -45,7 +45,7 @@ public sealed class SupplierBillMigrationTests(SqlServerFixture sqlServer)
         await using var command = new SqlCommand("SELECT COUNT(*) FROM sys.procedures WHERE name LIKE '%Fixture%' OR name LIKE '%Synthetic%' OR name LIKE '%ForTest'", admin);
         // THEN disposable source adapters and production role assignments are absent.
         Assert.Equal(0, await command.ExecuteScalarAsync());
-        command.CommandText = "SELECT COUNT(*) FROM [Identity].RoleClaims WHERE ClaimValue IN(N'SupplierBillsManage',N'SupplierBillsPost')";
+        command.CommandText = "SELECT COUNT(*) FROM [Identity].RoleClaims WHERE ClaimValue IN(N'SupplierBillsManage',N'SupplierBillsPost',N'SupplierPaymentsRecord',N'SupplierPaymentsCorrect',N'SupplierAllocationsManage')";
         Assert.Equal(0, await command.ExecuteScalarAsync());
         command.CommandText = "CREATE USER bill_permission_probe WITHOUT LOGIN; ALTER ROLE workbench_web ADD MEMBER bill_permission_probe; EXECUTE AS USER='bill_permission_probe';";
         await command.ExecuteNonQueryAsync();

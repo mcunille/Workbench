@@ -179,6 +179,22 @@ public sealed class DatabasePermissionTests(SqlServerFixture sqlServer)
         var migrator = await database.CreateRoleUserAsync("workbench_migrator");
 
         await ExecuteAsync(web, "SELECT 1");
+        // GIVEN freshly migrated production roles, supplier read projections are narrow web-only authority.
+        foreach (var projection in new[] { "SupplierItemControl", "SupplierPaymentControl", "SupplierReportBillIdentity" })
+        {
+            await ExecuteAsync(web, $"SELECT * FROM Purchasing.{projection}(NEWID(),NEWID())");
+        }
+        var worker = await database.CreateRoleUserAsync("workbench_worker");
+        // WHEN either runtime asks to mutate financial history or derive source authority, SQL denies it.
+        foreach (var runtime in new[] { web, worker })
+        {
+            foreach (var mutation in new[] { "RecordSupplierPayment", "ApplySupplierFunds", "ReverseSupplierApplication", "CorrectSupplierPayment", "DeriveRecognitionOpenItems" })
+                await AssertDeniedAsync(runtime, $"EXEC Purchasing.{mutation}", 229);
+            await AssertDeniedAsync(runtime, "DELETE Purchasing.SupplierControlAttributions WHERE 1=0", 229);
+            await AssertDeniedAsync(runtime, "UPDATE Purchasing.SupplierFinancialGroups SET SourceId=NEWID() WHERE 1=0", 229);
+        }
+        foreach (var projection in new[] { "SupplierItemControl", "SupplierPaymentControl", "SupplierReportBillIdentity" })
+            await AssertDeniedAsync(worker, $"SELECT * FROM Purchasing.{projection}(NEWID(),NEWID())", 229);
         await AssertDeniedAsync(
             web,
             "ALTER SECURITY POLICY [Security].[TenantIsolationPolicy] WITH (STATE = OFF)");
@@ -212,9 +228,10 @@ public sealed class DatabasePermissionTests(SqlServerFixture sqlServer)
         await ExecuteAsync(migrator, "CREATE TABLE [dbo].[MigrationProbe] ([Id] int NOT NULL)");
     }
 
-    private static async Task AssertDeniedAsync(string connectionString, string sql)
+    private static async Task AssertDeniedAsync(string connectionString, string sql, int? expectedNumber = null)
     {
-        await Assert.ThrowsAsync<SqlException>(() => ExecuteAsync(connectionString, sql));
+        var error = await Assert.ThrowsAsync<SqlException>(() => ExecuteAsync(connectionString, sql));
+        if (expectedNumber.HasValue) Assert.Equal(expectedNumber.Value, error.Number);
     }
 
     private static async Task ExecuteAsync(string connectionString, string sql)

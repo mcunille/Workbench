@@ -7,6 +7,9 @@ public static class WorkbenchPermissions
     public const string TenantAccess = "TenantAccess";
     public const string SupplierBillsManage = "SupplierBillsManage";
     public const string SupplierBillsPost = "SupplierBillsPost";
+    public const string SupplierPaymentsRecord = "SupplierPaymentsRecord";
+    public const string SupplierPaymentsCorrect = "SupplierPaymentsCorrect";
+    public const string SupplierAllocationsManage = "SupplierAllocationsManage";
 
     public const string TenantUsersManage = "TenantUsersManage";
     public const string AccountingConfigurationRead = "AccountingConfigurationRead";

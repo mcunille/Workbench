@@ -291,6 +291,7 @@ app.MapWorkbenchRecovery();
 app.MapTenantUserAdministration();
 app.MapAccountingRoleAdministration();
 app.MapAccounting();
+app.MapSupplierOpenItemReports();
 app.MapJournalReports();
 
 app.MapHealthChecks("/health/live", new HealthCheckOptions
