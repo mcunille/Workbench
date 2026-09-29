@@ -93,9 +93,6 @@ and targeted fault probes for those contracts. Browser and standalone tooling te
 execution evidence and are not included in either code-coverage percentage. Count parameterized
 rows as runnable cases; report script-level checks separately when no case-discovery runner exists.
 
-The [September 29 test audit](audits/2026-09-29-test-reduction.md) records removed cases, surviving
-owners, measured coverage changes, and verification limits.
-
 See [Contributing](../CONTRIBUTING.md) for required verification commands and the
 [efficiency design](../docs/specs/2026-09-16-test-suite-efficiency.md) for this change's boundaries.
 
