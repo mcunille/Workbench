@@ -33,32 +33,11 @@ public sealed class DatabaseMigrationTests(SqlServerFixture sqlServer)
 
     [Theory]
     [InlineData("InitialSchema")]
-    [InlineData("EstablishSecurityBoundaries")]
-    [InlineData("AddBlobAndOperationalProviders")]
-    [InlineData("AddDeploymentQueueTelemetry")]
-    [InlineData("DeferInvitationIdentityClaim")]
-    [InlineData("AddProviderRetryDelay")]
-    [InlineData("AddCollectionNotebook")]
-    [InlineData("AddItemPhotographs")]
-    [InlineData("AddItemDetailEditing")]
-    [InlineData("AddItemArchiving")]
-    [InlineData("AddOnlineRecovery")]
-    [InlineData("AddItemRestoration")]
-    [InlineData("AddAcquisitionContext")]
-    [InlineData("AddSharedAcquisitions")]
-    [InlineData("AddAcquisitionDocuments")]
-    [InlineData("AddDraftSupplierOrders")]
-    [InlineData("AddSupplierIdentityAndPurchaseReferences")]
-    [InlineData("AddSupplierBasedDraftPricing")]
-    [InlineData("PrepareRetainedBetaFinancialUpgrade")]
-    [InlineData("AddDraftFinancialAdjustments")]
-    [InlineData("ProtectConfirmedSupplierChargeCorrections")]
-    [InlineData("RemoveHistoricalDraftReplay")]
-    [InlineData("ConsolidateBetaDraftCommands")]
     [InlineData("IntegrateBetaDraftFinancialAdjustments")]
     public async Task MigratorUpgradesASeededPriorSchemaWithoutLosingTenantData(string priorMigration)
     {
-        // GIVEN tenant data in either the initial schema or the PR base schema.
+        // GIVEN tenant data before the full migration chain or a later financial release.
+        // Feature-specific upgrade tests retain their own seeded historical records and receipts.
         await using var database = await sqlServer.CreateDatabaseAsync();
         await DatabaseMigrator.MigrateToAsync(
             database.AdminConnectionString,

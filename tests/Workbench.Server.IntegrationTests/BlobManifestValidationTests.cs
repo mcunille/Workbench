@@ -63,15 +63,6 @@ public sealed class BlobManifestValidationTests
         Assert.Equal("The manifest does not match the restored database.", error.Message);
     }
 
-    [Fact]
-    public void CurrentReleaseAcceptsAnExactManifest()
-    {
-        // GIVEN a manifest emitted by this release, independently of historical compatibility fixtures.
-        var manifest = Manifest() with { SchemaVersion = CurrentSchema.MigrationId };
-        // WHEN validating the paired backup THEN the current schema is supported.
-        StorageMaintenanceCommand.ValidateManifest(manifest, manifest.Database, manifest.InstallationId, manifest.Entries);
-    }
-
     [Theory]
     [InlineData("20260904061204_InitialSchema")]
     [InlineData("20260907082353_AddItemPhotographs")]

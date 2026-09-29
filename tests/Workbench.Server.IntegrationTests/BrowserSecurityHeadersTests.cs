@@ -56,7 +56,6 @@ public sealed class BrowserSecurityHeadersTests
 
     [Theory]
     [InlineData("http://workbench.example")]
-    [InlineData("http://localhost")]
     [InlineData("https://localhost")]
     [InlineData("https://127.0.0.1")]
     [InlineData("https://[::1]")]

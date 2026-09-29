@@ -71,6 +71,28 @@ inventory checks and report intentional count changes. Use focused mutation prob
 security, isolation, validation, and state-transition assertions; report their actual scope rather
 than implying a whole-suite mutation score.
 
+## Coverage comparisons
+
+Use identical source scopes, instrumentation, and runner settings before and after a test reduction.
+The client coverage provider is pinned to the Vitest version; its scope includes production TypeScript
+under `src/`, excluding tests and test support. The server collector targets `Workbench.Server` and
+`Workbench.Database` when those assemblies are loaded. The integration-test report currently contains
+`Workbench.Server`, including its C# migration definitions; the separate database CLI process is not
+instrumented by that collector. Reports stay in ignored `artifacts/` directories.
+
+```powershell
+npm run test:run --prefix src/Workbench.Client -- --coverage --maxWorkers=1
+dotnet test tests/Workbench.Server.IntegrationTests/Workbench.Server.IntegrationTests.csproj `
+  --configuration Release --settings tests/coverage.runsettings --collect 'XPlat Code Coverage' `
+  --results-directory artifacts/coverage/server
+```
+
+Compare line and branch percentages separately for each suite, and retain both the covered and total
+counts. Coverage of C# SQL strings does not measure SQL engine branches; retain real database tests
+and targeted fault probes for those contracts. Browser and standalone tooling tests provide separate
+execution evidence and are not included in either code-coverage percentage. Count parameterized
+rows as runnable cases; report script-level checks separately when no case-discovery runner exists.
+
 See [Contributing](../CONTRIBUTING.md) for required verification commands and the
 [efficiency design](../docs/specs/2026-09-16-test-suite-efficiency.md) for this change's boundaries.
 

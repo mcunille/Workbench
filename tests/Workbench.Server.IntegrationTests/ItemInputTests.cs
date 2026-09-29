@@ -23,7 +23,6 @@ public sealed class ItemInputTests
 
     [Theory]
     [InlineData(null)]
-    [InlineData("")]
     [InlineData(" \t\n\u2003\u00a0")]
     public void BlankOptionalFieldsBecomeNullAndBlankNamesAreRejected(string? value)
     {

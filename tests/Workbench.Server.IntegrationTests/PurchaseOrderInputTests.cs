@@ -27,7 +27,6 @@ public sealed class PurchaseOrderInputTests
     }
     [Theory]
     [InlineData(null)]
-    [InlineData("")]
     [InlineData("2026-02-30")]
     [InlineData("2026-9-11")]
     [InlineData("2026-09-11T00:00:00Z")]

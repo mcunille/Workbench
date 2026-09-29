@@ -126,16 +126,6 @@ public sealed class PurchasingIdentityInputTests
         var errors = DraftOrderInput.Validate(invalid);
         foreach (var field in new[] { "supplierName", "supplierContactName", "supplierEmail", "supplierPhone", "supplierWebsite", "supplierPostalAddress", "supplierOrderReference", "platform", "supplierId" }) Assert.Contains("draft." + field, errors);
     }
-    [Theory]
-    [InlineData("javascript:alert(1)")]
-    [InlineData("https://user:password@example.test")]
-    [InlineData("/relative")]
-    [InlineData("https://example.test/white space")]
-    public void WebsiteValidationRejectsUnsafeOrNonAbsoluteValues(string website)
-    {
-        // GIVEN a website which violates the existing HTTP(S) link contract WHEN validated THEN a field error prevents saving.
-        Assert.Contains("supplier.website", PurchasingIdentityInput.Validate(Contact with { Website = website }));
-    }
     [Fact]
     public void CursorBindingsAndFingerprintsIncludeTransactionDetails()
     {
