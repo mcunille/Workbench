@@ -36,7 +36,7 @@ test('accounting setup preserves explicit policies, guarded mappings, coverage, 
     await page.getByRole('combobox', { name: 'Fiscal year starts', exact: true }).selectOption('1');
     await page.getByRole('combobox', { name: 'Starting approach', exact: true }).selectOption('FromBeginning');
     await page.getByLabel('Planned start date', { exact: true }).fill('2026-01-01');
-    await page.getByLabel('Proposed document retention (years)', { exact: true }).fill('7');
+    await page.getByLabel('Financial document retention (years)', { exact: true }).fill('7');
     await page.getByLabel('Retention rationale or reference', { exact: true }).fill('Synthetic retention proposal for workflow verification.');
     await page.getByRole('button', { name: 'Save setup', exact: true }).click();
     await expect(page.getByText('Accounting setup saved. Bookkeeping is not yet available.')).toBeVisible();

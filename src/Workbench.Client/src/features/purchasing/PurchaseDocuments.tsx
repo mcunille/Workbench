@@ -2,12 +2,13 @@ import { useEffect, useRef, useState } from 'react';
 import { FloatingField } from '../../FloatingField';
 import { ApiError } from '../../api/auth';
 import { ItemValidationError } from '../../api/items';
-import { changePurchaseDocument, downloadPurchaseDocument, getPurchaseDocumentOperation, getPurchaseDocuments, PurchaseDocumentConflict, uploadPurchaseDocument, type PurchaseDocument, type PurchaseDocumentChange, type PurchaseDocumentList, type PurchaseDocumentUpload } from '../../api/purchaseOrderDocuments';
+import { changePurchaseDocument, disposePurchaseDocument, downloadPurchaseDocument, getPurchaseDocumentOperation, getPurchaseDocuments, PurchaseDocumentConflict, uploadPurchaseDocument, type PurchaseDocument, type PurchaseDocumentChange, type PurchaseDocumentDisposal, type PurchaseDocumentList, type PurchaseDocumentUpload } from '../../api/purchaseOrderDocuments';
+import { PurchaseDocumentDisposalDialog } from './PurchaseDocumentDisposalDialog';
 import './purchase-documents.css';
 
 type FileDraft = { id: string; file: File; label: string; saved: boolean; error?: string };
-type Editor = { kind: 'upload' } | { kind: 'rename' | 'remove'; document: PurchaseDocument };
-type Command = { kind: 'upload'; key: string; payload: PurchaseDocumentUpload } | { kind: 'rename' | 'remove'; documentId: string; payload: PurchaseDocumentChange };
+type Editor = { kind: 'upload' } | { kind: 'rename' | 'remove' | 'dispose'; document: PurchaseDocument };
+type Command = { kind: 'upload'; key: string; payload: PurchaseDocumentUpload } | { kind: 'rename' | 'remove'; documentId: string; payload: PurchaseDocumentChange } | { kind: 'dispose'; documentId: string; payload: PurchaseDocumentDisposal };
 type Phase = 'ready' | 'uncertain' | 'conflict' | 'refresh';
 type Props = { orderId: string; onAuthLost(): void; onCurrent(): Promise<void>; onStateChange(dirty: boolean, uncertain: boolean, editing: boolean): void };
 
@@ -33,6 +34,7 @@ export function PurchaseDocuments({ orderId, onAuthLost, onCurrent, onStateChang
   const errorRegion = useRef<HTMLDivElement>(null);
   const editorHeading = useRef<HTMLHeadingElement>(null);
   const addButton = useRef<HTMLButtonElement>(null);
+  const disposalOpener = useRef<HTMLButtonElement>(null);
   const uncertain = phase === 'uncertain' || phase === 'refresh' || busy;
   const dirty = (editor?.kind === 'upload' && queue.some(item => !item.saved)) || (editor?.kind === 'rename' && label !== editor.document.label) || uncertain;
 
@@ -51,9 +53,9 @@ export function PurchaseDocuments({ orderId, onAuthLost, onCurrent, onStateChang
     return () => { current = false; };
   }, [orderId, attempt, onAuthLost]);
 
-  function close() {
+  function close(restoreFocus = true) {
     setEditor(undefined); setQueue([]); setLabel(''); setCommand(undefined); setPhase('ready'); setError('');
-    requestAnimationFrame(() => { if (active.current) (addButton.current && !addButton.current.disabled ? addButton.current : heading.current)?.focus(); });
+    if (restoreFocus) requestAnimationFrame(() => { if (active.current) (addButton.current && !addButton.current.disabled ? addButton.current : heading.current)?.focus(); });
   }
   function lostAccess(failure: unknown) {
     if (!(failure instanceof ApiError && [401, 403].includes(failure.status))) return false;
@@ -70,7 +72,7 @@ export function PurchaseDocuments({ orderId, onAuthLost, onCurrent, onStateChang
     // Once the command is confirmed, subsequent failures may retry reads only.
     setPhase('refresh');
     if (exact.kind === 'upload') setQueue(items => items.map(item => item.id === exact.key ? { ...item, saved: true, error: undefined } : item));
-    setMessage(exact.kind === 'upload' ? 'File uploaded.' : exact.kind === 'rename' ? 'File label saved.' : 'File removed.');
+    setMessage(exact.kind === 'upload' ? 'File uploaded.' : exact.kind === 'rename' ? 'File label saved.' : exact.kind === 'dispose' ? 'Retained document disposal recorded.' : 'File removed.');
     try {
       const current = await refresh();
       if (!active.current) return;
@@ -92,7 +94,7 @@ export function PurchaseDocuments({ orderId, onAuthLost, onCurrent, onStateChang
           if (status.state === 'Conflict') throw new PurchaseDocumentConflict('The purchase or file changed. Review current files before retrying.');
         } catch (failure) { if (!(failure instanceof ApiError && failure.status === 404)) throw failure; }
       }
-      const result = exact.kind === 'upload' ? await uploadPurchaseDocument(orderId, exact.payload) : await changePurchaseDocument(orderId, exact.documentId, exact.payload, exact.kind === 'remove');
+      const result = exact.kind === 'upload' ? await uploadPurchaseDocument(orderId, exact.payload) : exact.kind === 'dispose' ? await disposePurchaseDocument(orderId, exact.documentId, exact.payload) : await changePurchaseDocument(orderId, exact.documentId, exact.payload, exact.kind === 'remove');
       if (!active.current) return;
       if (result.state === 'Completed') return await confirm(exact);
       if (result.state === 'Conflict') throw new PurchaseDocumentConflict('The purchase or file changed. Review current files before retrying.');
@@ -125,8 +127,14 @@ export function PurchaseDocuments({ orderId, onAuthLost, onCurrent, onStateChang
           current = next;
         }
         setMessage('Selected files uploaded.');
-      } else await execute({ kind: editor.kind, documentId: editor.document.id, payload: { requestId: crypto.randomUUID(), expectedOrderVersion: list.orderVersion, expectedDocumentVersion: editor.document.version, label: editor.kind === 'remove' ? null : label.trim() } });
+      } else if (editor.kind !== 'dispose') await execute({ kind: editor.kind, documentId: editor.document.id, payload: { requestId: crypto.randomUUID(), expectedOrderVersion: list.orderVersion, expectedDocumentVersion: editor.document.version, label: editor.kind === 'remove' ? null : label.trim() } });
     });
+  }
+  async function submitDisposal(reason: string) {
+    if (editor?.kind !== 'dispose' || !list || command || !reason.trim() || reason.length > 2000 || !editor.document.retention?.canDispose || !editor.document.retention.evidenceVersion) return;
+    const exact: Command = { kind: 'dispose', documentId: editor.document.id, payload: { requestId: crypto.randomUUID(), expectedOrderVersion: list.orderVersion, expectedDocumentVersion: editor.document.version, expectedEvidenceVersion: editor.document.retention.evidenceVersion, reason } };
+    setEditor(undefined);
+    await run(() => execute(exact));
   }
   async function reviewConflict() {
     await run(async () => {
@@ -155,18 +163,21 @@ export function PurchaseDocuments({ orderId, onAuthLost, onCurrent, onStateChang
       {!editor && list ? <button ref={addButton} type="button" className="secondary" disabled={list.documents.length >= 20 || loadFailed} onClick={() => begin({ kind: 'upload' })}>Add invoice files</button> : null}</div>
     {message ? <p role="status">{message}</p> : null}
     {error ? <div role="alert" ref={errorRegion} tabIndex={-1} className="po-document-error"><p>{error}</p>{downloadRetry ? <button type="button" className="secondary" onClick={() => void download(downloadRetry)}>Retry download</button> : null}</div> : null}
+    {command?.kind === 'dispose' ? <div className="po-document-actions po-disposal-recovery"><button type="button" className="primary" disabled={busy} onClick={() => void run(() => phase === 'refresh' ? confirm(command) : phase === 'conflict' ? reviewConflict() : execute(command, true))}>{phase === 'refresh' ? 'Retry loading saved files' : phase === 'conflict' ? 'Review current files' : 'Check and retry disposal'}</button></div> : null}
     {loadFailed ? <div role="alert"><p>Invoice files could not be loaded. The purchase is still available.</p><button type="button" className="secondary" onClick={() => { setLoadFailed(false); setAttempt(value => value + 1); }}>Retry loading files</button></div> : !list ? <p role="status">Loading invoice files…</p> : null}
     {list ? <>
       {list.documents.length ? <ul className="po-document-list">{list.documents.map(document => <li key={document.id}>
         <div className="po-document-description"><strong>{document.label}</strong><p>{document.extension.toUpperCase()} · {fileSize(document.length)} · Uploaded <time dateTime={document.createdAtUtc}>{new Date(document.createdAtUtc).toLocaleDateString()}</time></p>
+          {document.retention?.retained ? <p className="po-document-retention">Financial evidence retained {document.retention.indefinite ? 'indefinitely until policy is resolved' : document.retention.retainUntilUtc ? `through ${new Date(document.retention.retainUntilUtc).toLocaleDateString()}` : 'under its saved policy'}. Ordinary removal is unavailable.{document.retention.disposalBlockReason ? ` ${document.retention.disposalBlockReason}` : ''}</p> : null}
           {document.unavailable ? <p>File unavailable after recovery. Contact your administrator or add another copy.</p> : null}</div>
         <div className="po-document-actions"><button type="button" className="secondary" disabled={document.unavailable || busy} aria-label={`Download ${document.label}`} onClick={() => void download(document)}>Download</button>
           <button type="button" className="quiet" disabled={!!editor || busy || loadFailed} aria-label={`Rename ${document.label}`} onClick={() => begin({ kind: 'rename', document })}>Rename</button>
-          <button type="button" className="quiet danger" disabled={!!editor || busy || loadFailed} aria-label={`Remove ${document.label}`} onClick={() => begin({ kind: 'remove', document })}>Remove</button></div>
+          <button type="button" className="quiet danger" disabled={!!editor || busy || loadFailed || !!command || !!document.retention?.retained} aria-label={`Remove ${document.label}`} onClick={() => begin({ kind: 'remove', document })}>Remove</button>
+          {document.retention?.canDispose ? <button type="button" className="quiet danger" disabled={!!editor || busy || loadFailed || !!command} aria-label={`Dispose ${document.label}`} onClick={event => { disposalOpener.current = event.currentTarget; begin({ kind: 'dispose', document }); }}>Dispose</button> : null}</div>
       </li>)}</ul> : !loadFailed ? <p className="hint">Keep supplier invoices and supporting purchase paperwork here. Add one or more PDF files; no invoice details are required.</p> : null}
       {list.documents.length >= 20 ? <p className="hint">20-file limit reached. Remove a file before adding another.</p> : null}
     </> : null}
-    {editor ? <form className="po-document-form" onSubmit={event => { event.preventDefault(); void submit(); }}>
+    {editor?.kind === 'dispose' ? <PurchaseDocumentDisposalDialog document={editor.document} onConfirm={reason => void submitDisposal(reason)} onClose={() => { close(false); requestAnimationFrame(() => { if (active.current) disposalOpener.current?.focus(); }); }} busy={busy} error={error || null} /> : editor ? <form className="po-document-form" onSubmit={event => { event.preventDefault(); void submit(); }}>
       <h3 ref={editorHeading} tabIndex={-1}>{editor.kind === 'upload' ? 'Add invoice files' : editor.kind === 'rename' ? 'Rename file' : 'Remove file'}</h3>
       {editor.kind === 'upload' ? <>
         {!queue.length ? <label className="po-file-picker">Choose files<input type="file" multiple accept=".pdf,.jpg,.jpeg,.png,.webp" disabled={frozen} onChange={event => {
@@ -185,7 +196,7 @@ export function PurchaseDocuments({ orderId, onAuthLost, onCurrent, onStateChang
       </> : editor.kind === 'rename' ? <FloatingField htmlFor="po-document-label" label="File label"><input id="po-document-label" placeholder=" " required maxLength={200} disabled={frozen} value={label} onChange={event => setLabel(event.target.value)} /></FloatingField> : <p>Remove “{editor.document.label}” from this purchase? Download access ends immediately. Retained copies follow the seven-day retention policy and any holds.</p>}
       {busy ? <p role="status">Saving file changes…</p> : null}
       <div className="po-document-actions">
-        {command ? <button type="button" className="primary" disabled={busy} onClick={() => phase === 'conflict' ? void reviewConflict() : void run(() => phase === 'refresh' ? confirm(command) : execute(command, true))}>{phase === 'refresh' ? 'Retry loading saved files' : phase === 'conflict' ? 'Review current files' : 'Check and retry file'}</button> : editor.kind === 'upload' && queue.length > 0 && !remaining.length ? <button type="button" className="primary" onClick={close}>Done</button> : <button type="submit" className="primary" disabled={busy || !list || (editor.kind === 'upload' ? !remaining.length || remaining.some(item => !item.label.trim() || item.file.size > 10 * 1024 * 1024) || remaining.length + list.documents.length > 20 : editor.kind === 'rename' && !label.trim())}>{editor.kind === 'upload' ? queue.some(item => item.saved) ? 'Upload remaining files' : 'Upload files' : editor.kind === 'rename' ? 'Save label' : 'Confirm removal'}</button>}
+        {command ? <button type="button" className="primary" disabled={busy} onClick={() => phase === 'conflict' ? void reviewConflict() : void run(() => phase === 'refresh' ? confirm(command) : execute(command, true))}>{phase === 'refresh' ? 'Retry loading saved files' : phase === 'conflict' ? 'Review current files' : 'Check and retry file'}</button> : editor.kind === 'upload' && queue.length > 0 && !remaining.length ? <button type="button" className="primary" onClick={() => close()}>Done</button> : <button type="submit" className="primary" disabled={busy || !list || (editor.kind === 'upload' ? !remaining.length || remaining.some(item => !item.label.trim() || item.file.size > 10 * 1024 * 1024) || remaining.length + list.documents.length > 20 : editor.kind === 'rename' && !label.trim())}>{editor.kind === 'upload' ? queue.some(item => item.saved) ? 'Upload remaining files' : 'Upload files' : editor.kind === 'rename' ? 'Save label' : 'Confirm removal'}</button>}
         {!command && !(editor.kind === 'upload' && queue.length > 0 && !remaining.length) ? <button type="button" className="secondary" disabled={busy} onClick={() => { if (!dirty || window.confirm('Discard unsaved file changes? Files already uploaded will stay attached.')) close(); }}>Cancel</button> : null}
       </div>
     </form> : null}
