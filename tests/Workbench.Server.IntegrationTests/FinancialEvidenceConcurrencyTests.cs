@@ -12,6 +12,56 @@ namespace Workbench.Server.IntegrationTests;
 public sealed class FinancialEvidenceConcurrencyTests(SqlServerFixture sqlServer)
 {
     [Fact]
+    public async Task OrdinaryDocumentListWaitsForAppendBeforeReadingRetentionState()
+    {
+        // GIVEN an already linked document and a second authentic source ready to acquire it.
+        await using var context = await SupplierBillPostingTests.OpenAsync(sqlServer);
+        using var storage = new PurchaseOrderDocumentEndpointTests.TestStorage();
+        var document = await FinancialEvidencePostingTests.UploadAsync(context, storage);
+        await FinancialEvidenceRemovalTests.PostAsync(context, document);
+        var second = context.CompleteDraft("INV-LIST-APPEND"); second["revision"]!["total"] = "0";
+        foreach (var component in second["revision"]!["units"]![0]!["components"]!.AsArray()) component!["amount"] = "0";
+        var reviewed = await SupplierBillPostingTests.ReviewedAsync(context, second);
+        var posted = await context.ExecuteAsync("PostSupplierBill", Guid.NewGuid(), context.PostCommand(reviewed));
+        await FinancialEvidenceSecurityTests.InstallAdapterAsync(context);
+        var append = await FinancialEvidenceSecurityTests.CommandAsync(context, Guid.Parse(posted["billId"]!.GetValue<string>()), document);
+        await using var database = BlobPersistenceTests.CreateContext(context.Journal.Application.WebConnectionString,
+            new TenantContextProof(context.Journal.ProofKey), JournalTestContext.TenantId);
+        await database.Database.OpenConnectionAsync();
+        var readerConnection = (SqlConnection)database.Database.GetDbConnection();
+        var actor = new Workbench.Server.Authorization.RequestActor(JournalTestContext.ActorId, JournalTestContext.TenantId,
+            context.Journal.SessionId, new HashSet<string>());
+        var service = new Workbench.Server.Purchasing.PurchaseOrderDocumentService(database, storage.Store, actor);
+        await FinancialEvidenceRemovalTests.DocumentSqlAsync(context, $"""
+            BEGIN TRAN;
+            DECLARE @tenant uniqueidentifier='{JournalTestContext.TenantId}',@result int;
+            DECLARE @resource nvarchar(255)=N'Accounting:'+CONVERT(nvarchar(36),@tenant);
+            EXEC @result=sys.sp_getapplock @Resource=@resource,@LockMode='Exclusive',@LockOwner='Transaction';
+            IF @result<0 THROW 51010,'Test writer could not acquire Accounting coordination.',1;
+            SELECT RowVersion FROM Purchasing.DraftOrders WITH(UPDLOCK,HOLDLOCK) WHERE Id='{context.Recognition.PurchaseOrderId}';
+            """);
+        Task<Workbench.Server.Purchasing.PurchaseOrderDocumentsResponse> list;
+        try
+        {
+            // WHEN ordinary listing overlaps the writer's real append transaction.
+            list = service.ListAsync(context.Recognition.PurchaseOrderId, default);
+            try { await WaitForBlockedAsync(context, context.Journal.Connection, readerConnection); }
+            catch (OperationCanceledException) when (list.IsCompletedSuccessfully)
+            {
+                Assert.Fail("Ordinary document listing completed before the evidence writer released Accounting coordination.");
+            }
+            await FinancialEvidenceSecurityTests.AppendAsync(context, append, Guid.NewGuid()).WaitAsync(TimeSpan.FromSeconds(20));
+        }
+        finally { await FinancialEvidenceRemovalTests.DocumentSqlAsync(context, "IF @@TRANCOUNT>0 COMMIT;"); }
+        // THEN the list finishes without attachment/state lock inversion and reports committed membership's token.
+        var retained = Assert.Single((await list.WaitAsync(TimeSpan.FromSeconds(15))).Documents).Retention!;
+        Assert.True(retained.Retained);
+        Assert.Equal(2, await context.ScalarAsync<int>("SELECT COUNT(*) FROM Accounting.FinancialEvidenceLinks"));
+        var evidence = await context.ScalarAsync<string>("SELECT CONVERT(varchar(18),CONVERT(binary(8),RowVersion),1) FROM Storage.FinancialEvidenceAttachmentStates");
+        Assert.Equal(Convert.ToBase64String(Convert.FromHexString(evidence[2..])), retained.EvidenceVersion);
+    }
+
+    [Fact]
     public async Task EvidenceReadWaitsForAppendBeforeHoldingSourceOrPurchaseLocks()
     {
         // GIVEN a source writer holding its established Accounting then PO coordination locks.

@@ -29,6 +29,7 @@ public sealed class PurchaseOrderDocumentService(WorkbenchDbContext database, IB
     {
         // Keep documents and their parent version in one stable SQL state.
         await using var transaction = await database.Database.BeginTransactionAsync(IsolationLevel.RepeatableRead, cancellationToken);
+        await FinancialEvidenceQueries.CoordinateReadAsync(database, cancellationToken);
         var order = await RequireContextAsync(orderId, cancellationToken);
         var documents = await database.PurchaseOrderDocuments.AsNoTracking().Where(row => row.OrderId == orderId && row.RemovedAtUtc == null)
             .OrderBy(row => row.CreatedAtUtc).ThenBy(row => row.Id).ToArrayAsync(cancellationToken);
