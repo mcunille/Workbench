@@ -30,7 +30,7 @@ bill/credit correction participants have disposable tests only; BK-07 retention,
 sources and the remaining PO-07 release stories are not delivered by this increment.
 
 The [BK-07 durable evidence design](2026-09-28-bk-07-durable-financial-evidence.md) records the
-approved direction for retention and recovery protection. Its written specification awaits review;
+approved design for retention and recovery protection. Its implementation plan requires review;
 BK-07 runtime behavior is not yet implemented.
 
 ## Decision and evidence

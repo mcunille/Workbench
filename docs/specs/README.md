@@ -8,7 +8,7 @@ specs. Git preserves chronology; dated evidence records retain their specific ve
 
 [BK-07 durable financial evidence](2026-09-28-bk-07-durable-financial-evidence.md) proposes
 atomic evidence holds, configured retention, authorized disposal, and paired recovery protection.
-The design direction is approved; the written specification awaits review before planning.
+The written specification is approved; implementation awaits the plan review and execution handoff.
 
 [MCP agent interface](2026-09-28-mcp-agent-interface.md) proposes full agent-eligible business
 workflow coverage through tenant-owned service principals with predefined role assignments.

@@ -1,8 +1,8 @@
 # BK-07: durable financial evidence
 
-**Status:** Design direction approved; this written specification awaits review. No BK-07
-runtime implementation or verification is claimed. Written-spec approval precedes the
-implementation plan and its separate review/execution-method handoff.
+**Status:** Design direction and written specification approved in chat. No BK-07 runtime
+implementation or verification is claimed. The implementation plan requires its separate
+review/execution-method handoff before implementation.
 
 Parent: [PO-07 bookkeeping prerequisites](2026-09-20-po-07-deposits-and-payments.md).
 Baseline: `ddb2101a887bd33f43f91c00ef07a3fbc0698de3`, including merged BK-01–06 and
@@ -248,4 +248,4 @@ remain separately authorized.
 The owner approved the SQL-enforced direction, frozen retention, explicit disposal, correction
 preservation and recovery/access boundaries in chat. This document makes their detailed semantics
 reviewable, including the retention anchor, legacy backfill, indefinite-policy behavior and disposal
-authority. Those details are proposed until this written specification is approved.
+authority. The owner subsequently approved this written specification in chat.
