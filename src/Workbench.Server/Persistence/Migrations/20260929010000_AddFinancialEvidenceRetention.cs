@@ -415,6 +415,8 @@ namespace Workbench.Server.Persistence.Migrations
             FinancialEvidenceStorageGuards.Create(migrationBuilder);
             FinancialEvidenceDisposal.Create(migrationBuilder);
             FinancialEvidenceReadSchema.Create(migrationBuilder);
+            FinancialEvidenceRecovery.Create(migrationBuilder);
+            FinancialEvidenceBackfill.Create(migrationBuilder);
         }
 
         /// <inheritdoc />

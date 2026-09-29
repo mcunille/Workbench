@@ -698,9 +698,9 @@ internal static class SupplierCorrectionFixture
     {
         Assert.Equal(0, await context.Bills.ScalarAsync<int>("SELECT COUNT(*) FROM Accounting.JournalLines l OUTER APPLY(SELECT SUM(a.Amount) Amount FROM Purchasing.SupplierControlAttributions a WHERE a.TenantId=l.TenantId AND a.JournalId=l.JournalId AND a.Ordinal=l.Ordinal AND a.AccountId=l.AccountId AND a.AccountVersion=l.AccountVersion) a WHERE l.AccountPurpose IN('SupplierPayable','SupplierAdvance','SupplierCreditReceivable','SupplierRefundClearing') AND COALESCE(a.Amount,0)<>CASE WHEN l.AccountType='Asset' THEN l.Debit-l.Credit ELSE l.Credit-l.Debit END"));
     }
-    internal static async Task<SupplierPaymentTestContext> OpenAsync(SqlServerFixture fixture)
+    internal static async Task<SupplierPaymentTestContext> OpenAsync(SqlServerFixture fixture, string? priorMigration = null)
     {
-        var context = await SupplierPaymentTestContext.OpenAsync(fixture);
+        var context = await SupplierPaymentTestContext.OpenAsync(fixture, priorMigration);
         await context.Bills.AdminAsync("""
             GRANT EXECUTE ON Purchasing.ReverseSupplierApplication TO workbench_web;
             GRANT EXECUTE ON Purchasing.PreviewSupplierPaymentCorrection TO workbench_web;

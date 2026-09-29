@@ -6,8 +6,9 @@ using System.Text;
 namespace Workbench.Server.Storage;
 
 public sealed record RecoveryRevision(Guid TenantId, Guid RevisionId, string ProviderAlias, long? Length, string? Sha256,
-    int State, string RowVersion);
-public sealed record RecoveryInventory(string Database, string Server, long Generation, IReadOnlyList<RecoveryRevision> Rows);
+    int State, string RowVersion, bool FinanciallyProtected = false, bool Disposed = false);
+public sealed record RecoveryInventory(string Database, string Server, long Generation, IReadOnlyList<RecoveryRevision> Rows,
+    string? FinancialEvidenceFingerprint = null);
 public sealed record MissingRecoveryFile(Guid TenantId, Guid RevisionId, string Reason);
 public sealed record FileRecoveryReport(int Version, Guid ReportId, Guid InstallationId, string TargetAlias, string InventoryJson,
     string Fingerprint, IReadOnlyList<MissingRecoveryFile> Missing, IReadOnlyList<BlobObjectId> Orphans);
