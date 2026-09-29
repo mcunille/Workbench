@@ -65,6 +65,7 @@ internal static class SupplierReconciliationQueries
             snapshot.IndexEvidence();
             return await read(snapshot);
         }
+        catch (SqlException e) when (e.Number == 50903) { return Results.Problem(statusCode: 403, title: "Current evidence access is required."); }
         catch (SqlException e) when (e.Number is -2 or 1205 or 1222 or 51010) { return JournalReportEndpoints.Retry(); }
         catch (SqlException e) when (e.Number == 8115) { return Results.Problem(statusCode: 422, title: "Report totals exceed the supported range."); }
     }

@@ -35,9 +35,10 @@ public sealed class PurchaseOrderDocumentService(WorkbenchDbContext database, IB
         var ids = documents.Select(row => row.RevisionId).ToArray();
         var unavailable = await database.Database.SqlQuery<Guid>($"SELECT RevisionId AS Value FROM Storage.RecoveryFiles")
             .Where(id => ids.Contains(id)).ToArrayAsync(cancellationToken);
+        var retention = await FinancialEvidenceQueries.RetentionAsync(database, actor, documents.Select(d => d.AttachmentId).ToArray(), cancellationToken);
         await transaction.CommitAsync(cancellationToken);
         return new(documents.Select(row => new PurchaseOrderDocumentResponse(row.Id, row.Label, row.MediaType, row.Extension, row.Length,
-            row.CreatedAtUtc, Convert.ToBase64String(row.RowVersion), unavailable.Contains(row.RevisionId))).ToArray(),
+            row.CreatedAtUtc, Convert.ToBase64String(row.RowVersion), unavailable.Contains(row.RevisionId), retention[row.AttachmentId])).ToArray(),
             Convert.ToBase64String(order.RowVersion));
     }
     public async Task<PurchaseOrderDocumentOperationResponse> OperationAsync(Guid orderId, Guid requestId, CancellationToken cancellationToken)
@@ -45,6 +46,8 @@ public sealed class PurchaseOrderDocumentService(WorkbenchDbContext database, IB
         await RequireContextAsync(orderId, cancellationToken);
         var operation = await database.PurchaseOrderDocumentOperations.AsNoTracking().SingleOrDefaultAsync(row => row.RequestId == requestId && row.OrderId == orderId, cancellationToken)
             ?? throw new DocumentInputException(404, "Operation not found.");
+        if (await database.FinancialEvidenceReceipts.AnyAsync(r => r.RequestId == requestId && r.Operation == "Dispose", cancellationToken))
+            return await new PurchaseOrderDocumentDisposalService(database, actor).ReadOperationAsync(orderId, requestId, cancellationToken);
         return Result(operation);
     }
     public async Task<PurchaseOrderDocumentOperationResponse> ChangeAsync(Guid orderId, Guid requestId,
@@ -139,15 +142,22 @@ public sealed class PurchaseOrderDocumentService(WorkbenchDbContext database, IB
         await RequireContextAsync(orderId, cancellationToken);
         var document = await database.PurchaseOrderDocuments.AsNoTracking().SingleOrDefaultAsync(row => row.OrderId == orderId && row.Id == documentId && row.RemovedAtUtc == null, cancellationToken)
             ?? throw new DocumentInputException(404, "Document not found.");
-        await using var source = await Attachments().DownloadAsync(document.AttachmentId, cancellationToken);
-        using var bytes = new MemoryStream();
-        await BlobTransfer.CopyAsync(source, bytes, 10 * 1024 * 1024, cancellationToken);
-        // AttachmentService verifies the complete revision. Also bind to the immutable document
-        // evidence, so a pointer change cannot silently serve different paperwork.
-        var content = bytes.ToArray();
-        if (content.LongLength != document.Length || Convert.ToHexString(SHA256.HashData(content)) != document.Sha256)
-            throw new IOException("The stored document failed integrity verification.");
-        return (content, document.MediaType, document.Extension);
+        try
+        {
+            await using var source = await Attachments().DownloadAsync(document.AttachmentId, cancellationToken);
+            using var bytes = new MemoryStream();
+            await BlobTransfer.CopyAsync(source, bytes, 10 * 1024 * 1024, cancellationToken);
+            // AttachmentService verifies the complete revision. Also bind to the immutable document
+            // evidence, so a pointer change cannot silently serve different paperwork.
+            var content = bytes.ToArray();
+            if (content.LongLength != document.Length || Convert.ToHexString(SHA256.HashData(content)) != document.Sha256)
+                throw new InvalidDataException("The stored document failed integrity verification.");
+            return (content, document.MediaType, document.Extension);
+        }
+        catch (Exception error) when (error is FileNotFoundException or InvalidDataException)
+        {
+            throw new RecoveredFileUnavailableException();
+        }
     }
     private SqlCommand Procedure(string name) => new(name, (SqlConnection)database.Database.GetDbConnection(),
         (SqlTransaction)database.Database.CurrentTransaction!.GetDbTransaction())

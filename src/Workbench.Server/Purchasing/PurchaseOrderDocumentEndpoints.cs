@@ -14,9 +14,14 @@ public static class PurchaseOrderDocumentEndpoints
     public static void MapPurchaseOrderDocuments(this RouteGroupBuilder purchases)
     {
         var group = purchases.MapGroup("/{id:guid}/documents");
+        group.AddEndpointFilter(async (context, next) =>
+        {
+            context.HttpContext.Response.Headers.CacheControl = "private, no-store";
+            return await next(context);
+        });
         group.MapGet("", ListAsync).Produces<PurchaseOrderDocumentsResponse>().ProducesProblem(404).ProducesProblem(409).ProducesProblem(503);
         group.MapGet("/operations/{requestId:guid}", OperationAsync)
-            .Produces<PurchaseOrderDocumentOperationResponse>().ProducesProblem(404).ProducesProblem(503);
+            .Produces<PurchaseOrderDocumentOperationResponse>().ProducesProblem(403).ProducesProblem(404).ProducesProblem(503);
         group.MapGet("/{documentId:guid}/download", DownloadAsync)
             .Produces<byte[]>(contentType: "application/octet-stream").ProducesProblem(404).ProducesProblem(410).ProducesProblem(503);
         var upload = group.MapPost("", UploadAsync)
@@ -24,12 +29,17 @@ public static class PurchaseOrderDocumentEndpoints
             .Accepts<UploadPurchaseOrderDocumentRequest>("multipart/form-data");
         var rename = group.MapPut("/{documentId:guid}", RenameAsync).WithMetadata(WorkbenchAntiforgeryMetadata.Instance);
         var remove = group.MapDelete("/{documentId:guid}", RemoveAsync).WithMetadata(WorkbenchAntiforgeryMetadata.Instance);
-        foreach (var endpoint in new[] { upload, rename, remove })
+        var disposal = group.MapPost("/{documentId:guid}/retention-disposals", DisposeAsync).WithMetadata(WorkbenchAntiforgeryMetadata.Instance);
+        foreach (var endpoint in new[] { upload, rename, remove, disposal })
         {
             endpoint.Produces<PurchaseOrderDocumentOperationResponse>();
             foreach (var status in new[] { 400, 401, 403, 404, 409, 413, 415, 422, 503 }) endpoint.ProducesProblem(status);
         }
     }
+
+    private static Task<IResult> DisposeAsync(Guid id, Guid documentId, DisposePurchaseOrderDocumentRequest request,
+        PurchaseOrderDocumentDisposalService service, CancellationToken cancellationToken) =>
+        ExecuteAsync(async () => Results.Ok(await service.DisposeAsync(id, documentId, request, cancellationToken)));
 
     private static Task<IResult> ListAsync(Guid id, PurchaseOrderDocumentService service, CancellationToken cancellationToken) =>
         ExecuteAsync(async () => Results.Ok(await service.ListAsync(id, cancellationToken)));

@@ -39,6 +39,14 @@ public sealed class SupplierPaymentCorrectionTests(SqlServerFixture sqlServer)
         Assert.Equal(links, await context.Bills.ScalarAsync<string>("SELECT * FROM Accounting.FinancialEvidenceLinks FOR JSON PATH"));
         Assert.True(await context.Bills.ScalarAsync<bool>("SELECT Held FROM Storage.Attachments"));
         if (replace) Assert.Equal(originalSet, await context.Bills.ScalarAsync<Guid>("SELECT InheritedEvidenceSetId FROM Accounting.FinancialEvidenceSets WHERE InheritedEvidenceSetId IS NOT NULL"));
+        // AND authorized successor readback traverses its authentic ancestor without acquiring a new deadline.
+        var readSet = replace ? await context.Bills.ScalarAsync<Guid>("SELECT Id FROM Accounting.FinancialEvidenceSets WHERE InheritedEvidenceSetId IS NOT NULL") : originalSet;
+        var read = JsonNode.Parse(await FinancialEvidenceDisposalTests.ExecuteAsync(context.Bills,
+            $"EXEC Accounting.ReadFinancialEvidence '{JournalTestContext.ActorId}','{context.Bills.Journal.SessionId}','{readSet}'"))!;
+        var retained = Assert.Single(read["links"]!.AsArray());
+        Assert.Equal(document.Document, Guid.Parse(retained!["documentId"]!.ToString()));
+        Assert.Equal("Missing", retained["availability"]!.ToString());
+        Assert.Equal(links, await context.Bills.ScalarAsync<string>("SELECT * FROM Accounting.FinancialEvidenceLinks FOR JSON PATH"));
     }
 
     [Fact]

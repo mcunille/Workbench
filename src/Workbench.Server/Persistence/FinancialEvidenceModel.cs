@@ -73,5 +73,20 @@ public partial class WorkbenchDbContext
         state.HasQueryFilter(x => (Guid?)x.TenantId == TenantContext.TenantId);
         state.Property(x => x.RowVersion).IsRowVersion();
         state.HasOne<Attachment>().WithMany().HasForeignKey(x => new { x.TenantId, x.AttachmentId }).HasPrincipalKey(x => new { x.TenantId, x.Id }).OnDelete(DeleteBehavior.Restrict);
+
+        var disposal = builder.Entity<Accounting.FinancialEvidenceDisposal>();
+        disposal.ToTable("FinancialEvidenceDisposals", "Accounting", t => t.HasCheckConstraint("CK_FinancialEvidenceDisposals_Grace", "[DeleteAfterUtc]>=DATEADD(day,7,[RemovedAtUtc])"));
+        disposal.HasKey(x => new { x.TenantId, x.RequestId });
+        disposal.HasQueryFilter(x => (Guid?)x.TenantId == TenantContext.TenantId);
+        disposal.HasIndex(x => new { x.TenantId, x.AttachmentId }).IsUnique();
+        disposal.HasOne<FinancialEvidenceReceipt>().WithMany().HasForeignKey(x => new { x.TenantId, x.RequestId }).OnDelete(DeleteBehavior.Restrict);
+        disposal.HasOne<Attachment>().WithMany().HasForeignKey(x => new { x.TenantId, x.AttachmentId }).HasPrincipalKey(x => new { x.TenantId, x.Id }).OnDelete(DeleteBehavior.Restrict);
+        disposal.HasOne<PurchaseOrderDocument>().WithMany().HasForeignKey(x => new { x.TenantId, x.DocumentId }).HasPrincipalKey(x => new { x.TenantId, x.Id }).OnDelete(DeleteBehavior.Restrict);
+        var member = builder.Entity<FinancialEvidenceDisposalLink>();
+        member.ToTable("FinancialEvidenceDisposalLinks", "Accounting");
+        member.HasKey(x => new { x.TenantId, x.RequestId, x.LinkId });
+        member.HasQueryFilter(x => (Guid?)x.TenantId == TenantContext.TenantId);
+        member.HasOne<Accounting.FinancialEvidenceDisposal>().WithMany().HasForeignKey(x => new { x.TenantId, x.RequestId }).OnDelete(DeleteBehavior.Restrict);
+        member.HasOne<FinancialEvidenceLink>().WithMany().HasForeignKey(x => new { x.TenantId, Id = x.LinkId }).OnDelete(DeleteBehavior.Restrict);
     }
 }

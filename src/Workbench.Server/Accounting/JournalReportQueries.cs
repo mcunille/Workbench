@@ -63,12 +63,13 @@ internal static class JournalReportQueries
         catch (SqlException e) when (Retryable(e)) { return Retry(); }
     }
 
-    internal static async Task<IResult> ReadJournal(Guid id, WorkbenchDbContext database, CancellationToken ct)
+    internal static async Task<IResult> ReadJournal(Guid id, WorkbenchDbContext database, Authorization.RequestActor actor, CancellationToken ct)
     {
         var tenant = database.TenantContext.RequireTenantId();
         try
         {
             await using var tx = await database.Database.BeginTransactionAsync(IsolationLevel.Serializable, ct);
+            await FinancialEvidenceQueries.CoordinateReadAsync(database, ct);
             var connection = (SqlConnection)database.Database.GetDbConnection();
             var sqlTx = (SqlTransaction)tx.GetDbTransaction();
             JournalHeader? header = null;
@@ -114,9 +115,22 @@ internal static class JournalReportQueries
             }
             var corrections = await JournalCorrectionQueries.ForJournal(id, database, ct);
             var recognition = await PurchaseRecognitionReports.ReadAsync(database, id, ct);
+            var evidenceOwner = recognition?.SourceId ?? source.SourceId;
+            var evidenceRevision = recognition?.SourceRevision ?? source.SourceRevision;
+            if (recognition is null)
+            {
+                var original = await (from correction in database.JournalCorrectionGroups.AsNoTracking()
+                                      join journal in database.JournalEntries.AsNoTracking() on correction.OriginalJournalId equals journal.Id
+                                      join originalSource in database.JournalSourceEvents.AsNoTracking() on journal.SourceEventId equals originalSource.Id
+                                      where correction.ReversalJournalId == id
+                                      select new { originalSource.SourceId, originalSource.SourceRevision }).SingleOrDefaultAsync(ct);
+                if (original is not null) { evidenceOwner = original.SourceId; evidenceRevision = original.SourceRevision; }
+            }
+            var evidence = await FinancialEvidenceQueries.ReadAsync(database, actor, evidenceOwner, evidenceRevision, ct, recognition?.EventId);
             await tx.CommitAsync(ct);
-            return Results.Ok(new JournalDetail(header, lines, source, corrections, recognition));
+            return Results.Ok(new JournalDetail(header, lines, source, corrections, recognition, evidence));
         }
+        catch (SqlException e) when (e.Number == 50903) { return Results.Problem(statusCode: 403, title: "Current evidence access is required."); }
         catch (SqlException e) when (e.Number == 8115) { return Results.Problem(statusCode: 422, title: "Report totals exceed the supported range."); }
         catch (SqlException e) when (Retryable(e)) { return Retry(); }
     }
@@ -376,5 +390,5 @@ internal static class JournalReportQueries
         return scale == 0 ? parts[0] : $"{parts[0]}.{parts[1][..scale]}";
     }
 
-    private static bool Retryable(SqlException error) => error.Number is -2 or 1205 or 1222;
+    private static bool Retryable(SqlException error) => error.Number is -2 or 1205 or 1222 or 51010;
 }

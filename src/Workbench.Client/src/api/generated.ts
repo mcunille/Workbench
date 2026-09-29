@@ -2848,6 +2848,15 @@ export interface paths {
                         "application/json": components["schemas"]["PurchaseOrderDocumentOperationResponse"];
                     };
                 };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
                 /** @description Not Found */
                 404: {
                     headers: {
@@ -3166,6 +3175,129 @@ export interface paths {
                 };
             };
         };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/beta/purchase-orders/{id}/documents/{documentId}/retention-disposals": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                    documentId: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["DisposePurchaseOrderDocumentRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PurchaseOrderDocumentOperationResponse"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Payload Too Large */
+                413: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unsupported Media Type */
+                415: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unprocessable Entity */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Service Unavailable */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -5472,6 +5604,14 @@ export interface components {
             requestId: string;
             expectedVersion: string;
         };
+        DisposePurchaseOrderDocumentRequest: {
+            /** Format: uuid */
+            requestId: string;
+            expectedOrderVersion: string;
+            expectedDocumentVersion: string;
+            expectedEvidenceVersion: string;
+            reason: string;
+        };
         DraftCalculationResponse: {
             lines: components["schemas"]["DraftLineCalculation"][];
             /** Format: int32 */
@@ -5588,6 +5728,30 @@ export interface components {
         ExportPackageRequest: {
             scope: null | string;
         };
+        FinancialEvidenceLinkResponse: {
+            /** Format: uuid */
+            linkId: string;
+            /** Format: uuid */
+            documentId: string;
+            /** Format: uuid */
+            revisionId: string;
+            sha256: string;
+            /** Format: int64 */
+            length: number | string;
+            label: string;
+            /** Format: date-time */
+            retainUntilUtc: null | string;
+            indefinite: boolean;
+            availability: string;
+            /** Format: uuid */
+            replacesLinkId: null | string;
+        };
+        FinancialEvidenceSetResponse: {
+            /** Format: uuid */
+            id: string;
+            missingEvidenceReason: null | string;
+            links: components["schemas"]["FinancialEvidenceLinkResponse"][];
+        };
         HttpValidationProblemDetails: {
             type?: null | string;
             title?: null | string;
@@ -5672,6 +5836,7 @@ export interface components {
             source: components["schemas"]["JournalSourceEvidence"];
             corrections: components["schemas"]["JournalCorrectionEvidence"][];
             recognition: null | components["schemas"]["PurchaseRecognitionEvidence"];
+            financialEvidence?: null | components["schemas"]["FinancialEvidenceSetResponse"];
         };
         JournalHeader: {
             /** Format: uuid */
@@ -5779,6 +5944,15 @@ export interface components {
             detail?: null | string;
             instance?: null | string;
         };
+        PurchaseDocumentRetentionResponse: {
+            retained: boolean;
+            /** Format: date-time */
+            retainUntilUtc: null | string;
+            indefinite: boolean;
+            evidenceVersion: null | string;
+            canDispose: boolean;
+            disposalBlockReason: null | string;
+        };
         PurchaseOrderDocumentOperationResponse: {
             /** Format: uuid */
             requestId: string;
@@ -5799,6 +5973,7 @@ export interface components {
             createdAtUtc: string;
             version: string;
             unavailable: boolean;
+            retention?: null | components["schemas"]["PurchaseDocumentRetentionResponse"];
         };
         PurchaseOrderDocumentsResponse: {
             documents: components["schemas"]["PurchaseOrderDocumentResponse"][];
@@ -6067,6 +6242,7 @@ export interface components {
             postingThrough: string;
             /** Format: date-time */
             recordedThrough: string;
+            financialEvidence?: null | components["schemas"]["FinancialEvidenceSetResponse"];
         };
         SupplierPageResponse: {
             items: components["schemas"]["SupplierResponse"][];

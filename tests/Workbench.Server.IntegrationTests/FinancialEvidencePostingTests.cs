@@ -194,11 +194,12 @@ public sealed class FinancialEvidencePostingTests(SqlServerFixture sqlServer)
         var version = Convert.ToBase64String(Convert.FromHexString(context.Recognition.PurchaseOrderVersion[2..]));
         using var uploaded = await PurchaseOrderDocumentEndpointTests.UploadAsync(client, path, version, Guid.NewGuid(), DocumentValidatorTests.Pdf());
         uploaded.EnsureSuccessStatusCode();
-        var list = (await client.GetFromJsonAsync<PurchaseOrderDocumentsResponse>(path))!;
         var saved = (await uploaded.Content.ReadFromJsonAsync<PurchaseOrderDocumentOperationResponse>())!;
-        var document = Assert.Single(list.Documents, value => value.Id == saved.DocumentId);
-        context.Recognition.PurchaseOrderVersion = "0x" + Convert.ToHexString(Convert.FromBase64String(list.OrderVersion));
-        var revision = await context.ScalarAsync<Guid>($"SELECT RevisionId FROM Purchasing.PurchaseOrderDocuments WHERE Id='{document.Id}'");
-        return (document.Id, revision);
+        // The upload receipt also works while an upgrade fixture is still on the merged schema;
+        // current document-list projections require the BK07 schema and are asserted by HTTP tests.
+        var document = Assert.IsType<Guid>(saved.DocumentId);
+        context.Recognition.PurchaseOrderVersion = "0x" + Convert.ToHexString(Convert.FromBase64String(saved.OrderVersion!));
+        var revision = await context.ScalarAsync<Guid>($"SELECT RevisionId FROM Purchasing.PurchaseOrderDocuments WHERE Id='{document}'");
+        return (document, revision);
     }
 }

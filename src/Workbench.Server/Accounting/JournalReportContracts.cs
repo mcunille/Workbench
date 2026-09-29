@@ -16,7 +16,7 @@ public sealed record JournalLine(int Ordinal, Guid AccountId, Guid AccountVersio
 
 public sealed record JournalDetail(JournalHeader Header, IReadOnlyList<JournalLine> Lines,
     JournalSourceEvidence Source, IReadOnlyList<JournalCorrectionEvidence> Corrections,
-    PurchaseRecognitionEvidence? Recognition);
+    PurchaseRecognitionEvidence? Recognition, FinancialEvidenceSetResponse? FinancialEvidence = null);
 
 public sealed record ReportTotals(string Debit, string Credit);
 

@@ -74,3 +74,20 @@ public sealed class FinancialEvidenceAttachmentState
     public Guid AttachmentId { get; set; }
     public byte[] RowVersion { get; set; } = [];
 }
+
+public sealed class FinancialEvidenceDisposal
+{
+    public Guid TenantId { get; set; }
+    public Guid RequestId { get; set; }
+    public Guid AttachmentId { get; set; }
+    public Guid DocumentId { get; set; }
+    public DateTimeOffset RemovedAtUtc { get; set; }
+    public DateTimeOffset DeleteAfterUtc { get; set; }
+}
+
+public sealed class FinancialEvidenceDisposalLink
+{
+    public Guid TenantId { get; set; }
+    public Guid RequestId { get; set; }
+    public Guid LinkId { get; set; }
+}

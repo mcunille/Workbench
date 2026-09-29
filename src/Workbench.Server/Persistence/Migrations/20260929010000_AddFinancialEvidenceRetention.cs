@@ -326,8 +326,95 @@ namespace Workbench.Server.Persistence.Migrations
                 schema: "Accounting",
                 table: "FinancialEvidenceSets",
                 columns: new[] { "TenantId", "SupplierId" });
+            migrationBuilder.CreateTable(
+                name: "FinancialEvidenceDisposals",
+                schema: "Accounting",
+                columns: table => new
+                {
+                    TenantId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    RequestId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    AttachmentId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    DocumentId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    RemovedAtUtc = table.Column<DateTimeOffset>(type: "datetimeoffset", nullable: false),
+                    DeleteAfterUtc = table.Column<DateTimeOffset>(type: "datetimeoffset", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_FinancialEvidenceDisposals", x => new { x.TenantId, x.RequestId });
+                    table.CheckConstraint("CK_FinancialEvidenceDisposals_Grace", "[DeleteAfterUtc]>=DATEADD(day,7,[RemovedAtUtc])");
+                    table.ForeignKey(
+                        name: "FK_FinancialEvidenceDisposals_Attachments_TenantId_AttachmentId",
+                        columns: x => new { x.TenantId, x.AttachmentId },
+                        principalSchema: "Storage",
+                        principalTable: "Attachments",
+                        principalColumns: new[] { "TenantId", "Id" },
+                        onDelete: ReferentialAction.Restrict);
+                    table.ForeignKey(
+                        name: "FK_FinancialEvidenceDisposals_FinancialEvidenceReceipts_TenantId_RequestId",
+                        columns: x => new { x.TenantId, x.RequestId },
+                        principalSchema: "Accounting",
+                        principalTable: "FinancialEvidenceReceipts",
+                        principalColumns: new[] { "TenantId", "RequestId" },
+                        onDelete: ReferentialAction.Restrict);
+                    table.ForeignKey(
+                        name: "FK_FinancialEvidenceDisposals_PurchaseOrderDocuments_TenantId_DocumentId",
+                        columns: x => new { x.TenantId, x.DocumentId },
+                        principalSchema: "Purchasing",
+                        principalTable: "PurchaseOrderDocuments",
+                        principalColumns: new[] { "TenantId", "Id" },
+                        onDelete: ReferentialAction.Restrict);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "FinancialEvidenceDisposalLinks",
+                schema: "Accounting",
+                columns: table => new
+                {
+                    TenantId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    RequestId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    LinkId = table.Column<Guid>(type: "uniqueidentifier", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_FinancialEvidenceDisposalLinks", x => new { x.TenantId, x.RequestId, x.LinkId });
+                    table.ForeignKey(
+                        name: "FK_FinancialEvidenceDisposalLinks_FinancialEvidenceDisposals_TenantId_RequestId",
+                        columns: x => new { x.TenantId, x.RequestId },
+                        principalSchema: "Accounting",
+                        principalTable: "FinancialEvidenceDisposals",
+                        principalColumns: new[] { "TenantId", "RequestId" },
+                        onDelete: ReferentialAction.Restrict);
+                    table.ForeignKey(
+                        name: "FK_FinancialEvidenceDisposalLinks_FinancialEvidenceLinks_TenantId_LinkId",
+                        columns: x => new { x.TenantId, x.LinkId },
+                        principalSchema: "Accounting",
+                        principalTable: "FinancialEvidenceLinks",
+                        principalColumns: new[] { "TenantId", "Id" },
+                        onDelete: ReferentialAction.Restrict);
+                });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_FinancialEvidenceDisposalLinks_TenantId_LinkId",
+                schema: "Accounting",
+                table: "FinancialEvidenceDisposalLinks",
+                columns: new[] { "TenantId", "LinkId" });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_FinancialEvidenceDisposals_TenantId_AttachmentId",
+                schema: "Accounting",
+                table: "FinancialEvidenceDisposals",
+                columns: new[] { "TenantId", "AttachmentId" },
+                unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "IX_FinancialEvidenceDisposals_TenantId_DocumentId",
+                schema: "Accounting",
+                table: "FinancialEvidenceDisposals",
+                columns: new[] { "TenantId", "DocumentId" });
             FinancialEvidenceSchema.Create(migrationBuilder);
             FinancialEvidenceStorageGuards.Create(migrationBuilder);
+            FinancialEvidenceDisposal.Create(migrationBuilder);
+            FinancialEvidenceReadSchema.Create(migrationBuilder);
         }
 
         /// <inheritdoc />

@@ -43,6 +43,13 @@ public sealed class PurchaseRecognitionCorrectionTests(SqlServerFixture sqlServe
         Assert.Equal(links, await bills.ScalarAsync<string>("SELECT * FROM Accounting.FinancialEvidenceLinks FOR JSON PATH"));
         Assert.True(await bills.ScalarAsync<bool>("SELECT Held FROM Storage.Attachments"));
         if (replace) Assert.Equal(originalSet, await bills.ScalarAsync<Guid>("SELECT InheritedEvidenceSetId FROM Accounting.FinancialEvidenceSets WHERE InheritedEvidenceSetId IS NOT NULL"));
+        // AND source readback follows correction ancestry while preserving the original unavailable identity.
+        var readSet = replace ? await bills.ScalarAsync<Guid>("SELECT Id FROM Accounting.FinancialEvidenceSets WHERE InheritedEvidenceSetId IS NOT NULL") : originalSet;
+        var read = JsonNode.Parse(await FinancialEvidenceDisposalTests.ExecuteAsync(bills,
+            $"EXEC Accounting.ReadFinancialEvidence '{JournalTestContext.ActorId}','{context.Journal.SessionId}','{readSet}'"))!;
+        var retained = Assert.Single(read["links"]!.AsArray());
+        Assert.Equal(document.Document, Guid.Parse(retained!["documentId"]!.ToString()));
+        Assert.Equal("Missing", retained["availability"]!.ToString());
     }
 
     [Fact]
