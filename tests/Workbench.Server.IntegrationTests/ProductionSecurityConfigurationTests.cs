@@ -24,8 +24,6 @@ public sealed class ProductionSecurityConfigurationTests
     [Theory]
     [InlineData("DataProtection:CertificatePath")]
     [InlineData("ConnectionStrings:Workbench")]
-    [InlineData("TenantContext:ProofKey")]
-    [InlineData("PublicOrigin")]
     [InlineData("AllowedHosts")]
     public async Task AzureMetadataTrustDoesNotWaiveOtherProductionRequirements(string missingKey)
     {

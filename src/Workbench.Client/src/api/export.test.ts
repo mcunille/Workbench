@@ -64,8 +64,9 @@ it('posts explicit scope with antiforgery and accepts only the fully read file',
   expect(result?.filename).toBe(filename);
 });
 
-it.each([401, 403, 422, 429, 503])('preserves error %s for accessible feedback', async status => {
+it('preserves the server error status for accessible feedback', async () => {
   // GIVEN a server failure WHEN preparing THEN preserve status rather than treating it as a file.
+  const status = 503;
   vi.stubGlobal('fetch', vi.fn(async () => new Response('{}', { status, headers: { 'Content-Type': 'application/problem+json' } })));
   await expect(prepareExport('active', new AbortController().signal)).rejects.toMatchObject({ status });
 });

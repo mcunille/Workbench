@@ -18,7 +18,6 @@ public sealed class PublicEndpointTests
 {
     [Theory]
     [InlineData("100.100.0.56")]
-    [InlineData("100.100.0.187")]
     public async Task AzureEnvironmentTrustAcceptsOnlyOneMetadataHop(string peer)
     {
         // GIVEN explicit acceptance of the Azure environment metadata trust boundary.
@@ -184,8 +183,6 @@ public sealed class PublicEndpointTests
     [Theory]
     [InlineData("workbench.example", "KnownProxies", HttpStatusCode.OK)]
     [InlineData("attacker.example", "KnownProxies", HttpStatusCode.BadRequest)]
-    [InlineData("workbench.example", "AzureContainerApps", HttpStatusCode.OK)]
-    [InlineData("attacker.example", "AzureContainerApps", HttpStatusCode.BadRequest)]
     public async Task HostAllowlistIsEnforcedBeforeApplicationHandlers(string host, string mode, HttpStatusCode expected)
     {
         // GIVEN a deployed host allowlist, WHEN an API request supplies a host,

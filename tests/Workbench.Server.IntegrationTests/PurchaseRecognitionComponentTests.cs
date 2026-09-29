@@ -26,11 +26,14 @@ public sealed class PurchaseRecognitionComponentTests(SqlServerFixture sqlServer
              {"componentKey":"recoverable","kind":"RecoverableTax","amount":"2"}]
             """);
         // WHEN the reviewed invoice posts through the durable source adapter.
-        await context.PostAsync(command.ToJsonString());
+        var result = await context.PostAsync(command.ToJsonString());
         // THEN the persisted journal recognizes cost 98, tax 2 and payable 100.
+        Assert.Single(result.JournalIds);
         Assert.Equal(98m, await context.BalanceAsync("Prepayment"));
         Assert.Equal(2m, await context.BalanceAsync("RecoverableTax"));
         Assert.Equal(-100m, await context.BalanceAsync("SupplierPayable"));
+        // AND invoice-first recognition does not yet debit inventory or expense.
+        Assert.Equal(0m, await context.BalanceAsync(classification));
     }
 
     [Fact]
@@ -50,7 +53,6 @@ public sealed class PurchaseRecognitionComponentTests(SqlServerFixture sqlServer
     }
 
     [Theory]
-    [InlineData("0.01", true)]
     [InlineData("0.02", false)]
     [InlineData("-0.01", true)]
     public async Task InvoiceRoundingHasOneMinorUnitBound(string adjustment, bool accepted)

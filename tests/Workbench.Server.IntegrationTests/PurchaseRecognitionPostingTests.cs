@@ -115,21 +115,6 @@ public sealed class PurchaseRecognitionPostingTests(SqlServerFixture sqlServer)
         Assert.Equal(-100m, await context.BalanceAsync("GoodsReceivedNotInvoiced"));
         Assert.Equal(0m, await context.BalanceAsync("SupplierPayable"));
     }
-    [Theory]
-    [InlineData("Inventory")]
-    [InlineData("Expense")]
-    public async Task EligibleInvoiceCreatesPrepayment(string classification)
-    {
-        // GIVEN a present obligation and enforceable future right with cost 105 and recoverable tax 5.
-        await using var context = await PurchaseRecognitionTestContext.OpenAsync(sqlServer);
-        var command = await context.CommandAsync("Invoice", classification, "105", "5");
-        // WHEN the invoice arrives before recognition.
-        var result = await context.PostAsync(command.ToJsonString());
-        // THEN independent persisted balances are prepayment 105, tax 5 and AP 110.
-        Assert.Single(result.JournalIds);
-        Assert.Equal(105m, await context.BalanceAsync("Prepayment")); Assert.Equal(5m, await context.BalanceAsync("RecoverableTax"));
-        Assert.Equal(-110m, await context.BalanceAsync("SupplierPayable")); Assert.Equal(0m, await context.BalanceAsync(classification));
-    }
     [Fact]
     public async Task ProFormaCannotPost()
     {
