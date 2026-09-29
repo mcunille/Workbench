@@ -63,7 +63,7 @@ Operator-only commands provision and disable service-admin identities, reset a l
 
 The dedicated admin UI lists the **shared** entries and their sources. It supports creating, editing, and retiring entries, including aliases and notable-locality assertions. Changes are staged as drafts visible only to authorized service admins. A review screen shows the combined field and source diff, validation results, and affected entry IDs. One service admin may review and publish their own selected batch; a second approver is not required in this release. A batch may contain changes to several gems and publishes atomically: either every selected change becomes visible or none does. Drafts outside the selected batch remain drafts. Published entries appear to tenants on subsequent reads, with untouched override fields inheriting the new values.
 
-Publishing requires citations for substantive shared claims, checks material-kind and taxonomy compatibility, validates links and names, and rejects duplicate shared identities, including duplicates within the selected batch. Every edited entry carries a database concurrency token. If any selected entry changed after the draft was based on it, the entire batch remains unpublished; the editor shows the conflict and preserves all draft changes for review. A successful publish or retirement writes an append-oriented system audit record with actor, time, affected IDs, and changed-field summary in the same transaction as the data change. Rejected attempts write a separate failure audit record. Corrections are ordinary later edits. There is no catalog-wide revision number, version-history rollback feature, or revert UI in this release. The concurrency token and audit record serve different purposes from historical content versions.
+Publishing requires citations for substantive shared claims, checks material-kind and taxonomy compatibility, validates links and names, and rejects duplicate shared identities, including duplicates within the selected batch. Every edited entry carries a database concurrency token. If any selected entry changed after the draft was based on it, the entire batch remains unpublished; the editor shows the conflict and preserves all draft changes for review. A publish request has a durable request identity and outcome so an exact retry after a lost response cannot apply twice; changed input under that identity conflicts. A successful publish or retirement writes an append-oriented system audit record with actor, time, affected IDs, and changed-field summary in the same transaction as the data change. Rejected attempts write a separate failure audit record. Corrections are ordinary later edits. There is no catalog-wide revision number, version-history rollback feature, or revert UI in this release. The concurrency token and audit record serve different purposes from historical content versions.
 
 The serving application receives only narrow catalog read/write commands needed for these routes, with authorization checked before invocation. It receives no operator or migration credential and no general tenant-data bypass. The database permission matrix and negative tests must prove that a tenant session cannot publish and a service-admin session cannot access tenant records, even by substituting IDs or calling tenant APIs directly. The admin UI is a prerequisite for maintaining the shared catalog after initial seeding; later reference-property editing uses the same curation authority and review/publish flow when that phase is designed.
 
@@ -99,6 +99,126 @@ The first release adds a new reference domain, tenant route, and service-admin r
 - API/SQL tests cover shared visibility, tenant isolation, additions, per-field inheritance/replacement/clear/reset, behavior after a shared-entry publication, duplicate conflict handling, archive/restore, concurrent edits, and inaccessible IDs. Component/browser tests cover search and source labels, source-link safety, draft preservation, keyboard/mobile use, and the Tanzanite/tsavorite locality distinction. Follow repository TDD, Gherkin-comment, mutation, and delivery gates when implementation is authorized.
 - A user can find each pilot example by common name and at least one relevant classification term; see why a field is absent on non-mineral entries; add and later correct a tenant entry; override Tanzanite for their tenant; and reset one field to receive the current Workbench value. Another tenant sees no change.
 - A later property phase is successful only when a reader can tell a sourced type range from an observation on a particular stone and can see the limits of the published value.
+
+## First-release milestones and user stories
+
+This roadmap covers the first **reference-library release**: shared and tenant entries, field-level overrides, service-admin curation, pilot content, and the two user interfaces. The later reference-property phase is design direction, not a story or completion condition here. Collection-item linking and the other reserved decisions below are also outside this roadmap. When **GEM-01 through GEM-10** are implemented, integrated, and verified against current source, the first-release requirements in this spec are met and its status can become **Implemented**. A future property release needs its own reviewed scope and stories.
+
+Each story is an independently assignable handoff, not permission to skip design or implementation-plan review. An assignee receives this spec, prerequisite decisions and merged PRs, current repository guidance, and the story ID; they confirm the current code and follow the applicable superpowers handoffs. A predecessor means its behavior or decision has been reviewed, integrated, and verified, not merely mocked or proposed. Story owners provide a focused PR, affected tests and mutation evidence, and updated contracts or documentation. Milestone labels group outcomes; a story may start as soon as its own hard predecessors are complete. Coordinate edits to shared migrations, generated API contracts, navigation, and database permission scripts even when stories otherwise run in parallel.
+
+| Milestone | Outcome and exit evidence | Stories |
+| --- | --- | --- |
+| M0 — Establish trusted foundations | The pilot claims are sourced, the shared reference read contract exists, and service-admin identity is separate from tenant authority. | GEM-01–03 |
+| M1 — Make the data usable and curatable | The pilot catalog is installed, admins can publish shared changes, and tenants can store additions and overrides through protected APIs. | GEM-04–06 |
+| M2 — Deliver both user workflows | Service admins can stage/review/publish in the UI; tenant members can browse, add, customize, and reset entries in the UI. | GEM-07–09 |
+| M3 — Prove the integrated release | Cross-role and cross-tenant journeys pass from current source, product guidance is current, and the spec's first-release acceptance criteria are satisfied. | GEM-10 |
+
+### M0 — Establish trusted foundations
+
+#### GEM-01 — Curate the pilot claim set
+
+**Story:** As a collector, I want familiar mineral and non-mineral examples backed by identifiable sources so that the reference is useful and its claims can be checked.
+
+- **Scope:** Prepare the exact pilot entries named in this spec, including classifications, common names, aliases, applicable absent fields, Tanzanite's narrowly worded locality assertion, and claim-level source records. Review the distinction from tsavorite and avoid copied source prose or media.
+- **Acceptance:** Every substantive Workbench claim has a supporting primary citation and review date; the set exercises group/no-group, species/no-species, variety/no-variety, and mineral/non-mineral cases. Another reviewer can reproduce the classification decisions from the linked sources.
+- **Evidence:** A reviewed, machine-readable seed-content package or equivalent source dossier plus a claim-to-source checklist. Do not put unsourced numerical reference properties into this release.
+- **Predecessors:** None. **Parallel:** GEM-02 and GEM-03; align field names with GEM-02 before finalizing the seed package.
+
+#### GEM-02 — Persist and read the shared reference
+
+**Story:** As a reader, I want a stable shared gem reference so that every tenant sees the same curated identity before personal additions or overrides.
+
+- **Scope:** Add the shared entry, alias, source-assertion, locality-assertion, and retirement storage; stable IDs; validation and duplicate rules; bounded search/detail read APIs; and explicit SQL grants. Define the read contract consumed by tenant and service-admin work. No tenant write or admin publish behavior belongs here.
+- **Acceptance:** Searches find common names and taxonomy terms; non-mineral entries need no invented species; retired entries retain identity and redirect/explanation; source claims are attributed; malformed queries fail predictably. Authenticated tenant members can read shared entries, unauthenticated callers are denied, and shared reads expose no tenant data.
+- **Evidence:** Current-source API and SQL tests, fresh/upgrade migration checks, generated contract updates, and database-principal allow/deny checks.
+- **Predecessors:** None. **Parallel:** GEM-01 and GEM-03. Integrate its schema and API contract before GEM-04, GEM-05, GEM-07, or GEM-08 consumes them.
+
+#### GEM-03 — Give service admins a separate identity
+
+**Story:** As a Workbench operator, I want to provision and revoke service-admin access so that shared-gem curation has accountable authority without tenant-data access.
+
+- **Scope:** Separate service-admin accounts, sign-in/session validation, operator-only provision/disable/reset/revoke commands, protected service-admin route policy, and narrow database authority. No catalog editor or publishing workflow belongs here.
+- **Acceptance:** Service-admin and tenant sessions cannot substitute for each other; disablement or revocation ends authority on the next request; no service-admin request obtains tenant context or tenant records; operator and migrator credentials remain absent from the web process.
+- **Evidence:** Real HTTP/SQL negative tests for route and ID substitution, session revocation, actual-principal permission tests, and operator-command tests without credential disclosure.
+- **Predecessors:** None. **Parallel:** GEM-01 and GEM-02; coordinate shared identity/security migrations and grants with GEM-02 before integration.
+
+### M1 — Make the data usable and curatable
+
+#### GEM-04 — Install the pilot catalog safely
+
+**Story:** As a new Workbench installation, I want a sourced starter library so that browsing is useful before any service admin creates an entry.
+
+- **Scope:** Load GEM-01's reviewed content into GEM-02's schema with deterministic IDs on first installation. Existing service-admin edits must survive later deployments and upgrades.
+- **Acceptance:** Fresh databases get the exact reviewed pilot set once; an upgrade does not duplicate entries or overwrite a published edit; source records and locality wording match the reviewed package.
+- **Evidence:** Fresh-install, rerun, and upgrade tests from the merged base schema, plus a source-to-seed comparison.
+- **Predecessors:** GEM-01, GEM-02. **Parallel:** GEM-05 and GEM-07 once their own prerequisites are met; serialize any shared migration edits.
+
+#### GEM-05 — Stage and publish shared changes
+
+**Story:** As a service admin, I want to review and publish a selected batch of gem changes so that the shared library can improve without a code deployment.
+
+- **Scope:** Admin-only draft, review-diff, validation, atomic multi-entry publish/retire, durable publish request identity/outcome, concurrency rejection, and success/failure audit APIs. One admin may review and publish. No historical-content rollback feature.
+- **Acceptance:** Drafts are not visible to tenants; a valid batch becomes visible together; one invalid, duplicate, or stale entry prevents all selected changes; the draft survives failure; successful changes and audit commit together. An exact retry after an uncertain response yields the original outcome without publishing twice, while a changed retry conflicts. Tenant sessions and ordinary web writes cannot reach the publish command.
+- **Evidence:** Real SQL/HTTP tests for one- and multi-entry batches, races, lost-response retries, audit outcome, source validation, direct unauthorized calls, and denial of broad database write grants.
+- **Predecessors:** GEM-02, GEM-03. **Parallel:** GEM-04 and GEM-06; its admin UI follows in GEM-07.
+
+#### GEM-06 — Store tenant additions and field-level overrides
+
+**Story:** As a tenant member, I want to add my own gem entries and replace selected Workbench fields so that my library reflects my knowledge without changing anyone else's reference.
+
+- **Scope:** Tenant-owned additions, archive/restore, sparse inherit/replace/clear overrides, effective-entry projection for read/search/detail, field-attributed sources, duplicate checks, reset, and conflict-safe writes. No inventory-item classification belongs here.
+- **Acceptance:** A tenant's changes appear only in that tenant; inherited fields update after a shared publication while overridden fields remain; reset receives the current shared value; explicit clear differs from inherit; cross-tenant IDs and stale writes fail without data leakage. A newly conflicting shared name is flagged rather than merged or deleted.
+- **Evidence:** Tenant-isolated SQL/HTTP tests with two tenants, synthetic shared updates, concurrency and archive/restore cases, and actual-principal permission checks.
+- **Predecessors:** GEM-02. **Parallel:** GEM-04 and GEM-05; coordinate the effective read contract with GEM-08 and migrations/grants with GEM-05.
+
+### M2 — Deliver both user workflows
+
+#### GEM-07 — Edit the shared library in the service-admin UI
+
+**Story:** As a service admin, I want to stage several entries, inspect their source and field changes, and publish them together so that shared curation is understandable and controlled.
+
+- **Scope:** Dedicated sign-in entry, shared-only list/detail/editor, draft persistence, combined review screen, publish/retire actions, conflict recovery, and clear published/draft states. No tenant-data browsing controls.
+- **Acceptance:** An admin completes create, edit, and multi-entry publish from the browser; failed validation or stale data preserves drafts; retiring an entry requires an explanation or redirect. A tenant account cannot open the admin workflow or invoke its APIs directly.
+- **Evidence:** Browser journeys in both appearance modes and narrow layout, keyboard and error-state checks, plus direct unauthorized API attempts against the running app.
+- **Predecessors:** GEM-05. **Parallel:** GEM-08 and GEM-09 after their respective prerequisites; coordinate navigation and shared UI components before editing them.
+
+#### GEM-08 — Browse the effective library
+
+**Story:** As a tenant member, I want to search and inspect gems by familiar name or classification so that I can use the shared reference and see my tenant's effective values.
+
+- **Scope:** Library navigation, search and material-kind/group filters, result list, detail view, source and layer labels, locality wording, missing-field explanation, loading/empty/error states, and safe external links. Use the effective API; no editing controls belong here.
+- **Acceptance:** Pilot examples are findable; tenant additions and overrides appear with correct attribution; another tenant's values never appear; locality statements never read as specimen-origin proof; keyboard/mobile behavior works.
+- **Evidence:** Component and browser checks against the integrated effective API, including Tanzanite, tsavorite, opal, pearl, and a tenant override.
+- **Predecessors:** GEM-02, GEM-06. **Parallel:** GEM-07; GEM-09 may begin after this screen's shared interaction contract is integrated.
+
+#### GEM-09 — Add and customize entries in the tenant UI
+
+**Story:** As a tenant member, I want to add entries and adjust or reset Workbench fields so that I can maintain a personal reference without altering the curated catalog.
+
+- **Scope:** Add/edit/archive/restore tenant entries; edit inherited, replaced, and cleared fields on shared entries; show Workbench values; single-field and whole-entry reset; source attribution; draft preservation and conflict reconciliation.
+- **Acceptance:** A member can add an entry, customize Tanzanite, see that the shared value remains available, reset one field, and recover from failed or concurrent saves. Another tenant remains unaffected. The UI distinguishes tenant-authored unsourced claims from sourced Workbench claims.
+- **Evidence:** Browser journey across refresh, conflict, archive/restore, and both appearance modes; direct API isolation tests remain owned by GEM-06.
+- **Predecessors:** GEM-06, GEM-08. **Parallel:** GEM-07; coordinate shared UI files and browser fixtures.
+
+### M3 — Prove the integrated release
+
+#### GEM-10 — Accept the end-to-end library
+
+**Story:** As the product owner, I want the shared and tenant workflows verified together so that the reference library can be treated as a supported Workbench capability.
+
+- **Scope:** Reconcile every first-release requirement above with implemented code; exercise operator provisioning, service-admin publish, tenant browse/add/override/reset, another-tenant isolation, backup inclusion, and source accuracy. Update living product and architecture guides and mark this spec implemented only after the checks pass.
+- **Acceptance:** All GEM-01–09 stories are integrated; their checks and applicable repository delivery gates pass from current source; the running application is inspected at its local URL; no unauthorized cross-role or cross-tenant path remains; representative source-backed pilot entries and limits are visible. Record any residual coverage limits honestly.
+- **Evidence:** Integrated API/SQL, browser, migration, permission, mutation, full verification, container smoke, and preview evidence as required by `CONTRIBUTING.md`, plus the ready-for-review PR and updated living docs.
+- **Predecessors:** GEM-04, GEM-07, GEM-09, and therefore their transitive predecessors. **Parallel:** No independent implementation lane; this story integrates and verifies the delivered range.
+
+### Parallel delivery order
+
+| Wave | Work that may proceed together | Integration boundary |
+| --- | --- | --- |
+| A | GEM-01, GEM-02, GEM-03 | Agree seed fields, read contract, and separate identity/security boundaries before dependent stories branch. |
+| B | GEM-04, GEM-05, GEM-06 after their stated predecessors | Serialize common schema/grant changes; publish, seed, and effective-entry tests use the same integrated shared contract. |
+| C | GEM-07 and GEM-08 after their stated predecessors; GEM-09 after GEM-06 and GEM-08 | Coordinate navigation and test fixtures; UI work may prototype against approved contracts, but mocked endpoints do not complete prerequisites. |
+| D | GEM-10 | Integrate all prior PRs, then run full current-source acceptance and update the spec status. |
 
 ## Decisions reserved for later work
 
