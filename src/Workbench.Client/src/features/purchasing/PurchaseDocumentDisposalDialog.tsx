@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import type { PurchaseDocument } from '../../api/purchaseOrderDocuments';
 
-export function PurchaseDocumentDisposalDialog({ document, onConfirm, onClose, busy, error }: { document: PurchaseDocument; onConfirm: (reason: string) => void; onClose: () => void; busy: boolean; error: string | null }): React.JSX.Element {
-  const [reason, setReason] = useState('');
+export function PurchaseDocumentDisposalDialog({ document, initialReason = '', onConfirm, onClose, busy, error }: { document: PurchaseDocument; initialReason?: string; onConfirm: (reason: string) => void; onClose: () => void; busy: boolean; error: string | null }): React.JSX.Element {
+  const [reason, setReason] = useState(initialReason);
   const dialog = useRef<HTMLDialogElement>(null);
   const reasonInput = useRef<HTMLTextAreaElement>(null);
   useEffect(() => {
@@ -11,6 +11,7 @@ export function PurchaseDocumentDisposalDialog({ document, onConfirm, onClose, b
     reasonInput.current?.focus();
     return () => previous?.focus();
   }, []);
+  useEffect(() => { if (error && !busy) reasonInput.current?.focus(); }, [error, busy]);
   return <dialog ref={dialog} aria-labelledby="po-dispose-title" aria-describedby="po-dispose-description" onCancel={event => { event.preventDefault(); if (!busy) onClose(); }}>
     <h2 id="po-dispose-title">Dispose retained document?</h2>
     <p id="po-dispose-description">Dispose “{document.label}”? Its bytes become eligible for permanent removal after the file cleanup grace period. Accounting metadata and the disposal record remain.</p>

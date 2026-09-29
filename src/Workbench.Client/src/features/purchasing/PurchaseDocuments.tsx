@@ -7,8 +7,8 @@ import { PurchaseDocumentDisposalDialog } from './PurchaseDocumentDisposalDialog
 import './purchase-documents.css';
 
 type FileDraft = { id: string; file: File; label: string; saved: boolean; error?: string };
-type Editor = { kind: 'upload' } | { kind: 'rename' | 'remove' | 'dispose'; document: PurchaseDocument };
-type Command = { kind: 'upload'; key: string; payload: PurchaseDocumentUpload } | { kind: 'rename' | 'remove'; documentId: string; payload: PurchaseDocumentChange } | { kind: 'dispose'; documentId: string; payload: PurchaseDocumentDisposal };
+type Editor = { kind: 'upload' } | { kind: 'rename' | 'remove'; document: PurchaseDocument } | { kind: 'dispose'; document: PurchaseDocument; initialReason?: string };
+type Command = { kind: 'upload'; key: string; payload: PurchaseDocumentUpload } | { kind: 'rename' | 'remove'; documentId: string; payload: PurchaseDocumentChange } | { kind: 'dispose'; document: PurchaseDocument; payload: PurchaseDocumentDisposal };
 type Phase = 'ready' | 'uncertain' | 'conflict' | 'refresh';
 type Props = { orderId: string; onAuthLost(): void; onCurrent(): Promise<void>; onStateChange(dirty: boolean, uncertain: boolean, editing: boolean): void };
 
@@ -90,14 +90,15 @@ export function PurchaseDocuments({ orderId, onAuthLost, onCurrent, onStateChang
         try {
           const status = await getPurchaseDocumentOperation(orderId, exact.payload.requestId);
           if (!active.current) return;
-          if (status.state === 'Completed') return await confirm(exact);
+          if (status.state === 'Completed') { if (exact.kind === 'dispose') setEditor(undefined); return await confirm(exact); }
           if (status.state === 'Conflict') throw new PurchaseDocumentConflict('The purchase or file changed. Review current files before retrying.');
         } catch (failure) { if (!(failure instanceof ApiError && failure.status === 404)) throw failure; }
       }
-      const result = exact.kind === 'upload' ? await uploadPurchaseDocument(orderId, exact.payload) : exact.kind === 'dispose' ? await disposePurchaseDocument(orderId, exact.documentId, exact.payload) : await changePurchaseDocument(orderId, exact.documentId, exact.payload, exact.kind === 'remove');
+      const result = exact.kind === 'upload' ? await uploadPurchaseDocument(orderId, exact.payload) : exact.kind === 'dispose' ? await disposePurchaseDocument(orderId, exact.document.id, exact.payload) : await changePurchaseDocument(orderId, exact.documentId, exact.payload, exact.kind === 'remove');
       if (!active.current) return;
-      if (result.state === 'Completed') return await confirm(exact);
+      if (result.state === 'Completed') { if (exact.kind === 'dispose') setEditor(undefined); return await confirm(exact); }
       if (result.state === 'Conflict') throw new PurchaseDocumentConflict('The purchase or file changed. Review current files before retrying.');
+      if (exact.kind === 'dispose') setEditor(undefined);
       setPhase('uncertain'); setError('This file change is pending. Check and retry before making another change.');
     } catch (failure) {
       if (!active.current || lostAccess(failure)) return;
@@ -105,9 +106,11 @@ export function PurchaseDocuments({ orderId, onAuthLost, onCurrent, onStateChang
         const reason = Object.values(failure.errors).flat().join(' ');
         setCommand(undefined); setPhase('ready'); setError(reason);
         if (exact.kind === 'upload') setQueue(items => items.map(item => item.id === exact.key ? { ...item, error: reason } : item));
+        if (exact.kind === 'dispose') setEditor({ kind: 'dispose', document: exact.document, initialReason: exact.payload.reason });
       } else if (failure instanceof ApiError && [404, 409].includes(failure.status)) {
+        if (exact.kind === 'dispose') setEditor(undefined);
         setPhase('conflict'); setError(failure instanceof PurchaseDocumentConflict ? failure.reason : 'The purchase or file is no longer available. Review current files before retrying.');
-      } else { setPhase('uncertain'); setError('This file change could not be confirmed. Your exact request is kept here. Check and retry before making another change.'); }
+      } else { if (exact.kind === 'dispose') setEditor(undefined); setPhase('uncertain'); setError('This file change could not be confirmed. Your exact request is kept here. Check and retry before making another change.'); }
     }
   }
   async function run(action: () => Promise<unknown>) {
@@ -132,8 +135,7 @@ export function PurchaseDocuments({ orderId, onAuthLost, onCurrent, onStateChang
   }
   async function submitDisposal(reason: string) {
     if (editor?.kind !== 'dispose' || !list || command || !reason.trim() || reason.length > 2000 || !editor.document.retention?.canDispose || !editor.document.retention.evidenceVersion) return;
-    const exact: Command = { kind: 'dispose', documentId: editor.document.id, payload: { requestId: crypto.randomUUID(), expectedOrderVersion: list.orderVersion, expectedDocumentVersion: editor.document.version, expectedEvidenceVersion: editor.document.retention.evidenceVersion, reason } };
-    setEditor(undefined);
+    const exact: Command = { kind: 'dispose', document: editor.document, payload: { requestId: crypto.randomUUID(), expectedOrderVersion: list.orderVersion, expectedDocumentVersion: editor.document.version, expectedEvidenceVersion: editor.document.retention.evidenceVersion, reason } };
     await run(() => execute(exact));
   }
   async function reviewConflict() {
@@ -162,13 +164,13 @@ export function PurchaseDocuments({ orderId, onAuthLost, onCurrent, onStateChang
     <div className="po-documents-heading"><h2 id="po-documents-title" ref={heading} tabIndex={-1}>Invoice files</h2>
       {!editor && list ? <button ref={addButton} type="button" className="secondary" disabled={list.documents.length >= 20 || loadFailed} onClick={() => begin({ kind: 'upload' })}>Add invoice files</button> : null}</div>
     {message ? <p role="status">{message}</p> : null}
-    {error ? <div role="alert" ref={errorRegion} tabIndex={-1} className="po-document-error"><p>{error}</p>{downloadRetry ? <button type="button" className="secondary" onClick={() => void download(downloadRetry)}>Retry download</button> : null}</div> : null}
-    {command?.kind === 'dispose' ? <div className="po-document-actions po-disposal-recovery"><button type="button" className="primary" disabled={busy} onClick={() => void run(() => phase === 'refresh' ? confirm(command) : phase === 'conflict' ? reviewConflict() : execute(command, true))}>{phase === 'refresh' ? 'Retry loading saved files' : phase === 'conflict' ? 'Review current files' : 'Check and retry disposal'}</button></div> : null}
+    {error && editor?.kind !== 'dispose' ? <div role="alert" ref={errorRegion} tabIndex={-1} className="po-document-error"><p>{error}</p>{downloadRetry ? <button type="button" className="secondary" onClick={() => void download(downloadRetry)}>Retry download</button> : null}</div> : null}
+    {command?.kind === 'dispose' && editor?.kind !== 'dispose' ? <div className="po-document-actions po-disposal-recovery"><button type="button" className="primary" disabled={busy} onClick={() => phase === 'conflict' ? void reviewConflict() : void run(() => phase === 'refresh' ? confirm(command) : execute(command, true))}>{phase === 'refresh' ? 'Retry loading saved files' : phase === 'conflict' ? 'Review current files' : 'Check and retry disposal'}</button></div> : null}
     {loadFailed ? <div role="alert"><p>Invoice files could not be loaded. The purchase is still available.</p><button type="button" className="secondary" onClick={() => { setLoadFailed(false); setAttempt(value => value + 1); }}>Retry loading files</button></div> : !list ? <p role="status">Loading invoice files…</p> : null}
     {list ? <>
       {list.documents.length ? <ul className="po-document-list">{list.documents.map(document => <li key={document.id}>
         <div className="po-document-description"><strong>{document.label}</strong><p>{document.extension.toUpperCase()} · {fileSize(document.length)} · Uploaded <time dateTime={document.createdAtUtc}>{new Date(document.createdAtUtc).toLocaleDateString()}</time></p>
-          {document.retention?.retained ? <p className="po-document-retention">Financial evidence retained {document.retention.indefinite ? 'indefinitely until policy is resolved' : document.retention.retainUntilUtc ? `through ${new Date(document.retention.retainUntilUtc).toLocaleDateString()}` : 'under its saved policy'}. Ordinary removal is unavailable.{document.retention.disposalBlockReason ? ` ${document.retention.disposalBlockReason}` : ''}</p> : null}
+          {document.retention?.retained ? <p className="po-document-retention">Financial evidence retained {document.retention.indefinite ? 'indefinitely' : document.retention.retainUntilUtc ? `through ${new Date(document.retention.retainUntilUtc).toLocaleDateString()}` : 'under its saved policy'}. Ordinary removal is unavailable.{document.retention.disposalBlockReason ? ` ${document.retention.disposalBlockReason}` : ''}</p> : null}
           {document.unavailable ? <p>File unavailable after recovery. Contact your administrator or add another copy.</p> : null}</div>
         <div className="po-document-actions"><button type="button" className="secondary" disabled={document.unavailable || busy} aria-label={`Download ${document.label}`} onClick={() => void download(document)}>Download</button>
           <button type="button" className="quiet" disabled={!!editor || busy || loadFailed} aria-label={`Rename ${document.label}`} onClick={() => begin({ kind: 'rename', document })}>Rename</button>
@@ -177,7 +179,7 @@ export function PurchaseDocuments({ orderId, onAuthLost, onCurrent, onStateChang
       </li>)}</ul> : !loadFailed ? <p className="hint">Keep supplier invoices and supporting purchase paperwork here. Add one or more PDF files; no invoice details are required.</p> : null}
       {list.documents.length >= 20 ? <p className="hint">20-file limit reached. Remove a file before adding another.</p> : null}
     </> : null}
-    {editor?.kind === 'dispose' ? <PurchaseDocumentDisposalDialog document={editor.document} onConfirm={reason => void submitDisposal(reason)} onClose={() => { close(false); requestAnimationFrame(() => { if (active.current) disposalOpener.current?.focus(); }); }} busy={busy} error={error || null} /> : editor ? <form className="po-document-form" onSubmit={event => { event.preventDefault(); void submit(); }}>
+    {editor?.kind === 'dispose' ? <PurchaseDocumentDisposalDialog document={editor.document} initialReason={editor.initialReason} onConfirm={reason => void submitDisposal(reason)} onClose={() => { close(false); requestAnimationFrame(() => { if (active.current) disposalOpener.current?.focus(); }); }} busy={busy} error={error || null} /> : editor ? <form className="po-document-form" onSubmit={event => { event.preventDefault(); void submit(); }}>
       <h3 ref={editorHeading} tabIndex={-1}>{editor.kind === 'upload' ? 'Add invoice files' : editor.kind === 'rename' ? 'Rename file' : 'Remove file'}</h3>
       {editor.kind === 'upload' ? <>
         {!queue.length ? <label className="po-file-picker">Choose files<input type="file" multiple accept=".pdf,.jpg,.jpeg,.png,.webp" disabled={frozen} onChange={event => {
