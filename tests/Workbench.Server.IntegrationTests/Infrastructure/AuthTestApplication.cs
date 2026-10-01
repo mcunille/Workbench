@@ -1,5 +1,8 @@
 // Copyright (c) 2026 The White Stag Collection.
 
+using System.Data;
+using Microsoft.Data.SqlClient;
+using Workbench.Server.ServiceAdministration;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
@@ -19,6 +22,35 @@ public sealed class AuthTestApplication : IAsyncDisposable
     public static readonly Guid DisabledUserId = Guid.Parse("33333333-3333-3333-3333-333333333333");
     public static readonly Guid MemberUserId = Guid.Parse("44444444-4444-4444-4444-444444444444");
     public static readonly Guid OtherTenantUserId = Guid.Parse("55555555-5555-5555-5555-555555555555");
+    public static readonly Guid ServiceAdminId = Guid.Parse("11111111-1111-1111-1111-111111111111");
+    public const string ServiceAdminPassword = "Separate Service Admin Password 2!";
+    private static readonly Lazy<string> ServiceAdminHash = new(() =>
+        new PasswordHasher<ServiceAdminAccount>().HashPassword(new ServiceAdminAccount(), ServiceAdminPassword));
+
+    public async Task ProvisionServiceAdminAsync()
+    {
+        await using var connection = new SqlConnection(AdminConnectionString);
+        await connection.OpenAsync();
+        await using var command = new SqlCommand("Administration.ProvisionServiceAdmin", connection) { CommandType = CommandType.StoredProcedure };
+        command.Parameters.AddWithValue("@AccountId", ServiceAdminId);
+        command.Parameters.AddWithValue("@Email", AdminEmail);
+        command.Parameters.AddWithValue("@NormalizedEmail", AdminEmail.ToUpperInvariant());
+        command.Parameters.AddWithValue("@PasswordHash", ServiceAdminHash.Value);
+        command.Parameters.AddWithValue("@Now", DateTimeOffset.UtcNow);
+        await command.ExecuteScalarAsync();
+    }
+
+    public async Task MaintainServiceAdminAsync(string operation)
+    {
+        await using var connection = new SqlConnection(AdminConnectionString);
+        await connection.OpenAsync();
+        await using var command = new SqlCommand("Administration." + operation, connection) { CommandType = CommandType.StoredProcedure };
+        command.Parameters.AddWithValue("@AccountId", ServiceAdminId);
+        command.Parameters.AddWithValue("@Now", DateTimeOffset.UtcNow);
+        if (operation == "ResetServiceAdminPassword") command.Parameters.AddWithValue("@PasswordHash", ServiceAdminHash.Value);
+        await command.ExecuteNonQueryAsync();
+    }
+
     public const string AdminEmail = "admin@example.com";
     public const string AdminPassword = "Correct Horse Battery Staple 1!";
     public const string DisabledEmail = "disabled@example.com";

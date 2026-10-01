@@ -1,6 +1,9 @@
 // Copyright (c) 2026 The White Stag Collection.
 
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authorization;
+using Workbench.Server.ServiceAdministration;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Identity;
@@ -104,6 +107,12 @@ builder.Services.AddSingleton<SessionService>(services => new SessionService(
     RequireWebConnectionString(services.GetRequiredService<IConfiguration>()),
     services.GetRequiredService<DurableSessionOptions>(),
     services.GetRequiredService<TenantContextProof>()));
+builder.Services.AddScoped<IPasswordHasher<ServiceAdminAccount>, PasswordHasher<ServiceAdminAccount>>();
+builder.Services.AddScoped<ServiceAdminSessionService>(services => new ServiceAdminSessionService(
+    RequireWebConnectionString(services.GetRequiredService<IConfiguration>()),
+    services.GetRequiredService<DurableSessionOptions>(),
+    services.GetRequiredService<IPasswordHasher<ServiceAdminAccount>>()));
+builder.Services.AddScoped<ServiceAdminAuthenticationEvents>();
 builder.Services.AddSingleton<DummyPasswordHash>();
 builder.Services.AddScoped<IIdentityVerifier>(services => new BuiltInPasswordVerifier(
     RequireWebConnectionString(services.GetRequiredService<IConfiguration>()),
@@ -163,12 +172,18 @@ builder.Services.AddScoped<SessionAuthenticationEvents>();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped(services =>
 {
-    var principal = services.GetRequiredService<IHttpContextAccessor>().HttpContext?.User;
+    var context = services.GetRequiredService<IHttpContextAccessor>().HttpContext;
+    if (ServiceAdminCookieHandler.IsServiceAdminRequest(context))
+        throw new InvalidOperationException("Tenant authority is unavailable on service-admin routes.");
+    var principal = context?.User;
     return new TenantContext(ParseGuidClaim(principal, SessionCookieHandler.TenantIdClaimType));
 });
 builder.Services.AddScoped(services =>
 {
-    var principal = services.GetRequiredService<IHttpContextAccessor>().HttpContext?.User;
+    var context = services.GetRequiredService<IHttpContextAccessor>().HttpContext;
+    if (ServiceAdminCookieHandler.IsServiceAdminRequest(context))
+        throw new InvalidOperationException("Tenant authority is unavailable on service-admin routes.");
+    var principal = context?.User;
     return new RequestActor(
         ParseRequiredGuidClaim(principal, ClaimTypes.NameIdentifier),
         ParseRequiredGuidClaim(principal, SessionCookieHandler.TenantIdClaimType),
@@ -192,7 +207,8 @@ var dataProtection = builder.Services
     .SetApplicationName("Workbench" + developmentSuffix);
 if (!string.IsNullOrWhiteSpace(configuredWebConnection))
 {
-    dataProtection.PersistKeysToDbContext<WorkbenchDbContext>();
+    builder.Services.AddDbContext<DataProtectionKeyDbContext>(options => options.UseSqlServer(configuredWebConnection));
+    dataProtection.PersistKeysToDbContext<DataProtectionKeyDbContext>();
 }
 if (!builder.Environment.IsDevelopment())
 {
@@ -204,7 +220,24 @@ if (!builder.Environment.IsDevelopment())
 }
 
 builder.Services
-    .AddAuthentication(SessionCookieHandler.Scheme)
+    .AddAuthentication("WorkbenchRoute")
+    .AddPolicyScheme("WorkbenchRoute", "Route authority", options =>
+        options.ForwardDefaultSelector = context => ServiceAdminCookieHandler.IsServiceAdminRequest(context)
+            ? ServiceAdminCookieHandler.Scheme : SessionCookieHandler.Scheme)
+    .AddCookie(ServiceAdminCookieHandler.Scheme, options =>
+    {
+        options.Cookie.Name = builder.Environment.IsDevelopment()
+            ? ".Workbench.ServiceAdmin" + developmentSuffix : "__Host-Workbench.ServiceAdmin";
+        options.Cookie.HttpOnly = true;
+        options.Cookie.SameSite = SameSiteMode.Lax;
+        options.Cookie.SecurePolicy = builder.Environment.IsDevelopment() ? CookieSecurePolicy.SameAsRequest : CookieSecurePolicy.Always;
+        options.Cookie.Path = "/";
+        options.ExpireTimeSpan = TimeSpan.FromHours(12);
+        options.SlidingExpiration = false;
+        options.EventsType = typeof(ServiceAdminAuthenticationEvents);
+        options.LoginPath = PathString.Empty;
+        options.AccessDeniedPath = PathString.Empty;
+    })
     .AddCookie(SessionCookieHandler.Scheme, options =>
     {
         options.Cookie.Name = builder.Environment.IsDevelopment()
@@ -224,11 +257,14 @@ builder.Services
     });
 builder.Services.AddAuthorization(options =>
 {
+    options.DefaultPolicy = new AuthorizationPolicyBuilder(SessionCookieHandler.Scheme).RequireAuthenticatedUser().Build();
+    options.AddPolicy(ServiceAdminCookieHandler.Policy, policy =>
+        policy.AddAuthenticationSchemes(ServiceAdminCookieHandler.Scheme).RequireAuthenticatedUser());
     foreach (var permission in new[] { "AccountingConfigurationRead", "AccountingConfigurationManage", "AccountingReportsRead" })
-        options.AddPolicy(permission, policy => policy.RequireClaim(SessionCookieHandler.PermissionClaimType, permission));
+        options.AddPolicy(permission, policy => policy.AddAuthenticationSchemes(SessionCookieHandler.Scheme).RequireAuthenticatedUser().RequireClaim(SessionCookieHandler.PermissionClaimType, permission));
     options.AddPolicy(
         WorkbenchPermissions.TenantUsersManage,
-        policy => policy.RequireClaim(
+        policy => policy.AddAuthenticationSchemes(SessionCookieHandler.Scheme).RequireAuthenticatedUser().RequireClaim(
             SessionCookieHandler.PermissionClaimType,
             WorkbenchPermissions.TenantUsersManage));
 });
@@ -283,6 +319,7 @@ app.MapGet(
     .Produces<SystemResponse>();
 
 app.MapWorkbenchAuthentication();
+app.MapServiceAdminAuthentication();
 app.MapWorkbenchInventory();
 app.MapPurchaseOrderDrafts();
 app.MapPurchaseOrders();

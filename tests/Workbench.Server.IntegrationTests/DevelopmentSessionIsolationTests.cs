@@ -10,6 +10,7 @@ using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using Workbench.Server.Identity;
+using Workbench.Server.ServiceAdministration;
 using Workbench.Server.Security;
 using Xunit;
 
@@ -29,9 +30,16 @@ public sealed class DevelopmentSessionIsolationTests
         // WHEN resolving the registered authentication, antiforgery and protection options.
         var session = factory.Services.GetRequiredService<IOptionsMonitor<CookieAuthenticationOptions>>()
             .Get(SessionCookieHandler.Scheme);
+        var admin = factory.Services.GetRequiredService<IOptionsMonitor<CookieAuthenticationOptions>>().Get(ServiceAdminCookieHandler.Scheme);
         var antiforgery = factory.Services.GetRequiredService<IOptions<AntiforgeryOptions>>().Value;
         var protection = factory.Services.GetRequiredService<IOptions<DataProtectionOptions>>().Value;
         // THEN all browser state namespaces use the same suffix while security settings remain intact.
+        Assert.Equal(".Workbench.ServiceAdmin" + suffix, admin.Cookie.Name);
+        Assert.False(admin.SlidingExpiration);
+        Assert.True(admin.Cookie.HttpOnly);
+        Assert.Equal("/", admin.Cookie.Path);
+        Assert.Equal(SameSiteMode.Lax, admin.Cookie.SameSite);
+        Assert.Equal(CookieSecurePolicy.SameAsRequest, admin.Cookie.SecurePolicy);
         Assert.Equal(".Workbench.Session" + suffix, session.Cookie.Name);
         Assert.Equal(".Workbench.Antiforgery" + suffix, antiforgery.Cookie.Name);
         Assert.Equal("Workbench" + suffix, protection.ApplicationDiscriminator);
@@ -72,8 +80,12 @@ public sealed class DevelopmentSessionIsolationTests
         // WHEN resolving its browser security configuration.
         var session = factory.Services.GetRequiredService<IOptionsMonitor<CookieAuthenticationOptions>>()
             .Get(SessionCookieHandler.Scheme);
+        var admin = factory.Services.GetRequiredService<IOptionsMonitor<CookieAuthenticationOptions>>().Get(ServiceAdminCookieHandler.Scheme);
         var antiforgery = factory.Services.GetRequiredService<IOptions<AntiforgeryOptions>>().Value;
         // THEN production cookie names, protection identity and transport requirements are unchanged.
+        Assert.Equal("__Host-Workbench.ServiceAdmin", admin.Cookie.Name);
+        Assert.Equal(CookieSecurePolicy.Always, admin.Cookie.SecurePolicy);
+        Assert.Equal("/", admin.Cookie.Path);
         Assert.Equal("__Host-Workbench.Session", session.Cookie.Name);
         Assert.Equal("__Host-Workbench.Antiforgery", antiforgery.Cookie.Name);
         Assert.Equal("Workbench", factory.Services.GetRequiredService<IOptions<DataProtectionOptions>>().Value.ApplicationDiscriminator);
