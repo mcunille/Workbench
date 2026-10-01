@@ -9,8 +9,9 @@ namespace Workbench.Server.IntegrationTests;
 public sealed class CurrentSchemaTests
 {
     [Fact]
-    public void ReleaseContractMatchesTheCompleteEfMigrationInventory()
+    public async Task ReleaseContractMatchesTheCompleteEfMigrationInventory()
     {
+        await Task.Yield();
         // GIVEN the explicit release contract and the actual compiled EF migration inventory.
         using var database = new WorkbenchDbContext(new DbContextOptionsBuilder<WorkbenchDbContext>()
             .UseSqlServer("Server=unused;Database=inventory-only;Integrated Security=true").Options);

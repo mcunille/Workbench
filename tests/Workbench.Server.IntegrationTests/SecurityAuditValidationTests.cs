@@ -11,8 +11,9 @@ namespace Workbench.Server.IntegrationTests;
 public sealed class SecurityAuditValidationTests
 {
     [Fact]
-    public void AuditWriterRejectsSensitiveMetadataNames()
+    public async Task AuditWriterRejectsSensitiveMetadataNames()
     {
+        await Task.Yield();
         // GIVEN an unconnected context and audit metadata containing a recovery token.
         var options = new DbContextOptionsBuilder<WorkbenchDbContext>()
             .UseSqlServer("not-a-database-connection")

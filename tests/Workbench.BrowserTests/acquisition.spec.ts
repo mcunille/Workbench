@@ -4,8 +4,6 @@ import { signInThroughUi, useAuthenticatedSession } from './auth-fixture';
 import { lifecycle } from './restoration-fixture';
 import { setAppearance } from './user-menu-fixture';
 
-test.setTimeout(120_000);
-
 async function createItem(page: Page) {
   const csrf = await (await page.request.get('/api/beta/auth/antiforgery')).json();
   const response = await page.request.post('/api/beta/items', {

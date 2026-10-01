@@ -10,8 +10,9 @@ namespace Workbench.Server.IntegrationTests;
 public sealed class DraftAdjustmentsTests
 {
     [Fact]
-    public void WorkedExampleCalculatesDiscountsAndIndependentPayees()
+    public async Task WorkedExampleCalculatesDiscountsAndIndependentPayees()
     {
+        await Task.Yield();
         // GIVEN merchandise, line and order discounts, supplier charges and a bank fee.
         var node = JsonSerializer.SerializeToNode(DraftOrderPricingTests.Empty with { Entries = [DraftOrderPricingTests.Line with { Quantity = "10", Price = "20" }, DraftOrderPricingTests.Line with { Quantity = "20", Price = "5" }] }, DraftOrderInput.JsonOptions)!;
         node["entries"]![0]!["discount"] = JsonNode.Parse("{\"mode\":\"percentage\",\"value\":\"10\"}");
@@ -31,8 +32,9 @@ public sealed class DraftAdjustmentsTests
     [InlineData("percentage", "100", "20", "20.0000", "0.0000")]
     [InlineData("fixed", "0", "20", "0.0000", "20.0000")]
     [InlineData("fixed", "5", "20", "5.0000", "15.0000")]
-    public void RoundsDiscountOnceAndPreservesZero(string mode, string value, string price, string reduction, string net)
+    public async Task RoundsDiscountOnceAndPreservesZero(string mode, string value, string price, string reduction, string net)
     {
+        await Task.Yield();
         // GIVEN a rounded line gross and an explicit discount.
         var draft = DraftOrderPricingTests.Empty with { Entries = [DraftOrderPricingTests.Line with { PriceMode = "lineTotal", Price = price, Discount = new(mode, value) }] };
         // WHEN calculated THEN midpoint rounds up and subtraction retains four-place precision.
@@ -42,8 +44,9 @@ public sealed class DraftAdjustmentsTests
         Assert.Equal(net, result.PurchaseEstimate);
     }
     [Fact]
-    public void UnknownBasesAndThirdPartyAmountsStayIndependent()
+    public async Task UnknownBasesAndThirdPartyAmountsStayIndependent()
     {
+        await Task.Yield();
         // GIVEN an incomplete line and a fixed discount awaiting its base.
         var line = DraftOrderPricingTests.Line with { Price = null, Discount = new("fixed", "300") };
         var charge = new DraftCharge(Guid.NewGuid(), "paymentFee", "Bank fee", null, "thirdParty", "Bank", "estimated", null, null);
@@ -65,15 +68,17 @@ public sealed class DraftAdjustmentsTests
     [InlineData("percentage", "-1")]
     [InlineData("fixed", "1.00001")]
     [InlineData("other", "1")]
-    public void RejectsInvalidDiscounts(string mode, string value)
+    public async Task RejectsInvalidDiscounts(string mode, string value)
     {
+        await Task.Yield();
         // GIVEN an invalid discount on a known base WHEN validated THEN its field is identified.
         var errors = DraftOrderInput.Validate(DraftOrderPricingTests.Empty with { Entries = [DraftOrderPricingTests.Line with { Discount = new(mode, value) }] });
         Assert.Contains(errors.Keys, key => key.StartsWith("draft.entries[0].discount", StringComparison.Ordinal));
     }
     [Fact]
-    public void RequiresFreshExplanationForEachConfirmedCorrection()
+    public async Task RequiresFreshExplanationForEachConfirmedCorrection()
     {
+        await Task.Yield();
         // GIVEN a persisted confirmed fee with an earlier explanation.
         var saved = new DraftCharge(Guid.NewGuid(), "shipping", "Freight", "10.0000", "supplier", null, "confirmed", null, "Earlier explanation");
         // WHEN the amount changes THEN existing notes cannot justify another correction.
@@ -91,8 +96,9 @@ public sealed class DraftAdjustmentsTests
         Assert.Empty(DraftOrderInput.ValidateConfirmedCorrections([thirdParty], [thirdParty], supplierChanged: true));
     }
     [Fact]
-    public void RequiredPropertiesProtectReplacementsAndStoredSchemaThreeUpgrades()
+    public async Task RequiredPropertiesProtectReplacementsAndStoredSchemaThreeUpgrades()
     {
+        await Task.Yield();
         // GIVEN a new request body and a saved schema-three entry lacking discount.
         var node = JsonSerializer.SerializeToNode(DraftOrderPricingTests.Empty with { Entries = [DraftOrderPricingTests.Line] }, DraftOrderInput.JsonOptions)!;
         node["entries"]![0]!.AsObject().Remove("discount");
@@ -108,8 +114,9 @@ public sealed class DraftAdjustmentsTests
         Assert.Throws<JsonException>(() => node.Deserialize<DraftContent>(DraftOrderInput.JsonOptions));
     }
     [Fact]
-    public void CombinedMaximumChargesAndLinesRejectAggregateOverflow()
+    public async Task CombinedMaximumChargesAndLinesRejectAggregateOverflow()
     {
+        await Task.Yield();
         // GIVEN individually valid maximum line totals and supplier charges.
         var draft = DraftOrderPricingTests.Empty with
         {
@@ -120,8 +127,9 @@ public sealed class DraftAdjustmentsTests
         Assert.Contains("draft.charges", DraftOrderInput.Validate(draft));
     }
     [Fact]
-    public void CurrentCanonicalIncludesNormalizedFinancialInputs()
+    public async Task CurrentCanonicalIncludesNormalizedFinancialInputs()
     {
+        await Task.Yield();
         // GIVEN a beta request with line and order discounts and a supplier charge.
         var draft = DraftOrderInput.Normalize(DraftOrderPricingTests.Empty with
         {

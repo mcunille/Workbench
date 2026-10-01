@@ -9,8 +9,9 @@ public sealed class DraftOrderValidationTests
     private static DraftEntry Entry => DraftOrderPricingTests.Line with { Price = null };
 
     [Fact]
-    public void MissingCollectionsAndNullEntriesReportStableErrors()
+    public async Task MissingCollectionsAndNullEntriesReportStableErrors()
     {
+        await Task.Yield();
         // GIVEN absent collections and null elements at the public validation boundary.
         var missing = Empty with { Entries = null!, SourceLinks = null! };
         // WHEN validating THEN collection errors replace enumeration failures.
@@ -26,8 +27,9 @@ public sealed class DraftOrderValidationTests
     }
 
     [Fact]
-    public void OversizedCollectionsValidateOnlyTheirSupportedPrefix()
+    public async Task OversizedCollectionsValidateOnlyTheirSupportedPrefix()
     {
+        await Task.Yield();
         // GIVEN invalid elements immediately beyond each supported collection bound.
         var entries = Enumerable.Range(0, 100).Select(_ => Entry).Append(Entry with { Id = Guid.Empty, Quantity = "bad", SourceLink = "bad" }).ToArray();
         var links = Enumerable.Repeat("https://example.test", 20).Append("bad").ToArray();
@@ -37,8 +39,9 @@ public sealed class DraftOrderValidationTests
     }
 
     [Fact]
-    public void LastSupportedEntryStillReceivesBasicAndQuantityValidation()
+    public async Task LastSupportedEntryStillReceivesBasicAndQuantityValidation()
     {
+        await Task.Yield();
         // GIVEN a full list whose final supported entry has invalid basic and quantity fields.
         var entries = Enumerable.Range(0, 99).Select(_ => Entry).Append(Entry with { Description = new('d', 501), Quantity = "0" }).ToArray();
         // WHEN validating THEN both validation stages include entry 100.
@@ -47,8 +50,9 @@ public sealed class DraftOrderValidationTests
     }
 
     [Fact]
-    public void CommonValidationPreservesErrorOrderAndSupplierMessagePrecedence()
+    public async Task CommonValidationPreservesErrorOrderAndSupplierMessagePrecedence()
     {
+        await Task.Yield();
         // GIVEN errors from basic fields, supplier identity, transaction metadata and entry details.
         var draft = Empty with
         {
@@ -87,8 +91,9 @@ public sealed class DraftOrderValidationTests
     [InlineData("box")]
     [InlineData("lot")]
     [InlineData(null)]
-    public void SupportedUnitsAndMetadataBoundariesAreAccepted(string? unit)
+    public async Task SupportedUnitsAndMetadataBoundariesAreAccepted(string? unit)
     {
+        await Task.Yield();
         // GIVEN valid boundary metadata and a supported or absent unit.
         var draft = Empty with { Platform = new('p', 200), SupplierOrderReference = new('r', 200), Entries = [Entry with { Quantity = "0.0001", UnitOfMeasure = unit, SupplierSku = new('s', 200), ItemType = new('i', 100) }] };
         // WHEN validating THEN no field needs correction.
@@ -123,8 +128,9 @@ public sealed class DraftOrderValidationTests
 
     [Theory]
     [MemberData(nameof(RetainedQuotes))]
-    public void RetainedQuoteValidationPreservesIncompleteQuotesAndRejectsContradictions(string? quantity, string? unit, string? price, string? pricingUnit, string? pricePerQuantity, string? pricingQuantity, string? reference, bool valid)
+    public async Task RetainedQuoteValidationPreservesIncompleteQuotesAndRejectsContradictions(string? quantity, string? unit, string? price, string? pricingUnit, string? pricePerQuantity, string? pricingQuantity, string? reference, bool valid)
     {
+        await Task.Yield();
         // GIVEN a historical quote with optional basis, units, price and conversion quantity.
         var quote = new DraftLegacyPricing(quantity, unit, price, pricingUnit, pricePerQuantity, pricingQuantity);
         var draft = Empty with { Entries = [Entry with { LegacyPricing = quote, IndicativePrice = reference }] };
@@ -137,8 +143,9 @@ public sealed class DraftOrderValidationTests
     [Theory]
     [InlineData("!!!!!!!!!!!!")]
     [InlineData("AQIDBAUGBw==")]
-    public void SavedVersionRejectsMalformedOrShortPayloadsAtTheExpectedTextLength(string version)
+    public async Task SavedVersionRejectsMalformedOrShortPayloadsAtTheExpectedTextLength(string version)
     {
+        await Task.Yield();
         // GIVEN twelve characters that do not encode exactly eight bytes.
         Dictionary<string, string[]> errors = [];
         // WHEN normalizing THEN the version is rejected with the stable field message.

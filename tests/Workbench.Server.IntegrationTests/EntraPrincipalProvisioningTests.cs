@@ -10,8 +10,9 @@ public sealed class EntraPrincipalProvisioningTests
     [Theory]
     [InlineData("db_owner")]
     [InlineData("workbench_web]; ALTER ROLE db_owner ADD MEMBER attacker;--")]
-    public void SetupCannotSelectAnUnapprovedRole(string role)
+    public async Task SetupCannotSelectAnUnapprovedRole(string role)
     {
+        await Task.Yield();
         // GIVEN an identity manifest requesting excess authority, WHEN checked, THEN setup refuses it.
         var principals = Valid();
         principals[0] = principals[0] with { Role = role };
@@ -19,8 +20,9 @@ public sealed class EntraPrincipalProvisioningTests
     }
 
     [Fact]
-    public void EveryWorkloadRequiresADistinctIdentity()
+    public async Task EveryWorkloadRequiresADistinctIdentity()
     {
+        await Task.Yield();
         // GIVEN web and migration entries sharing an identity, WHEN checked, THEN authority cannot combine.
         var principals = Valid();
         principals[1] = principals[1] with { PrincipalId = principals[0].PrincipalId };
@@ -28,8 +30,9 @@ public sealed class EntraPrincipalProvisioningTests
     }
 
     [Fact]
-    public void EveryRoleMustBePresentExactlyOnce()
+    public async Task EveryRoleMustBePresentExactlyOnce()
     {
+        await Task.Yield();
         // GIVEN a partial manifest, WHEN checked, THEN incomplete provisioning is rejected before SQL writes.
         Assert.Throws<ArgumentException>(() => EntraPrincipalProvisioning.Validate(Valid()[..4]));
         var duplicate = Valid();
@@ -41,8 +44,9 @@ public sealed class EntraPrincipalProvisioningTests
     [InlineData("bad'name")]
     [InlineData("bad]name")]
     [InlineData("")]
-    public void NamesCannotContainSqlSyntax(string name)
+    public async Task NamesCannotContainSqlSyntax(string name)
     {
+        await Task.Yield();
         // GIVEN an unsafe identifier, WHEN checked, THEN it cannot become SQL text.
         var principals = Valid();
         principals[0] = principals[0] with { Name = name };
@@ -50,15 +54,17 @@ public sealed class EntraPrincipalProvisioningTests
     }
 
     [Fact]
-    public void CompleteDistinctManifestIsAccepted()
+    public async Task CompleteDistinctManifestIsAccepted()
     {
+        await Task.Yield();
         // GIVEN a separate identity per approved role, WHEN checked, THEN setup can proceed.
         EntraPrincipalProvisioning.Validate(Valid());
     }
 
     [Fact]
-    public void ExplicitPrincipalAndClientIdsAreAccepted()
+    public async Task ExplicitPrincipalAndClientIdsAreAccepted()
     {
+        await Task.Yield();
         // GIVEN Azure reports both principal and application IDs for five separate workloads.
         var identities = Valid().Select(principal => new
         {
@@ -75,8 +81,9 @@ public sealed class EntraPrincipalProvisioningTests
     }
 
     [Fact]
-    public void VersionedManifestPreservesBothIdentityIds()
+    public async Task VersionedManifestPreservesBothIdentityIds()
     {
+        await Task.Yield();
         // GIVEN the operator obtained distinct IDs from Azure for each role.
         var expected = Valid();
         var json = System.Text.Json.JsonSerializer.Serialize(new { version = 1, identities = expected });
@@ -94,8 +101,9 @@ public sealed class EntraPrincipalProvisioningTests
     [InlineData("[{\"objectId\":\"secret-diagnostic-marker\"}]")]
     [InlineData("{\"version\":1,\"identities\":[{\"objectId\":\"secret-diagnostic-marker\"}]}")]
     [InlineData("not-json-secret-diagnostic-marker")]
-    public void InvalidAndLegacyManifestErrorsAreActionableAndDoNotEchoInput(string json)
+    public async Task InvalidAndLegacyManifestErrorsAreActionableAndDoNotEchoInput(string json)
     {
+        await Task.Yield();
         // GIVEN legacy, malformed, or unsupported input, WHEN parsing before any SQL connection.
         var error = Assert.Throws<InvalidEntraManifestException>(() => EntraPrincipalProvisioning.ParseManifest(json));
 
@@ -106,8 +114,9 @@ public sealed class EntraPrincipalProvisioningTests
     }
 
     [Fact]
-    public void SqlSidUsesClientIdInSqlGuidByteOrder()
+    public async Task SqlSidUsesClientIdInSqlGuidByteOrder()
     {
+        await Task.Yield();
         // GIVEN distinct principal and client IDs, including a known non-symmetric GUID.
         var principal = Valid()[0] with
         {
@@ -126,8 +135,9 @@ public sealed class EntraPrincipalProvisioningTests
     [InlineData("same-ids")]
     [InlineData("cross-role-ids")]
     [InlineData("duplicate-name")]
-    public void IdentityAmbiguitiesAreRejected(string scenario)
+    public async Task IdentityAmbiguitiesAreRejected(string scenario)
     {
+        await Task.Yield();
         // GIVEN missing or overlapping identity identifiers in the proposed mapping.
         var principals = Valid();
         principals[1] = scenario switch

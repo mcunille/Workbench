@@ -2,7 +2,6 @@ import { expect, test } from './diagnostic-fixture';
 import { smallPhotoImage, photoSignIn, savedPhotoItem } from './photo-fixture';
 
 test('a removal finishing after confirmed navigation updates the restored collection', async ({ page }) => {
-  test.setTimeout(120_000);
   // GIVEN a real photographed item already loaded in the collection's private memory.
   await photoSignIn(page);
   const name = `Pending photo ${crypto.randomUUID()}`;

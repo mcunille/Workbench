@@ -7,7 +7,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-test('intercepted project blocks undeclared API requests before reaching the server', { timeout: 60_000 }, async () => {
+test('intercepted project blocks undeclared API requests before reaching the server', { timeout: 30_000 }, async () => {
   // GIVEN the real diagnostic fixture against a local server that counts API requests.
   let backendRequests = 0;
   const server = createServer((request, response) => {
@@ -45,7 +45,7 @@ test('intercepted project blocks undeclared API requests before reaching the ser
     const cli = fileURLToPath(new URL('./node_modules/@playwright/test/cli.js', import.meta.url));
     const result = await new Promise((resolve, reject) => {
       const child = spawn(process.execPath, [cli, 'test', '--config', join(root, 'playwright.config.ts')], { stdio: 'ignore' });
-      const timer = setTimeout(() => { child.kill(); reject(new Error('Guard verification exceeded deadline.')); }, 45_000);
+      const timer = setTimeout(() => { child.kill(); reject(new Error('Guard verification exceeded deadline.')); }, 25_000);
       child.once('error', error => { clearTimeout(timer); reject(error); });
       child.once('exit', code => { clearTimeout(timer); resolve(code); });
     });

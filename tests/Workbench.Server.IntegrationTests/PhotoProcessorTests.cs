@@ -13,8 +13,9 @@ public sealed class PhotoProcessorTests
     private readonly PhotoProcessor processor = new();
 
     [Fact]
-    public void SanitizesAndCreatesProportionalThumbnail()
+    public async Task SanitizesAndCreatesProportionalThumbnail()
     {
+        await Task.Yield();
         // GIVEN a browser-sized photograph with a private comment.
         using var input = CreateImage(MagickColors.Red, 800, 400);
         input.Comment = "private location";
@@ -37,8 +38,9 @@ public sealed class PhotoProcessorTests
     [InlineData(MagickFormat.Jpeg)]
     [InlineData(MagickFormat.Png)]
     [InlineData(MagickFormat.WebP)]
-    public void SupportedSmallImagesAreNotUpscaled(MagickFormat format)
+    public async Task SupportedSmallImagesAreNotUpscaled(MagickFormat format)
     {
+        await Task.Yield();
         // GIVEN a small photograph in each supported raster format.
         using var input = CreateImage(MagickColors.Blue, 32, 16);
         // WHEN processing it.
@@ -52,8 +54,9 @@ public sealed class PhotoProcessorTests
     }
 
     [Fact]
-    public void AppliesOrientationBeforeRemovingExif()
+    public async Task AppliesOrientationBeforeRemovingExif()
     {
+        await Task.Yield();
         // GIVEN an oriented portrait with private EXIF camera information.
         using var input = CreateImage(MagickColors.Red, 80, 40);
         var exif = new ExifProfile();
@@ -71,8 +74,9 @@ public sealed class PhotoProcessorTests
     }
 
     [Fact]
-    public void PreservesTransparentPixels()
+    public async Task PreservesTransparentPixels()
     {
+        await Task.Yield();
         // GIVEN transparent PNG pixels.
         using var input = CreateImage(MagickColors.Transparent, 8, 8);
         // WHEN processing the photograph.
@@ -88,8 +92,9 @@ public sealed class PhotoProcessorTests
     }
 
     [Fact]
-    public void ConvertsProfiledCmykAndRejectsUnprofiledCmyk()
+    public async Task ConvertsProfiledCmykAndRejectsUnprofiledCmyk()
     {
+        await Task.Yield();
         // GIVEN a CMYK JPEG whose profile defines its colors.
         using var input = CreateImage(MagickColors.Red, 8, 8);
         input.TransformColorSpace(ColorProfiles.SRGB, ColorProfiles.USWebCoatedSWOP);
@@ -110,8 +115,9 @@ public sealed class PhotoProcessorTests
     [InlineData("https://example.com/picture.jpg")]
     [InlineData("GIF89a")]
     [InlineData("")]
-    public void RejectsNonRasterSignatures(string text)
+    public async Task RejectsNonRasterSignatures(string text)
     {
+        await Task.Yield();
         // GIVEN bytes for an unsupported format or external resource.
         var bytes = System.Text.Encoding.UTF8.GetBytes(text);
         // WHEN processing the alleged photograph.
@@ -121,8 +127,9 @@ public sealed class PhotoProcessorTests
     }
 
     [Fact]
-    public void RejectsCorruptRasterAndOversizedUpload()
+    public async Task RejectsCorruptRasterAndOversizedUpload()
     {
+        await Task.Yield();
         // GIVEN a truncated JPEG with a supported signature.
         var broken = new byte[] { 255, 216, 255, 0 };
         // WHEN processing the damaged image.
@@ -133,8 +140,9 @@ public sealed class PhotoProcessorTests
     }
 
     [Fact]
-    public void RejectsWebpAnimation()
+    public async Task RejectsWebpAnimation()
     {
+        await Task.Yield();
         // GIVEN an animated WebP containing two frames.
         using var frames = new MagickImageCollection();
         frames.Add(CreateImage(MagickColors.Red, 8, 8));
@@ -148,8 +156,9 @@ public sealed class PhotoProcessorTests
     }
 
     [Fact]
-    public void RejectsJpegMultiPictureMetadataAfterFrameHeader()
+    public async Task RejectsJpegMultiPictureMetadataAfterFrameHeader()
     {
+        await Task.Yield();
         // GIVEN a JPEG whose APP2 multi-picture marker occurs after its frame header.
         using var input = CreateImage(MagickColors.Red, 8, 8);
         var original = input.ToByteArray(MagickFormat.Jpeg);
@@ -174,8 +183,9 @@ public sealed class PhotoProcessorTests
     }
 
     [Fact]
-    public void RejectsApngAnimationControlChunk()
+    public async Task RejectsApngAnimationControlChunk()
     {
+        await Task.Yield();
         // GIVEN a PNG animation-control chunk before any frame data.
         var bytes = new byte[] { 137, 80, 78, 71, 13, 10, 26, 10, 0, 0, 0, 8, 97, 99, 84, 76, 0, 0, 0, 0, 0, 0, 0, 0 };
         // WHEN processing the animated upload.
@@ -185,8 +195,9 @@ public sealed class PhotoProcessorTests
     }
 
     [Fact]
-    public void RejectsOversizedRasterDimensionsBeforeAllocatingPixels()
+    public async Task RejectsOversizedRasterDimensionsBeforeAllocatingPixels()
     {
+        await Task.Yield();
         // GIVEN a PNG header claiming dimensions larger than the upload contract.
         using var input = CreateImage(MagickColors.Red, 8, 8);
         var bytes = input.ToByteArray(MagickFormat.Png);
@@ -205,8 +216,9 @@ public sealed class PhotoProcessorTests
     }
 
     [Fact]
-    public void NativePolicyDisablesUnneededCoders()
+    public async Task NativePolicyDisablesUnneededCoders()
     {
+        await Task.Yield();
         // GIVEN the processor has initialized its restrictive native policy.
         using var input = CreateImage(MagickColors.Red, 8, 8);
         // WHEN another call tries an unneeded GIF encoder.
@@ -216,8 +228,9 @@ public sealed class PhotoProcessorTests
     }
 
     [Fact]
-    public void RejectsInvalidEmbeddedColorProfile()
+    public async Task RejectsInvalidEmbeddedColorProfile()
     {
+        await Task.Yield();
         // GIVEN a PNG with a syntactically valid iCCP chunk containing an invalid ICC profile.
         using var input = CreateImage(MagickColors.Red, 8, 8);
         var original = input.ToByteArray(MagickFormat.Png);

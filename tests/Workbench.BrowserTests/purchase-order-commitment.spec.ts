@@ -1,8 +1,6 @@
 import { expect, test, type Page } from './diagnostic-fixture';
 import { useAuthenticatedSession } from './auth-fixture';
 
-test.setTimeout(120_000);
-
 function comparison(page: Page, heading: string) {
   return page.locator('.po-comparison-content').filter({
     has: page.getByRole('heading', { name: heading, exact: true }),

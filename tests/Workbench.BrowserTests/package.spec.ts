@@ -5,8 +5,6 @@ import { useAuthenticatedSession } from './auth-fixture';
 import { lifecycle } from './restoration-fixture';
 import { archiveExportItems, createExportItem } from './export-fixture';
 import { downloadPackage, uploadPackagePhoto } from './package-fixture';
-
-test.setTimeout(180_000);
 test.afterEach(async ({ page }) => { await archiveExportItems(page); });
 
 test('H8 packages exact stored photographs, literal names and archived records with portable mapping', async ({ page }) => {

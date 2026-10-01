@@ -18,8 +18,9 @@ public sealed class ItemExportEncodingTests
     [InlineData(" \t=SUM(1)")]
     [InlineData("\u0001=1")]
     [InlineData("蓝, \"quoted\"\r\nnext")]
-    public void TextEncodingIsReversibleAndIndependentOfSpreadsheetLeadingCharacters(string text)
+    public async Task TextEncodingIsReversibleAndIndependentOfSpreadsheetLeadingCharacters(string text)
     {
+        await Task.Yield();
         // GIVEN literal user text and an absent optional field.
         var created = new DateTimeOffset(2026, 9, 8, 7, 0, 0, TimeSpan.FromHours(2));
         var item = new ExportItem(Guid.NewGuid(), "Individual", text, text, null, created, created.AddHours(1));

@@ -372,34 +372,50 @@ public sealed class SupplierPaymentCorrectionTests(SqlServerFixture sqlServer)
     }
 
     [Fact]
-    public async Task FullRetainedClosureAccepts1000AndRejects1001WithoutTruncation()
+    public async Task RetainedClosureCountsReversalsAndRejects1001BeforeEvidenceValidation()
     {
-        // GIVEN real command history: one payment, 499 applications with reversals, and one active application.
+        // GIVEN genuine payment, application and reversal evidence for a small complete closure.
         await using var context = await SupplierCorrectionFixture.OpenAsync(sqlServer);
         var bill = await context.Allocation.BillAsync("1");
         var payment = await context.CommandAsync("1"); await context.RecordAsync(payment);
         var funding = Guid.Parse(payment["paymentId"]!.ToString());
-        for (var index = 0; index < 499; index++)
-        {
-            var applied = await context.Allocation.ApplyAsync(await context.Allocation.CommandAsync(funding, bill, "1", "2026-09-20"));
-            await context.Bills.ExecuteAsync("ReverseSupplierApplication", Guid.NewGuid(),
-                await SupplierCorrectionFixture.ReverseAsync(context, Guid.Parse(applied["applicationIds"]![0]!.ToString())));
-        }
-        var last = await context.Allocation.ApplyAsync(await context.Allocation.CommandAsync(funding, bill, "1", "2026-09-20"));
+        var applied = await context.Allocation.ApplyAsync(await context.Allocation.CommandAsync(funding, bill, "1", "2026-09-20"));
+        var application = Guid.Parse(applied["applicationIds"]![0]!.ToString());
+        await context.Bills.ExecuteAsync("ReverseSupplierApplication", Guid.NewGuid(),
+            await SupplierCorrectionFixture.ReverseAsync(context, application));
         var command = await SupplierCorrectionFixture.CorrectionAsync(context, funding);
         var before = await SupplierOpenItemAtomicityTests.SnapshotAsync(context);
-        // WHEN the full retained graph is previewed THEN every historical event contributes to the bounded closure.
+        // WHEN previewing real history THEN the payment, application and reversal all appear without writes.
         var plan = await SupplierCorrectionFixture.PreviewAsync(context, command);
-        Assert.Equal(1000, plan["eventCount"]!.GetValue<int>());
-        Assert.Equal(500, plan["applications"]!.AsArray().Count);
-        Assert.Equal(499, plan["applications"]!.AsArray().Count(x => x!["reversalId"] is not null));
+        Assert.Equal(3, plan["eventCount"]!.GetValue<int>());
+        Assert.Single(plan["applications"]!.AsArray());
+        Assert.Equal(application, Guid.Parse(plan["applications"]![0]!["id"]!.GetValue<string>()));
+        Assert.NotNull(plan["applications"]![0]!["reversalId"]);
         Assert.Equal(before, await SupplierOpenItemAtomicityTests.SnapshotAsync(context));
-        // AND the next real reversal takes the complete closure over the limit without returning a truncated plan.
-        await context.Bills.ExecuteAsync("ReverseSupplierApplication", Guid.NewGuid(),
-            await SupplierCorrectionFixture.ReverseAsync(context, Guid.Parse(last["applicationIds"]![0]!.ToString())));
+        // GIVEN 997 additional identities with valid foreign keys, but without posting evidence.
+        // This isolates the closure guard from the cost of replaying hundreds of financial commands.
+        await SeedApplications(997);
         before = await SupplierOpenItemAtomicityTests.SnapshotAsync(context);
-        Assert.Equal(51000, (await Assert.ThrowsAsync<SqlException>(() => SupplierCorrectionFixture.PreviewAsync(context, command))).Number);
+        // WHEN the closure contains exactly 1000 events THEN it passes the cap and reaches the evidence guard.
+        var error = await Assert.ThrowsAsync<SqlException>(() => SupplierCorrectionFixture.PreviewAsync(context, command));
+        Assert.Equal(51009, error.Number);
+        Assert.Contains("Supplier correction has an unsupported or later dependency.", error.Message);
         Assert.Equal(before, await SupplierOpenItemAtomicityTests.SnapshotAsync(context));
+        // AND a 1001st event fails the cap itself, before any evidence validation or truncated plan.
+        await SeedApplications(1);
+        before = await SupplierOpenItemAtomicityTests.SnapshotAsync(context);
+        error = await Assert.ThrowsAsync<SqlException>(() => SupplierCorrectionFixture.PreviewAsync(context, command));
+        Assert.Equal(51000, error.Number);
+        Assert.Contains("Supplier correction closure exceeds 1000 events.", error.Message);
+        Assert.Equal(before, await SupplierOpenItemAtomicityTests.SnapshotAsync(context));
+
+        Task SeedApplications(int count) => context.Bills.AdminAsync($"""
+            INSERT Purchasing.SupplierApplications(TenantId,Id,GroupId,FundingItemId,DebtItemId,PostingDate,Amount,ActorId,RecordedAtUtc)
+              SELECT a.TenantId,NEWID(),a.GroupId,a.FundingItemId,a.DebtItemId,a.PostingDate,a.Amount,a.ActorId,a.RecordedAtUtc
+              FROM Purchasing.SupplierApplications a
+              CROSS JOIN (SELECT TOP ({count}) object_id FROM sys.all_objects) identities
+              WHERE a.Id='{application}';
+            """);
     }
 
     [Theory]

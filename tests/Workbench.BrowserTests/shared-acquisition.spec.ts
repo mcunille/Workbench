@@ -3,8 +3,6 @@ import { useAuthenticatedSession } from './auth-fixture';
 import { acquisitionPanel, createOrigin, createPiece } from './shared-acquisition-fixture';
 import { lifecycle } from './restoration-fixture';
 import { setAppearance } from './user-menu-fixture';
-
-test.setTimeout(120_000);
 test.use({ actionTimeout: 20_000 });
 
 async function selectAcquisition(page: import('@playwright/test').Page, source: string) {

@@ -3,8 +3,6 @@ import { useAuthenticatedSession } from './auth-fixture';
 import { setAppearance } from './user-menu-fixture';
 import { captureEvidence } from './evidence-fixture';
 
-test.setTimeout(120_000);
-
 // A complete one-page PDF with byte-accurate cross references, matching the
 // server validator fixture. Only synthetic, non-sensitive content is uploaded.
 function invoicePdf(marker: string) {
