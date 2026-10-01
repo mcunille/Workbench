@@ -11,6 +11,10 @@ Workbench catalog curated through a separate service-admin editor, with tenant a
 field-level overrides. The first release is a standalone reference; numerical type properties
 and collection-item links are later work.
 
+[GEM-02 shared reference persistence and reads](2026-10-01-gem-02-shared-reference.md)
+defines shared storage, attributed claims, bounded authenticated reads, and SQL permissions.
+Its design is approved in chat; written-spec review and implementation planning remain pending.
+
 [MCP agent interface](2026-09-28-mcp-agent-interface.md) proposes full agent-eligible business
 workflow coverage through tenant-owned service principals with predefined role assignments.
 It is a product and architecture draft; identity/tenant administration remains human-only.
