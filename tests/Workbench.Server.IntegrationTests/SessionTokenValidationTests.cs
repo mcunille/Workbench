@@ -9,8 +9,9 @@ namespace Workbench.Server.IntegrationTests;
 public sealed class SessionTokenValidationTests
 {
     [Fact]
-    public void SessionTokensRequireTheExactEncodedEntropyLength()
+    public async Task SessionTokensRequireTheExactEncodedEntropyLength()
     {
+        await Task.Yield();
         // GIVEN a valid base64url encoding with one byte too much entropy.
         var oversizedToken = Microsoft.AspNetCore.WebUtilities.WebEncoders.Base64UrlEncode(new byte[33]);
 

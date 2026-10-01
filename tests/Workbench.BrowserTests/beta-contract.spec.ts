@@ -1,8 +1,6 @@
 import { expect, test, type Page } from './diagnostic-fixture';
 import { useAuthenticatedSession } from './auth-fixture';
 
-test.setTimeout(120_000);
-
 async function selectRecovery(page: Page, label: string, retained: string) {
   const text = page.getByRole('textbox', { name: `${label} recovery text`, exact: true });
   await expect(text).toContainText(retained);

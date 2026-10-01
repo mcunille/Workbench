@@ -4,8 +4,6 @@ import { setAppearance } from './user-menu-fixture';
 import { expect, test, type Page } from './diagnostic-fixture';
 import { photoSignIn } from './photo-fixture';
 
-test.setTimeout(180_000);
-
 async function seed(page: Page, name: string, notes: string, location: string, requestToken?: string) {
   const token = requestToken ?? (await (await page.request.get('/api/beta/auth/antiforgery')).json()).requestToken;
   const response = await page.request.post('/api/beta/items', {

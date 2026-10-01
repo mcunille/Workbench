@@ -5,8 +5,6 @@ import { useAuthenticatedSession } from './auth-fixture';
 import { lifecycle } from './restoration-fixture';
 import { archiveExportItems, createExportItem, downloadExport } from './export-fixture';
 
-test.setTimeout(180_000);
-
 test.afterEach(async ({ page }) => {
   // GIVEN each scenario owns its seeded IDs, WHEN it finishes or fails,
   // THEN archive those records so later scenarios can browse their active first page.

@@ -17,8 +17,9 @@ public sealed class DeploymentSecretsTests : IDisposable
     public DeploymentSecretsTests() => Directory.CreateDirectory(directory);
 
     [Fact]
-    public void MountedValueTakesPrecedenceWithoutTrimmingSignificantWhitespace()
+    public async Task MountedValueTakesPrecedenceWithoutTrimmingSignificantWhitespace()
     {
+        await Task.Yield();
         // GIVEN both a mounted secret and an obsolete inline credential.
         var file = Path.Combine(directory, "connection");
         File.WriteAllText(file, " secret with spaces \r\n");
@@ -31,8 +32,9 @@ public sealed class DeploymentSecretsTests : IDisposable
     [InlineData("")]
     [InlineData("\r\n")]
     [InlineData("   ")]
-    public void EmptyMountedSecretNeverFallsBack(string contents)
+    public async Task EmptyMountedSecretNeverFallsBack(string contents)
     {
+        await Task.Yield();
         // GIVEN an unusable mounted secret and a usable inline fallback.
         var file = Path.Combine(directory, "empty");
         File.WriteAllText(file, contents);
@@ -42,8 +44,9 @@ public sealed class DeploymentSecretsTests : IDisposable
     }
 
     [Fact]
-    public void MissingMountedSecretNeverFallsBack()
+    public async Task MissingMountedSecretNeverFallsBack()
     {
+        await Task.Yield();
         // GIVEN a missing mounted file and an inline fallback.
         var config = Config(("SecretFile", Path.Combine(directory, "missing")), ("Secret", "fallback"));
         // WHEN loading it, THEN the missing file fails closed.
@@ -51,8 +54,9 @@ public sealed class DeploymentSecretsTests : IDisposable
     }
 
     [Fact]
-    public void UnmountedValuesPreserveExistingPrecedence()
+    public async Task UnmountedValuesPreserveExistingPrecedence()
     {
+        await Task.Yield();
         // GIVEN no mounted file, WHEN loading configuration, THEN inline configuration wins over legacy fallback.
         Assert.Equal("inline", DeploymentSecrets.ReadValue(Config(("Secret", "inline")), "Secret", "legacy"));
         Assert.Equal("legacy", DeploymentSecrets.ReadValue(Config(), "Secret", "legacy"));
@@ -62,8 +66,9 @@ public sealed class DeploymentSecretsTests : IDisposable
     [Theory]
     [InlineData("Pfx")]
     [InlineData("Base64")]
-    public void CertificateFormatsLoadTheSamePrivateKey(string format)
+    public async Task CertificateFormatsLoadTheSamePrivateKey(string format)
     {
+        await Task.Yield();
         // GIVEN an encrypted PFX mounted directly or as platform Base64 text and a mounted password.
         using var key = RSA.Create(2048);
         var request = new CertificateRequest("CN=workbench-test", key, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
@@ -83,8 +88,9 @@ public sealed class DeploymentSecretsTests : IDisposable
     }
 
     [Fact]
-    public void UnsupportedCertificateFormatIsRejected()
+    public async Task UnsupportedCertificateFormatIsRejected()
     {
+        await Task.Yield();
         // GIVEN an unsupported format, WHEN loading a certificate, THEN it is not silently treated as PFX.
         Assert.Throws<InvalidOperationException>(() => DeploymentSecrets.LoadCertificate(Config(
             ("DataProtection:CertificatePath", Path.Combine(directory, "certificate")), ("DataProtection:CertificateFormat", "Pem"))));
@@ -93,8 +99,9 @@ public sealed class DeploymentSecretsTests : IDisposable
     [Theory]
     [InlineData("")]
     [InlineData(" ")]
-    public void EmptyMountedPathNeverFallsBack(string path)
+    public async Task EmptyMountedPathNeverFallsBack(string path)
     {
+        await Task.Yield();
         // GIVEN an explicitly empty path, WHEN loading a secret, THEN inline values cannot bypass it.
         Assert.Throws<InvalidOperationException>(() => DeploymentSecrets.ReadValue(Config(("SecretFile", path), ("Secret", "fallback")), "Secret"));
     }
@@ -102,8 +109,9 @@ public sealed class DeploymentSecretsTests : IDisposable
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
-    public void InvalidCertificateMaterialIsRejected(bool wrongPassword)
+    public async Task InvalidCertificateMaterialIsRejected(bool wrongPassword)
     {
+        await Task.Yield();
         // GIVEN either a public-only certificate or an encrypted private key with the wrong password.
         using var key = RSA.Create(2048);
         var request = new CertificateRequest("CN=workbench-test", key, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
@@ -118,8 +126,9 @@ public sealed class DeploymentSecretsTests : IDisposable
     }
 
     [Fact]
-    public void RotationRetainsOldKeyDecryptionOnlyWhenPreviousCertificateIsConfigured()
+    public async Task RotationRetainsOldKeyDecryptionOnlyWhenPreviousCertificateIsConfigured()
     {
+        await Task.Yield();
         // GIVEN persisted keys encrypted by the previous certificate and a new release certificate.
         string ExportCertificate(string name)
         {

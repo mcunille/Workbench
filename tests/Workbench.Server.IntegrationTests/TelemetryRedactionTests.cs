@@ -9,8 +9,9 @@ namespace Workbench.Server.IntegrationTests;
 public sealed class TelemetryRedactionTests
 {
     [Fact]
-    public void ExportDropsSecretsFromMessagesExceptionsCategoriesAndScopes()
+    public async Task ExportDropsSecretsFromMessagesExceptionsCategoriesAndScopes()
     {
+        await Task.Yield();
         // GIVEN a central export pipeline receiving unsafe dependency diagnostics.
         using var output = new StringWriter();
         using var factory = LoggerFactory.Create(builder => builder.AddProvider(new SafeTelemetryLoggerProvider(output)));

@@ -5,7 +5,6 @@ import { browserBaseUrl } from './browser-environment';
 import { expect, test } from './diagnostic-fixture';
 import { photoSignIn, smallPhotoImage } from './photo-fixture';
 import { createArchived, lifecycle, restore, confirmRestore, searchArchive } from './restoration-fixture';
-test.setTimeout(180_000);
 test('H6 archive navigation and photographed restoration persist in another session at mobile and desktop sizes', async ({ page, browser }) => {
   // GIVEN an archived photographed record and another authenticated session.
   await photoSignIn(page);

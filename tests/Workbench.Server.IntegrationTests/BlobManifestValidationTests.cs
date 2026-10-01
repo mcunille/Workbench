@@ -14,8 +14,9 @@ public sealed class BlobManifestValidationTests
 
     [Theory]
     [MemberData(nameof(SupportedReleaseSchemas))]
-    public void KnownReleasesFromBackupSupportBoundaryAcceptAnExactManifest(string schema)
+    public async Task KnownReleasesFromBackupSupportBoundaryAcceptAnExactManifest(string schema)
     {
+        await Task.Yield();
         // GIVEN a known release at or after the first supported backup boundary.
         var manifest = Manifest() with { SchemaVersion = schema };
         // WHEN validating THEN new releases and their predecessors need no separate compatibility registration.
@@ -30,8 +31,9 @@ public sealed class BlobManifestValidationTests
     [InlineData("20260918050000_ProjectRetainedPurchaseOrderLines")]
     [InlineData("20260912033355_TightenDraftSourceLinkValidation")]
     [InlineData("20260912045432_AddDraftOrderDeletion")]
-    public void FirstSupportedBoundaryAndRetiredMarkersRemainAccepted(string schema)
+    public async Task FirstSupportedBoundaryAndRetiredMarkersRemainAccepted(string schema)
     {
+        await Task.Yield();
         // GIVEN an independently pinned boundary or a retired marker absent from the current migration inventory.
         var manifest = Manifest() with { SchemaVersion = schema };
         // WHEN validating its database, installation and ordered entries THEN compatibility is retained.
@@ -53,8 +55,9 @@ public sealed class BlobManifestValidationTests
     [InlineData("provider")]
     [InlineData("length")]
     [InlineData("digest")]
-    public void EveryManifestBindingAndRetainedEntryMustMatch(string kind)
+    public async Task EveryManifestBindingAndRetainedEntryMustMatch(string kind)
     {
+        await Task.Yield();
         // GIVEN the unchanged rejection cases characterized through the maintenance command before extraction.
         var manifest = Manifest();
         // WHEN one binding or retained-entry invariant differs THEN exact-pair recovery cannot proceed.
@@ -68,8 +71,9 @@ public sealed class BlobManifestValidationTests
     [InlineData("20260907082353_AddItemPhotographs")]
     [InlineData("20260921051844_UnknownSchema")]
     [InlineData("99999999999999_FutureSchema")]
-    public void KnownButUnsupportedAndFutureSchemasRemainRejected(string schema)
+    public async Task KnownButUnsupportedAndFutureSchemasRemainRejected(string schema)
     {
+        await Task.Yield();
         // GIVEN a known pre-support release or an unknown marker within or beyond the supported date range.
         var manifest = Manifest() with { SchemaVersion = schema };
         // WHEN validating THEN neither inventory membership nor ordering grants compatibility.

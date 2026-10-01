@@ -14,8 +14,9 @@ public sealed class DocumentValidatorTests
     [InlineData(ImageMagick.MagickFormat.Png, "image/png", "png")]
     [InlineData(ImageMagick.MagickFormat.Jpeg, "image/jpeg", "jpg")]
     [InlineData(ImageMagick.MagickFormat.WebP, "image/webp", "webp")]
-    public void AcceptsOriginalSingleFrameImages(ImageMagick.MagickFormat format, string mediaType, string extension)
+    public async Task AcceptsOriginalSingleFrameImages(ImageMagick.MagickFormat format, string mediaType, string extension)
     {
+        await Task.Yield();
         // GIVEN a supported image with embedded metadata.
         _ = new PhotoProcessor();
         using var image = PhotoProcessorTests.CreateImage(ImageMagick.MagickColors.Red, 8, 8);
@@ -29,8 +30,9 @@ public sealed class DocumentValidatorTests
         Assert.Equal(original, bytes);
     }
     [Fact]
-    public void AcceptsPlainPdfAndPreservesSource()
+    public async Task AcceptsPlainPdfAndPreservesSource()
     {
+        await Task.Yield();
         // GIVEN a structurally complete one-page PDF.
         var bytes = Pdf();
         var original = bytes.ToArray();
@@ -47,8 +49,9 @@ public sealed class DocumentValidatorTests
     [InlineData("/OpenAction 4 0 R", "<< /S /URI /URI (https://example.com) >>")]
     [InlineData("/Names << /EmbeddedFiles 4 0 R >>", "<< /Names [(file) << /Type /Filespec /EF << /F 5 0 R >> >>] >>")]
     [InlineData("/Custom [<< /Nested 4 0 R >>]", "<< /S /Java#53cript /JS (alert\\(1\\)) >>")]
-    public void RejectsIndirectActiveContent(string catalog, string fourthObject)
+    public async Task RejectsIndirectActiveContent(string catalog, string fourthObject)
     {
+        await Task.Yield();
         // GIVEN an action or embedded file reached through indirect or nested objects.
         var bytes = Pdf(catalog, fourthObject);
         // WHEN parsing the entire document graph.
@@ -58,8 +61,9 @@ public sealed class DocumentValidatorTests
     }
 
     [Fact]
-    public void RejectsMalformedAndOversizedDocuments()
+    public async Task RejectsMalformedAndOversizedDocuments()
     {
+        await Task.Yield();
         // GIVEN a PDF signature without a valid structure and an excessive upload.
         var validator = new DocumentValidator();
         // WHEN validating them.
@@ -71,8 +75,9 @@ public sealed class DocumentValidatorTests
     }
 
     [Fact]
-    public void RejectsEncryptedPdfEvenWithEmptyUserPassword()
+    public async Task RejectsEncryptedPdfEvenWithEmptyUserPassword()
     {
+        await Task.Yield();
         // GIVEN valid standard RC4 PDF encryption allowing opening with an empty password.
         var padding = Convert.FromHexString("28BF4E5E4E758A4164004E56FFFA01082E2E00B6D0683E802F0CA9FE6453697A");
         var ownerPassword = Encoding.ASCII.GetBytes("owner").Concat(padding).Take(32).ToArray();
@@ -112,8 +117,9 @@ public sealed class DocumentValidatorTests
         return result;
     }
     [Fact]
-    public void AllowsPaperworkBeyondPhotographAxisLimit()
+    public async Task AllowsPaperworkBeyondPhotographAxisLimit()
     {
+        await Task.Yield();
         // GIVEN a single-row scan wider than the photograph policy but within paperwork limits.
         _ = new PhotoProcessor();
         var bytes = PhotoProcessorTests.CreatePng(ImageMagick.MagickColors.Red, 3000, 1);
@@ -128,8 +134,9 @@ public sealed class DocumentValidatorTests
     [Theory]
     [InlineData(12001u, 1u)]
     [InlineData(10000u, 5000u)]
-    public void RejectsExcessiveDimensionsBeforeDecode(uint width, uint height)
+    public async Task RejectsExcessiveDimensionsBeforeDecode(uint width, uint height)
     {
+        await Task.Yield();
         // GIVEN a header claiming an excessive axis or pixel count.
         _ = new PhotoProcessor();
         using var image = PhotoProcessorTests.CreateImage(ImageMagick.MagickColors.Red, 8, 8);
@@ -143,8 +150,9 @@ public sealed class DocumentValidatorTests
     }
 
     [Fact]
-    public void RejectsAnimatedWebp()
+    public async Task RejectsAnimatedWebp()
     {
+        await Task.Yield();
         // GIVEN two image frames in a supported container.
         _ = new PhotoProcessor();
         using var frames = new ImageMagick.MagickImageCollection();
@@ -158,8 +166,9 @@ public sealed class DocumentValidatorTests
     }
 
     [Fact]
-    public void RejectsUnresolvedReferencesAndExcessiveNesting()
+    public async Task RejectsUnresolvedReferencesAndExcessiveNesting()
     {
+        await Task.Yield();
         // GIVEN a dangling object and a deeply nested array in otherwise complete PDFs.
         var invalidReference = Pdf("/Custom 99 0 R");
         var nested = Pdf("/Custom " + new string('[', 80) + "0" + new string(']', 80));
@@ -171,8 +180,9 @@ public sealed class DocumentValidatorTests
         Assert.Equal(422, second.StatusCode);
     }
     [Fact]
-    public void AcceptsJpegScanInsidePdf()
+    public async Task AcceptsJpegScanInsidePdf()
     {
+        await Task.Yield();
         // GIVEN a PDF containing a common JPEG receipt scan.
         _ = new PhotoProcessor();
         using var image = PhotoProcessorTests.CreateImage(ImageMagick.MagickColors.Red, 32, 32);
@@ -188,8 +198,9 @@ public sealed class DocumentValidatorTests
     [Theory]
     [InlineData(200, true)]
     [InlineData(201, false)]
-    public void EnforcesPdfPageLimit(int count, bool accepted)
+    public async Task EnforcesPdfPageLimit(int count, bool accepted)
     {
+        await Task.Yield();
         // GIVEN a complete PDF at or beyond the page-count boundary.
         var builder = new UglyToad.PdfPig.Writer.PdfDocumentBuilder();
         for (var page = 0; page < count; page++) builder.AddPage(UglyToad.PdfPig.Content.PageSize.A4);
@@ -208,8 +219,9 @@ public sealed class DocumentValidatorTests
     }
 
     [Fact]
-    public void RejectsCompressedExpansionBeforeUnboundedAllocation()
+    public async Task RejectsCompressedExpansionBeforeUnboundedAllocation()
     {
+        await Task.Yield();
         // GIVEN a small compressed stream expanding beyond the per-stream memory budget.
         using var output = new MemoryStream();
         using (var encoder = new System.IO.Compression.ZLibStream(output, System.IO.Compression.CompressionLevel.SmallestSize, true))
@@ -227,8 +239,9 @@ public sealed class DocumentValidatorTests
     }
 
     [Fact]
-    public void RejectsUnsupportedStreamEncoding()
+    public async Task RejectsUnsupportedStreamEncoding()
     {
+        await Task.Yield();
         // GIVEN an unqualified PDF stream codec.
         var bytes = Pdf("", "<< /Length 1 /Filter /JBIG2Decode >>\nstream\nx\nendstream");
         // WHEN validating all streams.
@@ -237,8 +250,9 @@ public sealed class DocumentValidatorTests
         Assert.Equal(422, error.StatusCode);
     }
     [Fact]
-    public void RejectsDuplicateDictionaryKeys()
+    public async Task RejectsDuplicateDictionaryKeys()
     {
+        await Task.Yield();
         // GIVEN ambiguous duplicate action entries that different readers could resolve differently.
         var bytes = Pdf("/Custom 4 0 R", "<< /Type /Action /S /JavaScript /S /GoTo /D [3 0 R /Fit] >>");
         // WHEN strict parsing resolves the dictionary.
@@ -247,8 +261,9 @@ public sealed class DocumentValidatorTests
         Assert.Equal(422, error.StatusCode);
     }
     [Fact]
-    public void RejectsUnqualifiedInlineImages()
+    public async Task RejectsUnqualifiedInlineImages()
     {
+        await Task.Yield();
         // GIVEN image data inside page content rather than a separate image object.
         const string content = "BI /W 1 /H 1 /CS /RGB /BPC 8 ID abc EI";
         var bytes = Pdf("", $"<< /Length {content.Length} >>\nstream\n{content}\nendstream", pageExtra: "/Contents 4 0 R");
@@ -260,8 +275,9 @@ public sealed class DocumentValidatorTests
     [Theory]
     [InlineData("/Custom [<< /N 1 /#4E 2 >>]")]
     [InlineData("/Custom << /S /GoTo /#53 /GoTo >>")]
-    public void RejectsNestedAndEscapedDuplicateKeys(string catalog)
+    public async Task RejectsNestedAndEscapedDuplicateKeys(string catalog)
     {
+        await Task.Yield();
         // GIVEN duplicate names hidden in nested values or encoded names.
         var bytes = Pdf(catalog);
         // WHEN checking original object syntax before trusting normalized tokens.
@@ -271,8 +287,9 @@ public sealed class DocumentValidatorTests
     }
 
     [Fact]
-    public void RejectsDuplicateTrailerKeys()
+    public async Task RejectsDuplicateTrailerKeys()
     {
+        await Task.Yield();
         // GIVEN duplicate root pointers in a parseable trailer.
         var bytes = Pdf(trailer: "/Root 1 0 R");
         // WHEN checking all cross-reference trailers.
@@ -282,8 +299,9 @@ public sealed class DocumentValidatorTests
     }
 
     [Fact]
-    public void AcceptsNestedPassiveValuesWithoutInterpretingStringsAsSyntax()
+    public async Task AcceptsNestedPassiveValuesWithoutInterpretingStringsAsSyntax()
     {
+        await Task.Yield();
         // GIVEN ordinary literal/hex strings, escaped names, arrays, comments, and references.
         var bytes = Pdf("/Custom [<< /#4E [(escaped \\(parenthesis\\) and << /S /JS >>) <4142> true null .5 -1 3 0 R] >> %comment\n ]");
         // WHEN checking PDF structure and original dictionary syntax.
@@ -293,8 +311,9 @@ public sealed class DocumentValidatorTests
     }
 
     [Fact]
-    public void RejectsCompressedCrossReferenceStreamsExplicitly()
+    public async Task RejectsCompressedCrossReferenceStreamsExplicitly()
     {
+        await Task.Yield();
         // GIVEN a valid modern cross-reference stream, outside the qualified syntax preflight.
         var bytes = CrossReferenceStreamPdf();
         using var parsed = UglyToad.PdfPig.PdfDocument.Open(bytes);
@@ -344,8 +363,9 @@ public sealed class DocumentValidatorTests
     [InlineData("<< /AcroForm << >> >>")]
     [InlineData("<< /Type /3D /Subtype /U3D /OnInstantiate 3 0 R >>")]
     [InlineData("<< /A << /S /UnknownFutureAction /F (external.pdf) >> >>")]
-    public void RejectsOtherExecutableAndExternalContent(string payload)
+    public async Task RejectsOtherExecutableAndExternalContent(string payload)
     {
+        await Task.Yield();
         // GIVEN external article actions, 3D scripts, or unqualified action types.
         var bytes = Pdf("/Custom 4 0 R", payload);
         // WHEN inspecting actions beyond JavaScript's common entry point.
@@ -356,8 +376,9 @@ public sealed class DocumentValidatorTests
     [Theory]
     [InlineData(1000000)]
     [InlineData(0)]
-    public void RejectsUnqualifiedPredictorBeforeLibraryAllocation(int columns)
+    public async Task RejectsUnqualifiedPredictorBeforeLibraryAllocation(int columns)
     {
+        await Task.Yield();
         // GIVEN a small, safe reproduction of predictor-driven row allocation amplification.
         using var output = new MemoryStream();
         using (var encoder = new System.IO.Compression.ZLibStream(output, System.IO.Compression.CompressionLevel.Fastest, true))
@@ -370,8 +391,9 @@ public sealed class DocumentValidatorTests
         Assert.Equal(422, error.StatusCode);
     }
     [Fact]
-    public void RestoresNativePhotographLimitsAfterDocumentFailure()
+    public async Task RestoresNativePhotographLimitsAfterDocumentFailure()
     {
+        await Task.Yield();
         // GIVEN the shared native decoder policy and a malformed document image.
         _ = new PhotoProcessor();
         var validator = new DocumentValidator();
@@ -383,8 +405,9 @@ public sealed class DocumentValidatorTests
         Assert.Equal((ulong)PhotoProcessor.MaximumBytes, ImageMagick.ResourceLimits.MaxProfileSize);
     }
     [Fact]
-    public void RejectsChainedAscii85ExpansionBeforeDecoderAllocation()
+    public async Task RejectsChainedAscii85ExpansionBeforeDecoderAllocation()
     {
+        await Task.Yield();
         // GIVEN a tiny compressed representation of many four-byte ASCII85 zero abbreviations.
         using var output = new MemoryStream();
         using (var encoder = new System.IO.Compression.ZLibStream(output, System.IO.Compression.CompressionLevel.Fastest, true))

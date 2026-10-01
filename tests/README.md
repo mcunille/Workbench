@@ -61,6 +61,21 @@ still upload real, smaller images.
 
 ## Measuring changes
 
+Default local and CI gate tests have a maximum 30-second case budget. Server
+facts and individual theory rows use the shared budgeted xUnit attributes;
+keep test methods async so xUnit can enforce their timeout. Pure bodies yield
+once before executing. Collection scheduling is serial inside each server
+partition, with independent processes retaining gate concurrency. Playwright
+uses a 30-second test timeout without longer case/file overrides; Vitest retains
+its shorter default. Node infrastructure checks use `--test-timeout=30000`.
+Discovery checks detect omitted server budgets and longer browser declarations;
+the browser reporter also fails runs containing runtime timeout extensions.
+
+The case budget does not include shared SQL/container/server startup. xUnit
+reports a timeout failure but does not cooperatively cancel the test's pending
+work; disposable fixture cleanup remains owned by the runner. Narrated media
+recording scripts use separate configs and are outside the default test gate.
+
 Record a before/after cohort for each optimization, with repetitions on the same host and comparable
 cache/resource conditions. Include process wall time: xUnit case durations do not fully reflect
 fixture startup, setup, or disposal. Keep build time separate when using verified current outputs.
@@ -103,3 +118,7 @@ substitutions, and records their focused before/after measurements and regressio
 The [browser ownership measurement record](../docs/specs/2026-09-25-test-browser-ownership-results.md)
 maps responsive geometry to intercepted cases, identifies retained live retry/persistence/download
 journeys, and records the reduced label/encoding matrices, discovery changes and fault probes.
+
+The [case-budget measurement record](../docs/specs/2026-09-30-test-time-budget-results.md)
+maps the cheaper closure and grouped SQL guards to their retained contracts and
+records the 30-second gate policy, timing evidence and focused regression probes.

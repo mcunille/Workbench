@@ -12,8 +12,9 @@ public sealed class DraftOrderInputTests
     private static DraftEntry Entry(string? price = null) => new(Guid.NewGuid(), null, null, null, price, null, null, "perUnit", null, null, null, null);
 
     [Fact]
-    public void EmptyAndNormalizedOptionalFactsPreserveUnknownAndExplicitZero()
+    public async Task EmptyAndNormalizedOptionalFactsPreserveUnknownAndExplicitZero()
     {
+        await Task.Yield();
         // GIVEN optional shopping-list facts, padded labels and meaningful notes.
         var input = Empty with
         {
@@ -54,8 +55,9 @@ public sealed class DraftOrderInputTests
     [InlineData("1.00001")]
     [InlineData("1000000000000000")]
     [InlineData("")]
-    public void NonExactPriceSyntaxIsRejected(string price)
+    public async Task NonExactPriceSyntaxIsRejected(string price)
     {
+        await Task.Yield();
         // GIVEN an amount that would require interpretation, rounding or overflow.
         var input = Empty with { Currency = "USD", Entries = [Entry(price)] };
         // WHEN validating normalized input THEN the price field identifies the error.
@@ -63,8 +65,9 @@ public sealed class DraftOrderInputTests
     }
 
     [Fact]
-    public void CurrencyAndCollectionBoundsAreAuthoritative()
+    public async Task CurrencyAndCollectionBoundsAreAuthoritative()
     {
+        await Task.Yield();
         // GIVEN bounded entry/link lists and the largest decimal(19,4) amount.
         Assert.Empty(DraftOrderInput.Validate(Empty with { Currency = "USD", Entries = [Entry("999999999999999.9999")] }));
         // WHEN required price notation, identifiers and collection bounds are violated THEN field errors explain the limit.
@@ -82,8 +85,9 @@ public sealed class DraftOrderInputTests
     [Theory]
     [InlineData("https://example.com")]
     [InlineData("http://example.com/cart?q=1")]
-    public void SafeAbsoluteLinksAreAcceptedWithoutFetchingOrRewriting(string link)
+    public async Task SafeAbsoluteLinksAreAcceptedWithoutFetchingOrRewriting(string link)
     {
+        await Task.Yield();
         // GIVEN an absolute link without credentials WHEN validating THEN its exact trimmed representation remains.
         var input = DraftOrderInput.Normalize(Empty with { SourceLinks = [link] });
         Assert.Empty(DraftOrderInput.Validate(input));
@@ -99,8 +103,9 @@ public sealed class DraftOrderInputTests
     [InlineData("")]
     [InlineData("https://example.com/a b")]
     [InlineData("https://example.com/a\tb")]
-    public void UnsafeOrIncompleteLinksHaveFieldErrors(string link)
+    public async Task UnsafeOrIncompleteLinksHaveFieldErrors(string link)
     {
+        await Task.Yield();
         // GIVEN an unsafe or incomplete source WHEN validating THEN both link locations identify the issue.
         var errors = DraftOrderInput.Validate(Empty with { SourceLinks = [link], Entries = [Entry() with { SourceLink = link }] });
         Assert.Contains("draft.sourceLinks[0]", errors.Keys);
@@ -108,8 +113,9 @@ public sealed class DraftOrderInputTests
     }
 
     [Fact]
-    public void TextLimitsCountUtf16UnitsAndEscapedStorageBytes()
+    public async Task TextLimitsCountUtf16UnitsAndEscapedStorageBytes()
     {
+        await Task.Yield();
         // GIVEN individually valid maximum fields and escaping-heavy shopping-list notes.
         var input = Empty with
         {
@@ -135,8 +141,9 @@ public sealed class DraftOrderInputTests
     }
 
     [Fact]
-    public void CanonicalInputHasStableExplicitFieldOrderAndSemanticIdentity()
+    public async Task CanonicalInputHasStableExplicitFieldOrderAndSemanticIdentity()
     {
+        await Task.Yield();
         // GIVEN equivalent normalized content and a fixed entry identity.
         var entry = Entry("1.2");
         var first = Empty with { Title = "  Plan ", Currency = "usd", Entries = [entry] };
@@ -153,8 +160,9 @@ public sealed class DraftOrderInputTests
     }
 
     [Fact]
-    public void SavedVersionRequiresExactlyEightBase64Bytes()
+    public async Task SavedVersionRequiresExactlyEightBase64Bytes()
     {
+        await Task.Yield();
         // GIVEN the opaque database version WHEN decoding THEN all eight bytes round-trip unchanged.
         var expected = Convert.ToBase64String(new byte[] { 1, 2, 3, 4, 5, 6, 7, 8 });
         var errors = new Dictionary<string, string[]>();
@@ -170,8 +178,9 @@ public sealed class DraftOrderInputTests
     }
 
     [Fact]
-    public void CursorRoundTripPreservesPrecisionAndRejectsMalformedInput()
+    public async Task CursorRoundTripPreservesPrecisionAndRejectsMalformedInput()
     {
+        await Task.Yield();
         // GIVEN a timestamp with all seven fractional digits.
         var timestamp = DateTimeOffset.Parse("2026-09-12T02:00:00.1234567+00:00");
         var id = Guid.NewGuid();
@@ -185,8 +194,9 @@ public sealed class DraftOrderInputTests
     }
 
     [Fact]
-    public void WireContractRequiresExplicitNullsAndRejectsNestedUnknownFields()
+    public async Task WireContractRequiresExplicitNullsAndRejectsNestedUnknownFields()
     {
+        await Task.Yield();
         // GIVEN incomplete and extended representations of the versioned replacement contract.
         var options = new JsonSerializerOptions(JsonSerializerDefaults.Web);
         // WHEN binding THEN omitted nullable fields and nested authority fields fail before normalization.

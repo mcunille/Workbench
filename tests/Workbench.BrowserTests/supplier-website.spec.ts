@@ -2,7 +2,6 @@ import { expect, test } from './diagnostic-fixture';
 import { useAuthenticatedSession } from './auth-fixture';
 
 test('supplier websites accept domains on create and edit and remain external saved links', async ({ page, context }) => {
-  test.setTimeout(120_000);
   // GIVEN a supplier entered in the real form, including surrounding whitespace.
   await useAuthenticatedSession(page);
   await page.goto('/suppliers/new');

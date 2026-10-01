@@ -5,6 +5,7 @@ import { defineConfig } from '@playwright/test';
 export default defineConfig({
   testDir: '.',
   testMatch: '*.spec.ts',
+  timeout: 30_000,
   fullyParallel: false,
   workers: 1 + uiWorkers(process.env.WORKBENCH_BROWSER_UI_WORKERS),
   projects: [

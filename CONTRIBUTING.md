@@ -176,10 +176,11 @@ Run the browser isolation, synthetic capture/privacy, and deliberate-failure con
 installing browser npm dependencies and Chromium:
 
 ```powershell
-node --test tests/Workbench.BrowserTests/safe-diagnostics.test.mjs `
+node --test --test-timeout=30000 tests/Workbench.BrowserTests/safe-diagnostics.test.mjs `
   tests/Workbench.BrowserTests/browser-isolation.test.mjs `
   tests/Workbench.BrowserTests/browser-isolation-wiring.test.mjs `
-  tests/Workbench.BrowserTests/diagnostic-budget.test.mjs
+  tests/Workbench.BrowserTests/diagnostic-budget.test.mjs `
+  tests/Workbench.BrowserTests/browser-time-budget.test.mjs
 ```
 
 The deliberate-failure cleanup check also requires PowerShell and Docker; it starts no

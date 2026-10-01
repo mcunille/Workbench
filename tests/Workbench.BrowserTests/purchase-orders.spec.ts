@@ -3,8 +3,6 @@ import { useAuthenticatedSession as signIn } from './auth-fixture';
 import { setAppearance } from './user-menu-fixture';
 import { browserBaseUrl } from './browser-environment';
 
-test.setTimeout(120_000);
-
 async function startDraft(page: Page, title: string) {
   await page.goto('/purchase-orders/new');
   await page.getByLabel('Custom title (optional)', { exact: true }).fill(title);

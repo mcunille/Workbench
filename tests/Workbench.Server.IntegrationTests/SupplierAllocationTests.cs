@@ -127,47 +127,47 @@ public sealed class SupplierAllocationTests(SqlServerFixture sqlServer)
     [InlineData("future-funding", 51004)]
     [InlineData("cross-currency", 51004)]
     [InlineData("cross-po", 51004)]
-    [InlineData("duplicate", 51000)]
+    [InlineData("duplicate,precision,scale", 51000)]
+    [InlineData("zero,overflow,unknown", 51000)]
     [InlineData("stale", 51009)]
-    [InlineData("precision", 51000)]
-    [InlineData("scale", 51000)]
-    [InlineData("zero", 51000)]
-    [InlineData("overflow", 51000)]
-    [InlineData("unknown", 51000)]
-    public async Task InvalidApplicationsLeaveAllFinancialEvidenceUnchanged(string scenario, int expectedError)
+    public async Task InvalidApplicationsLeaveAllFinancialEvidenceUnchanged(string scenarios, int expectedError)
     {
         // GIVEN genuine posted bill and advance evidence, with one independently invalid request condition.
         await using var context = await SupplierAllocationTestContext.OpenAsync(sqlServer);
-        var advance = await context.SourceAsync(date: scenario == "future-funding" ? "2026-09-17" : "2026-09-10"); var bill = await context.BillAsync();
-        var command = await context.CommandAsync(advance, bill);
-        if (scenario == "non-bill")
+        var advance = await context.SourceAsync(date: scenarios == "future-funding" ? "2026-09-17" : "2026-09-10"); var bill = await context.BillAsync();
+        foreach (var scenario in scenarios.Split(','))
         {
-            var invoice = await context.Items.Recognition.CommandAsync("Invoice", cost: "150");
-            var posted = await context.Items.Recognition.PostAsync(invoice.ToJsonString());
-            command["targets"]![0]!["itemId"] = posted.EventIds[0].ToString();
-            command["targets"]![0]!["expectedItemVersion"] = await context.VersionAsync(posted.EventIds[0]);
+            var command = await context.CommandAsync(advance, bill);
+            if (scenario == "non-bill")
+            {
+                var invoice = await context.Items.Recognition.CommandAsync("Invoice", cost: "150");
+                var posted = await context.Items.Recognition.PostAsync(invoice.ToJsonString());
+                command["targets"]![0]!["itemId"] = posted.EventIds[0].ToString();
+                command["targets"]![0]!["expectedItemVersion"] = await context.VersionAsync(posted.EventIds[0]);
+            }
+            if (scenario == "future-source") command["postingDate"] = "2026-09-14";
+            if (scenario == "cross-currency") await context.Bills.AdminAsync($"UPDATE Purchasing.SupplierOpenItems SET Currency='CAD' WHERE Id='{bill}'");
+            if (scenario == "cross-po") await context.Bills.AdminAsync($"""
+                DECLARE @Other uniqueidentifier=NEWID();
+                INSERT Purchasing.DraftOrders(Id,TenantId,IsDeleted,State,OrderDate,Revision,SupplierId,Currency,ContentSchemaVersion,ContentJson,CreatedAtUtc,UpdatedAtUtc,CreatedByUserId,UpdatedByUserId)
+                  SELECT @Other,TenantId,IsDeleted,State,OrderDate,Revision,SupplierId,Currency,ContentSchemaVersion,ContentJson,CreatedAtUtc,UpdatedAtUtc,CreatedByUserId,UpdatedByUserId
+                  FROM Purchasing.DraftOrders WHERE Id='{context.Items.Recognition.PurchaseOrderId}';
+                UPDATE Purchasing.SupplierOpenItems SET PurchaseOrderId=@Other WHERE Id='{bill}';
+                """);
+            if (scenario == "duplicate") command["targets"]!.AsArray().Add(command["targets"]![0]!.DeepClone());
+            if (scenario == "stale") command["expectedFundingItemVersion"] = "0x0000000000000000";
+            if (scenario == "precision") command["targets"]![0]!["amount"] = "0.00001";
+            if (scenario == "scale") command["targets"]![0]!["amount"] = "0.001";
+            if (scenario == "zero") command["targets"]![0]!["amount"] = "0";
+            if (scenario == "overflow") command["targets"]![0]!["amount"] = "1000000000000000000000000";
+            if (scenario == "unknown") command["paymentId"] = Guid.NewGuid().ToString();
+            var before = await Counts();
+            // WHEN production Apply processes it THEN the owning guard rejects it without journal, movement or receipt fragments.
+            var error = await Record.ExceptionAsync(() => context.ApplyAsync(command));
+            Assert.True(error is SqlException, $"{scenario}: expected SQL rejection, got {error?.GetType().Name ?? "success"}.");
+            Assert.True(((SqlException)error!).Number == expectedError, $"{scenario}: {error.Message}");
+            Assert.True(before == await Counts(), $"{scenario}: financial evidence changed.");
         }
-        if (scenario == "future-source") command["postingDate"] = "2026-09-14";
-        if (scenario == "cross-currency") await context.Bills.AdminAsync($"UPDATE Purchasing.SupplierOpenItems SET Currency='CAD' WHERE Id='{bill}'");
-        if (scenario == "cross-po") await context.Bills.AdminAsync($"""
-            DECLARE @Other uniqueidentifier=NEWID();
-            INSERT Purchasing.DraftOrders(Id,TenantId,IsDeleted,State,OrderDate,Revision,SupplierId,Currency,ContentSchemaVersion,ContentJson,CreatedAtUtc,UpdatedAtUtc,CreatedByUserId,UpdatedByUserId)
-              SELECT @Other,TenantId,IsDeleted,State,OrderDate,Revision,SupplierId,Currency,ContentSchemaVersion,ContentJson,CreatedAtUtc,UpdatedAtUtc,CreatedByUserId,UpdatedByUserId
-              FROM Purchasing.DraftOrders WHERE Id='{context.Items.Recognition.PurchaseOrderId}';
-            UPDATE Purchasing.SupplierOpenItems SET PurchaseOrderId=@Other WHERE Id='{bill}';
-            """);
-        if (scenario == "duplicate") command["targets"]!.AsArray().Add(command["targets"]![0]!.DeepClone());
-        if (scenario == "stale") command["expectedFundingItemVersion"] = "0x0000000000000000";
-        if (scenario == "precision") command["targets"]![0]!["amount"] = "0.00001";
-        if (scenario == "scale") command["targets"]![0]!["amount"] = "0.001";
-        if (scenario == "zero") command["targets"]![0]!["amount"] = "0";
-        if (scenario == "overflow") command["targets"]![0]!["amount"] = "1000000000000000000000000";
-        if (scenario == "unknown") command["paymentId"] = Guid.NewGuid().ToString();
-        var before = await Counts();
-        // WHEN production Apply processes it THEN the owning guard rejects it without journal, movement or receipt fragments.
-        var error = await Assert.ThrowsAsync<SqlException>(() => context.ApplyAsync(command));
-        Assert.Equal(expectedError, error.Number);
-        Assert.Equal(before, await Counts());
         Task<string> Counts() => context.Bills.ScalarAsync<string>("SELECT CONCAT((SELECT COUNT(*) FROM Accounting.JournalEntries),':',(SELECT COUNT(*) FROM Purchasing.SupplierItemMovements),':',(SELECT COUNT(*) FROM Purchasing.SupplierApplications),':',(SELECT COUNT(*) FROM Purchasing.SupplierFinancialReceipts))");
     }
 

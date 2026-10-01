@@ -13,8 +13,9 @@ namespace Workbench.Server.IntegrationTests;
 public sealed class ItemExportBoundsTests
 {
     [Fact]
-    public void CsvAcceptsRowBoundaryAndRejectsOverflowAndCancellation()
+    public async Task CsvAcceptsRowBoundaryAndRejectsOverflowAndCancellation()
     {
+        await Task.Yield();
         // GIVEN the largest supported number of short records.
         var item = new ExportItem(Guid.NewGuid(), "Individual", "=stone", null, null, DateTimeOffset.UtcNow, null);
         var items = Enumerable.Repeat(item, ItemExportCsv.MaximumRows).ToArray();
@@ -29,8 +30,9 @@ public sealed class ItemExportBoundsTests
     }
 
     [Fact]
-    public void EncodedByteLimitIncludesMultibyteTextAndNeverReturnsTruncatedCsv()
+    public async Task EncodedByteLimitIncludesMultibyteTextAndNeverReturnsTruncatedCsv()
     {
+        await Task.Yield();
         // GIVEN valid maximum-length notes whose UTF-8 encoding exceeds the file bound before the row bound.
         var item = new ExportItem(Guid.NewGuid(), "Individual", "stone", new string('蓝', 4000), null, DateTimeOffset.UtcNow, null);
         // WHEN encoding the selected collection.

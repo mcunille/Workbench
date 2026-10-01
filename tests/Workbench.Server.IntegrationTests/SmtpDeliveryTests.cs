@@ -15,8 +15,9 @@ public sealed class SmtpDeliveryTests
     [InlineData("smtp.example", 65536, false)]
     [InlineData("smtp.example", 1, true)]
     [InlineData("smtp.example", 65535, true)]
-    public void SmtpHostAndPortBoundariesAreValidated(string host, int port, bool valid)
+    public async Task SmtpHostAndPortBoundariesAreValidated(string host, int port, bool valid)
     {
+        await Task.Yield();
         // GIVEN an SMTP endpoint at or outside the supported address boundaries.
         var options = ValidOptions();
         options.Host = host;
@@ -49,8 +50,9 @@ public sealed class SmtpDeliveryTests
     [InlineData("StartTls", "", "https://workbench.example")]
     [InlineData("StartTls", "secret", "http://workbench.example")]
     [InlineData("StartTls", "secret", "https://workbench.example/?token=unsafe")]
-    public void InsecureSmtpConfigurationFailsClosed(string security, string password, string origin)
+    public async Task InsecureSmtpConfigurationFailsClosed(string security, string password, string origin)
     {
+        await Task.Yield();
         // GIVEN a configured sender with one unsafe deployment setting.
         var options = ValidOptions();
         options.Security = security;
@@ -63,8 +65,9 @@ public sealed class SmtpDeliveryTests
     }
 
     [Fact]
-    public void AuthenticatedTlsConfigurationIsAccepted()
+    public async Task AuthenticatedTlsConfigurationIsAccepted()
     {
+        await Task.Yield();
         // GIVEN mandatory TLS, credentials, and a canonical HTTPS origin.
         var options = ValidOptions();
         // WHEN deployment settings are validated, THEN they are accepted.

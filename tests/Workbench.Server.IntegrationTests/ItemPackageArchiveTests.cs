@@ -13,8 +13,9 @@ namespace Workbench.Server.IntegrationTests;
 public sealed class ItemPackageArchiveTests
 {
     [Fact]
-    public void ArchiveBackingAllocationDoesNotGrowPastItsByteCeiling()
+    public async Task ArchiveBackingAllocationDoesNotGrowPastItsByteCeiling()
     {
+        await Task.Yield();
         // GIVEN a bounded archive backing stream with a non-power-of-two first allocation.
         // Inspect capacity because file length alone cannot establish the memory resource bound.
         var type = typeof(ItemPackageArchive).Assembly.GetType("Workbench.Server.Inventory.PackageBuffer", throwOnError: true)!;

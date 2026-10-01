@@ -15,8 +15,9 @@ public sealed class AcquisitionInputTests
     [InlineData(2026, null, null)]
     [InlineData(2026, 9, null)]
     [InlineData(2026, 9, 9)]
-    public void KnownPrecisionAndLeapDatesAreAccepted(int? year, int? month, int? day)
+    public async Task KnownPrecisionAndLeapDatesAreAccepted(int? year, int? month, int? day)
     {
+        await Task.Yield();
         // GIVEN a fixed UTC calendar day and each supported method.
         foreach (var method in new[] { "Purchase", "Gift", "Inheritance", "Trade", "Other", "Unknown" })
         {
@@ -41,8 +42,9 @@ public sealed class AcquisitionInputTests
     [InlineData(2027, null, null, "year")]
     [InlineData(2026, 10, null, "month")]
     [InlineData(2026, 9, 10, "day")]
-    public void IncompleteImpossibleAndFutureDatesHaveFieldErrors(int? year, int? month, int? day, string field)
+    public async Task IncompleteImpossibleAndFutureDatesHaveFieldErrors(int? year, int? month, int? day, string field)
     {
+        await Task.Yield();
         // GIVEN incomplete, impossible or future facts at their stated precision.
         var input = new CreateAcquisitionRequest(Guid.NewGuid(), null, "Unknown", null, year, month, day, null);
         // WHEN validating THEN the offending field is identified.
@@ -50,8 +52,9 @@ public sealed class AcquisitionInputTests
     }
 
     [Fact]
-    public void NormalizationPreservesNotesAndEnforcesExactLengthsAndMethods()
+    public async Task NormalizationPreservesNotesAndEnforcesExactLengthsAndMethods()
     {
+        await Task.Yield();
         // GIVEN meaningful note whitespace and source padding.
         var input = new CreateAcquisitionRequest(Guid.NewGuid(), null, "Gift", " \u2003Family\t", null, null, null, " notes  \n");
         // WHEN normalizing THEN only the source is trimmed and blank optional text becomes null.

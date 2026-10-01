@@ -3,8 +3,6 @@ import { setAppearance } from './user-menu-fixture';
 import { browserBaseUrl } from './browser-environment';
 import { expect, test, type Page } from './diagnostic-fixture';
 import { smallPhotoImage, photoSignIn } from './photo-fixture';
-
-test.setTimeout(180_000);
 async function create(page: Page) {
   const csrf = await (await page.request.get('/api/beta/auth/antiforgery')).json();
   const response = await page.request.post('/api/beta/items', {

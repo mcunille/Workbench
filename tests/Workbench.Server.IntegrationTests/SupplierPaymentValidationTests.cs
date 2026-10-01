@@ -44,66 +44,63 @@ public sealed class SupplierPaymentValidationTests(SqlServerFixture sqlServer)
     }
 
     [Theory]
-    [InlineData("zero", 51000)]
-    [InlineData("negative", 51000)]
-    [InlineData("scale", 51000)]
-    [InlineData("overflow", 51000)]
-    [InlineData("future", 51000)]
-    [InlineData("effective", 51000)]
-    [InlineData("method", 51000)]
+    [InlineData("zero,negative,scale,overflow", 51000)]
+    [InlineData("future,effective,method", 51000)]
+    [InlineData("unknownField,longNotes,longReference,longMethod", 51000)]
     [InlineData("general", 51004)]
     [InlineData("card", 51004)]
     [InlineData("archived", 51004)]
     [InlineData("staleFunding", 51009)]
     [InlineData("overPayment", 51009)]
     [InlineData("overBill", 51009)]
-    [InlineData("unknownField", 51000)]
-    [InlineData("longNotes", 51000)]
-    [InlineData("longReference", 51000)]
-    [InlineData("longMethod", 51000)]
     [InlineData("advanceArchived", 51004)]
-    public async Task IndependentPaymentGuardRejectsWithoutPartialWrites(string guard, int number)
+    public async Task IndependentPaymentGuardsRejectWithoutPartialWrites(string guards, int number)
     {
         // GIVEN a real valid payment succeeds before changing one independent guard.
         await using var context = await SupplierPaymentTestContext.OpenAsync(sqlServer);
         var bill = await context.Allocation.BillAsync("500");
         var valid = await context.CommandAsync(); await context.AllocateAsync(valid, bill, "100");
         await context.RecordAsync(valid);
-        var bad = await context.CommandAsync(); await context.AllocateAsync(bad, bill, "100");
-        switch (guard)
+        foreach (var guard in guards.Split(','))
         {
-            case "zero": bad["amount"] = "0"; break;
-            case "negative": bad["amount"] = "-1"; break;
-            case "scale": bad["amount"] = "100.001"; break;
-            case "overflow": bad["amount"] = "1000000000000000000000000"; break;
-            case "future": bad["paymentDate"] = "2099-01-01"; bad["postingDate"] = "2099-01-01"; bad["effectiveDate"] = "2099-01-01"; break;
-            case "effective": bad["effectiveDate"] = "2026-09-17"; break;
-            case "method": bad["method"] = "Refund"; break;
-            case "general":
-                var general = context.Bills.Recognition.Accounts["Prepayment"];
-                bad["fundingAccountId"] = general.ToString();
-                bad["expectedFundingAccountVersion"] = (await context.Bills.ScalarAsync<Guid>($"SELECT Version FROM Accounting.Accounts WHERE Id='{general}'")).ToString();
-                break;
-            case "card":
-                var card = await context.Allocation.Journal.SaveAsync(Guid.NewGuid(), "CreateAccounts", """[{"code":"CARD4","name":"Card liability","type":"Liability","purpose":"CardLiability"}]""");
-                var cardId = JsonNode.Parse(card.Ids)![0]!.GetValue<string>(); bad["fundingAccountId"] = cardId;
-                bad["expectedFundingAccountVersion"] = (await context.Bills.ScalarAsync<Guid>($"SELECT Version FROM Accounting.Accounts WHERE Id='{cardId}'")).ToString();
-                break;
-            case "archived": await context.Bills.AdminAsync($"UPDATE Accounting.Accounts SET ArchivedAtUtc=SYSUTCDATETIME() WHERE Id='{context.Bank}'"); break;
-            case "staleFunding": bad["expectedFundingAccountVersion"] = Guid.NewGuid().ToString(); break;
-            case "overPayment": bad["allocations"]![0]!["amount"] = "101"; break;
-            case "overBill": bad["amount"] = "401"; bad["allocations"]![0]!["amount"] = "401"; break;
-            case "unknownField": bad["bankFee"] = "1"; break;
-            case "longNotes": bad["notes"] = new string('x', 5000); break;
-            case "longReference": bad["reference"] = new string('x', 5000); break;
-            case "longMethod": bad["method"] = new string('x', 5000); break;
-            case "advanceArchived": await context.Bills.AdminAsync($"UPDATE Accounting.Accounts SET ArchivedAtUtc=SYSUTCDATETIME() WHERE Id='{context.Advance}'"); break;
+            var bad = await context.CommandAsync(); await context.AllocateAsync(bad, bill, "100");
+            switch (guard)
+            {
+                case "zero": bad["amount"] = "0"; break;
+                case "negative": bad["amount"] = "-1"; break;
+                case "scale": bad["amount"] = "100.001"; break;
+                case "overflow": bad["amount"] = "1000000000000000000000000"; break;
+                case "future": bad["paymentDate"] = "2099-01-01"; bad["postingDate"] = "2099-01-01"; bad["effectiveDate"] = "2099-01-01"; break;
+                case "effective": bad["effectiveDate"] = "2026-09-17"; break;
+                case "method": bad["method"] = "Refund"; break;
+                case "general":
+                    var general = context.Bills.Recognition.Accounts["Prepayment"];
+                    bad["fundingAccountId"] = general.ToString();
+                    bad["expectedFundingAccountVersion"] = (await context.Bills.ScalarAsync<Guid>($"SELECT Version FROM Accounting.Accounts WHERE Id='{general}'")).ToString();
+                    break;
+                case "card":
+                    var card = await context.Allocation.Journal.SaveAsync(Guid.NewGuid(), "CreateAccounts", """[{"code":"CARD4","name":"Card liability","type":"Liability","purpose":"CardLiability"}]""");
+                    var cardId = JsonNode.Parse(card.Ids)![0]!.GetValue<string>(); bad["fundingAccountId"] = cardId;
+                    bad["expectedFundingAccountVersion"] = (await context.Bills.ScalarAsync<Guid>($"SELECT Version FROM Accounting.Accounts WHERE Id='{cardId}'")).ToString();
+                    break;
+                case "archived": await context.Bills.AdminAsync($"UPDATE Accounting.Accounts SET ArchivedAtUtc=SYSUTCDATETIME() WHERE Id='{context.Bank}'"); break;
+                case "staleFunding": bad["expectedFundingAccountVersion"] = Guid.NewGuid().ToString(); break;
+                case "overPayment": bad["allocations"]![0]!["amount"] = "101"; break;
+                case "overBill": bad["amount"] = "401"; bad["allocations"]![0]!["amount"] = "401"; break;
+                case "unknownField": bad["bankFee"] = "1"; break;
+                case "longNotes": bad["notes"] = new string('x', 5000); break;
+                case "longReference": bad["reference"] = new string('x', 5000); break;
+                case "longMethod": bad["method"] = new string('x', 5000); break;
+                case "advanceArchived": await context.Bills.AdminAsync($"UPDATE Accounting.Accounts SET ArchivedAtUtc=SYSUTCDATETIME() WHERE Id='{context.Advance}'"); break;
+            }
+            var before = await Counts(context);
+            // WHEN the changed request reaches the production command THEN the intended guard rejects atomically.
+            var error = await Record.ExceptionAsync(() => context.RecordAsync(bad));
+            Assert.True(error is SqlException, $"{guard}: expected SQL rejection, got {error?.GetType().Name ?? "success"}.");
+            Assert.True(((SqlException)error!).Number == number, $"{guard}: {error.Message}");
+            Assert.True(before == await Counts(context), $"{guard}: financial evidence changed.");
+            Assert.True(400m == await context.Allocation.BalanceAsync(bill), $"{guard}: bill capacity changed.");
         }
-        var before = await Counts(context);
-        // WHEN the changed request reaches the production command THEN the intended guard rejects atomically.
-        Assert.Equal(number, (await Assert.ThrowsAsync<SqlException>(() => context.RecordAsync(bad))).Number);
-        Assert.Equal(before, await Counts(context));
-        Assert.Equal(400m, await context.Allocation.BalanceAsync(bill));
     }
 
     [Theory]

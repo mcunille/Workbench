@@ -8,7 +8,6 @@ import type { Page } from './diagnostic-fixture';
 const signIn = (page: Page) => signInThroughUi(page, true, 'auth');
 
 // Dedicated auth sessions share the real login budget with other browser scenarios.
-test.setTimeout(120_000);
 
 const email = 'browser-auth@example.test';
 const password = 'Browser Correct Horse 9!';
