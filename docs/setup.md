@@ -96,6 +96,13 @@ For a retained Windows QA service with worker and localhost HTTPS, use the autom
 with the [production operations audit](operations/production-readiness.md). Development SQL and
 loopback previews are not production installations.
 
+Tenant bootstrap does not create a service-admin identity. An installation operator provisions
+that separate identity with `Workbench.Database service-admin provision`, passing protected
+operator-connection and password files and the exact target database name. Follow the
+[service-admin maintenance procedure](operations/database-principals.md#service-admin-identity-maintenance)
+for provision, disable, password reset and session revocation. Never put an operator connection
+into the web configuration or replace the tenant login with this separate identity.
+
 For local verification install the repository-pinned .NET SDK **10.0.401**, Node.js **26.7.0**, and
 npm **11.19.0**, and install Playwright Chromium before browser tests:
 

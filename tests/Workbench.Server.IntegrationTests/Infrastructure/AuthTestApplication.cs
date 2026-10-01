@@ -79,6 +79,8 @@ public sealed class AuthTestApplication : IAsyncDisposable
 
     public Task<string> CreateWorkerConnectionAsync() => _database.CreateRoleUserAsync("workbench_worker");
 
+    public Task<string> CreateOperatorConnectionAsync() => _database.CreateRoleUserAsync("workbench_operator");
+
     public static async Task<AuthTestApplication> CreateAsync(
         SqlServerFixture sqlServer,
         bool disablePublicOperations = false,

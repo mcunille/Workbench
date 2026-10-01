@@ -15,5 +15,6 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\src\Workbench.Server\Workbench.Server.csproj" />
+    <ProjectReference Include="..\..\src\Workbench.Database\Workbench.Database.csproj" ReferenceOutputAssembly="false" />
   </ItemGroup>
 </Project>
