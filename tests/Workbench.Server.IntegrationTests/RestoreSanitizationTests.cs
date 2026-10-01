@@ -17,6 +17,7 @@ public sealed class RestoreSanitizationTests(SqlServerFixture sqlServer)
     [Fact]
     public async Task RestoreSanitizationInvalidatesAllAuthenticationArtifacts()
     {
+        // GIVEN tenant sessions, pending invitation/recovery operations and persisted protection keys.
         await using var application = await AuthTestApplication.CreateAsync(sqlServer);
         using var admin = application.CreateClient();
         Assert.Equal(HttpStatusCode.NoContent, (await RecoveryTests.PostWithAntiforgeryAsync(
@@ -40,12 +41,14 @@ public sealed class RestoreSanitizationTests(SqlServerFixture sqlServer)
         Assert.Equal(2, await CountAsync(application.AdminConnectionString, "[Identity].[IdentityOperations]"));
         Assert.True(await CountAsync(application.AdminConnectionString, "[Identity].[DataProtectionKeys]") > 0);
 
+        // WHEN an operator sanitizes restored authentication state.
         var commands = new OperatorCommands(
             application.AdminConnectionString,
             new PasswordHasher<WorkbenchUser>(),
             TimeProvider.System);
         await commands.SanitizeRestoreAsync("restore-test", CancellationToken.None);
 
+        // THEN stored artifacts, cached-key cookies and pending links lose their authority.
         Assert.Equal(0, await CountAsync(application.AdminConnectionString, "[Identity].[Sessions]"));
         Assert.Equal(0, await CountAsync(application.AdminConnectionString, "[Identity].[IdentityOperations]"));
         Assert.Equal(0, await CountAsync(application.AdminConnectionString, "[Identity].[DataProtectionKeys]"));

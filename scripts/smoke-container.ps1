@@ -110,6 +110,13 @@ try {
         --tenant-name 'Smoke Tenant' --admin-email 'smoke-admin@example.test' `
         --password-file /run/workbench/admin.password
     Assert-NativeCommandSucceeded 'containerized bootstrap'
+    # GIVEN a separate service-admin identity provisioned only through the operator tool container.
+    $serviceAdminProvision = & $docker.Source run --rm --network $network --volume $mount --entrypoint dotnet $image `
+        $databaseTool service-admin provision --connection-file /run/workbench/operator.connection --expected-database $database `
+        --email 'smoke-service-admin@example.test' --password-file /run/workbench/admin.password
+    Assert-NativeCommandSucceeded 'containerized service-admin provisioning'
+    $serviceAdminId = [regex]::Match(($serviceAdminProvision -join "`n"), '[a-fA-F0-9]{8}(-[a-fA-F0-9]{4}){3}-[a-fA-F0-9]{12}').Value
+    if (-not $serviceAdminId) { throw 'Service-admin provisioning did not return an account ID.' }
 
     $networkGateway = (& $docker.Source network inspect --format '{{(index .IPAM.Config 0).Gateway}}' $network).Trim()
     Assert-NativeCommandSucceeded 'docker network inspect'
@@ -195,6 +202,43 @@ Storage__DurableVolume=true
     if ((Invoke-WebRequest -Uri "$baseUrl/api/beta/auth/me" -Headers $identityHeaders -SkipHttpErrorCheck).StatusCode -ne 200) {
         throw 'Container durable session validation failed.'
     }
+
+    # WHEN dedicated admin authentication runs in the published production runtime with its web principal.
+    $adminHeaders = @{ 'X-Forwarded-For' = '192.0.2.25'; 'X-Forwarded-Proto' = 'https' }
+    $adminCsrf = Invoke-WebRequest -Uri "$baseUrl/api/beta/service-admin/auth/antiforgery" -Headers $adminHeaders
+    $adminHeaders['X-CSRF-TOKEN'] = ($adminCsrf.Content | ConvertFrom-Json).requestToken
+    $adminHeaders['Cookie'] = ($adminCsrf.Headers.'Set-Cookie' -split ';')[0]
+    $adminBody = @{ email = 'smoke-service-admin@example.test'; password = [IO.File]::ReadAllText($adminPasswordFile) } | ConvertTo-Json
+    $adminLogin = Invoke-WebRequest -Uri "$baseUrl/api/beta/service-admin/auth/login" -Method Post `
+        -Headers $adminHeaders -ContentType 'application/json' -Body $adminBody -SkipHttpErrorCheck
+    if ($adminLogin.StatusCode -ne 204) { throw 'Container service-admin sign-in failed.' }
+    $adminCookie = (($adminLogin.Headers.'Set-Cookie' | Where-Object { $_ -match '__Host-Workbench.ServiceAdmin=' }) -split ';')[0]
+    if (-not $adminCookie -or $adminLogin.Headers.'Set-Cookie' -notmatch '(?i)secure') { throw 'Production admin cookie security failed.' }
+    $adminIdentityHeaders = @{ 'X-Forwarded-For' = '192.0.2.25'; 'X-Forwarded-Proto' = 'https'; Cookie = $adminCookie }
+    # THEN each independent cookie authenticates only its authority, including when both are carried.
+    if ((Invoke-WebRequest -Uri "$baseUrl/api/beta/service-admin/auth/me" -Headers $adminIdentityHeaders -SkipHttpErrorCheck).StatusCode -ne 200 -or
+        (Invoke-WebRequest -Uri "$baseUrl/api/beta/auth/me" -Headers $adminIdentityHeaders -SkipHttpErrorCheck).StatusCode -ne 401 -or
+        (Invoke-WebRequest -Uri "$baseUrl/api/beta/service-admin/auth/me" -Headers $identityHeaders -SkipHttpErrorCheck).StatusCode -ne 401) {
+        throw 'Container service-admin authority isolation failed.'
+    }
+    $bothIdentityHeaders = $adminIdentityHeaders.Clone()
+    $bothIdentityHeaders['Cookie'] = "$adminCookie; $sessionCookie"
+    foreach ($identityPath in @('/api/beta/auth/me', '/api/beta/service-admin/auth/me')) {
+        if ((Invoke-WebRequest -Uri "$baseUrl$identityPath" -Headers $bothIdentityHeaders -SkipHttpErrorCheck).StatusCode -ne 200) {
+            throw 'Container identity selection with both cookies failed.'
+        }
+    }
+    # WHEN the operator revokes all sessions, THEN the runtime rejects the old cookie on its next request.
+    & $docker.Source run --rm --network $network --volume $mount --entrypoint dotnet $image `
+        $databaseTool service-admin revoke-sessions --connection-file /run/workbench/operator.connection --expected-database $database --account-id $serviceAdminId
+    Assert-NativeCommandSucceeded 'containerized service-admin revocation'
+    if ((Invoke-WebRequest -Uri "$baseUrl/api/beta/service-admin/auth/me" -Headers $adminIdentityHeaders -SkipHttpErrorCheck).StatusCode -ne 401) {
+        throw 'Container service-admin revocation failed.'
+    }
+    # AND the enabled account still permits a fresh sign-in with a new durable session.
+    $freshAdminLogin = Invoke-WebRequest -Uri "$baseUrl/api/beta/service-admin/auth/login" -Method Post `
+        -Headers $adminHeaders -ContentType 'application/json' -Body $adminBody -SkipHttpErrorCheck
+    if ($freshAdminLogin.StatusCode -ne 204) { throw 'Container fresh service-admin sign-in failed.' }
 
     # GIVEN an authenticated collector in the restricted Linux runtime.
     $itemAntiforgeryResponse = Invoke-WebRequest -Uri "$baseUrl/api/beta/auth/antiforgery" -Headers $identityHeaders

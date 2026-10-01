@@ -187,6 +187,29 @@ internal static class ServiceAdminIdentitySchema
             migration.Sql($"GRANT EXECUTE ON ServiceAdministration.{command} TO workbench_web;");
         foreach (var command in new[] { "ProvisionServiceAdmin", "DisableServiceAdmin", "ResetServiceAdminPassword", "RevokeServiceAdminSessions" })
             migration.Sql($"GRANT EXECUTE ON Administration.{command} TO workbench_operator;");
+        migration.Sql("""
+            DECLARE @Sanitize nvarchar(max)=OBJECT_DEFINITION(OBJECT_ID(N'Administration.SanitizeRestore'));
+            DECLARE @Anchor nvarchar(200)=N'DELETE FROM [Identity].[Sessions];';
+            DECLARE @Position int=CHARINDEX(@Anchor,@Sanitize);
+            IF @Sanitize IS NULL OR @Position=0 OR CHARINDEX(@Anchor,@Sanitize,@Position+LEN(@Anchor))<>0
+                OR CHARINDEX(N'BEGIN TRANSACTION;',@Sanitize)=0
+                OR CHARINDEX(N'BEGIN TRANSACTION;',@Sanitize)>@Position
+                OR CHARINDEX(N'DELETE FROM [Identity].[DataProtectionKeys];',@Sanitize)<@Position
+                OR CHARINDEX(N'UPDATE [Identity].[Users]',@Sanitize)<@Position
+                OR CHARINDEX(N'UPDATE [Security].[WorkbenchRestorePending] SET [IsPending] = 0 WHERE [Id] = 1;',@Sanitize)<@Position
+                OR CHARINDEX(N'COMMIT TRANSACTION;',@Sanitize)<CHARINDEX(N'UPDATE [Security].[WorkbenchRestorePending]',@Sanitize)
+                OR CHARINDEX(N'[Security].[BlobRecoveryState]',@Sanitize)=0
+                OR CHARINDEX(N'database.restore-sanitized',@Sanitize)=0
+                OR CHARINDEX(N'ServiceAdministration',@Sanitize)<>0
+                OR CHARINDEX(N'CREATE PROCEDURE',@Sanitize)=0
+                THROW 50020,'Unsupported service-admin sanitation predecessor.',1;
+            SET @Sanitize=REPLACE(@Sanitize,N'CREATE PROCEDURE',N'ALTER PROCEDURE');
+            SET @Sanitize=REPLACE(@Sanitize,@Anchor,N'DELETE FROM [ServiceAdministration].[Sessions];
+                UPDATE [ServiceAdministration].[Accounts]
+                SET [SecurityVersion] = [SecurityVersion] + 1;
+                DELETE FROM [Identity].[Sessions];');
+            EXEC sys.sp_executesql @Sanitize;
+            """);
         migration.Sql($"""
             DECLARE @Definition nvarchar(max)=OBJECT_DEFINITION(OBJECT_ID(N'Security.ReadDatabaseReadiness'));
             IF @Definition IS NULL OR CHARINDEX(N'20260928071548_AddSupplierOpenItems',@Definition)=0

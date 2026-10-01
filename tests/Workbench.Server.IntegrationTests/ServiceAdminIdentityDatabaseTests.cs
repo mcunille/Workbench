@@ -207,6 +207,38 @@ public sealed class ServiceAdminIdentityDatabaseTests(SqlServerFixture sqlServer
         Assert.Equal(state == "current" ? "upgraded-hash" : state == "password-changed" ? "operator-hash" : "synthetic-hash", await ScalarAsync<string>(database.AdminConnectionString, "SELECT PasswordHash FROM ServiceAdministration.Accounts"));
     }
 
+    [Theory]
+    [InlineData("Email", 0)]
+    [InlineData("Email", 257)]
+    [InlineData("NormalizedEmail", 0)]
+    [InlineData("NormalizedEmail", 257)]
+    [InlineData("PasswordHash", 0)]
+    [InlineData("PasswordHash", 1025)]
+    [InlineData("ResetPasswordHash", 0)]
+    [InlineData("ResetPasswordHash", 1025)]
+    public async Task OperatorSqlRejectsUnboundedAccountInputWithoutPartialChanges(string field, int length)
+    {
+        // GIVEN an actual operator SQL principal that can bypass CLI input validation.
+        await using var database = await sqlServer.CreateMigratedDatabaseAsync();
+        var op = await database.CreateRoleUserAsync("workbench_operator");
+        var account = await ProvisionAsync(op, Guid.NewGuid());
+        var input = new string('x', length);
+        // WHEN an unbounded parameter carries an empty or oversized account/reset value.
+        var reset = field == "ResetPasswordHash";
+        var error = await Assert.ThrowsAsync<SqlException>(() => ScalarAsync<object>(op, reset
+            ? "EXEC Administration.ResetServiceAdminPassword @AccountId=@id,@PasswordHash=@hash,@Now=@now"
+            : "EXEC Administration.ProvisionServiceAdmin @AccountId=@id,@Email=@email,@NormalizedEmail=@normalized,@PasswordHash=@hash,@Now=@now",
+            ("id", reset ? account : Guid.NewGuid()), ("email", field == "Email" ? input : "new@example.com"),
+            ("normalized", field == "NormalizedEmail" ? input : "NEW@EXAMPLE.COM"),
+            ("hash", field is "PasswordHash" or "ResetPasswordHash" ? input : "synthetic-hash"), ("now", Now)));
+        // THEN the SQL boundary rejects before writes, leaving the original account and audit intact.
+        Assert.Equal(50040, error.Number);
+        Assert.Equal(1, await ScalarAsync<int>(database.AdminConnectionString, "SELECT COUNT(*) FROM ServiceAdministration.Accounts"));
+        Assert.Equal(1L, await ScalarAsync<long>(database.AdminConnectionString, "SELECT SecurityVersion FROM ServiceAdministration.Accounts"));
+        Assert.Equal("synthetic-hash", await ScalarAsync<string>(database.AdminConnectionString, "SELECT PasswordHash FROM ServiceAdministration.Accounts"));
+        Assert.Equal(1, await ScalarAsync<int>(database.AdminConnectionString, "SELECT COUNT(*) FROM Security.SystemSecurityAuditEvents WHERE Action LIKE N'service-admin.%'"));
+    }
+
     internal static async Task<T?> ScalarAsync<T>(string connectionString, string sql, params (string Name, object Value)[] parameters)
     {
         await using var connection = new SqlConnection(connectionString); await connection.OpenAsync();

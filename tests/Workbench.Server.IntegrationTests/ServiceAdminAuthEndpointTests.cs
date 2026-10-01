@@ -209,8 +209,10 @@ public sealed class ServiceAdminAuthEndpointTests(SqlServerFixture sqlServer) : 
         // WHEN inspecting every protected API THEN its policy pins exactly its own authority
         foreach (var route in routes.Where(e => e.Metadata.GetMetadata<IAllowAnonymous>() is null))
         {
+            // These two intentionally public routes carry no application data or identity authority.
+            if (route.RoutePattern.RawText is "/api/beta/system" or "/api/beta/{**path}") continue;
             var authorization = route.Metadata.GetOrderedMetadata<IAuthorizeData>();
-            if (authorization.Count == 0) continue;
+            Assert.True(authorization.Count > 0, $"API route {route.RoutePattern.RawText} must declare authorization or anonymous admission.");
             var isAdmin = route.RoutePattern.RawText!.StartsWith("/api/beta/service-admin", StringComparison.Ordinal);
             if (isAdmin) Assert.Contains(authorization, p => p.Policy == "ServiceAdmin");
             var policy = await AuthorizationPolicy.CombineAsync(provider, authorization);
