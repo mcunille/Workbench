@@ -225,7 +225,16 @@ public static class PasswordPrincipalProvisioning
                                     (N'workbench_web', N'[Security].[ReadOperationalReadiness]', N'EXECUTE'),
                                     (N'workbench_web', N'[Security].[fn_tenant_access]', N'SELECT'),
                                     (N'workbench_operator', N'[Administration].[ProvisionTenant]', N'EXECUTE'),
-                                    (N'workbench_operator', N'[Administration].[SanitizeRestore]', N'EXECUTE')
+                                    (N'workbench_operator', N'[Administration].[SanitizeRestore]', N'EXECUTE'),
+                                    (N'workbench_operator', N'[Administration].[ProvisionServiceAdmin]', N'EXECUTE'),
+                                    (N'workbench_operator', N'[Administration].[DisableServiceAdmin]', N'EXECUTE'),
+                                    (N'workbench_operator', N'[Administration].[ResetServiceAdminPassword]', N'EXECUTE'),
+                                    (N'workbench_operator', N'[Administration].[RevokeServiceAdminSessions]', N'EXECUTE'),
+                                    (N'workbench_web', N'[ServiceAdministration].[FindAccountForLogin]', N'EXECUTE'),
+                                    (N'workbench_web', N'[ServiceAdministration].[CreateSession]', N'EXECUTE'),
+                                    (N'workbench_web', N'[ServiceAdministration].[ResolveSession]', N'EXECUTE'),
+                                    (N'workbench_web', N'[ServiceAdministration].[RevokeSession]', N'EXECUTE'),
+                                    (N'workbench_web', N'[ServiceAdministration].[RehashPassword]', N'EXECUTE')
                                 ) AS allowed(RoleName, ObjectName, PermissionNames)
                                 CROSS APPLY STRING_SPLIT(allowed.PermissionNames, ',') AS allowedPermission
                                 WHERE DATABASE_PRINCIPAL_ID(allowed.RoleName)=permission.grantee_principal_id
