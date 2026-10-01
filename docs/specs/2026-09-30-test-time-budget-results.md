@@ -12,7 +12,7 @@ still run concurrently. Vitest retains its shorter default. Node infrastructure
 checks use a 30-second test budget and shorter child-process deadlines.
 
 Playwright uses a 30-second case timeout. Its longer file and runtime overrides
-were removed. Real discovery checks declarations, and the gate reporter fails
+were removed. The gate reporter fails
 runs containing runtime timeout extensions or durations over 30 seconds. Runtime
 extensions are detected at case completion. Shared container/server startup and
 separate narrated-media recording configurations are outside the default case
@@ -87,7 +87,9 @@ attributable to this change.
 - The server budget test was red with all 870 method attributes lacking a timeout,
   then green with the shared attributes. The original slow closure failed with
   `Test execution timed out after 30000 milliseconds` in the verified prior binary.
-- Browser discovery was red with longer declarations, then green after their removal.
+- The initial browser discovery check was red with longer declarations, then green
+  after their removal. It was subsequently removed in review as redundant with
+  execution-time enforcement; the runtime reporter regression test remains.
 - A real four-case Playwright probe first exited successfully despite runtime
   timeout extensions. After the reporter fix, all four bodies still pass but
   `test.setTimeout`, `testInfo.setTimeout` and `test.slow` extensions make the run fail.
@@ -97,7 +99,9 @@ attributable to this change.
   two; allowing overlong payment notes produced a successful write and the labelled
   `longNotes` rejection assertion failed. Production source was restored after each.
   This is scoped mutation evidence, not a whole-suite mutation score.
-- All 13 Node policy/isolation/diagnostics/build-tool checks passed under the budget.
+- All 13 initial Node policy/isolation/diagnostics/build-tool checks passed under
+  the budget. After removing the redundant discovery check, all 12 retained checks
+  passed again. This test-only deletion does not change runner or reporter behavior.
 - `scripts/smoke-container.ps1` passed from current source, including internal TLS,
   SQL readiness, Secure-cookie login, app replacement/session durability,
   forwarding-header checks and worker telemetry. Public CA issuance and SMTP

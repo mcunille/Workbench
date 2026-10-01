@@ -6,30 +6,6 @@ import { mkdtemp, writeFile, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-test('every default-gate browser case has a thirty-second budget', { timeout: 30_000 }, () => {
-  // GIVEN the actual Playwright configuration and all its discovered browser cases.
-  const cli = fileURLToPath(new URL('./node_modules/@playwright/test/cli.js', import.meta.url));
-  const config = fileURLToPath(new URL('./playwright.config.ts', import.meta.url));
-  // WHEN Playwright resolves discovery-time timeout overrides without starting the application.
-  const result = spawnSync(process.execPath, [cli, 'test', '--config', config, '--list', '--reporter=json'],
-    { encoding: 'utf8', timeout: 20_000, maxBuffer: 4 * 1024 * 1024 });
-  assert.ifError(result.error);
-  assert.equal(result.status, 0, result.stderr);
-  const report = JSON.parse(result.stdout);
-  const cases = [];
-  function visit(suites) {
-    for (const suite of suites) {
-      for (const spec of suite.specs ?? []) cases.push(...spec.tests.map(entry =>
-        ({ name: `${entry.projectName}: ${spec.title}`, timeout: entry.timeout })));
-      visit(suite.suites ?? []);
-    }
-  }
-  visit(report.suites);
-  // THEN every runnable case is bounded, including both live and intercepted projects.
-  assert.ok(cases.length > 0);
-  assert.deepEqual(cases.filter(entry => entry.timeout <= 0 || entry.timeout > 30_000).map(entry => entry.name), []);
-});
-
 test('runtime timeout extensions fail the gate even when their test bodies pass', { timeout: 30_000 }, async () => {
   // GIVEN real passing cases that extend their budget after discovery, and one ordinary passing case.
   const root = await mkdtemp(join(tmpdir(), 'browser-time-budget-'));
