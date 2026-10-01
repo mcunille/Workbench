@@ -6,6 +6,11 @@ specs. Git preserves chronology; dated evidence records retain their specific ve
 
 ## Find a decision
 
+[Gemological reference library](2026-09-29-gemological-reference-library.md) proposes a sourced
+Workbench catalog curated through a separate service-admin editor, with tenant additions and
+field-level overrides. The first release is a standalone reference; numerical type properties
+and collection-item links are later work.
+
 [MCP agent interface](2026-09-28-mcp-agent-interface.md) proposes full agent-eligible business
 workflow coverage through tenant-owned service principals with predefined role assignments.
 It is a product and architecture draft; identity/tenant administration remains human-only.
