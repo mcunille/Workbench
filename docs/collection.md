@@ -2,8 +2,8 @@
 
 This is the owner of current collection behavior. [Architecture](ARCHITECTURE.md) owns technical
 contracts, [export formats](collection-export.md) owns CSV/ZIP, and [dated specs](specs/README.md)
-retain design decisions. [Walkthroughs](demos/README.md) link evidence and reproduction procedures;
-those checks do not establish collector usability or production acceptance.
+retain design decisions. Automated checks and recordings do not establish collector usability
+or production acceptance.
 
 ## Save and find a piece
 
@@ -59,6 +59,8 @@ piece browsing hides archived records unless Show archived pieces is selected. A
 restore preserve the relationship. After an uncertain connection save, retry the original
 request or review current state; matching saved values do not prove which request succeeded.
 Conflicts require deliberate review before saving with fresh versions.
+The acquisition origin is a separate return destination from the collection browsing snapshot,
+so navigating between sibling pieces preserves both routes back.
 
 The Documents section retains labeled acquisition paperwork shared by all connected pieces.
 Add a PDF, JPEG, PNG or WebP up to 10 MiB; each acquisition allows 20 current or pending documents.
@@ -119,6 +121,6 @@ not a separate participant study, detailed observation log or fresh automated te
 | Restore | [H6](specs/2026-09-07-h6-archive-recovery.md) |
 | CSV and photographs package | [H7](specs/2026-09-08-h7-collection-export.md), [package constraints](operations/blob-and-service-providers.md#collection-package-preparation) |
 | Acquisition context | [H9](specs/2026-09-09-acquisition-context.md) |
-| Shared acquisition relationships | [H10](specs/2026-09-09-shared-acquisitions.md) |
-| Acquisition documents | [H11](specs/2026-09-11-h11-acquisition-documents.md) |
+| Shared acquisition relationships | [Acquisition identity and checked commands](ARCHITECTURE.md#collection-identity) |
+| Acquisition documents | [Validation and source-byte policy](operations/blob-and-service-providers.md#acquisition-document-validation) |
 | Acquisition-aware exports | [H12](specs/2026-09-11-h12-acquisition-export.md) |

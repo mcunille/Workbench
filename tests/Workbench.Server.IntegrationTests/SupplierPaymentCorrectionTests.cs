@@ -7,7 +7,7 @@ using Xunit;
 namespace Workbench.Server.IntegrationTests;
 
 [Collection(SqlServerCollection.Name)]
-public sealed class SupplierPaymentCorrectionTests(SqlServerFixture sqlServer, SupplierScenarioFixture scenarios) : IClassFixture<SupplierScenarioFixture>
+public sealed class SupplierPaymentCorrectionTests(SqlServerFixture sqlServer, SupplierCorrectionScenarios scenarios) : IClassFixture<SupplierCorrectionScenarios>
 {
     [Fact]
     public async Task ReplacementPreviewUsesRecordCommandValidation()

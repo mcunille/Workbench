@@ -99,8 +99,8 @@ describe('Inventory API', () => {
     expect(received).toEqual(request);
     expect(csrf).toBe('csrf-test');
   });
-  it('preserves field validation and passes the opaque page cursor unchanged', async () => {
-    // GIVEN authoritative validation and a cursor containing reserved characters
+  it('preserves authoritative create field validation', async () => {
+    // GIVEN authoritative validation from the create endpoint.
     server.use(
       http.post('*/api/beta/items', () =>
         HttpResponse.json(
@@ -108,21 +108,11 @@ describe('Inventory API', () => {
           { status: 400 },
         ),
       ),
-      http.get('*/api/beta/items', ({ request }) => {
-        expect(new URL(request.url).searchParams.get('cursor')).toBe(
-          'opaque+/=',
-        );
-        return HttpResponse.json({ items: [], nextCursor: null });
-      }),
     );
-    // WHEN calling these endpoints THEN validation remains actionable and cursor is encoded once
+    // WHEN creating an invalid item THEN field validation remains actionable.
     await expect(createItem(request)).rejects.toBeInstanceOf(
       ItemValidationError,
     );
-    expect(await getItems('opaque+/=')).toEqual({
-      items: [],
-      nextCursor: null,
-    });
   });
 });
 

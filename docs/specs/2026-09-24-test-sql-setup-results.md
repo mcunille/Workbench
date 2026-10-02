@@ -2,8 +2,7 @@
 
 This is the implementation evidence for issue [#160](https://github.com/mcunille/Workbench/issues/160),
 following merged issue #159 at `ae6ab8d6ab374d3c3355e27426b9fad9c146af57`.
-The [test ownership rules](../../tests/README.md) and
-[efficiency design](2026-09-16-test-suite-efficiency.md) govern this bounded test-only change.
+The [test ownership rules](../../tests/README.md) govern this bounded test-only change.
 Production code, migrations, fixture implementation, concurrency policy, and timing weights are unchanged.
 
 ## Coverage owners

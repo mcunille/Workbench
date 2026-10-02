@@ -282,9 +282,12 @@ Entered text remains 16px. Sign-in keeps its 62px minimum input height; workspac
 controls retain their existing target sizes. The input and label notch share an opaque
 white or `#121317` fill. Fields at most 16rem wide use external, wrapping labels;
 the threshold scales with root text size so enlarged text cannot overlap values.
+Short quantity/unit labels use a 10rem fallback threshold; enlarged root text still moves
+them into normal flow. Native select labels remain raised even for “Not set”. File upload
+and appearance controls retain external labels. Forced colors uses a system Highlight focus
+border and Canvas/CanvasText fill and label colors. Links and buttons retain focus outlines.
 Label motion lasts 140ms and respects reduced motion. Text color changes immediately
-with appearance to preserve contrast throughout theme changes. See the
-[field specification](docs/specs/2026-09-08-floating-label-fields.md).
+with appearance to preserve contrast throughout theme changes.
 
 ### Recovery link
 

@@ -13,7 +13,7 @@ using Xunit;
 namespace Workbench.Server.IntegrationTests;
 
 [Collection(SqlServerCollection.Name)]
-public sealed class SupplierReconciliationTests(SqlServerFixture sqlServer, SupplierScenarioFixture scenarios) : IClassFixture<SupplierScenarioFixture>
+public sealed class SupplierReconciliationTests(SqlServerFixture sqlServer, SupplierReconciliationScenarios scenarios) : IClassFixture<SupplierReconciliationScenarios>
 {
     [Fact]
     public async Task CapturedReportReleasesAccountingBeforeResponseProcessing()
