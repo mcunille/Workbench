@@ -20,7 +20,9 @@ public sealed class GemReferenceDraftService
     {
         await using var connection = new SqlConnection(_connectionString);
         await connection.OpenAsync(cancellationToken);
-        await using var command = GemReferenceCurationSql.Command(connection, null, "SaveDraft", accountId, sessionId);
+        await using var transaction = (SqlTransaction)await connection.BeginTransactionAsync(cancellationToken);
+        await GemReferenceCurationSql.LockAsync(connection, transaction, cancellationToken);
+        await using var command = GemReferenceCurationSql.Command(connection, transaction, "SaveDraft", accountId, sessionId);
         command.Parameters.AddWithValue("@DraftId", draftId);
         command.Parameters.AddWithValue("@EntryId", request.EntryId);
         command.Parameters.Add("@ContentJson", SqlDbType.NVarChar, -1).Value = JsonSerializer.Serialize(GemReferenceInput.Normalize(request.Content), GemReferenceCurationSql.Json);
@@ -32,9 +34,11 @@ public sealed class GemReferenceDraftService
             await reader.ReadAsync(cancellationToken);
             draft = GemReferenceCurationSql.Draft(reader);
         }
-        var catalog = await GemReferenceCatalog.ReadAsync(connection, null, cancellationToken);
+        var catalog = await GemReferenceCatalog.ReadAsync(connection, transaction, cancellationToken);
         var final = catalog.Where(e => e.Content.Id != draft.EntryId).Select(e => e.Content).Append(draft.Content).ToArray();
-        return draft with { Errors = GemReferenceReview.Errors(draft.Content, final, DateOnly.FromDateTime(DateTime.UtcNow)) };
+        var result = draft with { Errors = GemReferenceReview.Errors(draft.Content, final, DateOnly.FromDateTime(DateTime.UtcNow)) };
+        await transaction.CommitAsync(cancellationToken);
+        return result;
     }
 
     public async Task<GemReferenceDraftResponse?> ReadAsync(Guid accountId, Guid sessionId, Guid draftId, CancellationToken cancellationToken)

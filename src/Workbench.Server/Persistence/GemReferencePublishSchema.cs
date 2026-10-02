@@ -70,6 +70,15 @@ internal static class GemReferencePublishSchema
                             OR (d.ExpectedPublishedRowVersion IS NULL AND EXISTS(SELECT 1 FROM Gemology.Entries WHERE Id=b.Id))
                             OR (d.ExpectedPublishedRowVersion IS NOT NULL AND NOT EXISTS(SELECT 1 FROM Gemology.Entries WHERE Id=b.Id AND RowVersion=d.ExpectedPublishedRowVersion)))
                     THROW 50044,'Selected draft or published entry changed.',1;
+                IF EXISTS(SELECT 1 FROM #Batch b
+                    WHERE (SELECT COUNT(*) FROM OPENJSON(b.AliasesJson))<>(SELECT COUNT(*) FROM OPENJSON(b.ContentJson,'$.aliases'))
+                        OR EXISTS(SELECT 1 FROM OPENJSON(b.AliasesJson) WITH(position int,name nvarchar(max)) a
+                            LEFT JOIN OPENJSON(b.ContentJson,'$.aliases') c ON TRY_CONVERT(int,c.[key])=a.position
+                            WHERE c.[key] IS NULL OR c.[type]<>1 OR a.name IS NULL
+                                OR a.name COLLATE Latin1_General_100_BIN2<>c.value COLLATE Latin1_General_100_BIN2
+                                OR DATALENGTH(a.name)<>DATALENGTH(c.value))
+                        OR EXISTS(SELECT position FROM OPENJSON(b.AliasesJson) WITH(position int) GROUP BY position HAVING COUNT(*)>1))
+                    THROW 50043,'Alias projection must match saved draft content.',1;
                 IF EXISTS(SELECT 1 FROM #Batch WHERE MaterialKind IS NULL OR MaterialKind COLLATE Latin1_General_100_BIN2 NOT IN ('mineral','mineraloid','organic','rockAggregate')
                     OR CommonName IS NULL OR LEN(LTRIM(RTRIM(CommonName)))=0 OR DATALENGTH(CommonName)>400
                     OR (MaterialKind='mineral' AND (Species IS NULL OR LEN(LTRIM(RTRIM(Species)))=0))

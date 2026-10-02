@@ -34,7 +34,10 @@ public sealed class GemReferencePublicationService
             var prepared = await PrepareAsync(connection, transaction, accountId, sessionId, request.Drafts, cancellationToken);
             var code = receipt is not null ? "request_conflict" : prepared.Review.Entries.Any(e => e.IsStale) ? "stale_entry" :
                 prepared.Review.Entries.Any(e => e.Errors.Count != 0) ? "validation_failed" : "published";
-            var outcome = new GemReferencePublishOutcome(request.RequestId, code, [], prepared.Review.Entries);
+            var outcome = new GemReferencePublishOutcome(request.RequestId, code, [], prepared.Review.Entries.Select(e => e with
+            {
+                Changes = e.Changes.Select(c => new GemReferenceFieldChange(c.Field, null, null)).ToArray()
+            }).ToArray());
             var entries = code == "published" ? prepared.Drafts.Select(d => new
             {
                 draftId = d.Id,

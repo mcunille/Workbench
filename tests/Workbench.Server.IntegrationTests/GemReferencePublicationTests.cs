@@ -206,10 +206,14 @@ public sealed class GemReferencePublicationTests(SqlServerFixture sqlServer) : I
     [InlineData("sources")]
     [InlineData("changedPayload")]
     [InlineData("staleVersion")]
+    [InlineData("injectedAlias")]
+    [InlineData("omittedAlias")]
+    [InlineData("changedAlias")]
     public async Task DirectSqlPublicationRejectsInvalidSourceOrPayloadAndStaleDraft(string state)
     {
         // GIVEN a saved draft and a caller bypassing the application validation service.
         var content = GemReferenceSamples.Mineral();
+        if (state is "omittedAlias" or "changedAlias") content = content with { Aliases = ["Reviewed alias"], Sources = [.. content.Sources, GemReferenceSamples.Source("aliases")] };
         if (state == "sources") content = content with { Sources = [] };
         var draft = await DraftAsync(content);
         var selection = new[] { Select(draft) };
@@ -222,12 +226,29 @@ public sealed class GemReferencePublicationTests(SqlServerFixture sqlServer) : I
         command.Parameters.AddWithValue("@RequestId", id);
         command.Parameters.AddWithValue("@SelectionJson", GemReferencePublicationService.CanonicalSelection(selection));
         command.Parameters.AddWithValue("@EntriesJson", JsonSerializer.Serialize(new[] { new { draftId = draft.Id, entryId = content.Id,
-            content, identityKey = Convert.ToHexString(GemReferenceInput.IdentityKey(content)), aliases = Array.Empty<object>() } }, GemReferenceCurationSql.Json));
+            content, identityKey = Convert.ToHexString(GemReferenceInput.IdentityKey(content)), aliases = state is "injectedAlias" or "changedAlias"
+                ? new object[] { new { position = 0, name = "Unreviewed alias", normalizedName = "UNREVIEWED ALIAS" } } : [] } }, GemReferenceCurationSql.Json));
         command.Parameters.AddWithValue("@OutcomeJson", JsonSerializer.Serialize(new GemReferencePublishOutcome(id, "published", [], []), GemReferenceCurationSql.Json));
         command.Parameters.AddWithValue("@SummaryJson", "[]");
         // WHEN invoking the restricted command directly THEN SQL independently guards sourced content and selected saved versions.
-        Assert.Equal(state == "sources" ? 50043 : 50044, (await Assert.ThrowsAsync<SqlException>(() => command.ExecuteNonQueryAsync())).Number);
+        Assert.Equal(state is "sources" or "injectedAlias" or "omittedAlias" or "changedAlias" ? 50043 : 50044,
+            (await Assert.ThrowsAsync<SqlException>(() => command.ExecuteNonQueryAsync())).Number);
         Assert.Equal(0, await ScalarAsync<int>("SELECT COUNT(*) FROM Gemology.Entries"));
         Assert.Equal(1, await ScalarAsync<int>("SELECT COUNT(*) FROM Gemology.Drafts"));
+    }
+
+    [Fact]
+    public async Task DurableReceiptRetainsFieldSummaryWithoutHistoricalContent()
+    {
+        // GIVEN a review containing full content differences.
+        var draft = await DraftAsync(GemReferenceSamples.Mineral());
+        var review = await _publisher.ReviewAsync(AuthTestApplication.ServiceAdminId, _session, [Select(draft)], default);
+        Assert.Contains(review.Entries.SelectMany(e => e.Changes), c => c.After is not null);
+        // WHEN publishing THEN the durable response retains changed fields without retaining historical values.
+        var outcome = await PublishAsync(new(Guid.NewGuid(), [Select(draft)]));
+        Assert.NotEmpty(outcome.Review.SelectMany(e => e.Changes));
+        Assert.All(outcome.Review.SelectMany(e => e.Changes), c => { Assert.Null(c.Before); Assert.Null(c.After); });
+        Assert.Equal(JsonSerializer.Serialize(outcome), JsonSerializer.Serialize(await _publisher.ReadAsync(
+            AuthTestApplication.ServiceAdminId, _session, outcome.RequestId, default)));
     }
 }
