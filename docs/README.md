@@ -27,7 +27,6 @@ exercised at a particular revision. Neither replaces current instructions.
 | Understand product direction | [Vision](VISION.md), [design principles](DESIGN-PRINCIPLES.md) |
 | Apply current visual values | [DESIGN.md](../DESIGN.md) |
 | Find historical design decisions | [Specs index](specs/README.md), [collection design records](collection.md#design-records) |
-| Reproduce a walkthrough | [Demo index](demos/README.md) |
 | Contribute and verify a change | [Contributing](../CONTRIBUTING.md), [development workflow](development-workflow.md) |
 
 ## Current direction
@@ -47,8 +46,8 @@ an old verification record into fresh evidence. The [original production audit](
 is historical context for the current acceptance matrix. The [cost worksheet](operations/deployment-costs.md)
 retains its own measurement and pricing limits.
 
-Local [test iteration](specs/2026-09-08-local-test-iteration.md),
-[concurrent verification](specs/2026-09-09-concurrent-verification-gate.md) and
+Local [test iteration](../CONTRIBUTING.md#focused-local-iteration),
+[concurrent verification](../tests/README.md#gate-provenance-and-scheduling) and
 [forwarded metadata trust](operations/azure-deployment.md#trust-tls-and-readiness-acceptance) remain distinct decisions.
 
 ## Still to be decided

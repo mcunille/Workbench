@@ -6,8 +6,8 @@ Scenario [#73](https://github.com/mcunille/Workbench/issues/73); first delivery
 [H9 / #74](https://github.com/mcunille/Workbench/issues/74). Product scope is accepted;
 the schema and API below record the accepted H9 contract. Its approval covered H9 only;
 references below to separate H10–H12 deliveries describe that original increment.
-[H10 shared acquisitions](2026-09-09-shared-acquisitions.md),
-[H11 documents](2026-09-11-h11-acquisition-documents.md) and
+[H10 shared acquisitions](../ARCHITECTURE.md#collection-identity),
+[H11 documents](../operations/blob-and-service-providers.md#acquisition-document-validation) and
 [H12 exports](2026-09-11-h12-acquisition-export.md) have since been implemented separately.
 The [collection guide](../collection.md) and [export formats](../collection-export.md) own current
 behavior. Historical `/api/items` examples predate the [beta API transition](../api-lifecycle.md);
