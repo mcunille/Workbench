@@ -6,9 +6,29 @@ import { SupplierMemory } from './supplierMemory';
 vi.mock('../../api/suppliers', async original => ({ ...await original<typeof import('../../api/suppliers')>(), getSuppliers: vi.fn() }));
 const row = (id: string, isArchived = false) => ({ id, supplier: { name: id, contactName: 'Owner', email: `${id}@example.test`, phone: null, website: null, postalAddress: null }, isArchived, version: 'v1', createdAtUtc: '2026-09-12T00:00:00Z', updatedAtUtc: '2026-09-12T00:00:00Z' });
 beforeEach(() => { vi.mocked(getSuppliers).mockReset(); });
+it('abandons an obsolete directory restoration before requesting another page', async () => {
+  // GIVEN two cached rows and an in-flight refresh of their saved search.
+  const memory = new SupplierMemory();
+  memory.save({ items: [row('Old'), row('Second')], nextCursor: null }, 'old', false);
+  let finish!: (page: { items: ReturnType<typeof row>[]; nextCursor: string }) => void;
+  vi.mocked(getSuppliers).mockImplementationOnce(() => new Promise(resolve => { finish = resolve; }))
+    .mockResolvedValueOnce({ items: [row('Latest'), row('Current second')], nextCursor: null });
+  render(<SupplierList memory={memory} onAuthLost={vi.fn()} />);
+  await waitFor(() => expect(getSuppliers).toHaveBeenCalledOnce());
+  // WHEN a new search supersedes the restoration before its first page arrives.
+  fireEvent.change(screen.getByRole('searchbox'), { target: { value: 'Latest' } });
+  fireEvent.submit(screen.getByRole('searchbox').closest('form')!);
+  await screen.findByText('Latest');
+  await act(async () => finish({ items: [row('Obsolete')], nextCursor: 'obsolete-next' }));
+  // THEN no obsolete continuation is requested and the new directory remains intact.
+  expect(getSuppliers).toHaveBeenCalledTimes(2);
+  expect(screen.queryByText('Obsolete')).not.toBeInTheDocument();
+  expect(memory.query).toBe('Latest');
+  expect(memory.page?.items.map(item => item.id)).toEqual(['Latest', 'Current second']);
+});
 it('restores the directory query, archive filter, loaded rows and scroll without affecting pickers', async () => {
   // GIVEN a directory view left for a supplier editor.
-  const memory = new SupplierMemory(); memory.save({ items: [row('Gems', true)], nextCursor: 'more' }, 'Gems', true); memory.savePosition(420);
+  const memory = new SupplierMemory(); memory.save({ items: [row('Gems', true)], nextCursor: 'more' }, 'Gems', true); memory.scrollY = 420;
   vi.mocked(getSuppliers).mockResolvedValueOnce(memory.page!);
   const scroll = vi.spyOn(window, 'scrollTo').mockImplementation(() => {});
   const view = render(<SupplierList memory={memory} follow={vi.fn()} onAuthLost={vi.fn()} />);
@@ -36,7 +56,7 @@ it('restores the directory query, archive filter, loaded rows and scroll without
 it('refreshes the previously loaded extent after a saved supplier changes', async () => {
   // GIVEN two pages retained after a confirmed supplier edit invalidated their data.
   const scroll = vi.spyOn(window, 'scrollTo').mockImplementation(() => {});
-  const memory = new SupplierMemory(); memory.save({ items: [row('Old'), row('Second')], nextCursor: 'old-next' }, 'Gem', true); memory.savePosition(200); memory.invalidate();
+  const memory = new SupplierMemory(); memory.save({ items: [row('Old'), row('Second')], nextCursor: 'old-next' }, 'Gem', true); memory.scrollY = 200; memory.invalidate();
   vi.mocked(getSuppliers).mockResolvedValueOnce({ items: [row('Updated')], nextCursor: 'fresh-next' }).mockResolvedValueOnce({ items: [row('Second')], nextCursor: 'remaining' });
   render(<SupplierList memory={memory} follow={vi.fn()} onAuthLost={vi.fn()} />);
   // WHEN returning THEN fresh pages replace stale details while preserving the search, filter, and extent.
