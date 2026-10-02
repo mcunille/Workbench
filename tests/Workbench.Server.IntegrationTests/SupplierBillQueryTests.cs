@@ -22,13 +22,13 @@ public sealed class SupplierBillQueryTests(SqlServerFixture sqlServer)
         var reviewed = await SupplierBillPostingTests.ReviewedAsync(context, draft);
         var id = Guid.Parse(reviewed["billId"]!.ToString());
         await context.SaveAsync(Guid.NewGuid(), context.Change(reviewed, operation, operation == "Revise" ? context.CompleteDraft()["revision"]!.AsObject() : null));
-        var before = await ReadAsync(context, "ReadSupplierBillHistory", ("@BillId", id), ("@Take", 100));
+        var before = await context.ReadAsync("ReadSupplierBillHistory", ("@BillId", id), ("@Take", 100));
         var previous = before["items"]!.AsArray().Single(x => x!["operation"]!.ToString() == "Review")!;
         // WHEN the linked file is later removed THEN historical readback retains its reviewed identity and reports the loss.
         Assert.Equal(new string('A', 64), previous["review"]?["evidence"]?[0]?["digest"]?.GetValue<string>());
         Assert.True(previous["review"]!["evidence"]![0]!["available"]!.GetValue<bool>());
         await context.AdminAsync($"UPDATE Purchasing.PurchaseOrderDocuments SET RemovedAtUtc=SYSUTCDATETIME(),Label='Later label' WHERE Id='{document}'");
-        var after = await ReadAsync(context, "ReadSupplierBillHistory", ("@BillId", id), ("@Take", 100));
+        var after = await context.ReadAsync("ReadSupplierBillHistory", ("@BillId", id), ("@Take", 100));
         var history = after["items"]!.AsArray().Single(x => x!["operation"]!.ToString() == "Review")!;
         Assert.Equal("Invoice", history["review"]!["evidence"]![0]!["label"]!.GetValue<string>());
         Assert.False(history["review"]!["evidence"]![0]!["available"]!.GetValue<bool>());
@@ -40,13 +40,6 @@ public sealed class SupplierBillQueryTests(SqlServerFixture sqlServer)
     private static async Task<SupplierBillTestContext> OpenAsync(SqlServerFixture fixture)
     {
         return await SupplierBillPostingTests.OpenAsync(fixture);
-    }
-    internal static async Task<JsonObject> ReadAsync(SupplierBillTestContext context, string procedure, params (string Name, object Value)[] parameters)
-    {
-        await using var command = new SqlCommand($"Purchasing.{procedure}", context.Journal.Connection) { CommandType = System.Data.CommandType.StoredProcedure };
-        command.Parameters.AddWithValue("@ActorId", JournalTestContext.ActorId); command.Parameters.AddWithValue("@SessionId", context.Journal.SessionId);
-        foreach (var (name, value) in parameters) command.Parameters.AddWithValue(name, value);
-        return JsonNode.Parse((string)(await command.ExecuteScalarAsync())!)!.AsObject();
     }
     [Fact]
     public async Task BoundedListHistoryAndPostedDetailTraceImmutableSource()
@@ -60,21 +53,20 @@ public sealed class SupplierBillQueryTests(SqlServerFixture sqlServer)
         await context.SaveAsync(Guid.NewGuid(), context.DraftCommand("INV-2"));
         await context.SaveAsync(Guid.NewGuid(), context.DraftCommand("INV-3"));
         // WHEN list/history are read in bounded pages and posted detail is followed.
-        var page = await ReadAsync(context, "ReadSupplierBills", ("@PurchaseOrderId", context.Recognition.PurchaseOrderId), ("@Take", 2));
+        var page = await context.ReadAsync("ReadSupplierBills", ("@PurchaseOrderId", context.Recognition.PurchaseOrderId), ("@Take", 2));
         Assert.Equal(2, page["items"]?.AsArray().Count);
-        var next = await ReadAsync(context, "ReadSupplierBills", ("@PurchaseOrderId", context.Recognition.PurchaseOrderId), ("@Take", 2), ("@AfterId", Guid.Parse(page["nextId"]!.GetValue<string>())));
+        var next = await context.ReadAsync("ReadSupplierBills", ("@PurchaseOrderId", context.Recognition.PurchaseOrderId), ("@Take", 2), ("@AfterId", Guid.Parse(page["nextId"]!.GetValue<string>())));
         Assert.Single(next["items"]!.AsArray());
         Assert.Equal(3, page["items"]!.AsArray().Concat(next["items"]!.AsArray()).Select(x => x!["billId"]!.ToString()).Distinct().Count());
         var id = Guid.Parse(posted["billId"]!.GetValue<string>());
-        var detail = await new Workbench.Server.Purchasing.SupplierBillQueries(context.Journal.Connection)
-            .ReadAsync(JournalTestContext.ActorId, context.Journal.SessionId, id, default);
+        var detail = await context.ReadDetailAsync(id);
         // THEN evidence and result still identify the immutable financial source, with no paid/outstanding invention.
         Assert.Equal("Posted", detail.State);
         Assert.Equal(posted["journalIds"]!.ToJsonString(), detail.Posting!.Value.GetProperty("journalIds").GetRawText());
         Assert.Equal("110.00", detail.Revision.GetProperty("total").GetString());
-        var history = await ReadAsync(context, "ReadSupplierBillHistory", ("@BillId", id), ("@Take", 2));
+        var history = await context.ReadAsync("ReadSupplierBillHistory", ("@BillId", id), ("@Take", 2));
         Assert.Equal(2, history["items"]!.AsArray().Count);
-        var remaining = await ReadAsync(context, "ReadSupplierBillHistory", ("@BillId", id), ("@Take", 2), ("@AfterSequence", history["nextSequence"]!.GetValue<long>()));
+        var remaining = await context.ReadAsync("ReadSupplierBillHistory", ("@BillId", id), ("@Take", 2), ("@AfterSequence", history["nextSequence"]!.GetValue<long>()));
         Assert.Equal(2, remaining["items"]!.AsArray().Count);
     }
     [Fact]
@@ -83,10 +75,10 @@ public sealed class SupplierBillQueryTests(SqlServerFixture sqlServer)
         // GIVEN a reader with management/report permissions in the same tenant.
         await using var context = await OpenAsync(sqlServer);
         // WHEN an unbounded page is requested THEN SQL rejects it.
-        Assert.Equal(51000, (await Assert.ThrowsAsync<SqlException>(() => ReadAsync(context, "ReadSupplierBills", ("@PurchaseOrderId", context.Recognition.PurchaseOrderId), ("@Take", 101)))).Number);
+        Assert.Equal(51000, (await Assert.ThrowsAsync<SqlException>(() => context.ReadAsync("ReadSupplierBills", ("@PurchaseOrderId", context.Recognition.PurchaseOrderId), ("@Take", 101)))).Number);
         // AND loss of both business/report authority prevents even empty list readback.
         await context.AdminAsync("DELETE [Identity].RoleClaims WHERE ClaimValue IN(N'SupplierBillsManage',N'AccountingReportsRead')");
-        Assert.Equal(51003, (await Assert.ThrowsAsync<SqlException>(() => ReadAsync(context, "ReadSupplierBills", ("@PurchaseOrderId", context.Recognition.PurchaseOrderId)))).Number);
+        Assert.Equal(51003, (await Assert.ThrowsAsync<SqlException>(() => context.ReadAsync("ReadSupplierBills", ("@PurchaseOrderId", context.Recognition.PurchaseOrderId)))).Number);
     }
 
     [Theory]
@@ -102,13 +94,13 @@ public sealed class SupplierBillQueryTests(SqlServerFixture sqlServer)
         var reviewed = await SupplierBillPostingTests.ReviewedAsync(context, draft);
         var posted = await context.ExecuteAsync("PostSupplierBill", Guid.NewGuid(), context.PostCommand(reviewed));
         var id = Guid.Parse(posted["billId"]!.GetValue<string>());
-        var before = await ReadAsync(context, "ReadSupplierBill", ("@BillId", id));
+        var before = await context.ReadAsync("ReadSupplierBill", ("@BillId", id));
         Assert.True(before["evidence"]?[0]?["available"]?.GetValue<bool>());
         // WHEN the document metadata records subsequent ordinary removal (BK-07 holds are not delivered).
         await context.AdminAsync(recoveryMissing
             ? $"INSERT Storage.RecoveryFiles(TenantId,RevisionId,ReportId,Generation,Reason,AcceptedAtUtc) VALUES('{JournalTestContext.TenantId}','{revisionId}',NEWID(),1,'Missing',SYSUTCDATETIME())"
             : $"UPDATE Purchasing.PurchaseOrderDocuments SET RemovedAtUtc=SYSUTCDATETIME() WHERE Id='{documentId}'");
-        var after = await ReadAsync(context, "ReadSupplierBill", ("@BillId", id));
+        var after = await context.ReadAsync("ReadSupplierBill", ("@BillId", id));
         // THEN live availability changes while immutable financial and document evidence survives.
         Assert.False(after["evidence"]![0]!["available"]!.GetValue<bool>());
         Assert.Equal(new string('A', 64), after["evidence"]![0]!["digest"]!.GetValue<string>());

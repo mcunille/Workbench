@@ -1,6 +1,11 @@
 // Copyright (c) 2026 The White Stag Collection.
 namespace Workbench.Server.Accounting;
 
+public sealed record JournalCorrectionEvidence(Guid CorrectionId, string Role,
+    Guid OriginalJournalId, Guid ReversalJournalId, Guid? ReplacementJournalId,
+    string Reason, DateOnly PostingDate, DateTimeOffset RecordedAtUtc,
+    string SnapshotJson, string SnapshotSha256);
+
 public sealed record JournalSourceEvidence(Guid Id, string SourceKind, Guid SourceId, Guid SourceRevision,
     string EventKind, int RuleVersion, Guid ActorId, DateOnly DocumentDate, DateOnly EffectiveDate,
     DateOnly PostingDate, string? Reference, string? Reason, string SnapshotJson, string SnapshotSha256,

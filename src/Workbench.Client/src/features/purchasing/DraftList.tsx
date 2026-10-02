@@ -32,7 +32,7 @@ export function DraftList({ memory, follow, onAuthLost }: Props) {
       const known = new Set(memory.page?.items.map(item => item.id));
       const result = refresh ? next : { items: [...(memory.page?.items ?? []), ...next.items.filter(item => !known.has(item.id))], nextCursor: next.nextCursor };
       memory.save(result, search, filter); setPage(result);
-      if (refresh) memory.savePosition(0);
+      if (refresh) Object.assign(memory, { scrollY: 0 });
     } catch (error) {
       if (!active.current || generation !== sequence.current) return;
       if (error instanceof ApiError && (error.status === 401 || error.status === 403)) { memory.invalidate(); setPage(undefined); onAuthLost(); }
@@ -53,7 +53,7 @@ export function DraftList({ memory, follow, onAuthLost }: Props) {
   }, [memory, load]);
   useLayoutEffect(() => {
     if (memory.page && memory.scrollY) window.scrollTo(0, memory.scrollY);
-    const remember = () => { memory.savePosition(window.scrollY); };
+    const remember = () => { Object.assign(memory, { scrollY: window.scrollY }); };
     window.addEventListener('scroll', remember, { passive: true });
     return () => window.removeEventListener('scroll', remember);
   }, [memory]);
