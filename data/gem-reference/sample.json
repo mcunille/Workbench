@@ -1,0 +1,256 @@
+[
+  {
+    "id": "357a74d0-721e-4738-b9fa-14710e7b2385",
+    "materialKind": "mineral",
+    "commonName": "Diamond",
+    "group": null,
+    "species": "Diamond",
+    "variety": null,
+    "description": "Diamond is a mineral form of carbon.",
+    "aliases": [],
+    "sources": [
+      {
+        "id": "04e43078-8b4a-a891-6a87-6c42ed8fd890",
+        "field": "materialKind",
+        "title": "Diamond Description",
+        "publisher": "Gemological Institute of America",
+        "url": "https://www.gia.edu/diamond-description",
+        "citation": "Opening discussion of chemical composition and crystal structure.",
+        "accessedOn": "2026-10-02",
+        "reviewedOn": "2026-10-02"
+      },
+      {
+        "id": "86e1b1ef-9366-967c-3fa9-e32b7008ab03",
+        "field": "commonName",
+        "title": "Diamond Description",
+        "publisher": "Gemological Institute of America",
+        "url": "https://www.gia.edu/diamond-description",
+        "citation": "Opening discussion of chemical composition and crystal structure.",
+        "accessedOn": "2026-10-02",
+        "reviewedOn": "2026-10-02"
+      },
+      {
+        "id": "cc93af01-65d1-f7e8-01dd-11679e9ef549",
+        "field": "species",
+        "title": "Diamond Description",
+        "publisher": "Gemological Institute of America",
+        "url": "https://www.gia.edu/diamond-description",
+        "citation": "Opening discussion of chemical composition and crystal structure.",
+        "accessedOn": "2026-10-02",
+        "reviewedOn": "2026-10-02"
+      },
+      {
+        "id": "d8efbb6e-36dd-893c-94b5-e2b9d29f58ae",
+        "field": "description",
+        "title": "Diamond Description",
+        "publisher": "Gemological Institute of America",
+        "url": "https://www.gia.edu/diamond-description",
+        "citation": "Opening discussion of chemical composition and crystal structure.",
+        "accessedOn": "2026-10-02",
+        "reviewedOn": "2026-10-02"
+      }
+    ],
+    "notableLocality": null,
+    "isRetired": false,
+    "retirementExplanation": null,
+    "redirectEntryId": null
+  },
+  {
+    "id": "e548c296-c07f-712c-a424-850c7d7e2829",
+    "materialKind": "mineral",
+    "commonName": "Sapphire",
+    "group": null,
+    "species": "Corundum",
+    "variety": "Sapphire",
+    "description": "Sapphire includes corundum gems in colors other than those classified as ruby.",
+    "aliases": [],
+    "sources": [
+      {
+        "id": "aa1d548d-cc55-7da5-a231-1d76c90b912d",
+        "field": "materialKind",
+        "title": "Sapphire Description",
+        "publisher": "Gemological Institute of America",
+        "url": "https://www.gia.edu/sapphire-description",
+        "citation": "Opening definition of sapphire and the discussion of fancy sapphire colors.",
+        "accessedOn": "2026-10-02",
+        "reviewedOn": "2026-10-02"
+      },
+      {
+        "id": "026f3b21-7735-1ec2-1cb4-f59c2d431289",
+        "field": "commonName",
+        "title": "Sapphire Description",
+        "publisher": "Gemological Institute of America",
+        "url": "https://www.gia.edu/sapphire-description",
+        "citation": "Opening definition of sapphire and the discussion of fancy sapphire colors.",
+        "accessedOn": "2026-10-02",
+        "reviewedOn": "2026-10-02"
+      },
+      {
+        "id": "cb8f69f8-37f5-2591-0779-f3d44a4bc894",
+        "field": "species",
+        "title": "Sapphire Description",
+        "publisher": "Gemological Institute of America",
+        "url": "https://www.gia.edu/sapphire-description",
+        "citation": "Opening definition of sapphire and the discussion of fancy sapphire colors.",
+        "accessedOn": "2026-10-02",
+        "reviewedOn": "2026-10-02"
+      },
+      {
+        "id": "1664f568-1538-db30-98d6-93b540d8e4d0",
+        "field": "description",
+        "title": "Sapphire Description",
+        "publisher": "Gemological Institute of America",
+        "url": "https://www.gia.edu/sapphire-description",
+        "citation": "Opening definition of sapphire and the discussion of fancy sapphire colors.",
+        "accessedOn": "2026-10-02",
+        "reviewedOn": "2026-10-02"
+      },
+      {
+        "id": "d7ea7a51-2684-8118-dbf3-1b4f40ad9881",
+        "field": "variety",
+        "title": "Sapphire Description",
+        "publisher": "Gemological Institute of America",
+        "url": "https://www.gia.edu/sapphire-description",
+        "citation": "Opening definition of sapphire and the discussion of fancy sapphire colors.",
+        "accessedOn": "2026-10-02",
+        "reviewedOn": "2026-10-02"
+      }
+    ],
+    "notableLocality": null,
+    "isRetired": false,
+    "retirementExplanation": null,
+    "redirectEntryId": null
+  },
+  {
+    "id": "708601a7-c715-cf9d-5b95-a6782c3d7e29",
+    "materialKind": "mineral",
+    "commonName": "Emerald",
+    "group": null,
+    "species": "Beryl",
+    "variety": "Emerald",
+    "description": "Emerald is the green to bluish green gem variety of beryl.",
+    "aliases": [],
+    "sources": [
+      {
+        "id": "b144c3c1-aa8a-11ed-558f-fbba10775bf0",
+        "field": "materialKind",
+        "title": "Emerald Description",
+        "publisher": "Gemological Institute of America",
+        "url": "https://www.gia.edu/emerald-description",
+        "citation": "Opening classification sentence; following paragraphs explain the distinction from lighter green beryl.",
+        "accessedOn": "2026-10-02",
+        "reviewedOn": "2026-10-02"
+      },
+      {
+        "id": "3660f1d4-cffd-3964-1c5b-34dca612e0a1",
+        "field": "commonName",
+        "title": "Emerald Description",
+        "publisher": "Gemological Institute of America",
+        "url": "https://www.gia.edu/emerald-description",
+        "citation": "Opening classification sentence; following paragraphs explain the distinction from lighter green beryl.",
+        "accessedOn": "2026-10-02",
+        "reviewedOn": "2026-10-02"
+      },
+      {
+        "id": "ae533061-aa4d-ec93-2ead-de9e4b4b161b",
+        "field": "species",
+        "title": "Emerald Description",
+        "publisher": "Gemological Institute of America",
+        "url": "https://www.gia.edu/emerald-description",
+        "citation": "Opening classification sentence; following paragraphs explain the distinction from lighter green beryl.",
+        "accessedOn": "2026-10-02",
+        "reviewedOn": "2026-10-02"
+      },
+      {
+        "id": "802f3079-c740-ea2b-463d-3f8e2f7deb62",
+        "field": "description",
+        "title": "Emerald Description",
+        "publisher": "Gemological Institute of America",
+        "url": "https://www.gia.edu/emerald-description",
+        "citation": "Opening classification sentence; following paragraphs explain the distinction from lighter green beryl.",
+        "accessedOn": "2026-10-02",
+        "reviewedOn": "2026-10-02"
+      },
+      {
+        "id": "e312ee9a-6d0c-e703-7172-7343b0f44245",
+        "field": "variety",
+        "title": "Emerald Description",
+        "publisher": "Gemological Institute of America",
+        "url": "https://www.gia.edu/emerald-description",
+        "citation": "Opening classification sentence; following paragraphs explain the distinction from lighter green beryl.",
+        "accessedOn": "2026-10-02",
+        "reviewedOn": "2026-10-02"
+      }
+    ],
+    "notableLocality": null,
+    "isRetired": false,
+    "retirementExplanation": null,
+    "redirectEntryId": null
+  },
+  {
+    "id": "1536bf85-f264-a21f-5662-1e5b64a001d6",
+    "materialKind": "mineral",
+    "commonName": "Ruby",
+    "group": null,
+    "species": "Corundum",
+    "variety": "Ruby",
+    "description": "Ruby is the red gem variety of corundum.",
+    "aliases": [],
+    "sources": [
+      {
+        "id": "aaec3dc7-ecb6-c6ae-c5ed-fb2f9735e369",
+        "field": "materialKind",
+        "title": "Ruby Description",
+        "publisher": "Gemological Institute of America",
+        "url": "https://www.gia.edu/ruby-description",
+        "citation": "Opening classification paragraph and the following discussion of red coloration.",
+        "accessedOn": "2026-10-02",
+        "reviewedOn": "2026-10-02"
+      },
+      {
+        "id": "2752f882-9be1-04cb-8299-cfa937814f9c",
+        "field": "commonName",
+        "title": "Ruby Description",
+        "publisher": "Gemological Institute of America",
+        "url": "https://www.gia.edu/ruby-description",
+        "citation": "Opening classification paragraph and the following discussion of red coloration.",
+        "accessedOn": "2026-10-02",
+        "reviewedOn": "2026-10-02"
+      },
+      {
+        "id": "e0d3e019-2cc6-e369-ee84-c54d4e2cfb23",
+        "field": "species",
+        "title": "Ruby Description",
+        "publisher": "Gemological Institute of America",
+        "url": "https://www.gia.edu/ruby-description",
+        "citation": "Opening classification paragraph and the following discussion of red coloration.",
+        "accessedOn": "2026-10-02",
+        "reviewedOn": "2026-10-02"
+      },
+      {
+        "id": "b7008f62-1d61-0852-8fe1-613362e1dc1e",
+        "field": "description",
+        "title": "Ruby Description",
+        "publisher": "Gemological Institute of America",
+        "url": "https://www.gia.edu/ruby-description",
+        "citation": "Opening classification paragraph and the following discussion of red coloration.",
+        "accessedOn": "2026-10-02",
+        "reviewedOn": "2026-10-02"
+      },
+      {
+        "id": "381d7751-9c00-b922-2a02-926b017c70f8",
+        "field": "variety",
+        "title": "Ruby Description",
+        "publisher": "Gemological Institute of America",
+        "url": "https://www.gia.edu/ruby-description",
+        "citation": "Opening classification paragraph and the following discussion of red coloration.",
+        "accessedOn": "2026-10-02",
+        "reviewedOn": "2026-10-02"
+      }
+    ],
+    "notableLocality": null,
+    "isRetired": false,
+    "retirementExplanation": null,
+    "redirectEntryId": null
+  }
+]
