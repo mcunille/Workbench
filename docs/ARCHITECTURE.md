@@ -12,8 +12,12 @@ Tenant-authenticated `/api/beta/gem-reference` GET routes provide bounded litera
 coherent attributed detail under the web principal's four explicit SELECT grants. Detail reads
 use one joined query in a serializable transaction to keep fields and their sources together.
 Shared entities have no tenant ID; existing tenant SQL RLS remains unchanged. Runtime direct
-catalog writes are denied. Fresh installations have an empty catalog; pilot content, catalog
-publishing, tenant additions/overrides, and browser screens remain separate milestones.
+catalog writes are denied. GEM-04 installs the reviewed Diamond, Sapphire, Emerald, and Ruby
+pilot with nineteen field-level source assertions through a one-time data migration. The frozen
+seed ships inside the migration assembly; deployments require no content download. Existing
+pilot IDs (including retired entries) retain their values and provenance. Conflicting active
+identities under other IDs reject the transaction. See the [installation procedure](operations/database-migrations.md#pilot-catalog-distribution-and-installation).
+Catalog publishing, tenant additions/overrides, and browser screens remain separate milestones.
 
 **Status:** Implemented
 

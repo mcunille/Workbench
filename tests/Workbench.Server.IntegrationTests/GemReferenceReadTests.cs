@@ -38,7 +38,8 @@ public sealed class GemReferenceReadTests(SqlServerFixture sqlServer)
             Assert.True(response.Headers.CacheControl?.Private);
             Assert.True(response.Headers.CacheControl?.NoStore);
             var body = await response.Content.ReadFromJsonAsync<JsonElement>();
-            var row = Assert.Single(body.GetProperty("entries").EnumerateArray());
+            Assert.Equal(5, body.GetProperty("entries").GetArrayLength());
+            var row = Assert.Single(body.GetProperty("entries").EnumerateArray(), entry => entry.GetProperty("id").GetGuid() == content.Id);
             Assert.Equal(content.Id, row.GetProperty("id").GetGuid());
             Assert.Equal("workbenchReference", row.GetProperty("layer").GetString());
             Assert.False(row.TryGetProperty("tenantId", out _));
@@ -61,9 +62,12 @@ public sealed class GemReferenceReadTests(SqlServerFixture sqlServer)
         };
         await GemReferenceTestData.InsertAsync(app.AdminConnectionString, content);
         // WHEN matching each supported field THEN matching is case-insensitive and literal.
-        foreach (var query in new[] { "RUBY", "red gem", "TEST family", "corundum", "crimson variety", "%_[]\\" })
+        foreach (var query in new[] { "red gem", "TEST family", "synthetic corundum", "crimson variety", "%_[]\\" })
             Assert.Equal(content.Id, Assert.Single((await PageAsync(client, "?query=" + Uri.EscapeDataString(query)))
                 .GetProperty("entries").EnumerateArray()).GetProperty("id").GetGuid());
+        var rubyIds = (await PageAsync(client, "?query=RUBY")).GetProperty("entries").EnumerateArray()
+            .Select(entry => entry.GetProperty("id").GetGuid()).ToHashSet();
+        Assert.True(rubyIds.SetEquals([content.Id, Guid.Parse("1536bf85-f264-a21f-5662-1e5b64a001d6")]));
         foreach (var query in new[] { "absent", "' OR 1=1--" })
             Assert.Empty((await PageAsync(client, "?query=" + Uri.EscapeDataString(query))).GetProperty("entries").EnumerateArray());
         Assert.Single((await PageAsync(client, "?materialKind=mineral&group=test%20family")).GetProperty("entries").EnumerateArray());
@@ -77,7 +81,7 @@ public sealed class GemReferenceReadTests(SqlServerFixture sqlServer)
         await using var app = await AuthTestApplication.CreateAsync(sqlServer);
         using var client = app.CreateClient();
         await LoginAsync(client, "member@example.com");
-        Assert.Empty((await PageAsync(client)).GetProperty("entries").EnumerateArray());
+        Assert.Empty((await PageAsync(client, "?materialKind=organic")).GetProperty("entries").EnumerateArray());
         var source = GemReferenceSamples.Source("notableLocality");
         var pearl = GemReferenceSamples.Mineral() with
         {
@@ -106,7 +110,7 @@ public sealed class GemReferenceReadTests(SqlServerFixture sqlServer)
             Assert.Equal("workbench", row.GetProperty("attribution").GetString());
             Assert.Equal("2026-09-29", row.GetProperty("reviewedOn").GetString());
         });
-        Assert.Single((await PageAsync(client)).GetProperty("entries").EnumerateArray());
+        Assert.Single((await PageAsync(client, "?materialKind=organic")).GetProperty("entries").EnumerateArray());
         var retained = await client.GetFromJsonAsync<JsonElement>($"{Route}/{retired.Id}");
         Assert.True(retained.GetProperty("retirement").GetProperty("isRetired").GetBoolean());
         Assert.Equal(pearl.Id, retained.GetProperty("retirement").GetProperty("redirectEntryId").GetGuid());
@@ -127,12 +131,12 @@ public sealed class GemReferenceReadTests(SqlServerFixture sqlServer)
         var expected = new HashSet<Guid>();
         for (var n = 0; n < 52; n++)
         {
-            var entry = GemReferenceSamples.Mineral() with { Id = Guid.NewGuid(), CommonName = unicode ? new string('\u7389', 200) : n % 2 == 0 ? "Ruby" : "ruby", Group = unicode ? new string('\u7389', 200) : null, Species = $"Species {n}" };
+            var entry = GemReferenceSamples.Mineral() with { Id = Guid.NewGuid(), CommonName = unicode ? new string('\u7389', 200) : n % 2 == 0 ? "Ruby" : "ruby", Group = unicode ? new string('\u7389', 200) : "Pagination family", Species = $"Species {n}" };
             expected.Add(entry.Id);
             await GemReferenceTestData.InsertAsync(app.AdminConnectionString, entry);
         }
         // WHEN traversing THEN ordering ties do not lose or repeat identities.
-        var filters = unicode ? "query=" + Uri.EscapeDataString(new string('\u7389', 200)) + "&group=" + Uri.EscapeDataString(new string('\u7389', 200)) + "&materialKind=mineral&" : "";
+        var filters = unicode ? "query=" + Uri.EscapeDataString(new string('\u7389', 200)) + "&group=" + Uri.EscapeDataString(new string('\u7389', 200)) + "&materialKind=mineral&" : "group=Pagination%20family&";
         var first = await PageAsync(client, "?" + filters);
         Assert.Equal(50, first.GetProperty("entries").GetArrayLength());
         var cursor = first.GetProperty("nextCursor").GetString()!;
@@ -166,7 +170,7 @@ public sealed class GemReferenceReadTests(SqlServerFixture sqlServer)
     [Fact]
     public async Task ExcessiveQueriesAndFailedReadsRemainDistinctFromEmptyResults()
     {
-        // GIVEN a reader and an empty catalog.
+        // GIVEN a reader and the installed pilot catalog.
         await using var app = await AuthTestApplication.CreateAsync(sqlServer);
         using var client = app.CreateClient();
         await LoginAsync(client, "member@example.com");
@@ -181,7 +185,7 @@ public sealed class GemReferenceReadTests(SqlServerFixture sqlServer)
         await new SqlCommand("DENY SELECT ON Gemology.Entries TO workbench_web", connection).ExecuteNonQueryAsync();
         Assert.Equal(HttpStatusCode.InternalServerError, (await client.GetAsync(Route)).StatusCode);
         await new SqlCommand("GRANT SELECT ON Gemology.Entries TO workbench_web", connection).ExecuteNonQueryAsync();
-        Assert.Empty((await PageAsync(client)).GetProperty("entries").EnumerateArray());
+        Assert.Equal(4, (await PageAsync(client)).GetProperty("entries").GetArrayLength());
     }
 
     [Fact]
