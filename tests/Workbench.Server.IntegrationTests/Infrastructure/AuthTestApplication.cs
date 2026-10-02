@@ -53,24 +53,34 @@ public sealed class AuthTestApplication : IAsyncDisposable
         string? priorMigration = null)
     {
         var database = await sqlServer.CreateMigratedDatabaseAsync(priorMigration);
-        var proofKey = await database.GetTenantContextProofKeyAsync();
-        var webConnection = await database.CreateWebUserAsync();
-        await SeedAsync(database.AdminConnectionString);
-        var factory = new WebApplicationFactory<Program>()
-            .WithWebHostBuilder(builder =>
-            {
-                builder.UseSetting("ConnectionStrings:Workbench", webConnection);
-                builder.UseSetting("TenantContext:ProofKey", Convert.ToBase64String(proofKey));
-                if (disablePublicOperations)
+        try { await SeedAsync(database.AdminConnectionString); }
+        catch { await database.DisposeAsync(); throw; }
+        return await CreateFromDatabaseAsync(database, disablePublicOperations);
+    }
+
+    internal static async Task<AuthTestApplication> CreateFromDatabaseAsync(SqlTestDatabase database, bool disablePublicOperations = false)
+    {
+        try
+        {
+            var proofKey = await database.GetTenantContextProofKeyAsync();
+            var webConnection = await database.CreateWebUserAsync();
+            var factory = new WebApplicationFactory<Program>()
+                .WithWebHostBuilder(builder =>
                 {
-                    builder.ConfigureServices(services =>
+                    builder.UseSetting("ConnectionStrings:Workbench", webConnection);
+                    builder.UseSetting("TenantContext:ProofKey", Convert.ToBase64String(proofKey));
+                    if (disablePublicOperations)
                     {
-                        services.RemoveAll<IIdentityMessageDelivery>();
-                        services.AddSingleton<IIdentityMessageDelivery, DisabledIdentityMessageDelivery>();
-                    });
-                }
-            });
-        return new AuthTestApplication(database, webConnection, factory);
+                        builder.ConfigureServices(services =>
+                        {
+                            services.RemoveAll<IIdentityMessageDelivery>();
+                            services.AddSingleton<IIdentityMessageDelivery, DisabledIdentityMessageDelivery>();
+                        });
+                    }
+                });
+            return new AuthTestApplication(database, webConnection, factory);
+        }
+        catch { await database.DisposeAsync(); throw; }
     }
 
     public HttpClient CreateClient()
