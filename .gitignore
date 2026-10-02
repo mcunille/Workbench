@@ -14,6 +14,8 @@ src/Workbench.Server/openapi/
 artifacts/
 .env.dev
 .dev-environment/
+# Owner-supplied reference content and source-review dossiers stay private.
+/.private/
 # Generated verification and walkthrough videos stay local.
 *.[mM][pP]4
 

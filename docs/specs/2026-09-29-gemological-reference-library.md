@@ -1,6 +1,6 @@
 # Gemological reference library
 
-**Status: Proposed** — design reviewed with the owner on 2026-09-29, including service-admin curation; written-spec review and implementation planning remain pending.
+**Status: In progress** — GEM-02 and GEM-03 are merged. On 2026-10-02 the owner reduced GEM-01 to a private four-mineral sample. GEM-04–10 remain to be delivered; the complete reference-library release is not implemented.
 
 ## Purpose and audience
 
@@ -29,7 +29,7 @@ GemInv offers a reference list of editable `GemTaxonomyMapping` rows with group,
 ## First-release scope
 
 1. Provide an authenticated reference-library page with searchable entries, material-kind and group filters, concise result rows, and an entry detail page. Search covers preferred common name, aliases, group, species, and variety. The detail view explains missing levels rather than displaying a fictitious value.
-2. Ship a small, reviewed Workbench catalog spanning important structural cases: corundum/ruby and sapphire; beryl/emerald and aquamarine; garnet/grossular/tsavorite; zoisite/tanzanite; and opal, amber, pearl, and lapis lazuli. Each published entry has source links and a review date. This is a representative starting set, not a claim of exhaustive gem coverage.
+2. Install a small, reviewed, owner-supplied Workbench sample containing Diamond, Sapphire, Emerald, and Ruby. The owner reduced the initial pilot on 2026-10-02 and requires the curated package to remain outside the public repository. Each published entry has claim-level sources and review dates. Group, non-mineral, alias, and exceptional-locality examples from the original pilot are deferred editorial expansion; their model semantics below remain applicable. This is a mineral-only starting sample, not a claim of exhaustive gem or structural-case coverage. See the [private-content handoff](../gem-reference-content.md).
 3. Allow signed-in tenant members to add, edit, archive, and restore tenant-owned entries, and to override or reset fields of Workbench entries for their tenant. Existing tenant authorization and anti-forgery patterns apply. The tenant boundary is enforced by the server and SQL, not by filtering in the browser alone.
 4. Make the source layer visible: **Workbench reference**, **tenant entry**, or **Workbench reference customized for this tenant**. Display source links and last review date; identify tenant-written assertions separately from Workbench assertions.
 5. Keep the library independent of collection items, purchase lines, lab reports, exports, and pricing in this release. Existing workflows and item names remain untouched.
@@ -47,7 +47,7 @@ Sources belong to assertions rather than to an unqualified record-wide bibliogra
 
 ## Shared catalog, tenant additions, and tenant overrides
 
-Workbench ships curated entries with stable IDs and maintains them through service-admin publishing. A tenant cannot mutate those rows. Tenant entries have tenant-qualified IDs and are visible only in that tenant. A tenant override refers to a curated entry ID and stores only deliberately overridden fields. For each field, the state is **inherit**, **replace**, or, where optional, **clear**. A blank text input does not silently mean “inherit.” An alias list is replaced as a unit when overridden; otherwise it inherits. Source assertions are attached to the field or claim they support, not overridden as an independent record-wide list. Replacing or clearing a field replaces or removes that field's effective source assertions; resetting it restores the current Workbench value and sources together.
+Workbench installs separately supplied curated entries with stable IDs and maintains them through service-admin publishing. A tenant cannot mutate those rows. Tenant entries have tenant-qualified IDs and are visible only in that tenant. A tenant override refers to a curated entry ID and stores only deliberately overridden fields. For each field, the state is **inherit**, **replace**, or, where optional, **clear**. A blank text input does not silently mean “inherit.” An alias list is replaced as a unit when overridden; otherwise it inherits. Source assertions are attached to the field or claim they support, not overridden as an independent record-wide list. Replacing or clearing a field replaces or removes that field's effective source assertions; resetting it restores the current Workbench value and sources together.
 
 The server resolves a tenant's effective entry by applying that tenant's overrides to the current published curated entry. An upstream correction reaches inherited fields and their sources; replacement and explicit-clear fields remain tenant choices. Search, filters, detail, and edits use that same effective projection. The UI marks changed fields, shows their Workbench values, and allows a single-field reset or whole-entry reset. Tenant edits carry a concurrency token so competing saves require review. A curated update does not silently delete a tenant override or change its source attribution.
 
@@ -98,8 +98,8 @@ The first release adds a new reference domain, tenant route, and service-admin r
 
 - Source review checks every seeded and newly published classification and locality assertion against linked primary references, spelling, material kind, and date. Review the rendered attribution and avoid copied prose/media.
 - Service-admin tests cover provisioning and disablement, session isolation, restore sanitation after revoked or disabled access, draft visibility, source and duplicate validation, one- and multi-entry atomic publication, concurrent-edit rejection without partial publication, audit outcome, and denial of tenant-data access. Tenant sessions must fail against every service-admin route. Exercise the dedicated editor in a running preview with non-sensitive sample entries.
-- API/SQL tests cover shared visibility, tenant isolation, additions, per-field value-and-source inheritance/replacement/clear/reset, behavior after a shared-entry publication, invalid-effective-entry reconciliation, duplicate conflict handling, archive/restore, concurrent edits, and inaccessible IDs. Component/browser tests cover search and source labels, source-link safety, draft preservation, keyboard/mobile use, and the Tanzanite/tsavorite locality distinction. Follow repository TDD, Gherkin-comment, mutation, and delivery gates when implementation is authorized.
-- A user can find each pilot example by common name and at least one relevant classification term; see why a field is absent on non-mineral entries; add and later correct a tenant entry; override Tanzanite for their tenant; and reset one field to receive the current Workbench value. Another tenant sees no change.
+- API/SQL tests cover shared visibility, tenant isolation, additions, per-field value-and-source inheritance/replacement/clear/reset, behavior after a shared-entry publication, invalid-effective-entry reconciliation, duplicate conflict handling, archive/restore, concurrent edits, and inaccessible IDs. Component/browser tests cover search and source labels, source-link safety, draft preservation, keyboard/mobile use, and locality/non-mineral behavior using synthetic fixtures outside the private sample. Follow repository TDD, Gherkin-comment, mutation, and delivery gates when implementation is authorized.
+- A user can find each pilot example by common name and at least one relevant classification term; see why optional fields are absent; add and later correct a tenant entry; override a sample entry for their tenant; and reset one field to receive the current Workbench value. Another tenant sees no change.
 - A later property phase is successful only when a reader can tell a sourced type range from an observation on a particular stone and can see the limits of the published value.
 
 ## First-release milestones and user stories
@@ -119,11 +119,15 @@ Each story is an independently assignable handoff, not permission to skip design
 
 #### GEM-01 — Curate the pilot claim set
 
-**Story:** As a collector, I want familiar mineral and non-mineral examples backed by identifiable sources so that the reference is useful and its claims can be checked.
+**Status: Complete for the revised sample (2026-10-02)** — privately prepared and source-reviewed;
+validated against merged GEM-02. With GEM-02 and GEM-03 merged, M0's revised foundation
+requirements are satisfied. [Handoff and verification limits](../gem-reference-content.md).
 
-- **Scope:** Prepare the exact pilot entries named in this spec, including classifications, common names, aliases, applicable absent fields, Tanzanite's narrowly worded locality assertion, and claim-level source records. Review the distinction from tsavorite and avoid copied source prose or media.
-- **Acceptance:** Every substantive Workbench claim has a supporting primary citation and review date; the set exercises group/no-group, species/no-species, variety/no-variety, and mineral/non-mineral cases. Another reviewer can reproduce the classification decisions from the linked sources.
-- **Evidence:** A reviewed, machine-readable seed-content package or equivalent source dossier plus a claim-to-source checklist. Do not put unsourced numerical reference properties into this release.
+**Story:** As a collector, I want a small sample of familiar minerals backed by identifiable sources so that the reference is useful and its claims can be checked.
+
+- **Scope:** Prepare Diamond, Sapphire, Emerald, and Ruby with classifications, common names, deliberately absent optional fields, and claim-level source records. Match the merged GEM-02 content contract. Keep the curated package and source-review dossier private; public guidance describes only their format and handoff. Avoid copied source prose or media. Additional pilot entries, aliases, group examples, and exceptional-locality assertions are deferred.
+- **Acceptance:** Every substantive Workbench claim has a supporting primary citation and review date. The four-mineral sample exercises species identities and present/absent variety fields without inventing groups, aliases, locality assertions, or numerical properties. Another authorized reviewer can reproduce the classification decisions from linked sources in the private checklist. The package passes GEM-02 validation with stable, unique entry/source IDs and no duplicate identities. Broader structural cases are not an M0 content-completion condition for this revised scope.
+- **Evidence:** A privately held, reviewed, machine-readable sample package plus a claim-to-source checklist. Record the handoff and verification limits publicly without publishing the content. The private package is supplied separately to GEM-04; a public clone does not include it.
 - **Predecessors:** None. **Parallel:** GEM-02 and GEM-03; align field names with GEM-02 before finalizing the seed package.
 
 #### GEM-02 — Persist and read the shared reference
@@ -150,7 +154,7 @@ Each story is an independently assignable handoff, not permission to skip design
 
 **Story:** As a new Workbench installation, I want a sourced starter library so that browsing is useful before any service admin creates an entry.
 
-- **Scope:** Load GEM-01's reviewed content into GEM-02's schema with deterministic IDs on first installation. Existing service-admin edits must survive later deployments and upgrades.
+- **Scope:** Load GEM-01's separately supplied, private, reviewed content into GEM-02's schema with deterministic IDs on first installation. Define an explicit package input and private distribution procedure rather than embedding the curated records in public source or artifacts. Existing service-admin edits must survive later deployments and upgrades.
 - **Acceptance:** Fresh databases get the exact reviewed pilot set once; an upgrade does not duplicate entries or overwrite a published edit; source records and locality wording match the reviewed package.
 - **Evidence:** Fresh-install, rerun, and upgrade tests from the merged base schema, plus a source-to-seed comparison.
 - **Predecessors:** GEM-01, GEM-02. **Parallel:** GEM-05 and GEM-07 once their own prerequisites are met; serialize any shared migration edits.
@@ -190,7 +194,7 @@ Each story is an independently assignable handoff, not permission to skip design
 
 - **Scope:** Library navigation, search and material-kind/group filters, result list, detail view, source and layer labels, locality wording, missing-field explanation, loading/empty/error states, and safe external links. Use the effective API; no editing controls belong here.
 - **Acceptance:** Pilot examples are findable; tenant additions and overrides appear with correct attribution; an invalid effective entry remains findable by name with a **Needs review** warning and no validated classification claim; another tenant's values never appear; locality statements never read as specimen-origin proof; keyboard/mobile behavior works.
-- **Evidence:** Component and browser checks against the integrated effective API, including Tanzanite, tsavorite, opal, pearl, and a tenant override.
+- **Evidence:** Component and browser checks against the integrated effective API, including the supplied sample and a tenant override. Use synthetic fixtures for non-mineral, group, alias, and exceptional-locality behavior; those fixtures do not expand GEM-01 or become distributed reference content.
 - **Predecessors:** GEM-02, GEM-06. **Parallel:** GEM-07; GEM-09 may begin after this screen's shared interaction contract is integrated.
 
 #### GEM-09 — Add and customize entries in the tenant UI
@@ -198,7 +202,7 @@ Each story is an independently assignable handoff, not permission to skip design
 **Story:** As a tenant member, I want to add entries and adjust or reset Workbench fields so that I can maintain a personal reference without altering the curated catalog.
 
 - **Scope:** Add/edit/archive/restore tenant entries; edit inherited, replaced, and cleared fields on shared entries; show Workbench values; single-field and whole-entry reset; source attribution; draft preservation and conflict reconciliation.
-- **Acceptance:** A member can add an entry, customize Tanzanite, see that the shared value remains available, reset one field with its current Workbench sources, and recover from failed or concurrent saves. After a shared correction invalidates a retained override, the member sees the **Needs review** reason and both values, can reconcile or reset explicitly, and cannot save unrelated edits while the entry is invalid. Another tenant remains unaffected. The UI distinguishes tenant-authored unsourced claims from sourced Workbench claims.
+- **Acceptance:** A member can add an entry, customize a sample entry, see that the shared value remains available, reset one field with its current Workbench sources, and recover from failed or concurrent saves. After a shared correction invalidates a retained override, the member sees the **Needs review** reason and both values, can reconcile or reset explicitly, and cannot save unrelated edits while the entry is invalid. Another tenant remains unaffected. The UI distinguishes tenant-authored unsourced claims from sourced Workbench claims.
 - **Evidence:** Browser journey across refresh, shared correction and source change, invalid-override reconciliation, conflict, archive/restore, and both appearance modes; direct API isolation tests remain owned by GEM-06.
 - **Predecessors:** GEM-06, GEM-08. **Parallel:** GEM-07; coordinate shared UI files and browser fixtures.
 

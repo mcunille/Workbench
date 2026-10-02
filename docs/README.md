@@ -23,6 +23,7 @@ exercised at a particular revision. Neither replaces current instructions.
 | Perform strict offline restore | [Database backup and restore](operations/database-backup-restore.md) |
 | Understand current technical contracts | [Architecture](ARCHITECTURE.md) |
 | Change or consume an API | [API lifecycle and compatibility](api-lifecycle.md) |
+| Prepare or hand off private gem reference content | [Private seed-content package](gem-reference-content.md) |
 | Evaluate security boundaries | [Threat model](security/data-identity-threat-model.md), [browser security](operations/browser-security.md) |
 | Understand product direction | [Vision](VISION.md), [design principles](DESIGN-PRINCIPLES.md) |
 | Apply current visual values | [DESIGN.md](../DESIGN.md) |
