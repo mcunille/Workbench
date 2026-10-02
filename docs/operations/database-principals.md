@@ -1,5 +1,11 @@
 # Database principals
 
+GEM-02 grants `workbench_web` SELECT on exactly `Gemology.Entries`, `Aliases`,
+`SourceAssertions`, and `LocalityAssertions`. These shared reference tables contain no tenant
+records. Web and worker direct INSERT/UPDATE/DELETE are denied; worker, operator, and storage
+maintenance receive no shared read grants. No catalog publish authority or schema-wide grant
+is introduced. Password provisioning accepts these exact object reads and rejects broader grants.
+
 BK-05 bill mutations (`Purchasing.SaveSupplierBill`, `ReviewSupplierBill`, `PostSupplierBill`) have
 no `workbench_web` EXECUTE grant. The fixed `SupplierBillsManage` and `SupplierBillsPost` permissions
 are not assigned to production roles. Bill tables deny direct runtime writes; bounded read procedures

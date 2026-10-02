@@ -22,6 +22,9 @@ Use `SqlServerFixture.CreateMigratedDatabaseAsync` when the test needs the curre
 precondition. It restores an unseeded template created from the current run's migration assembly
 into a unique database, then regenerates the tenant proof key. Credentials, identities, and data
 remain isolated. This is not a shared mutable database.
+Prepare that shared template during fixture initialization so its migration/bootstrap cost does
+not consume the first domain test's case budget. Fixture preparation remains part of process
+timing; fresh migration drills still create their own databases and execute their own migrations.
 
 Use an empty database and explicit migrations when applying/upgrading/rolling back the schema is
 the subject. Keep fresh migration-to-provisioning evidence as well as effective-permission tests.
@@ -29,8 +32,12 @@ Permission matrices that only need an already established current schema may use
 Do not replace real SQL security, transaction, concurrency, or recovery evidence with mocks.
 
 `SupplierScenarioFixture` prepares immutable supplier histories through production commands in
-the collection's disposable SQL container. Its class-fixture initialization runs once per
-container, before case bodies; measure that cold startup in process and gate wall time. Cases
+the collection's disposable SQL container. Each class fixture declares only its required histories;
+the container caches each history once and prepares them serially before case bodies. A separate
+immutable base captures the common supplier/account setup once, without financial history. Each
+history starts from an independent clone of that base. Measure all cold preparation in process
+and gate wall time: selecting fewer classes reduces startup, while the full gate can still need
+all histories in each process. Cases
 restore unique databases, regenerate proof keys, and create fresh contained principals, user
 security stamps and sessions. Backups contain no contained web credential or live session;
 mutable command nodes are parsed separately for each case. Cloning does not preserve query plans.
@@ -38,8 +45,62 @@ The 30-second case budget includes restoration and the asserted operations. Repo
 read prepared genuine history; correction, corruption, competing writes and physical recovery
 remain inside their owning case bodies. Do not move an asserted transition into shared setup.
 
+For independent rejection matrices, reuse a valid context while checking financial state after
+every rejected command and proving a valid command still succeeds afterward. Keep cases that
+change configuration in their own context. Concurrent exact retries and identical inputs with
+interchangeable request IDs need one serial order; retain both orders when the competing inputs
+or resulting state differ.
+
 Do not give SQL-free parsing or cookie-configuration tests a SQL collection fixture. Prefer local
 fixtures to an unconditional class lifecycle when only some cases use the initialized application.
+Photo processor tests use a SQL-free collection that disables parallel execution: native image
+policy and capacity are process-wide, including HTTP callers. Template backups remain unseeded
+and disposable inside the run's SQL container; each application receives fresh authority and
+identity material. Sharing mutable databases would invalidate isolation and race evidence.
+
+## Gate provenance and scheduling
+
+The gate discovers the current built inventory and assigns whole methods, including every theory
+row, to independent processes with sequential collections and disposable SQL fixtures. Missing,
+extra, duplicate, skipped or failed results and missing completion receipts fail the gate.
+Discovery preserves exact UTF-8 test identities; trimming or filtering unsupported names must
+not silently reduce coverage. Shared build-output writes are serialized; concurrent consumers
+use read-only release artifacts.
+
+Run-specific build receipts and manifests bind repository root, run ID, Release configuration,
+current tracked/nonignored source hashes and published hashes. Generated API files are excluded
+only from the pre-build receipt, checked for drift and included in the final manifest. Existence
+alone cannot authorize reuse; standalone browser/publish runs create fresh artifacts. Consumers
+must not delete shared outputs. Native child stdout/stderr use separate temporary logs so they
+cannot corrupt PowerShell background-job transport; cleanup follows process shutdown.
+
+### Refresh server timing data
+
+The reviewed `scripts/server-test-durations.json` dataset predicts method cost by summing historical
+theory-row durations. Assignment takes longest methods first into the lowest predicted total, with
+ordinal method-name and partition-ID ties. New rows receive one second each; obsolete rows do not
+affect assignment. This fallback permits new tests but cannot predict their actual cost. Invalid
+datasets fail closed. Inventory artifacts retain predictions/fallback counts and dataset provenance.
+
+Refresh after substantial test changes or observed imbalance, outside a running gate. Use only a
+completed successful CI **push to main** in this repository. Verify event, branch, conclusion and
+full SHA with `gh run view` before downloading `verification-evidence`; do not use PR artifacts.
+The importer validates gate success, inventory, exit receipts, exact passing TRX coverage and finite
+nonnegative durations, prohibits XML DTDs, and never executes artifacts. It cannot authenticate
+local downloaded files: provenance parameters describe evidence the operator verified.
+
+```powershell
+./scripts/update-server-test-durations.ps1 -EvidenceDirectory <gate-directory> `
+    -SourceRunUrl https://github.com/mcunille/Workbench/actions/runs/<run-id> `
+    -SourceRevision <full-commit-sha> -OutputPath scripts/server-test-durations.json
+./tests/Workbench.BuildTests/ServerDurations.Tests.ps1
+./tests/Workbench.BuildTests/ServerPartitions.Tests.ps1
+```
+
+Review the data and provenance diff together. A controlled `-TimingDataPath` comparison must retain
+partition count, concurrency, inventory and runner class. Predicted balance excludes fixture startup
+and runner pressure and does not guarantee critical-path savings. Retain resource costs alongside
+wall time; more concurrent SQL fixtures are not free capacity.
 
 ## Browser setup
 
@@ -95,6 +156,16 @@ Map every removed or moved case to its remaining coverage owner. Preserve comple
 inventory checks and report intentional count changes. Use focused mutation probes for meaningful
 security, isolation, validation, and state-transition assertions; report their actual scope rather
 than implying a whole-suite mutation score.
+Keep required correctness coverage in the delivery gate; moving it to nightly-only CI would weaken
+the delivery contract. Advance controlled time only after the production deadline is registered;
+observing an unrelated SQL lock wait does not establish that registration or the intended query.
+
+On 2026-09-16, a single successful same-host Linux gate pair measured 474.80s at `7ccc216` and
+389.27s at `46b187f` after ten test-efficiency changes (18.0% lower). Builds, shared-host pressure,
+cache state and overlapping stages limit interpretation; cohort savings are not additive. Earlier
+duration-balancing observations reduced predicted skew without establishing a robust wall-time
+speedup. These are dated observations, not current performance or coverage claims; Git retains the
+original detailed experiments. New optimizations still require their own comparable measurements.
 
 ## Coverage comparisons
 
@@ -118,8 +189,7 @@ and targeted fault probes for those contracts. Browser and standalone tooling te
 execution evidence and are not included in either code-coverage percentage. Count parameterized
 rows as runnable cases; report script-level checks separately when no case-discovery runner exists.
 
-See [Contributing](../CONTRIBUTING.md) for required verification commands and the
-[efficiency design](../docs/specs/2026-09-16-test-suite-efficiency.md) for this change's boundaries.
+See [Contributing](../CONTRIBUTING.md) for required verification commands.
 
 The [SQL setup measurement record](../docs/specs/2026-09-24-test-sql-setup-results.md) maps the validation
 and antiforgery owners moved out of SQL lifecycles, lists the seven additional current-schema clone

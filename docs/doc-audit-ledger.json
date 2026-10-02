@@ -70,6 +70,13 @@
       "reviewedRevision": "4140bc233b7502b84b29d08bfd165e4e31a870ff",
       "outcome": "keep",
       "note": "Retains distinct built-preview versus HMR and dedicated-SQL versus shared-SQL tradeoffs, two-preview browser acceptance, and historical resource measurements. Current operational owner: docs/setup.md. Evidence: scripts/dev-environment/State.ps1, Source.ps1 and tests/Workbench.BuildTests/DevEnvironment.Tests.ps1; incoming links in docs/setup.md and docs/specs/README.md. Historical verification is not rerun."
+    },
+    {
+      "path": "docs/specs/2026-09-11-h12-acquisition-export.md",
+      "reviewedAtUtc": "2026-10-02T06:43:26Z",
+      "reviewedRevision": "eb95f445d34ce342939015b0bdbce99c0b8a10be",
+      "outcome": "investigate",
+      "note": "Uncoached collector trial is explicitly pending; no current participant evidence was inspected. Its linked docs/demos/h12/verification.md was deleted by b2eac07. ItemExportEndpoints emits CSV v2; ItemPackageSnapshot uses serializable snapshots; ItemAcquisitionExportTests asserts deduplicated documents and only selected identities. Resolve scenario acceptance before retirement. Proposed destinations: docs/collection.md Usability for export-comprehension acceptance, docs/collection-export.md for continued v1/v2 decoding and rationale against parallel producers, docs/ARCHITECTURE.md for no provider reads under SQL locks. Repair H7/H9/collection/architecture references. Current behavior section describes the pre-H12 v1 baseline, not current implementation."
     }
   ]
 }

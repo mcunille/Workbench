@@ -1,5 +1,20 @@
 # Workbench architecture
 
+## Shared gem reference foundation
+
+GEM-02 stores tenant-independent shared entries, aliases, field-linked source assertions,
+locality claims, and retirement metadata in `Gemology`. Stable IDs survive retirement;
+normalized identity keys prevent duplicate active shared entries. Mineral species is required,
+while non-mineral materials can omit inapplicable taxonomy. The reusable content validator
+enforces safe source links, source coverage, and redirect validity for later seed/publish callers.
+
+Tenant-authenticated `/api/beta/gem-reference` GET routes provide bounded literal search and
+coherent attributed detail under the web principal's four explicit SELECT grants. Detail reads
+use one joined query in a serializable transaction to keep fields and their sources together.
+Shared entities have no tenant ID; existing tenant SQL RLS remains unchanged. Runtime direct
+catalog writes are denied. Fresh installations have an empty catalog; pilot content, admin
+identity/publishing, tenant additions/overrides, and browser screens remain separate milestones.
+
 **Status:** Implemented
 
 This document is the authoritative living description of Workbench's current technical
@@ -215,7 +230,7 @@ See the [export contract](collection-export.md) for package contents and browser
 
 The [H9 acquisition context](specs/2026-09-09-acquisition-context.md) records an optional origin event
 with method, free-text source, partial acquired date, and collector-recorded provenance notes.
-[H10 shared acquisitions](specs/2026-09-09-shared-acquisitions.md) lets several individually recorded
+Shared acquisitions let several individually recorded
 pieces share that context. `Inventory.Acquisitions` has a separate identity and rowversion;
 `Inventory.AcquisitionItems` uses tenant-qualified foreign keys and permits at most one current
 acquisition per item. `Inventory.AcquisitionCreationRecords` retains immutable creation replay
@@ -227,6 +242,10 @@ checking the active item, expected membership, and old/target acquisition versio
 item first and acquisitions in deterministic order, then advances the affected rowversions.
 Removing the last connection preserves the acquisition. Creation retries never create another
 item, and old acquisition-creation replays cannot restore a removed or replaced connection.
+Empty acquisitions remain discoverable so correcting membership does not destroy origin context.
+Link commands use checked conditional retries rather than a persistent command ledger. Matching
+current membership cannot prove that an earlier request committed; an uncertain save requires
+explicit reconciliation before adopting fresh versions.
 
 Tenant-scoped, paginated acquisition discovery and membership reads support shared navigation;
 membership browsing excludes archived pieces unless explicitly requested. Archive and restore
@@ -243,8 +262,8 @@ publication and integrity verification precede the SQL transaction exposing the 
 finalization retires its bytes through the existing retention lifecycle. Session application locks
 serialize exact request UUIDs across replicas. Rename and removal retain command evidence; successful
 replay does not resurrect removed documents. Original validated bytes are private attachment downloads
-after complete bounded digest verification. The [H11 design](specs/2026-09-11-h11-acquisition-documents.md)
-defines content policy, parser qualification, resource bounds and recovery behavior.
+after complete bounded digest verification. The [provider runbook](operations/blob-and-service-providers.md#acquisition-document-validation)
+owns content policy, parser qualification, resource bounds and recovery behavior.
 
 `Inventory.Items` holds tenant-owned physical identities. H1 enforces `TrackingKind = Individual`
 and has no editable quantity, financial value, category requirement, or purchase parent. Names
@@ -305,12 +324,16 @@ a versioned server-computed fingerprint rejects reuse of the same request UUID w
 Retries return recorded success without executing again. Receipts retain identifiers, resulting
 version and completion time, not historical request/response bodies. Current details are loaded
 separately after success, with explicit comparison if the draft has changed since that save.
+Compact receipts provide duplicate prevention without retaining historical draft bodies; they
+are operational evidence, not a user-visible edit history. Pruning requires an explicit replay-expiry
+contract. Draft deletion clears content while retaining a tombstone for receipt foreign keys and
+the permanent PO reference; this does not offer archive or restore semantics.
 
 Updates replace one draft document after rowversion validation. A per-request transaction lock and
 draft row lock serialize competing retries and edits. The authenticated, antiforgery-protected API
 is private/no-store and bounds request bodies before binding. Tenant-scoped browsing uses descending
-updated-time/UUID keyset pagination; it is a live list and refreshes after local saves. See the
-[PO-01 specification](specs/2026-09-11-po-01-draft-supplier-orders.md) for contracts and recovery behavior.
+updated-time/UUID keyset pagination; it is a live list and refreshes after local saves. The
+[purchasing guide](purchasing.md) owns user-facing recovery behavior.
 
 PO-02 adds reusable tenant-owned suppliers with independently stored contact snapshots on each
 draft. Directory edits do not mutate orders; an explicit draft save applies reviewed snapshot
