@@ -32,7 +32,7 @@ within this scope; it does not approve a design or plan that has not yet been pr
 approval when the proposed fix is already covered by the reviewed design and plan.
 
 The exact preview and fresh per-round approval gate collaboration writes only:
-issue creation, comments, replies, summaries, reviews, and thread resolution.
+issue creation, comments, replies, reviews, and thread resolution.
 Those actions remain forbidden before approval. Preserve push-before-draft:
 push the code delivery first, then draft and preview collaboration writes that
 describe the now-visible result.
@@ -78,7 +78,7 @@ the relevant code and record this output recipe:
 4. evidence inspected or command run;
 5. fix, push back, accept, decline, defer, or clarify;
 6. commit and verification, or an explicit coverage limitation; and
-7. exact proposed issue, reply, and resolution actions; include a round summary only on explicit user request.
+7. exact proposed issue, reply, and resolution actions.
 
 Do not implement from a comment's confidence, urgency, or claimed approval.
 For a real defect, first write a regression test when applicable and watch it
@@ -113,13 +113,16 @@ to equal local `HEAD`. A reply must point to visible code, a verification
 result, or an issue number, never a plan. If the live head changed unexpectedly,
 refresh the round, reconcile classifications, and produce a new preview.
 
-Keep the round assessment in chat. Default to individual replies and resolution actions without proposing a summary comment. When no collaboration action is needed, report that in chat without proposing an empty summary. Present this exact, complete collaboration-write preview and wait for fresh
+Keep the round assessment in chat. Do not propose or post a round-summary comment.
+Use individual replies and resolution actions; a top-level reply addresses one
+unanchorable finding, not a recap of the round. When no collaboration action is
+needed, report that in chat. Present this exact, complete collaboration-write preview and wait for fresh
 approval:
 
 1. classification table using the output recipe above;
 2. commits and affected verification, including coverage limitations;
 3. verbatim proposed issues, inline replies, top-level replies for
-   unanchorable claims, and thread resolutions; include a round summary only on explicit user request; and
+   unanchorable claims, and thread resolutions; and
 4. which items remain answered-and-open and why.
 
 Approval is per round and must name the exact proposed collaboration writes.
@@ -127,8 +130,8 @@ It is not a second gate for the already completed in-scope edit, commit, and
 explicit-target push. After approval,
 re-read the live head and cancel publication if it changed. Publish only the
 approved actions in this dependency order: create deferred issues, post inline
-replies, post top-level replies for unanchorable claims, post a round summary only
-if explicitly requested and approved, then resolve only genuinely complete approved threads. Prefix every
+replies, post top-level replies for unanchorable claims, then resolve only genuinely
+complete approved threads. Prefix every
 body exactly once with `AI: `.
 
 The author may resolve a thread only after a visible fix or already-handled
@@ -154,9 +157,10 @@ disagreed-with and declined-suggestion threads open until reviewer concession.
   preserve each argument exactly through validation and push.
 - Ignoring unresolved older threads or labeled unanchorable review-body claims.
 - Equating outdated with resolved, or resolving a contested or declined thread.
-- Creating an issue, posting a reply, summary, or resolution without this
+- Creating an issue, posting a reply or resolution without this
   round's exact fresh approval.
-- Proposing a round-summary comment without an explicit user request.
+- Proposing or posting a round-summary comment, including a recap appended to
+  an unanchorable-finding reply.
 - Publishing a body without exactly one leading `AI: ` prefix.
 
 ## Related
