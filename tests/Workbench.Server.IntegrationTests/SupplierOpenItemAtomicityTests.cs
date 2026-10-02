@@ -22,7 +22,7 @@ public sealed class SupplierOpenItemAtomicityTests(SqlServerFixture sqlServer)
         await using var context = await SupplierPaymentTestContext.OpenAsync(sqlServer);
         var bill = await context.Allocation.BillAsync();
         var deposit = await context.CommandAsync();
-        await context.RecordAsync(deposit);
+        if (application) await context.RecordAsync(deposit);
         var command = application
             ? await context.Allocation.CommandAsync(Guid.Parse(deposit["paymentId"]!.ToString()), bill)
             : await context.CommandAsync();

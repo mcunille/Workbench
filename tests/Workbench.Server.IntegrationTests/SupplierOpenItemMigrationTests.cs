@@ -47,6 +47,18 @@ public sealed class SupplierOpenItemMigrationTests(SqlServerFixture sqlServer)
         Assert.Equal(before, await SnapshotAsync(context));
         Assert.Equal(306.60m, await PurchaseRecognitionCorrectionTests.ScalarAsync<decimal>(context, "SELECT SUM(Amount) FROM Purchasing.SupplierItemMovements"));
         Assert.Equal(1, await PurchaseRecognitionCorrectionTests.ScalarAsync<int>(context, "SELECT COUNT(*) FROM Purchasing.SupplierOpenItems"));
+        if (wrongSourceRevision)
+        {
+            // WHEN derivation is repeated THEN unsupported legacy control remains visible, without guessed capacity.
+            var bills = new SupplierBillTestContext(context);
+            await SupplierOpenItemRecoveryTests.DeriveAsync(bills);
+            var report = await SupplierOpenItemRecoveryTests.ReadAsync(bills);
+            Assert.False(report.IsComplete);
+            Assert.True(report.UnresolvedTenantControlCount > 0);
+            Assert.Equal("306.60", report.Controls.WholeFilterTotals.Payable);
+            Assert.Contains(report.Controls.Items, control => control.MissingAttributionCount > 0);
+            Assert.Equal(before, await SnapshotAsync(context));
+        }
     }
 
     [Fact]

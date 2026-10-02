@@ -60,7 +60,7 @@ identity material. Sharing mutable databases would invalidate isolation and race
 
 ## Gate provenance and scheduling
 
-The gate discovers the current built inventory and assigns whole methods, including every theory
+The gate discovers the current built inventory and assigns whole classes, including every theory
 row, to independent processes with sequential collections and disposable SQL fixtures. Missing,
 extra, duplicate, skipped or failed results and missing completion receipts fail the gate.
 Discovery preserves exact UTF-8 test identities; trimming or filtering unsupported names must
@@ -76,9 +76,10 @@ cannot corrupt PowerShell background-job transport; cleanup follows process shut
 
 ### Refresh server timing data
 
-The reviewed `scripts/server-test-durations.json` dataset predicts method cost by summing historical
-theory-row durations. Assignment takes longest methods first into the lowest predicted total, with
-ordinal method-name and partition-ID ties. New rows receive one second each; obsolete rows do not
+The reviewed `scripts/server-test-durations.json` dataset predicts class cost by summing historical
+case durations. Assignment takes longest classes first into the lowest predicted total, with
+ordinal class-name and partition-ID ties. All methods sharing a class fixture stay in one process;
+fixture preparation remains outside case deadlines. New rows receive one second each; obsolete rows do not
 affect assignment. This fallback permits new tests but cannot predict their actual cost. Invalid
 datasets fail closed. Inventory artifacts retain predictions/fallback counts and dataset provenance.
 
@@ -152,11 +153,11 @@ cache/resource conditions. Include process wall time: xUnit case durations do no
 fixture startup, setup, or disposal. Keep build time separate when using verified current outputs.
 Record full-gate timing as well as individual stages, which overlap and must not be added together.
 
-The CI server stage uses four isolated processes on a four-CPU, 16 GiB runner; local verification
-defaults to two. Each test SQL container has a 2.5 GiB Docker memory cap, a 2 GiB SQL process budget
-and a 1.5 GiB buffer-pool ceiling. Four fixtures are therefore limited to 10 GiB of container memory,
-leaving headroom for the concurrent build, test hosts and browser stage. CI retains 30-second samples
-of host CPU counters, available memory, load and container CPU/memory usage in
+The CI server stage and local verification use two isolated processes by default. The unsuccessful
+four-process experiment's SQL memory caps were removed with its resource-limit test: measured
+headroom did not justify making those arbitrary values a fixture contract. CI retains 30-second
+samples of host CPU counters, available memory, load and container
+CPU/memory usage in
 `verification-evidence/ci-resources/samples.jsonl`. These samples supplement full-gate and partition
 timings; predicted duration balance alone does not establish a performance improvement.
 
@@ -174,6 +175,23 @@ cache state and overlapping stages limit interpretation; cohort savings are not 
 duration-balancing observations reduced predicted skew without establishing a robust wall-time
 speedup. These are dated observations, not current performance or coverage claims; Git retains the
 original detailed experiments. New optimizations still require their own comparable measurements.
+
+On 2026-10-02, the [four-process experiment](https://github.com/mcunille/Workbench/actions/runs/37048110385)
+at `a65bb0e` took 55m11s end to end, versus 49m52s for the successful
+[two-process main baseline](https://github.com/mcunille/Workbench/actions/runs/37030188879).
+The experiment's server stage took 3056.41s and had ten timeout failures among 1829 cases;
+its browser stage also failed. It did not establish a speedup and four-way concurrency on one
+runner was reverted. The 99 valid resource samples reported at least 4.76 GiB available memory,
+1.37 GiB peak usage per bounded SQL container, 94.39% peak host CPU utilization, 16.05% weighted
+I/O wait, and peak one-minute load 11.77 on four CPUs. Memory headroom alone did not establish
+safe concurrency. Different hosted machines and cache conditions limit direct timing comparisons.
+
+A separate same-host payment-setup snapshot probe preserved independent mutation and authentication,
+and did not grant correction authority. First-use setup changed from 1.873s to 3.385s, warm setup
+from 1.202s to 0.561s, and the complete test case from approximately 9s to 11s. Concurrent coverage
+runs limit that single pair; the small setup saving did not justify retaining another snapshot
+lifecycle. The experimental implementation and its test were reverted, with raw evidence retained
+in ignored `artifacts/snapshot-experiment/` for this checkout. No existing test case was removed.
 
 ## Coverage comparisons
 
@@ -196,6 +214,24 @@ counts. Coverage of C# SQL strings does not measure SQL engine branches; retain 
 and targeted fault probes for those contracts. Browser and standalone tooling tests provide separate
 execution evidence and are not included in either code-coverage percentage. Count parameterized
 rows as runnable cases; report script-level checks separately when no case-discovery runner exists.
+
+The 2026-10-02 serial coverage runs passed 1828 baseline server cases and 1829 after adding the SQL
+resource-limit test. The client runs each passed 512 cases. Common-source coverage did not decrease:
+
+| Scope | Metric | Baseline covered/total | After covered/total |
+| --- | --- | --- | --- |
+| Client | Lines | 2747/3047 (90.15%) | 2747/3047 (90.15%) |
+| Client | Branches | 3903/4720 (82.69%) | 3903/4720 (82.69%) |
+| Server assembly | Lines | 92660/94223 (98.34%) | 92661/94223 (98.34%) |
+| Server assembly | Branches | 5310/6779 (78.33%) | 5312/6779 (78.36%) |
+
+These runs used identical collector settings and isolated output directories to prevent overlapping
+collectors from modifying each other's binaries. The after report additionally listed a zero-hit
+Database CLI assembly copied into its isolated output (405 lines, 378 branches); comparison excludes
+that assembly to retain the baseline Server scope and matching denominators. This does not establish
+coverage of the separately launched CLI. Raw reports and comparison calculations remain in ignored
+`artifacts/coverage/` and `artifacts/ci-coverage-comparison.json`. These coverage results apply to the
+resource-limit experiment, not to the reverted snapshot probe or the subsequent test deletion batch.
 
 See [Contributing](../CONTRIBUTING.md) for required verification commands.
 
