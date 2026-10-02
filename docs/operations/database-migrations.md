@@ -9,6 +9,14 @@ browsing. Storage manifest/recovery authority belongs to protected maintenance t
 
 ## Deployment procedure
 
+GEM-02 adds `20261001000000_AddSharedGemReference` after the merged
+`20260928071548_AddSupplierOpenItems` baseline. The single additive migration creates the
+shared `Gemology` schema, attribution/locality/retirement integrity, restricted read grants,
+and the matching readiness marker. It preserves existing tenant records and installs no pilot
+catalog content or runtime catalog writers. Its Down operation throws 50020 to preserve stable
+reference identities and provenance; use forward correction or protected restore with matching
+binaries. Verification evidence is recorded only after the current-source migration drills pass.
+
 1. Identify the immutable application revision and its expected migration in the matrix below.
 2. Confirm a current, restorable backup and the application's schema compatibility window.
 3. Stop or drain incompatible writers when the migration design requires it.
