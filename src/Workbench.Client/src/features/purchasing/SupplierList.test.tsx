@@ -18,6 +18,13 @@ it('restores the directory query, archive filter, loaded rows and scroll without
   expect(screen.getByRole('link', { name: 'Edit Gems' })).toBeVisible();
   expect(scroll).toHaveBeenCalledWith(0, 420);
   await waitFor(() => expect(getSuppliers).toHaveBeenCalledWith(undefined, 'Gems', true));
+  // AND scrolling records the latest directory position before leaving.
+  const position = Object.getOwnPropertyDescriptor(window, 'scrollY')!;
+  try {
+    Object.defineProperty(window, 'scrollY', { configurable: true, value: 640 });
+    fireEvent.scroll(window);
+    expect(memory.scrollY).toBe(640);
+  } finally { Object.defineProperty(window, 'scrollY', position); }
   view.unmount();
   // AND a picker starts fresh rather than inheriting directory filters or cached archived rows.
   vi.mocked(getSuppliers).mockResolvedValueOnce({ items: [row('Fresh')], nextCursor: null });

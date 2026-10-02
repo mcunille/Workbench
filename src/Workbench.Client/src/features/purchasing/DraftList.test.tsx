@@ -7,6 +7,35 @@ vi.mock('../../api/purchaseOrders', async importOriginal => ({ ...await importOr
 const row = (id: string) => ({ id, title: id, supplierName: null, firstItemDescription: null, poReference: 'PO-000001', supplierOrderReference: null, platform: null, updatedAtUtc: '2026-09-12T00:00:00Z' });
 const props = () => ({ memory: new DraftMemory(), follow: vi.fn(), onAuthLost: vi.fn() });
 beforeEach(() => { vi.mocked(getDrafts).mockReset(); });
+it('restores purchase traversal and records scrolling before refreshing from page one', async () => {
+  // GIVEN a saved ordered-only search and scroll position from a previous visit.
+  const callbacks = props();
+  callbacks.memory.save({ items: [{ ...row('placed'), state: 'Ordered' }], nextCursor: 'more' }, 'sapphire', 'Ordered');
+  callbacks.memory.savePosition(420);
+  const scroll = vi.spyOn(window, 'scrollTo').mockImplementation(() => {});
+  const position = Object.getOwnPropertyDescriptor(window, 'scrollY')!;
+  try {
+    const view = render(<DraftList {...callbacks} />);
+    expect(screen.getByRole('searchbox')).toHaveValue('sapphire');
+    expect(screen.getByRole('combobox', { name: 'Order status' })).toHaveValue('Ordered');
+    expect(scroll).toHaveBeenCalledWith(0, 420);
+    // WHEN scrolling and returning to the list THEN the latest position is restored.
+    Object.defineProperty(window, 'scrollY', { configurable: true, value: 640 });
+    fireEvent.scroll(window);
+    view.unmount();
+    render(<DraftList {...callbacks} />);
+    expect(scroll).toHaveBeenLastCalledWith(0, 640);
+    // AND refreshing resets traversal while retaining its query and status filter.
+    vi.mocked(getDrafts).mockResolvedValueOnce({ items: [{ ...row('fresh'), state: 'Ordered' }], nextCursor: null });
+    fireEvent.click(screen.getByRole('button', { name: 'Refresh' }));
+    await screen.findByRole('link', { name: /fresh/ });
+    expect(getDrafts).toHaveBeenLastCalledWith(undefined, 'sapphire', 'Ordered');
+    expect(callbacks.memory.scrollY).toBe(0);
+  } finally {
+    Object.defineProperty(window, 'scrollY', position);
+    scroll.mockRestore();
+  }
+});
 it('wires accessible purchase references to distinct records from the same supplier', async () => {
   // GIVEN identically labelled purchases from one supplier and a custom title on a third.
   const items = [
