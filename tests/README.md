@@ -29,14 +29,24 @@ Permission matrices that only need an already established current schema may use
 Do not replace real SQL security, transaction, concurrency, or recovery evidence with mocks.
 
 `SupplierScenarioFixture` prepares immutable supplier histories through production commands in
-the collection's disposable SQL container. Its class-fixture initialization runs once per
-container, before case bodies; measure that cold startup in process and gate wall time. Cases
+the collection's disposable SQL container. Each class fixture declares only its required histories;
+the container caches each history once and prepares them serially before case bodies. A separate
+immutable base captures the common supplier/account setup once, without financial history. Each
+history starts from an independent clone of that base. Measure all cold preparation in process
+and gate wall time: selecting fewer classes reduces startup, while the full gate can still need
+all histories in each process. Cases
 restore unique databases, regenerate proof keys, and create fresh contained principals, user
 security stamps and sessions. Backups contain no contained web credential or live session;
 mutable command nodes are parsed separately for each case. Cloning does not preserve query plans.
 The 30-second case budget includes restoration and the asserted operations. Report-only cases
 read prepared genuine history; correction, corruption, competing writes and physical recovery
 remain inside their owning case bodies. Do not move an asserted transition into shared setup.
+
+For independent rejection matrices, reuse a valid context while checking financial state after
+every rejected command and proving a valid command still succeeds afterward. Keep cases that
+change configuration in their own context. Concurrent exact retries and identical inputs with
+interchangeable request IDs need one serial order; retain both orders when the competing inputs
+or resulting state differ.
 
 Do not give SQL-free parsing or cookie-configuration tests a SQL collection fixture. Prefer local
 fixtures to an unconditional class lifecycle when only some cases use the initialized application.

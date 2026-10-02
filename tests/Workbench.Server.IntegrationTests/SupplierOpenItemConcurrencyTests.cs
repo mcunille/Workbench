@@ -232,17 +232,13 @@ public sealed class SupplierOpenItemConcurrencyTests(SqlServerFixture sqlServer)
 
     [Theory]
     [InlineData(false, "exact", true)]
-    [InlineData(false, "exact", false)]
     [InlineData(false, "changed", true)]
     [InlineData(false, "changed", false)]
     [InlineData(false, "newRequest", true)]
-    [InlineData(false, "newRequest", false)]
     [InlineData(true, "exact", true)]
-    [InlineData(true, "exact", false)]
     [InlineData(true, "changed", true)]
     [InlineData(true, "changed", false)]
     [InlineData(true, "newRequest", true)]
-    [InlineData(true, "newRequest", false)]
     public async Task ConcurrentRetriesPreserveSourceAndReceiptIdentity(bool application, string retryKind, bool originalFirst)
     {
         // GIVEN two submissions of one payment source or one versioned allocation on separate restricted connections.

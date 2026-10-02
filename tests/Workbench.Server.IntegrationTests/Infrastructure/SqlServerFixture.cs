@@ -11,7 +11,9 @@ namespace Workbench.Server.IntegrationTests.Infrastructure;
 public sealed class SqlServerFixture : IAsyncLifetime
 {
     private readonly Lazy<Task<SqlDatabaseTemplate>> _schemaTemplate;
-    private readonly Lazy<Task<SupplierScenarioFixture.Snapshots>> _supplierScenarios;
+    private readonly System.Collections.Concurrent.ConcurrentDictionary<string, Lazy<Task<SupplierScenarioFixture.Scenario>>> _supplierScenarios = new();
+    private readonly SemaphoreSlim _supplierPreparation = new(1);
+    private SupplierScenarioFixture.Scenario? _supplierBase;
     private readonly MsSqlContainer _container = new MsSqlBuilder(
         "mcr.microsoft.com/mssql/server:2022-CU20-ubuntu-22.04")
         .Build();
@@ -19,10 +21,21 @@ public sealed class SqlServerFixture : IAsyncLifetime
     public SqlServerFixture()
     {
         _schemaTemplate = new(CreateSchemaTemplateAsync);
-        _supplierScenarios = new(() => SupplierScenarioFixture.CreateAsync(this));
     }
 
-    internal Task<SupplierScenarioFixture.Snapshots> GetSupplierScenariosAsync() => _supplierScenarios.Value;
+    internal Task<SupplierScenarioFixture.Scenario> GetSupplierScenarioAsync(string name)
+        => _supplierScenarios.GetOrAdd(name, scenario => new(() => PrepareSupplierScenarioAsync(scenario))).Value;
+
+    private async Task<SupplierScenarioFixture.Scenario> PrepareSupplierScenarioAsync(string name)
+    {
+        await _supplierPreparation.WaitAsync();
+        try
+        {
+            _supplierBase ??= await SupplierScenarioFixture.CreateAsync(this, null);
+            return await SupplierScenarioFixture.CreateAsync(this, name, _supplierBase);
+        }
+        finally { _supplierPreparation.Release(); }
+    }
 
     public async Task InitializeAsync()
     {
