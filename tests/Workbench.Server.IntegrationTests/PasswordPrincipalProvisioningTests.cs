@@ -24,7 +24,7 @@ public sealed class PasswordPrincipalProvisioningTests(SqlServerFixture sqlServe
         foreach (var table in new[] { "Entries", "Aliases", "SourceAssertions", "LocalityAssertions" })
         {
             await using var read = new SqlCommand($"SELECT COUNT(*) FROM Gemology.{table}", web);
-            Assert.Equal(0, await read.ExecuteScalarAsync());
+            Assert.Equal(table switch { "Entries" => 4, "SourceAssertions" => 19, _ => 0 }, await read.ExecuteScalarAsync());
         }
     }
 

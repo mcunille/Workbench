@@ -32,11 +32,11 @@ public sealed class GemReferenceMigrationTests(SqlServerFixture sqlServer)
         var before = await ItemStateAsync(connection);
         Assert.True(await CompatibleAsync(connection, Baseline));
         Assert.False(await CompatibleAsync(connection, CurrentSchema.MigrationId));
-        // WHEN upgrading THEN tenant content and rowversion survive without seeding a catalog.
+        // WHEN upgrading THEN tenant content and rowversion survive alongside the installed pilot.
         await DatabaseMigrator.MigrateAsync(database.AdminConnectionString, default);
         Assert.Equal(before, await ItemStateAsync(connection));
         await using var count = new SqlCommand("SELECT COUNT(*) FROM Gemology.Entries", connection);
-        Assert.Equal(0, await count.ExecuteScalarAsync());
+        Assert.Equal(4, await count.ExecuteScalarAsync());
         Assert.True(await CompatibleAsync(connection, CurrentSchema.MigrationId));
         Assert.False(await CompatibleAsync(connection, Baseline));
         await MigrationHistoryAssertions.AssertCurrentAsync(database.AdminConnectionString);
@@ -44,7 +44,7 @@ public sealed class GemReferenceMigrationTests(SqlServerFixture sqlServer)
         await using var web = new SqlConnection(await database.CreateWebUserAsync());
         await web.OpenAsync();
         await using var read = new SqlCommand("SELECT COUNT(*) FROM Gemology.Entries", web);
-        Assert.Equal(0, await read.ExecuteScalarAsync());
+        Assert.Equal(4, await read.ExecuteScalarAsync());
         await using var write = new SqlCommand("DELETE Gemology.Entries", web);
         Assert.Equal(229, (await Assert.ThrowsAsync<SqlException>(() => write.ExecuteNonQueryAsync())).Number);
     }

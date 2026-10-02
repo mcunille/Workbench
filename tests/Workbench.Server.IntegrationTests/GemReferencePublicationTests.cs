@@ -15,6 +15,8 @@ public sealed class GemReferencePublicationTests(SqlServerFixture sqlServer) : I
     private Guid _session;
     private GemReferenceDraftService _drafts = null!;
     private GemReferencePublicationService _publisher = null!;
+    private int _initialEntryCount;
+    private int _initialSourceCount;
 
     public async Task InitializeAsync()
     {
@@ -23,6 +25,8 @@ public sealed class GemReferencePublicationTests(SqlServerFixture sqlServer) : I
         _session = await GemReferenceDraftTests.CreateSessionAsync(_application);
         _drafts = new(_application.WebConnectionString);
         _publisher = new(_application.WebConnectionString);
+        _initialEntryCount = await ScalarAsync<int>("SELECT COUNT(*) FROM Gemology.Entries");
+        _initialSourceCount = await ScalarAsync<int>("SELECT COUNT(*) FROM Gemology.SourceAssertions");
     }
     public async Task DisposeAsync() => await _application.DisposeAsync();
 
@@ -49,8 +53,8 @@ public sealed class GemReferencePublicationTests(SqlServerFixture sqlServer) : I
         Assert.Equal("published", result.Code);
         Assert.Equal(count, result.Entries.Count);
         Assert.All(result.Entries, e => Assert.Equal(8, Convert.FromBase64String(e.RowVersion).Length));
-        Assert.Equal(count, await ScalarAsync<int>("SELECT COUNT(*) FROM Gemology.Entries"));
-        Assert.Equal(count * 4, await ScalarAsync<int>("SELECT COUNT(*) FROM Gemology.SourceAssertions"));
+        Assert.Equal(_initialEntryCount + count, await ScalarAsync<int>("SELECT COUNT(*) FROM Gemology.Entries"));
+        Assert.Equal(_initialSourceCount + count * 4, await ScalarAsync<int>("SELECT COUNT(*) FROM Gemology.SourceAssertions"));
         Assert.Equal(3 - count, await ScalarAsync<int>("SELECT COUNT(*) FROM Gemology.Drafts"));
         Assert.Equal(1, await ScalarAsync<int>("SELECT COUNT(*) FROM Gemology.PublishRequests"));
         Assert.Equal(1, await ScalarAsync<int>("SELECT COUNT(*) FROM Gemology.PublicationAudit WHERE Outcome='published'"));
@@ -87,7 +91,7 @@ public sealed class GemReferencePublicationTests(SqlServerFixture sqlServer) : I
         var result = await PublishAsync(new(Guid.NewGuid(), [Select(first), Select(second)]));
         Assert.NotEqual("published", result.Code);
         Assert.Empty(result.Entries);
-        Assert.Equal(state == "publishedStale" ? 1 : 0, await ScalarAsync<int>("SELECT COUNT(*) FROM Gemology.Entries"));
+        Assert.Equal(_initialEntryCount + (state == "publishedStale" ? 1 : 0), await ScalarAsync<int>("SELECT COUNT(*) FROM Gemology.Entries"));
         Assert.Equal(2, await ScalarAsync<int>("SELECT COUNT(*) FROM Gemology.Drafts"));
         Assert.Equal(1, await ScalarAsync<int>("SELECT COUNT(*) FROM Gemology.PublishRequests"));
         Assert.Equal(1, await ScalarAsync<int>("SELECT COUNT(*) FROM Gemology.PublicationAudit WHERE Outcome<>'published'"));
@@ -110,7 +114,7 @@ public sealed class GemReferencePublicationTests(SqlServerFixture sqlServer) : I
         Assert.Equal(1, await ScalarAsync<int>("SELECT COUNT(*) FROM Gemology.PublicationAudit"));
         // AND changed input conflicts without changing catalog, receipt, or success audit.
         Assert.Equal("request_conflict", (await PublishAsync(request with { Drafts = [Select(first)] })).Code);
-        Assert.Equal(2, await ScalarAsync<int>("SELECT COUNT(*) FROM Gemology.Entries"));
+        Assert.Equal(_initialEntryCount + 2, await ScalarAsync<int>("SELECT COUNT(*) FROM Gemology.Entries"));
         Assert.Equal(1, await ScalarAsync<int>("SELECT COUNT(*) FROM Gemology.PublicationAudit WHERE Outcome='published'"));
     }
 
@@ -125,7 +129,7 @@ public sealed class GemReferencePublicationTests(SqlServerFixture sqlServer) : I
         var corrected = await _drafts.SaveAsync(AuthTestApplication.ServiceAdminId, _session, draft.Id,
             new(draft.EntryId, GemReferenceSamples.Mineral(), draft.RowVersion, null), default);
         Assert.Equal(JsonSerializer.Serialize(original), JsonSerializer.Serialize(await PublishAsync(request)));
-        Assert.Equal(0, await ScalarAsync<int>("SELECT COUNT(*) FROM Gemology.Entries"));
+        Assert.Equal(_initialEntryCount + 0, await ScalarAsync<int>("SELECT COUNT(*) FROM Gemology.Entries"));
         Assert.Equal("published", (await PublishAsync(new(Guid.NewGuid(), [Select(corrected)]))).Code);
     }
 
@@ -152,7 +156,7 @@ public sealed class GemReferencePublicationTests(SqlServerFixture sqlServer) : I
         var results = await Task.WhenAll(PublishAsync(new(Guid.NewGuid(), [Select(first)])), PublishAsync(new(Guid.NewGuid(), [Select(second)])));
         Assert.Single(results, r => r.Code == "published");
         Assert.Single(results, r => r.Code != "published");
-        Assert.Equal(1, await ScalarAsync<int>("SELECT COUNT(*) FROM Gemology.Entries"));
+        Assert.Equal(_initialEntryCount + 1, await ScalarAsync<int>("SELECT COUNT(*) FROM Gemology.Entries"));
         Assert.Equal(1, await ScalarAsync<int>("SELECT COUNT(*) FROM Gemology.Drafts"));
     }
 
@@ -168,7 +172,7 @@ public sealed class GemReferencePublicationTests(SqlServerFixture sqlServer) : I
         var create = await DraftAsync(replacement);
         // WHEN replacement is selected before retirement THEN final identities are still valid and stable IDs are retained.
         Assert.Equal("published", (await PublishAsync(new(Guid.NewGuid(), [Select(create), Select(retire)]))).Code);
-        Assert.Equal(2, await ScalarAsync<int>("SELECT COUNT(*) FROM Gemology.Entries"));
+        Assert.Equal(_initialEntryCount + 2, await ScalarAsync<int>("SELECT COUNT(*) FROM Gemology.Entries"));
         Assert.Equal(1, await ScalarAsync<int>("SELECT COUNT(*) FROM Gemology.Entries WHERE IsRetired=1 AND RedirectEntryId=@id", ("id", replacement.Id)));
     }
 
@@ -181,7 +185,7 @@ public sealed class GemReferencePublicationTests(SqlServerFixture sqlServer) : I
         var second = await DraftAsync(b with { IsRetired = true, RedirectEntryId = a.Id });
         // WHEN reviewed as a final catalog THEN the cycle prevents all publication.
         Assert.Equal("validation_failed", (await PublishAsync(new(Guid.NewGuid(), [Select(first), Select(second)]))).Code);
-        Assert.Equal(0, await ScalarAsync<int>("SELECT COUNT(*) FROM Gemology.Entries"));
+        Assert.Equal(_initialEntryCount + 0, await ScalarAsync<int>("SELECT COUNT(*) FROM Gemology.Entries"));
         Assert.Equal(2, await ScalarAsync<int>("SELECT COUNT(*) FROM Gemology.Drafts"));
     }
 
@@ -194,7 +198,7 @@ public sealed class GemReferencePublicationTests(SqlServerFixture sqlServer) : I
         await ScalarAsync<object>("CREATE TRIGGER Gemology.RejectAudit ON Gemology.PublicationAudit AFTER INSERT AS THROW 50045,'Synthetic audit failure.',1;");
         // WHEN publishing THEN the entire success transaction is rolled back.
         await Assert.ThrowsAsync<SqlException>(() => PublishAsync(request));
-        Assert.Equal(0, await ScalarAsync<int>("SELECT COUNT(*) FROM Gemology.Entries"));
+        Assert.Equal(_initialEntryCount + 0, await ScalarAsync<int>("SELECT COUNT(*) FROM Gemology.Entries"));
         Assert.Equal(0, await ScalarAsync<int>("SELECT COUNT(*) FROM Gemology.PublishRequests"));
         Assert.Equal(1, await ScalarAsync<int>("SELECT COUNT(*) FROM Gemology.Drafts"));
         // AND after removing the fault the same request can safely complete once.
@@ -233,7 +237,7 @@ public sealed class GemReferencePublicationTests(SqlServerFixture sqlServer) : I
         // WHEN invoking the restricted command directly THEN SQL independently guards sourced content and selected saved versions.
         Assert.Equal(state is "sources" or "injectedAlias" or "omittedAlias" or "changedAlias" ? 50043 : 50044,
             (await Assert.ThrowsAsync<SqlException>(() => command.ExecuteNonQueryAsync())).Number);
-        Assert.Equal(0, await ScalarAsync<int>("SELECT COUNT(*) FROM Gemology.Entries"));
+        Assert.Equal(_initialEntryCount + 0, await ScalarAsync<int>("SELECT COUNT(*) FROM Gemology.Entries"));
         Assert.Equal(1, await ScalarAsync<int>("SELECT COUNT(*) FROM Gemology.Drafts"));
     }
 

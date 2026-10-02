@@ -84,16 +84,20 @@ public sealed class GemReferenceCurationMigrationTests(SqlServerFixture sqlServe
         Assert.Equal(50041, (await Assert.ThrowsAsync<SqlException>(() => command.ExecuteNonQueryAsync())).Number);
     }
 
-    [Fact]
-    public async Task MergedServiceAdminBaseUpgradePreservesCatalogIdentityAndBlocksDestructiveDown()
+    [Theory]
+    [InlineData("AddServiceAdminIdentity")]
+    [InlineData("InstallGemReferencePilot")]
+    public async Task MergedCatalogBaseUpgradePreservesCatalogIdentityAndBlocksDestructiveDown(string baseline)
     {
-        // GIVEN the merged GEM-03 schema with shared provenance and tenant/admin identity rows.
-        await using var application = await AuthTestApplication.CreateAsync(sqlServer, priorMigration: "AddServiceAdminIdentity");
+        // GIVEN a merged GEM-03 or GEM-04 baseline with shared provenance and tenant/admin identity rows.
+        await using var application = await AuthTestApplication.CreateAsync(sqlServer, priorMigration: baseline);
         await application.ProvisionServiceAdminAsync();
         await GemReferenceTestData.InsertAsync(application.AdminConnectionString, GemReferenceSamples.Mineral());
-        const string state = """
-            SELECT (SELECT * FROM Gemology.Entries ORDER BY Id FOR JSON PATH) AS Entries,
-                (SELECT * FROM Gemology.SourceAssertions ORDER BY Id FOR JSON PATH) AS Sources,
+        var retained = baseline == "AddServiceAdminIdentity" ? "WHERE Id='bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb'" : "";
+        var retainedSources = baseline == "AddServiceAdminIdentity" ? "WHERE EntryId='bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb'" : "";
+        var state = $"""
+            SELECT (SELECT * FROM Gemology.Entries {retained} ORDER BY Id FOR JSON PATH) AS Entries,
+                (SELECT * FROM Gemology.SourceAssertions {retainedSources} ORDER BY Id FOR JSON PATH) AS Sources,
                 (SELECT * FROM ServiceAdministration.Accounts ORDER BY Id FOR JSON PATH) AS Accounts,
                 (SELECT Id,TenantId,SecurityVersion FROM [Identity].Users ORDER BY Id FOR JSON PATH) AS Users FOR JSON PATH
             """;
@@ -104,7 +108,7 @@ public sealed class GemReferenceCurationMigrationTests(SqlServerFixture sqlServe
         await MigrationHistoryAssertions.AssertCurrentAsync(application.AdminConnectionString);
         // AND destructive rollback is guarded without changing retained content or migration history.
         Assert.Equal(50020, (await Assert.ThrowsAsync<SqlException>(() => DatabaseMigrator.MigrateToAsync(application.AdminConnectionString,
-            "AddServiceAdminIdentity", default))).Number);
+            baseline, default))).Number);
         Assert.Equal(before, await ServiceAdminIdentityDatabaseTests.ScalarAsync<string>(application.AdminConnectionString, state));
         await MigrationHistoryAssertions.AssertCurrentAsync(application.AdminConnectionString);
     }

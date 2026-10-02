@@ -62,7 +62,7 @@ public sealed class GemReferenceCurationEndpointTests(SqlServerFixture sqlServer
         var draft = (await save.Content.ReadFromJsonAsync<GemReferenceDraftResponse>())!;
         Assert.Equal(draft.RowVersion, (await _admin.GetFromJsonAsync<GemReferenceDraftResponse>(Prefix + "/drafts/" + id))!.RowVersion);
         Assert.Single((await _admin.GetFromJsonAsync<GemReferenceDraftPage>(Prefix + "/drafts"))!.Drafts);
-        Assert.Empty((await tenant.GetFromJsonAsync<GemReferencePageResponse>("/api/beta/gem-reference"))!.Entries);
+        Assert.DoesNotContain((await tenant.GetFromJsonAsync<GemReferencePageResponse>("/api/beta/gem-reference"))!.Entries, entry => entry.Id == content.Id);
         var selection = new[] { new GemReferenceDraftSelection(id, draft.RowVersion) };
         Assert.Equal(HttpStatusCode.OK, (await SendAsync(_admin, HttpMethod.Post, Prefix + "/review", new GemReferenceReviewRequest(selection))).StatusCode);
         // WHEN publishing THEN both authorities read the sourced shared entry and the durable outcome/audit is attributed to the admin.
@@ -72,8 +72,8 @@ public sealed class GemReferenceCurationEndpointTests(SqlServerFixture sqlServer
         var outcome = (await publish.Content.ReadFromJsonAsync<GemReferencePublishOutcome>())!;
         Assert.Equal("published", outcome.Code);
         Assert.Equal(request.RequestId, (await _admin.GetFromJsonAsync<GemReferencePublishOutcome>(Prefix + "/publications/" + request.RequestId))!.RequestId);
-        Assert.Single((await tenant.GetFromJsonAsync<GemReferencePageResponse>("/api/beta/gem-reference"))!.Entries);
-        Assert.Single((await _admin.GetFromJsonAsync<GemReferencePageResponse>(Prefix + "?query=Corundum"))!.Entries);
+        Assert.Contains((await tenant.GetFromJsonAsync<GemReferencePageResponse>("/api/beta/gem-reference"))!.Entries, entry => entry.Id == content.Id);
+        Assert.Single((await _admin.GetFromJsonAsync<GemReferencePageResponse>(Prefix + "?query=Synthetic"))!.Entries);
         Assert.Equal(content.Id, (await _admin.GetFromJsonAsync<GemReferenceDetailResponse>(Prefix + "/" + content.Id))!.Id);
         var audit = Assert.Single((await _admin.GetFromJsonAsync<GemReferencePublicationAuditPage>(Prefix + "/publication-audit"))!.Events);
         Assert.Equal(AuthTestApplication.ServiceAdminId, audit.AccountId);
@@ -203,6 +203,6 @@ public sealed class GemReferenceCurationEndpointTests(SqlServerFixture sqlServer
         Assert.Equal("validation_failed", outcome.Code);
         Assert.Contains(outcome.Review, entry => entry.Errors.ContainsKey("identity"));
         Assert.Equal(HttpStatusCode.OK, (await _admin.GetAsync(Prefix + "/drafts/" + id)).StatusCode);
-        Assert.Equal(1, await ServiceAdminIdentityDatabaseTests.ScalarAsync<int>(_application.AdminConnectionString, "SELECT COUNT(*) FROM Gemology.Entries"));
+        Assert.Equal(1, await ServiceAdminIdentityDatabaseTests.ScalarAsync<int>(_application.AdminConnectionString, "SELECT COUNT(*) FROM Gemology.Entries WHERE Id='bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb'"));
     }
 }

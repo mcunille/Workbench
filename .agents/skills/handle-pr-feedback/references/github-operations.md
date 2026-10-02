@@ -123,13 +123,11 @@ $reply | gh api "repos/<owner>/<repo>/pulls/<n>/comments/<comment-id>/replies" -
 
 3. Post a separate approved top-level reply for every unanchorable finding,
    because it has no inline comment endpoint. These targeted replies are not round summaries.
-   Keep the round assessment in chat; propose and post a round summary only when
-   explicitly requested and its exact text approved.
+   Keep the round assessment in chat. Each top-level reply addresses its specific
+   finding without appending a round recap. Do not propose or post a summary comment.
 
 ```powershell
 gh pr comment <n> --body 'AI: <approved unanchorable-finding reply>'
-# Only when a round summary was explicitly requested and approved:
-gh pr comment <n> --body 'AI: <approved round summary>'
 ```
 
 4. Resolve only an approved thread that is genuinely complete: fixed,

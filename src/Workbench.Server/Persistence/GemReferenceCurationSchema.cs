@@ -93,10 +93,10 @@ internal static class GemReferenceCurationSchema
         GemReferencePublishSchema.Up(migration);
         migration.Sql($"""
             DECLARE @Definition nvarchar(max)=OBJECT_DEFINITION(OBJECT_ID(N'Security.ReadDatabaseReadiness'));
-            IF @Definition IS NULL OR CHARINDEX(N'20261001072507_AddServiceAdminIdentity',@Definition)=0
+            IF @Definition IS NULL OR CHARINDEX(N'20261002192523_InstallGemReferencePilot',@Definition)=0
                 THROW 50020,'Unsupported catalog curation readiness predecessor.',1;
             SET @Definition=REPLACE(@Definition,N'CREATE PROCEDURE',N'ALTER PROCEDURE');
-            SET @Definition=REPLACE(@Definition,N'20261001072507_AddServiceAdminIdentity',N'{migrationId}');
+            SET @Definition=REPLACE(@Definition,N'20261002192523_InstallGemReferencePilot',N'{migrationId}');
             EXEC sys.sp_executesql @Definition;
             """);
     }

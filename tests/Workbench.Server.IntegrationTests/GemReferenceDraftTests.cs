@@ -20,6 +20,7 @@ public sealed class GemReferenceDraftTests(SqlServerFixture sqlServer)
         var service = new GemReferenceDraftService(application.WebConnectionString);
         var content = GemReferenceSamples.Mineral() with { Species = null, Sources = [] };
         var draftId = Guid.NewGuid();
+        var publishedCount = await ServiceAdminIdentityDatabaseTests.ScalarAsync<int>(application.AdminConnectionString, "SELECT COUNT(*) FROM Gemology.Entries");
         // WHEN saving incomplete content THEN the draft and field errors are returned without publication.
         var saved = await service.SaveAsync(AuthTestApplication.ServiceAdminId, session, draftId,
             new(content.Id, content, null, null), default);
@@ -30,7 +31,7 @@ public sealed class GemReferenceDraftTests(SqlServerFixture sqlServer)
         var reloaded = await service.ReadAsync(AuthTestApplication.ServiceAdminId, session, draftId, default);
         Assert.Equal(saved.RowVersion, reloaded!.RowVersion);
         Assert.Null(reloaded.Content.Species);
-        Assert.Equal(0, await ServiceAdminIdentityDatabaseTests.ScalarAsync<int>(application.AdminConnectionString, "SELECT COUNT(*) FROM Gemology.Entries"));
+        Assert.Equal(publishedCount, await ServiceAdminIdentityDatabaseTests.ScalarAsync<int>(application.AdminConnectionString, "SELECT COUNT(*) FROM Gemology.Entries"));
         // WHEN updating and then saving the stale version THEN the current draft survives.
         var updated = await service.SaveAsync(AuthTestApplication.ServiceAdminId, session, draftId,
             new(content.Id, content with { CommonName = "Revised" }, saved.RowVersion, null), default);

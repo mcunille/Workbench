@@ -21,6 +21,7 @@
   </ItemGroup>
   <ItemGroup>
     <InternalsVisibleTo Include="Workbench.Server.IntegrationTests" />
+    <EmbeddedResource Include="Persistence\Migrations\InstallGemReferencePilot.sql" LogicalName="Workbench.GemReferencePilot.sql" />
     <Content Update="wwwroot\index.html" CopyToPublishDirectory="Never" />
     <Content Include="$(PkgMagick_NET-Q8-AnyCPU)/Notice.txt" Link="third-party-notices/Magick.NET.txt" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <None Update="third-party-notices/PdfPig.txt" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
