@@ -39,11 +39,20 @@ internal static class GemReferenceCursor
             using var stream = new MemoryStream(Convert.FromBase64String(cursor));
             using var reader = new BinaryReader(stream, Encoding);
             if (reader.ReadByte() != 1) return false;
-            var commonName = reader.ReadString();
+            string ReadString()
+            {
+                var length = reader.Read7BitEncodedInt();
+                // A valid 200-UTF-16-unit field needs at most 600 UTF-8 bytes.
+                if (length is < 0 or > 600) throw new FormatException();
+                var bytes = reader.ReadBytes(length);
+                if (bytes.Length != length) throw new EndOfStreamException();
+                return Encoding.GetString(bytes);
+            }
+            var commonName = ReadString();
             var idBytes = reader.ReadBytes(16);
             if (idBytes.Length != 16) return false;
             var id = new Guid(idBytes);
-            string? ReadField() => reader.ReadBoolean() ? reader.ReadString() : null;
+            string? ReadField() => reader.ReadBoolean() ? ReadString() : null;
             var query = ReadField();
             var materialKind = ReadField();
             var group = ReadField();
