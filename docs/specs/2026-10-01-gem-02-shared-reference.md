@@ -1,6 +1,6 @@
 # GEM-02 shared gem reference persistence and reads
 
-**Status: Design approved in chat on 2026-10-01; written-spec review pending.**
+**Status: Written specification approved by the owner on 2026-10-01; implementation-plan review pending.**
 
 This implements only GEM-02 from the
 [gemological reference library roadmap](2026-09-29-gemological-reference-library.md).
