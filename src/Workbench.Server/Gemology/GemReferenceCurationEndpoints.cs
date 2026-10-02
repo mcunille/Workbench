@@ -87,7 +87,12 @@ public static class GemReferenceCurationEndpoints
     {
         if (request.RequestId == Guid.Empty || !Selection(request.Drafts)) return Invalid();
         var outcome = await publisher.PublishAsync(Account(user), Session(user), request, ct);
-        return Results.Json(outcome, statusCode: outcome.Code switch { "published" => 200, "validation_failed" => 422, _ => 409 });
+        return Results.Json(outcome, statusCode: outcome.Code switch
+        {
+            "published" => 200,
+            "validation_failed" => outcome.Review.Any(entry => entry.Errors.ContainsKey("identity")) ? 409 : 422,
+            _ => 409
+        });
     }
     private static async Task<IResult> BrowseAsync(string? query, string? materialKind, string? group, string? cursor,
         GemReferenceAdminReadService reads, CancellationToken ct)

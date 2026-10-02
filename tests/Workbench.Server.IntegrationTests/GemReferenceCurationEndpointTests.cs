@@ -184,4 +184,25 @@ public sealed class GemReferenceCurationEndpointTests(SqlServerFixture sqlServer
             new { email = "other-admin@example.com", password = AuthTestApplication.ServiceAdminPassword })).StatusCode);
         Assert.Equal(HttpStatusCode.NotFound, (await other.GetAsync(Prefix + "/publications/" + requestId)).StatusCode);
     }
+
+    [Fact]
+    public async Task DuplicateSharedIdentityReturnsConflictAndPreservesDraft()
+    {
+        // GIVEN a published shared identity and a second sourced draft with its normalized identity.
+        await LoginAsync();
+        await GemReferenceTestData.InsertAsync(_application.AdminConnectionString, GemReferenceSamples.Mineral());
+        var content = GemReferenceSamples.Mineral() with { Id = Guid.NewGuid(), CommonName = "ruby" };
+        var id = Guid.NewGuid();
+        var save = await SendAsync(_admin, HttpMethod.Put, Prefix + "/drafts/" + id, new GemReferenceDraftSaveRequest(content.Id, content, null, null));
+        Assert.Equal(HttpStatusCode.OK, save.StatusCode);
+        var draft = (await save.Content.ReadFromJsonAsync<GemReferenceDraftResponse>())!;
+        // WHEN publishing THEN this catalog conflict is a 409 with a durable outcome, without losing the draft.
+        var publish = await SendAsync(_admin, HttpMethod.Post, Prefix + "/publish", new GemReferencePublishRequest(Guid.NewGuid(), [new(id, draft.RowVersion)]));
+        Assert.Equal(HttpStatusCode.Conflict, publish.StatusCode);
+        var outcome = (await publish.Content.ReadFromJsonAsync<GemReferencePublishOutcome>())!;
+        Assert.Equal("validation_failed", outcome.Code);
+        Assert.Contains(outcome.Review, entry => entry.Errors.ContainsKey("identity"));
+        Assert.Equal(HttpStatusCode.OK, (await _admin.GetAsync(Prefix + "/drafts/" + id)).StatusCode);
+        Assert.Equal(1, await ServiceAdminIdentityDatabaseTests.ScalarAsync<int>(_application.AdminConnectionString, "SELECT COUNT(*) FROM Gemology.Entries"));
+    }
 }
