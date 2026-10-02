@@ -114,6 +114,12 @@ builder.Services.AddScoped<ServiceAdminSessionService>(services => new ServiceAd
     services.GetRequiredService<DurableSessionOptions>(),
     services.GetRequiredService<IPasswordHasher<ServiceAdminAccount>>()));
 builder.Services.AddScoped<ServiceAdminAuthenticationEvents>();
+builder.Services.AddScoped<GemReferenceDraftService>(services => new GemReferenceDraftService(
+    RequireWebConnectionString(services.GetRequiredService<IConfiguration>())));
+builder.Services.AddScoped<GemReferencePublicationService>(services => new GemReferencePublicationService(
+    RequireWebConnectionString(services.GetRequiredService<IConfiguration>())));
+builder.Services.AddScoped<GemReferenceAdminReadService>(services => new GemReferenceAdminReadService(
+    RequireWebConnectionString(services.GetRequiredService<IConfiguration>())));
 builder.Services.AddSingleton<DummyPasswordHash>();
 builder.Services.AddScoped<IIdentityVerifier>(services => new BuiltInPasswordVerifier(
     RequireWebConnectionString(services.GetRequiredService<IConfiguration>()),
@@ -309,6 +315,7 @@ app.UseAuthentication();
 app.UseAuthorization();
 app.UseMiddleware<PhotoUploadLimitsMiddleware>();
 app.UseMiddleware<DocumentUploadLimitsMiddleware>();
+app.UseMiddleware<GemReferenceCurationLimitsMiddleware>();
 app.UseMiddleware<WorkbenchAntiforgeryMiddleware>();
 app.UseMiddleware<DraftOrderRequestMiddleware>();
 
@@ -323,6 +330,7 @@ app.MapWorkbenchAuthentication();
 app.MapServiceAdminAuthentication();
 app.MapWorkbenchInventory();
 app.MapGemReference();
+app.MapGemReferenceCuration();
 app.MapPurchaseOrderDrafts();
 app.MapPurchaseOrders();
 app.MapSuppliers();

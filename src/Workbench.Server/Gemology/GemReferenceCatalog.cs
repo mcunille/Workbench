@@ -9,15 +9,16 @@ internal sealed record GemReferenceCatalogEntry(GemReferenceContent Content, str
 internal static class GemReferenceCatalog
 {
     internal static async Task<IReadOnlyList<GemReferenceCatalogEntry>> ReadAsync(SqlConnection connection,
-        SqlTransaction? transaction, CancellationToken cancellationToken)
+        SqlTransaction? transaction, CancellationToken cancellationToken, Guid? entryIdFilter = null)
     {
         // Only the four shared catalog tables are read. No tenant context or tenant table participates.
         await using var command = new SqlCommand("""
-            SELECT * FROM Gemology.Entries;
-            SELECT * FROM Gemology.Aliases ORDER BY EntryId,Position;
-            SELECT * FROM Gemology.SourceAssertions ORDER BY EntryId,Field,Id;
-            SELECT * FROM Gemology.LocalityAssertions;
+            SELECT * FROM Gemology.Entries WHERE @Id IS NULL OR Id=@Id;
+            SELECT * FROM Gemology.Aliases WHERE @Id IS NULL OR EntryId=@Id ORDER BY EntryId,Position;
+            SELECT * FROM Gemology.SourceAssertions WHERE @Id IS NULL OR EntryId=@Id ORDER BY EntryId,Field,Id;
+            SELECT * FROM Gemology.LocalityAssertions WHERE @Id IS NULL OR EntryId=@Id;
             """, connection, transaction);
+        command.Parameters.AddWithValue("@Id", (object?)entryIdFilter ?? DBNull.Value);
         await using var reader = await command.ExecuteReaderAsync(cancellationToken);
         var entries = new Dictionary<Guid, GemReferenceCatalogEntry>();
         string? Optional(string name) => reader[name] is string value ? value : null;
