@@ -50,6 +50,10 @@ these images support identification, not gemological color measurement.
 ## Acquisition document validation
 
 Acquisition documents preserve the validated original bytes, including embedded image metadata.
+Rasterizing paperwork would change the supplied evidence; download the validated original instead.
+Attachment delivery avoids exposing inline PDF active content. Documents belong to the shared
+acquisition rather than being duplicated per piece; correct content by adding a new file and
+removing the mistaken one, keeping that correction explicit.
 Each file is limited to 10 MiB; the multipart request allows another 64 KiB. Accepted raster formats
 are single-frame JPEG, PNG, and WebP, with at most 40 million pixels and 12,000 pixels per axis.
 The document validator shares the photograph native-processing semaphore. It temporarily raises

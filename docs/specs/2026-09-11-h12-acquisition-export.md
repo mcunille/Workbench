@@ -7,8 +7,10 @@ of [scenario #73](https://github.com/mcunille/Workbench/issues/73). H9–H11 are
 `052333a`. Their accepted contracts remain unchanged. This proposal completes the focused export
 design required by the [acquisition specification](2026-09-09-acquisition-context.md#h11-and-h12-extension-boundaries).
 
-The [verification record](../demos/h12/verification.md) documents automated and narrated
-scenario evidence. The separate uncoached collector trial remains pending.
+Automated and narrated scenario evidence was recorded in `docs/demos/h12/verification.md`,
+retired with the demo directory in commit `b2eac07`; Git retains that dated record.
+The separate uncoached collector trial remains pending. Current export behavior and file decoding
+are owned by the [export guide](../collection-export.md); implementation does not establish trial acceptance.
 
 ## Outcome and scope
 
@@ -21,7 +23,7 @@ identity and optional acquisition context. Do not introduce monetary fields, ord
 states, import/restore, public sharing, new storage providers or production operations. Notes
 and documents remain collector-recorded information, not verified provenance.
 
-## Current behavior and compatibility
+## Pre-H12 baseline and compatibility
 
 `ItemExportEndpoints` produces CSV version 1 without acquisition fields. `ItemPackageSnapshot`
 captures item/photo references under a serializable transaction; `ItemPackageArchive` produces

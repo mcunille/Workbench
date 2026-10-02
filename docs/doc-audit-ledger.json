@@ -44,25 +44,11 @@
       "note": "Retains delayed-restore/re-archive safety, explicit archive endpoint rationale and dated online-recovery integration/rollback evidence. Evidence: InventoryEndpoints.RestoreAsync and tests/Workbench.Server.IntegrationTests/ItemRestorationDatabaseTests.cs. Current owners docs/collection.md, docs/ARCHITECTURE.md and docs/operations/database-migrations.md. docs/demos/h6/README.md and docs/demos/README.md link verification anchors; no current runtime or migration acceptance was rerun."
     },
     {
-      "path": "docs/specs/2026-09-08-floating-label-fields.md",
-      "reviewedAtUtc": "2026-10-02T06:43:26Z",
-      "reviewedRevision": "eb95f445d34ce342939015b0bdbce99c0b8a10be",
-      "outcome": "distill-then-delete",
-      "note": "DESIGN.md Form input already owns labels, accessible sibling association, focus border/padding and 16rem fallback; FloatingField.tsx and floating-field.css implement them. Unique compact 10rem fallback, select labels always raised and forced-colors behavior belong in DESIGN.md Form input alongside reduced motion; code/tests own CSS mechanics. Preserve explicit file/appearance external-label scope there. No unfinished requirement or separate retention need identified. Repair DESIGN.md and specs/README.md links; original external reference was not fetched and is unnecessary to establish current local behavior."
-    },
-    {
       "path": "docs/specs/2026-09-08-h7-collection-export.md",
       "reviewedAtUtc": "2026-09-28T06:55:50Z",
       "reviewedRevision": "4140bc233b7502b84b29d08bfd165e4e31a870ff",
       "outcome": "update",
       "note": "Add historical-v1/successor notice linking docs/specs/2026-09-11-h12-acquisition-export.md and docs/collection-export.md; current code emits workbench-records-v2 with acquisition fields. Preserve synchronous bounded preparation, SERIALIZABLE versus snapshot-isolation tradeoff and v1 decoding. Also recommend correcting docs/ARCHITECTURE.md Collection records export and Collection identity, which still say CSV v1 and no acquisition exports. Evidence: ItemExportEndpoints.cs and ItemAcquisitionExportTests.CsvV2PreservesOptionalFactsEveryMethodAndPartialDatesWithReversibleText. No cleanup had been applied at the initial review. Follow-up cleanup applied: v1 historical scope and H12/beta successors linked; docs/ARCHITECTURE.md corrected for CSV/ZIP v2, acquisition facts/documents and scoped relationships."
-    },
-    {
-      "path": "docs/specs/2026-09-08-local-test-iteration.md",
-      "reviewedAtUtc": "2026-10-02T06:43:26Z",
-      "reviewedRevision": "eb95f445d34ce342939015b0bdbce99c0b8a10be",
-      "outcome": "distill-then-delete",
-      "note": "Confirmed drift: Infrastructure/SqlServerFixture.InitializeAsync awaits _schemaTemplate.Value before cases, while Application database preparation describes lazy creation and first-case cold cost. tests/README.md Database setup already documents eager initialization and fresh explicit migration drills; CONTRIBUTING.md owns test-focused commands. Preserve process-wide native image isolation and schema-only independent restore/proof-key rationale there, plus concise dated warm-only 24% observation only if needed. Do not present old cold-case behavior as current. Repair docs/README.md, CONTRIBUTING.md, spec-index and concurrent-gate references."
     },
     {
       "path": "docs/specs/2026-09-09-acquisition-context.md",
@@ -72,25 +58,11 @@
       "note": "Clarify that H10-H12 remain separate deliveries describes original H9 scope and link their implemented successor specs. Current owners docs/collection.md, docs/collection-export.md and docs/ARCHITECTURE.md; preserve partial dates, separate identity/link model, replay evidence and shared-context tradeoffs. Evidence: AcquisitionEndpoints.MapAcquisitions acquisition-link route, AcquisitionConcurrencyTests and ItemAcquisitionExportTests; H11/H12 specs link extension-boundary anchors. Correct living architecture export contradiction as noted in H7; do not rewrite historical contracts. Follow-up cleanup applied: original H9-only approval distinguished from implemented H10-H12 successors; current collection/export owners and beta transition linked."
     },
     {
-      "path": "docs/specs/2026-09-09-concurrent-verification-gate.md",
-      "reviewedAtUtc": "2026-10-02T06:43:26Z",
-      "reviewedRevision": "eb95f445d34ce342939015b0bdbce99c0b8a10be",
-      "outcome": "distill-then-delete",
-      "note": "scripts/verification-stages.ps1 rejects missing/failed/skipped CI jobs and joins stage receipts; scripts/server-partition-contract.ps1 enforces exact passing inventory; verification-artifacts.ps1 owns source/output receipts. CONTRIBUTING.md and tests/README.md own current gate usage/isolation. Distill artifact provenance requirements, UTF-8 identity preservation, redirected native child streams and aggregate-versus-branch-protection distinction into tests/README.md and CONTRIBUTING.md. Preserve only a concise dated measurement with resource/cache limits if used for comparisons; old counts are not current coverage. Browser one-worker wording needs live/intercepted qualification. Repair docs/README.md, CONTRIBUTING.md, spec-index and local-iteration references."
-    },
-    {
       "path": "docs/specs/2026-09-09-refined-navigation.md",
       "reviewedAtUtc": "2026-09-28T06:55:50Z",
       "reviewedRevision": "4140bc233b7502b84b29d08bfd165e4e31a870ff",
       "outcome": "update",
       "note": "Mark desktop material/width as partially superseded by docs/specs/2026-09-25-raised-content-workspace.md and DESIGN.md authenticated navigation: original 13rem glass pane is now 14.3125rem/minimum 229px solid canvas beside raised content. Evidence: src/Workbench.Client/src/navigation.css. Preserve profile/mobile interaction decisions and rejected alternatives; repair current-direction references in docs/README.md, DESIGN.md and docs/specs/README.md. Follow-up cleanup applied: partial-supersession notice added; current-direction references in DESIGN.md, docs/README.md and docs/specs/README.md now link the raised-content successor. Original interaction rationale remains."
-    },
-    {
-      "path": "docs/specs/2026-09-09-shared-acquisitions.md",
-      "reviewedAtUtc": "2026-10-02T06:43:26Z",
-      "reviewedRevision": "eb95f445d34ce342939015b0bdbce99c0b8a10be",
-      "outcome": "distill-then-delete",
-      "note": "SharedAcquisitionBehaviorTests verifies shared edits, archive/restore and atomic replacement; AcquisitionEndpoints maps checked links. docs/collection.md and docs/ARCHITECTURE.md Acquisition context already own the workflow. Preserve why there is no link-command ledger (matching current state cannot prove acknowledgment), empty-acquisition retention and origin return-state rationale in those owners; remove repeated API/checklists. Repair collection/architecture/H9 references. H11/H12 separate deliveries is original scope; all now implemented. The h10 verification link is broken after verified deletion commit b2eac07; do not infer fresh acceptance from it."
     },
     {
       "path": "docs/specs/2026-09-09-worktree-development-environments.md",
@@ -100,46 +72,11 @@
       "note": "Retains distinct built-preview versus HMR and dedicated-SQL versus shared-SQL tradeoffs, two-preview browser acceptance, and historical resource measurements. Current operational owner: docs/setup.md. Evidence: scripts/dev-environment/State.ps1, Source.ps1 and tests/Workbench.BuildTests/DevEnvironment.Tests.ps1; incoming links in docs/setup.md and docs/specs/README.md. Historical verification is not rerun."
     },
     {
-      "path": "docs/specs/2026-09-11-h11-acquisition-documents.md",
-      "reviewedAtUtc": "2026-10-02T06:43:26Z",
-      "reviewedRevision": "eb95f445d34ce342939015b0bdbce99c0b8a10be",
-      "outcome": "distill-then-delete",
-      "note": "AcquisitionDocumentEndpointTests.DocumentsPersistReplayAndDownloadOnlyThroughOwnedContext asserts one replayed upload, exact source bytes and private attachment headers. Directory.Packages.props pins PdfPig 0.1.16. docs/operations/blob-and-service-providers.md Acquisition document validation already owns qualified subset and hard-isolation limits; docs/ARCHITECTURE.md owns reservation/replay lifecycle. Preserve rejection of rasterization and inline viewing because original evidence and active-content exposure matter in the provider runbook; shared ownership/correction policy in docs/collection.md. Repair H9/collection/architecture references; historical /api paths now follow docs/api-lifecycle.md beta policy."
-    },
-    {
       "path": "docs/specs/2026-09-11-h12-acquisition-export.md",
       "reviewedAtUtc": "2026-10-02T06:43:26Z",
       "reviewedRevision": "eb95f445d34ce342939015b0bdbce99c0b8a10be",
       "outcome": "investigate",
       "note": "Uncoached collector trial is explicitly pending; no current participant evidence was inspected. Its linked docs/demos/h12/verification.md was deleted by b2eac07. ItemExportEndpoints emits CSV v2; ItemPackageSnapshot uses serializable snapshots; ItemAcquisitionExportTests asserts deduplicated documents and only selected identities. Resolve scenario acceptance before retirement. Proposed destinations: docs/collection.md Usability for export-comprehension acceptance, docs/collection-export.md for continued v1/v2 decoding and rationale against parallel producers, docs/ARCHITECTURE.md for no provider reads under SQL locks. Repair H7/H9/collection/architecture references. Current behavior section describes the pre-H12 v1 baseline, not current implementation."
-    },
-    {
-      "path": "docs/specs/2026-09-11-po-01-draft-supplier-orders.md",
-      "reviewedAtUtc": "2026-10-02T06:43:26Z",
-      "reviewedRevision": "eb95f445d34ce342939015b0bdbce99c0b8a10be",
-      "outcome": "distill-then-delete",
-      "note": "Superseded mechanics include Untitled draft/no totals/no references and Retain V1 computation for existing receipts: docs/purchasing.md, implemented PO-03 and approved beta-api-lifecycle spec instead define estimates, permanent references and retired replay rejection. DraftOrderEndpoints uses current draft normalization; docs/ARCHITECTURE.md Purchasing owns compact receipts and current-detail GET. Preserve compact-receipt versus historical-response rationale, receipt-expiry requirement before pruning and tombstone purpose in architecture; live-list caveat and explicit reconciliation in purchasing. Retain stored-data compatibility separately in docs/api-lifecycle.md; never restore retired HTTP replay. Repair purchasing/architecture/spec-index references; PO-02 has a commit-pinned historical reference, not a mutable incoming path."
-    },
-    {
-      "path": "docs/specs/2026-09-16-duration-balanced-server-partitions.md",
-      "reviewedAtUtc": "2026-10-02T06:43:26Z",
-      "reviewedRevision": "eb95f445d34ce342939015b0bdbce99c0b8a10be",
-      "outcome": "distill-then-delete",
-      "note": "scripts/server-partition-contract.ps1 sums ordinal method/theory weights, chooses lowest predicted total, validates finite totals and dataset; update-server-test-durations.ps1 prohibits XML DTDs and writes 1-second fallback. tests/README.md is the maintained testing owner. Preserve trusted successful-main provenance verification, importer cannot authenticate local artifacts, explicit refresh command and fallback tradeoff there; preserve concise dated observation that predicted balance did not demonstrate a robust wall-time speedup. CONTRIBUTING.md should link the maintained procedure. Repair concurrent-gate and spec-index links. Hosted run URLs/results were not reverified; no new benchmark or script test run is claimed."
-    },
-    {
-      "path": "docs/specs/2026-09-16-test-suite-efficiency-results.md",
-      "reviewedAtUtc": "2026-10-02T06:43:26Z",
-      "reviewedRevision": "eb95f445d34ce342939015b0bdbce99c0b8a10be",
-      "outcome": "distill-then-delete",
-      "note": "Detailed ten-change chronology duplicates maintained tests/README.md coverage owners. Preserve concise dated same-host 474.80s to 389.27s single-pair comparison, nonadditive stages/host limits and no guaranteed speedup there if future comparison needs it; Git retains full cohort tables and manual mutation history. Final verification discoveries stale residual claim is partly resolved: ItemExportInterruptionTests now waits for DeadlineRegistered before inspecting blocking and advancing time; do not carry forward empty-deadline race as current. SQL lock correlation still needs separate evidence if claimed fixed. Repair efficiency-design link; no fresh runtime/CI performance verification was performed."
-    },
-    {
-      "path": "docs/specs/2026-09-16-test-suite-efficiency.md",
-      "reviewedAtUtc": "2026-10-02T06:43:26Z",
-      "reviewedRevision": "eb95f445d34ce342939015b0bdbce99c0b8a10be",
-      "outcome": "distill-then-delete",
-      "note": "tests/README.md now owns lower-layer boundaries, fresh migration drills, current-schema clones, synthetic route ownership, separate auth sessions and measurements; CONTRIBUTING.md owns opt-in evidence and gate commands. Preserve reasons against shared mutable SQL, weakened rate limits and nightly-only correctness there, retaining per-case moved-coverage accounting requirement. Implementation checklist and ten-change chronology need no separate maintained spec; Git preserves them. Repair CONTRIBUTING.md, tests/README.md, spec-index and later SQL/browser measurement-record references before retirement."
     }
   ]
 }
