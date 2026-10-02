@@ -1,6 +1,6 @@
 # GEM-02 shared gem reference persistence and reads
 
-**Status: Specification and implementation plan approved on 2026-10-01; native implementation verification in progress.**
+**Status: Implemented on 2026-10-01 after approved specification/plan and native execution; scoped verification passes. Full SQL gate has the deadline limitation recorded below.**
 
 This implements only GEM-02 from the
 [gemological reference library roadmap](2026-09-29-gemological-reference-library.md).
@@ -164,3 +164,33 @@ Update architecture, API, database-principal, migration, and schema-version docu
 Leave the overall roadmap unfinished. After integrated internal review and passing verification,
 commit scoped changes, push a `codex/` branch, and open a ready-for-review PR. Production
 migration and merging remain separately authorized.
+
+## Implementation evidence — 2026-10-01
+
+Final application source `29be9cf` passes all 39 GEM-02 cases, covering validation, identity,
+malformed/maximum-length Unicode cursors, real-SQL grants/constraints, authenticated bounded
+reads and coherent detail, fresh schema, merged-base upgrade preservation and guarded rollback.
+All 14 targeted manual mutation probes are detected after strengthening initial survivors;
+this is scoped evidence, not a repository-wide mutation score.
+
+Formatting, Release build, generated-contract drift, typecheck, all 508 client cases and published
+release-unit verification passed. All 122 browser cases passed after retrying the initial occupied
+browser port with the verified release manifest. Final-source container smoke passed hardened
+SQL-backed runtime and Local Compose TLS, readiness, secure login, durable-session, forwarding,
+private-listener and worker-telemetry checks.
+
+The complete SQL partition gate is not green. Initial 30-second supplier-reconciliation deadlines
+were followed by exited SQL containers and cascading connection failures. Shared unseeded schema
+preparation now occurs in fixture initialization without increasing case budgets or changing
+isolated clones/explicit migration drills. The affected cohort passes 51 of 52 cases, including all
+38 GEM cases present at that revision; the later UTF-8 regression brings final GEM coverage to 39.
+A remaining `SupplierReconciliationTests.ApplicationAndReversalSourceIdentitiesCannotDetach`
+deadline failure is independently reproduced in immutable merged base `0347848`. Broader supplier
+test work is outside GEM-02; a green complete SQL suite is not claimed.
+
+This checkout's final-source preview at `http://localhost:32771` passed browser login and session
+reload. The in-app browser blocked raw JSON navigation, so a separate authenticated HTTP client
+verified live empty browse/filter pages, private/no-store headers, unknown-detail 404 and invalid
+cursor 400 with their problem codes. Populated non-mineral, provenance and retirement states are
+covered by disposable SQL/HTTP fixtures; no pilot content was inserted into the preview. Live
+Azure provisioning, public CA issuance and SMTP delivery remain unverified.

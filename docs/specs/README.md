@@ -13,7 +13,9 @@ and collection-item links are later work.
 
 [GEM-02 shared reference persistence and reads](2026-10-01-gem-02-shared-reference.md)
 defines shared storage, attributed claims, bounded authenticated reads, and SQL permissions.
-Its written specification is approved; implementation-plan review remains pending.
+Its shared foundation is implemented; the scoped record includes verification and the remaining
+full-SQL deadline limitation. Pilot content, publishing, tenant overlays and browser screens remain
+separate stories in the proposed parent roadmap.
 
 [MCP agent interface](2026-09-28-mcp-agent-interface.md) proposes full agent-eligible business
 workflow coverage through tenant-owned service principals with predefined role assignments.
