@@ -122,21 +122,17 @@ public sealed class SupplierAllocationTests(SqlServerFixture sqlServer)
     }
 
     [Theory]
-    [InlineData("non-bill", 51004)]
-    [InlineData("future-source", 51004)]
-    [InlineData("future-funding", 51004)]
-    [InlineData("cross-currency", 51004)]
-    [InlineData("cross-po", 51004)]
-    [InlineData("duplicate,precision,scale", 51000)]
-    [InlineData("zero,overflow,unknown", 51000)]
-    [InlineData("stale", 51009)]
-    public async Task InvalidApplicationsLeaveAllFinancialEvidenceUnchanged(string scenarios, int expectedError)
+    [InlineData("non-bill,future-source,cross-currency,cross-po,duplicate,precision,scale,zero,overflow,unknown,stale")]
+    [InlineData("future-funding")]
+    public async Task InvalidApplicationsLeaveAllFinancialEvidenceUnchanged(string scenarios)
     {
         // GIVEN genuine posted bill and advance evidence, with one independently invalid request condition.
         await using var context = await SupplierAllocationTestContext.OpenAsync(sqlServer);
         var advance = await context.SourceAsync(date: scenarios == "future-funding" ? "2026-09-17" : "2026-09-10"); var bill = await context.BillAsync();
+        var currency = await context.Bills.ScalarAsync<string>($"SELECT Currency FROM Purchasing.SupplierOpenItems WHERE Id='{bill}'");
         foreach (var scenario in scenarios.Split(','))
         {
+            var expectedError = scenario == "stale" ? 51009 : scenario is "duplicate" or "precision" or "scale" or "zero" or "overflow" or "unknown" ? 51000 : 51004;
             var command = await context.CommandAsync(advance, bill);
             if (scenario == "non-bill")
             {
@@ -167,6 +163,9 @@ public sealed class SupplierAllocationTests(SqlServerFixture sqlServer)
             Assert.True(error is SqlException, $"{scenario}: expected SQL rejection, got {error?.GetType().Name ?? "success"}.");
             Assert.True(((SqlException)error!).Number == expectedError, $"{scenario}: {error.Message}");
             Assert.True(before == await Counts(), $"{scenario}: financial evidence changed.");
+            // AND administrative fault state is restored before the next independent guard probe.
+            if (scenario == "cross-currency") await context.Bills.AdminAsync($"UPDATE Purchasing.SupplierOpenItems SET Currency='{currency}' WHERE Id='{bill}'");
+            if (scenario == "cross-po") await context.Bills.AdminAsync($"UPDATE Purchasing.SupplierOpenItems SET PurchaseOrderId='{context.Items.Recognition.PurchaseOrderId}' WHERE Id='{bill}'");
         }
         Task<string> Counts() => context.Bills.ScalarAsync<string>("SELECT CONCAT((SELECT COUNT(*) FROM Accounting.JournalEntries),':',(SELECT COUNT(*) FROM Purchasing.SupplierItemMovements),':',(SELECT COUNT(*) FROM Purchasing.SupplierApplications),':',(SELECT COUNT(*) FROM Purchasing.SupplierFinancialReceipts))");
     }

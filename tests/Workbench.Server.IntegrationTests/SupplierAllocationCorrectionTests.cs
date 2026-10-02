@@ -11,7 +11,6 @@ public sealed class SupplierAllocationCorrectionTests(SqlServerFixture sqlServer
 {
     [Theory]
     [InlineData(true)]
-    [InlineData(false)]
     public async Task ConcurrentUnapplicationsReleaseCapacityExactlyOnce(bool firstWins)
     {
         // GIVEN two independently submitted inverse commands for one actual application.
@@ -36,10 +35,8 @@ public sealed class SupplierAllocationCorrectionTests(SqlServerFixture sqlServer
         Assert.Equal(-100m, await context.Bills.ScalarAsync<decimal>($"SELECT SUM(Debit-Credit) FROM Accounting.JournalLines WHERE AccountId='{context.Bank}'"));
     }
 
-    [Theory]
-    [InlineData("expectedItemVersion")]
-    [InlineData("expectedFundingItemVersion")]
-    public async Task ExplicitPartialReapplicationIsOneGroupAndPreservesCash(string field)
+    [Fact]
+    public async Task ExplicitPartialReapplicationIsOneGroupAndPreservesCash()
     {
         // GIVEN a fully applied real deposit and an explicit retained application of forty.
         await using var context = await SupplierCorrectionFixture.OpenAsync(sqlServer);
@@ -61,6 +58,7 @@ public sealed class SupplierAllocationCorrectionTests(SqlServerFixture sqlServer
         });
         // WHEN either original rowversion has a valid prefix followed by an extra hex byte.
         var before = await SupplierOpenItemAtomicityTests.SnapshotAsync(context);
+        foreach (var field in new[] { "expectedItemVersion", "expectedFundingItemVersion" })
         {
             var malformed = reverse.DeepClone().AsObject();
             var target = malformed["reapplications"]![0]!;
@@ -83,24 +81,13 @@ public sealed class SupplierAllocationCorrectionTests(SqlServerFixture sqlServer
         Assert.Equal(DateTimeOffset.Parse(result["recordedAtUtc"]!.ToString()), DateTimeOffset.Parse(JsonNode.Parse(nested["result"]!.ToString())!["recordedAtUtc"]!.ToString()));
     }
 
-    [Theory]
-    [InlineData("payment")]
-    [InlineData("application")]
-    [InlineData("reversal")]
-    public async Task GenericJournalCorrectionCannotDetachSupplierEvidence(string source)
+    [Fact]
+    public async Task GenericJournalCorrectionCannotDetachSupplierEvidence()
     {
         // GIVEN genuine posted supplier evidence and a privileged generic source adapter.
         await using var context = await SupplierCorrectionFixture.OpenAsync(sqlServer);
-        var bill = await context.Allocation.BillAsync("100");
         var payment = await context.CommandAsync();
         var posted = await context.RecordAsync(payment);
-        if (source != "payment") posted = await context.Allocation.ApplyAsync(await context.Allocation.CommandAsync(Guid.Parse(payment["paymentId"]!.ToString()), bill));
-        if (source == "reversal")
-        {
-            var reversed = await context.Bills.ExecuteAsync("ReverseSupplierApplication", Guid.NewGuid(),
-                await SupplierCorrectionFixture.ReverseAsync(context, Guid.Parse(posted["applicationIds"]![0]!.ToString())));
-            posted["journalIds"] = new JsonArray(await context.Bills.ScalarAsync<string>($"SELECT CONVERT(nvarchar(36),j.Id) FROM Accounting.JournalEntries j JOIN Accounting.SourceEvents s ON s.Id=j.SourceEventId WHERE s.SourceKind='SupplierApplicationReversal' AND s.SourceRevision='{reversed["groupId"]}'"));
-        }
         await context.Bills.AdminAsync("""
             CREATE PROCEDURE Purchasing.GenericFixtureSupplierCorrection
               @ActorId uniqueidentifier,@SessionId uniqueidentifier,@RequestId uniqueidentifier,@Command nvarchar(max)

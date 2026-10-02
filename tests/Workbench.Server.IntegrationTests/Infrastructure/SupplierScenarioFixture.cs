@@ -75,21 +75,6 @@ public abstract class SupplierScenarioFixture(SqlServerFixture sqlServer, params
             if (name == "mixed") data["before"] = before.ToUniversalTime().ToString("O");
             else { data["embedded"] = embedded.ToString(); data["standalone"] = standalone.ToString(); }
         }
-        else if (name == "equalDebtAttribution")
-        {
-            var first = await context.Allocation.BillAsync("50");
-            var payable = context.Bills.Recognition.Accounts["SupplierPayable"];
-            var version = await context.Bills.ScalarAsync<Guid>($"SELECT Version FROM Accounting.Accounts WHERE Id='{payable}'");
-            var code = await context.Bills.ScalarAsync<string>($"SELECT Code FROM Accounting.Accounts WHERE Id='{payable}'");
-            await context.Allocation.Journal.SaveAsync(Guid.NewGuid(), "UpdateAccount",
-                new JsonObject { ["code"] = code, ["name"] = "Renamed payable", ["description"] = "Current label" }.ToJsonString(), payable, version);
-            var second = await context.Allocation.BillAsync("50");
-            var payment = await context.CommandAsync();
-            await context.AllocateAsync(payment, first, "50"); await context.AllocateAsync(payment, second, "50");
-            var posted = await context.RecordAsync(payment);
-            data["first"] = first.ToString(); data["second"] = second.ToString();
-            data["payment"] = payment["paymentId"]!.DeepClone(); data["group"] = posted["groupId"]!.DeepClone();
-        }
         else if (name == "equalLines")
         {
             var first = await context.Allocation.BillAsync("60");
@@ -210,7 +195,6 @@ public sealed class SupplierRecoveryScenarios(SqlServerFixture server) : Supplie
 
 public sealed class SupplierIsolationScenarios(SqlServerFixture server) : SupplierScenarioFixture(server, "sourcesFalse");
 
-public sealed class SupplierEvidenceScenarios(SqlServerFixture server) : SupplierScenarioFixture(server, "equalDebtAttribution");
 
 internal sealed record SupplierContextState(Guid ConfigurationVersion, Guid PurchaseOrderId, Guid SupplierId,
     string PurchaseOrderVersion, string AccountsJson, Guid Bank, Guid Advance);

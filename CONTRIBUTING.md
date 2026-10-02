@@ -32,9 +32,8 @@ The concurrent client stage uses one test worker while .NET formatting/build run
 DOM test deadlines from competing with additional client workers. Focused client runs retain
 the runner defaults. The gate uses two isolated server processes by default; adjust
 `-ServerPartitions` (2–4) and `-ServerConcurrency` (1–4) for available Docker resources.
-CI uses four partitions on the public repository's four-CPU, 16 GiB runner. Each disposable server
-test SQL container is capped at 2.5 GiB, with a 2 GiB SQL process budget and a 1.5 GiB buffer-pool
-ceiling. CPU counters, available memory, load and container usage are retained in
+CI uses two partitions on the public repository's four-CPU, 16 GiB runner. Complete classes stay
+in one process so their fixtures prepare history once. CPU counters, available memory, load and container usage are retained in
 `verification-evidence` under `ci-resources/samples.jsonl`; compare actual pressure and wall time
 before increasing concurrency on smaller hosts. Local verification retains its two-process default.
 Live browser tests use one worker; fully intercepted UI tests have their own bounded project. Every discovered

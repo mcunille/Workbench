@@ -68,15 +68,25 @@ function New-ServerTestPartitions {
         if (-not $methods.ContainsKey($method)) { $methods[$method] = [Collections.Generic.List[string]]::new() }
         $methods[$method].Add($name)
     }
-    if ($methods.Count -lt $PartitionCount) { throw 'Not enough test methods for nonempty required partitions.' }
+    $classes = [Collections.Generic.Dictionary[string, object]]::new([StringComparer]::Ordinal)
+    foreach ($method in $methods.Keys) {
+        $separator = $method.LastIndexOf('.')
+        if ($separator -lt 1) { throw "Unsupported discovered server test name: $method" }
+        $class = $method.Substring(0, $separator)
+        if (-not $classes.ContainsKey($class)) { $classes[$class] = [Collections.Generic.List[string]]::new() }
+        $classes[$class].Add($method)
+    }
+    if ($classes.Count -lt $PartitionCount) { throw 'Not enough test classes for nonempty required partitions.' }
     $partitions = @(1..$PartitionCount | ForEach-Object {
         [pscustomobject]@{ Id = $_; Methods = [Collections.Generic.List[string]]::new(); Tests = [Collections.Generic.List[string]]::new(); PredictedSeconds = 0.0; FallbackTests = 0 }
     })
     # Ordinal ties make assignment independent of culture and discovery order.
-    $methodNames = [string[]]@($methods.Keys)
-    [array]::Sort($methodNames, [StringComparer]::Ordinal)
-    $groups = @(foreach ($method in $methodNames) {
-        $rows = $methods[$method].ToArray()
+    $classNames = [string[]]@($classes.Keys)
+    [array]::Sort($classNames, [StringComparer]::Ordinal)
+    $groups = @(foreach ($class in $classNames) {
+        $classMethods = $classes[$class].ToArray()
+        [array]::Sort($classMethods, [StringComparer]::Ordinal)
+        $rows = [string[]]@($classMethods | ForEach-Object { $methods[$_].ToArray() })
         [array]::Sort($rows, [StringComparer]::Ordinal)
         $seconds = 0.0
         $fallback = 0
@@ -85,11 +95,11 @@ function New-ServerTestPartitions {
             else { $seconds += $FallbackSeconds; $fallback++ }
         }
         if (-not [double]::IsFinite($seconds)) { throw 'Aggregated duration is not finite.' }
-        [pscustomobject]@{ Method = $method; Rows = $rows; Seconds = $seconds; Fallback = $fallback }
+        [pscustomobject]@{ Methods = $classMethods; Rows = $rows; Seconds = $seconds; Fallback = $fallback }
     })
     foreach ($group in ($groups | Sort-Object -Stable -Property @{ Expression = { $_.Seconds }; Descending = $true })) {
         $partition = $partitions | Sort-Object PredictedSeconds, Id | Select-Object -First 1
-        $partition.Methods.Add($group.Method)
+        $partition.Methods.AddRange([string[]]$group.Methods)
         $partition.Tests.AddRange([string[]]$group.Rows)
         $partition.PredictedSeconds += $group.Seconds
         if (-not [double]::IsFinite($partition.PredictedSeconds)) { throw 'Partition duration is not finite.' }
@@ -146,7 +156,7 @@ function Read-ServerTestDurations {
         throw 'Invalid server duration dataset.'
     }
     # Validate every weight, including historical tests no longer in discovery.
-    $null = New-ServerTestPartitions -TestNames @('Validation.A', 'Validation.B') -PartitionCount 2 -Durations $data.durations -FallbackSeconds $data.fallbackSeconds
+    $null = New-ServerTestPartitions -TestNames @('Validation.A.Test', 'Validation.B.Test') -PartitionCount 2 -Durations $data.durations -FallbackSeconds $data.fallbackSeconds
     return [pscustomobject]@{
         Durations = $data.durations; FallbackSeconds = $data.fallbackSeconds
         SchemaVersion = $data.schemaVersion; SourceRevision = $data.sourceRevision; SourceRunUrl = $data.sourceRunUrl
