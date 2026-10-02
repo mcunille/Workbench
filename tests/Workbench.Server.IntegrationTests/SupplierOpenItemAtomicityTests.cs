@@ -18,7 +18,7 @@ public sealed class SupplierOpenItemAtomicityTests(SqlServerFixture sqlServer)
     [InlineData(true, "Purchasing.SupplierControlAttributions")]
     public async Task FailedPostingLeavesNoFinancialEvidence(bool application, string faultTable)
     {
-        // GIVEN a real bill and payment source; receipt-stage faults have separate existing owners.
+        // GIVEN a real bill, with posted payment funding for application faults; receipt-stage faults have separate owners.
         await using var context = await SupplierPaymentTestContext.OpenAsync(sqlServer);
         var bill = await context.Allocation.BillAsync();
         var deposit = await context.CommandAsync();

@@ -193,6 +193,13 @@ runs limit that single pair; the small setup saving did not justify retaining an
 lifecycle. The experimental implementation and its test were reverted, with raw evidence retained
 in ignored `artifacts/snapshot-experiment/` for this checkout. No existing test case was removed.
 
+The subsequent [test deletion and class-routing batch](../docs/specs/2026-10-02-ci-test-work-results.md)
+retired 15 cases and consolidated 15 more while retaining their guard probes and
+transferred keepers. Measured main at `ce903ea` had 1834 cases; the batch had 1804. Complete local verification,
+container smoke, and fresh serial coverage passed; line and branch loss stayed well
+below 5%. Its successful hosted run took 41m15s, versus 37m05s for a newer successful
+main run. The ten-minute goal is not demonstrated. The record maps removed owners,
+accepted example losses, mutation evidence, changed coverage denominators and run limits.
 ## Coverage comparisons
 
 Use identical source scopes, instrumentation, and runner settings before and after a test reduction.
