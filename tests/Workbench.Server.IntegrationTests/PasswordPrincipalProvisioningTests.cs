@@ -12,6 +12,23 @@ namespace Workbench.Server.IntegrationTests;
 public sealed class PasswordPrincipalProvisioningTests(SqlServerFixture sqlServer)
 {
     [Fact]
+    public async Task SharedReferenceProvisioningRetainsOnlyExplicitReads()
+    {
+        // GIVEN the current shared schema and its restricted grant matrix.
+        await using var database = await sqlServer.CreateMigratedDatabaseAsync();
+        using var inputs = new Inputs();
+        // WHEN password principals are provisioned THEN all four bounded table grants remain usable.
+        await inputs.ProvisionAsync(database);
+        await using var web = new SqlConnection(await database.CreateRoleUserAsync("workbench_web"));
+        await web.OpenAsync();
+        foreach (var table in new[] { "Entries", "Aliases", "SourceAssertions", "LocalityAssertions" })
+        {
+            await using var read = new SqlCommand($"SELECT COUNT(*) FROM Gemology.{table}", web);
+            Assert.Equal(0, await read.ExecuteScalarAsync());
+        }
+    }
+
+    [Fact]
     public async Task RecognitionProvisioningPreservesReadAuthorityAndRepairsKernelGrants()
     {
         // GIVEN the release schema, with no fixture adapter and accidental kernel grants.
@@ -154,6 +171,7 @@ public sealed class PasswordPrincipalProvisioningTests(SqlServerFixture sqlServe
     [InlineData("GRANT IMPERSONATE ON USER::dbo TO [workbench_operator]")]
     [InlineData("GRANT ALTER ANY ROLE TO [workbench_web]")]
     [InlineData("GRANT CONTROL ON SCHEMA::[Identity] TO [workbench_web]")]
+    [InlineData("GRANT SELECT ON SCHEMA::[Gemology] TO [workbench_web]")]
     [InlineData("GRANT CONTROL ON OBJECT::[Security].[ReadDatabaseReadiness] TO [workbench_web]")]
     [InlineData("GRANT EXECUTE ON OBJECT::[Administration].[ProvisionTenant] TO [workbench_web]")]
     [InlineData("GRANT SELECT ON OBJECT::[Security].[TenantContextKeys] ([ProofKey]) TO [workbench_web]")]

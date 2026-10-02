@@ -1,5 +1,20 @@
 # Workbench architecture
 
+## Shared gem reference foundation
+
+GEM-02 stores tenant-independent shared entries, aliases, field-linked source assertions,
+locality claims, and retirement metadata in `Gemology`. Stable IDs survive retirement;
+normalized identity keys prevent duplicate active shared entries. Mineral species is required,
+while non-mineral materials can omit inapplicable taxonomy. The reusable content validator
+enforces safe source links, source coverage, and redirect validity for later seed/publish callers.
+
+Tenant-authenticated `/api/beta/gem-reference` GET routes provide bounded literal search and
+coherent attributed detail under the web principal's four explicit SELECT grants. Detail reads
+use one joined query in a serializable transaction to keep fields and their sources together.
+Shared entities have no tenant ID; existing tenant SQL RLS remains unchanged. Runtime direct
+catalog writes are denied. Fresh installations have an empty catalog; pilot content, admin
+identity/publishing, tenant additions/overrides, and browser screens remain separate milestones.
+
 **Status:** Implemented
 
 This document is the authoritative living description of Workbench's current technical

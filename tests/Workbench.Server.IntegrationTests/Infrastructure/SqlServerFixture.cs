@@ -37,6 +37,9 @@ public sealed class SqlServerFixture : IAsyncLifetime
             RECONFIGURE;
             """, connection);
         await command.ExecuteNonQueryAsync();
+        // Prepare the shared, unseeded current schema during fixture startup, before case deadlines.
+        // Explicit fresh/upgrade drills still create their own databases and run their own migrations.
+        await _schemaTemplate.Value;
     }
 
     public Task DisposeAsync() => _container.DisposeAsync().AsTask();
