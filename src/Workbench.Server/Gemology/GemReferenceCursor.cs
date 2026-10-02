@@ -1,7 +1,6 @@
 // Copyright (c) 2026 The White Stag Collection.
 
-using System.Text.Json;
-using System.Text.Json.Serialization;
+using System.Text;
 
 namespace Workbench.Server.Gemology;
 
@@ -10,17 +9,25 @@ internal sealed record GemReferencePosition(string CommonName, Guid Id);
 
 internal static class GemReferenceCursor
 {
-    private static readonly JsonSerializerOptions Options = new()
-    { UnmappedMemberHandling = JsonUnmappedMemberHandling.Disallow };
+    private static readonly Encoding Encoding = new UTF8Encoding(false, true);
 
-    private sealed record Continuation(
-        [property: JsonRequired] string CommonName, [property: JsonRequired] Guid Id,
-        [property: JsonRequired] string? Query, [property: JsonRequired] string? MaterialKind,
-        [property: JsonRequired] string? Group);
-
-    internal static string Encode(GemReferencePosition position, GemReferenceSearch search) =>
-        Convert.ToBase64String(JsonSerializer.SerializeToUtf8Bytes(new Continuation(position.CommonName,
-            position.Id, search.Query, search.MaterialKind, search.Group), Options));
+    // Length-prefixed UTF-8 keeps every valid 200-character field within the 4096-character envelope.
+    internal static string Encode(GemReferencePosition position, GemReferenceSearch search)
+    {
+        using var stream = new MemoryStream();
+        using (var writer = new BinaryWriter(stream, Encoding, leaveOpen: true))
+        {
+            writer.Write((byte)1);
+            writer.Write(position.CommonName);
+            writer.Write(position.Id.ToByteArray());
+            foreach (var field in new[] { search.Query, search.MaterialKind, search.Group })
+            {
+                writer.Write(field is not null);
+                if (field is not null) writer.Write(field);
+            }
+        }
+        return Convert.ToBase64String(stream.ToArray());
+    }
 
     internal static bool TryDecode(string? cursor, GemReferenceSearch search, out GemReferencePosition? position)
     {
@@ -29,14 +36,24 @@ internal static class GemReferenceCursor
         if (cursor.Length is 0 or > 4096) return false;
         try
         {
-            var value = JsonSerializer.Deserialize<Continuation>(Convert.FromBase64String(cursor), Options);
-            if (value is null || string.IsNullOrWhiteSpace(value.CommonName) || value.CommonName.Length > 200 ||
-                value.CommonName.Any(char.IsControl) || value.Id == Guid.Empty || value.Query != search.Query ||
-                value.MaterialKind != search.MaterialKind || value.Group != search.Group) return false;
-            position = new(value.CommonName, value.Id);
+            using var stream = new MemoryStream(Convert.FromBase64String(cursor));
+            using var reader = new BinaryReader(stream, Encoding);
+            if (reader.ReadByte() != 1) return false;
+            var commonName = reader.ReadString();
+            var idBytes = reader.ReadBytes(16);
+            if (idBytes.Length != 16) return false;
+            var id = new Guid(idBytes);
+            string? ReadField() => reader.ReadBoolean() ? reader.ReadString() : null;
+            var query = ReadField();
+            var materialKind = ReadField();
+            var group = ReadField();
+            if (stream.Position != stream.Length || string.IsNullOrWhiteSpace(commonName) || commonName.Length > 200 ||
+                commonName.Any(char.IsControl) || id == Guid.Empty || query != search.Query ||
+                materialKind != search.MaterialKind || group != search.Group) return false;
+            position = new(commonName, id);
             return true;
         }
-        catch (Exception exception) when (exception is FormatException or JsonException)
+        catch (Exception exception) when (exception is FormatException or IOException or DecoderFallbackException)
         {
             return false;
         }

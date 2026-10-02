@@ -14,7 +14,12 @@ public sealed class GemReferenceDatabaseTests(SqlServerFixture sqlServer)
     {
         // GIVEN stored mineral and organic references under the owner, independent of input validation.
         await using var database = await sqlServer.CreateMigratedDatabaseAsync();
-        var mineral = GemReferenceSamples.Mineral();
+        var localitySource = GemReferenceSamples.Source("notableLocality");
+        var mineral = GemReferenceSamples.Mineral() with
+        {
+            Sources = [.. GemReferenceSamples.Mineral().Sources, localitySource],
+            NotableLocality = new("Hills", "Test claim", localitySource.ReviewedOn, localitySource.Id)
+        };
         await GemReferenceTestData.InsertAsync(database.AdminConnectionString, mineral);
         var other = mineral with
         {
@@ -23,6 +28,7 @@ public sealed class GemReferenceDatabaseTests(SqlServerFixture sqlServer)
             MaterialKind = "organic",
             Species = null,
             Variety = null,
+            NotableLocality = null,
             Sources = []
         };
         await GemReferenceTestData.InsertAsync(database.AdminConnectionString, other);
@@ -36,7 +42,8 @@ public sealed class GemReferenceDatabaseTests(SqlServerFixture sqlServer)
             "UPDATE Gemology.Entries SET CommonName=N'  ' WHERE Id=@other",
             "UPDATE Gemology.Entries SET IsRetired=1,RedirectEntryId=Id WHERE Id=@other",
             "INSERT Gemology.Aliases(EntryId,Position,Name,NormalizedName) VALUES(@mineral,0,N'Ruby',N'RUBY'),(@mineral,1,N'ruby',N'RUBY')",
-            "INSERT Gemology.LocalityAssertions(EntryId,Place,Scope,ReviewedOn,SourceAssertionId,SourceField) SELECT @other,N'Hills',N'Only known commercial source',ReviewedOn,Id,N'notableLocality' FROM Gemology.SourceAssertions WHERE EntryId=@mineral AND Field=N'commonName'",
+            "INSERT Gemology.LocalityAssertions(EntryId,Place,Scope,ReviewedOn,SourceAssertionId,SourceField) SELECT @other,N'Hills',N'Test claim',ReviewedOn,Id,N'notableLocality' FROM Gemology.SourceAssertions WHERE EntryId=@mineral AND Field=N'notableLocality'",
+            "UPDATE Gemology.LocalityAssertions SET SourceAssertionId=(SELECT Id FROM Gemology.SourceAssertions WHERE EntryId=@mineral AND Field=N'commonName') WHERE EntryId=@mineral",
         })
         {
             await using var transaction = (SqlTransaction)await connection.BeginTransactionAsync();
@@ -51,7 +58,7 @@ public sealed class GemReferenceDatabaseTests(SqlServerFixture sqlServer)
         await using var retire = new SqlCommand("UPDATE Gemology.Entries SET IsRetired=1,RetirementExplanation=N'Replaced' WHERE Id=@id", connection);
         retire.Parameters.AddWithValue("@id", mineral.Id);
         await retire.ExecuteNonQueryAsync();
-        await GemReferenceTestData.InsertAsync(database.AdminConnectionString, mineral with { Id = Guid.NewGuid(), Sources = [] });
+        await GemReferenceTestData.InsertAsync(database.AdminConnectionString, mineral with { Id = Guid.NewGuid(), Sources = [], NotableLocality = null });
     }
 
     [Fact]

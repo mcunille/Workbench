@@ -75,9 +75,9 @@ public sealed class GemReferenceInputTests
             "id" => content with { Id = Guid.Empty },
             "materialKind" => content with { MaterialKind = "imitation" },
             "commonName" => content with { CommonName = new string('a', 201) },
-            "description" => content with { Description = new string('a', 2001) },
-            "aliases" => content with { Aliases = Enumerable.Range(0, 21).Select(n => n.ToString()).ToArray() },
-            "sources" => content with { Sources = Enumerable.Range(0, 65).Select(_ => GemReferenceSamples.Source("commonName")).ToArray() },
+            "description" => content with { Description = new string('a', 2001), Sources = [.. content.Sources, GemReferenceSamples.Source("description")] },
+            "aliases" => content with { Aliases = Enumerable.Range(0, 21).Select(n => n.ToString()).ToArray(), Sources = [.. content.Sources, GemReferenceSamples.Source("aliases")] },
+            "sources" => content with { Sources = [.. content.Sources, .. Enumerable.Range(0, 65 - content.Sources.Count).Select(_ => GemReferenceSamples.Source("commonName"))] },
             "url" => content with { Sources = [.. content.Sources.Skip(1), content.Sources[0] with { Url = "javascript:alert(1)" }] },
             "credentials" => content with { Sources = [.. content.Sources.Skip(1), content.Sources[0] with { Url = "https://user:pass@example.com/" }] },
             "future" => content with { Sources = [.. content.Sources.Skip(1), content.Sources[0] with { ReviewedOn = new(2026, 10, 2) }] },
@@ -100,6 +100,9 @@ public sealed class GemReferenceInputTests
         Assert.Equal(GemReferenceInput.IdentityKey(content with { CommonName = "  Ruby " }),
             GemReferenceInput.IdentityKey(content with { CommonName = "Ｒｕｂｙ" }));
         Assert.Equal(32, GemReferenceInput.IdentityKey(content).Length);
+        foreach (var distinct in new[] { content with { MaterialKind = "organic" }, content with { Group = "Other" },
+            content with { Species = "Other" }, content with { Variety = "Other" }, content with { CommonName = "Other" } })
+            Assert.False(GemReferenceInput.IdentityKey(content).SequenceEqual(GemReferenceInput.IdentityKey(distinct)));
         Assert.Equal("Ｒｕｂｙ", GemReferenceInput.Normalize(content with { CommonName = " Ｒｕｂｙ " }).CommonName);
         Assert.False(GemReferenceInput.IdentityKey(content with { Group = "A|B", Species = "C" }).SequenceEqual(
             GemReferenceInput.IdentityKey(content with { Group = "A", Species = "B|C" })));
@@ -108,6 +111,24 @@ public sealed class GemReferenceInputTests
             Aliases = ["Ruby", "Ｒｕｂｙ"],
             Sources = [.. content.Sources, GemReferenceSamples.Source("aliases")]
         }).Keys);
+    }
+
+    [Fact]
+    public async Task CompatibilityWhitespaceDoesNotSplitIdentitiesOrAliases()
+    {
+        await Task.Yield();
+        // GIVEN spellings whose compatibility normalization introduces boundary whitespace.
+        var content = GemReferenceSamples.Mineral();
+        var left = "\u00a8Ruby";
+        var right = " \u0308Ruby";
+        // WHEN comparing THEN equivalent identities collide and duplicate aliases are rejected.
+        Assert.Equal(GemReferenceInput.IdentityKey(GemReferenceInput.Normalize(content with { CommonName = left })),
+            GemReferenceInput.IdentityKey(GemReferenceInput.Normalize(content with { CommonName = right })));
+        Assert.Contains("aliases", Errors(GemReferenceInput.Normalize(content with
+        {
+            Aliases = [left, right],
+            Sources = [.. content.Sources, GemReferenceSamples.Source("aliases")]
+        })).Keys);
     }
 
     [Fact]

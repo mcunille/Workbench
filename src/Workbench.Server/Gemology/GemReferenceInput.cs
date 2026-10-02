@@ -15,7 +15,7 @@ public static class GemReferenceInput
 
     private static string? Text(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
     internal static string Comparison(string? value) => Regex.Replace(
-        (Text(value) ?? "").Normalize(NormalizationForm.FormKC), @"\s+", " ").ToUpperInvariant();
+        (value ?? "").Normalize(NormalizationForm.FormKC), @"\s+", " ").Trim().ToUpperInvariant();
 
     public static GemReferenceContent Normalize(GemReferenceContent content) => content with
     {

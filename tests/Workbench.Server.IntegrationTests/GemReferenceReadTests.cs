@@ -4,6 +4,7 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using Microsoft.Data.SqlClient;
+using Workbench.Server.Gemology;
 using Workbench.Server.IntegrationTests.Infrastructure;
 using Xunit;
 
@@ -54,12 +55,13 @@ public sealed class GemReferenceReadTests(SqlServerFixture sqlServer)
         var content = GemReferenceSamples.Mineral() with
         {
             Group = "Test family",
+            Variety = "Crimson variety",
             Aliases = ["Red gem", "100%_[]\\"],
             Sources = [.. GemReferenceSamples.Mineral().Sources, GemReferenceSamples.Source("group"), GemReferenceSamples.Source("aliases")]
         };
         await GemReferenceTestData.InsertAsync(app.AdminConnectionString, content);
         // WHEN matching each supported field THEN matching is case-insensitive and literal.
-        foreach (var query in new[] { "RUBY", "red gem", "TEST family", "corundum", "%_[]\\" })
+        foreach (var query in new[] { "RUBY", "red gem", "TEST family", "corundum", "crimson variety", "%_[]\\" })
             Assert.Equal(content.Id, Assert.Single((await PageAsync(client, "?query=" + Uri.EscapeDataString(query)))
                 .GetProperty("entries").EnumerateArray()).GetProperty("id").GetGuid());
         foreach (var query in new[] { "absent", "' OR 1=1--" })
@@ -113,8 +115,10 @@ public sealed class GemReferenceReadTests(SqlServerFixture sqlServer)
         Assert.Equal(HttpStatusCode.NotFound, (await client.GetAsync($"{Route}/{Guid.NewGuid()}")).StatusCode);
     }
 
-    [Fact]
-    public async Task PagesWithCaseEqualNamesKeepEveryIdAndBindFilters()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task PagesWithCaseEqualNamesKeepEveryIdAndBindFilters(bool unicode)
     {
         // GIVEN more than a page of case-equal display names with distinct identities.
         await using var app = await AuthTestApplication.CreateAsync(sqlServer);
@@ -123,15 +127,16 @@ public sealed class GemReferenceReadTests(SqlServerFixture sqlServer)
         var expected = new HashSet<Guid>();
         for (var n = 0; n < 52; n++)
         {
-            var entry = GemReferenceSamples.Mineral() with { Id = Guid.NewGuid(), CommonName = n % 2 == 0 ? "Ruby" : "ruby", Species = $"Species {n}" };
+            var entry = GemReferenceSamples.Mineral() with { Id = Guid.NewGuid(), CommonName = unicode ? new string('\u7389', 200) : n % 2 == 0 ? "Ruby" : "ruby", Group = unicode ? new string('\u7389', 200) : null, Species = $"Species {n}" };
             expected.Add(entry.Id);
             await GemReferenceTestData.InsertAsync(app.AdminConnectionString, entry);
         }
         // WHEN traversing THEN ordering ties do not lose or repeat identities.
-        var first = await PageAsync(client);
+        var filters = unicode ? "query=" + Uri.EscapeDataString(new string('\u7389', 200)) + "&group=" + Uri.EscapeDataString(new string('\u7389', 200)) + "&materialKind=mineral&" : "";
+        var first = await PageAsync(client, "?" + filters);
         Assert.Equal(50, first.GetProperty("entries").GetArrayLength());
         var cursor = first.GetProperty("nextCursor").GetString()!;
-        var second = await PageAsync(client, "?cursor=" + Uri.EscapeDataString(cursor));
+        var second = await PageAsync(client, "?" + filters + "cursor=" + Uri.EscapeDataString(cursor));
         Assert.Equal(2, second.GetProperty("entries").GetArrayLength());
         var ids = first.GetProperty("entries").EnumerateArray().Concat(second.GetProperty("entries").EnumerateArray()).Select(row => row.GetProperty("id").GetGuid()).ToArray();
         Assert.Equal(52, ids.Distinct().Count());
@@ -168,7 +173,8 @@ public sealed class GemReferenceReadTests(SqlServerFixture sqlServer)
         // WHEN inputs exceed bounds THEN they are rejected before database browsing.
         await AssertProblemAsync(client, "?query=" + new string('a', 201), "invalid_query");
         await AssertProblemAsync(client, "?group=" + new string('a', 201), "invalid_filter");
-        await AssertProblemAsync(client, "?cursor=" + new string('a', 4097), "invalid_cursor");
+        var oversized = GemReferenceCursor.Encode(new("Ruby", Guid.NewGuid()), new(null, null, null)) + new string(' ', 4097);
+        await AssertProblemAsync(client, "?cursor=" + Uri.EscapeDataString(oversized), "invalid_cursor");
         // AND denied SQL reads fail rather than falsely reporting no matches, then recover on retry.
         await using var connection = new SqlConnection(app.AdminConnectionString);
         await connection.OpenAsync();
@@ -188,28 +194,37 @@ public sealed class GemReferenceReadTests(SqlServerFixture sqlServer)
         var original = GemReferenceSamples.Mineral() with { CommonName = "Before" };
         original = original with { Sources = original.Sources.Select(source => source with { Title = "Before" }).ToArray() };
         await GemReferenceTestData.InsertAsync(app.AdminConnectionString, original);
-        var writer = Task.Run(async () =>
+        await using var writer = new SqlConnection(app.AdminConnectionString);
+        await writer.OpenAsync();
+        await using var transaction = (SqlTransaction)await writer.BeginTransactionAsync();
+        await using var changeName = new SqlCommand("UPDATE Gemology.Entries SET CommonName=N'After' WHERE Id=@id", writer, transaction);
+        changeName.Parameters.AddWithValue("@id", original.Id);
+        await changeName.ExecuteNonQueryAsync();
+        await using var session = new SqlCommand("SELECT CAST(@@SPID AS int)", writer, transaction);
+        var writerSession = (int)(await session.ExecuteScalarAsync())!;
+        // WHEN a detail read reaches SQL during an incomplete publication THEN it waits for the coherent commit.
+        var read = client.GetFromJsonAsync<JsonElement>($"{Route}/{original.Id}");
+        await using var observer = new SqlConnection(app.AdminConnectionString);
+        await observer.OpenAsync();
+        var blocked = false;
+        var deadline = DateTime.UtcNow.AddSeconds(5);
+        while (!read.IsCompleted && DateTime.UtcNow < deadline)
         {
-            await using var connection = new SqlConnection(app.AdminConnectionString);
-            await connection.OpenAsync();
-            for (var n = 0; n < 10; n++)
-            {
-                await using var transaction = (SqlTransaction)await connection.BeginTransactionAsync();
-                await using var update = new SqlCommand("UPDATE Gemology.Entries SET CommonName=@name WHERE Id=@id; UPDATE Gemology.SourceAssertions SET Title=@name WHERE EntryId=@id", connection, transaction);
-                update.Parameters.AddWithValue("@id", original.Id);
-                update.Parameters.AddWithValue("@name", n % 2 == 0 ? "After" : "Before");
-                await update.ExecuteNonQueryAsync();
-                await transaction.CommitAsync();
-            }
-        });
-        // WHEN reads overlap publication THEN each response contains one coherent state.
-        for (var n = 0; n < 10; n++)
-        {
-            var detail = await client.GetFromJsonAsync<JsonElement>($"{Route}/{original.Id}");
-            var name = detail.GetProperty("commonName").GetString();
-            Assert.All(detail.GetProperty("sourceAssertions").EnumerateArray(), source => Assert.Equal(name, source.GetProperty("title").GetString()));
+            await using var request = new SqlCommand("SELECT COUNT(*) FROM sys.dm_exec_requests WHERE blocking_session_id=@session", observer);
+            request.Parameters.AddWithValue("@session", writerSession);
+            blocked = (int)(await request.ExecuteScalarAsync())! > 0;
+            if (blocked) break;
+            await Task.Delay(20);
         }
-        await writer;
+        Assert.True(blocked, "The detail read must reach SQL and wait while publication is incomplete.");
+        await using var changeSources = new SqlCommand("UPDATE Gemology.SourceAssertions SET Title=N'After' WHERE EntryId=@id", writer, transaction);
+        changeSources.Parameters.AddWithValue("@id", original.Id);
+        await changeSources.ExecuteNonQueryAsync();
+        await transaction.CommitAsync();
+        // THEN the response contains the newly committed classification and its supporting sources together.
+        var detail = await read;
+        Assert.Equal("After", detail.GetProperty("commonName").GetString());
+        Assert.All(detail.GetProperty("sourceAssertions").EnumerateArray(), source => Assert.Equal("After", source.GetProperty("title").GetString()));
     }
 
     private static Task<JsonElement> PageAsync(HttpClient client, string query = "") => client.GetFromJsonAsync<JsonElement>(Route + query);

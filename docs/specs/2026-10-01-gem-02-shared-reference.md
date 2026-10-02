@@ -1,10 +1,10 @@
 # GEM-02 shared gem reference persistence and reads
 
-**Status: Written specification approved by the owner on 2026-10-01; implementation-plan review pending.**
+**Status: Specification and implementation plan approved on 2026-10-01; native implementation verification in progress.**
 
 This implements only GEM-02 from the
 [gemological reference library roadmap](2026-09-29-gemological-reference-library.md).
-The implementation plan requires its own review and execution-method selection.
+The owner approved the implementation plan and selected native execution.
 
 ## Purpose and scope
 
