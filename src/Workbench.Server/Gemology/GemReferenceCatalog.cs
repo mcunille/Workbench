@@ -44,8 +44,14 @@ internal static class GemReferenceCatalog
         {
             var id = (Guid)reader["EntryId"];
             var entry = entries[id];
-            entries[id] = entry with { Content = entry.Content with { NotableLocality = new((string)reader["Place"], (string)reader["Scope"],
-                DateOnly.FromDateTime((DateTime)reader["ReviewedOn"]), (Guid)reader["SourceAssertionId"]) } };
+            entries[id] = entry with
+            {
+                Content = entry.Content with
+                {
+                    NotableLocality = new((string)reader["Place"], (string)reader["Scope"],
+                DateOnly.FromDateTime((DateTime)reader["ReviewedOn"]), (Guid)reader["SourceAssertionId"])
+                }
+            };
         }
         return entries.Values.ToArray();
     }

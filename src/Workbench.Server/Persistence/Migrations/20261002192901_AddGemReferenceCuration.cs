@@ -1,4 +1,6 @@
-﻿using Microsoft.EntityFrameworkCore.Migrations;
+﻿// Copyright (c) 2026 The White Stag Collection.
+
+using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 

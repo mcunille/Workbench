@@ -2586,6 +2586,442 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/beta/service-admin/gem-reference": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: {
+                    query?: string;
+                    materialKind?: string;
+                    group?: string;
+                    cursor?: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["GemReferencePageResponse"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/beta/service-admin/gem-reference/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["GemReferenceDetailResponse"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/beta/service-admin/gem-reference/drafts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: {
+                    cursor?: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["GemReferenceDraftPage"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/beta/service-admin/gem-reference/drafts/{draftId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    draftId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["GemReferenceDraftResponse"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    draftId: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["GemReferenceDraftSaveRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["GemReferenceDraftResponse"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/beta/service-admin/gem-reference/review": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["GemReferenceReviewRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["GemReferenceReviewResponse"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/beta/service-admin/gem-reference/publish": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["GemReferencePublishRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["GemReferencePublishOutcome"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["GemReferencePublishOutcome"];
+                    };
+                };
+                /** @description Unprocessable Entity */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["GemReferencePublishOutcome"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/beta/service-admin/gem-reference/publications/{requestId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    requestId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["GemReferencePublishOutcome"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/beta/service-admin/gem-reference/publication-audit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: {
+                    cursor?: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["GemReferencePublicationAuditPage"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/beta/purchase-order-drafts/calculate": {
         parameters: {
             query?: never;
@@ -5869,6 +6305,23 @@ export interface components {
         ExportPackageRequest: {
             scope: null | string;
         };
+        GemReferenceContent: {
+            /** Format: uuid */
+            id: string;
+            materialKind: string;
+            commonName: string;
+            group: null | string;
+            species: null | string;
+            variety: null | string;
+            description: null | string;
+            aliases: string[];
+            sources: components["schemas"]["GemReferenceSourceContent"][];
+            notableLocality: null | components["schemas"]["GemReferenceLocalityContent"];
+            isRetired: boolean;
+            retirementExplanation: null | string;
+            /** Format: uuid */
+            redirectEntryId: null | string;
+        };
         GemReferenceDetailResponse: {
             /** Format: uuid */
             id: string;
@@ -5884,6 +6337,58 @@ export interface components {
             sourceAssertions: components["schemas"]["GemReferenceSourceResponse"][];
             notableLocality: null | components["schemas"]["GemReferenceLocalityContent"];
             retirement: components["schemas"]["GemReferenceRetirementResponse"];
+        };
+        GemReferenceDraftPage: {
+            drafts: components["schemas"]["GemReferenceDraftResponse"][];
+            nextCursor: null | string;
+        };
+        GemReferenceDraftResponse: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            entryId: string;
+            content: components["schemas"]["GemReferenceContent"];
+            expectedPublishedRowVersion: null | string;
+            rowVersion: string;
+            /** Format: uuid */
+            createdBy: string;
+            /** Format: uuid */
+            updatedBy: string;
+            /** Format: date-time */
+            createdAtUtc: string;
+            /** Format: date-time */
+            updatedAtUtc: string;
+            errors: {
+                [key: string]: string[];
+            };
+        };
+        GemReferenceDraftSaveRequest: {
+            /** Format: uuid */
+            entryId: string;
+            content: components["schemas"]["GemReferenceContent"];
+            expectedDraftRowVersion: null | string;
+            expectedPublishedRowVersion: null | string;
+        };
+        GemReferenceDraftSelection: {
+            /** Format: uuid */
+            draftId: string;
+            expectedDraftRowVersion: string;
+        };
+        GemReferenceEntryReview: {
+            /** Format: uuid */
+            draftId: string;
+            /** Format: uuid */
+            entryId: string;
+            isStale: boolean;
+            changes: components["schemas"]["GemReferenceFieldChange"][];
+            errors: {
+                [key: string]: string[];
+            };
+        };
+        GemReferenceFieldChange: {
+            field: string;
+            before: unknown;
+            after: unknown;
         };
         GemReferenceListEntry: {
             /** Format: uuid */
@@ -5907,11 +6412,63 @@ export interface components {
             entries: components["schemas"]["GemReferenceListEntry"][];
             nextCursor: null | string;
         };
+        GemReferencePublicationAuditPage: {
+            events: components["schemas"]["GemReferencePublicationAuditResponse"][];
+            nextCursor: null | string;
+        };
+        GemReferencePublicationAuditResponse: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            requestId: string;
+            /** Format: uuid */
+            accountId: string;
+            outcome: string;
+            summaryJson: string;
+            /** Format: date-time */
+            createdAtUtc: string;
+        };
+        GemReferencePublishedEntry: {
+            /** Format: uuid */
+            entryId: string;
+            rowVersion: string;
+        };
+        GemReferencePublishOutcome: {
+            /** Format: uuid */
+            requestId: string;
+            code: string;
+            entries: components["schemas"]["GemReferencePublishedEntry"][];
+            review: components["schemas"]["GemReferenceEntryReview"][];
+        };
+        GemReferencePublishRequest: {
+            /** Format: uuid */
+            requestId: string;
+            drafts: components["schemas"]["GemReferenceDraftSelection"][];
+        };
         GemReferenceRetirementResponse: {
             isRetired: boolean;
             explanation: null | string;
             /** Format: uuid */
             redirectEntryId: null | string;
+        };
+        GemReferenceReviewRequest: {
+            drafts: components["schemas"]["GemReferenceDraftSelection"][];
+        };
+        GemReferenceReviewResponse: {
+            entries: components["schemas"]["GemReferenceEntryReview"][];
+        };
+        GemReferenceSourceContent: {
+            /** Format: uuid */
+            id: string;
+            field: string;
+            title: string;
+            publisher: string;
+            url: null | string;
+            citation: null | string;
+            /** Format: date */
+            accessedOn: null | string;
+            /** Format: date */
+            reviewedOn: string;
         };
         GemReferenceSourceResponse: {
             /** Format: uuid */

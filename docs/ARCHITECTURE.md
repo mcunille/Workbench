@@ -12,8 +12,31 @@ Tenant-authenticated `/api/beta/gem-reference` GET routes provide bounded litera
 coherent attributed detail under the web principal's four explicit SELECT grants. Detail reads
 use one joined query in a serializable transaction to keep fields and their sources together.
 Shared entities have no tenant ID; existing tenant SQL RLS remains unchanged. Runtime direct
-catalog writes are denied. Fresh installations have an empty catalog; pilot content, catalog
-publishing, tenant additions/overrides, and browser screens remain separate milestones.
+catalog writes are denied. Fresh installations have an empty catalog; pilot content,
+tenant additions/overrides, and browser screens remain separate milestones.
+
+GEM-05 adds service-admin-only draft, combined review, publish, outcome, and audit APIs at
+`/api/beta/service-admin/gem-reference`. Drafts may be incomplete; publishing requires valid
+claim-level sources and a valid final shared catalog. A selected batch contains 1–50 distinct
+drafts and uses both draft and base published rowversions. Draft saves explicitly rebase only
+when the caller supplies the current published version. Admin reads use only shared catalog
+tables and private command-owned curation storage, without a tenant EF context.
+
+The web principal executes six named curation procedures and still cannot write catalog tables
+directly or read/write raw drafts, receipts, and audit tables. Commands revalidate current
+service-admin account/session authority; draft saves and publication serialize through a
+transaction-owned application lock and recheck authority after acquiring it. Publication
+validates final identities/redirects and selected versions, updates every selected entry and
+claim atomically, removes only selected successful drafts, and commits its request receipt and
+success audit together. Rejections preserve drafts and record a durable failure outcome/audit.
+Infrastructure rollback leaves no completed receipt and attempts a separate failure audit.
+
+Request identity is global and tied to its original actor. Exact retries compare a canonical
+selection of draft IDs and versions (selection order is insignificant), then return the stored
+outcome before loading drafts. Changed retries conflict. Receipt reads are restricted to their
+actor; shared drafts and publication audit are visible to authorized service admins. Writes
+require dedicated admin antiforgery and a bounded 1 MiB JSON body. No rollback/history UI,
+second approver, new database credential, or tenant-data bypass is introduced.
 
 **Status:** Implemented
 

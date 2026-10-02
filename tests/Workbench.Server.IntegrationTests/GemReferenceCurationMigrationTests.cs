@@ -2,6 +2,7 @@
 
 using Microsoft.Data.SqlClient;
 using Workbench.Server.IntegrationTests.Infrastructure;
+using Workbench.Server.Persistence;
 using Xunit;
 
 namespace Workbench.Server.IntegrationTests;
@@ -27,11 +28,11 @@ public sealed class GemReferenceCurationMigrationTests(SqlServerFixture sqlServe
             }
             // AND raw private storage is inaccessible, including empty-table writes.
             foreach (var table in new[] { "Drafts", "PublishRequests", "PublicationAudit" })
-            foreach (var sql in new[] { $"SELECT * FROM Gemology.{table}", $"DELETE FROM Gemology.{table}", $"UPDATE Gemology.{table} SET Id=Id", $"INSERT Gemology.{table} DEFAULT VALUES" })
-            {
-                await using var command = new SqlCommand(sql, connection);
-                Assert.Equal(229, (await Assert.ThrowsAsync<SqlException>(() => command.ExecuteNonQueryAsync())).Number);
-            }
+                foreach (var sql in new[] { $"SELECT * FROM Gemology.{table}", $"DELETE FROM Gemology.{table}", $"UPDATE Gemology.{table} SET Id=Id", $"INSERT Gemology.{table} DEFAULT VALUES" })
+                {
+                    await using var command = new SqlCommand(sql, connection);
+                    Assert.Equal(229, (await Assert.ThrowsAsync<SqlException>(() => command.ExecuteNonQueryAsync())).Number);
+                }
         }
     }
 
@@ -81,5 +82,30 @@ public sealed class GemReferenceCurationMigrationTests(SqlServerFixture sqlServe
         command.Parameters.AddWithValue("@account", state == "substitution" ? Guid.NewGuid() : AuthTestApplication.ServiceAdminId);
         command.Parameters.AddWithValue("@session", session);
         Assert.Equal(50041, (await Assert.ThrowsAsync<SqlException>(() => command.ExecuteNonQueryAsync())).Number);
+    }
+
+    [Fact]
+    public async Task MergedServiceAdminBaseUpgradePreservesCatalogIdentityAndBlocksDestructiveDown()
+    {
+        // GIVEN the merged GEM-03 schema with shared provenance and tenant/admin identity rows.
+        await using var application = await AuthTestApplication.CreateAsync(sqlServer, priorMigration: "AddServiceAdminIdentity");
+        await application.ProvisionServiceAdminAsync();
+        await GemReferenceTestData.InsertAsync(application.AdminConnectionString, GemReferenceSamples.Mineral());
+        const string state = """
+            SELECT (SELECT * FROM Gemology.Entries ORDER BY Id FOR JSON PATH) AS Entries,
+                (SELECT * FROM Gemology.SourceAssertions ORDER BY Id FOR JSON PATH) AS Sources,
+                (SELECT * FROM ServiceAdministration.Accounts ORDER BY Id FOR JSON PATH) AS Accounts,
+                (SELECT Id,TenantId,SecurityVersion FROM [Identity].Users ORDER BY Id FOR JSON PATH) AS Users FOR JSON PATH
+            """;
+        var before = await ServiceAdminIdentityDatabaseTests.ScalarAsync<string>(application.AdminConnectionString, state);
+        // WHEN upgrading from that actual merged baseline THEN every retained byte and stable ID survives.
+        await DatabaseMigrator.MigrateAsync(application.AdminConnectionString, default);
+        Assert.Equal(before, await ServiceAdminIdentityDatabaseTests.ScalarAsync<string>(application.AdminConnectionString, state));
+        await MigrationHistoryAssertions.AssertCurrentAsync(application.AdminConnectionString);
+        // AND destructive rollback is guarded without changing retained content or migration history.
+        Assert.Equal(50020, (await Assert.ThrowsAsync<SqlException>(() => DatabaseMigrator.MigrateToAsync(application.AdminConnectionString,
+            "AddServiceAdminIdentity", default))).Number);
+        Assert.Equal(before, await ServiceAdminIdentityDatabaseTests.ScalarAsync<string>(application.AdminConnectionString, state));
+        await MigrationHistoryAssertions.AssertCurrentAsync(application.AdminConnectionString);
     }
 }

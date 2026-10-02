@@ -13,8 +13,13 @@ public sealed class GemReferenceReviewTests
     {
         // GIVEN published content and a sourced correction/retirement based on an older version.
         var published = GemReferenceSamples.Mineral();
-        var changed = published with { CommonName = "Corrected ruby", IsRetired = true, RetirementExplanation = "Reclassified",
-            Sources = published.Sources.Select(s => s with { Publisher = "Revised publisher" }).ToArray() };
+        var changed = published with
+        {
+            CommonName = "Corrected ruby",
+            IsRetired = true,
+            RetirementExplanation = "Reclassified",
+            Sources = published.Sources.Select(s => s with { Publisher = "Revised publisher" }).ToArray()
+        };
         var draft = new GemReferenceDraftResponse(Guid.NewGuid(), changed.Id, changed, "old", "draft", Guid.NewGuid(),
             Guid.NewGuid(), DateTimeOffset.UtcNow, DateTimeOffset.UtcNow, new Dictionary<string, string[]>());
         // WHEN reviewing THEN names, claim sources, retirement, and stale base are explicit.

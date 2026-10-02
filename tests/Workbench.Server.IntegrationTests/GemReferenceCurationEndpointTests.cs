@@ -128,8 +128,14 @@ public sealed class GemReferenceCurationEndpointTests(SqlServerFixture sqlServer
         // GIVEN an authorized caller with a malformed selected batch.
         await LoginAsync();
         var member = new GemReferenceDraftSelection(Guid.NewGuid(), state == "badVersion" ? "bad" : Convert.ToBase64String(new byte[8]));
-        object? drafts = state switch { "null" => null, "empty" => Array.Empty<object>(), "duplicate" => new[] { member, member },
-            "oversized" => Enumerable.Range(0, 51).Select(_ => member with { DraftId = Guid.NewGuid() }).ToArray(), _ => new[] { member } };
+        object? drafts = state switch
+        {
+            "null" => null,
+            "empty" => Array.Empty<object>(),
+            "duplicate" => new[] { member, member },
+            "oversized" => Enumerable.Range(0, 51).Select(_ => member with { DraftId = Guid.NewGuid() }).ToArray(),
+            _ => new[] { member }
+        };
         // WHEN binding review/publish THEN malformed input is a 400 Problem Details, with no receipt.
         foreach (var path in new[] { "/review", "/publish" })
         {

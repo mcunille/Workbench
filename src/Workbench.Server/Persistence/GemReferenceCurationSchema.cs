@@ -43,8 +43,8 @@ internal static class GemReferenceCurationSchema
                 CreatedAtUtc datetimeoffset NOT NULL);
             """);
         foreach (var table in new[] { "Drafts", "PublishRequests", "PublicationAudit" })
-        foreach (var role in new[] { "workbench_web", "workbench_worker", "workbench_operator" })
-            migration.Sql($"DENY SELECT,INSERT,UPDATE,DELETE ON Gemology.{table} TO {role};");
+            foreach (var role in new[] { "workbench_web", "workbench_worker", "workbench_operator" })
+                migration.Sql($"DENY SELECT,INSERT,UPDATE,DELETE ON Gemology.{table} TO {role};");
 
         Procedure(migration, "ReadDrafts", "@AccountId uniqueidentifier,@SessionId uniqueidentifier,@AfterId uniqueidentifier=NULL", """
             SELECT TOP(51) * FROM Gemology.Drafts WHERE @AfterId IS NULL OR Id>@AfterId ORDER BY Id;
