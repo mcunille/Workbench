@@ -197,10 +197,10 @@ internal static class ServiceAdminIdentitySchema
             """);
         migration.Sql($"""
             DECLARE @Definition nvarchar(max)=OBJECT_DEFINITION(OBJECT_ID(N'Security.ReadDatabaseReadiness'));
-            IF @Definition IS NULL OR CHARINDEX(N'20260928071548_AddSupplierOpenItems',@Definition)=0
+            IF @Definition IS NULL OR CHARINDEX(N'20261001000000_AddSharedGemReference',@Definition)=0
                 THROW 50020,'Unsupported service-admin readiness predecessor.',1;
             SET @Definition=REPLACE(@Definition,N'CREATE PROCEDURE',N'ALTER PROCEDURE');
-            SET @Definition=REPLACE(@Definition,N'20260928071548_AddSupplierOpenItems',N'{migrationId}');
+            SET @Definition=REPLACE(@Definition,N'20261001000000_AddSharedGemReference',N'{migrationId}');
             SET @Definition=REPLACE(@Definition,N'AS [SensitiveLimiterAvailable]',N'AS [SensitiveLimiterAvailable],
                 CONVERT(bit,CASE WHEN
                     (SELECT COUNT(*) FROM sys.procedures WHERE schema_id=SCHEMA_ID(N''ServiceAdministration'')

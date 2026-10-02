@@ -12,8 +12,8 @@ using Workbench.Server.Persistence;
 namespace Workbench.Server.Persistence.Migrations
 {
     [DbContext(typeof(WorkbenchDbContext))]
-    [Migration("20261001072507_AddServiceAdminIdentity")]
-    partial class AddServiceAdminIdentity
+    [Migration("20261001000000_AddSharedGemReference")]
+    partial class AddSharedGemReference
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)

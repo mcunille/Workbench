@@ -2436,6 +2436,105 @@
         }
       }
     },
+    "/api/beta/gem-reference": {
+      "get": {
+        "tags": [
+          "Gem reference"
+        ],
+        "parameters": [
+          {
+            "name": "query",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "materialKind",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "group",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GemReferencePageResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/beta/gem-reference/{id}": {
+      "get": {
+        "tags": [
+          "Gem reference"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GemReferenceDetailResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/beta/purchase-order-drafts/calculate": {
       "post": {
         "tags": [
@@ -7580,6 +7679,263 @@
         },
         "additionalProperties": false
       },
+      "GemReferenceDetailResponse": {
+        "required": [
+          "id",
+          "materialKind",
+          "commonName",
+          "group",
+          "species",
+          "variety",
+          "layer",
+          "aliases",
+          "description",
+          "rowVersion",
+          "sourceAssertions",
+          "notableLocality",
+          "retirement"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "materialKind": {
+            "type": "string"
+          },
+          "commonName": {
+            "type": "string"
+          },
+          "group": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "species": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "variety": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "layer": {
+            "type": "string"
+          },
+          "aliases": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "description": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "rowVersion": {
+            "type": "string"
+          },
+          "sourceAssertions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GemReferenceSourceResponse"
+            }
+          },
+          "notableLocality": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/GemReferenceLocalityContent"
+              }
+            ]
+          },
+          "retirement": {
+            "$ref": "#/components/schemas/GemReferenceRetirementResponse"
+          }
+        }
+      },
+      "GemReferenceListEntry": {
+        "required": [
+          "id",
+          "materialKind",
+          "commonName",
+          "group",
+          "species",
+          "variety",
+          "layer"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "materialKind": {
+            "type": "string"
+          },
+          "commonName": {
+            "type": "string"
+          },
+          "group": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "species": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "variety": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "layer": {
+            "type": "string"
+          }
+        }
+      },
+      "GemReferenceLocalityContent": {
+        "required": [
+          "place",
+          "scope",
+          "reviewedOn",
+          "sourceAssertionId"
+        ],
+        "type": "object",
+        "properties": {
+          "place": {
+            "type": "string"
+          },
+          "scope": {
+            "type": "string"
+          },
+          "reviewedOn": {
+            "type": "string",
+            "format": "date"
+          },
+          "sourceAssertionId": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      },
+      "GemReferencePageResponse": {
+        "required": [
+          "entries",
+          "nextCursor"
+        ],
+        "type": "object",
+        "properties": {
+          "entries": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GemReferenceListEntry"
+            }
+          },
+          "nextCursor": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "GemReferenceRetirementResponse": {
+        "required": [
+          "isRetired",
+          "explanation",
+          "redirectEntryId"
+        ],
+        "type": "object",
+        "properties": {
+          "isRetired": {
+            "type": "boolean"
+          },
+          "explanation": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "redirectEntryId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          }
+        }
+      },
+      "GemReferenceSourceResponse": {
+        "required": [
+          "id",
+          "field",
+          "title",
+          "publisher",
+          "url",
+          "citation",
+          "accessedOn",
+          "reviewedOn",
+          "attribution"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "field": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "publisher": {
+            "type": "string"
+          },
+          "url": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "citation": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "accessedOn": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date"
+          },
+          "reviewedOn": {
+            "type": "string",
+            "format": "date"
+          },
+          "attribution": {
+            "type": "string"
+          }
+        }
+      },
       "HttpValidationProblemDetails": {
         "type": "object",
         "properties": {
@@ -10081,6 +10437,9 @@
     },
     {
       "name": "Inventory"
+    },
+    {
+      "name": "Gem reference"
     },
     {
       "name": "Tenant users"

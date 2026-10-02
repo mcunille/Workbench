@@ -22,6 +22,9 @@ Use `SqlServerFixture.CreateMigratedDatabaseAsync` when the test needs the curre
 precondition. It restores an unseeded template created from the current run's migration assembly
 into a unique database, then regenerates the tenant proof key. Credentials, identities, and data
 remain isolated. This is not a shared mutable database.
+Prepare that shared template during fixture initialization so its migration/bootstrap cost does
+not consume the first domain test's case budget. Fixture preparation remains part of process
+timing; fresh migration drills still create their own databases and execute their own migrations.
 
 Use an empty database and explicit migrations when applying/upgrading/rolling back the schema is
 the subject. Keep fresh migration-to-provisioning evidence as well as effective-permission tests.

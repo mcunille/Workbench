@@ -20,6 +20,7 @@ using Workbench.Server.Health;
 using Workbench.Server.Http;
 using Workbench.Server.Identity;
 using Workbench.Server.Inventory;
+using Workbench.Server.Gemology;
 using Workbench.Server.Persistence;
 using Workbench.Server.Purchasing;
 using Workbench.Server.Security;
@@ -321,6 +322,7 @@ app.MapGet(
 app.MapWorkbenchAuthentication();
 app.MapServiceAdminAuthentication();
 app.MapWorkbenchInventory();
+app.MapGemReference();
 app.MapPurchaseOrderDrafts();
 app.MapPurchaseOrders();
 app.MapSuppliers();

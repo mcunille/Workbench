@@ -25,6 +25,13 @@ public sealed class SupplierBillMigrationTests(SqlServerFixture sqlServer)
         Assert.Equal(before, await SnapshotAsync(context.Journal.Connection));
         Assert.Equal(System.Text.Json.JsonSerializer.Serialize(posted), System.Text.Json.JsonSerializer.Serialize(await context.PostAsync(source.ToJsonString(), request)));
         await MigrationHistoryAssertions.AssertCurrentAsync(context.Journal.Application.AdminConnectionString);
+        await using var admin = new SqlConnection(context.Journal.Application.AdminConnectionString); await admin.OpenAsync();
+        // AND both supplier migrations are recorded, independently of later feature migrations.
+        await using var count = new SqlCommand("""
+            SELECT COUNT(*) FROM dbo.__EFMigrationsHistory
+            WHERE MigrationId IN(N'20260928034802_AddSupplierBills', N'20260928071548_AddSupplierOpenItems')
+            """, admin);
+        Assert.Equal(2, await count.ExecuteScalarAsync());
         Assert.Equal(50020, (await Assert.ThrowsAsync<SqlException>(() => DatabaseMigrator.MigrateToAsync(context.Journal.Application.AdminConnectionString, PriorMigration, default))).Number);
         Assert.Equal(before, await SnapshotAsync(context.Journal.Connection));
     }
