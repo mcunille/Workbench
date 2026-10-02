@@ -9,11 +9,24 @@ internal sealed class PurchaseRecognitionTestContext : IAsyncDisposable
 {
     public JournalTestContext Journal { get; }
     public SqlConnection Connection => Journal.Connection;
-    public Guid PurchaseOrderId { get; } = Guid.NewGuid();
-    public Guid SupplierId { get; } = Guid.NewGuid();
+    public Guid PurchaseOrderId { get; private set; } = Guid.NewGuid();
+    public Guid SupplierId { get; private set; } = Guid.NewGuid();
     public string PurchaseOrderVersion { get; set; } = "";
     public Dictionary<string, Guid> Accounts { get; } = [];
     private PurchaseRecognitionTestContext(JournalTestContext journal) => Journal = journal;
+
+    internal static PurchaseRecognitionTestContext Restore(JournalTestContext journal, SupplierContextState state)
+    {
+        var result = new PurchaseRecognitionTestContext(journal)
+        {
+            PurchaseOrderId = state.PurchaseOrderId,
+            SupplierId = state.SupplierId,
+            PurchaseOrderVersion = state.PurchaseOrderVersion
+        };
+        foreach (var account in JsonSerializer.Deserialize<Dictionary<string, Guid>>(state.AccountsJson)!)
+            result.Accounts.Add(account.Key, account.Value);
+        return result;
+    }
 
     public static async Task<PurchaseRecognitionTestContext> OpenAsync(SqlServerFixture fixture, string? priorMigration = null)
     {

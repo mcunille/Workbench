@@ -69,6 +69,27 @@ internal sealed class JournalTestContext : IAsyncDisposable
 
     public Task<SqlConnection> OpenSiblingAsync() => OpenRestrictedConnectionAsync(Application.WebConnectionString, ProofKey, TenantId);
 
+    internal static async Task<JournalTestContext> OpenRestoredAsync(AuthTestApplication application, Guid configurationVersion)
+    {
+        await using var admin = new SqlConnection(application.AdminConnectionString);
+        await admin.OpenAsync();
+        var sessionId = Guid.NewGuid();
+        await using var session = new SqlCommand("""
+            UPDATE [Identity].Users SET SecurityStamp=CONVERT(nvarchar(36),NEWID());
+            INSERT [Identity].Sessions(Id,TenantId,UserId,TokenHash,SecurityVersion,CreatedAtUtc,LastSeenAtUtc,IdleExpiresAtUtc,AbsoluteExpiresAtUtc)
+              SELECT @session,@tenant,@actor,CRYPT_GEN_RANDOM(32),SecurityVersion,SYSUTCDATETIME(),SYSUTCDATETIME(),
+                DATEADD(hour,1,SYSUTCDATETIME()),DATEADD(hour,2,SYSUTCDATETIME())
+              FROM [Identity].Users WHERE Id=@actor;
+            """, admin);
+        session.Parameters.AddWithValue("@session", sessionId);
+        session.Parameters.AddWithValue("@tenant", TenantId);
+        session.Parameters.AddWithValue("@actor", ActorId);
+        await session.ExecuteNonQueryAsync();
+        var proofKey = await ReadProofKeyAsync(admin);
+        var connection = await OpenRestrictedConnectionAsync(application.WebConnectionString, proofKey, TenantId);
+        return new JournalTestContext(application, connection, sessionId, proofKey) { ConfigurationVersion = configurationVersion };
+    }
+
     public async Task<SqlConnection> OpenOtherTenantAsync()
         => await OpenRestrictedConnectionAsync(Application.WebConnectionString, ProofKey, OtherTenantId);
 
