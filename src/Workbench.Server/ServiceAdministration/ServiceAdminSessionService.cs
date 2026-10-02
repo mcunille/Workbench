@@ -50,15 +50,8 @@ public sealed class ServiceAdminSessionService
         }
         var result = _hasher.VerifyHashedPassword(account ?? DummyAccount, account?.PasswordHash ?? DummyHash.Value, password);
         if (account is null || !account.IsEnabled || result == PasswordVerificationResult.Failed) return null;
-        if (result == PasswordVerificationResult.SuccessRehashNeeded)
-        {
-            await using var rehash = Command("RehashPassword", connection);
-            rehash.Parameters.AddWithValue("@AccountId", account.Id);
-            rehash.Parameters.AddWithValue("@SecurityVersion", account.SecurityVersion);
-            rehash.Parameters.AddWithValue("@ExpectedPasswordHash", account.PasswordHash);
-            rehash.Parameters.AddWithValue("@PasswordHash", _hasher.HashPassword(account, password));
-            if (Convert.ToInt32(await rehash.ExecuteScalarAsync(cancellationToken)) != 1) return null;
-        }
+        // Compatible older hashes authenticate without giving the web principal password-write authority.
+        // Credential replacement, including upgrades, remains an audited operator reset.
         return new VerifiedServiceAdmin(account.Id, account.SecurityVersion);
     }
 

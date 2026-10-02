@@ -33,7 +33,7 @@ public sealed class DatabasePermissionTests(SqlServerFixture sqlServer)
             foreach (var command in new[] { "ProvisionServiceAdmin", "DisableServiceAdmin", "ResetServiceAdminPassword", "RevokeServiceAdminSessions" })
                 await AssertDeniedAsync(principal, $"EXEC Administration.{command}", 229);
         foreach (var principal in new[] { worker, op })
-            foreach (var command in new[] { "FindAccountForLogin", "CreateSession", "ResolveSession", "RevokeSession", "RehashPassword" })
+            foreach (var command in new[] { "FindAccountForLogin", "CreateSession", "ResolveSession", "RevokeSession" })
                 await AssertDeniedAsync(principal, $"EXEC ServiceAdministration.{command}", 229);
         // AND credential lookup exposes only the candidate; it neither includes tenant context nor extra results.
         await using var connection = new SqlConnection(web); await connection.OpenAsync();

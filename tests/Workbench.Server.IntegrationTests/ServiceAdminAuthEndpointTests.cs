@@ -12,6 +12,7 @@ using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.Extensions.Options;
@@ -69,6 +70,25 @@ public sealed class ServiceAdminAuthEndpointTests(SqlServerFixture sqlServer) : 
         Assert.Equal(HttpStatusCode.NoContent, (await PostAsync(Prefix, "/logout", null)).StatusCode);
         // THEN the browser loses its authority
         Assert.Equal(HttpStatusCode.Unauthorized, (await _client.GetAsync(Prefix + "/me")).StatusCode);
+    }
+
+    [Fact]
+    public async Task CompatibleOlderPasswordAuthenticatesWithoutRuntimeCredentialMutation()
+    {
+        // GIVEN a compatible older hash retained by the operator-controlled credential store.
+        var account = new ServiceAdminAccount { Id = AuthTestApplication.ServiceAdminId };
+        var legacyHash = new PasswordHasher<ServiceAdminAccount>(Options.Create(new PasswordHasherOptions
+        { CompatibilityMode = PasswordHasherCompatibilityMode.IdentityV2 }))
+            .HashPassword(account, AuthTestApplication.ServiceAdminPassword);
+        await ServiceAdminIdentityDatabaseTests.ScalarAsync<object>(_application.AdminConnectionString,
+            "UPDATE ServiceAdministration.Accounts SET PasswordHash=@hash WHERE Id=@id",
+            ("hash", legacyHash), ("id", account.Id));
+        // WHEN signing in through the real admin endpoint, THEN password verification still grants a session.
+        Assert.Equal(HttpStatusCode.NoContent, (await LoginAsync()).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await _client.GetAsync(Prefix + "/me")).StatusCode);
+        // AND sign-in cannot rewrite credentials; upgrades require an operator reset.
+        Assert.Equal(legacyHash, await ServiceAdminIdentityDatabaseTests.ScalarAsync<string>(_application.AdminConnectionString,
+            "SELECT PasswordHash FROM ServiceAdministration.Accounts WHERE Id=@id", ("id", account.Id)));
     }
 
     [Theory]

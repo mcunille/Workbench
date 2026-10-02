@@ -233,8 +233,7 @@ public static class PasswordPrincipalProvisioning
                                     (N'workbench_web', N'[ServiceAdministration].[FindAccountForLogin]', N'EXECUTE'),
                                     (N'workbench_web', N'[ServiceAdministration].[CreateSession]', N'EXECUTE'),
                                     (N'workbench_web', N'[ServiceAdministration].[ResolveSession]', N'EXECUTE'),
-                                    (N'workbench_web', N'[ServiceAdministration].[RevokeSession]', N'EXECUTE'),
-                                    (N'workbench_web', N'[ServiceAdministration].[RehashPassword]', N'EXECUTE')
+                                    (N'workbench_web', N'[ServiceAdministration].[RevokeSession]', N'EXECUTE')
                                 ) AS allowed(RoleName, ObjectName, PermissionNames)
                                 CROSS APPLY STRING_SPLIT(allowed.PermissionNames, ',') AS allowedPermission
                                 WHERE DATABASE_PRINCIPAL_ID(allowed.RoleName)=permission.grantee_principal_id

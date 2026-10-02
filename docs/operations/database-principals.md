@@ -80,7 +80,9 @@ Shared protection authority means web/worker separation is not cryptographic iso
 
 Service-admin browser identities are independent of SQL workload principals and tenant identities.
 The web role receives only `ServiceAdministration.FindAccountForLogin`, `CreateSession`,
-`ResolveSession`, `RevokeSession` and conditional `RehashPassword` execution. The operator role
+`ResolveSession` and `RevokeSession` execution. It has no password-write command: compatible older
+hashes can authenticate, but credential replacement or hash upgrades require an audited operator
+password reset. The operator role
 receives only the four named service-admin maintenance commands; the worker receives neither set.
 All three roles are denied direct SELECT, INSERT, UPDATE and DELETE on service-admin accounts and
 sessions. No new SQL credential is needed or delivered to the web image or configuration.

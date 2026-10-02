@@ -165,25 +165,10 @@ internal static class ServiceAdminIdentitySchema
                     WHERE Id=@SessionId AND AccountId=@AccountId AND RevokedAtUtc IS NULL;
             END;
             """);
-        migration.Sql("""
-            CREATE PROCEDURE ServiceAdministration.RehashPassword
-                @AccountId uniqueidentifier,@SecurityVersion bigint,@PasswordHash nvarchar(max),@ExpectedPasswordHash nvarchar(max)
-            AS
-            BEGIN
-                SET NOCOUNT ON;
-                IF @PasswordHash IS NULL OR LEN(@PasswordHash)=0 OR DATALENGTH(@PasswordHash)>2048
-                    THROW 50040,'Invalid service-admin password hash.',1;
-                UPDATE ServiceAdministration.Accounts SET PasswordHash=@PasswordHash
-                    WHERE Id=@AccountId AND SecurityVersion=@SecurityVersion AND IsEnabled=1
-                        AND PasswordHash COLLATE Latin1_General_100_BIN2=@ExpectedPasswordHash COLLATE Latin1_General_100_BIN2
-                        AND NOT EXISTS(SELECT 1 FROM Security.WorkbenchRestorePending WHERE IsPending=1);
-                SELECT @@ROWCOUNT;
-            END;
-            """);
         foreach (var role in new[] { "workbench_web", "workbench_worker", "workbench_operator" })
             foreach (var table in new[] { "Accounts", "Sessions" })
                 migration.Sql($"DENY SELECT,INSERT,UPDATE,DELETE ON ServiceAdministration.{table} TO {role};");
-        foreach (var command in new[] { "FindAccountForLogin", "CreateSession", "ResolveSession", "RevokeSession", "RehashPassword" })
+        foreach (var command in new[] { "FindAccountForLogin", "CreateSession", "ResolveSession", "RevokeSession" })
             migration.Sql($"GRANT EXECUTE ON ServiceAdministration.{command} TO workbench_web;");
         foreach (var command in new[] { "ProvisionServiceAdmin", "DisableServiceAdmin", "ResetServiceAdminPassword", "RevokeServiceAdminSessions" })
             migration.Sql($"GRANT EXECUTE ON Administration.{command} TO workbench_operator;");
@@ -219,10 +204,11 @@ internal static class ServiceAdminIdentitySchema
             SET @Definition=REPLACE(@Definition,N'AS [SensitiveLimiterAvailable]',N'AS [SensitiveLimiterAvailable],
                 CONVERT(bit,CASE WHEN
                     (SELECT COUNT(*) FROM sys.procedures WHERE schema_id=SCHEMA_ID(N''ServiceAdministration'')
-                        AND name IN(N''FindAccountForLogin'',N''CreateSession'',N''ResolveSession'',N''RevokeSession'',N''RehashPassword''))=5
+                        AND name IN(N''FindAccountForLogin'',N''CreateSession'',N''ResolveSession'',N''RevokeSession''))=4
+                    AND OBJECT_ID(N''ServiceAdministration.RehashPassword'') IS NULL
                     AND (SELECT COUNT(*) FROM sys.database_permissions WHERE grantee_principal_id=DATABASE_PRINCIPAL_ID(N''workbench_web'')
-                        AND major_id IN(OBJECT_ID(N''ServiceAdministration.FindAccountForLogin''),OBJECT_ID(N''ServiceAdministration.CreateSession''),OBJECT_ID(N''ServiceAdministration.ResolveSession''),OBJECT_ID(N''ServiceAdministration.RevokeSession''),OBJECT_ID(N''ServiceAdministration.RehashPassword''))
-                        AND permission_name=N''EXECUTE'' AND state=N''G'')=5
+                        AND major_id IN(OBJECT_ID(N''ServiceAdministration.FindAccountForLogin''),OBJECT_ID(N''ServiceAdministration.CreateSession''),OBJECT_ID(N''ServiceAdministration.ResolveSession''),OBJECT_ID(N''ServiceAdministration.RevokeSession''))
+                        AND permission_name=N''EXECUTE'' AND state=N''G'')=4
                     AND (SELECT COUNT(*) FROM sys.database_permissions WHERE grantee_principal_id IN(DATABASE_PRINCIPAL_ID(N''workbench_web''),DATABASE_PRINCIPAL_ID(N''workbench_worker''),DATABASE_PRINCIPAL_ID(N''workbench_operator''))
                         AND major_id IN(OBJECT_ID(N''ServiceAdministration.Accounts''),OBJECT_ID(N''ServiceAdministration.Sessions''))
                         AND permission_name IN(N''SELECT'',N''INSERT'',N''UPDATE'',N''DELETE'') AND state=N''D'')=24
@@ -233,7 +219,7 @@ internal static class ServiceAdminIdentitySchema
                         AND ((grantee_principal_id IN(DATABASE_PRINCIPAL_ID(N''workbench_web''),DATABASE_PRINCIPAL_ID(N''workbench_worker''),DATABASE_PRINCIPAL_ID(N''public''))
                             AND major_id IN(OBJECT_ID(N''Administration.ProvisionServiceAdmin''),OBJECT_ID(N''Administration.DisableServiceAdmin''),OBJECT_ID(N''Administration.ResetServiceAdminPassword''),OBJECT_ID(N''Administration.RevokeServiceAdminSessions'')))
                         OR (grantee_principal_id IN(DATABASE_PRINCIPAL_ID(N''workbench_operator''),DATABASE_PRINCIPAL_ID(N''workbench_worker''),DATABASE_PRINCIPAL_ID(N''public''))
-                            AND major_id IN(OBJECT_ID(N''ServiceAdministration.FindAccountForLogin''),OBJECT_ID(N''ServiceAdministration.CreateSession''),OBJECT_ID(N''ServiceAdministration.ResolveSession''),OBJECT_ID(N''ServiceAdministration.RevokeSession''),OBJECT_ID(N''ServiceAdministration.RehashPassword'')))))
+                            AND major_id IN(OBJECT_ID(N''ServiceAdministration.FindAccountForLogin''),OBJECT_ID(N''ServiceAdministration.CreateSession''),OBJECT_ID(N''ServiceAdministration.ResolveSession''),OBJECT_ID(N''ServiceAdministration.RevokeSession'')))))
                     THEN 1 ELSE 0 END) AS [ServiceAdminIdentityReady]');
             EXEC sys.sp_executesql @Definition;
             """);

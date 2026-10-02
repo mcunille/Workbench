@@ -137,6 +137,10 @@ Do not count passing disposable tests as evidence for these outcomes:
 - the expected migration is present and `/health/ready` succeeds through the web principal;
 - liveness remains distinct from dependency readiness;
 - every pre-restore browser session is rejected;
+- pre-restore service-admin cookies and raw session tokens are rejected even by an application
+  host retaining its in-memory protection-key cache;
+- fresh service-admin sign-in succeeds only for accounts eligible under their restored state and
+  reviewed operator changes, while disabled accounts remain unable to sign in;
 - pre-restore invitation and recovery links are rejected;
 - a new sign-in creates a usable session with the expected tenant and permissions;
 - representative tenant rows remain isolated through application and direct role probes;

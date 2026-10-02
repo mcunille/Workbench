@@ -1,7 +1,6 @@
 // Copyright (c) 2026 The White Stag Collection.
 
 using Microsoft.AspNetCore.Identity;
-using Microsoft.Data.SqlClient;
 using Workbench.Server.Identity;
 using Workbench.Server.ServiceAdministration;
 using Workbench.Server.IntegrationTests.Infrastructure;
@@ -60,29 +59,4 @@ public sealed class ServiceAdminSessionTests(SqlServerFixture sqlServer) : IAsyn
         }
     }
 
-    [Fact]
-    public async Task LegacyPasswordRehashIsDurableAndRemainsCompatible()
-    {
-        // GIVEN a valid legacy hash that the configured production hasher must upgrade
-        var account = new ServiceAdminAccount();
-        var legacy = new PasswordHasher<ServiceAdminAccount>(Microsoft.Extensions.Options.Options.Create(new PasswordHasherOptions
-        { CompatibilityMode = PasswordHasherCompatibilityMode.IdentityV2 })).HashPassword(account, AuthTestApplication.ServiceAdminPassword);
-        await using var connection = new SqlConnection(_application.AdminConnectionString);
-        await connection.OpenAsync();
-        await using (var write = new SqlCommand("UPDATE ServiceAdministration.Accounts SET PasswordHash=@hash WHERE Id=@id", connection))
-        {
-            write.Parameters.AddWithValue("@hash", legacy);
-            write.Parameters.AddWithValue("@id", AuthTestApplication.ServiceAdminId);
-            await write.ExecuteNonQueryAsync();
-        }
-        // WHEN credentials are verified through the real runtime procedure boundary
-        var verified = await _sessions.VerifyAsync(AuthTestApplication.AdminEmail, AuthTestApplication.ServiceAdminPassword, CancellationToken.None);
-        Assert.NotNull(verified);
-        // THEN the upgraded hash is durable and valid at the current strength
-        await using var read = new SqlCommand("SELECT PasswordHash FROM ServiceAdministration.Accounts WHERE Id=@id", connection);
-        read.Parameters.AddWithValue("@id", AuthTestApplication.ServiceAdminId);
-        var upgraded = (string)(await read.ExecuteScalarAsync())!;
-        Assert.NotEqual(legacy, upgraded);
-        Assert.Equal(PasswordVerificationResult.Success, new PasswordHasher<ServiceAdminAccount>().VerifyHashedPassword(account, upgraded, AuthTestApplication.ServiceAdminPassword));
-    }
 }

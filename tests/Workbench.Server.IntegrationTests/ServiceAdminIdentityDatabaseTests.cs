@@ -184,27 +184,30 @@ public sealed class ServiceAdminIdentityDatabaseTests(SqlServerFixture sqlServer
         Assert.Equal(0, await ScalarAsync<int>(database.AdminConnectionString, "SELECT COUNT(*) FROM ServiceAdministration.Sessions"));
     }
 
-    [Theory]
-    [InlineData("current", 1)]
-    [InlineData("password-changed", 0)]
-    [InlineData("version-changed", 0)]
-    [InlineData("disabled", 0)]
-    public async Task CredentialRehashCannotOverwriteAnOperatorChange(string state, int expected)
+    [Fact]
+    public async Task WebPrincipalCannotReplacePasswordUsingReadableLoginCandidate()
     {
-        // GIVEN the hash and security version observed before a possible operator change.
+        // GIVEN an enabled account and its login candidate readable by the actual web principal.
         await using var database = await sqlServer.CreateMigratedDatabaseAsync(); var web = await database.CreateWebUserAsync();
         var account = await ProvisionAsync(await database.CreateRoleUserAsync("workbench_operator"), Guid.NewGuid());
-        var mutation = state switch
+        await using var connection = new SqlConnection(web); await connection.OpenAsync();
+        Guid candidateId; long candidateVersion; string candidateHash;
+        await using (var find = new SqlCommand("EXEC ServiceAdministration.FindAccountForLogin @NormalizedEmail=N'ADMIN@EXAMPLE.COM'", connection))
+        await using (var reader = await find.ExecuteReaderAsync())
         {
-            "password-changed" => "UPDATE ServiceAdministration.Accounts SET PasswordHash=N'operator-hash'",
-            "version-changed" => "UPDATE ServiceAdministration.Accounts SET SecurityVersion=2",
-            "disabled" => "UPDATE ServiceAdministration.Accounts SET IsEnabled=0",
-            _ => null,
-        };
-        if (mutation is not null) await ScalarAsync<object>(database.AdminConnectionString, mutation);
-        // WHEN runtime upgrades that observed hash, THEN only unchanged enabled authority is updated.
-        Assert.Equal(expected, await ScalarAsync<int>(web, "EXEC ServiceAdministration.RehashPassword @AccountId=@account,@SecurityVersion=1,@ExpectedPasswordHash=N'synthetic-hash',@PasswordHash=N'upgraded-hash'", ("account", account)));
-        Assert.Equal(state == "current" ? "upgraded-hash" : state == "password-changed" ? "operator-hash" : "synthetic-hash", await ScalarAsync<string>(database.AdminConnectionString, "SELECT PasswordHash FROM ServiceAdministration.Accounts"));
+            Assert.True(await reader.ReadAsync());
+            candidateId = reader.GetGuid(0); candidateHash = reader.GetString(3); candidateVersion = reader.GetInt64(5);
+        }
+        Assert.Equal(account, candidateId);
+        // WHEN the web principal attempts replacement using only that candidate, THEN SQL denies the write.
+        var denied = await Assert.ThrowsAsync<SqlException>(() => ScalarAsync<int>(web,
+            "EXEC ServiceAdministration.RehashPassword @AccountId=@account,@SecurityVersion=@version,@ExpectedPasswordHash=@expected,@PasswordHash=N'web-selected-replacement'",
+            ("account", candidateId), ("version", candidateVersion), ("expected", candidateHash)));
+        Assert.Contains(denied.Number, new[] { 229, 2812 });
+        // AND the credential, security version and maintenance audit remain unchanged.
+        Assert.Equal(candidateHash, await ScalarAsync<string>(database.AdminConnectionString, "SELECT PasswordHash FROM ServiceAdministration.Accounts WHERE Id=@id", ("id", account)));
+        Assert.Equal(candidateVersion, await ScalarAsync<long>(database.AdminConnectionString, "SELECT SecurityVersion FROM ServiceAdministration.Accounts WHERE Id=@id", ("id", account)));
+        Assert.Equal(1, await ScalarAsync<int>(database.AdminConnectionString, "SELECT COUNT(*) FROM Security.SystemSecurityAuditEvents WHERE Action LIKE 'service-admin.%'"));
     }
 
     [Theory]
