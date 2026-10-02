@@ -30,6 +30,8 @@ public sealed class JournalCorrectionReportTests(SqlServerFixture sqlServer)
         using var body = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
         var groups = body.RootElement.GetProperty("corrections").EnumerateArray().ToArray();
         Assert.Equal(2, groups.Length);
+        Assert.Equal(new[] { first.CorrectionId, second.CorrectionId },
+            groups.Select(group => group.GetProperty("correctionId").GetGuid()));
         Assert.Contains(groups, group => group.GetProperty("correctionId").GetGuid() == first.CorrectionId &&
             group.GetProperty("role").GetString() == "Replacement" &&
             group.GetProperty("originalJournalId").GetGuid() == original.JournalId &&
@@ -39,6 +41,13 @@ public sealed class JournalCorrectionReportTests(SqlServerFixture sqlServer)
         Assert.Contains(groups, group => group.GetProperty("correctionId").GetGuid() == second.CorrectionId &&
             group.GetProperty("role").GetString() == "Original" &&
             group.GetProperty("reversalJournalId").GetGuid() == second.ReversalJournalId);
+        // AND reversal detail identifies the same correction with its reversal role.
+        using var reversalResponse = await client.GetAsync($"/api/beta/accounting/journals/{first.ReversalJournalId}");
+        Assert.Equal(HttpStatusCode.OK, reversalResponse.StatusCode);
+        using var reversalBody = JsonDocument.Parse(await reversalResponse.Content.ReadAsStringAsync());
+        var reversal = Assert.Single(reversalBody.RootElement.GetProperty("corrections").EnumerateArray());
+        Assert.Equal(first.CorrectionId, reversal.GetProperty("correctionId").GetGuid());
+        Assert.Equal("Reversal", reversal.GetProperty("role").GetString());
         // AND list headers carry no later relationship metadata.
         using var list = await client.GetAsync("/api/beta/accounting/journals");
         using var page = JsonDocument.Parse(await list.Content.ReadAsStringAsync());

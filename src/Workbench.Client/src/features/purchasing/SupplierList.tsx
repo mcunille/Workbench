@@ -36,7 +36,7 @@ export function SupplierList({ memory: suppliedMemory, follow, onSelect, onAuthL
       if (!active.current || generation !== sequence.current) return;
       const known = new Set(latestPage.current?.items.map(item => item.id));
       const next = more ? { ...result, items: [...(latestPage.current?.items ?? []), ...result.items.filter(item => !known.has(item.id))] } : result;
-      memory.save(next, search, includeArchived); if (!more && !restore) memory.savePosition(0);
+      memory.save(next, search, includeArchived); if (!more && !restore) Object.assign(memory, { scrollY: 0 });
       loadedFilter.current = { query: search, archived: includeArchived }; latestPage.current = next; setPage(next); setLoadedQuery(search);
     } catch (error) {
       if (!active.current || generation !== sequence.current) return;
@@ -48,7 +48,7 @@ export function SupplierList({ memory: suppliedMemory, follow, onSelect, onAuthL
   useLayoutEffect(() => {
     if (onSelect) return;
     if (memory.page && memory.scrollY) window.scrollTo(0, memory.scrollY);
-    const remember = () => memory.savePosition(window.scrollY);
+    const remember = () => { Object.assign(memory, { scrollY: window.scrollY }); };
     window.addEventListener('scroll', remember, { passive: true });
     return () => window.removeEventListener('scroll', remember);
   }, [memory, onSelect]);
