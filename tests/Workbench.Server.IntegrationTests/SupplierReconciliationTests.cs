@@ -25,6 +25,7 @@ public sealed class SupplierReconciliationTests(SqlServerFixture sqlServer, Supp
         await using var writer = await context.Allocation.Journal.OpenSiblingAsync();
         await using var db = new WorkbenchDbContext(new DbContextOptionsBuilder<WorkbenchDbContext>().UseSqlServer(connection).Options,
             new TenantContext(JournalTestContext.TenantId));
+        using var cancellation = new CancellationTokenSource();
         // WHEN response processing is held inside the existing callback while a writer requests ownership.
         await SupplierReconciliationQueries.Run(new DefaultHttpContext(), db, new EphemeralDataProtectionProvider(), "reconciliation", async snapshot =>
         {
@@ -39,27 +40,10 @@ public sealed class SupplierReconciliationTests(SqlServerFixture sqlServer, Supp
             Assert.True((int)(await command.ExecuteScalarAsync())! >= 0, "Captured report still owns the Accounting lock during response processing.");
             Assert.Null(db.Database.CurrentTransaction);
             Assert.All(snapshot.Reconcile(), row => Assert.True(row.IsComplete));
-            return Results.Ok();
-        }, default);
-    }
-
-    [Fact]
-    public async Task CapturedReportObservesCancellationAtComputationBoundary()
-    {
-        // GIVEN a completed SQL capture with real payment evidence.
-        await using var context = await SupplierPaymentTestContext.OpenAsync(sqlServer);
-        await context.RecordAsync(await context.CommandAsync());
-        await using var connection = await context.Allocation.Journal.OpenSiblingAsync();
-        await using var db = new WorkbenchDbContext(new DbContextOptionsBuilder<WorkbenchDbContext>().UseSqlServer(connection).Options,
-            new TenantContext(JournalTestContext.TenantId));
-        using var cancellation = new CancellationTokenSource();
-        await SupplierReconciliationQueries.Run(new DefaultHttpContext(), db, new EphemeralDataProtectionProvider(), "reconciliation", snapshot =>
-        {
-            // WHEN cancellation arrives after capture, before pure response computation.
+            // WHEN cancellation arrives after capture THEN pure response computation observes it too.
             cancellation.Cancel();
-            // THEN computation itself observes it; a later SQL commit cannot satisfy this assertion.
             Assert.Throws<OperationCanceledException>(() => snapshot.Reconcile());
-            return Task.FromResult<IResult>(Results.Ok());
+            return Results.Ok();
         }, cancellation.Token);
     }
 
