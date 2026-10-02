@@ -8,18 +8,20 @@ namespace Workbench.Server.IntegrationTests.Infrastructure;
 
 // Shared, immutable histories are created through production commands. Every case
 // restores its own database and creates fresh authentication before exercising it.
-public sealed class SupplierScenarioFixture(SqlServerFixture sqlServer) : IAsyncLifetime
+public abstract class SupplierScenarioFixture(SqlServerFixture sqlServer, params string[] names) : IAsyncLifetime
 {
     internal sealed record Scenario(SqlServerFixture.SqlDatabaseTemplate Database, SupplierContextState Context, string DataJson);
-    internal sealed record Snapshots(IReadOnlyDictionary<string, Scenario> Scenarios);
-    private Snapshots _snapshots = null!;
+    private readonly Dictionary<string, Scenario> _snapshots = new();
 
-    public async Task InitializeAsync() => _snapshots = await sqlServer.GetSupplierScenariosAsync();
+    public async Task InitializeAsync()
+    {
+        foreach (var name in names) _snapshots.Add(name, await sqlServer.GetSupplierScenarioAsync(name));
+    }
     public Task DisposeAsync() => Task.CompletedTask; // The collection owns the disposable SQL container.
 
     internal async Task<PreparedSupplierScenario> OpenAsync(string name)
     {
-        var snapshot = _snapshots.Scenarios[name];
+        var snapshot = _snapshots[name];
         var data = JsonNode.Parse(snapshot.DataJson)!.AsObject();
         var database = await sqlServer.RestoreTemplateAsync(snapshot.Database);
         // RestoreAsync takes ownership, including cleanup if reconstruction fails.
@@ -27,27 +29,25 @@ public sealed class SupplierScenarioFixture(SqlServerFixture sqlServer) : IAsync
         return new(context, data);
     }
 
-    internal static async Task<Snapshots> CreateAsync(SqlServerFixture server)
+    internal static async Task<Scenario> CreateAsync(SqlServerFixture server, string? name, Scenario? preparedBase = null)
     {
         var clock = System.Diagnostics.Stopwatch.StartNew();
-        var snapshots = new Dictionary<string, Scenario>();
-        foreach (var name in new[] { "mixed", "compensation", "equalLines", "sourcesFalse", "sourcesTrue", "coordination", "closure", "restoredDebt", "recovery", "receiptFalse", "receiptTrue" })
-        {
-            await using var context = await SupplierCorrectionFixture.OpenAsync(server);
-            var data = await SeedAsync(context, name);
-            var recognition = context.Bills.Recognition;
-            var state = new SupplierContextState(context.Allocation.Journal.ConfigurationVersion,
-                recognition.PurchaseOrderId, recognition.SupplierId, recognition.PurchaseOrderVersion,
-                JsonSerializer.Serialize(recognition.Accounts), context.Bank, context.Advance);
-            // Do not retain a usable contained credential or live session in the backup.
-            var principal = new SqlConnectionStringBuilder(context.Allocation.Journal.Application.WebConnectionString).UserID;
-            await context.Allocation.Journal.Connection.CloseAsync();
-            await context.Bills.AdminAsync($"DELETE FROM [Identity].Sessions; DROP USER [{principal.Replace("]", "]]")}];");
-            var database = await server.CaptureTemplateAsync(context.Allocation.Journal.Application.AdminConnectionString);
-            snapshots.Add(name, new(database, state, data.ToJsonString()));
-        }
-        Console.WriteLine($"Prepared {snapshots.Count} immutable supplier histories in {clock.Elapsed.TotalSeconds:F3}s; startup remains included in process and gate wall time.");
-        return new(snapshots);
+        await using var context = preparedBase is null
+            ? await SupplierCorrectionFixture.OpenAsync(server)
+            : await SupplierPaymentTestContext.RestoreAsync(await server.RestoreTemplateAsync(preparedBase.Database), preparedBase.Context);
+        var data = name is null ? new JsonObject() : await SeedAsync(context, name);
+        var recognition = context.Bills.Recognition;
+        var state = new SupplierContextState(context.Allocation.Journal.ConfigurationVersion,
+            recognition.PurchaseOrderId, recognition.SupplierId, recognition.PurchaseOrderVersion,
+            JsonSerializer.Serialize(recognition.Accounts), context.Bank, context.Advance);
+        // Do not retain a usable contained credential or live session in the backup.
+        var principal = new SqlConnectionStringBuilder(context.Allocation.Journal.Application.WebConnectionString).UserID;
+        await context.Allocation.Journal.Connection.CloseAsync();
+        await context.Bills.AdminAsync($"DELETE FROM [Identity].Sessions; DROP USER [{principal.Replace("]", "]]")}];");
+        var database = await server.CaptureTemplateAsync(context.Allocation.Journal.Application.AdminConnectionString);
+        var label = name is null ? "supplier base" : $"supplier history '{name}'";
+        Console.WriteLine($"Prepared {label} in {clock.Elapsed.TotalSeconds:F3}s; startup remains included in process and gate wall time.");
+        return new(database, state, data.ToJsonString());
     }
 
     private static async Task<JsonObject> SeedAsync(SupplierPaymentTestContext context, string name)
@@ -74,6 +74,21 @@ public sealed class SupplierScenarioFixture(SqlServerFixture sqlServer) : IAsync
             await context.Bills.ExecuteAsync("CorrectSupplierPayment", Guid.NewGuid(), await SupplierCorrectionFixture.CorrectionAsync(context, id, replacement));
             if (name == "mixed") data["before"] = before.ToUniversalTime().ToString("O");
             else { data["embedded"] = embedded.ToString(); data["standalone"] = standalone.ToString(); }
+        }
+        else if (name == "equalDebtAttribution")
+        {
+            var first = await context.Allocation.BillAsync("50");
+            var payable = context.Bills.Recognition.Accounts["SupplierPayable"];
+            var version = await context.Bills.ScalarAsync<Guid>($"SELECT Version FROM Accounting.Accounts WHERE Id='{payable}'");
+            var code = await context.Bills.ScalarAsync<string>($"SELECT Code FROM Accounting.Accounts WHERE Id='{payable}'");
+            await context.Allocation.Journal.SaveAsync(Guid.NewGuid(), "UpdateAccount",
+                new JsonObject { ["code"] = code, ["name"] = "Renamed payable", ["description"] = "Current label" }.ToJsonString(), payable, version);
+            var second = await context.Allocation.BillAsync("50");
+            var payment = await context.CommandAsync();
+            await context.AllocateAsync(payment, first, "50"); await context.AllocateAsync(payment, second, "50");
+            var posted = await context.RecordAsync(payment);
+            data["first"] = first.ToString(); data["second"] = second.ToString();
+            data["payment"] = payment["paymentId"]!.DeepClone(); data["group"] = posted["groupId"]!.DeepClone();
         }
         else if (name == "equalLines")
         {
@@ -184,6 +199,18 @@ public sealed class SupplierScenarioFixture(SqlServerFixture sqlServer) : IAsync
         return data;
     }
 }
+
+public sealed class SupplierCorrectionScenarios(SqlServerFixture server) : SupplierScenarioFixture(server,
+    "coordination", "closure", "restoredDebt", "receiptFalse", "receiptTrue");
+
+public sealed class SupplierReconciliationScenarios(SqlServerFixture server) : SupplierScenarioFixture(server,
+    "mixed", "compensation", "equalLines", "sourcesFalse", "sourcesTrue");
+
+public sealed class SupplierRecoveryScenarios(SqlServerFixture server) : SupplierScenarioFixture(server, "recovery");
+
+public sealed class SupplierIsolationScenarios(SqlServerFixture server) : SupplierScenarioFixture(server, "sourcesFalse");
+
+public sealed class SupplierEvidenceScenarios(SqlServerFixture server) : SupplierScenarioFixture(server, "equalDebtAttribution");
 
 internal sealed record SupplierContextState(Guid ConfigurationVersion, Guid PurchaseOrderId, Guid SupplierId,
     string PurchaseOrderVersion, string AccountsJson, Guid Bank, Guid Advance);

@@ -6,7 +6,7 @@ using Xunit;
 namespace Workbench.Server.IntegrationTests;
 
 [Collection(SqlServerCollection.Name)]
-public sealed class SupplierScenarioIsolationTests(SupplierScenarioFixture scenarios) : IClassFixture<SupplierScenarioFixture>
+public sealed class SupplierScenarioIsolationTests(SupplierIsolationScenarios scenarios) : IClassFixture<SupplierIsolationScenarios>
 {
     [Fact]
     public async Task PreparedHistoryIsRetainedWithoutSharingMutationOrAuthentication()

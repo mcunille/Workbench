@@ -13,7 +13,7 @@ using Xunit;
 namespace Workbench.Server.IntegrationTests;
 
 [Collection(SqlServerCollection.Name)]
-public sealed class SupplierOpenItemRecoveryTests(SqlServerFixture sqlServer, SupplierScenarioFixture scenarios) : IClassFixture<SupplierScenarioFixture>
+public sealed class SupplierOpenItemRecoveryTests(SqlServerFixture sqlServer, SupplierRecoveryScenarios scenarios) : IClassFixture<SupplierRecoveryScenarios>
 {
     [Fact]
     public async Task UpgradeAndRestorePreserveSupplierFinancialHistory()
