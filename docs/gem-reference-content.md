@@ -1,72 +1,66 @@
-# Private gem reference content
+# Gem reference sample and private content
 
-GEM-01 supplies an owner-held sample of Diamond, Sapphire, Emerald, and Ruby. The owner
-reduced the original ten-entry pilot to these four minerals on 2026-10-02. Non-mineral,
-group, alias, and exceptional-locality examples remain future editorial expansion; numerical
-reference properties remain outside this release. GEM-02's validation and storage support
-broader cases independently of this small sample.
+GEM-01 supplies a reviewed sample of Diamond, Sapphire, Emerald, and Ruby. The owner reduced
+the original ten-entry pilot to these four minerals on 2026-10-02 and subsequently authorized
+this sample for inclusion in the public repository. Non-mineral, group, alias, and locality
+examples remain future editorial expansion; numerical reference properties remain outside this
+release. GEM-02 supports broader cases independently of this sample.
 
 ## Package location and ownership
 
-Keep the curated package and its claim-to-source checklist in the ignored
-`.private/gemological-reference/` directory, or in a separately managed private location.
-The public repository contains the contracts and this handoff procedure, not the curated
-records, source dossier, or content-review evidence. Do not attach those files to a public
-pull request, copy them into test fixtures, or include them in CI artifacts or logs.
+The committed [sample package](../data/gem-reference/sample.json) and
+[claim-to-source checklist](../data/gem-reference/claim-to-source-checklist.md) are the canonical
+GEM-04 sample input. A fresh clone includes both files. IDs, source assertions, and review dates
+are unchanged from the reviewed local package.
 
-An ignored directory is a local delivery location, not a backup or an access-control mechanism.
-The owner must preserve a private copy before archiving or removing this worktree. A fresh
-public clone has no sample package. Git ignore does not prevent deliberate force-addition.
-
-Keeping the package out of Git does not make installed shared references confidential from
-authenticated application users. Shared references follow GEM-02's read authorization.
+Future owner-curated packages can remain in the ignored `.private/gemological-reference/`
+directory or a separately managed private location. Permission to publish this sample does not
+publish those packages. Do not copy private content into public fixtures, pull requests, CI
+artifacts, or logs. An ignored directory is neither a backup nor access control: preserve a
+private copy before removing its worktree, and do not force-add its files. Installed shared
+references follow GEM-02's authenticated read authorization.
 
 ## Content contract
 
-`sample.json` is a UTF-8 JSON array of the merged
-[`GemReferenceContent`](../src/Workbench.Server/Gemology/GemReferenceContent.cs) records,
-using camel-case property names. Include all constructor fields, using explicit `null` for
-absent optional fields and empty arrays for unselected aliases. IDs for entries and source
-assertions are assigned once and retained across handoffs; do not regenerate IDs on import.
+`sample.json` is a UTF-8 JSON array of
+[`GemReferenceContent`](../src/Workbench.Server/Gemology/GemReferenceContent.cs) records with
+camel-case property names. Include all constructor fields, explicit `null` for absent optional
+fields, and empty arrays for unselected aliases. Assign entry/source IDs once and retain them
+across handoffs; do not regenerate IDs on import.
 
-Each source record supports one populated field through its `field` value. A single publication
-may support several fields through separate assertion records with distinct IDs. Use primary
-URLs, publication titles, publishers, access dates, and actual review dates. Store concise
-original descriptions, not copied prose or media. Do not invent search aliases to fill an
-empty list. An absent optional group means the sample does not assert that field, not that the
-mineral cannot belong to any broader mineralogical grouping.
+Each source record supports one populated field through its `field` value. One publication may
+support several fields through separate assertions with distinct IDs. Use primary URLs, titles,
+publishers, access dates, and actual review dates. Store concise original descriptions, not
+copied prose or media. Do not invent aliases to fill an empty list. An absent group means the
+sample does not assert that field, not that a broader mineralogical grouping is impossible.
 
-The private `claim-to-source-checklist.md` maps each populated field to the primary source and
-records the editorial reasoning for absent fields, source locators, review date, scope limits,
-and review outcome. Scientific source review and machine validation are distinct checks:
-valid JSON and a well-formed citation do not establish that a source supports a claim.
+The checklist maps every populated field to its source and records absent-field reasoning,
+source locators, review date, scope limits, and review outcome. Scientific review and machine
+validation are distinct: valid JSON and a citation do not establish support for a claim.
 
 ## Validation and GEM-04 handoff
 
-Deserialize the package into `GemReferenceContent` using camel-case names and strict unknown-field
-and missing-constructor-field rejection. Validate each record with
+Deserialize into `GemReferenceContent` with camel-case names and strict unknown-field and
+missing-constructor-field rejection. Validate each record with
 [`GemReferenceInput.Normalize` and `Validate`](../src/Workbench.Server/Gemology/GemReferenceInput.cs)
-using the current date and the package's redirect map. Check entry and source IDs for
-package-wide uniqueness and effective identities with `GemReferenceInput.IdentityKey`.
-Reject an empty package and any unknown property, including premature numerical properties.
-Report counts, entry positions, and validation field names rather than private content or raw
-deserialization exceptions. Validation must not write to the database.
+using the current date and the package's redirect map. Check entry/source IDs for package-wide
+uniqueness and identities with `GemReferenceInput.IdentityKey`. Reject an empty package and
+unknown properties, including premature numerical properties. Validation must not write SQL.
+For private packages, report counts, entry positions, and field names rather than private
+content or raw deserialization exceptions.
 
-The owner supplies the reviewed package directly to GEM-04's installation work. GEM-04 must
-define the explicit private-package input and distribution procedure; no loader, database seed,
-deployment attachment, or automatic download is introduced by GEM-01. Installation must preserve
-these stable IDs and source records, seed once, and retain later service-admin changes. Public
-CI uses synthetic content and cannot certify the existence or source accuracy of an owner-held
-package. Do not silently recreate or substitute the private sample when the supplied file is
-missing.
+GEM-04 installs the committed sample and defines distribution and installation. If it supports
+additional private content, it must define an explicit package input without embedding private
+records in public source or artifacts. GEM-01 introduces no loader, database seed, automatic
+download, or runtime change. Installation must preserve stable IDs and sources, seed once, and
+retain later service-admin changes. CI can validate the committed sample's structure; source
+accuracy still requires editorial review. Broader structural tests use synthetic fixtures.
 
-M0 is complete for the revised four-mineral sample when that package has passed content review
-and current-contract validation and GEM-02 and GEM-03 are merged. This does not mark the complete
-reference-library specification or M1 implemented.
+M0 is complete for the revised four-mineral sample with content review, contract validation,
+and merged GEM-02/GEM-03. This does not mark M1 or the entire library implemented.
 
-The 2026-10-02 local handoff passed merged GEM-02 validation and independent AI-assisted
-primary-source review for the revised sample. It has four entries and nineteen field-level
-source assertions. The detailed checklist and verification evidence remain with the private
-package. No installation or rendered-attribution verification is claimed; those belong to
-later stories. No new validation logic was introduced, so no new behavior tests or mutation
-run were needed for this content-and-documentation change.
+The 2026-10-02 review checked four entries and nineteen field-level source assertions against
+merged GEM-02 validation and an independent AI-assisted primary-source review. Publishing the
+same package does not change its claims or constitute a new source review. No installation or
+rendered-attribution verification is claimed. No new validation logic was introduced, so no new
+behavior tests or mutation run were needed for this content-and-documentation change.
