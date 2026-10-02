@@ -19,14 +19,20 @@ public static class GemReferenceInput
 
     public static GemReferenceContent Normalize(GemReferenceContent content) => content with
     {
-        MaterialKind = Text(content.MaterialKind) ?? "", CommonName = Text(content.CommonName) ?? "",
-        Group = Text(content.Group), Species = Text(content.Species), Variety = Text(content.Variety),
-        Description = Text(content.Description), RetirementExplanation = Text(content.RetirementExplanation),
+        MaterialKind = Text(content.MaterialKind) ?? "",
+        CommonName = Text(content.CommonName) ?? "",
+        Group = Text(content.Group),
+        Species = Text(content.Species),
+        Variety = Text(content.Variety),
+        Description = Text(content.Description),
+        RetirementExplanation = Text(content.RetirementExplanation),
         Aliases = content.Aliases.Select(value => Text(value) ?? "").ToArray(),
         Sources = content.Sources.Select(source => source with
         {
-            Title = Text(source.Title) ?? "", Publisher = Text(source.Publisher) ?? "",
-            Url = Text(source.Url), Citation = Text(source.Citation),
+            Title = Text(source.Title) ?? "",
+            Publisher = Text(source.Publisher) ?? "",
+            Url = Text(source.Url),
+            Citation = Text(source.Citation),
         }).ToArray(),
         NotableLocality = content.NotableLocality is { } locality
             ? locality with { Place = Text(locality.Place) ?? "", Scope = Text(locality.Scope) ?? "" } : null,

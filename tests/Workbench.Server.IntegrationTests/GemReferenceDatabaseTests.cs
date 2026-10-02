@@ -16,8 +16,15 @@ public sealed class GemReferenceDatabaseTests(SqlServerFixture sqlServer)
         await using var database = await sqlServer.CreateMigratedDatabaseAsync();
         var mineral = GemReferenceSamples.Mineral();
         await GemReferenceTestData.InsertAsync(database.AdminConnectionString, mineral);
-        var other = mineral with { Id = Guid.NewGuid(), CommonName = "Pearl", MaterialKind = "organic",
-            Species = null, Variety = null, Sources = [] };
+        var other = mineral with
+        {
+            Id = Guid.NewGuid(),
+            CommonName = "Pearl",
+            MaterialKind = "organic",
+            Species = null,
+            Variety = null,
+            Sources = []
+        };
         await GemReferenceTestData.InsertAsync(database.AdminConnectionString, other);
         await using var connection = new SqlConnection(database.AdminConnectionString);
         await connection.OpenAsync();

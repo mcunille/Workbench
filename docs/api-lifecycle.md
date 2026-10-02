@@ -12,6 +12,14 @@ beta. See [design principles](DESIGN-PRINCIPLES.md#13-evolve-apis-deliberately).
 
 ## Generated contracts and API errors
 
+GEM-02 adds authenticated tenant-session GET routes at `/api/beta/gem-reference` and
+`/api/beta/gem-reference/{id}` for shared content only. Browse supports literal name/alias/taxonomy
+search, material-kind/group filters, and filter-bound cursors (50 entries per page); retired
+identities remain available through detail. Detail attributes assertions to their supported
+fields and returns explicit locality claim scope, source review dates, and retirement metadata.
+Responses are private/no-store and contain no tenant records. Empty catalogs are valid: pilot
+seeding, tenant effective projections, editing, and publishing are separate GEM stories.
+
 Server-generated OpenAPI owns the client API declarations. Regenerate the checked-in TypeScript
 declarations with server contract changes; do not hand-edit them or maintain duplicate handwritten
 response interfaces. Handwritten copies can compile after the server changes, concealing drift.

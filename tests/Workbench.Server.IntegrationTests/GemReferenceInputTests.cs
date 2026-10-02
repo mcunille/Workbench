@@ -21,8 +21,13 @@ public sealed class GemReferenceInputTests
         // WHEN validated THEN species is required.
         Assert.Contains("species", Errors(mineral).Keys);
         // AND organic material needs no invented taxonomy.
-        var pearl = mineral with { MaterialKind = "organic", CommonName = "Pearl", Variety = null,
-            Sources = [GemReferenceSamples.Source("materialKind"), GemReferenceSamples.Source("commonName")] };
+        var pearl = mineral with
+        {
+            MaterialKind = "organic",
+            CommonName = "Pearl",
+            Variety = null,
+            Sources = [GemReferenceSamples.Source("materialKind"), GemReferenceSamples.Source("commonName")]
+        };
         Assert.Empty(Errors(pearl));
     }
 
@@ -32,9 +37,11 @@ public sealed class GemReferenceInputTests
         await Task.Yield();
         // GIVEN classification and a separately cited locality.
         var source = GemReferenceSamples.Source("notableLocality");
-        var content = GemReferenceSamples.Mineral() with {
+        var content = GemReferenceSamples.Mineral() with
+        {
             NotableLocality = new("Test hills", "Only known commercial source", source.ReviewedOn, source.Id),
-            Sources = [.. GemReferenceSamples.Mineral().Sources, source] };
+            Sources = [.. GemReferenceSamples.Mineral().Sources, source]
+        };
         // WHEN validated THEN its own claim source is accepted.
         Assert.Empty(Errors(content));
         // AND missing, displaced, or differently dated citations cannot substantiate that claim.
@@ -63,7 +70,8 @@ public sealed class GemReferenceInputTests
         await Task.Yield();
         // GIVEN one malformed part of an otherwise valid reference.
         var content = GemReferenceSamples.Mineral();
-        content = invalid switch {
+        content = invalid switch
+        {
             "id" => content with { Id = Guid.Empty },
             "materialKind" => content with { MaterialKind = "imitation" },
             "commonName" => content with { CommonName = new string('a', 201) },
@@ -95,8 +103,11 @@ public sealed class GemReferenceInputTests
         Assert.Equal("Ｒｕｂｙ", GemReferenceInput.Normalize(content with { CommonName = " Ｒｕｂｙ " }).CommonName);
         Assert.False(GemReferenceInput.IdentityKey(content with { Group = "A|B", Species = "C" }).SequenceEqual(
             GemReferenceInput.IdentityKey(content with { Group = "A", Species = "B|C" })));
-        Assert.Contains("aliases", Errors(content with { Aliases = ["Ruby", "Ｒｕｂｙ"],
-            Sources = [.. content.Sources, GemReferenceSamples.Source("aliases")] }).Keys);
+        Assert.Contains("aliases", Errors(content with
+        {
+            Aliases = ["Ruby", "Ｒｕｂｙ"],
+            Sources = [.. content.Sources, GemReferenceSamples.Source("aliases")]
+        }).Keys);
     }
 
     [Fact]

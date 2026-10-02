@@ -51,8 +51,12 @@ public sealed class GemReferenceReadTests(SqlServerFixture sqlServer)
         await using var app = await AuthTestApplication.CreateAsync(sqlServer);
         using var client = app.CreateClient();
         await LoginAsync(client, "member@example.com");
-        var content = GemReferenceSamples.Mineral() with { Group = "Test family", Aliases = ["Red gem", "100%_[]\\"],
-            Sources = [.. GemReferenceSamples.Mineral().Sources, GemReferenceSamples.Source("group"), GemReferenceSamples.Source("aliases")] };
+        var content = GemReferenceSamples.Mineral() with
+        {
+            Group = "Test family",
+            Aliases = ["Red gem", "100%_[]\\"],
+            Sources = [.. GemReferenceSamples.Mineral().Sources, GemReferenceSamples.Source("group"), GemReferenceSamples.Source("aliases")]
+        };
         await GemReferenceTestData.InsertAsync(app.AdminConnectionString, content);
         // WHEN matching each supported field THEN matching is case-insensitive and literal.
         foreach (var query in new[] { "RUBY", "red gem", "TEST family", "corundum", "%_[]\\" })
@@ -73,18 +77,30 @@ public sealed class GemReferenceReadTests(SqlServerFixture sqlServer)
         await LoginAsync(client, "member@example.com");
         Assert.Empty((await PageAsync(client)).GetProperty("entries").EnumerateArray());
         var source = GemReferenceSamples.Source("notableLocality");
-        var pearl = GemReferenceSamples.Mineral() with { MaterialKind = "organic", CommonName = "Pearl",
-            Species = null, Variety = null, Sources = [GemReferenceSamples.Source("materialKind"), GemReferenceSamples.Source("commonName"), source],
-            NotableLocality = new("Test coast", "Synthetic locality claim", source.ReviewedOn, source.Id) };
+        var pearl = GemReferenceSamples.Mineral() with
+        {
+            MaterialKind = "organic",
+            CommonName = "Pearl",
+            Species = null,
+            Variety = null,
+            Sources = [GemReferenceSamples.Source("materialKind"), GemReferenceSamples.Source("commonName"), source],
+            NotableLocality = new("Test coast", "Synthetic locality claim", source.ReviewedOn, source.Id)
+        };
         await GemReferenceTestData.InsertAsync(app.AdminConnectionString, pearl);
-        var retired = GemReferenceSamples.Mineral() with { Id = Guid.NewGuid(), IsRetired = true,
-            RetirementExplanation = "Reclassified", RedirectEntryId = pearl.Id };
+        var retired = GemReferenceSamples.Mineral() with
+        {
+            Id = Guid.NewGuid(),
+            IsRetired = true,
+            RetirementExplanation = "Reclassified",
+            RedirectEntryId = pearl.Id
+        };
         await GemReferenceTestData.InsertAsync(app.AdminConnectionString, retired);
         // WHEN reading THEN absent taxonomy stays null and each assertion carries its own provenance.
         var detail = await client.GetFromJsonAsync<JsonElement>($"{Route}/{pearl.Id}");
         Assert.Equal(JsonValueKind.Null, detail.GetProperty("species").ValueKind);
         Assert.Equal("Synthetic locality claim", detail.GetProperty("notableLocality").GetProperty("scope").GetString());
-        Assert.All(detail.GetProperty("sourceAssertions").EnumerateArray(), row => {
+        Assert.All(detail.GetProperty("sourceAssertions").EnumerateArray(), row =>
+        {
             Assert.Equal("workbench", row.GetProperty("attribution").GetString());
             Assert.Equal("2026-09-29", row.GetProperty("reviewedOn").GetString());
         });
@@ -172,7 +188,8 @@ public sealed class GemReferenceReadTests(SqlServerFixture sqlServer)
         var original = GemReferenceSamples.Mineral() with { CommonName = "Before" };
         original = original with { Sources = original.Sources.Select(source => source with { Title = "Before" }).ToArray() };
         await GemReferenceTestData.InsertAsync(app.AdminConnectionString, original);
-        var writer = Task.Run(async () => {
+        var writer = Task.Run(async () =>
+        {
             await using var connection = new SqlConnection(app.AdminConnectionString);
             await connection.OpenAsync();
             for (var n = 0; n < 10; n++)
