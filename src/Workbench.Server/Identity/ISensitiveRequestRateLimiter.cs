@@ -89,6 +89,12 @@ public static class SensitiveRequestPartitions
     public static string LoginNetwork(string address) =>
         Hash($"login-network:{address}");
 
+    public static string ServiceAdminLoginAccount(string email) =>
+        Hash($"service-admin-login-account:{email.Trim().ToUpperInvariant()}");
+
+    public static string ServiceAdminLoginNetwork(string address) =>
+        Hash($"service-admin-login-network:{address}");
+
     private static string Hash(string value) =>
         Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(value)));
 }

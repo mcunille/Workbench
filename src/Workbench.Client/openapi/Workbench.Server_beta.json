@@ -404,6 +404,114 @@
         }
       }
     },
+    "/api/beta/service-admin/auth/antiforgery": {
+      "get": {
+        "tags": [
+          "Service-admin Authentication"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AntiforgeryResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/beta/service-admin/auth/login": {
+      "post": {
+        "tags": [
+          "Service-admin Authentication"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ServiceAdminLoginRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/beta/service-admin/auth/me": {
+      "get": {
+        "tags": [
+          "Service-admin Authentication"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CurrentServiceAdminResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        }
+      }
+    },
+    "/api/beta/service-admin/auth/logout": {
+      "post": {
+        "tags": [
+          "Service-admin Authentication"
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        }
+      }
+    },
     "/api/beta/items": {
       "post": {
         "tags": [
@@ -6878,6 +6986,22 @@
           }
         }
       },
+      "CurrentServiceAdminResponse": {
+        "required": [
+          "accountId",
+          "email"
+        ],
+        "type": "object",
+        "properties": {
+          "accountId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "email": {
+            "type": "string"
+          }
+        }
+      },
       "DeleteDraftOrderRequest": {
         "required": [
           "requestId",
@@ -9334,6 +9458,21 @@
           }
         }
       },
+      "ServiceAdminLoginRequest": {
+        "required": [
+          "email",
+          "password"
+        ],
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string"
+          },
+          "password": {
+            "type": "string"
+          }
+        }
+      },
       "SessionResponse": {
         "required": [
           "id",
@@ -10292,6 +10431,9 @@
     },
     {
       "name": "Authentication"
+    },
+    {
+      "name": "Service-admin Authentication"
     },
     {
       "name": "Inventory"

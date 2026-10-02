@@ -181,6 +181,7 @@ This inventory describes checked-in migration behavior, not permission to execut
 | `20260928034802_AddSupplierBills` | `AddPurchaseRecognition` | Adds immutable supplier bill revisions/reviews, source posting links, receipts and bounded queries. Installs an internal bill-to-recognition adapter and generic correction ownership guards. Preserves prior financial and replay bytes. Advances readiness; use matching binaries. No runtime bill mutation grants, production permission assignments or public write routes. Verify fresh creation and upgrade from merged BK-04. | Always blocked (50020); preserve source and financial evidence through forward migration or guarded recovery. |
 | `20260928071548_AddSupplierOpenItems` | `AddSupplierBills` | Adds immutable supplier open items, payments, applications/inverses, control attribution, groups and receipts; derives supported stored invoice evidence and installs internal commands and authorized report reads. Preserves source/journal/replay history; unknown evidence stays unresolved. Advances readiness and backup schema; use matching binaries. Fresh creation and actual merged BK-05 upgrade/guarded SQL recovery have targeted disposable evidence; release gates remain separate. | Always blocked (50020); forward repair or guarded recovery, preserving financial history. |
 | `20261001000000_AddSharedGemReference` | `AddSupplierOpenItems` | Adds shared gem entries, aliases and field/locality provenance without tenant ownership or seed content. Preserves existing tenant records and versions; grants web SELECT only on the four catalog tables and denies runtime mutations. Advances readiness and backup schema; requires matching binaries. Fresh creation and merged-base upgrade are covered by disposable SQL tests. | Always blocked (50020); forward repair or protected recovery preserves reference identities and provenance. |
+| `20261001072507_AddServiceAdminIdentity` | `AddSharedGemReference` | Adds tenant-free service-admin accounts and hashed sessions, narrow web authentication procedures and operator-only maintenance. Extends mandatory transactional sanitation to delete admin sessions and advance every account security version before clearing the restore marker. Fails on unsupported sanitation predecessors; preserves tenant and financial evidence. Advances readiness and backup schema. Verify fresh creation, merged-base upgrade, restricted restore after later disablement/revocation, cached/fresh cookie and raw-token denial. | Always blocked (50020); retain accounts and session authority through forward correction or guarded recovery. |
 
 Product behavior, user-visible concurrency/retry rules and the shipped feature inventory belong in
 [collection documentation](../collection.md). Provider retry/backoff behavior belongs in
@@ -188,7 +189,7 @@ Product behavior, user-visible concurrency/retry rules and the shipped feature i
 The [migration source](../../src/Workbench.Server/Persistence/Migrations) is authoritative for SQL.
 
 
-The current required migration is `20261001000000_AddSharedGemReference`.
+The current required migration is `20261001072507_AddServiceAdminIdentity`.
 
 `MakeSupplierProfilesCustom` directly follows `HardenPurchaseOrderDocumentAuthority`.
 It adds custom supplier reference pairs in one migration, preserving existing supplier data,
@@ -241,6 +242,12 @@ guards. Backup manifest validation continues to recognize the retired developmen
 markers so their retained backups remain usable for guarded recovery.
 
 ### Maintaining the current schema contract
+
+Generate application migrations with explicit `--context WorkbenchDbContext`, for example
+`dotnet ef migrations add <Name> --project src/Workbench.Server --context WorkbenchDbContext`.
+The web host also has a tenant-free `DataProtectionKeyDbContext` for the existing key table; it
+does not own application migrations. Service-admin command storage remains SQL-owned, so the
+application designer and snapshot do not map its accounts or sessions into tenant EF authority.
 
 `Persistence/CurrentSchema.cs` declares the ordered release migration history; its final entry
 is the current application boundary used by readiness and newly emitted blob manifests.

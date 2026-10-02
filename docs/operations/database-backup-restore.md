@@ -3,7 +3,7 @@
 Use the [database-principal matrix](database-principals.md) for setup, operator and maintenance
 authorities; each restore step below still requires its stated authority and isolation.
 
-Backups contain tenant data, password hashes, identity-operation hashes, audit history, and encrypted
+Backups contain tenant data, service-admin accounts and hashed sessions, password hashes, identity-operation hashes, audit history, and encrypted
 data-protection keys. Handle a backup as highly sensitive production data: encrypt it, restrict and
 audit access, keep it outside the application host and repository, define retention, and securely
 dispose of expired copies. Never attach a backup or its credentials to an issue, log, or agent prompt.
@@ -102,8 +102,8 @@ Workbench.Database restore sanitize --connection-file <operator-path> `
   --expected-database <name> --correlation-id <recovery-id>
 ```
 
-Sanitation runs transactionally. It deletes every durable session, pending invitation/recovery
-operation, and persisted data-protection key; increments each user's security version; replaces each
+Sanitation runs transactionally. It deletes every tenant and service-admin durable session, pending invitation/recovery
+operation, and persisted data-protection key; increments each tenant user's and service-admin account's security version; replaces each tenant user's
 security stamp; advances the database restore generation; and appends a system audit event. It is
 idempotent in effect but creates a new security boundary on every intentional invocation.
 
@@ -111,6 +111,13 @@ The database readiness procedure fails closed while the restore marker is pendin
 current restore generation has not been sanitized. Sanitation clears the marker in the same
 transaction that invalidates authentication artifacts. Never bypass either check or reuse a
 pre-restore key-ring copy.
+
+Service-admin disablement or revocation performed after the backup may be rolled back by restore.
+Even when the restored account is enabled, retained cookies and raw tokens remain invalid after
+sanitation, including on a host that cached the former key ring. A fresh service-admin sign-in is
+required and depends on the restored account state and operator review. Sanitation preserves
+disabled accounts; it never enables them. Review post-backup operator changes before cutover and
+reapply any required disablement or credential reset with the separate operator commands.
 
 ## Validation before cutover
 
@@ -130,6 +137,10 @@ Do not count passing disposable tests as evidence for these outcomes:
 - the expected migration is present and `/health/ready` succeeds through the web principal;
 - liveness remains distinct from dependency readiness;
 - every pre-restore browser session is rejected;
+- pre-restore service-admin cookies and raw session tokens are rejected even by an application
+  host retaining its in-memory protection-key cache;
+- fresh service-admin sign-in succeeds only for accounts eligible under their restored state and
+  reviewed operator changes, while disabled accounts remain unable to sign in;
 - pre-restore invitation and recovery links are rejected;
 - a new sign-in creates a usable session with the expected tenant and permissions;
 - representative tenant rows remain isolated through application and direct role probes;

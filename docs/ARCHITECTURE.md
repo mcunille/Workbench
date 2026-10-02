@@ -12,8 +12,8 @@ Tenant-authenticated `/api/beta/gem-reference` GET routes provide bounded litera
 coherent attributed detail under the web principal's four explicit SELECT grants. Detail reads
 use one joined query in a serializable transaction to keep fields and their sources together.
 Shared entities have no tenant ID; existing tenant SQL RLS remains unchanged. Runtime direct
-catalog writes are denied. Fresh installations have an empty catalog; pilot content, admin
-identity/publishing, tenant additions/overrides, and browser screens remain separate milestones.
+catalog writes are denied. Fresh installations have an empty catalog; pilot content, catalog
+publishing, tenant additions/overrides, and browser screens remain separate milestones.
 
 **Status:** Implemented
 
@@ -560,6 +560,30 @@ safe content disposition, and the scope of any direct-upload credentials in addi
 size validation.
 
 ## Identity and authorization
+
+Service-admin identity is independent of tenant identity. SQL-owned `ServiceAdministration`
+accounts and hashed sessions have no tenant column or tenant-data context. The dedicated
+`WorkbenchServiceAdmin` cookie scheme and `ServiceAdmin` policy protect
+`/api/beta/service-admin/auth` routes; each route selects only its own authority, even when a browser
+carries both cookies or accounts share an email. Admin requests cannot construct tenant context,
+request actor or `WorkbenchDbContext`. Namespaced admin identity claims also keep antiforgery
+authority independent. There is no catalog editor or publishing workflow in this increment.
+
+Every authenticated admin request resolves current enabled state, security version, revocation
+and expiry through restricted SQL procedures using the existing web principal. Operator-only
+provision, disable, password reset and session revoke commands are exposed through the database
+CLI, with protected file inputs. The web and worker receive no maintenance authority or operator
+credential, and none of these roles receives direct account/session table access. Account changes
+and issuance serialize so stale password verification cannot issue new authority after revocation.
+
+Mandatory restore sanitation deletes all admin sessions and increments every account security
+version in the same transaction as tenant invalidation, key deletion, audit and restore-marker
+clearance. Pre-backup tokens and cookies stay invalid when restore rolls back a later disablement
+or revocation, including with a cached key ring. Fresh sign-in requires the restored enabled state;
+sanitation preserves disabled state. The web persists keys through a tenant-free key-only context
+mapping the existing `Identity.DataProtectionKeys` table, retaining tenant cookie compatibility.
+See [database principals](operations/database-principals.md#service-admin-identity-maintenance)
+and [restore operations](operations/database-backup-restore.md).
 
 Initial authentication uses built-in ASP.NET Core Identity with durable server-side session state.
 Cookies contain an opaque session reference rather than a complete authorization state. Session

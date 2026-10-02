@@ -12,7 +12,7 @@ public sealed class DatabaseSchemaReadinessTests(SqlServerFixture sqlServer)
 {
     [Theory]
     [InlineData("AddBlobAndOperationalProviders")]
-    [InlineData("20260928034802_AddSupplierBills")]
+    [InlineData("20260928071548_AddSupplierOpenItems")]
     public async Task PriorReleaseSchemaIsUnreadyUntilDeploymentMigrationIsApplied(string priorMigration)
     {
         // GIVEN an early schema or the immediate predecessor of the current release.

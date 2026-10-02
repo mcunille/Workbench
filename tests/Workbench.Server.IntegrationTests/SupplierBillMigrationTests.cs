@@ -19,7 +19,7 @@ public sealed class SupplierBillMigrationTests(SqlServerFixture sqlServer)
         var source = await context.CommandAsync("Invoice"); var request = Guid.NewGuid();
         var posted = await context.PostAsync(source.ToJsonString(), request);
         var before = await SnapshotAsync(context.Journal.Connection);
-        // WHEN the current schema, including BK-05 and BK-06, applies from the BK-04 predecessor.
+        // WHEN the current release migrations apply from the BK-04 predecessor.
         await DatabaseMigrator.MigrateAsync(context.Journal.Application.AdminConnectionString, default);
         // THEN source bytes and the old command's result remain exact, including the kernel output adaptation.
         Assert.Equal(before, await SnapshotAsync(context.Journal.Connection));

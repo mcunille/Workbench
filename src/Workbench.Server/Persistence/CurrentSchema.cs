@@ -43,6 +43,7 @@ public static class CurrentSchema
         "20260928034802_AddSupplierBills",
         "20260928071548_AddSupplierOpenItems",
         "20261001000000_AddSharedGemReference",
+        "20261001072507_AddServiceAdminIdentity",
     ]);
 
     public static string MigrationId => Migrations[^1];

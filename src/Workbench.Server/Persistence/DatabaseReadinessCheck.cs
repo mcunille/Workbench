@@ -27,6 +27,7 @@ public sealed class DatabaseReadinessCheck(
             command.Parameters.Add("@ExpectedMigration", SqlDbType.NVarChar, 150).Value =
                 CurrentSchema.MigrationId;
             DatabaseSecurityState? state;
+            bool serviceAdminReady;
             await using (var reader = await command.ExecuteReaderAsync(cancellationToken))
             {
                 if (!await reader.ReadAsync(cancellationToken))
@@ -45,6 +46,7 @@ public sealed class DatabaseReadinessCheck(
                     reader.GetBoolean(7),
                     reader.GetBoolean(8),
                     ApplicationTenantProofAccepted: false);
+                serviceAdminReady = reader.FieldCount > 9 && reader.GetBoolean(9);
             }
 
             var sentinelTenant = Guid.Parse("ffffffff-ffff-ffff-ffff-ffffffffffff");
@@ -180,7 +182,7 @@ public sealed class DatabaseReadinessCheck(
                 CommandType = CommandType.StoredProcedure,
             };
             var fileRecoveryReady = Convert.ToBoolean(await fileRecovery.ExecuteScalarAsync(cancellationToken));
-            return state.IsReady && operationalReady && deploymentReady && invitationReady && inventoryReady && providerRetryReady && fileRecoveryReady
+            return state.IsReady && operationalReady && deploymentReady && invitationReady && inventoryReady && providerRetryReady && fileRecoveryReady && serviceAdminReady
                 ? HealthCheckResult.Healthy()
                 : HealthCheckResult.Unhealthy("Database security state is not ready.");
         }
