@@ -18,7 +18,7 @@ public sealed class ServiceAdminMigrationTests(SqlServerFixture sqlServer)
         await using var application = await AuthTestApplication.CreateAsync(sqlServer, priorMigration: "AddSharedGemReference");
         await GemReferenceTestData.InsertAsync(application.AdminConnectionString, GemReferenceSamples.Mineral());
         var catalogBefore = await ServiceAdminRestoreTests.ScalarAsync<string>(application.AdminConnectionString,
-            "SELECT (SELECT * FROM Gemology.Entries ORDER BY Id FOR JSON PATH) AS Entries, (SELECT * FROM Gemology.SourceAssertions ORDER BY Id FOR JSON PATH) AS Sources FOR JSON PATH");
+            "SELECT (SELECT * FROM Gemology.Entries WHERE Id='bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb' FOR JSON PATH) AS Entries, (SELECT * FROM Gemology.SourceAssertions WHERE EntryId='bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb' ORDER BY Id FOR JSON PATH) AS Sources FOR JSON PATH");
         // WHEN the coherent GEM-03 migration upgrades that database.
         await DatabaseMigrator.MigrateAsync(application.AdminConnectionString, CancellationToken.None);
         await application.ProvisionServiceAdminAsync();
@@ -30,7 +30,7 @@ public sealed class ServiceAdminMigrationTests(SqlServerFixture sqlServer)
         // THEN tenant rows, catalog bytes including rowversion/provenance, and history survive.
         // AND the upgraded sanitation boundary removes admin authority.
         Assert.Equal(catalogBefore, await ServiceAdminRestoreTests.ScalarAsync<string>(application.AdminConnectionString,
-            "SELECT (SELECT * FROM Gemology.Entries ORDER BY Id FOR JSON PATH) AS Entries, (SELECT * FROM Gemology.SourceAssertions ORDER BY Id FOR JSON PATH) AS Sources FOR JSON PATH"));
+            "SELECT (SELECT * FROM Gemology.Entries WHERE Id='bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb' FOR JSON PATH) AS Entries, (SELECT * FROM Gemology.SourceAssertions WHERE EntryId='bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb' ORDER BY Id FOR JSON PATH) AS Sources FOR JSON PATH"));
         Assert.Equal(4, await ServiceAdminRestoreTests.ScalarAsync<int>(application.AdminConnectionString, "SELECT COUNT(*) FROM [Identity].Users"));
         Assert.Equal(0, await ServiceAdminRestoreTests.ScalarAsync<int>(application.AdminConnectionString, "SELECT COUNT(*) FROM ServiceAdministration.Sessions"));
         Assert.Equal(before + 1, await ServiceAdminRestoreTests.ScalarAsync<long>(application.AdminConnectionString, "SELECT SecurityVersion FROM ServiceAdministration.Accounts"));

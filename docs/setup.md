@@ -35,6 +35,8 @@ These are also the defaults, so `./scripts/dev-up.ps1` works without prompts. Te
 apply when creating an environment; subsequent starts preserve the saved identity and test data.
 The command builds current source, initializes the database with the existing migration and
 bootstrap commands, starts the API/UI, and checks readiness before printing its URL.
+The migration installs the reviewed four-gem pilot catalog once. Later refreshes preserve
+published changes; see [pilot distribution and installation](operations/database-migrations.md#pilot-catalog-distribution-and-installation).
 
 Open the reported `http://localhost:<port>` address. Docker chooses an available loopback port;
 SQL has no published host port. The initial login is stored privately in

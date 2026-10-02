@@ -14,6 +14,7 @@
     <PackageReference Include="xunit.runner.visualstudio" PrivateAssets="all" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="..\..\data\gem-reference\sample.json" Link="gem-reference-sample.json" CopyToOutputDirectory="PreserveNewest" />
     <ProjectReference Include="..\..\src\Workbench.Server\Workbench.Server.csproj" />
     <ProjectReference Include="..\..\src\Workbench.Database\Workbench.Database.csproj" ReferenceOutputAssembly="false" />
   </ItemGroup>

@@ -10,7 +10,7 @@ internal static class GemReferenceSamples
 
     internal static GemReferenceContent Mineral() => new(
         Guid.Parse("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"), "mineral", "Ruby", null,
-        "Corundum", "Ruby", null, [],
+        "Synthetic corundum", "Ruby", null, [],
         [Source("materialKind"), Source("commonName"), Source("species"), Source("variety")],
         null, false, null, null);
 

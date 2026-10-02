@@ -44,6 +44,7 @@ public static class CurrentSchema
         "20260928071548_AddSupplierOpenItems",
         "20261001000000_AddSharedGemReference",
         "20261001072507_AddServiceAdminIdentity",
+        "20261002192523_InstallGemReferencePilot",
     ]);
 
     public static string MigrationId => Migrations[^1];

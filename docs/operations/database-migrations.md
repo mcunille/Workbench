@@ -41,6 +41,36 @@ Development verification does not authorize production migration, rollback, or c
 
 ## Local one-time setup
 
+### Pilot catalog distribution and installation
+
+GEM-04 adds `20261002192523_InstallGemReferencePilot` after the merged
+`20261001072507_AddServiceAdminIdentity` baseline. The canonical reviewed input is
+[`data/gem-reference/sample.json`](../../data/gem-reference/sample.json): Diamond, Sapphire,
+Emerald, Ruby, and nineteen source assertions, reviewed on 2026-10-02. No aliases or locality
+claims are asserted. The absence of optional fields is preserved; installation adds no content.
+
+The server migration assembly embeds the frozen
+[`InstallGemReferencePilot.sql`](../../src/Workbench.Server/Persistence/Migrations/InstallGemReferencePilot.sql)
+distribution, including deterministic entry/source IDs and identity keys. Published database
+tools and runtime images carry this assembly, so a checkout, separate content file, and internet
+access are unnecessary at installation. The source-to-seed SQL test compares every value and
+citation against the committed package. Historical seed SQL must not be regenerated when the
+sample or current validation rules later change.
+
+Run the ordinary migrator deployment procedure above, or `./scripts/dev-up.ps1` for an isolated
+developer preview. On a fresh database the migration installs the exact pilot. On upgrade it
+inserts only missing pilot IDs, preserving each retained entry's fields, sources, aliases,
+locality, retirement, and rowversion. Sources install only for newly inserted entries. A
+conflicting active identity under another ID fails with 50020; do not delete content or reset
+migration history to force installation. Inspect the conflict and arrange a reviewed forward
+correction before retrying. A source-ID collision also fails the transaction under the primary
+key constraint.
+
+All inserts, the readiness update, and migration history commit together. Ordinary reruns do
+not replay the seed, recreate removed entries, or replace later published edits. Future content
+changes belong to service-admin curation, not deployment seeding. Down is guarded with 50020
+to protect published identities and provenance; use forward correction or protected recovery.
+
 Follow the [canonical setup guide](../setup.md) for generated credentials, SQL containment,
 bootstrap, routine migrations, and existing-database precautions. See
 [principal provisioning and secret delivery](database-principals.md#provisioning-and-secret-delivery)
@@ -182,6 +212,7 @@ This inventory describes checked-in migration behavior, not permission to execut
 | `20260928071548_AddSupplierOpenItems` | `AddSupplierBills` | Adds immutable supplier open items, payments, applications/inverses, control attribution, groups and receipts; derives supported stored invoice evidence and installs internal commands and authorized report reads. Preserves source/journal/replay history; unknown evidence stays unresolved. Advances readiness and backup schema; use matching binaries. Fresh creation and actual merged BK-05 upgrade/guarded SQL recovery have targeted disposable evidence; release gates remain separate. | Always blocked (50020); forward repair or guarded recovery, preserving financial history. |
 | `20261001000000_AddSharedGemReference` | `AddSupplierOpenItems` | Adds shared gem entries, aliases and field/locality provenance without tenant ownership or seed content. Preserves existing tenant records and versions; grants web SELECT only on the four catalog tables and denies runtime mutations. Advances readiness and backup schema; requires matching binaries. Fresh creation and merged-base upgrade are covered by disposable SQL tests. | Always blocked (50020); forward repair or protected recovery preserves reference identities and provenance. |
 | `20261001072507_AddServiceAdminIdentity` | `AddSharedGemReference` | Adds tenant-free service-admin accounts and hashed sessions, narrow web authentication procedures and operator-only maintenance. Extends mandatory transactional sanitation to delete admin sessions and advance every account security version before clearing the restore marker. Fails on unsupported sanitation predecessors; preserves tenant and financial evidence. Advances readiness and backup schema. Verify fresh creation, merged-base upgrade, restricted restore after later disablement/revocation, cached/fresh cookie and raw-token denial. | Always blocked (50020); retain accounts and session authority through forward correction or guarded recovery. |
+| `20261002192523_InstallGemReferencePilot` | `AddServiceAdminIdentity` | Installs the frozen reviewed four-gem pilot and nineteen citations for missing stable IDs; retains published/retired entries and their complete provenance. Identity conflicts reject the transaction. Advances readiness and backup schema. Verify exact fresh installation, rerun after publication, merged-base upgrade, conflict atomicity, and source-to-seed equality. | Always blocked (50020); use forward correction or protected recovery to preserve published content. |
 
 Product behavior, user-visible concurrency/retry rules and the shipped feature inventory belong in
 [collection documentation](../collection.md). Provider retry/backoff behavior belongs in
@@ -189,7 +220,7 @@ Product behavior, user-visible concurrency/retry rules and the shipped feature i
 The [migration source](../../src/Workbench.Server/Persistence/Migrations) is authoritative for SQL.
 
 
-The current required migration is `20261001072507_AddServiceAdminIdentity`.
+The current required migration is `20261002192523_InstallGemReferencePilot`.
 
 `MakeSupplierProfilesCustom` directly follows `HardenPurchaseOrderDocumentAuthority`.
 It adds custom supplier reference pairs in one migration, preserving existing supplier data,
