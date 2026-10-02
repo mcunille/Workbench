@@ -59,6 +59,10 @@ internal static class GemReferenceCurationSchema
             DECLARE @Lock int;
             EXEC @Lock=sys.sp_getapplock @Resource=N'Gemology.Publication',@LockMode='Exclusive',@LockOwner='Transaction',@LockTimeout=10000;
             IF @Lock<0 THROW 50042,'Catalog is busy. Retry the request.',1;
+            IF NOT EXISTS(SELECT 1 FROM ServiceAdministration.Sessions s WITH(HOLDLOCK) JOIN ServiceAdministration.Accounts a WITH(HOLDLOCK) ON a.Id=s.AccountId
+                WHERE s.Id=@SessionId AND a.Id=@AccountId AND a.IsEnabled=1 AND s.SecurityVersion=a.SecurityVersion
+                    AND s.RevokedAtUtc IS NULL AND s.IdleExpiresAtUtc>SYSUTCDATETIME() AND s.AbsoluteExpiresAtUtc>SYSUTCDATETIME())
+                THROW 50041,'Current service-admin authority is required.',1;
             IF @DraftId='00000000-0000-0000-0000-000000000000' OR @EntryId='00000000-0000-0000-0000-000000000000'
                 OR ISJSON(@ContentJson)<>1 OR DATALENGTH(@ContentJson)>2097152
                 OR TRY_CONVERT(uniqueidentifier,JSON_VALUE(@ContentJson,'$.id'))<>@EntryId
@@ -86,7 +90,7 @@ internal static class GemReferenceCurationSchema
             """);
         Procedure(migration, "ReadPublication", "@AccountId uniqueidentifier,@SessionId uniqueidentifier,@RequestId uniqueidentifier", "SELECT SelectionJson,OutcomeJson FROM Gemology.PublishRequests WHERE Id=@RequestId AND AccountId=@AccountId;");
         Procedure(migration, "ReadPublicationAudit", "@AccountId uniqueidentifier,@SessionId uniqueidentifier,@AfterId uniqueidentifier=NULL", "SELECT TOP(51) * FROM Gemology.PublicationAudit WHERE @AfterId IS NULL OR Id>@AfterId ORDER BY Id;");
-        Procedure(migration, "PublishDraftBatch", "@AccountId uniqueidentifier,@SessionId uniqueidentifier", "THROW 50043,'Publication payload is required.',1;");
+        GemReferencePublishSchema.Up(migration);
         migration.Sql($"""
             DECLARE @Definition nvarchar(max)=OBJECT_DEFINITION(OBJECT_ID(N'Security.ReadDatabaseReadiness'));
             IF @Definition IS NULL OR CHARINDEX(N'20261001072507_AddServiceAdminIdentity',@Definition)=0

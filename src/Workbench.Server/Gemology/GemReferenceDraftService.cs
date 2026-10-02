@@ -23,7 +23,7 @@ public sealed class GemReferenceDraftService
         await using var command = GemReferenceCurationSql.Command(connection, null, "SaveDraft", accountId, sessionId);
         command.Parameters.AddWithValue("@DraftId", draftId);
         command.Parameters.AddWithValue("@EntryId", request.EntryId);
-        command.Parameters.Add("@ContentJson", SqlDbType.NVarChar, -1).Value = JsonSerializer.Serialize(request.Content, GemReferenceCurationSql.Json);
+        command.Parameters.Add("@ContentJson", SqlDbType.NVarChar, -1).Value = JsonSerializer.Serialize(GemReferenceInput.Normalize(request.Content), GemReferenceCurationSql.Json);
         command.Parameters.Add("@ExpectedDraftRowVersion", SqlDbType.VarBinary, -1).Value = (object?)GemReferenceCurationSql.Version(request.ExpectedDraftRowVersion) ?? DBNull.Value;
         command.Parameters.Add("@ExpectedPublishedRowVersion", SqlDbType.VarBinary, -1).Value = (object?)GemReferenceCurationSql.Version(request.ExpectedPublishedRowVersion) ?? DBNull.Value;
         GemReferenceDraftResponse draft;

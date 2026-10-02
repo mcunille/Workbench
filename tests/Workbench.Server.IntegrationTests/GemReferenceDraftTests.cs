@@ -50,4 +50,32 @@ public sealed class GemReferenceDraftTests(SqlServerFixture sqlServer)
             """, ("session", session), ("account", AuthTestApplication.ServiceAdminId));
         return session;
     }
+
+    [Fact]
+    public async Task DisableWhileDraftSaveWaitsForPublicationLockRejectsSave()
+    {
+        // GIVEN an enabled admin and a competing catalog transaction holding the publication lock.
+        await using var application = await AuthTestApplication.CreateAsync(sqlServer);
+        await application.ProvisionServiceAdminAsync();
+        var session = await CreateSessionAsync(application);
+        await using var blocker = new SqlConnection(application.AdminConnectionString);
+        await blocker.OpenAsync();
+        await using var transaction = (SqlTransaction)await blocker.BeginTransactionAsync();
+        await GemReferenceCurationSql.LockAsync(blocker, transaction, default);
+        var save = new GemReferenceDraftService(application.WebConnectionString).SaveAsync(AuthTestApplication.ServiceAdminId, session,
+            Guid.NewGuid(), new(GemReferenceSamples.Mineral().Id, GemReferenceSamples.Mineral(), null, null), default);
+        var waitStarted = false;
+        for (var attempt = 0; attempt < 200 && !waitStarted; attempt++)
+        {
+            waitStarted = await ServiceAdminIdentityDatabaseTests.ScalarAsync<int>(application.AdminConnectionString,
+                "SELECT COUNT(*) FROM sys.dm_tran_locks WHERE resource_database_id=DB_ID() AND resource_type='APPLICATION' AND request_status='WAIT'") > 0;
+            if (!waitStarted) await Task.Delay(10);
+        }
+        Assert.True(waitStarted, "The draft save must be waiting on the held catalog lock before revocation.");
+        // WHEN authority is disabled while the save waits, THEN acquiring the catalog lock cannot resurrect it.
+        await application.MaintainServiceAdminAsync("DisableServiceAdmin");
+        await transaction.CommitAsync();
+        Assert.Equal(50041, (await Assert.ThrowsAsync<SqlException>(() => save)).Number);
+        Assert.Equal(0, await ServiceAdminIdentityDatabaseTests.ScalarAsync<int>(application.AdminConnectionString, "SELECT COUNT(*) FROM Gemology.Drafts"));
+    }
 }
