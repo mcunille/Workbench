@@ -152,6 +152,14 @@ cache/resource conditions. Include process wall time: xUnit case durations do no
 fixture startup, setup, or disposal. Keep build time separate when using verified current outputs.
 Record full-gate timing as well as individual stages, which overlap and must not be added together.
 
+The CI server stage uses four isolated processes on a four-CPU, 16 GiB runner; local verification
+defaults to two. Each test SQL container has a 2.5 GiB Docker memory cap, a 2 GiB SQL process budget
+and a 1.5 GiB buffer-pool ceiling. Four fixtures are therefore limited to 10 GiB of container memory,
+leaving headroom for the concurrent build, test hosts and browser stage. CI retains 30-second samples
+of host CPU counters, available memory, load and container CPU/memory usage in
+`verification-evidence/ci-resources/samples.jsonl`. These samples supplement full-gate and partition
+timings; predicted duration balance alone does not establish a performance improvement.
+
 Map every removed or moved case to its remaining coverage owner. Preserve complete discovered
 inventory checks and report intentional count changes. Use focused mutation probes for meaningful
 security, isolation, validation, and state-transition assertions; report their actual scope rather

@@ -16,6 +16,13 @@ public sealed class SqlServerFixture : IAsyncLifetime
     private SupplierScenarioFixture.Scenario? _supplierBase;
     private readonly MsSqlContainer _container = new MsSqlBuilder(
         "mcr.microsoft.com/mssql/server:2022-CU20-ubuntu-22.04")
+        // Four independent fixtures fit the 16 GiB runner without competing for all host memory.
+        .WithEnvironment("MSSQL_MEMORY_LIMIT_MB", "2048")
+        .WithCreateParameterModifier(parameters =>
+        {
+            parameters.HostConfig ??= new();
+            parameters.HostConfig.Memory = 2560L * 1024 * 1024;
+        })
         .Build();
 
     public SqlServerFixture()
@@ -47,6 +54,8 @@ public sealed class SqlServerFixture : IAsyncLifetime
             EXEC sp_configure 'show advanced options', 1;
             RECONFIGURE;
             EXEC sp_configure 'contained database authentication', 1;
+            RECONFIGURE;
+            EXEC sp_configure 'max server memory (MB)', 1536;
             RECONFIGURE;
             """, connection);
         await command.ExecuteNonQueryAsync();
