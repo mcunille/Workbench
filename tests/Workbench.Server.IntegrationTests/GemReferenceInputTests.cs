@@ -13,6 +13,17 @@ public sealed class GemReferenceInputTests
         GemReferenceInput.Validate(content, new DateOnly(2026, 10, 1), redirects ?? new Dictionary<Guid, Guid?>());
 
     [Fact]
+    public async Task SharedClaimsStillRequireSourcesAfterTenantValidationIsAdded()
+    {
+        await Task.Yield();
+        // GIVEN identical ordinary claims with no supporting sources.
+        var content = GemReferenceSamples.Mineral() with { Sources = [] };
+        // WHEN validated at each authoring boundary THEN only shared publication requires citations.
+        Assert.Contains("sources", Errors(content).Keys);
+        Assert.Empty(GemReferenceTenantInput.Validate(content, new DateOnly(2026, 10, 1)));
+    }
+
+    [Fact]
     public async Task MineralRequiresSpeciesWhileNonMineralCanOmitTaxonomy()
     {
         await Task.Yield();

@@ -41,6 +41,27 @@ public static class GemReferenceInput
     public static Dictionary<string, string[]> Validate(GemReferenceContent content, DateOnly today,
         IReadOnlyDictionary<Guid, Guid?> redirects)
     {
+        var errors = ValidateFieldsAndSources(content, today, requireSources: true);
+        void Reject() => errors["retirement"] = ["Review this reference field and its supporting sources."];
+        if (!ValidText(content.RetirementExplanation, 2000, false)) Reject();
+        if (!content.IsRetired && (content.RedirectEntryId is not null || content.RetirementExplanation is not null)) Reject();
+        if (content.IsRetired && content.RedirectEntryId is null && string.IsNullOrWhiteSpace(content.RetirementExplanation)) Reject();
+        var seen = new HashSet<Guid> { content.Id };
+        var target = content.RedirectEntryId;
+        while (target is { } id)
+        {
+            if (!seen.Add(id) || !redirects.TryGetValue(id, out target))
+            {
+                Reject();
+                break;
+            }
+        }
+        return errors;
+    }
+
+    internal static Dictionary<string, string[]> ValidateFieldsAndSources(GemReferenceContent content,
+        DateOnly today, bool requireSources)
+    {
         var errors = new Dictionary<string, string[]>(StringComparer.Ordinal);
         void Reject(string field) => errors[field] = ["Review this reference field and its supporting sources."];
         void Check(string field, string? text, int limit, bool required = false)
@@ -55,7 +76,6 @@ public static class GemReferenceInput
         Check("species", content.Species, 200, content.MaterialKind == "mineral");
         Check("variety", content.Variety, 200);
         Check("description", content.Description, 2000);
-        Check("retirement", content.RetirementExplanation, 2000);
         if (content.Aliases.Count > 20 || content.Aliases.Any(value => string.IsNullOrWhiteSpace(value) ||
             value.Length > 200 || value.Any(char.IsControl)) ||
             content.Aliases.Select(Comparison).Distinct(StringComparer.Ordinal).Count() != content.Aliases.Count) Reject("aliases");
@@ -79,25 +99,13 @@ public static class GemReferenceInput
                 source.ReviewedOn == default || source.ReviewedOn > today ||
                 source.AccessedOn == DateOnly.MinValue || source.AccessedOn > today) Reject("sources");
         }
-        if (populated.Except(content.Sources.Select(source => source.Field), StringComparer.Ordinal).Any()) Reject("sources");
+        if (requireSources && populated.Except(content.Sources.Select(source => source.Field), StringComparer.Ordinal).Any()) Reject("sources");
         if (content.NotableLocality is { } locality)
         {
             var source = content.Sources.FirstOrDefault(source => source.Id == locality.SourceAssertionId);
             if (!ValidText(locality.Place, 200, true) || !ValidText(locality.Scope, 200, true) ||
                 locality.ReviewedOn == default || locality.ReviewedOn > today ||
                 source?.Field != "notableLocality" || source.ReviewedOn != locality.ReviewedOn) Reject("notableLocality");
-        }
-        if (!content.IsRetired && (content.RedirectEntryId is not null || content.RetirementExplanation is not null)) Reject("retirement");
-        if (content.IsRetired && content.RedirectEntryId is null && string.IsNullOrWhiteSpace(content.RetirementExplanation)) Reject("retirement");
-        var seen = new HashSet<Guid> { content.Id };
-        var target = content.RedirectEntryId;
-        while (target is { } id)
-        {
-            if (!seen.Add(id) || !redirects.TryGetValue(id, out target))
-            {
-                Reject("retirement");
-                break;
-            }
         }
         return errors;
     }
