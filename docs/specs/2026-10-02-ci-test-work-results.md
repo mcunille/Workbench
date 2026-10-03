@@ -212,3 +212,28 @@ and large gaps between classes, so it is not a measured wall-time opportunity.
 Tracked weights remained unchanged. Whole-branch review found no critical or
 important implementation defects; future optimization should measure the costly
 phases and remove justified redundant work while preserving financial safeguards.
+
+
+## Approved phase-cost diagnostic
+
+The approved temporary, test-only diagnostic ran in [37154088114](https://github.com/mcunille/Workbench/actions/runs/37154088114), head `90d622308a2aa04ac2e911429fca7fb6a436ab5e`, checkout merge `88eae7581c1d013fb74e8c428e01b61a7a91c21d`. Every assertion, test identity, deadline, independent database/authentication, physical SQL file and uncapped engine was preserved at two-process concurrency. Fixed-label elapsed records contained no SQL, parameters, connection values, credentials or exception messages. A formatting failure stopped the first attempt before SQL; the corrected source passed the full formatter and fresh compilation before this run.
+
+Main advanced to `c7f1b22844081c9aec3f953a4b46e67de770b030` (GEM-05) before checkout, adding 48 cases. The probe retained every prior 1,799 PR case plus all 48 upstream additions, with no duplicates or unexpected omissions. The net 30-case difference from current main is the previously approved retirement/consolidation set (38 removed identities and eight added keeper/group identities). The new green main baseline [37153048521](https://github.com/mcunille/Workbench/actions/runs/37153048521) passed 1,877 cases in **50m51** overall; gate 2,941.227s, server 2,740.472s, browser 284.891s. The diagnostic ran **49m07** overall, gate 2,831.687s, server 2,604.093s, browser 307.557s: 1,845/1,847 server cases passed and 121/122 browser cases passed. Its failure cannot establish a retained speed improvement or the ten-minute goal. Older timing comparisons refer to the older main source.
+
+The two whole-case 30-second server deadlines were the historical reversal-first serial-order case and `PaidBillReplacementPreservesCash`. The browser inventory case at line 51 failed after 29.927s; its safe report does not expose the assertion or exact slow step. Earlier successful inventory runs took 24.436–25.724s, and later two/three-process repeats reached their existing deadline.
+
+| Observed phase | Measured elapsed | Interpretation |
+|---|---|---|
+| Fresh correction context, 13 cases | 1.042–1.559s | Context-only caching is a small candidate, not the dominant cost. |
+| Posted-bill precondition, 13 cases | 6.113–7.054s (83.778s total) | Repeated real bill posting is a measurable precondition cost. |
+| Existing scenario restore, two cases | 0.442–0.481s | Existing independent snapshot restoration is inexpensive in this run. |
+| Full financial snapshot assertions, 11 calls | 0.015–0.236s (0.779s total) | Deleting these assertions is not supported as a useful time saving. |
+| Completed context cleanup, 13 cases | 0.285–0.644s | No observed dominant cleanup cost; timed-out late cleanup may be unavailable. |
+
+In the failed serial-order case, the first financial command occupied 13.307s including its barrier wait; first lock observation finished after 2.266s, second observation after 0.467s, and transaction commit after 0.001s. Commit finished at case time 28.340s; the second command was still pending at the case deadline. The timed-out paid-bill case completed a financial command in 15.393s and began its next financial command at 26.686s. These records localize elapsed cost but do not distinguish SQL compilation, CPU execution or other internal waits.
+
+The grouped partial-reapplication case passed in 29.563s: setup 1.135s, bill seed 6.373s, successful reversal/reapplication command 14.874s, cleanup 0.493s. Its three full snapshots totaled 0.198s. The malformed-input probes add some budget cost, but the evidence does not justify blaming the snapshots or removing rollback protection; the dominant command and repeated bill precondition consume most of its headroom.
+
+Resource evidence: 88 valid samples, mean busy CPU 56.257%, mean I/O wait 0.596%, minimum available memory 8.166GiB, peak recorded memory for any single container 1.477GiB. Machine averages cannot explain an individual SQL command's internal cost. Nested phase timings overlap and must not be summed; unmatched begin records identify pending work at the output boundary, not a complete post-timeout trace.
+
+All temporary instrumentation was removed after preserving allowlisted evidence. The pre-rebase test source was verified byte-equivalent to `6ae1fd5`; the branch is then updated to current main. No further optimization, deletion, deadline extension, concurrency increase or permanent diagnostic process is part of this approved probe. Coverage evidence above belongs to the approved deletion batch; this temporary diagnostic neither establishes new coverage nor measures upstream GEM-05 coverage.
