@@ -1,0 +1,28 @@
+.service-admin-identity {
+  margin-top: auto;
+  overflow-wrap: anywhere;
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+
+@media (max-width: 48rem) {
+  .service-admin-shell .service-admin-nav {
+    position: static;
+    transform: none;
+    width: 100%;
+    max-width: none;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    border-radius: 0;
+    padding: 0.75rem 1rem;
+  }
+
+  .service-admin-identity {
+    flex-basis: 100%;
+    margin-block: 0;
+  }
+
+  .service-admin-shell .workspace {
+    padding-bottom: 1rem;
+  }
+}

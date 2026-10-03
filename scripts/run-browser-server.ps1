@@ -34,6 +34,7 @@ $environmentFile = Join-Path $temporaryRoot 'sql.env'
 $setupConnectionFile = Join-Path $temporaryRoot 'setup.connection'
 $operatorConnectionFile = Join-Path $temporaryRoot 'operator.connection'
 $adminPasswordFile = Join-Path $temporaryRoot 'admin.password'
+$serviceAdminPasswordFile = Join-Path $temporaryRoot 'service-admin.password'
 $webPasswordFile = Join-Path $temporaryRoot 'web.password'
 $operatorPasswordFile = Join-Path $temporaryRoot 'operator.password'
 $migratorPasswordFile = Join-Path $temporaryRoot 'migrator.password'
@@ -53,8 +54,18 @@ $sqlPort = ([Net.IPEndPoint]$listener.LocalEndpoint).Port
 $listener.Stop()
 
 New-Item -ItemType Directory -Path $temporaryRoot -Force | Out-Null
+# Protect all temporary credentials before writing any values.
+if ($IsWindows) {
+    . (Join-Path $PSScriptRoot 'lib/LocalRuntime.ps1')
+    Protect-LocalDirectory $temporaryRoot
+}
+else {
+    & chmod 700 -- $temporaryRoot
+    if ($LASTEXITCODE -ne 0) { throw 'Browser credential directory could not be secured.' }
+}
 Set-Content -LiteralPath $environmentFile -Value @('ACCEPT_EULA=Y', "MSSQL_SA_PASSWORD=$sqlPassword")
 Set-Content -LiteralPath $adminPasswordFile -Value 'Browser Correct Horse 9!'
+Set-Content -LiteralPath $serviceAdminPasswordFile -Value 'Browser Service Curator 9!'
 Set-Content -LiteralPath $webPasswordFile -Value $webPassword
 Set-Content -LiteralPath $operatorPasswordFile -Value $operatorPassword
 Set-Content -LiteralPath $migratorPasswordFile -Value $migratorPassword
@@ -119,6 +130,13 @@ try {
         --tenant-name 'Browser Tenant' --admin-email 'browser-live-0@example.test' `
         --password-file $adminPasswordFile
     Assert-CommandSucceeded 'Browser live worker tenant provisioning'
+
+    foreach ($email in @('browser-service-admin-1@example.test', 'browser-service-admin-2@example.test')) {
+        & dotnet $databaseAssembly `
+            service-admin provision --connection-file $operatorConnectionFile --expected-database $database `
+            --email $email --password-file $serviceAdminPasswordFile
+        Assert-CommandSucceeded 'Browser service-admin provisioning'
+    }
 
     $photoStorageRoot = Join-Path $temporaryRoot 'blobs'
     New-Item -ItemType Directory -Path $photoStorageRoot -Force | Out-Null

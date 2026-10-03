@@ -34,6 +34,7 @@ import { DraftList } from './features/purchasing/DraftList';
 import { DraftEditor } from './features/purchasing/DraftEditor';
 import { DraftMemory } from './features/purchasing/draftMemory';
 import { SupplierMemory } from './features/purchasing/supplierMemory';
+import { ServiceAdminApplication } from './features/serviceAdmin/ServiceAdminApplication';
 
 const narrowNavigationQuery = '(width < 900px)';
 function subscribeToNavigationWidth(update: () => void) {
@@ -439,7 +440,9 @@ export function App({
   );
   return (
     <>
-      {window.location.pathname === '/recover' ? (
+      {window.location.pathname === '/service-admin' || window.location.pathname.startsWith('/service-admin/') ? (
+        <ServiceAdminApplication appearance={appearance} />
+      ) : window.location.pathname === '/recover' ? (
         <div className="sign-in-page">
           <PublicAppearance>{appearance}</PublicAppearance>
           <Recovery token={recoveryToken} />
