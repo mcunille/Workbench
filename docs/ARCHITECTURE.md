@@ -35,12 +35,28 @@ claim atomically, removes only selected successful drafts, and commits its reque
 success audit together. Rejections preserve drafts and record a durable failure outcome/audit.
 Infrastructure rollback leaves no completed receipt and attempts a separate failure audit.
 
+The internal publication command trusts C# to derive Unicode-normalized identity and alias
+keys. SQL binds raw content and alias names/positions/count to the saved draft and checks
+uniqueness using the supplied identity key; it does not independently recompute semantic
+identity. Current admin authority alone does not make arbitrary direct SQL payloads safe.
+Callers must use the application normalization and validation path.
+
+Draft saves, combined reviews, and publications load and validate the whole catalog while
+holding the exclusive publication lock. Lock-held duration grows with catalog size and has
+not been measured. Before expanding the catalog, measure that duration; any narrower locking
+design must preserve coherent final-catalog validation and atomic publication.
+
 Request identity is global and tied to its original actor. Exact retries compare a canonical
 selection of draft IDs and versions (selection order is insignificant), then return the stored
 outcome before loading drafts. Changed retries conflict. Receipt reads are restricted to their
 actor; shared drafts and publication audit are visible to authorized service admins. Writes
 require dedicated admin antiforgery and a bounded 1 MiB JSON body. No rollback/history UI,
 second approver, new database credential, or tenant-data bypass is introduced.
+
+Durable outcomes are deserialized into the current response contract. Future contract changes
+must preserve historical receipt readability and verify representative older receipt fixtures.
+Deleting receipts would weaken delayed-retry protection and requires an explicit replay-expiry
+contract. Receipts retain field summaries and errors, not before/after content history.
 
 **Status:** Implemented
 
