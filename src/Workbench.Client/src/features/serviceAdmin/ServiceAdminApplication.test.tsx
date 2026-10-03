@@ -11,6 +11,10 @@ vi.mock('../../api/auth', async (importOriginal) => ({
   ...await importOriginal<typeof import('../../api/auth')>(), getCurrentIdentity: vi.fn(),
 }));
 vi.mock('../../api/system', () => ({ getSystem: vi.fn().mockResolvedValue({ name: 'Workbench', version: '1.0.0' }) }));
+vi.mock('../../api/gemReferenceAdmin', () => ({
+  browseSharedGems: vi.fn().mockResolvedValue({ entries: [], nextCursor: null }),
+  listGemDrafts: vi.fn().mockResolvedValue({ drafts: [], nextCursor: null }),
+}));
 
 beforeEach(() => {
   vi.clearAllMocks();

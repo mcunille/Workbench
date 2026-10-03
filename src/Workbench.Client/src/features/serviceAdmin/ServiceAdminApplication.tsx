@@ -3,6 +3,8 @@ import { getServiceAdminIdentity, signInServiceAdmin, signOutServiceAdmin, type 
 import { Brand } from '../../Brand';
 import { useNavigation } from '../../useNavigation';
 import { ServiceAdminSignIn } from './ServiceAdminSignIn';
+import { GemCatalog, GemDetail } from './GemCatalog';
+import type { GemReferenceDraftSelection } from '../../api/gemReferenceAdmin';
 import './service-admin.css';
 
 export function ServiceAdminApplication({ appearance }: { appearance: ReactNode }) {
@@ -12,6 +14,7 @@ export function ServiceAdminApplication({ appearance }: { appearance: ReactNode 
   const [attempt, setAttempt] = useState(0);
   const [signOutPending, setSignOutPending] = useState(false);
   const [signOutFailed, setSignOutFailed] = useState(false);
+  const [selectedDrafts, setSelectedDrafts] = useState<GemReferenceDraftSelection[]>([]);
   const { replace } = navigation;
 
   useEffect(() => {
@@ -42,6 +45,7 @@ export function ServiceAdminApplication({ appearance }: { appearance: ReactNode 
     try {
       await signOutServiceAdmin();
       setIdentity(null);
+      setSelectedDrafts([]);
       setStatus('signed-out');
       replace('/service-admin/sign-in');
     } catch {
@@ -83,7 +87,11 @@ export function ServiceAdminApplication({ appearance }: { appearance: ReactNode 
           {signOutFailed ? <p className="form-message error" role="alert">We could not sign you out. Try again.</p> : null}
         </nav>
         <div className="workspace-sheet">
-          <main id="main" className="workspace"><h1>Gem reference</h1></main>
+          <main id="main" className="workspace">
+            {navigation.path.match(/^\/service-admin\/gem-reference\/entries\/([^/]+)$/) ? <GemDetail key={navigation.path} entryId={decodeURIComponent(navigation.path.split('/').at(-1)!)} follow={navigation.follow} />
+              : navigation.path === '/service-admin/gem-reference' ? <GemCatalog selected={selectedDrafts} onSelectionChange={setSelectedDrafts} follow={navigation.follow} />
+                : <><h1>{navigation.path.endsWith('/review') ? 'Review drafts' : 'Gem draft'}</h1><a href="/service-admin/gem-reference" onClick={navigation.follow}>Back to gem reference</a></>}
+          </main>
         </div>
       </div>
     </div>

@@ -5,7 +5,57 @@
   font-size: 0.875rem;
 }
 
+.gem-page-heading, .gem-review-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.gem-page-heading h1 { margin-bottom: 0.5rem; }
+.gem-page-heading p, .gem-catalog-list p, .gem-source-list p { color: var(--muted); margin-block: 0.35rem; }
+.gem-page-heading .button-link, .gem-review-bar .button-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 0.65rem 1rem;
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  text-decoration: none;
+}
+.gem-page-heading .button-link:hover, .gem-review-bar .button-link:hover { background: var(--hover); }
+.gem-view-switch { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-block: 1rem 1.5rem; }
+.gem-view-switch button[aria-pressed="false"] { background: transparent; color: var(--muted); }
+.gem-search { max-width: 42rem; margin-bottom: 1.5rem; }
+.gem-search label { display: block; margin-bottom: 0.5rem; }
+.gem-search > div { display: flex; gap: 0.5rem; }
+.gem-search input { min-width: 0; flex: 1; }
+.gem-catalog-list, .gem-source-list { list-style: none; padding: 0; margin-block: 1rem 1.5rem; }
+.gem-catalog-list > li { display: flex; align-items: center; gap: 1rem; padding-block: 1rem; border-bottom: 1px solid var(--glass-edge); }
+.gem-catalog-list > li > div:first-child, .gem-row-content { flex: 1; min-width: 0; }
+.gem-catalog-list a { font-weight: 500; }
+.gem-catalog-list p, .gem-state { font-size: 0.875rem; }
+.gem-state { color: var(--muted); }
+.gem-draft-select { display: flex; align-items: center; justify-content: center; min-width: 44px; min-height: 44px; }
+.gem-draft-select input { width: 1.125rem; height: 1.125rem; accent-color: var(--accent); }
+.gem-back { display: inline-flex; align-items: center; min-height: 44px; margin-bottom: 1rem; }
+.gem-taxonomy { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1.25rem; margin-block: 2rem; max-width: 48rem; }
+.gem-taxonomy dt { font-size: 0.875rem; color: var(--muted); }
+.gem-taxonomy dd { margin: 0.35rem 0 0; }
+.gem-detail-section { margin-top: 2rem; max-width: 70ch; }
+.gem-detail-section h2 { margin-bottom: 0.75rem; }
+.gem-source-list > li { padding-block: 1rem; border-bottom: 1px solid var(--glass-edge); scroll-margin-top: 1rem; }
+.gem-source-list h3 { font-size: 1rem; margin-block: 0 0.5rem; }
+.gem-retirement { border-block: 1px solid var(--glass-edge); padding-block: 1rem; }
+.service-admin-shell .workspace { overflow-wrap: anywhere; }
+
 @media (max-width: 48rem) {
+  .gem-taxonomy { grid-template-columns: minmax(0, 1fr); }
+  .gem-catalog-list > li { flex-wrap: wrap; gap: 0.5rem; }
+  .gem-row-content { flex-basis: calc(100% - 3.5rem); }
   .service-admin-shell .service-admin-nav {
     position: static;
     transform: none;
