@@ -199,7 +199,10 @@ internal static class GemReferenceTenantSchema
                 OR (p.[key]=N'id' AND DATALENGTH(p.[value])<>72)
                 OR (p.[key]=N'field' AND DATALENGTH(p.[value])<>DATALENGTH(RTRIM(p.[value])))
                 OR (p.[key] IN(N'url',N'citation') AND p.[type]=1 AND (DATALENGTH(p.[value])>4000 OR LEN(LTRIM(RTRIM(p.[value])))=0))
-                OR (p.[key]=N'accessedOn' AND p.[type]=1 AND (TRY_CONVERT(date,p.[value]) IS NULL OR TRY_CONVERT(date,p.[value])<='0001-01-01')))
+                -- Stored DateOnly tokens must deserialize exactly; SQL also parses compact dates and timestamps.
+                OR (p.[key] IN(N'reviewedOn',N'accessedOn') AND p.[type]=1 AND
+                    (DATALENGTH(p.[value])<>20 OR TRY_CONVERT(date,p.[value],23) IS NULL
+                        OR CONVERT(nvarchar(10),TRY_CONVERT(date,p.[value],23),23) COLLATE Latin1_General_100_BIN2<>p.[value])))
             OR EXISTS(SELECT 1 FROM @Sources s CROSS APPLY OPENJSON(s.Content) p
                 GROUP BY s.Content,p.[key] COLLATE Latin1_General_100_BIN2 HAVING COUNT(*)>1)
             THROW 50053,'Invalid source structure.',1;
@@ -213,7 +216,9 @@ internal static class GemReferenceTenantSchema
             THROW 50053,'Locality needs an identifiable matching source.',1;
         IF EXISTS(SELECT 1 FROM @Fields f CROSS APPLY OPENJSON(CASE WHEN Name=N'notableLocality' AND Type=5 THEN Value ELSE N'{}' END) p
             WHERE DATALENGTH(p.[key])<>DATALENGTH(RTRIM(p.[key])) OR p.[key] COLLATE Latin1_General_100_BIN2 NOT IN(N'place',N'scope',N'reviewedOn',N'sourceAssertionId') OR p.[type]<>1
-                OR (p.[key]=N'sourceAssertionId' AND DATALENGTH(p.[value])<>72))
+                OR (p.[key]=N'sourceAssertionId' AND DATALENGTH(p.[value])<>72)
+                OR (p.[key]=N'reviewedOn' AND (DATALENGTH(p.[value])<>20 OR TRY_CONVERT(date,p.[value],23) IS NULL
+                    OR CONVERT(nvarchar(10),TRY_CONVERT(date,p.[value],23),23) COLLATE Latin1_General_100_BIN2<>p.[value])))
             OR EXISTS(SELECT 1 FROM @Fields f CROSS APPLY OPENJSON(CASE WHEN Name=N'notableLocality' AND Type=5 THEN Value ELSE N'{}' END) p
                 GROUP BY f.Name,p.[key] COLLATE Latin1_General_100_BIN2 HAVING COUNT(*)>1)
             THROW 50053,'Invalid locality structure.',1;

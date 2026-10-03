@@ -1,6 +1,7 @@
 // Copyright (c) 2026 The White Stag Collection.
 
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using System.Data;
 using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.DependencyInjection;
@@ -353,6 +354,78 @@ public sealed class GemReferenceTenantDatabaseTests(SqlServerFixture sqlServer)
         Assert.Equal(tenantVersion, (byte[])await ScalarAsync(web, transaction, "SELECT RowVersion FROM Gemology.TenantEntries WHERE Id=@id", ("id", content.Id)));
         Assert.Equal(overridesJson, await ScalarAsync(web, transaction, "SELECT OverridesJson FROM Gemology.TenantOverrides WHERE EntryId=@id", ("id", shared.Id)));
         Assert.Equal(overrideVersion, (byte[])await ScalarAsync(web, transaction, "SELECT RowVersion FROM Gemology.TenantOverrides WHERE EntryId=@id", ("id", shared.Id)));
+    }
+
+    [Theory]
+    [InlineData("entry", "reviewCompact")]
+    [InlineData("override", "reviewCompact")]
+    [InlineData("entry", "reviewSlash")]
+    [InlineData("override", "reviewSlash")]
+    [InlineData("entry", "accessTimestamp")]
+    [InlineData("override", "accessTimestamp")]
+    [InlineData("entry", "localityPadded")]
+    [InlineData("override", "localityPadded")]
+    public async Task PersistedDateTokensRemainCanonicalAndEffectiveReadsSurviveRejectedWrites(string storage, string scenario)
+    {
+        // GIVEN stored canonical dates, including null access dates, under actual locked web authority.
+        await using var app = await AuthTestApplication.CreateAsync(sqlServer);
+        var source = GemReferenceSamples.Source("description");
+        var localitySource = GemReferenceSamples.Source("notableLocality") with { AccessedOn = null };
+        var locality = new GemReferenceLocalityContent("Hills", "Documented claim", localitySource.ReviewedOn, localitySource.Id);
+        var content = Addition() with { Description = "Private description", Sources = [source, localitySource], NotableLocality = locality };
+        var shared = GemReferenceSamples.Mineral();
+        await GemReferenceTestData.InsertAsync(app.AdminConnectionString, shared);
+        await using var web = await OpenAsync(app);
+        await using var transaction = await LockAsync(web);
+        var contentJson = JsonSerializer.Serialize(content, Json);
+        var tenantVersion = await SaveAsync(web, transaction, content);
+        var choices = new Dictionary<string, GemReferenceFieldOverride>
+        {
+            ["description"] = new("replace", JsonSerializer.SerializeToElement("Tenant description"), [source with { AccessedOn = null }]),
+            ["notableLocality"] = new("replace", JsonSerializer.SerializeToElement(locality, Json), [localitySource]),
+        };
+        var overridesJson = JsonSerializer.Serialize(choices, Json);
+        var sharedVersion = (byte[])await ScalarAsync(web, transaction, "SELECT RowVersion FROM Gemology.Entries WHERE Id=@id", ("id", shared.Id));
+        var overrideVersion = await OverridesAsync(web, transaction, shared.Id, overridesJson, sharedVersion);
+        var malformed = JsonNode.Parse(storage == "entry" ? contentJson : overridesJson)!;
+        var sourceNode = storage == "entry" ? malformed["sources"]![0]! : malformed["description"]!["sources"]![0]!;
+        var localityNode = storage == "entry" ? malformed["notableLocality"]! : malformed["notableLocality"]!["value"]!;
+        var canonical = source.ReviewedOn.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture);
+        switch (scenario)
+        {
+            case "reviewCompact": sourceNode["reviewedOn"] = canonical.Replace("-", "", StringComparison.Ordinal); break;
+            case "reviewSlash": sourceNode["reviewedOn"] = canonical.Replace("-", "/", StringComparison.Ordinal); break;
+            case "accessTimestamp": sourceNode["accessedOn"] = canonical + "T00:00:00"; break;
+            case "localityPadded": localityNode["reviewedOn"] = canonical + " "; break;
+            default: throw new ArgumentOutOfRangeException(nameof(scenario));
+        }
+        // WHEN SQL-convertible but noncanonical date tokens bypass typed HTTP binding THEN SQL rejects the write.
+        if (storage == "entry")
+        {
+            await using var command = Command(web, transaction, "EXEC Gemology.SaveTenantEntry @ActorId=@actor,@EntryId=@id,@ContentJson=@json,@ExpectedTenantRowVersion=@version",
+                ("actor", AuthTestApplication.MemberUserId), ("id", content.Id), ("json", malformed.ToJsonString(Json)), ("version", tenantVersion));
+            Assert.Equal(50053, (await Assert.ThrowsAsync<SqlException>(() => command.ExecuteNonQueryAsync())).Number);
+        }
+        else Assert.Equal(50053, (await Assert.ThrowsAsync<SqlException>(() => OverridesAsync(web, transaction, shared.Id, malformed.ToJsonString(Json), sharedVersion, overrideVersion))).Number);
+        // AND neither saved payload nor its concurrency token changes.
+        Assert.Equal(contentJson, await ScalarAsync(web, transaction, "SELECT ContentJson FROM Gemology.TenantEntries WHERE Id=@id", ("id", content.Id)));
+        Assert.Equal(tenantVersion, (byte[])await ScalarAsync(web, transaction, "SELECT RowVersion FROM Gemology.TenantEntries WHERE Id=@id", ("id", content.Id)));
+        Assert.Equal(overridesJson, await ScalarAsync(web, transaction, "SELECT OverridesJson FROM Gemology.TenantOverrides WHERE EntryId=@id", ("id", shared.Id)));
+        Assert.Equal(overrideVersion, (byte[])await ScalarAsync(web, transaction, "SELECT RowVersion FROM Gemology.TenantOverrides WHERE EntryId=@id", ("id", shared.Id)));
+        await transaction.CommitAsync();
+        // WHEN the effective reader deserializes the stored snapshot THEN both additions and overrides remain available.
+        var tenant = new TenantContext(AuthTestApplication.TenantId);
+        await using var database = new WorkbenchDbContext(new DbContextOptionsBuilder<WorkbenchDbContext>().UseSqlServer(app.WebConnectionString)
+            .AddInterceptors(new TenantConnectionInterceptor(tenant, app.Factory.Services.GetRequiredService<TenantContextProof>())).Options, tenant);
+        var reads = new GemReferenceEffectiveReadService(database);
+        var addition = Assert.IsType<GemReferenceDetailResponse>(await reads.DetailAsync(content.Id, default));
+        Assert.Equal(source.ReviewedOn, Assert.Single(addition.SourceAssertions, row => row.Field == "description").ReviewedOn);
+        Assert.Equal(source.AccessedOn, Assert.Single(addition.SourceAssertions, row => row.Field == "description").AccessedOn);
+        Assert.Equal(locality, addition.NotableLocality);
+        var customized = Assert.IsType<GemReferenceDetailResponse>(await reads.DetailAsync(shared.Id, default));
+        Assert.Equal(source.ReviewedOn, Assert.Single(customized.SourceAssertions, row => row.Field == "description").ReviewedOn);
+        Assert.Null(Assert.Single(customized.SourceAssertions, row => row.Field == "description").AccessedOn);
+        Assert.Equal(locality, customized.NotableLocality);
     }
 
     private static GemReferenceContent Addition() => new(Guid.NewGuid(), "organic", "Private gem", null, null, null, null, [], [], null, false, null, null);
