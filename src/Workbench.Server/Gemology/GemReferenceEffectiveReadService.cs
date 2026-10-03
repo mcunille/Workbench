@@ -11,6 +11,58 @@ namespace Workbench.Server.Gemology;
 
 public sealed class GemReferenceEffectiveReadService(WorkbenchDbContext database)
 {
+    internal async Task<GemReferencePageResponse> BrowseAsync(GemReferenceSearch search, GemReferencePosition? after,
+        bool includeArchived, CancellationToken ct)
+    {
+        var tenantId = database.TenantContext.RequireTenantId();
+        await using var transaction = await database.Database.BeginTransactionAsync(ct);
+        var connection = (SqlConnection)database.Database.GetDbConnection();
+        var sqlTransaction = (SqlTransaction)transaction.GetDbTransaction();
+        await LockAsync(connection, sqlTransaction, tenantId, "Shared", ct);
+        var snapshot = await ReadSnapshotAsync(connection, sqlTransaction, tenantId, ct);
+        // Project once, then delegate literal matching and name/uniqueidentifier ordering to SQL.
+        // The scalar candidate payload excludes sources and is catalog-sized; the returned page is bounded.
+        var candidates = JsonSerializer.Serialize(snapshot.Where(entry => !entry.Retirement.IsRetired &&
+            (includeArchived || !entry.IsArchived)).Select(entry => new
+            { entry.Id, entry.Origin, entry.CommonName, entry.MaterialKind, entry.Group, entry.Species, entry.Variety, entry.Aliases }), GemReferenceCurationSql.Json);
+        await using var command = new SqlCommand("""
+            SELECT TOP(51) e.Id,e.Origin FROM OPENJSON(@candidates) WITH (
+                Id uniqueidentifier '$.id', Origin nvarchar(16) '$.origin', CommonName nvarchar(200) '$.commonName',
+                MaterialKind nvarchar(32) '$.materialKind', [Group] nvarchar(200) '$.group', Species nvarchar(200) '$.species',
+                Variety nvarchar(200) '$.variety', Aliases nvarchar(max) '$.aliases' AS JSON) e
+            WHERE (@kind IS NULL OR e.MaterialKind COLLATE Latin1_General_100_BIN2=@kind)
+                AND (@group IS NULL OR e.[Group] COLLATE Latin1_General_100_CI_AS=@group)
+                AND (@afterName IS NULL OR e.CommonName COLLATE Latin1_General_100_CI_AS>@afterName
+                    OR (e.CommonName COLLATE Latin1_General_100_CI_AS=@afterName AND (e.Id>@afterId
+                        OR (e.Id=@afterId AND e.Origin COLLATE Latin1_General_100_BIN2>@afterOrigin))))
+                AND (@query IS NULL OR CHARINDEX(@query,e.CommonName COLLATE Latin1_General_100_CI_AS)>0
+                    OR CHARINDEX(@query,e.[Group] COLLATE Latin1_General_100_CI_AS)>0
+                    OR CHARINDEX(@query,e.Species COLLATE Latin1_General_100_CI_AS)>0
+                    OR CHARINDEX(@query,e.Variety COLLATE Latin1_General_100_CI_AS)>0
+                    OR EXISTS(SELECT 1 FROM OPENJSON(e.Aliases) a WHERE CHARINDEX(@query,a.value COLLATE Latin1_General_100_CI_AS)>0))
+            ORDER BY e.CommonName COLLATE Latin1_General_100_CI_AS,e.Id,e.Origin COLLATE Latin1_General_100_BIN2;
+            """, connection, sqlTransaction);
+        command.Parameters.Add("@candidates", SqlDbType.NVarChar, -1).Value = candidates;
+        foreach (var (name, value) in new (string, string?)[] { ("query", search.Query), ("kind", search.MaterialKind),
+            ("group", search.Group), ("afterName", after?.CommonName), ("afterOrigin", after?.Origin) })
+            command.Parameters.Add("@" + name, SqlDbType.NVarChar, 200).Value = (object?)value ?? DBNull.Value;
+        command.Parameters.Add("@afterId", SqlDbType.UniqueIdentifier).Value = (object?)after?.Id ?? DBNull.Value;
+        var byIdentity = snapshot.ToDictionary(entry => (entry.Id, entry.Origin));
+        var rows = new List<GemReferenceListEntry>();
+        await using (var reader = await command.ExecuteReaderAsync(ct))
+        {
+            while (await reader.ReadAsync(ct))
+            {
+                var entry = byIdentity[(reader.GetGuid(0), reader.GetString(1))];
+                rows.Add(new(entry.Id, entry.MaterialKind, entry.CommonName, entry.Group, entry.Species, entry.Variety, entry.Layer)
+                { Origin = entry.Origin, NeedsReview = entry.NeedsReview, ReviewReasons = entry.ReviewReasons });
+            }
+        }
+        await transaction.CommitAsync(ct);
+        return new(rows.Take(50).ToArray(), rows.Count > 50 ? GemReferenceCursor.EncodeEffective(
+            new(rows[49].CommonName, rows[49].Id, rows[49].Origin), search, includeArchived) : null);
+    }
+
     public Task<GemReferenceDetailResponse?> DetailAsync(Guid id, CancellationToken ct) => DetailAsync(id, null, ct);
 
     public async Task<GemReferenceDetailResponse?> DetailAsync(Guid id, string? origin, CancellationToken ct)

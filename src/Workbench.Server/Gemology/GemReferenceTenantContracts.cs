@@ -14,3 +14,6 @@ public sealed record GemReferenceOverridesRequest(IReadOnlyDictionary<string, Ge
     GemReferenceEffectiveVersion EffectiveVersion);
 public sealed record GemReferenceResetRequest(string? Field, GemReferenceEffectiveVersion EffectiveVersion);
 public sealed record GemReferenceTenantVersionRequest(GemReferenceEffectiveVersion EffectiveVersion);
+
+public sealed record GemReferenceTenantProblemResponse(int Status, string Title, string Code,
+    IReadOnlyDictionary<string, string[]> Errors, GemReferenceDetailResponse? Current);

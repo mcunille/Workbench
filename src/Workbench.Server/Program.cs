@@ -114,6 +114,8 @@ builder.Services.AddScoped<ServiceAdminSessionService>(services => new ServiceAd
     services.GetRequiredService<DurableSessionOptions>(),
     services.GetRequiredService<IPasswordHasher<ServiceAdminAccount>>()));
 builder.Services.AddScoped<ServiceAdminAuthenticationEvents>();
+builder.Services.AddScoped<GemReferenceEffectiveReadService>();
+builder.Services.AddScoped<GemReferenceTenantService>();
 builder.Services.AddScoped<GemReferenceDraftService>(services => new GemReferenceDraftService(
     RequireWebConnectionString(services.GetRequiredService<IConfiguration>())));
 builder.Services.AddScoped<GemReferencePublicationService>(services => new GemReferencePublicationService(
@@ -330,6 +332,7 @@ app.MapWorkbenchAuthentication();
 app.MapServiceAdminAuthentication();
 app.MapWorkbenchInventory();
 app.MapGemReference();
+app.MapGemReferenceTenantWrites();
 app.MapGemReferenceCuration();
 app.MapPurchaseOrderDrafts();
 app.MapPurchaseOrders();

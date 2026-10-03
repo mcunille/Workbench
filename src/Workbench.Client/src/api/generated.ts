@@ -2505,6 +2505,7 @@ export interface paths {
                     materialKind?: string;
                     group?: string;
                     cursor?: string;
+                    includeArchived?: boolean;
                 };
                 header?: never;
                 path?: never;
@@ -2549,7 +2550,9 @@ export interface paths {
         };
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    origin?: string;
+                };
                 header?: never;
                 path: {
                     id: string;
@@ -2567,6 +2570,15 @@ export interface paths {
                         "application/json": components["schemas"]["GemReferenceDetailResponse"];
                     };
                 };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
                 /** @description Not Found */
                 404: {
                     headers: {
@@ -2580,6 +2592,520 @@ export interface paths {
         };
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/beta/gem-reference/tenant-entries": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["GemReferenceContent"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["GemReferenceDetailResponse"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["GemReferenceTenantProblemResponse"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["GemReferenceTenantProblemResponse"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["GemReferenceTenantProblemResponse"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["GemReferenceTenantProblemResponse"];
+                    };
+                };
+                /** @description Payload Too Large */
+                413: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/beta/gem-reference/tenant-entries/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["GemReferenceTenantUpdateRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["GemReferenceDetailResponse"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["GemReferenceTenantProblemResponse"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["GemReferenceTenantProblemResponse"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["GemReferenceTenantProblemResponse"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["GemReferenceTenantProblemResponse"];
+                    };
+                };
+                /** @description Payload Too Large */
+                413: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/beta/gem-reference/{id}/overrides": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["GemReferenceOverridesRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["GemReferenceDetailResponse"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["GemReferenceTenantProblemResponse"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["GemReferenceTenantProblemResponse"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["GemReferenceTenantProblemResponse"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["GemReferenceTenantProblemResponse"];
+                    };
+                };
+                /** @description Payload Too Large */
+                413: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/beta/gem-reference/{id}/reset": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["GemReferenceResetRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["GemReferenceDetailResponse"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["GemReferenceTenantProblemResponse"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["GemReferenceTenantProblemResponse"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["GemReferenceTenantProblemResponse"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["GemReferenceTenantProblemResponse"];
+                    };
+                };
+                /** @description Payload Too Large */
+                413: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/beta/gem-reference/tenant-entries/{id}/archive": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["GemReferenceTenantVersionRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["GemReferenceDetailResponse"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["GemReferenceTenantProblemResponse"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["GemReferenceTenantProblemResponse"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["GemReferenceTenantProblemResponse"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["GemReferenceTenantProblemResponse"];
+                    };
+                };
+                /** @description Payload Too Large */
+                413: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/beta/gem-reference/tenant-entries/{id}/restore": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["GemReferenceTenantVersionRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["GemReferenceDetailResponse"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["GemReferenceTenantProblemResponse"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["GemReferenceTenantProblemResponse"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["GemReferenceTenantProblemResponse"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["GemReferenceTenantProblemResponse"];
+                    };
+                };
+                /** @description Payload Too Large */
+                413: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
         delete?: never;
         options?: never;
         head?: never;
@@ -6337,6 +6863,20 @@ export interface components {
             sourceAssertions: components["schemas"]["GemReferenceSourceResponse"][];
             notableLocality: null | components["schemas"]["GemReferenceLocalityContent"];
             retirement: components["schemas"]["GemReferenceRetirementResponse"];
+            origin?: string;
+            effectiveVersion?: null | components["schemas"]["GemReferenceEffectiveVersion"];
+            effectiveFields?: {
+                [key: string]: components["schemas"]["GemReferenceEffectiveField"];
+            };
+            workbenchContent?: null | components["schemas"]["GemReferenceContent"];
+            overrides?: {
+                [key: string]: components["schemas"]["GemReferenceFieldOverride"];
+            };
+            isArchived?: boolean;
+            needsReview?: boolean;
+            reviewReasons?: {
+                [key: string]: string[];
+            };
         };
         GemReferenceDraftPage: {
             drafts: components["schemas"]["GemReferenceDraftResponse"][];
@@ -6374,6 +6914,15 @@ export interface components {
             draftId: string;
             expectedDraftRowVersion: string;
         };
+        GemReferenceEffectiveField: {
+            state: string;
+            attribution: string;
+            sources: components["schemas"]["GemReferenceSourceResponse"][];
+        };
+        GemReferenceEffectiveVersion: {
+            sharedRowVersion: null | string;
+            tenantRowVersion: null | string;
+        };
         GemReferenceEntryReview: {
             /** Format: uuid */
             draftId: string;
@@ -6390,6 +6939,11 @@ export interface components {
             before: unknown;
             after: unknown;
         };
+        GemReferenceFieldOverride: {
+            state: string;
+            value: null | components["schemas"]["JsonElement"];
+            sources: components["schemas"]["GemReferenceSourceContent"][];
+        };
         GemReferenceListEntry: {
             /** Format: uuid */
             id: string;
@@ -6399,6 +6953,11 @@ export interface components {
             species: null | string;
             variety: null | string;
             layer: string;
+            origin?: string;
+            needsReview?: boolean;
+            reviewReasons?: {
+                [key: string]: string[];
+            };
         };
         GemReferenceLocalityContent: {
             place: string;
@@ -6407,6 +6966,12 @@ export interface components {
             reviewedOn: string;
             /** Format: uuid */
             sourceAssertionId: string;
+        };
+        GemReferenceOverridesRequest: {
+            overrides: {
+                [key: string]: components["schemas"]["GemReferenceFieldOverride"];
+            };
+            effectiveVersion: components["schemas"]["GemReferenceEffectiveVersion"];
         };
         GemReferencePageResponse: {
             entries: components["schemas"]["GemReferenceListEntry"][];
@@ -6444,6 +7009,10 @@ export interface components {
             /** Format: uuid */
             requestId: string;
             drafts: components["schemas"]["GemReferenceDraftSelection"][];
+        };
+        GemReferenceResetRequest: {
+            field: null | string;
+            effectiveVersion: components["schemas"]["GemReferenceEffectiveVersion"];
         };
         GemReferenceRetirementResponse: {
             isRetired: boolean;
@@ -6483,6 +7052,23 @@ export interface components {
             /** Format: date */
             reviewedOn: string;
             attribution: string;
+        };
+        GemReferenceTenantProblemResponse: {
+            /** Format: int32 */
+            status: number | string;
+            title: string;
+            code: string;
+            errors: {
+                [key: string]: string[];
+            };
+            current: null | components["schemas"]["GemReferenceDetailResponse"];
+        };
+        GemReferenceTenantUpdateRequest: {
+            content: components["schemas"]["GemReferenceContent"];
+            effectiveVersion: components["schemas"]["GemReferenceEffectiveVersion"];
+        };
+        GemReferenceTenantVersionRequest: {
+            effectiveVersion: components["schemas"]["GemReferenceEffectiveVersion"];
         };
         HttpValidationProblemDetails: {
             type?: null | string;
@@ -6654,6 +7240,7 @@ export interface components {
             /** Format: date-time */
             recordedAtUtc: string;
         };
+        JsonElement: unknown;
         LinkAcquisitionRequest: {
             expectedItemVersion: null | string;
             /** Format: uuid */
