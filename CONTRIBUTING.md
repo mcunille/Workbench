@@ -31,8 +31,12 @@ published-output probes. Full-gate outcomes and stage/partition timings are reta
 The concurrent client stage uses one test worker while .NET formatting/build runs, keeping
 DOM test deadlines from competing with additional client workers. Focused client runs retain
 the runner defaults. The gate uses two isolated server processes by default; adjust
-`-ServerPartitions` (2–4) and `-ServerConcurrency` (1–4) for available Docker resources. Live browser
-tests use one worker; fully intercepted UI tests have their own bounded project. Every discovered
+`-ServerPartitions` (2–4) and `-ServerConcurrency` (1–4) for available Docker resources.
+CI uses two partitions on the public repository's four-CPU, 16 GiB runner. Complete classes stay
+in one process so their fixtures prepare history once. CPU counters, available memory, load and container usage are retained in
+`verification-evidence` under `ci-resources/samples.jsonl`; compare actual pressure and wall time
+before increasing concurrency on smaller hosts. Local verification retains its two-process default.
+Live browser tests use one worker; fully intercepted UI tests have their own bounded project. Every discovered
 server case must pass exactly once. See the
 [gate provenance and scheduling](tests/README.md#gate-provenance-and-scheduling) for artifact
 provenance and the aggregate CI check.
