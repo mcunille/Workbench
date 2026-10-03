@@ -17,7 +17,46 @@ pilot with nineteen field-level source assertions through a one-time data migrat
 seed ships inside the migration assembly; deployments require no content download. Existing
 pilot IDs (including retired entries) retain their values and provenance. Conflicting active
 identities under other IDs reject the transaction. See the [installation procedure](operations/database-migrations.md#pilot-catalog-distribution-and-installation).
-Catalog publishing, tenant additions/overrides, and browser screens remain separate milestones.
+Tenant additions/overrides and browser screens remain separate milestones.
+
+GEM-05 adds service-admin-only draft, combined review, publish, outcome, and audit APIs at
+`/api/beta/service-admin/gem-reference`. Drafts may be incomplete; publishing requires valid
+claim-level sources and a valid final shared catalog. A selected batch contains 1–50 distinct
+drafts and uses both draft and base published rowversions. Draft saves explicitly rebase only
+when the caller supplies the current published version. Admin reads use only shared catalog
+tables and private command-owned curation storage, without a tenant EF context.
+
+The web principal executes six named curation procedures and still cannot write catalog tables
+directly or read/write raw drafts, receipts, and audit tables. Commands revalidate current
+service-admin account/session authority; draft saves and publication serialize through a
+transaction-owned application lock and recheck authority after acquiring it. Publication
+validates final identities/redirects and selected versions, updates every selected entry and
+claim atomically, removes only selected successful drafts, and commits its request receipt and
+success audit together. Rejections preserve drafts and record a durable failure outcome/audit.
+Infrastructure rollback leaves no completed receipt and attempts a separate failure audit.
+
+The internal publication command trusts C# to derive Unicode-normalized identity and alias
+keys. SQL binds raw content and alias names/positions/count to the saved draft and checks
+uniqueness using the supplied identity key; it does not independently recompute semantic
+identity. Current admin authority alone does not make arbitrary direct SQL payloads safe.
+Callers must use the application normalization and validation path.
+
+Draft saves, combined reviews, and publications load and validate the whole catalog while
+holding the exclusive publication lock. Lock-held duration grows with catalog size and has
+not been measured. Before expanding the catalog, measure that duration; any narrower locking
+design must preserve coherent final-catalog validation and atomic publication.
+
+Request identity is global and tied to its original actor. Exact retries compare a canonical
+selection of draft IDs and versions (selection order is insignificant), then return the stored
+outcome before loading drafts. Changed retries conflict. Receipt reads are restricted to their
+actor; shared drafts and publication audit are visible to authorized service admins. Writes
+require dedicated admin antiforgery and a bounded 1 MiB JSON body. No rollback/history UI,
+second approver, new database credential, or tenant-data bypass is introduced.
+
+Durable outcomes are deserialized into the current response contract. Future contract changes
+must preserve historical receipt readability and verify representative older receipt fixtures.
+Deleting receipts would weaken delayed-retry protection and requires an explicit replay-expiry
+contract. Receipts retain field summaries and errors, not before/after content history.
 
 **Status:** Implemented
 

@@ -213,6 +213,7 @@ This inventory describes checked-in migration behavior, not permission to execut
 | `20261001000000_AddSharedGemReference` | `AddSupplierOpenItems` | Adds shared gem entries, aliases and field/locality provenance without tenant ownership or seed content. Preserves existing tenant records and versions; grants web SELECT only on the four catalog tables and denies runtime mutations. Advances readiness and backup schema; requires matching binaries. Fresh creation and merged-base upgrade are covered by disposable SQL tests. | Always blocked (50020); forward repair or protected recovery preserves reference identities and provenance. |
 | `20261001072507_AddServiceAdminIdentity` | `AddSharedGemReference` | Adds tenant-free service-admin accounts and hashed sessions, narrow web authentication procedures and operator-only maintenance. Extends mandatory transactional sanitation to delete admin sessions and advance every account security version before clearing the restore marker. Fails on unsupported sanitation predecessors; preserves tenant and financial evidence. Advances readiness and backup schema. Verify fresh creation, merged-base upgrade, restricted restore after later disablement/revocation, cached/fresh cookie and raw-token denial. | Always blocked (50020); retain accounts and session authority through forward correction or guarded recovery. |
 | `20261002192523_InstallGemReferencePilot` | `AddServiceAdminIdentity` | Installs the frozen reviewed four-gem pilot and nineteen citations for missing stable IDs; retains published/retired entries and their complete provenance. Identity conflicts reject the transaction. Advances readiness and backup schema. Verify exact fresh installation, rerun after publication, merged-base upgrade, conflict atomicity, and source-to-seed equality. | Always blocked (50020); use forward correction or protected recovery to preserve published content. |
+| `20261002192901_AddGemReferenceCuration` | `InstallGemReferencePilot` | Adds service-admin drafts, atomic shared publication/retirement, durable actor-bound outcomes, and publication audit through six restricted web commands. Preserves published provenance and tenant/admin identity; direct table writes remain denied. Advances readiness and backup schema; verify fresh creation, merged GEM-03/GEM-04 upgrade, rejected batches, lock-time revocation, exact retries, and transactional audit failure. | Always blocked (50020); forward correction or guarded recovery preserves drafts and publication evidence. |
 
 Product behavior, user-visible concurrency/retry rules and the shipped feature inventory belong in
 [collection documentation](../collection.md). Provider retry/backoff behavior belongs in
@@ -220,7 +221,17 @@ Product behavior, user-visible concurrency/retry rules and the shipped feature i
 The [migration source](../../src/Workbench.Server/Persistence/Migrations) is authoritative for SQL.
 
 
-The current required migration is `20261002192523_InstallGemReferencePilot`.
+The current required migration is `20261002192901_AddGemReferenceCuration`.
+
+GEM-05 adds one coherent migration after the merged GEM-04 pilot baseline. It creates private
+command-owned drafts, immutable publication outcomes, and append-oriented publication audit;
+installs six restricted web commands; and advances readiness. Existing shared content,
+rowversions, provenance, tenant records, and service-admin identities are retained. Native
+SQL backups include curation storage, while existing restore sanitation continues to invalidate
+all restored admin sessions. Down rejects destructive loss with error 50020. Use forward
+correction or protected restore; an older application's readiness marker rejects this schema.
+Verify fresh creation, upgrade from `InstallGemReferencePilot`, direct-principal allow/deny
+checks, exact outcome replay, and transactional catalog/audit rollback against current source.
 
 `MakeSupplierProfilesCustom` directly follows `HardenPurchaseOrderDocumentAuthority`.
 It adds custom supplier reference pairs in one migration, preserving existing supplier data,

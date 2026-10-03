@@ -161,6 +161,12 @@ requirements are satisfied. The four entries and nineteen source assertions pass
 
 #### GEM-05 — Stage and publish shared changes
 
+**Implementation:** The backend exposes service-admin draft/list/detail, combined review,
+atomic publication/retirement, actor-private durable outcomes, and shared publication audit
+under `/api/beta/service-admin/gem-reference`. SQL command authority and direct-write denials
+preserve the GEM-02/GEM-03 boundary. Verification and delivery evidence are recorded in the
+GEM-05 pull request; the dedicated editor remains GEM-07. This does not complete the full release.
+
 **Story:** As a service admin, I want to review and publish a selected batch of gem changes so that the shared library can improve without a code deployment.
 
 - **Scope:** Admin-only draft, review-diff, validation, atomic multi-entry publish/retire, durable publish request identity/outcome, concurrency rejection, and success/failure audit APIs. One admin may review and publish. No historical-content rollback feature.

@@ -93,6 +93,24 @@ receives only the four named service-admin maintenance commands; the worker rece
 All three roles are denied direct SELECT, INSERT, UPDATE and DELETE on service-admin accounts and
 sessions. No new SQL credential is needed or delivered to the web image or configuration.
 
+GEM-05 also grants web execution of `Gemology.ReadDrafts`, `ReadDraft`, `SaveDraft`,
+`ReadPublication`, `ReadPublicationAudit`, and `PublishDraftBatch`. Each requires a current
+service-admin account/session pair, with enabled-account, security-version, revocation, and
+expiry checks. Writes revalidate authority after acquiring the catalog transaction lock.
+Worker, operator, and public receive no curation EXECUTE grants. Raw `Gemology.Drafts`,
+`PublishRequests`, and `PublicationAudit` SELECT/INSERT/UPDATE/DELETE remain denied to web,
+worker, and operator, and direct published catalog mutation remains denied. The commands use
+ownership chaining for their narrow writes; do not add broad schema grants or put an operator
+credential in the web process. Admin HTTP routes resolve actor/session from the dedicated
+authenticated principal and never accept tenant identity or client-supplied audit authority.
+
+`PublishDraftBatch` is an internal application command: C# derives Unicode-normalized identity
+and alias keys and validates the final catalog. SQL binds raw content and alias projections to
+saved drafts and checks uniqueness against supplied keys; it does not independently derive
+semantic identity. A direct SQL caller with current admin authority must still honor this
+normalization contract. See the [shared reference architecture](../ARCHITECTURE.md#shared-gem-reference-foundation)
+for the lock-duration and durable-receipt compatibility constraints.
+
 Development recovery links return a raw credential-reset capability for an existing account. They
 require the local one-time setup/owner connection, never production web/operator configuration,
 and an explicitly named new output file. Remove that file immediately after use.

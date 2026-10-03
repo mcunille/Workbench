@@ -182,7 +182,22 @@ public sealed class DatabaseReadinessCheck(
                 CommandType = CommandType.StoredProcedure,
             };
             var fileRecoveryReady = Convert.ToBoolean(await fileRecovery.ExecuteScalarAsync(cancellationToken));
-            return state.IsReady && operationalReady && deploymentReady && invitationReady && inventoryReady && providerRetryReady && fileRecoveryReady && serviceAdminReady
+            await using var curation = new SqlCommand("""
+                SELECT CONVERT(bit,CASE WHEN
+                    HAS_PERMS_BY_NAME('Gemology.ReadDrafts','OBJECT','EXECUTE')=1
+                    AND HAS_PERMS_BY_NAME('Gemology.ReadDraft','OBJECT','EXECUTE')=1
+                    AND HAS_PERMS_BY_NAME('Gemology.SaveDraft','OBJECT','EXECUTE')=1
+                    AND HAS_PERMS_BY_NAME('Gemology.ReadPublication','OBJECT','EXECUTE')=1
+                    AND HAS_PERMS_BY_NAME('Gemology.ReadPublicationAudit','OBJECT','EXECUTE')=1
+                    AND HAS_PERMS_BY_NAME('Gemology.PublishDraftBatch','OBJECT','EXECUTE')=1
+                    AND HAS_PERMS_BY_NAME('Gemology.Drafts','OBJECT','SELECT')=0
+                    AND HAS_PERMS_BY_NAME('Gemology.Drafts','OBJECT','INSERT')=0
+                    AND HAS_PERMS_BY_NAME('Gemology.PublishRequests','OBJECT','UPDATE')=0
+                    AND HAS_PERMS_BY_NAME('Gemology.PublicationAudit','OBJECT','DELETE')=0
+                    THEN 1 ELSE 0 END)
+                """, connection);
+            var curationReady = Convert.ToBoolean(await curation.ExecuteScalarAsync(cancellationToken));
+            return state.IsReady && operationalReady && deploymentReady && invitationReady && inventoryReady && providerRetryReady && fileRecoveryReady && serviceAdminReady && curationReady
                 ? HealthCheckResult.Healthy()
                 : HealthCheckResult.Unhealthy("Database security state is not ready.");
         }
