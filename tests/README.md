@@ -153,7 +153,10 @@ cache/resource conditions. Include process wall time: xUnit case durations do no
 fixture startup, setup, or disposal. Keep build time separate when using verified current outputs.
 Record full-gate timing as well as individual stages, which overlap and must not be added together.
 
-The CI server stage and local verification use two isolated processes by default. The unsuccessful
+The CI server stage and local verification use two isolated processes by default. The
+[uncapped three-process probe and repeat](../docs/specs/2026-10-02-ci-test-work-results.md#approved-three-process-follow-up-and-repeat)
+were reverted after the confirmation run failed server and browser deadlines; one passing run's
+10m05s observed gain did not establish a reliable retained configuration. The unsuccessful
 four-process experiment's SQL memory caps were removed with its resource-limit test: measured
 headroom did not justify making those arbitrary values a fixture contract. CI retains 30-second
 samples of host CPU counters, available memory, load and container
