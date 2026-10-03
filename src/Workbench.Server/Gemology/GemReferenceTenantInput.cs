@@ -66,6 +66,7 @@ public static class GemReferenceTenantInput
     {
         result = content;
         if (choice.State == "inherit") return true;
+        if (choice.State is not ("replace" or "clear")) return false;
         try
         {
             var clear = choice.State == "clear";

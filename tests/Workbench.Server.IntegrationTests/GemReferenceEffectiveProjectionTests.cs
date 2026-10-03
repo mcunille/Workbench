@@ -103,6 +103,38 @@ public sealed class GemReferenceEffectiveProjectionTests
         Assert.NotEmpty(result.ReviewReasons["species"]);
     }
 
+    [Theory]
+    [InlineData("replace", "12")]
+    [InlineData("replace", "null")]
+    [InlineData("unknown", "\"Personal name\"")]
+    [InlineData("clear", "null")]
+    [InlineData("inherit", "\"Personal name\"")]
+    [InlineData(null, "null")]
+    public async Task UnapplicableChoiceKeepsFallbackValueWithWorkbenchProvenance(string? state, string json)
+    {
+        await Task.Yield();
+        // GIVEN a retained name choice whose state or value cannot represent an applied tenant name.
+        var source = GemReferenceSamples.Source("commonName") with { ReviewedOn = Today, AccessedOn = Today.AddDays(-1) };
+        var shared = GemReferenceSamples.Mineral() with
+        { Sources = [.. GemReferenceSamples.Mineral().Sources.Where(s => s.Field != "commonName"), source] };
+        var choice = state is null ? null! : new GemReferenceFieldOverride(state, JsonDocument.Parse(json).RootElement.Clone(), []);
+        // WHEN resolved THEN the displayed fallback retains its actual value, ownership, and current source.
+        var result = Resolve(shared, new Dictionary<string, GemReferenceFieldOverride> { ["commonName"] = choice });
+        Assert.Equal("Ruby", result.CommonName);
+        Assert.Equal("invalid", result.EffectiveFields["commonName"].State);
+        Assert.Equal("workbench", result.EffectiveFields["commonName"].Attribution);
+        var assertion = Assert.Single(result.EffectiveFields["commonName"].Sources);
+        Assert.Equal(source.Id, assertion.Id);
+        Assert.Equal(Today, assertion.ReviewedOn);
+        Assert.Equal(Today.AddDays(-1), assertion.AccessedOn);
+        Assert.Equal("workbench", assertion.Attribution);
+        Assert.Equal(assertion, Assert.Single(result.SourceAssertions, s => s.Field == "commonName"));
+        // AND the raw sparse choice and field review reason survive for explicit reconciliation.
+        Assert.Equal(choice, result.Overrides["commonName"]);
+        Assert.True(result.NeedsReview);
+        Assert.NotEmpty(result.ReviewReasons["commonName"]);
+    }
+
     [Fact]
     public async Task TenantLocalityRequiresItsOwnMatchingSource()
     {

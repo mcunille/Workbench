@@ -9,9 +9,9 @@ public static class GemReferenceEffectiveProjection
     {
         var content = shared;
         var fields = new Dictionary<string, GemReferenceEffectiveField>(StringComparer.Ordinal);
-        var retained = overrides.Where(pair => pair.Value?.State != "inherit")
-            .ToDictionary(pair => pair.Key, pair => pair.Value, StringComparer.Ordinal);
         var errors = GemReferenceTenantInput.ValidateOverrides(overrides, today);
+        var retained = overrides.Where(pair => pair.Value?.State != "inherit" || errors.ContainsKey(pair.Key))
+            .ToDictionary(pair => pair.Key, pair => pair.Value, StringComparer.Ordinal);
         foreach (var field in GemReferenceInput.Fields)
         {
             var state = "inherit";
@@ -19,10 +19,15 @@ public static class GemReferenceEffectiveProjection
             IReadOnlyList<GemReferenceSourceContent> sources = shared.Sources.Where(source => source.Field == field).ToArray();
             if (retained.TryGetValue(field, out var choice))
             {
-                state = choice?.State ?? "invalid";
-                attribution = "tenant";
-                sources = choice?.State == "replace" ? choice.Sources?.Where(source => source is not null && source.Field == field).ToArray() ?? [] : [];
-                if (choice is not null) GemReferenceTenantInput.TryApply(content, field, choice, out content);
+                state = "invalid";
+                if (choice is not null && choice.State != "inherit" &&
+                    GemReferenceTenantInput.TryApply(content, field, choice, out var applied))
+                {
+                    content = applied;
+                    state = choice.State;
+                    attribution = "tenant";
+                    sources = choice.State == "replace" ? choice.Sources?.Where(source => source is not null && source.Field == field).ToArray() ?? [] : [];
+                }
             }
             fields[field] = new(state, attribution, sources.Select(source => Source(source, attribution)).ToArray());
         }
