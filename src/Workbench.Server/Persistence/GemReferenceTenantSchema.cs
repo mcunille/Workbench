@@ -44,6 +44,7 @@ internal static class GemReferenceTenantSchema
             @ActorId uniqueidentifier,@EntryId uniqueidentifier,@ContentJson nvarchar(max),@ExpectedTenantRowVersion varbinary(max)=NULL
             """, ContentGuard + FieldAndSourceGuard + """
             IF EXISTS(SELECT 1 FROM Gemology.Entries WHERE Id=@EntryId)
+                AND NOT EXISTS(SELECT 1 FROM Gemology.TenantEntries WHERE TenantId=@TenantId AND Id=@EntryId)
                 THROW 50056,'A shared entry already uses this ID.',1;
             IF EXISTS(SELECT 1 FROM Gemology.TenantEntries WHERE TenantId=@TenantId AND Id=@EntryId)
             BEGIN
@@ -79,8 +80,6 @@ internal static class GemReferenceTenantSchema
             IF NOT EXISTS(SELECT 1 FROM Gemology.Entries WHERE Id=@EntryId) THROW 50055,'Shared entry was not found.',1;
             IF NOT EXISTS(SELECT 1 FROM Gemology.Entries WHERE Id=@EntryId AND RowVersion=@ExpectedSharedRowVersion)
                 THROW 50054,'Shared entry changed. Reload before saving.',1;
-            IF EXISTS(SELECT 1 FROM Gemology.TenantEntries WHERE TenantId=@TenantId AND Id=@EntryId)
-                THROW 50056,'A tenant addition already uses this ID.',1;
             IF EXISTS(SELECT 1 FROM Gemology.TenantOverrides WHERE TenantId=@TenantId AND EntryId=@EntryId)
             BEGIN
                 -- Preserve empty reset rows: their advancing version prevents reset/recreate ABA.

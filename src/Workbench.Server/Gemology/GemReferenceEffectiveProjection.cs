@@ -57,6 +57,7 @@ public static class GemReferenceEffectiveProjection
                 .Select(source => Source(source, "tenant")).ToArray()), StringComparer.Ordinal);
         return Detail(content, tenantRowVersion, "tenantEntry", fields, errors) with
         {
+            Origin = "tenant",
             EffectiveVersion = new(null, tenantRowVersion),
             IsArchived = isArchived,
         };
