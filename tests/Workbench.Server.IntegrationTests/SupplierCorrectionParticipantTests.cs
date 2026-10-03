@@ -74,7 +74,8 @@ public sealed class SupplierCorrectionParticipantTests(SqlServerFixture sqlServe
     private static Task<string> CashEvidenceAsync(SupplierPaymentTestContext context) => context.Bills.ScalarAsync<string>($"SELECT j.*,JSON_QUERY((SELECT l.* FROM Accounting.JournalLines l WHERE l.JournalId=j.Id ORDER BY Ordinal FOR JSON PATH)) lines,JSON_QUERY((SELECT s.* FROM Accounting.SourceEvents s WHERE s.Id=j.SourceEventId FOR JSON PATH)) source FROM Accounting.JournalEntries j WHERE EXISTS(SELECT 1 FROM Accounting.JournalLines l WHERE l.JournalId=j.Id AND l.AccountId='{context.Bank}') ORDER BY j.Sequence FOR JSON PATH");
     private static async Task ExecuteAsync(SupplierPaymentTestContext context, string sql)
     {
-        using var phaseCost = PhaseCostTrace.Measure("participant-sql"); await using var command = new SqlCommand(sql, context.Allocation.Journal.Connection); await command.ExecuteNonQueryAsync(); }
+        using var phaseCost = PhaseCostTrace.Measure("participant-sql"); await using var command = new SqlCommand(sql, context.Allocation.Journal.Connection); await command.ExecuteNonQueryAsync();
+    }
     private static async Task<string> VersionInOwnerAsync(SupplierPaymentTestContext context, Guid item)
     {
         using var phaseCost = PhaseCostTrace.Measure("participant-version");
