@@ -1,6 +1,7 @@
 // Copyright (c) 2026 The White Stag Collection.
 
 using Microsoft.AspNetCore.Identity;
+using Microsoft.Data.SqlClient;
 using Workbench.Server.Identity;
 using Workbench.Server.ServiceAdministration;
 using Workbench.Server.IntegrationTests.Infrastructure;
@@ -57,6 +58,43 @@ public sealed class ServiceAdminSessionTests(SqlServerFixture sqlServer) : IAsyn
             Assert.Equal(created.Id, resolved!.SessionId);
             Assert.Equal(AuthTestApplication.ServiceAdminId, resolved.AccountId);
         }
+    }
+
+    [Fact]
+    public async Task ConcurrentResolutionAfterSerializablePoolUseRetainsAuthorityAndRevokeChecks()
+    {
+        // GIVEN a valid session and a separate small pool previously used for serializable shared-detail reads.
+        var connectionString = new SqlConnectionStringBuilder(_application.WebConnectionString)
+        {
+            ApplicationName = nameof(ConcurrentResolutionAfterSerializablePoolUseRetainsAuthorityAndRevokeChecks),
+            MaxPoolSize = 8,
+        }.ConnectionString;
+        var sessions = new ServiceAdminSessionService(connectionString, new SessionOptions(), new PasswordHasher<ServiceAdminAccount>());
+        var verified = await sessions.VerifyAsync(AuthTestApplication.AdminEmail, AuthTestApplication.ServiceAdminPassword, CancellationToken.None);
+        var created = await sessions.CreateAsync(verified!, Now, CancellationToken.None);
+        var connections = Enumerable.Range(0, 8).Select(_ => new SqlConnection(connectionString)).ToArray();
+        try
+        {
+            foreach (var connection in connections)
+            {
+                await connection.OpenAsync();
+                await using var command = new SqlCommand("SET TRANSACTION ISOLATION LEVEL SERIALIZABLE", connection);
+                await command.ExecuteNonQueryAsync();
+            }
+        }
+        finally { foreach (var connection in connections) await connection.DisposeAsync(); }
+        // WHEN resolving overlapping requests through those pooled connections THEN all retain the same current authority.
+        var resolutions = await Task.WhenAll(Enumerable.Range(0, 32)
+            .Select(_ => sessions.ResolveAsync(created.Token, Now.AddMinutes(1), CancellationToken.None)));
+        Assert.All(resolutions, resolved =>
+        {
+            Assert.NotNull(resolved);
+            Assert.Equal(created.Id, resolved.SessionId);
+            Assert.Equal(AuthTestApplication.ServiceAdminId, resolved.AccountId);
+        });
+        // AND the explicit isolation choice cannot authorize a token revoked by the operator afterwards.
+        await _application.MaintainServiceAdminAsync("RevokeServiceAdminSessions");
+        Assert.Null(await sessions.ResolveAsync(created.Token, Now.AddMinutes(2), CancellationToken.None));
     }
 
 }

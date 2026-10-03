@@ -1,6 +1,6 @@
 # Gemological reference library
 
-**Status: In progress** — GEM-02 and GEM-03 are merged. On 2026-10-02 the owner reduced GEM-01 to a four-mineral sample included in the repository. GEM-04–10 remain to be delivered; the complete reference-library release is not implemented.
+**Status: In progress** — GEM-02–05 are merged. On 2026-10-02 the owner reduced GEM-01 to the four-mineral sample included in the repository and installed by GEM-04. GEM-07's service-admin browser workflow is implemented in this change; GEM-06 and GEM-08–10 remain to be delivered. The complete reference-library release is not implemented.
 
 ## Purpose and audience
 
@@ -165,7 +165,7 @@ requirements are satisfied. The four entries and nineteen source assertions pass
 atomic publication/retirement, actor-private durable outcomes, and shared publication audit
 under `/api/beta/service-admin/gem-reference`. SQL command authority and direct-write denials
 preserve the GEM-02/GEM-03 boundary. Verification and delivery evidence are recorded in the
-GEM-05 pull request; the dedicated editor remains GEM-07. This does not complete the full release.
+GEM-05 pull request; the dedicated editor is described in GEM-07. This does not complete the full release.
 
 **Story:** As a service admin, I want to review and publish a selected batch of gem changes so that the shared library can improve without a code deployment.
 
@@ -186,6 +186,17 @@ GEM-05 pull request; the dedicated editor remains GEM-07. This does not complete
 ### M2 — Deliver both user workflows
 
 #### GEM-07 — Edit the shared library in the service-admin UI
+
+**Implementation:** The dedicated `/service-admin/sign-in` entry and shared-only catalog,
+detail, persisted editor and combined batch review implement this story. The
+[curation guide](../gem-reference-curation.md) describes save/publish, claim citations,
+retirement, explicit concurrency reconciliation and account-scoped publication recovery.
+Focused live browser coverage exercises create/save/reload/edit/multi-publish/retire,
+two-admin stale draft and published-base recovery, concurrent shared reads and direct
+cross-role denial. Intercepted coverage exercises keyboard editing/selection/review,
+validation retention, dirty navigation, long citations, load retry and lost-response
+recovery in light and dark appearances at 390px. Current-source delivery gates and preview
+inspection remain part of PR delivery; this story does not complete the overall release.
 
 **Story:** As a service admin, I want to stage several entries, inspect their source and field changes, and publish them together so that shared curation is understandable and controlled.
 

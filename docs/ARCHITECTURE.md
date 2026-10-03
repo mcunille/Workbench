@@ -17,7 +17,7 @@ pilot with nineteen field-level source assertions through a one-time data migrat
 seed ships inside the migration assembly; deployments require no content download. Existing
 pilot IDs (including retired entries) retain their values and provenance. Conflicting active
 identities under other IDs reject the transaction. See the [installation procedure](operations/database-migrations.md#pilot-catalog-distribution-and-installation).
-Tenant additions/overrides and browser screens remain separate milestones.
+Tenant additions/overrides and tenant browser screens remain separate milestones.
 
 GEM-05 adds service-admin-only draft, combined review, publish, outcome, and audit APIs at
 `/api/beta/service-admin/gem-reference`. Drafts may be incomplete; publishing requires valid
@@ -40,6 +40,23 @@ keys. SQL binds raw content and alias names/positions/count to the saved draft a
 uniqueness using the supplied identity key; it does not independently recompute semantic
 identity. Current admin authority alone does not make arbitrary direct SQL payloads safe.
 Callers must use the application normalization and validation path.
+
+GEM-07 mounts an independent service-admin React application at `/service-admin` before the
+tenant authentication provider. Its dedicated sign-in, shared catalog/detail, persisted draft
+editor and combined review use generated curation contracts and admin-only CSRF tokens.
+No tenant context or navigation destination is exposed. Failed saves retain local editorial
+content; stale versions require explicit comparison and reconciliation. Same-account session
+recovery keeps the editor mounted and refreshes its versions before further writes.
+
+An uncertain publication stores only its request ID and immutable draft/version selection
+in session storage scoped to the authenticated admin account. Reload, outcome lookup and
+identical retry recover the server receipt; a terminal rejection requires fresh review and
+confirmation. Passwords and unsaved editorial content are not persisted in that storage.
+The [curation guide](gem-reference-curation.md) owns the current operator and user workflow.
+Session resolution explicitly selects Read Committed isolation on its independent SQL
+connection: pooled connections previously used for serializable catalog detail reads must
+not carry that isolation into session renewal. The existing procedure's account/session
+locks and disablement, expiry and revocation checks remain authoritative.
 
 Draft saves, combined reviews, and publications load and validate the whole catalog while
 holding the exclusive publication lock. Lock-held duration grows with catalog size and has

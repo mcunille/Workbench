@@ -76,7 +76,13 @@ public sealed class ServiceAdminSessionService
     {
         if (!SessionToken.TryHash(token, out var hash)) return null;
         await using var connection = await OpenAsync(cancellationToken);
-        await using var command = Command("ResolveSession", connection);
+        // Shared-detail reads use Serializable, which survives on pooled connections.
+        // Resolution owns an independent transaction with the original Read Committed
+        // semantics; retain the procedure's explicit account and session locks.
+        await using var command = new SqlCommand("""
+            SET TRANSACTION ISOLATION LEVEL READ COMMITTED;
+            EXEC ServiceAdministration.ResolveSession @TokenHash,@Now,@IdleTimeoutSeconds;
+            """, connection);
         command.Parameters.Add(new SqlParameter("@TokenHash", SqlDbType.VarBinary, -1) { Value = hash });
         command.Parameters.AddWithValue("@Now", now);
         command.Parameters.AddWithValue("@IdleTimeoutSeconds", checked((int)_options.IdleTimeout.TotalSeconds));
