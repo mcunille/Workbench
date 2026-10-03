@@ -118,7 +118,7 @@ internal static class GemReferenceTenantSchema
         IF @ContentJson IS NULL OR ISJSON(@ContentJson,OBJECT)<>1 OR DATALENGTH(@ContentJson)>2097152
             THROW 50053,'Invalid tenant content.',1;
         IF EXISTS(SELECT 1 FROM OPENJSON(@ContentJson) GROUP BY [key] COLLATE Latin1_General_100_BIN2 HAVING COUNT(*)>1)
-            OR EXISTS(SELECT 1 FROM OPENJSON(@ContentJson) WHERE [key] COLLATE Latin1_General_100_BIN2 NOT IN
+            OR EXISTS(SELECT 1 FROM OPENJSON(@ContentJson) WHERE DATALENGTH([key])<>DATALENGTH(RTRIM([key])) OR [key] COLLATE Latin1_General_100_BIN2 NOT IN
                 (N'id',N'materialKind',N'commonName',N'aliases',N'group',N'species',N'variety',N'description',N'sources',N'notableLocality',N'isRetired',N'retirementExplanation',N'redirectEntryId'))
             OR NOT EXISTS(SELECT 1 FROM OPENJSON(@ContentJson) WHERE [key]=N'id' AND [type]=1 AND DATALENGTH([value])=72 AND TRY_CONVERT(uniqueidentifier,[value])=@EntryId)
             OR NOT EXISTS(SELECT 1 FROM OPENJSON(@ContentJson) WHERE [key]=N'materialKind' AND [type]=1)
@@ -140,15 +140,15 @@ internal static class GemReferenceTenantSchema
         IF @OverridesJson IS NULL OR ISJSON(@OverridesJson,OBJECT)<>1 OR DATALENGTH(@OverridesJson)>2097152
             THROW 50053,'Invalid tenant overrides.',1;
         IF EXISTS(SELECT 1 FROM OPENJSON(@OverridesJson) GROUP BY [key] COLLATE Latin1_General_100_BIN2 HAVING COUNT(*)>1)
-            OR EXISTS(SELECT 1 FROM OPENJSON(@OverridesJson) WHERE [type]<>5 OR [key] COLLATE Latin1_General_100_BIN2 NOT IN
+            OR EXISTS(SELECT 1 FROM OPENJSON(@OverridesJson) WHERE [type]<>5 OR DATALENGTH([key])<>DATALENGTH(RTRIM([key])) OR [key] COLLATE Latin1_General_100_BIN2 NOT IN
                 (N'materialKind',N'commonName',N'aliases',N'group',N'species',N'variety',N'description',N'notableLocality'))
             THROW 50053,'Invalid override fields.',1;
         IF EXISTS(SELECT 1 FROM OPENJSON(@OverridesJson) f CROSS APPLY OPENJSON(f.[value]) p
-            WHERE p.[key] COLLATE Latin1_General_100_BIN2 NOT IN(N'state',N'value',N'sources'))
+            WHERE DATALENGTH(p.[key])<>DATALENGTH(RTRIM(p.[key])) OR p.[key] COLLATE Latin1_General_100_BIN2 NOT IN(N'state',N'value',N'sources'))
             OR EXISTS(SELECT 1 FROM OPENJSON(@OverridesJson) f CROSS APPLY OPENJSON(f.[value]) p
                 GROUP BY f.[key],p.[key] COLLATE Latin1_General_100_BIN2 HAVING COUNT(*)>1)
             OR EXISTS(SELECT 1 FROM OPENJSON(@OverridesJson) f WHERE
-                NOT EXISTS(SELECT 1 FROM OPENJSON(f.[value]) WHERE [key]=N'state' AND [type]=1 AND [value] COLLATE Latin1_General_100_BIN2 IN(N'replace',N'clear'))
+                NOT EXISTS(SELECT 1 FROM OPENJSON(f.[value]) WHERE [key]=N'state' AND [type]=1 AND DATALENGTH([value])=DATALENGTH(RTRIM([value])) AND [value] COLLATE Latin1_General_100_BIN2 IN(N'replace',N'clear'))
                 OR NOT EXISTS(SELECT 1 FROM OPENJSON(f.[value]) WHERE [key]=N'sources' AND [type]=4)
                 OR (JSON_VALUE(f.[value],'$.state')=N'replace' AND NOT EXISTS(SELECT 1 FROM OPENJSON(f.[value]) WHERE [key]=N'value' AND [type]<>0))
                 OR (JSON_VALUE(f.[value],'$.state')=N'clear' AND
@@ -164,10 +164,11 @@ internal static class GemReferenceTenantSchema
         INSERT @Sources SELECT s.[value],f.[key] FROM OPENJSON(@OverridesJson) f CROSS APPLY OPENJSON(f.[value],'$.sources') s;
         """;
 
-    // Structural defense only. Effective classification and FormKC duplicate identity remain the service's responsibility.
+    // SQL equality pads trailing spaces even under BIN2. Structural keys and enum tokens therefore also require exact length.
+    // Effective classification, ordinary field-text normalization and FormKC duplicate identity remain the service's responsibility.
     private const string FieldAndSourceGuard = """
         IF EXISTS(SELECT 1 FROM @Fields WHERE
-            (Name=N'materialKind' AND (Type<>1 OR Value COLLATE Latin1_General_100_BIN2 NOT IN(N'mineral',N'mineraloid',N'organic',N'rockAggregate')))
+            (Name=N'materialKind' AND (Type<>1 OR DATALENGTH(Value)<>DATALENGTH(RTRIM(Value)) OR Value COLLATE Latin1_General_100_BIN2 NOT IN(N'mineral',N'mineraloid',N'organic',N'rockAggregate')))
             OR (Name=N'commonName' AND (Type<>1 OR LEN(LTRIM(RTRIM(Value)))=0 OR DATALENGTH(Value)>400))
             OR (Name IN(N'group',N'species',N'variety',N'description') AND Type<>0 AND
                 (Type<>1 OR LEN(LTRIM(RTRIM(Value)))=0 OR DATALENGTH(Value)>CASE WHEN Name=N'description' THEN 4000 ELSE 400 END))
@@ -193,10 +194,11 @@ internal static class GemReferenceTenantSchema
                     (TRY_CONVERT(date,JSON_VALUE(Content,'$.accessedOn')) IS NULL OR TRY_CONVERT(date,JSON_VALUE(Content,'$.accessedOn'))<='0001-01-01')))
             THROW 50053,'Invalid source assertions.',1;
         IF EXISTS(SELECT 1 FROM @Sources s CROSS APPLY OPENJSON(s.Content) p
-            WHERE p.[key] COLLATE Latin1_General_100_BIN2 NOT IN(N'id',N'field',N'title',N'publisher',N'url',N'citation',N'accessedOn',N'reviewedOn')
+            WHERE DATALENGTH(p.[key])<>DATALENGTH(RTRIM(p.[key])) OR p.[key] COLLATE Latin1_General_100_BIN2 NOT IN(N'id',N'field',N'title',N'publisher',N'url',N'citation',N'accessedOn',N'reviewedOn')
                 OR (p.[key] IN(N'id',N'field',N'title',N'publisher',N'reviewedOn') AND p.[type]<>1)
                 OR (p.[key] IN(N'url',N'citation',N'accessedOn') AND p.[type] NOT IN(0,1))
                 OR (p.[key]=N'id' AND DATALENGTH(p.[value])<>72)
+                OR (p.[key]=N'field' AND DATALENGTH(p.[value])<>DATALENGTH(RTRIM(p.[value])))
                 OR (p.[key] IN(N'url',N'citation') AND p.[type]=1 AND (DATALENGTH(p.[value])>4000 OR LEN(LTRIM(RTRIM(p.[value])))=0))
                 OR (p.[key]=N'accessedOn' AND p.[type]=1 AND (TRY_CONVERT(date,p.[value]) IS NULL OR TRY_CONVERT(date,p.[value])<='0001-01-01')))
             OR EXISTS(SELECT 1 FROM @Sources s CROSS APPLY OPENJSON(s.Content) p
@@ -211,7 +213,7 @@ internal static class GemReferenceTenantSchema
                     AND TRY_CONVERT(date,JSON_VALUE(s.Content,'$.reviewedOn'))=TRY_CONVERT(date,JSON_VALUE(f.Value,'$.reviewedOn')))))
             THROW 50053,'Locality needs an identifiable matching source.',1;
         IF EXISTS(SELECT 1 FROM @Fields f CROSS APPLY OPENJSON(CASE WHEN Name=N'notableLocality' AND Type=5 THEN Value ELSE N'{}' END) p
-            WHERE p.[key] COLLATE Latin1_General_100_BIN2 NOT IN(N'place',N'scope',N'reviewedOn',N'sourceAssertionId') OR p.[type]<>1
+            WHERE DATALENGTH(p.[key])<>DATALENGTH(RTRIM(p.[key])) OR p.[key] COLLATE Latin1_General_100_BIN2 NOT IN(N'place',N'scope',N'reviewedOn',N'sourceAssertionId') OR p.[type]<>1
                 OR (p.[key]=N'sourceAssertionId' AND DATALENGTH(p.[value])<>72))
             OR EXISTS(SELECT 1 FROM @Fields f CROSS APPLY OPENJSON(CASE WHEN Name=N'notableLocality' AND Type=5 THEN Value ELSE N'{}' END) p
                 GROUP BY f.Name,p.[key] COLLATE Latin1_General_100_BIN2 HAVING COUNT(*)>1)

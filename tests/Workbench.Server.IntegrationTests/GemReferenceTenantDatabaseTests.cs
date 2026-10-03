@@ -288,6 +288,58 @@ public sealed class GemReferenceTenantDatabaseTests(SqlServerFixture sqlServer)
         Assert.Equal(version, (byte[])await ScalarAsync(web, transaction, "SELECT RowVersion FROM Gemology.TenantEntries WHERE Id=@id", ("id", content.Id)));
     }
 
+    [Theory]
+    [InlineData("contentKey")]
+    [InlineData("overrideKey")]
+    [InlineData("overrideProperty")]
+    [InlineData("state")]
+    [InlineData("materialKind")]
+    [InlineData("sourceField")]
+    [InlineData("sourceProperty")]
+    public async Task ContractTokensRejectTrailingSpacesWithoutChangingStoredChoices(string token)
+    {
+        // GIVEN saved tenant content and overrides under actual web authority, with nonempty source metadata.
+        await using var app = await AuthTestApplication.CreateAsync(sqlServer);
+        var content = Addition() with { CommonName = " Private gem ", Description = " Tenant description " };
+        var shared = GemReferenceSamples.Mineral();
+        await GemReferenceTestData.InsertAsync(app.AdminConnectionString, shared);
+        await using var web = await OpenAsync(app);
+        await using var transaction = await LockAsync(web);
+        var tenantVersion = await SaveAsync(web, transaction, content);
+        var contentJson = JsonSerializer.Serialize(content, Json);
+        var source = GemReferenceSamples.Source("description") with { Url = "https://example.com/source", Citation = "Tenant citation" };
+        var choices = new Dictionary<string, GemReferenceFieldOverride>
+        {
+            ["description"] = new("replace", JsonSerializer.SerializeToElement(" Tenant description "), [source])
+        };
+        var overridesJson = JsonSerializer.Serialize(choices, Json);
+        var sharedVersion = (byte[])await ScalarAsync(web, transaction, "SELECT RowVersion FROM Gemology.Entries WHERE Id=@id", ("id", shared.Id));
+        var overrideVersion = await OverridesAsync(web, transaction, shared.Id, overridesJson, sharedVersion);
+        // WHEN a structural key or enum token has a trailing space THEN SQL rejects it with no content/version change.
+        var payload = token switch
+        {
+            "contentKey" => contentJson.Replace("\"commonName\":", "\"commonName \":", StringComparison.Ordinal),
+            "materialKind" => contentJson.Replace("\"materialKind\":\"organic\"", "\"materialKind\":\"organic \"", StringComparison.Ordinal),
+            "overrideKey" => overridesJson.Replace("\"description\":", "\"description \":", StringComparison.Ordinal),
+            "overrideProperty" => overridesJson.Replace("\"value\":", "\"value \":", StringComparison.Ordinal),
+            "state" => overridesJson.Replace("\"state\":\"replace\"", "\"state\":\"replace \"", StringComparison.Ordinal),
+            "sourceField" => overridesJson.Replace("\"field\":\"description\"", "\"field\":\"description \"", StringComparison.Ordinal),
+            _ => overridesJson.Replace("\"citation\":", "\"citation \":", StringComparison.Ordinal),
+        };
+        if (token is "contentKey" or "materialKind")
+        {
+            await using var command = Command(web, transaction, "EXEC Gemology.SaveTenantEntry @ActorId=@actor,@EntryId=@id,@ContentJson=@json,@ExpectedTenantRowVersion=@version",
+                ("actor", AuthTestApplication.MemberUserId), ("id", content.Id), ("json", payload), ("version", tenantVersion));
+            Assert.Equal(50053, (await Assert.ThrowsAsync<SqlException>(() => command.ExecuteNonQueryAsync())).Number);
+        }
+        else Assert.Equal(50053, (await Assert.ThrowsAsync<SqlException>(() => OverridesAsync(web, transaction, shared.Id, payload, sharedVersion, overrideVersion))).Number);
+        // AND ordinary field text keeps its accepted whitespace while malformed contract tokens cannot enter storage.
+        Assert.Equal(contentJson, await ScalarAsync(web, transaction, "SELECT ContentJson FROM Gemology.TenantEntries WHERE Id=@id", ("id", content.Id)));
+        Assert.Equal(tenantVersion, (byte[])await ScalarAsync(web, transaction, "SELECT RowVersion FROM Gemology.TenantEntries WHERE Id=@id", ("id", content.Id)));
+        Assert.Equal(overridesJson, await ScalarAsync(web, transaction, "SELECT OverridesJson FROM Gemology.TenantOverrides WHERE EntryId=@id", ("id", shared.Id)));
+        Assert.Equal(overrideVersion, (byte[])await ScalarAsync(web, transaction, "SELECT RowVersion FROM Gemology.TenantOverrides WHERE EntryId=@id", ("id", shared.Id)));
+    }
+
     private static GemReferenceContent Addition() => new(Guid.NewGuid(), "organic", "Private gem", null, null, null, null, [], [], null, false, null, null);
     private static async Task<SqlConnection> OpenAsync(AuthTestApplication app, Guid? tenant = null)
     {
