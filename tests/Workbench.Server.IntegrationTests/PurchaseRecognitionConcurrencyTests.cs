@@ -225,19 +225,44 @@ public sealed class PurchaseRecognitionConcurrencyTests(SqlServerFixture sqlServ
     internal static async Task<SqlException?> InOrderAsync(PurchaseRecognitionTestContext context, SqlConnection firstConnection, SqlConnection secondConnection, Func<Task> first, Func<Task> second)
     {
         await using var gate = await JournalConcurrencyTests.AccountingLockGate.OpenAsync(context.Journal.Application.AdminConnectionString);
-        await ExecuteAsync(firstConnection, "BEGIN TRANSACTION");
+        {
+            using var phaseCost = PhaseCostTrace.Measure("transaction-begin");
+            await ExecuteAsync(firstConnection, "BEGIN TRANSACTION");
+        }
         try
         {
             var firstTask = first();
-            await gate.WaitForBlockedAsync(firstConnection);
-            await gate.ReleaseAsync();
-            await firstTask;
+            {
+                using var phaseCost = PhaseCostTrace.Measure("first-lock-observation");
+                await gate.WaitForBlockedAsync(firstConnection);
+            }
+            {
+                using var phaseCost = PhaseCostTrace.Measure("release-barrier");
+                await gate.ReleaseAsync();
+            }
+            {
+                using var phaseCost = PhaseCostTrace.Measure("first-command-completion");
+                await firstTask;
+            }
             var secondTask = CaptureAsync(second);
-            await gate.WaitForBlockedByAsync(firstConnection, secondConnection);
-            await ExecuteAsync(firstConnection, "COMMIT TRANSACTION");
-            return await secondTask;
+            {
+                using var phaseCost = PhaseCostTrace.Measure("second-lock-observation");
+                await gate.WaitForBlockedByAsync(firstConnection, secondConnection);
+            }
+            {
+                using var phaseCost = PhaseCostTrace.Measure("transaction-commit");
+                await ExecuteAsync(firstConnection, "COMMIT TRANSACTION");
+            }
+            {
+                using var phaseCost = PhaseCostTrace.Measure("second-command-completion");
+                return await secondTask;
+            }
         }
-        finally { await ExecuteAsync(firstConnection, "IF @@TRANCOUNT>0 ROLLBACK TRANSACTION"); }
+        finally
+        {
+            using var phaseCost = PhaseCostTrace.Measure("transaction-cleanup");
+            await ExecuteAsync(firstConnection, "IF @@TRANCOUNT>0 ROLLBACK TRANSACTION");
+        }
     }
 
     private static async Task<SqlException?> CaptureAsync(Func<Task> action)
