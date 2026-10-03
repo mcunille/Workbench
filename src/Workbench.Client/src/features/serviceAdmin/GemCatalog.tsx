@@ -32,7 +32,7 @@ function useCursorPage<T>(load: (cursor?: string, signal?: AbortSignal) => Promi
   return { ...page, pending, failed, retry: () => void request(page.rows.length ? page.nextCursor ?? undefined : undefined), more: () => void request(page.nextCursor ?? undefined) };
 }
 
-export function GemCatalog({ selected, onSelectionChange, follow }: { selected: GemReferenceDraftSelection[]; onSelectionChange: (selected: GemReferenceDraftSelection[]) => void; follow: Follow }) {
+export function GemCatalog({ selected, onSelectionChange, follow, selectionLocked = false }: { selected: GemReferenceDraftSelection[]; onSelectionChange: (selected: GemReferenceDraftSelection[]) => void; follow: Follow; selectionLocked?: boolean }) {
   const [view, setView] = useState<'published' | 'drafts'>('published');
   const [search, setSearch] = useState('');
   const [query, setQuery] = useState('');
@@ -48,7 +48,7 @@ export function GemCatalog({ selected, onSelectionChange, follow }: { selected: 
         <div><input id="gem-search" type="search" value={search} onChange={(event) => setSearch(event.target.value)} /><button type="submit">Search</button></div>
       </form>
       <PublishedCatalog key={query} query={query} follow={follow} />
-    </> : <DraftCatalog selected={selected} onSelectionChange={onSelectionChange} follow={follow} />}
+    </> : <DraftCatalog selected={selected} onSelectionChange={onSelectionChange} follow={follow} selectionLocked={selectionLocked} />}
   </>;
 }
 
@@ -75,7 +75,7 @@ async function loadDraftPage(cursor?: string) {
   return { rows: page.drafts, nextCursor: page.nextCursor };
 }
 
-function DraftCatalog({ selected, onSelectionChange, follow }: { selected: GemReferenceDraftSelection[]; onSelectionChange: (selected: GemReferenceDraftSelection[]) => void; follow: Follow }) {
+function DraftCatalog({ selected, onSelectionChange, follow, selectionLocked }: { selected: GemReferenceDraftSelection[]; onSelectionChange: (selected: GemReferenceDraftSelection[]) => void; follow: Follow; selectionLocked: boolean }) {
   const page = useCursorPage(loadDraftPage);
   return <section aria-label="Saved drafts">
     <div className="gem-review-bar"><p>{selected.length} of 50 drafts selected</p>{selected.length ? <a className="button-link" href={`${library}/review`} onClick={follow}>Review {selected.length} {selected.length === 1 ? 'draft' : 'drafts'}</a> : null}</div>
@@ -86,7 +86,7 @@ function DraftCatalog({ selected, onSelectionChange, follow }: { selected: GemRe
     <ul className="gem-catalog-list">{page.rows.map((draft) => {
       const checked = selected.some((item) => item.draftId === draft.id);
       return <li key={draft.id}>
-        <label className="gem-draft-select"><input type="checkbox" aria-label={`Select ${draft.content.commonName || 'Untitled draft'}`} checked={checked} disabled={!checked && selected.length >= 50} onChange={(event) => onSelectionChange(event.target.checked ? [...selected, { draftId: draft.id, expectedDraftRowVersion: draft.rowVersion }] : selected.filter((item) => item.draftId !== draft.id))} /></label>
+        <label className="gem-draft-select"><input type="checkbox" aria-label={`Select ${draft.content.commonName || 'Untitled draft'}`} checked={checked} disabled={selectionLocked || (!checked && selected.length >= 50)} onChange={(event) => onSelectionChange(event.target.checked ? [...selected, { draftId: draft.id, expectedDraftRowVersion: draft.rowVersion }] : selected.filter((item) => item.draftId !== draft.id))} /></label>
         <div className="gem-row-content"><a href={`${library}/drafts/${draft.id}`} onClick={follow}>{draft.content.commonName || 'Untitled draft'}</a><p>{draft.content.isRetired ? 'Retirement draft' : draft.expectedPublishedRowVersion ? 'Changes to published entry' : 'New entry'} · Updated <time dateTime={draft.updatedAtUtc}>{new Date(draft.updatedAtUtc).toLocaleDateString()}</time></p></div>
         <span className="gem-state">{Object.keys(draft.errors).length ? 'Needs attention' : 'Draft'}</span>
       </li>;

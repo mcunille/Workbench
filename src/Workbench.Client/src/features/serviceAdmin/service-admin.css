@@ -80,9 +80,23 @@
 .gem-current-content ul { padding-left: 1.25rem; }
 .gem-reauth { margin-bottom: 2rem; }
 .gem-reauth .auth-card { max-width: 30rem; }
+.gem-review { max-width: 70rem; }
+.gem-review-entry { margin-block: 2rem 3rem; }
+.gem-review-entry h2 { font-size: 1.25rem; margin: 0; }
+.gem-review-field { padding-block: 1.25rem; border-top: 1px solid var(--glass-edge); }
+.gem-review-field h3 { font-size: 1rem; margin-block: 0 0.75rem; }
+.gem-review-values { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 2rem; }
+.gem-review-values > section { min-width: 0; white-space: pre-wrap; }
+.gem-review-values h4, .gem-review-object dt { color: var(--muted); font-weight: 400; font-size: 0.875rem; margin-block: 0 0.35rem; }
+.gem-review-values ul { padding-left: 1.25rem; margin-block: 0.35rem; }
+.gem-review-object { margin: 0; }
+.gem-review-object > div { margin-bottom: 0.75rem; }
+.gem-review-object dd { margin: 0; }
+.gem-review-publish { border-top: 1px solid var(--glass-edge); padding-top: 1rem; }
+.gem-publication-result { margin-bottom: 1.5rem; }
 
 @media (max-width: 48rem) {
-  .gem-editor-conflicted, .gem-form-grid { grid-template-columns: minmax(0, 1fr); }
+  .gem-editor-conflicted, .gem-form-grid, .gem-review-values { grid-template-columns: minmax(0, 1fr); }
   .gem-alias-row { flex-wrap: wrap; }
   .gem-taxonomy { grid-template-columns: minmax(0, 1fr); }
   .gem-catalog-list > li { flex-wrap: wrap; gap: 0.5rem; }

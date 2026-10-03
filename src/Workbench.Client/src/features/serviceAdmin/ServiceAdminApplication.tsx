@@ -5,8 +5,10 @@ import { useNavigation } from '../../useNavigation';
 import { ServiceAdminSignIn } from './ServiceAdminSignIn';
 import { GemCatalog, GemDetail } from './GemCatalog';
 import { GemEditor } from './GemEditor';
+import { GemReview } from './GemReview';
+import { readPendingPublication } from './publicationAttempt';
 import { DiscardDialog } from '../../DiscardDialog';
-import type { GemReferenceDraftResponse, GemReferenceDraftSelection } from '../../api/gemReferenceAdmin';
+import type { GemReferenceDraftResponse, GemReferenceDraftSelection, GemReferencePublishOutcome } from '../../api/gemReferenceAdmin';
 import './service-admin.css';
 
 export function ServiceAdminApplication({ appearance }: { appearance: ReactNode }) {
@@ -19,10 +21,23 @@ export function ServiceAdminApplication({ appearance }: { appearance: ReactNode 
   const [selectedDrafts, setSelectedDrafts] = useState<GemReferenceDraftSelection[]>([]);
   const [writesSuspended, setWritesSuspended] = useState(false);
   const [sessionRevision, setSessionRevision] = useState(0);
+  const [pendingPublication, setPendingPublication] = useState(false);
+  const [published, setPublished] = useState<GemReferencePublishOutcome | null>(null);
   const { replace } = navigation;
   const { setDirty } = navigation;
   const authLost = useCallback(() => setWritesSuspended(true), []);
   const dirtyChanged = useCallback((dirty: boolean, uncertain = false) => setDirty(dirty, uncertain), [setDirty]);
+  const publicationCompleted = useCallback((outcome: GemReferencePublishOutcome) => {
+    const completed = new Set(outcome.review.map((entry) => entry.draftId));
+    setSelectedDrafts((selection) => selection.filter((item) => !completed.has(item.draftId)));
+    setPublished(outcome);
+    setPendingPublication(false);
+    setDirty(false, false);
+    replace('/service-admin/gem-reference');
+  }, [replace, setDirty]);
+  function hasPending(accountId: string) {
+    try { return !!readPendingPublication(accountId); } catch { return true; }
+  }
   const draftSaved = useCallback((draft: GemReferenceDraftResponse) => {
     setSelectedDrafts((selection) => selection.map((item) => item.draftId === draft.id ? { ...item, expectedDraftRowVersion: draft.rowVersion } : item));
     replace(`/service-admin/gem-reference/drafts/${encodeURIComponent(draft.id)}`);
@@ -33,6 +48,7 @@ export function ServiceAdminApplication({ appearance }: { appearance: ReactNode 
     void getServiceAdminIdentity().then((next) => {
       if (!current) return;
       setIdentity(next);
+      setPendingPublication(next ? hasPending(next.accountId) : false);
       setStatus(next ? 'signed-in' : 'signed-out');
       if (next && (window.location.pathname === '/service-admin' || window.location.pathname === '/service-admin/sign-in')) {
         replace('/service-admin/gem-reference');
@@ -47,10 +63,12 @@ export function ServiceAdminApplication({ appearance }: { appearance: ReactNode 
     if (!next) throw new Error('Service-admin identity was not confirmed.');
     if (identity && identity.accountId !== next.accountId) {
       setSelectedDrafts([]);
+      setPublished(null);
       setDirty(false, false);
       replace('/service-admin/gem-reference');
     }
     setIdentity(next);
+    setPendingPublication(hasPending(next.accountId));
     setStatus('signed-in');
     setWritesSuspended(false);
     setSessionRevision((value) => value + 1);
@@ -64,6 +82,8 @@ export function ServiceAdminApplication({ appearance }: { appearance: ReactNode 
       await signOutServiceAdmin();
       setIdentity(null);
       setSelectedDrafts([]);
+      setPublished(null);
+      setPendingPublication(false);
       setDirty(false, false);
       setStatus('signed-out');
       replace('/service-admin/sign-in');
@@ -108,9 +128,11 @@ export function ServiceAdminApplication({ appearance }: { appearance: ReactNode 
         <div className="workspace-sheet">
           <main id="main" className="workspace">
             {writesSuspended ? <section className="gem-reauth" aria-label="Service-admin session recovery"><p role="alert">Your service-admin session ended. Your draft edits remain below. Sign in with the same account to continue.</p><ServiceAdminSignIn signIn={signIn} /></section> : null}
-            {navigation.path === '/service-admin/gem-reference/new' || navigation.path.match(/^\/service-admin\/gem-reference\/drafts\/([^/]+)$/) || navigation.path.match(/^\/service-admin\/gem-reference\/entries\/([^/]+)\/edit$/) ? <GemEditor key={`${identity.accountId}:${navigation.viewId}`} draftId={navigation.path.includes('/drafts/') ? decodeURIComponent(navigation.path.split('/').at(-1)!) : undefined} entryId={navigation.path.endsWith('/edit') ? decodeURIComponent(navigation.path.split('/').at(-2)!) : undefined} onDirtyChange={dirtyChanged} onAuthLost={authLost} onSaved={draftSaved} writesSuspended={writesSuspended} sessionRevision={sessionRevision} />
+            {pendingPublication && navigation.path !== '/service-admin/gem-reference/review' ? <p className="form-message"><a href="/service-admin/gem-reference/review" onClick={navigation.follow}>Resolve pending publication</a> before selecting another batch.</p> : null}
+            {navigation.path === '/service-admin/gem-reference/review' ? <GemReview key={identity.accountId} accountId={identity.accountId} selection={selectedDrafts} onPublished={publicationCompleted} onEdit={(id) => navigation.navigate(`/service-admin/gem-reference/drafts/${encodeURIComponent(id)}`)} writesSuspended={writesSuspended} sessionRevision={sessionRevision} onAuthLost={authLost} onPendingChange={setPendingPublication} onDirtyChange={dirtyChanged} />
+              : navigation.path === '/service-admin/gem-reference/new' || navigation.path.match(/^\/service-admin\/gem-reference\/drafts\/([^/]+)$/) || navigation.path.match(/^\/service-admin\/gem-reference\/entries\/([^/]+)\/edit$/) ? <GemEditor key={`${identity.accountId}:${navigation.viewId}`} draftId={navigation.path.includes('/drafts/') ? decodeURIComponent(navigation.path.split('/').at(-1)!) : undefined} entryId={navigation.path.endsWith('/edit') ? decodeURIComponent(navigation.path.split('/').at(-2)!) : undefined} onDirtyChange={dirtyChanged} onAuthLost={authLost} onSaved={draftSaved} writesSuspended={writesSuspended} sessionRevision={sessionRevision} />
               : navigation.path.match(/^\/service-admin\/gem-reference\/entries\/([^/]+)$/) ? <GemDetail key={navigation.path} entryId={decodeURIComponent(navigation.path.split('/').at(-1)!)} follow={navigation.follow} />
-              : navigation.path === '/service-admin/gem-reference' ? <GemCatalog selected={selectedDrafts} onSelectionChange={setSelectedDrafts} follow={navigation.follow} />
+              : navigation.path === '/service-admin/gem-reference' ? <>{published ? <section className="gem-publication-result"><p role="status">Published {published.entries.length} shared {published.entries.length === 1 ? 'entry' : 'entries'}.</p><ul>{published.entries.map((entry, index) => <li key={entry.entryId}><a href={`/service-admin/gem-reference/entries/${encodeURIComponent(entry.entryId)}`} onClick={navigation.follow}>View published entry {index + 1}</a></li>)}</ul></section> : null}<GemCatalog selected={selectedDrafts} onSelectionChange={setSelectedDrafts} follow={navigation.follow} selectionLocked={pendingPublication || writesSuspended} /></>
                 : <><h1>{navigation.path.endsWith('/review') ? 'Review drafts' : 'Gem draft'}</h1><a href="/service-admin/gem-reference" onClick={navigation.follow}>Back to gem reference</a></>}
           </main>
         </div>

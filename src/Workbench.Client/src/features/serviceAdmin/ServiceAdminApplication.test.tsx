@@ -4,6 +4,7 @@ import { ServiceAdminApplication } from './ServiceAdminApplication';
 import * as admin from '../../api/serviceAdmin';
 import * as tenant from '../../api/auth';
 import * as gems from '../../api/gemReferenceAdmin';
+import { readPendingPublication, writePendingPublication } from './publicationAttempt';
 
 vi.mock('../../api/serviceAdmin', () => ({
   getServiceAdminIdentity: vi.fn(), signInServiceAdmin: vi.fn(), signOutServiceAdmin: vi.fn(),
@@ -17,12 +18,15 @@ vi.mock('../../api/gemReferenceAdmin', async (original) => ({
   browseSharedGems: vi.fn().mockResolvedValue({ entries: [], nextCursor: null }),
   listGemDrafts: vi.fn().mockResolvedValue({ drafts: [], nextCursor: null }),
   getGemDraft: vi.fn(), getSharedGem: vi.fn(), saveGemDraft: vi.fn(),
+  reviewGemDrafts: vi.fn(), publishGemDrafts: vi.fn(), getGemPublication: vi.fn(),
 }));
 
 const savedDraft: gems.GemReferenceDraftResponse = { id: 'draft', entryId: 'entry', rowVersion: 'draft-v1', expectedPublishedRowVersion: null, content: { id: 'entry', materialKind: 'organic', commonName: 'Amber', group: null, species: null, variety: null, description: null, aliases: [], sources: [], notableLocality: null, isRetired: false, retirementExplanation: null, redirectEntryId: null }, createdBy: 'admin', updatedBy: 'admin', createdAtUtc: '2026-10-01T00:00:00Z', updatedAtUtc: '2026-10-01T00:00:00Z', errors: {} };
 
 beforeEach(() => {
   vi.clearAllMocks();
+  sessionStorage.clear();
+  vi.mocked(gems.listGemDrafts).mockResolvedValue({ drafts: [], nextCursor: null });
   vi.mocked(admin.getServiceAdminIdentity).mockResolvedValue(null);
   vi.mocked(tenant.getCurrentIdentity).mockResolvedValue({ userId: 'tenant', email: 'tenant@example.test', tenantName: 'Tenant', permissions: ['TenantAccess'] });
   vi.mocked(gems.getGemDraft).mockResolvedValue(savedDraft);
@@ -32,6 +36,54 @@ beforeEach(() => {
 afterEach(() => window.history.replaceState(null, '', '/'));
 
 describe('service-admin entry', () => {
+  it('publishes a catalog selection and refreshes the library while leaving unselected drafts', async () => {
+    // GIVEN two saved drafts and a service-admin session.
+    const selectedId = '22222222-2222-4222-8222-222222222222';
+    const selected = { ...savedDraft, id: selectedId };
+    const other = { ...savedDraft, id: '33333333-3333-4333-8333-333333333333', content: { ...savedDraft.content, commonName: 'Ruby' } };
+    const review = { draftId: selectedId, entryId: 'entry', isStale: false, errors: {}, changes: [{ field: 'commonName', before: null, after: 'Amber' }] };
+    vi.mocked(admin.getServiceAdminIdentity).mockResolvedValue({ accountId: 'admin', email: 'curator@example.test' });
+    vi.mocked(gems.listGemDrafts).mockResolvedValue({ drafts: [selected, other], nextCursor: null });
+    vi.mocked(gems.reviewGemDrafts).mockResolvedValue({ entries: [review] });
+    vi.mocked(gems.publishGemDrafts).mockImplementation(async (request) => { vi.mocked(gems.listGemDrafts).mockResolvedValue({ drafts: [other], nextCursor: null }); return { requestId: request.requestId, code: 'published', entries: [{ entryId: 'entry', rowVersion: 'v2' }], review: [review] }; });
+    render(<ServiceAdminApplication appearance={null} />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Drafts' }));
+    fireEvent.click(await screen.findByLabelText('Select Amber'));
+    // WHEN the selected draft is reviewed and explicitly confirmed THEN publication returns to the refreshed library.
+    fireEvent.click(screen.getByRole('link', { name: 'Review 1 draft' }));
+    await screen.findByText('Amber');
+    fireEvent.click(screen.getByLabelText('I confirm these reviewed changes should be published.'));
+    fireEvent.click(screen.getByRole('button', { name: 'Publish 1 draft' }));
+    expect(await screen.findByText('Published 1 shared entry.')).toHaveAttribute('role', 'status');
+    expect(screen.getByRole('link', { name: 'View published entry 1' })).toHaveAttribute('href', '/service-admin/gem-reference/entries/entry');
+    fireEvent.click(screen.getByRole('button', { name: 'Drafts' }));
+    expect(await screen.findByLabelText('Select Ruby')).toBeEnabled();
+    expect(screen.queryByLabelText('Select Amber')).not.toBeInTheDocument();
+    expect(screen.getByText('0 of 50 drafts selected')).toBeVisible();
+  });
+  it('keeps a pending receipt account-scoped through sign-out and sign-in by another admin', async () => {
+    // GIVEN an uncertain publication from the original account on the library route.
+    const pending = { requestId: '11111111-1111-4111-8111-111111111111', drafts: [{ draftId: '22222222-2222-4222-8222-222222222222', expectedDraftRowVersion: 'v1' }] };
+    writePendingPublication('admin', pending);
+    vi.mocked(gems.listGemDrafts).mockResolvedValue({ drafts: [savedDraft], nextCursor: null });
+    vi.mocked(admin.getServiceAdminIdentity).mockResolvedValueOnce({ accountId: 'admin', email: 'curator@example.test' }).mockResolvedValue({ accountId: 'other', email: 'other@example.test' });
+    vi.mocked(admin.signOutServiceAdmin).mockResolvedValue(); vi.mocked(admin.signInServiceAdmin).mockResolvedValue();
+    render(<ServiceAdminApplication appearance={null} />);
+    expect(await screen.findByRole('link', { name: 'Resolve pending publication' })).toBeVisible();
+    fireEvent.click(screen.getByRole('button', { name: 'Drafts' }));
+    expect(await screen.findByLabelText('Select Amber')).toBeDisabled();
+    fireEvent.click(screen.getByRole('button', { name: 'Sign out' }));
+    await screen.findByRole('heading', { name: 'Service-admin sign in' });
+    expect(screen.queryByRole('link', { name: 'Resolve pending publication' })).not.toBeInTheDocument();
+    // WHEN a different admin signs in THEN the old account's receipt remains recoverable only by its owner.
+    fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'other@example.test' } });
+    fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'synthetic-password' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Sign in' }));
+    await screen.findByText('other@example.test');
+    expect(screen.queryByRole('link', { name: 'Resolve pending publication' })).not.toBeInTheDocument();
+    expect(readPendingPublication('admin')).toEqual(pending);
+    expect(gems.getGemPublication).not.toHaveBeenCalled();
+  });
   it.each(['admin', 'other-admin'])('keeps expired-session edits only for the original account (%s)', async (accountId) => {
     // GIVEN an authenticated editor with local changes and a revoked session.
     vi.mocked(admin.getServiceAdminIdentity).mockResolvedValueOnce({ accountId: 'admin', email: 'curator@example.test' })
