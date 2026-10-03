@@ -213,19 +213,34 @@ public sealed class GemReferenceTenantDatabaseTests(SqlServerFixture sqlServer)
     }
 
     [Theory]
-    [InlineData("[]")]
-    [InlineData("{\"isRetired\":true}")]
-    [InlineData("{\"aliases\":{\"state\":\"clear\",\"sources\":[]}}")]
-    [InlineData("{\"description\":{\"state\":\"inherit\",\"sources\":[]}}")]
-    [InlineData("{\"description\":{\"state\":\"replace\",\"value\":null,\"sources\":[]}}")]
-    [InlineData("{\"description\":{\"state\":\"replace\",\"value\":123,\"sources\":[]}}")]
-    [InlineData("{\"aliases\":{\"state\":\"replace\",\"value\":[true],\"sources\":[]}}")]
-    [InlineData("{\"description\":{\"state\":\"replace\",\"value\":\"text\",\"sources\":[{\"field\":\"commonName\"}]}}")]
-    [InlineData("{\"notableLocality\":{\"state\":\"replace\",\"value\":{\"place\":\"Hills\",\"scope\":\"claim\",\"reviewedOn\":\"2026-10-01\",\"sourceAssertionId\":\"11111111-1111-1111-1111-111111111111\"},\"sources\":[]}}")]
-    [InlineData("{\"description\":{\"state\":\"clear\",\"sources\":[{\"field\":\"description\"}]}}")]
-    [InlineData("{\"description\":{\"state\":\"replace\",\"value\":\"one\",\"sources\":[]},\"description\":{\"state\":\"replace\",\"value\":\"two\",\"sources\":[]}}")]
-    public async Task OverrideStructuralGuardsRejectMalformedPayloadWithoutPartialWrite(string payload)
+    [InlineData("arrayRoot")]
+    [InlineData("retirementField")]
+    [InlineData("clearAliases")]
+    [InlineData("inheritState")]
+    [InlineData("nullReplacement")]
+    [InlineData("numericReplacement")]
+    [InlineData("booleanAlias")]
+    [InlineData("foreignSourceField")]
+    [InlineData("unsourcedLocality")]
+    [InlineData("clearWithSources")]
+    [InlineData("duplicateField")]
+    public async Task OverrideStructuralGuardsRejectMalformedPayloadWithoutPartialWrite(string scenario)
     {
+        var payload = scenario switch
+        {
+            "arrayRoot" => "[]",
+            "retirementField" => "{\"isRetired\":true}",
+            "clearAliases" => "{\"aliases\":{\"state\":\"clear\",\"sources\":[]}}",
+            "inheritState" => "{\"description\":{\"state\":\"inherit\",\"sources\":[]}}",
+            "nullReplacement" => "{\"description\":{\"state\":\"replace\",\"value\":null,\"sources\":[]}}",
+            "numericReplacement" => "{\"description\":{\"state\":\"replace\",\"value\":123,\"sources\":[]}}",
+            "booleanAlias" => "{\"aliases\":{\"state\":\"replace\",\"value\":[true],\"sources\":[]}}",
+            "foreignSourceField" => "{\"description\":{\"state\":\"replace\",\"value\":\"text\",\"sources\":[{\"field\":\"commonName\"}]}}",
+            "unsourcedLocality" => "{\"notableLocality\":{\"state\":\"replace\",\"value\":{\"place\":\"Hills\",\"scope\":\"claim\",\"reviewedOn\":\"2026-10-01\",\"sourceAssertionId\":\"11111111-1111-1111-1111-111111111111\"},\"sources\":[]}}",
+            "clearWithSources" => "{\"description\":{\"state\":\"clear\",\"sources\":[{\"field\":\"description\"}]}}",
+            "duplicateField" => "{\"description\":{\"state\":\"replace\",\"value\":\"one\",\"sources\":[]},\"description\":{\"state\":\"replace\",\"value\":\"two\",\"sources\":[]}}",
+            _ => throw new ArgumentOutOfRangeException(nameof(scenario)),
+        };
         // GIVEN a shared entry and valid locked tenant writer.
         await using var app = await AuthTestApplication.CreateAsync(sqlServer);
         var shared = GemReferenceSamples.Mineral();
