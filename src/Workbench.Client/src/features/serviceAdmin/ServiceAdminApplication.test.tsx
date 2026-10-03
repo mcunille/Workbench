@@ -36,6 +36,31 @@ beforeEach(() => {
 afterEach(() => window.history.replaceState(null, '', '/'));
 
 describe('service-admin entry', () => {
+  it('restores a rejected recovered batch to the shell selection before repairing its draft', async () => {
+    // GIVEN a review-route reload with an infrastructure rejection and no in-memory selection.
+    const draftId = '22222222-2222-4222-8222-222222222222';
+    const pending = { requestId: '11111111-1111-4111-8111-111111111111', drafts: [{ draftId, expectedDraftRowVersion: 'draft-v1' }] };
+    writePendingPublication('admin', pending);
+    window.history.replaceState(null, '', '/service-admin/gem-reference/review');
+    vi.mocked(admin.getServiceAdminIdentity).mockResolvedValue({ accountId: 'admin', email: 'curator@example.test' });
+    vi.mocked(gems.getGemPublication).mockResolvedValue({ requestId: pending.requestId, code: 'infrastructure_failure', entries: [], review: [] });
+    vi.mocked(gems.getGemDraft).mockResolvedValue({ ...savedDraft, id: draftId });
+    vi.mocked(gems.saveGemDraft).mockResolvedValue({ ...savedDraft, id: draftId, rowVersion: 'draft-v2' });
+    render(<ServiceAdminApplication appearance={null} />);
+    await screen.findByText(/Publication was rejected/);
+    // WHEN the recovered draft is opened for repair and saved THEN the shell retains that selection with the confirmed version.
+    fireEvent.click(screen.getByRole('button', { name: 'Edit draft' }));
+    await screen.findByLabelText('Common name');
+    fireEvent.click(screen.getByRole('button', { name: 'Save draft' }));
+    await screen.findByText('Draft saved. Publication requires review.');
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Save draft' })).toBeEnabled());
+    fireEvent.click(screen.getByRole('link', { name: 'Gem reference' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Drafts' }));
+    expect(screen.getByText('1 of 50 drafts selected')).toBeVisible();
+    vi.mocked(gems.reviewGemDrafts).mockResolvedValue({ entries: [] });
+    fireEvent.click(screen.getByRole('link', { name: 'Review 1 draft' }));
+    await waitFor(() => expect(gems.reviewGemDrafts).toHaveBeenCalledWith([{ draftId, expectedDraftRowVersion: 'draft-v2' }]));
+  });
   it('publishes a catalog selection and refreshes the library while leaving unselected drafts', async () => {
     // GIVEN two saved drafts and a service-admin session.
     const selectedId = '22222222-2222-4222-8222-222222222222';

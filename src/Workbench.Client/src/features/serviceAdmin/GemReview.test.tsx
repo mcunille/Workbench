@@ -6,7 +6,8 @@ vi.mock('../../api/gemReferenceAdmin', async (original) => ({ ...await original<
 const draftId = '22222222-2222-4222-8222-222222222222';
 const selection = [{ draftId, expectedDraftRowVersion: 'draft-v1' }];
 const entry = { draftId, entryId: 'entry', isStale: false, errors: {}, changes: [{ field: 'commonName', before: 'Ruby', after: 'Burmese ruby' }, { field: 'aliases', before: ['Old alias'], after: ['New alias'] }, { field: 'sources', before: [{ title: 'Old source', field: 'commonName', url: 'javascript:bad' }], after: [{ title: 'Handbook', publisher: 'Institute', field: 'commonName', citation: 'Volume 1', reviewedOn: '2026-09-01' }] }] };
-const success = (requestId: string): api.GemReferencePublishOutcome => ({ requestId, code: 'published', entries: [{ entryId: 'entry', rowVersion: 'published-v2' }], review: [entry] });
+const receiptEntry = { ...entry, changes: entry.changes.map((change) => ({ field: change.field, before: null, after: null })) };
+const success = (requestId: string): api.GemReferencePublishOutcome => ({ requestId, code: 'published', entries: [{ entryId: 'entry', rowVersion: 'published-v2' }], review: [receiptEntry] });
 const callbacks = { onPublished: vi.fn(), onEdit: vi.fn(), onAuthLost: vi.fn(), onPendingChange: vi.fn(), onDirtyChange: vi.fn() };
 function show(props: Partial<GemReviewProps> = {}) { return render(<GemReview accountId="admin-a" selection={selection} {...callbacks} {...props} />); }
 async function confirm() { await screen.findByText('Burmese ruby'); fireEvent.click(screen.getByLabelText('I confirm these reviewed changes should be published.')); fireEvent.click(screen.getByRole('button', { name: 'Publish 1 draft' })); }
@@ -60,12 +61,43 @@ describe('combined gem review', () => {
   });
   it('requires fresh review and confirmation before using a new identity after terminal rejection', async () => {
     // GIVEN a terminal validation outcome.
-    vi.mocked(api.publishGemDrafts).mockImplementationOnce(async (request) => ({ ...success(request.requestId), code: 'validation_failed', entries: [], review: [{ ...entry, errors: { sources: ['Repair the citation.'] } }] })).mockImplementation(async (request) => success(request.requestId));
+    vi.mocked(api.publishGemDrafts).mockImplementationOnce(async (request) => ({ ...success(request.requestId), code: 'validation_failed', entries: [], review: [{ ...receiptEntry, errors: { sources: ['Repair the citation.'] } }] })).mockImplementation(async (request) => success(request.requestId));
     show(); await confirm(); expect(await screen.findByText(/Sources: Repair the citation/)).toBeVisible();
+    // THEN redacted receipt values are not presented as actual empty fields.
+    expect(screen.queryAllByText('Not specified')).toHaveLength(0);
+    expect(screen.queryByRole('region', { name: 'Common name before' })).not.toBeInTheDocument();
+    expect(screen.getByText('Review again to load current before and after values.')).toBeVisible();
     const first = vi.mocked(api.publishGemDrafts).mock.calls[0][0]; expect(callbacks.onPublished).not.toHaveBeenCalled(); expect(readPendingPublication('admin-a')).toBeNull();
     // WHEN the editor has repaired the selection and the admin reviews again THEN a fresh confirmation permits a new request.
     fireEvent.click(screen.getByRole('button', { name: 'Review again' })); await confirm();
     await waitFor(() => expect(callbacks.onPublished).toHaveBeenCalled()); expect(vi.mocked(api.publishGemDrafts).mock.calls[1][0].requestId).not.toBe(first.requestId);
+  });
+  it('retains a recovered batch after infrastructure rejection for repair and a freshly confirmed publication', async () => {
+    // GIVEN a reloaded review with no in-memory selection and a durable rejection without entry review details.
+    const pending = { requestId: '11111111-1111-4111-8111-111111111111', drafts: selection };
+    writePendingPublication('admin-a', pending);
+    vi.mocked(api.getGemPublication).mockResolvedValue({ requestId: pending.requestId, code: 'infrastructure_failure', entries: [], review: [] });
+    show({ selection: [] });
+    await screen.findByText(/Publication was rejected/);
+    // THEN the recovered batch remains repairable and cannot publish until fresh review and confirmation.
+    expect(screen.queryByText(/No drafts selected/)).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Publish 1 draft' })).toBeDisabled();
+    fireEvent.click(screen.getByRole('button', { name: 'Edit draft' }));
+    expect(callbacks.onEdit).toHaveBeenCalledWith(draftId);
+    expect(readPendingPublication('admin-a')).toBeNull();
+    // WHEN the same batch is freshly reviewed THEN its exact selection is reviewed and confirmation starts unchecked.
+    fireEvent.click(screen.getByRole('button', { name: 'Review again' }));
+    await screen.findByText('Burmese ruby');
+    expect(api.reviewGemDrafts).toHaveBeenCalledWith(selection);
+    expect(screen.getByLabelText('I confirm these reviewed changes should be published.')).not.toBeChecked();
+    expect(screen.getByRole('button', { name: 'Publish 1 draft' })).toBeDisabled();
+    expect(api.publishGemDrafts).not.toHaveBeenCalled();
+    // WHEN explicitly confirmed THEN a new request identity publishes the retained batch.
+    await confirm();
+    await waitFor(() => expect(callbacks.onPublished).toHaveBeenCalled());
+    const request = vi.mocked(api.publishGemDrafts).mock.calls[0][0];
+    expect(request.drafts).toEqual(selection);
+    expect(request.requestId).not.toBe(pending.requestId);
   });
   it('prevents publication when pending storage fails and offers retry', async () => {
     // GIVEN storage cannot persist the receipt before dispatch.
