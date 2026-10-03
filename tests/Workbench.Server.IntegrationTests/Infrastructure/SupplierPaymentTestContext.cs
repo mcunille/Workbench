@@ -12,6 +12,7 @@ internal sealed class SupplierPaymentTestContext(SupplierAllocationTestContext a
 
     internal static async Task<SupplierPaymentTestContext> RestoreAsync(SqlTestDatabase database, SupplierContextState state)
     {
+        using var phaseCost = PhaseCostTrace.Measure("context-restore");
         var application = await AuthTestApplication.CreateFromDatabaseAsync(database);
         JournalTestContext? journal = null;
         try
@@ -30,6 +31,7 @@ internal sealed class SupplierPaymentTestContext(SupplierAllocationTestContext a
     }
     public static async Task<SupplierPaymentTestContext> OpenAsync(SqlServerFixture fixture)
     {
+        using var phaseCost = PhaseCostTrace.Measure("payment-setup");
         var result = new SupplierPaymentTestContext(await SupplierAllocationTestContext.OpenAsync(fixture));
         try
         {
