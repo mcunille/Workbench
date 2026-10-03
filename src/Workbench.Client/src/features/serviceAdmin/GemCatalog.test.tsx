@@ -61,6 +61,24 @@ describe('shared catalog', () => {
     expect(api.browseSharedGems).toHaveBeenLastCalledWith(expect.objectContaining({ cursor: 'next-page' }), expect.any(AbortSignal));
   });
 
+  it('retains loaded rows and retries the same continuation after a page failure', async () => {
+    // GIVEN a loaded catalog page and a failed continuation.
+    vi.mocked(api.browseSharedGems).mockResolvedValueOnce({ entries: [entry], nextCursor: 'next-page' })
+      .mockRejectedValueOnce(new Error('Unavailable'))
+      .mockResolvedValue({ entries: [{ ...entry, id: 'sapphire', commonName: 'Sapphire' }], nextCursor: null });
+    render(<Catalog />);
+    await screen.findByRole('link', { name: 'Ruby' });
+    fireEvent.click(screen.getByRole('button', { name: 'Load more entries' }));
+    await screen.findByRole('alert');
+    expect(screen.getByRole('link', { name: 'Ruby' })).toBeVisible();
+    // WHEN retrying THEN the same cursor appends the next page exactly once.
+    fireEvent.click(screen.getByRole('button', { name: 'Retry catalog' }));
+    await screen.findByRole('link', { name: 'Sapphire' });
+    expect(screen.getAllByRole('link', { name: 'Ruby' })).toHaveLength(1);
+    expect(screen.getAllByRole('link', { name: 'Sapphire' })).toHaveLength(1);
+    expect(vi.mocked(api.browseSharedGems).mock.calls.slice(1).map(([query]) => query.cursor)).toEqual(['next-page', 'next-page']);
+  });
+
   it('ignores an outdated response after a new server search', async () => {
     // GIVEN an initial search that responds after the newer query.
     let oldResponse!: (value: api.GemReferencePageResponse) => void;

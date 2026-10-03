@@ -48,6 +48,9 @@ export async function getServiceAdminIdentity(): Promise<CurrentServiceAdminResp
 }
 
 export async function signInServiceAdmin(email: string, password: string): Promise<void> {
+  // Reauthentication can follow session loss without an identity GET. The cached
+  // authenticated token no longer belongs to the principal accepted by login.
+  antiforgeryToken = undefined;
   const { response } = await api.POST('/api/beta/service-admin/auth/login', {
     body: { email, password }, headers: await serviceAdminMutationHeaders(),
   });

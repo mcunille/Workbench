@@ -192,10 +192,12 @@ detail, persisted editor and combined batch review implement this story. The
 [curation guide](../gem-reference-curation.md) describes save/publish, claim citations,
 retirement, explicit concurrency reconciliation and account-scoped publication recovery.
 Focused live browser coverage exercises create/save/reload/edit/multi-publish/retire,
-two-admin stale draft and published-base recovery, concurrent shared reads and direct
+two-admin stale draft and published-base recovery, retained-editor reauthentication after an
+ended session, concurrent shared reads and direct
 cross-role denial. Intercepted coverage exercises keyboard editing/selection/review,
-validation retention, dirty navigation, long citations, load retry and lost-response
-recovery in light and dark appearances at 390px. Current-source delivery gates and preview
+validation retention, dirty navigation and long citations in light and dark appearances at
+390px. Load retry and lost-response recovery run in the default appearance and viewport.
+Current-source delivery gates and preview
 inspection remain part of PR delivery; this story does not complete the overall release.
 
 **Story:** As a service admin, I want to stage several entries, inspect their source and field changes, and publish them together so that shared curation is understandable and controlled.

@@ -1,7 +1,38 @@
 import { randomUUID } from 'node:crypto';
 import { expect, test } from './diagnostic-fixture';
 import { useAuthenticatedSession } from './auth-fixture';
-import { adminApi, createThroughUi, library, publishThroughUi, saveApi, saveThroughUi, signInAdmin, syntheticContent } from './service-admin-fixture';
+import { adminApi, createThroughUi, enterAdminCredentials, library, publishThroughUi, saveApi, saveThroughUi, signInAdmin, syntheticContent } from './service-admin-fixture';
+
+test('reauthenticates an ended session without reloading or losing editor changes', async ({ page, browser }) => {
+  // GIVEN a successful UI save has cached an authenticated antiforgery token.
+  await signInAdmin(page, 1, true);
+  const draft = await createThroughUi(page, `Browser reauth ${randomUUID().slice(0, 8)}`);
+  await page.getByLabel('Common name', { exact: true }).fill('Retained reauthentication edit');
+  const otherContext = await browser.newContext();
+  try {
+    const other = await otherContext.newPage();
+    await signInAdmin(other, 2);
+    const latest = await saveApi(other.request, { ...draft.content, commonName: 'Other admin version' }, draft);
+    // AND the current server session is revoked through its real logout endpoint without unmounting the editor.
+    const token = (await (await page.request.get('/api/beta/service-admin/auth/antiforgery')).json()).requestToken;
+    expect((await page.request.post('/api/beta/service-admin/auth/logout', { headers: { 'X-CSRF-TOKEN': token } })).status()).toBe(204);
+    await page.getByRole('button', { name: 'Save draft', exact: true }).click();
+    await expect(page.getByRole('region', { name: 'Service-admin session recovery' })).toBeVisible();
+    // WHEN signing in through the retained form THEN the real login protocol accepts the fresh anonymous token.
+    const login = page.waitForResponse(response => response.request().method() === 'POST' && response.url().endsWith('/api/beta/service-admin/auth/login'));
+    await enterAdminCredentials(page);
+    expect((await login).status()).toBe(204);
+    await expect(page.getByRole('region', { name: 'Service-admin session recovery' })).toHaveCount(0);
+    // AND current concurrency versions are reconciled explicitly while local content survives.
+    await expect(page.getByRole('heading', { name: 'Resolve changed versions' })).toBeVisible();
+    await expect(page.getByLabel('Common name', { exact: true })).toHaveValue('Retained reauthentication edit');
+    await expect(page.getByText('Other admin version', { exact: true })).toBeVisible();
+    await page.getByRole('button', { name: 'Keep my edits with current versions' }).click();
+    const saved = await saveThroughUi(page);
+    expect(saved.rowVersion).not.toBe(latest.rowVersion);
+    expect(saved.content.commonName).toBe('Retained reauthentication edit');
+  } finally { await otherContext.close(); }
+});
 
 test('admin saves, reloads, edits and atomically publishes two entries, then retires a stable detail', async ({ page }) => {
   // GIVEN an independently signed-in service admin and small synthetic sourced claims.

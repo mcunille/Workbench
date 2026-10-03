@@ -1,4 +1,4 @@
-import { expect, type Page, type APIRequestContext } from './diagnostic-fixture';
+import { expect, type Page, type APIRequestContext, type Cookie } from './diagnostic-fixture';
 import { readFile } from 'node:fs/promises';
 import { randomUUID } from 'node:crypto';
 import type { GemReferenceContent, GemReferenceDraftResponse } from '../../src/Workbench.Client/src/api/gemReferenceAdmin';
@@ -6,17 +6,33 @@ import type { GemReferenceContent, GemReferenceDraftResponse } from '../../src/W
 export const library = '/service-admin/gem-reference';
 export const adminApi = '/api/beta/service-admin/gem-reference';
 
-export async function signInAdmin(page: Page, account = 1) {
+const sessions = new Map<number, Cookie[]>();
+
+export async function signInAdmin(page: Page, account = 1, freshSession = false) {
+  // Ordinary cases reuse worker-local cookies; revocation cases own a fresh
+  // session so they cannot invalidate siblings or exhaust the login budget.
+  const cookies = freshSession ? undefined : sessions.get(account);
+  if (cookies) {
+    await page.context().addCookies(cookies);
+    await page.goto(library);
+    await expect(page.getByRole('heading', { name: 'Gem reference', exact: true })).toBeVisible();
+    return;
+  }
+  await page.goto('/service-admin/sign-in');
+  await expect(page.getByRole('heading', { name: 'Service-admin sign in' })).toBeVisible();
+  await enterAdminCredentials(page, account);
+  await expect(page.getByRole('heading', { name: 'Gem reference', exact: true })).toBeVisible();
+  if (!freshSession) sessions.set(account, await page.context().cookies());
+}
+
+export async function enterAdminCredentials(page: Page, account = 1) {
   // Reuse the disposable server's synthetic fixture without logging a password.
   const source = await readFile(new URL('../../scripts/run-browser-server.ps1', import.meta.url), 'utf8');
   const password = source.match(/Set-Content -LiteralPath \$serviceAdminPasswordFile -Value '([^']+)'/)?.[1];
   if (!password) throw new Error('Disposable service-admin fixture is missing.');
-  await page.goto('/service-admin/sign-in');
-  await expect(page.getByRole('heading', { name: 'Service-admin sign in' })).toBeVisible();
   await page.getByLabel('Email', { exact: true }).fill(`browser-service-admin-${account}@example.test`);
   await page.getByLabel('Password', { exact: true }).fill(password);
   await page.getByRole('button', { name: 'Sign in', exact: true }).click();
-  await expect(page.getByRole('heading', { name: 'Gem reference', exact: true })).toBeVisible();
 }
 
 export function syntheticContent(name: string): GemReferenceContent {

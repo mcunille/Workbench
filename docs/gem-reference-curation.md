@@ -65,8 +65,10 @@ GEM-07 adds the service-admin browser workflow over the existing GEM-03 identity
 curation APIs. Its focused acceptance files are
 `tests/Workbench.BrowserTests/gem-curation.spec.ts` and `gem-curation.ui.spec.ts`: live SQL-backed
 create/save/reload/edit/batch publication/retirement, two-admin draft and published-base
-reconciliation, direct cross-role denial, and intercepted keyboard, narrow-layout, validation,
-load-retry and lost-response recovery in both appearances. These synthetic claims do not
+reconciliation, retained-editor reauthentication after an ended session, and direct cross-role
+denial. Intercepted keyboard, editor validation, dirty navigation and combined review run in
+light and dark appearances at 390px; load-retry and lost-response recovery run in the default
+appearance and viewport. These synthetic claims do not
 change the distributed four-mineral sample.
 
 Tenant additions and overrides, the tenant library screens, inventory linking, numerical

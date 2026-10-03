@@ -19,6 +19,25 @@ beforeEach(() => {
 });
 
 describe('gem editor', () => {
+  it('requires a confirmed save after reconciling versions without changing content', async () => {
+    // GIVEN a saved unchanged draft whose published baseline has advanced.
+    vi.mocked(api.getSharedGem).mockResolvedValue(published('published-v3'));
+    vi.mocked(api.saveGemDraft).mockRejectedValueOnce(new api.GemReferenceAdminApiError(409, {}));
+    render(<GemEditor {...callbacks} draftId="draft" />);
+    await screen.findByText('Draft saved. Publication requires review.');
+    fireEvent.click(screen.getByRole('button', { name: 'Save draft' }));
+    // WHEN the admin keeps identical content with current versions.
+    fireEvent.click(await screen.findByRole('button', { name: 'Keep my edits with current versions' }));
+    // THEN the pending baseline is visibly unsaved and protected from departure.
+    expect(screen.getByText('Unsaved changes')).toBeVisible();
+    expect(screen.queryByText('Draft saved. Publication requires review.')).not.toBeInTheDocument();
+    expect(callbacks.onDirtyChange).toHaveBeenLastCalledWith(true, false);
+    // WHEN the rebase is persisted THEN the saved state and navigation guard clear.
+    fireEvent.click(screen.getByRole('button', { name: 'Save draft' }));
+    await screen.findByText('Draft saved. Publication requires review.');
+    expect(callbacks.onDirtyChange).toHaveBeenLastCalledWith(false, false);
+    expect(api.saveGemDraft).toHaveBeenLastCalledWith('draft', expect.objectContaining({ expectedPublishedRowVersion: 'published-v3', content }));
+  });
   it('does not navigate back to a discarded editor when an outstanding save completes', async () => {
     // GIVEN an outstanding draft save and an explicit departure from the editor.
     let confirm!: (value: api.GemReferenceDraftResponse) => void;

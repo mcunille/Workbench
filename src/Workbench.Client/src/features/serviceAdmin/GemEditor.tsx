@@ -41,6 +41,7 @@ export function GemEditor({ entryId, draftId, onDirtyChange, onAuthLost, onSaved
   const [loadAttempt, setLoadAttempt] = useState(0);
   const [busy, setBusy] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [reconciliationPending, setReconciliationPending] = useState(false);
   const [uncertain, setUncertain] = useState(false);
   const [sessionLost, setSessionLost] = useState(false);
   const [refreshRequired, setRefreshRequired] = useState(false);
@@ -48,7 +49,7 @@ export function GemEditor({ entryId, draftId, onDirtyChange, onAuthLost, onSaved
   const summary = useRef<HTMLDivElement>(null);
   const mounted = useRef(true);
   const previousSession = useRef(sessionRevision);
-  const dirty = !!content && JSON.stringify(content) !== baseline;
+  const dirty = reconciliationPending || (!!content && JSON.stringify(content) !== baseline);
 
   useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
   useEffect(() => { onDirtyChange(dirty || uncertain || busy, uncertain || busy); }, [dirty, uncertain, busy, onDirtyChange]);
@@ -121,6 +122,7 @@ export function GemEditor({ entryId, draftId, onDirtyChange, onAuthLost, onSaved
       setPublishedVersion(result.expectedPublishedRowVersion);
       setErrors(result.errors);
       setSaved(true);
+      setReconciliationPending(false);
       setUncertain(false);
       onSaved(result);
     } catch (error) {
@@ -148,6 +150,7 @@ export function GemEditor({ entryId, draftId, onDirtyChange, onAuthLost, onSaved
     setDraftVersion(current.draft?.rowVersion ?? null);
     setPublishedVersion(useSaved ? current.draft?.expectedPublishedRowVersion ?? null : current.published?.rowVersion ?? null);
     if (useSaved) { setBaseline(JSON.stringify(next)); setErrors(current.draft?.errors ?? {}); }
+    setReconciliationPending(!useSaved);
     setUncertain(false);
     setRefreshRequired(false);
     setCurrent(null);
