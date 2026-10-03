@@ -3,6 +3,7 @@ import { App } from '../../App';
 import { ServiceAdminApplication } from './ServiceAdminApplication';
 import * as admin from '../../api/serviceAdmin';
 import * as tenant from '../../api/auth';
+import * as gems from '../../api/gemReferenceAdmin';
 
 vi.mock('../../api/serviceAdmin', () => ({
   getServiceAdminIdentity: vi.fn(), signInServiceAdmin: vi.fn(), signOutServiceAdmin: vi.fn(),
@@ -11,20 +12,82 @@ vi.mock('../../api/auth', async (importOriginal) => ({
   ...await importOriginal<typeof import('../../api/auth')>(), getCurrentIdentity: vi.fn(),
 }));
 vi.mock('../../api/system', () => ({ getSystem: vi.fn().mockResolvedValue({ name: 'Workbench', version: '1.0.0' }) }));
-vi.mock('../../api/gemReferenceAdmin', () => ({
+vi.mock('../../api/gemReferenceAdmin', async (original) => ({
+  ...await original<typeof import('../../api/gemReferenceAdmin')>(),
   browseSharedGems: vi.fn().mockResolvedValue({ entries: [], nextCursor: null }),
   listGemDrafts: vi.fn().mockResolvedValue({ drafts: [], nextCursor: null }),
+  getGemDraft: vi.fn(), getSharedGem: vi.fn(), saveGemDraft: vi.fn(),
 }));
+
+const savedDraft: gems.GemReferenceDraftResponse = { id: 'draft', entryId: 'entry', rowVersion: 'draft-v1', expectedPublishedRowVersion: null, content: { id: 'entry', materialKind: 'organic', commonName: 'Amber', group: null, species: null, variety: null, description: null, aliases: [], sources: [], notableLocality: null, isRetired: false, retirementExplanation: null, redirectEntryId: null }, createdBy: 'admin', updatedBy: 'admin', createdAtUtc: '2026-10-01T00:00:00Z', updatedAtUtc: '2026-10-01T00:00:00Z', errors: {} };
 
 beforeEach(() => {
   vi.clearAllMocks();
   vi.mocked(admin.getServiceAdminIdentity).mockResolvedValue(null);
   vi.mocked(tenant.getCurrentIdentity).mockResolvedValue({ userId: 'tenant', email: 'tenant@example.test', tenantName: 'Tenant', permissions: ['TenantAccess'] });
+  vi.mocked(gems.getGemDraft).mockResolvedValue(savedDraft);
+  vi.mocked(gems.getSharedGem).mockRejectedValue(new gems.GemReferenceAdminApiError(404, {}));
   window.history.replaceState(null, '', '/service-admin/gem-reference');
 });
 afterEach(() => window.history.replaceState(null, '', '/'));
 
 describe('service-admin entry', () => {
+  it.each(['admin', 'other-admin'])('keeps expired-session edits only for the original account (%s)', async (accountId) => {
+    // GIVEN an authenticated editor with local changes and a revoked session.
+    vi.mocked(admin.getServiceAdminIdentity).mockResolvedValueOnce({ accountId: 'admin', email: 'curator@example.test' })
+      .mockResolvedValue({ accountId, email: 'curator@example.test' });
+    vi.mocked(admin.signInServiceAdmin).mockResolvedValue();
+    vi.mocked(gems.saveGemDraft).mockRejectedValue(new gems.GemReferenceAdminApiError(401, {}));
+    window.history.replaceState(null, '', '/service-admin/gem-reference/drafts/draft');
+    render(<ServiceAdminApplication appearance={null} />);
+    await screen.findByLabelText('Common name');
+    fireEvent.change(screen.getByLabelText('Common name'), { target: { value: 'Unsaved amber' } });
+    // WHEN saving discovers expiry THEN reauthentication appears while the editor remains mounted.
+    fireEvent.click(screen.getByRole('button', { name: 'Save draft' }));
+    await screen.findByRole('heading', { name: 'Service-admin sign in' });
+    expect(screen.getByLabelText('Common name')).toHaveValue('Unsaved amber');
+    expect(screen.getByRole('button', { name: 'Save draft' })).toBeDisabled();
+    // WHEN an admin signs in THEN the same account refreshes versions; a different account starts without those edits.
+    fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'curator@example.test' } });
+    fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'synthetic-password' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Sign in' }));
+    if (accountId === 'admin') {
+      await waitFor(() => expect(screen.getByRole('button', { name: 'Save draft' })).toBeEnabled());
+      expect(screen.getByLabelText('Common name')).toHaveValue('Unsaved amber');
+      expect(gems.getGemDraft).toHaveBeenCalledTimes(2);
+      expect(gems.getSharedGem).toHaveBeenCalledWith('entry');
+    } else {
+      await screen.findByRole('heading', { name: 'Gem reference' });
+      expect(screen.queryByLabelText('Common name')).not.toBeInTheDocument();
+      expect(window.location.pathname).toBe('/service-admin/gem-reference');
+    }
+  });
+
+  it('uses the existing discard decision before leaving a dirty editor or signing out', async () => {
+    // GIVEN local edits in an authenticated new draft.
+    const originalModal = Object.getOwnPropertyDescriptor(HTMLDialogElement.prototype, 'showModal');
+    Object.defineProperty(HTMLDialogElement.prototype, 'showModal', { configurable: true, value(this: HTMLDialogElement) { this.setAttribute('open', ''); } });
+    vi.mocked(admin.getServiceAdminIdentity).mockResolvedValue({ accountId: 'admin', email: 'curator@example.test' });
+    vi.mocked(admin.signOutServiceAdmin).mockResolvedValue();
+    window.history.replaceState(null, '', '/service-admin/gem-reference/new');
+    render(<ServiceAdminApplication appearance={null} />);
+    fireEvent.change(await screen.findByLabelText('Common name'), { target: { value: 'Unsaved' } });
+    // WHEN library navigation is requested THEN keeping edits preserves the form and route.
+    fireEvent.click(screen.getByRole('link', { name: 'Gem reference' }));
+    expect(await screen.findByRole('dialog')).toHaveTextContent('Discard changes?');
+    fireEvent.click(screen.getByRole('button', { name: 'Keep editing' }));
+    expect(screen.getByLabelText('Common name')).toHaveValue('Unsaved');
+    expect(window.location.pathname).toBe('/service-admin/gem-reference/new');
+    // WHEN signing out is requested THEN only explicit discard performs logout.
+    fireEvent.click(screen.getByRole('button', { name: 'Sign out' }));
+    await screen.findByRole('dialog');
+    expect(admin.signOutServiceAdmin).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'Discard changes' }));
+    await screen.findByRole('heading', { name: 'Service-admin sign in' });
+    expect(admin.signOutServiceAdmin).toHaveBeenCalledOnce();
+    if (originalModal) Object.defineProperty(HTMLDialogElement.prototype, 'showModal', originalModal);
+    else Reflect.deleteProperty(HTMLDialogElement.prototype, 'showModal');
+  });
   it('tenant_cookie_does_not_authenticate_admin', async () => {
     // GIVEN a valid tenant session and an absent service-admin session.
     // WHEN the browser opens a direct service-admin route.

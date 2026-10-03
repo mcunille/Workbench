@@ -52,7 +52,38 @@
 .gem-retirement { border-block: 1px solid var(--glass-edge); padding-block: 1rem; }
 .service-admin-shell .workspace { overflow-wrap: anywhere; }
 
+.gem-editor-layout { max-width: 70rem; }
+.gem-editor-conflicted { display: grid; grid-template-columns: minmax(0, 1fr) minmax(18rem, 1fr); gap: 2rem; }
+.gem-editor, .gem-conflict { min-width: 0; }
+.gem-editor-controls { border: 0; padding: 0; margin: 0; min-width: 0; }
+.gem-editor-section { margin-bottom: 2rem; scroll-margin-top: 1rem; }
+.gem-editor-section h2, .gem-conflict h2 { font-size: 1.25rem; margin-block: 0 0.75rem; }
+.gem-editor-section p, .gem-conflict p { color: var(--muted); max-width: 70ch; }
+.gem-form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
+.gem-form-grid label, .gem-alias-row label { display: flex; flex-direction: column; gap: 0.5rem; min-width: 0; }
+.gem-form-grid input, .gem-form-grid select, .gem-form-grid textarea, .gem-alias-row input { width: 100%; min-width: 0; }
+.gem-wide-field { grid-column: 1 / -1; }
+.gem-source-fields { min-width: 0; margin-block: 1.25rem; padding: 1rem 0; border: 0; border-top: 1px solid var(--glass-edge); }
+.gem-source-fields legend { font-weight: 500; padding-right: 0.5rem; }
+.gem-source-fields > button { margin-top: 1rem; }
+.gem-check { display: flex; align-items: center; gap: 0.75rem; min-height: 44px; }
+.gem-check input { width: 1.125rem; height: 1.125rem; accent-color: var(--accent); }
+.gem-alias-row { display: flex; align-items: end; gap: 0.75rem; margin-block: 1rem; }
+.gem-alias-row label { flex: 1; }
+.gem-editor-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 1rem; padding-block: 1rem; border-top: 1px solid var(--glass-edge); }
+.gem-error-summary { margin-bottom: 1.5rem; scroll-margin-top: 1rem; }
+.gem-error-summary a { color: inherit; text-underline-offset: 0.2em; }
+.gem-current-content { margin-bottom: 1.5rem; }
+.gem-current-content > div { margin-bottom: 0.75rem; }
+.gem-current-content dt { font-size: 0.875rem; color: var(--muted); }
+.gem-current-content dd { margin: 0.25rem 0 0; white-space: pre-wrap; }
+.gem-current-content ul { padding-left: 1.25rem; }
+.gem-reauth { margin-bottom: 2rem; }
+.gem-reauth .auth-card { max-width: 30rem; }
+
 @media (max-width: 48rem) {
+  .gem-editor-conflicted, .gem-form-grid { grid-template-columns: minmax(0, 1fr); }
+  .gem-alias-row { flex-wrap: wrap; }
   .gem-taxonomy { grid-template-columns: minmax(0, 1fr); }
   .gem-catalog-list > li { flex-wrap: wrap; gap: 0.5rem; }
   .gem-row-content { flex-basis: calc(100% - 3.5rem); }
