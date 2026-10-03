@@ -3,17 +3,15 @@ using System.Text.Json.Nodes;
 using Microsoft.Data.SqlClient;
 using Workbench.Server.IntegrationTests.Infrastructure;
 using Xunit;
-using Xunit.Abstractions;
 
 namespace Workbench.Server.IntegrationTests;
 
 [Collection(SqlServerCollection.Name)]
-public sealed class SupplierCorrectionParticipantTests(SqlServerFixture sqlServer, ITestOutputHelper output)
+public sealed class SupplierCorrectionParticipantTests(SqlServerFixture sqlServer)
 {
     [Fact]
     public async Task PaidBillReplacementPreservesCash()
     {
-        using var phaseTrace = PhaseCostTrace.Enable(output, nameof(PaidBillReplacementPreservesCash));
         // GIVEN a genuine bill and genuine cash payment, fully applied by production posting.
         await using var context = await SupplierCorrectionFixture.OpenAsync(sqlServer);
         var bill = await context.Allocation.BillAsync("300");
@@ -73,12 +71,9 @@ public sealed class SupplierCorrectionParticipantTests(SqlServerFixture sqlServe
     private static Task<decimal> BankAsync(SupplierPaymentTestContext context) => context.Bills.ScalarAsync<decimal>($"SELECT SUM(Debit-Credit) FROM Accounting.JournalLines WHERE AccountId='{context.Bank}'");
     private static Task<string> CashEvidenceAsync(SupplierPaymentTestContext context) => context.Bills.ScalarAsync<string>($"SELECT j.*,JSON_QUERY((SELECT l.* FROM Accounting.JournalLines l WHERE l.JournalId=j.Id ORDER BY Ordinal FOR JSON PATH)) lines,JSON_QUERY((SELECT s.* FROM Accounting.SourceEvents s WHERE s.Id=j.SourceEventId FOR JSON PATH)) source FROM Accounting.JournalEntries j WHERE EXISTS(SELECT 1 FROM Accounting.JournalLines l WHERE l.JournalId=j.Id AND l.AccountId='{context.Bank}') ORDER BY j.Sequence FOR JSON PATH");
     private static async Task ExecuteAsync(SupplierPaymentTestContext context, string sql)
-    {
-        using var phaseCost = PhaseCostTrace.Measure("participant-sql"); await using var command = new SqlCommand(sql, context.Allocation.Journal.Connection); await command.ExecuteNonQueryAsync();
-    }
+    { await using var command = new SqlCommand(sql, context.Allocation.Journal.Connection); await command.ExecuteNonQueryAsync(); }
     private static async Task<string> VersionInOwnerAsync(SupplierPaymentTestContext context, Guid item)
     {
-        using var phaseCost = PhaseCostTrace.Measure("participant-version");
         await using var command = new SqlCommand("SELECT CONVERT(varchar(18),CONVERT(binary(8),RowVersion),1) FROM Purchasing.SupplierItemVersions WHERE ItemId=@item", context.Allocation.Journal.Connection);
         command.Parameters.AddWithValue("@item", item);
         return (string)(await command.ExecuteScalarAsync())!;

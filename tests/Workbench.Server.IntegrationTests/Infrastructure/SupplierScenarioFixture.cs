@@ -21,7 +21,6 @@ public abstract class SupplierScenarioFixture(SqlServerFixture sqlServer, params
 
     internal async Task<PreparedSupplierScenario> OpenAsync(string name)
     {
-        using var phaseCost = PhaseCostTrace.Measure("scenario-restore");
         var snapshot = _snapshots[name];
         var data = JsonNode.Parse(snapshot.DataJson)!.AsObject();
         var database = await sqlServer.RestoreTemplateAsync(snapshot.Database);

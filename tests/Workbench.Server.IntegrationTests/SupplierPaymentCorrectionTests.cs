@@ -3,12 +3,11 @@ using System.Text.Json.Nodes;
 using Microsoft.Data.SqlClient;
 using Workbench.Server.IntegrationTests.Infrastructure;
 using Xunit;
-using Xunit.Abstractions;
 
 namespace Workbench.Server.IntegrationTests;
 
 [Collection(SqlServerCollection.Name)]
-public sealed class SupplierPaymentCorrectionTests(SqlServerFixture sqlServer, SupplierCorrectionScenarios scenarios, ITestOutputHelper output) : IClassFixture<SupplierCorrectionScenarios>
+public sealed class SupplierPaymentCorrectionTests(SqlServerFixture sqlServer, SupplierCorrectionScenarios scenarios) : IClassFixture<SupplierCorrectionScenarios>
 {
     [Fact]
     public async Task ReplacementPreviewUsesRecordCommandValidation()
@@ -450,7 +449,6 @@ public sealed class SupplierPaymentCorrectionTests(SqlServerFixture sqlServer, S
     [InlineData("RecordSupplierPayment", false)]
     public async Task CorrectionAndDependencyCommandsRecheckBothSerialOrders(string contender, bool correctionFirst)
     {
-        using var phaseTrace = PhaseCostTrace.Enable(output, nameof(CorrectionAndDependencyCommandsRecheckBothSerialOrders));
         // GIVEN a correction preview and a competing command using the same current dependency versions.
         await using var context = await SupplierCorrectionFixture.OpenAsync(sqlServer);
         var bill = await context.Allocation.BillAsync("200");
@@ -487,7 +485,6 @@ public sealed class SupplierPaymentCorrectionTests(SqlServerFixture sqlServer, S
     [InlineData(true)]
     public async Task FinalReceiptFailureRollsBackWholeOwnerAndReplayRequiresCurrentAuthority(bool reverse)
     {
-        using var phaseTrace = PhaseCostTrace.Enable(output, nameof(FinalReceiptFailureRollsBackWholeOwnerAndReplayRequiresCurrentAuthority));
         // GIVEN a real allocated payment and a composed owner with explicit replacement or reapplication.
         await using var prepared = await scenarios.OpenAsync(reverse ? "receiptTrue" : "receiptFalse");
         var context = prepared.Context;
@@ -575,7 +572,6 @@ public sealed class SupplierPaymentCorrectionTests(SqlServerFixture sqlServer, S
     [InlineData("80", 70)]
     public async Task ExplicitReplacementUsesOneGroupAndCorrectionAuthority(string amount, decimal remaining)
     {
-        using var phaseTrace = PhaseCostTrace.Enable(output, nameof(ExplicitReplacementUsesOneGroupAndCorrectionAuthority));
         // GIVEN a real paid bill and an explicit smaller replacement; Record authority is later revoked.
         await using var context = await SupplierCorrectionFixture.OpenAsync(sqlServer);
         var bill = await context.Allocation.BillAsync("150");
@@ -640,7 +636,6 @@ internal static class SupplierCorrectionFixture
     }
     internal static async Task<SupplierPaymentTestContext> OpenAsync(SqlServerFixture fixture)
     {
-        using var phaseCost = PhaseCostTrace.Measure("correction-setup");
         var context = await SupplierPaymentTestContext.OpenAsync(fixture);
         await context.Bills.AdminAsync("""
             GRANT EXECUTE ON Purchasing.ReverseSupplierApplication TO workbench_web;
@@ -654,7 +649,6 @@ internal static class SupplierCorrectionFixture
     }
     internal static async Task<JsonObject> CorrectionAsync(SupplierPaymentTestContext context, Guid payment, JsonObject? replacement = null)
     {
-        using var phaseCost = PhaseCostTrace.Measure("correction-preview-command");
         var command = Common(context, "CorrectSupplierPayment");
         command["paymentId"] = payment.ToString();
         command["expectedPaymentVersion"] = await context.Bills.ScalarAsync<string>($"SELECT CONVERT(varchar(18),CONVERT(binary(8),RowVersion),1) FROM Purchasing.SupplierPaymentVersions WHERE PaymentId='{payment}'");
@@ -665,7 +659,6 @@ internal static class SupplierCorrectionFixture
     }
     internal static async Task<JsonObject> PreviewAsync(SupplierPaymentTestContext context, JsonObject command)
     {
-        using var phaseCost = PhaseCostTrace.Measure("sql-preview");
         await using var sql = new SqlCommand("EXEC Purchasing.PreviewSupplierPaymentCorrection @actor,@session,@command", context.Allocation.Journal.Connection);
         sql.Parameters.AddWithValue("@actor", JournalTestContext.ActorId);
         sql.Parameters.AddWithValue("@session", context.Allocation.Journal.SessionId);
@@ -674,7 +667,6 @@ internal static class SupplierCorrectionFixture
     }
     internal static async Task<JsonObject> ReverseAsync(SupplierPaymentTestContext context, Guid application)
     {
-        using var phaseCost = PhaseCostTrace.Measure("reverse-command");
         var command = Common(context, "ReverseSupplierApplication");
         command["applicationId"] = application.ToString();
         command["expectedApplicationVersion"] = await context.Bills.ScalarAsync<string>($"SELECT CONVERT(varchar(18),CONVERT(binary(8),RowVersion),1) FROM Purchasing.SupplierApplicationVersions WHERE ApplicationId='{application}'");
