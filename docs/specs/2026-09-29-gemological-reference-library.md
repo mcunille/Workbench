@@ -176,6 +176,16 @@ GEM-05 pull request; the dedicated editor remains GEM-07. This does not complete
 
 #### GEM-06 — Store tenant additions and field-level overrides
 
+**Implementation:** Backend storage, effective tenant reads, addition/archive/restore and sparse
+override/reset APIs are implemented. Real SQL, authenticated HTTP and pure projection tests cover
+tenant isolation, provenance, reconciliation, composite conflicts, and pagination; focused manual
+mutation checks supplement those owners. Tenant additions and workbench references are qualified
+by origin, preserving both when later publication reuses a GUID. Backend delivery gates and running
+preview acceptance are recorded with the implementation PR. GEM-07–10 interfaces and complete
+reference-library release acceptance remain outstanding; this note does not mark the spec implemented.
+Effective browsing currently materializes a catalog-sized snapshot and scalar SQL JSON candidates;
+returned pages are bounded, but load/performance acceptance has not been measured.
+
 **Story:** As a tenant member, I want to add my own gem entries and replace selected Workbench fields so that my library reflects my knowledge without changing anyone else's reference.
 
 - **Scope:** Tenant-owned additions, archive/restore, sparse inherit/replace/clear overrides, effective-entry projection for read/search/detail, field-attributed sources, duplicate checks, reset, and conflict-safe writes. No inventory-item classification belongs here.

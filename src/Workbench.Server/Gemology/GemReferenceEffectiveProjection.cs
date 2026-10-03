@@ -70,7 +70,8 @@ public static class GemReferenceEffectiveProjection
     private static GemReferenceDetailResponse Detail(GemReferenceContent content, string rowVersion, string layer,
         IReadOnlyDictionary<string, GemReferenceEffectiveField> fields, IReadOnlyDictionary<string, string[]> errors) =>
         new(content.Id, content.MaterialKind, content.CommonName, content.Group, content.Species, content.Variety,
-            layer, content.Aliases, content.Description, rowVersion, fields.Values.SelectMany(field => field.Sources).ToArray(),
+            layer, content.Aliases, content.Description, rowVersion, fields.Values.SelectMany(field => field.Sources)
+                .OrderBy(source => source.Field, StringComparer.Ordinal).ThenBy(source => source.Id).ToArray(),
             content.NotableLocality, new(content.IsRetired, content.RetirementExplanation, content.RedirectEntryId))
         {
             EffectiveFields = fields,

@@ -162,6 +162,24 @@ public sealed class GemReferenceTenantWriteTests(SqlServerFixture sqlServer) : I
     }
 
     [Fact]
+    public async Task AdditionRejectsUnexpectedSharedVersionComponent()
+    {
+        // GIVEN an addition with no shared component and its current tenant version.
+        var content = Addition();
+        var created = Saved(await CreateAsync(content));
+        var mismatched = created.EffectiveVersion! with { SharedRowVersion = Convert.ToBase64String(new byte[8]) };
+        await using var db = Database();
+        // WHEN an update supplies a shared version where absence is required THEN it conflicts without saving.
+        var result = await new GemReferenceTenantService(db).UpdateAsync(AuthTestApplication.MemberUserId, content.Id,
+            content with { CommonName = "Must not save" }, mismatched, default);
+        Assert.Equal("stale_entry", result.Code);
+        Assert.Equal(created.EffectiveVersion, result.Current!.EffectiveVersion);
+        var retained = await ReadAsync(content.Id);
+        Assert.Equal(content.CommonName, retained.CommonName);
+        Assert.Equal(created.EffectiveVersion, retained.EffectiveVersion);
+    }
+
+    [Fact]
     public async Task PublicationBeforeSaveRejectsCompositeVersion()
     {
         // GIVEN a tenant token captured before an actual locked shared publication.

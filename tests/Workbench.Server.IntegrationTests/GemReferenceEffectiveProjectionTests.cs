@@ -17,6 +17,21 @@ public sealed class GemReferenceEffectiveProjectionTests
         GemReferenceEffectiveProjection.Resolve(shared, "shared-2", overrides ?? new Dictionary<string, GemReferenceFieldOverride>(), "tenant-1", Today);
 
     [Fact]
+    public async Task UnchangedSharedDetailPreservesSourceAssertionOrdering()
+    {
+        await Task.Yield();
+        // GIVEN unchanged shared citations stored in a different field and ID order than the detail contract.
+        var laterName = GemReferenceSamples.Source("commonName") with { Id = Guid.Parse("ffffffff-0000-0000-0000-000000000001") };
+        var earlierName = GemReferenceSamples.Source("commonName") with { Id = Guid.Parse("00000001-0000-0000-0000-ffffffffffff") };
+        var material = GemReferenceSamples.Source("materialKind");
+        var shared = GemReferenceSamples.Mineral() with { Sources = [material, laterName, earlierName] };
+        // WHEN projected without choices THEN top-level citations retain ordinal field followed by .NET Guid order.
+        var detail = Resolve(shared);
+        Assert.Equal(new[] { earlierName.Id, laterName.Id, material.Id }, detail.SourceAssertions.Select(source => source.Id));
+        Assert.All(detail.SourceAssertions, source => Assert.Equal("workbench", source.Attribution));
+    }
+
+    [Fact]
     public async Task InheritedCorrectionMovesValueAndSourcesTogether()
     {
         await Task.Yield();
