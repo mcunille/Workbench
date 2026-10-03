@@ -33,6 +33,7 @@ internal sealed class JournalTestContext : IAsyncDisposable
 
     public static async Task<JournalTestContext> OpenAsync(SqlServerFixture fixture, string? priorMigration = null)
     {
+        using var phaseCost = PhaseCostTrace.Measure("journal-setup");
         var application = await AuthTestApplication.CreateAsync(fixture, priorMigration: priorMigration);
         try
         {
@@ -71,6 +72,7 @@ internal sealed class JournalTestContext : IAsyncDisposable
 
     internal static async Task<JournalTestContext> OpenRestoredAsync(AuthTestApplication application, Guid configurationVersion)
     {
+        using var phaseCost = PhaseCostTrace.Measure("authentication-restore");
         await using var admin = new SqlConnection(application.AdminConnectionString);
         await admin.OpenAsync();
         var sessionId = Guid.NewGuid();
@@ -95,6 +97,7 @@ internal sealed class JournalTestContext : IAsyncDisposable
 
     private static async Task<SqlConnection> OpenRestrictedConnectionAsync(string connectionString, byte[] proofKey, Guid tenantId)
     {
+        using var phaseCost = PhaseCostTrace.Measure("authentication-connect");
         var connection = new SqlConnection(connectionString);
         try
         {
@@ -233,6 +236,7 @@ internal sealed class JournalTestContext : IAsyncDisposable
 
     public async ValueTask DisposeAsync()
     {
+        using var phaseCost = PhaseCostTrace.Measure("context-cleanup");
         await Connection.DisposeAsync();
         await Application.DisposeAsync();
     }

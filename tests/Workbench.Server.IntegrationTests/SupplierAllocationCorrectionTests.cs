@@ -3,16 +3,18 @@ using Workbench.Server.IntegrationTests.Infrastructure;
 using Microsoft.Data.SqlClient;
 using System.Text.Json.Nodes;
 using Xunit;
+using Xunit.Abstractions;
 
 namespace Workbench.Server.IntegrationTests;
 
 [Collection(SqlServerCollection.Name)]
-public sealed class SupplierAllocationCorrectionTests(SqlServerFixture sqlServer)
+public sealed class SupplierAllocationCorrectionTests(SqlServerFixture sqlServer, ITestOutputHelper output)
 {
     [Theory]
     [InlineData(true)]
     public async Task ConcurrentUnapplicationsReleaseCapacityExactlyOnce(bool firstWins)
     {
+        using var phaseTrace = PhaseCostTrace.Enable(output, nameof(ConcurrentUnapplicationsReleaseCapacityExactlyOnce));
         // GIVEN two independently submitted inverse commands for one actual application.
         await using var context = await SupplierCorrectionFixture.OpenAsync(sqlServer);
         var bill = await context.Allocation.BillAsync("100"); var payment = await context.CommandAsync(); await context.RecordAsync(payment);
@@ -38,6 +40,7 @@ public sealed class SupplierAllocationCorrectionTests(SqlServerFixture sqlServer
     [Fact]
     public async Task ExplicitPartialReapplicationIsOneGroupAndPreservesCash()
     {
+        using var phaseTrace = PhaseCostTrace.Enable(output, nameof(ExplicitPartialReapplicationIsOneGroupAndPreservesCash));
         // GIVEN a fully applied real deposit and an explicit retained application of forty.
         await using var context = await SupplierCorrectionFixture.OpenAsync(sqlServer);
         var bill = await context.Allocation.BillAsync("100");
@@ -123,6 +126,7 @@ public sealed class SupplierAllocationCorrectionTests(SqlServerFixture sqlServer
     [InlineData(true)]
     public async Task ReversingApplicationRestoresBothCapacitiesWithoutChangingCash(bool embedded)
     {
+        using var phaseTrace = PhaseCostTrace.Enable(output, nameof(ReversingApplicationRestoresBothCapacitiesWithoutChangingCash));
         // GIVEN either an embedded or later allocation of an actual payment.
         await using var context = await SupplierCorrectionFixture.OpenAsync(sqlServer);
         var bill = await context.Allocation.BillAsync("100");

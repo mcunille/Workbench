@@ -11,6 +11,7 @@ internal sealed class SupplierAllocationTestContext(SupplierOpenItemTestContext 
     public JournalTestContext Journal => Items.Journal;
     public static async Task<SupplierAllocationTestContext> OpenAsync(SqlServerFixture fixture)
     {
+        using var phaseCost = PhaseCostTrace.Measure("allocation-setup");
         var context = new SupplierAllocationTestContext(await SupplierOpenItemTestContext.OpenAsync(fixture));
         try
         {
@@ -35,6 +36,7 @@ internal sealed class SupplierAllocationTestContext(SupplierOpenItemTestContext 
 
     public async Task<Guid> BillAsync(string amount = "150", string date = "2026-09-15")
     {
+        using var phaseCost = PhaseCostTrace.Measure("bill-seed");
         var draft = Bills.CompleteDraft(Guid.NewGuid().ToString());
         var revision = draft["revision"]!.AsObject();
         revision["total"] = amount;

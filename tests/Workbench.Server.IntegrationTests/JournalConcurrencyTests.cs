@@ -239,6 +239,7 @@ public sealed class JournalConcurrencyTests(SqlServerFixture sqlServer, ITestOut
 
         public static async Task<AccountingLockGate> OpenAsync(string adminConnectionString)
         {
+            using var phaseCost = PhaseCostTrace.Measure("gate-open");
             var connection = new SqlConnection(adminConnectionString);
             await connection.OpenAsync();
             var transaction = (SqlTransaction)await connection.BeginTransactionAsync();
@@ -262,6 +263,7 @@ public sealed class JournalConcurrencyTests(SqlServerFixture sqlServer, ITestOut
 
         private async Task WaitForBlockedBySessionAsync(int holderSessionId, SqlConnection[] participants)
         {
+            using var phaseCost = PhaseCostTrace.Measure("lock-observation");
             var sessionIds = participants.Select(connection => connection.ServerProcessId).ToArray();
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(7));
             var observed = "No participant request observed.";
@@ -320,6 +322,7 @@ public sealed class JournalConcurrencyTests(SqlServerFixture sqlServer, ITestOut
 
         public async Task ReleaseAsync()
         {
+            using var phaseCost = PhaseCostTrace.Measure("gate-release");
             if (_released) return;
             await _transaction.CommitAsync();
             _released = true;
@@ -327,6 +330,7 @@ public sealed class JournalConcurrencyTests(SqlServerFixture sqlServer, ITestOut
 
         public async ValueTask DisposeAsync()
         {
+            using var phaseCost = PhaseCostTrace.Measure("gate-cleanup");
             if (!_released) await _transaction.RollbackAsync();
             await _transaction.DisposeAsync();
             await _connection.DisposeAsync();

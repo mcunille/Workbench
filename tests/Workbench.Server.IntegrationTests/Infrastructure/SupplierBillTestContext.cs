@@ -92,6 +92,7 @@ internal sealed class SupplierBillTestContext(PurchaseRecognitionTestContext rec
     internal static async Task<JsonObject> ReadAsync(SqlConnection connection, Guid actorId, Guid sessionId,
         string procedure, params (string Name, object Value)[] parameters)
     {
+        using var phaseCost = PhaseCostTrace.Measure("sql-read");
         await using var command = new SqlCommand($"Purchasing.{procedure}", connection) { CommandType = System.Data.CommandType.StoredProcedure };
         command.Parameters.AddWithValue("@ActorId", actorId);
         command.Parameters.AddWithValue("@SessionId", sessionId);
@@ -105,6 +106,7 @@ internal sealed class SupplierBillTestContext(PurchaseRecognitionTestContext rec
 
     public async Task<JsonObject> ExecuteAsync(string procedure, Guid requestId, JsonObject command, SqlConnection? connection = null)
     {
+        using var phaseCost = PhaseCostTrace.Measure("sql-command");
         await using var sql = new SqlCommand($"EXEC Purchasing.{procedure} @ActorId=@actor,@SessionId=@session,@RequestId=@request,@Command=@command", connection ?? Journal.Connection);
         sql.Parameters.AddWithValue("@actor", JournalTestContext.ActorId);
         sql.Parameters.AddWithValue("@session", Journal.SessionId);
@@ -114,6 +116,7 @@ internal sealed class SupplierBillTestContext(PurchaseRecognitionTestContext rec
     }
     public async Task AdminAsync(string sql)
     {
+        using var phaseCost = PhaseCostTrace.Measure("sql-admin");
         await using var admin = new SqlConnection(Journal.Application.AdminConnectionString);
         await admin.OpenAsync();
         await using var command = new SqlCommand(sql, admin);
@@ -121,6 +124,7 @@ internal sealed class SupplierBillTestContext(PurchaseRecognitionTestContext rec
     }
     public async Task<T> ScalarAsync<T>(string sql)
     {
+        using var phaseCost = PhaseCostTrace.Measure("sql-scalar");
         await using var admin = new SqlConnection(Journal.Application.AdminConnectionString);
         await admin.OpenAsync();
         await using var command = new SqlCommand(sql, admin);

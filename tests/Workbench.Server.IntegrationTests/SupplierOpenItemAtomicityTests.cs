@@ -50,6 +50,7 @@ public sealed class SupplierOpenItemAtomicityTests(SqlServerFixture sqlServer)
 
     internal static async Task<string> SnapshotAsync(SupplierPaymentTestContext context, bool includeSecurityAudit = true)
     {
+        using var phaseCost = PhaseCostTrace.Measure("snapshot-assertion");
         // Full persisted rows catch partial updates as well as leaked inserts; database rowversion counters are not transactional.
         var tables = new[] { "Accounting.SourceEvents", "Accounting.JournalEntries", "Accounting.JournalLines", "Accounting.PostingReceipts",
             "Accounting.PolicyFreezes", "Accounting.Periods", "Accounting.CorrectionGroups", "Accounting.CorrectionReceipts",
