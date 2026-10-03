@@ -38,7 +38,6 @@ public sealed class SupplierOpenItemSecurityTests(SqlServerFixture sqlServer)
 
     internal static async Task<string> ExecuteRawAsync(SupplierPaymentTestContext context, string operation, Guid request, JsonObject input, SqlConnection? connection = null)
     {
-        using var phaseCost = PhaseCostTrace.Measure("sql-replay");
         await using var command = new SqlCommand($"EXEC Purchasing.{operation} @ActorId=@actor,@SessionId=@session,@RequestId=@request,@Command=@input", connection ?? context.Allocation.Journal.Connection);
         command.Parameters.AddWithValue("@actor", JournalTestContext.ActorId); command.Parameters.AddWithValue("@session", context.Allocation.Journal.SessionId);
         command.Parameters.AddWithValue("@request", request); command.Parameters.AddWithValue("@input", input.ToJsonString());
