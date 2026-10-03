@@ -159,9 +159,56 @@ were valid: weighted CPU busy 71.48%, I/O wait 5.89%, minimum available memory
 cannot exclude brief pressure between observations. Gate time was 1504.00s, server
 1377.25s and prerequisites 161.67s; browser time increased to 319.74s versus 292.13s.
 
-Four-process concurrency was reverted under the agreed rejection rule. Hosted and
-local defaults remain two processes; no tests, deadlines, caps or storage changed
-in this follow-up. The ten-minute goal remains unproven. A three-process probe may
-offer a better CPU/reliability tradeoff, but requires its own design approval and
-successful full-gate evidence. The earlier coverage measurements apply to the
-approved test edits; this concurrency-only follow-up does not change coverage source.
+Four-process concurrency was reverted under the agreed rejection rule. No tests,
+deadlines, caps or storage changed in that follow-up. The subsequent approved
+three-process probe is recorded below. The earlier coverage measurements apply to
+the approved test edits; these concurrency-only probes do not change coverage source.
+
+## Approved three-process follow-up and repeat
+
+The approved probe changed only hosted partitions/concurrency to three. Production
+source, all 1799 integrated cases, weights, deadlines, physical SQL storage and
+uncapped engines stayed fixed. Both attempts built revision `409646e`.
+
+| Run | Result | End-to-end elapsed |
+| --- | --- | --- |
+| [Three-process attempt 1](https://github.com/mcunille/Workbench/actions/runs/37143508177/attempts/1) | success, all 1799 server cases passed | 38m26s |
+| [Three-process attempt 2](https://github.com/mcunille/Workbench/actions/runs/37143508177/attempts/2) | failed, 1791 server cases passed and eight deadline failures; browser failed | 38m33s |
+| [Restored two-process run](https://github.com/mcunille/Workbench/actions/runs/37139402399) | failed, 1798 server cases passed and one deadline failure | 47m40s |
+
+Attempt 1 was 10m05s faster than successful matching-production-source current main
+(48m31s), and 8m52s faster than the successful two-process PR (47m18s). All discovered
+and passed identities exactly matched its 1799-case comparator. The five-second
+overall target margin justified an unchanged-source repeat. Attempt 2 failed the
+agreed reliability gate; do not count it as a saving or retain three processes from
+the better run alone. Hosted and local defaults were restored to two processes.
+The ten-minute goal remains unproven for a retained reliable configuration.
+
+Both attempts had 68 valid resource samples and no sampling errors. Attempt 1 had
+60.41% weighted CPU busy, 5.08% I/O wait, at least 6.92 GiB available memory and
+1.472 GiB peak usage of any recorded container. Attempt 2 had 77.98% CPU busy,
+0.70% I/O wait, at least 6.56 GiB available memory and 1.596 GiB peak recorded
+container usage. Thirty-second samples cannot exclude transient pressure or
+establish the cause of a whole-test timeout. Gate times were 2194.40s and 2199.29s;
+server times 2030.56s and 1995.11s; browser times 312.49s and 401.32s respectively.
+The failed browser report has 121 passed cases and one 30-second timeout in
+`inventory.spec.ts`.
+
+The repeat's server deadlines affected partial reapplication, unapplication,
+standalone reversal, paid-bill replacement, replacement correction, final-receipt
+rollback and two serial-order correction cases. These financial assertions and
+every existing deadline remain. The reversal-first correction case also failed
+with two processes at about 54.6% sampled CPU busy and 10.46 GiB available memory;
+four-process-only contention is not a demonstrated root cause. Historical trusted
+data already places this case at 28.747s, and attempt 1 passed it at 28.362s against
+its 30-second deadline. Static inspection found no demonstrated coordination defect.
+The artifacts cannot separate setup, SQL execution, lock observation and cleanup
+costs. A fresh local focused build could not initialize its SQL fixtures because
+the local Docker engine was unavailable; this did not reproduce the hosted failure.
+
+Read-only rebalancing with attempt 1's case durations predicts a 74.15s reduction
+in the longest case-time sum. This excludes materially different process residuals
+and large gaps between classes, so it is not a measured wall-time opportunity.
+Tracked weights remained unchanged. Whole-branch review found no critical or
+important implementation defects; future optimization should measure the costly
+phases and remove justified redundant work while preserving financial safeguards.
