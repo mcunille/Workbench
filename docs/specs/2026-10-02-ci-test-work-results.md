@@ -129,3 +129,39 @@ implemented in this batch.
 Raw gate, coverage, mutation and resource records remain in ignored `artifacts/`
 for this checkout. Keep all case budgets and exact inventory checks when evaluating
 follow-ups; further deletion needs its own retained-owner evidence and approval.
+
+## Approved uncapped concurrency follow-up
+
+The approved follow-up varied only hosted partitions/concurrency from two to four.
+It retained physical SQL storage, independent databases and authentication, every
+test and deadline, the same duration weights, and no SQL/container memory caps.
+
+| Run | Result | End-to-end elapsed |
+| --- | --- | --- |
+| [Current main](https://github.com/mcunille/Workbench/actions/runs/37072918072) | `8c51a86`, success, 1829 cases | 48m31s |
+| [Two-process PR](https://github.com/mcunille/Workbench/actions/runs/37076929038) | `585cc0e`, success, 1799 integrated cases | 47m18s |
+| [Four uncapped processes](https://github.com/mcunille/Workbench/actions/runs/37137426410) | `edd9cea`, failed, 1798 passed and one deadline failure | 26m32s |
+
+Current main and the two-process PR have matching production source; main's separate
+five-case retirement explains the integrated count. The successful PR is only 1m13s
+faster than current main. The failed four-process run does not establish a saving.
+Its discovered and executed identities still match all 1799 cases exactly; the gate
+correctly rejected the failed result. Client, browser, published-output and hardened
+container checks passed.
+
+The failure was `CorrectionAndDependencyCommandsRecheckBothSerialOrders` with
+`ReverseSupplierApplication` and `correctionFirst:false`, exceeding the existing
+30000ms deadline. This protects financial graph coordination and stale-command
+rechecking; retain it and its deadline. CPU samples near the failure were about
+96% busy, consistent with contention but not proof of causality. All 47 samples
+were valid: weighted CPU busy 71.48%, I/O wait 5.89%, minimum available memory
+5.06 GiB, and peak usage of any recorded container 1.396 GiB. Thirty-second samples
+cannot exclude brief pressure between observations. Gate time was 1504.00s, server
+1377.25s and prerequisites 161.67s; browser time increased to 319.74s versus 292.13s.
+
+Four-process concurrency was reverted under the agreed rejection rule. Hosted and
+local defaults remain two processes; no tests, deadlines, caps or storage changed
+in this follow-up. The ten-minute goal remains unproven. A three-process probe may
+offer a better CPU/reliability tradeoff, but requires its own design approval and
+successful full-gate evidence. The earlier coverage measurements apply to the
+approved test edits; this concurrency-only follow-up does not change coverage source.
