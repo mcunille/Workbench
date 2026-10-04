@@ -237,3 +237,56 @@ The grouped partial-reapplication case passed in 29.563s: setup 1.135s, bill see
 Resource evidence: 88 valid samples, mean busy CPU 56.257%, mean I/O wait 0.596%, minimum available memory 8.166GiB, peak recorded memory for any single container 1.477GiB. Machine averages cannot explain an individual SQL command's internal cost. Nested phase timings overlap and must not be summed; unmatched begin records identify pending work at the output boundary, not a complete post-timeout trace.
 
 All temporary instrumentation was removed after preserving allowlisted evidence. The pre-rebase test source was verified byte-equivalent to `6ae1fd5`; the branch is then updated to current main. No further optimization, deletion, deadline extension, concurrency increase or permanent diagnostic process is part of this approved probe. Coverage evidence above belongs to the approved deletion batch; this temporary diagnostic neither establishes new coverage nor measures upstream GEM-05 coverage.
+
+## Approved posted-bill and browser follow-up
+
+The next approved design questions and deletes repeated precondition work before
+increasing concurrency. Thirteen financial cases now restore genuinely posted
+100/150/200/300 bills from the existing immutable supplier-history machinery;
+each fixture prepares only the variants its class needs. Every case still receives
+an independent physical database, fresh authentication and copied history metadata.
+Every financial operation, assertion, deadline and test identity remains. The
+existing isolation keeper additionally checks independent posted-bill state and
+metadata across later restores. Browser inventory layout checks batch DOM reads
+while retaining the same overflow, contrast and visible-target math, thresholds
+and full viewport/theme/view matrix. Production source is unchanged from main.
+
+Focused characterization failed on the missing bill history before implementation,
+then passed. A meaningful wrong-bill-amount mutant was killed. A stale incremental
+binary run after restoring the mutant source was discarded; a forced fresh build
+and all 16 affected keeper cases passed. The complete local browser suite passed
+122 cases, the client suite passed 512 cases, and the formatter, workflow pins and
+partition contracts passed. Internal review found no critical or important defects.
+
+Fresh full-suite coverage against main `c7f1b22844081c9aec3f953a4b46e67de770b030`
+passed 1,877 baseline and 1,847 branch server cases, with no failures or skips.
+Both reports cover 104,621/106,627 lines (98.119%) and 5,497/7,102 branches
+(77.401%): **zero relative coverage loss**. Client source and tests are identical
+to main; the fresh shared client suite covers 2,747/3,047 lines and 3,903/4,720
+branches. Coverage of C# lines containing SQL does not establish SQL semantics;
+the retained financial keepers and focused meaningful mutants provide that evidence.
+
+The full hosted two-process gate on `0dda6c77c0296069a4098d5920e19a61ca5f6378`
+[passed in 49m14](https://github.com/mcunille/Workbench/actions/runs/37189363922):
+all 1,847 server identities exactly match the pre-optimization inventory, and all
+122 browser cases passed. The inventory matrix case took 8.207s. Server stage
+2,637.997s, client 197.313s and browser 268.638s. Eighty-eight valid samples had
+55.83% weighted busy CPU, 0.54% I/O wait, at least 8.25 GiB available memory and
+1.489 GiB peak recorded memory of any container. Against current main's 50m51,
+this establishes only a 1m37 overall difference, below the requested ten minutes.
+
+The earlier pre-optimization two-process source `d4dbf9e`
+[passed in 34m46](https://github.com/mcunille/Workbench/actions/runs/37157466895)
+with the same 1,847-case inventory. Its setup and client stages were also faster;
+62 samples show 45.91% busy CPU and at least 8.44 GiB available memory. This large
+runner variation prevents attributing its entire 16m05 difference to the deletion
+batch. Thirty-second resource samples cannot exclude transient contention.
+
+With correctness and coverage green, the approved three-process experiment now
+runs the complete hosted gate twice on unchanged source and unchanged trusted
+duration weights. Its four-CPU, 16 GiB runner retains physical SQL storage,
+uncapped independent SQL engines and every existing deadline. Accept three only
+if **both** runs are green with no budget regressions and each finishes within
+**40m51** against current main's 50m51; otherwise restore two. Local defaults
+remain two during this hosted experiment. Results are pending; the ten-minute
+goal is not yet established.
