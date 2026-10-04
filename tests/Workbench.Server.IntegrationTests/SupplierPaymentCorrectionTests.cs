@@ -450,8 +450,9 @@ public sealed class SupplierPaymentCorrectionTests(SqlServerFixture sqlServer, S
     public async Task CorrectionAndDependencyCommandsRecheckBothSerialOrders(string contender, bool correctionFirst)
     {
         // GIVEN a correction preview and a competing command using the same current dependency versions.
-        await using var context = await SupplierCorrectionFixture.OpenAsync(sqlServer);
-        var bill = await context.Allocation.BillAsync("200");
+        await using var prepared = await scenarios.OpenAsync("bill200");
+        var context = prepared.Context;
+        var bill = Guid.Parse(prepared.Data["bill"]!.GetValue<string>());
         var payment = await context.CommandAsync();
         if (contender == "ReverseSupplierApplication") await context.AllocateAsync(payment, bill, "100");
         var posted = await context.RecordAsync(payment);
@@ -573,8 +574,9 @@ public sealed class SupplierPaymentCorrectionTests(SqlServerFixture sqlServer, S
     public async Task ExplicitReplacementUsesOneGroupAndCorrectionAuthority(string amount, decimal remaining)
     {
         // GIVEN a real paid bill and an explicit smaller replacement; Record authority is later revoked.
-        await using var context = await SupplierCorrectionFixture.OpenAsync(sqlServer);
-        var bill = await context.Allocation.BillAsync("150");
+        await using var prepared = await scenarios.OpenAsync("bill150");
+        var context = prepared.Context;
+        var bill = Guid.Parse(prepared.Data["bill"]!.GetValue<string>());
         var payment = await context.CommandAsync(); await context.AllocateAsync(payment, bill, "100");
         await context.RecordAsync(payment);
         var id = Guid.Parse(payment["paymentId"]!.ToString());

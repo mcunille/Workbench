@@ -9,12 +9,12 @@ function itemLink(page: Page, name: string) {
 }
 
 async function inspectLayout(page: Page) {
-  const overflow = await page.evaluate(() => [...document.querySelectorAll('body *')]
-    .filter(element => element.getBoundingClientRect().right > window.innerWidth + 1 || element.scrollWidth > element.clientWidth + 1)
-    .map(element => ({ tag: element.tagName, className: element.className, width: element.getBoundingClientRect().width, scrollWidth: element.scrollWidth })));
-  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), JSON.stringify(overflow)).toBe(true);
-  for (const title of await page.locator('h1, .item-title, .lede, small, dt, label, .workspace-nav a').all()) {
-    const titleContrast = await title.evaluate(title => {
+  const layout = await page.evaluate(() => ({
+    overflow: [...document.querySelectorAll('body *')]
+      .filter(element => element.getBoundingClientRect().right > window.innerWidth + 1 || element.scrollWidth > element.clientWidth + 1)
+      .map(element => ({ tag: element.tagName, className: element.className, width: element.getBoundingClientRect().width, scrollWidth: element.scrollWidth })),
+    fitsDocument: document.documentElement.scrollWidth <= window.innerWidth,
+    titles: [...document.querySelectorAll('h1, .item-title, .lede, small, dt, label, .workspace-nav a')].map(title => {
       // Canvas normalizes both rgb() and color(srgb ...) from glass color-mix().
       const context = document.createElement('canvas').getContext('2d')!;
       const channels = (value: string) => {
@@ -38,13 +38,17 @@ async function inspectLayout(page: Page) {
         under.map((channel, index) => over[index] * over[3] / 255 + channel * (1 - over[3] / 255)), [255, 255, 255]);
       const foregroundLight = luminance(channels(getComputedStyle(title).color));
       const backgroundLight = luminance(background);
-      return (Math.max(foregroundLight, backgroundLight) + 0.05) / (Math.min(foregroundLight, backgroundLight) + 0.05);
-    });
-    expect(titleContrast, `Text contrast: ${await title.textContent()}`).toBeGreaterThanOrEqual(4.5);
+      return { text: title.textContent, contrast: (Math.max(foregroundLight, backgroundLight) + 0.05) / (Math.min(foregroundLight, backgroundLight) + 0.05) };
+    }),
+  }));
+  expect(layout.fitsDocument, JSON.stringify(layout.overflow)).toBe(true);
+  for (const title of layout.titles) {
+    expect(title.contrast, `Text contrast: ${title.text}`).toBeGreaterThanOrEqual(4.5);
   }
-  for (const target of await page.locator('button:visible, a:visible, select:visible, input:visible').all()) {
-    const bounds = await target.boundingBox();
-    expect(bounds?.height, `Touch target: ${await target.textContent()}`).toBeGreaterThanOrEqual(44);
+  const targets = await page.locator('button:visible, a:visible, select:visible, input:visible').evaluateAll(elements =>
+    elements.map(element => ({ text: element.textContent, height: element.getBoundingClientRect().height })));
+  for (const target of targets) {
+    expect(target.height, `Touch target: ${target.text}`).toBeGreaterThanOrEqual(44);
   }
 }
 

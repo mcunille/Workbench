@@ -53,6 +53,12 @@ public abstract class SupplierScenarioFixture(SqlServerFixture sqlServer, params
     private static async Task<JsonObject> SeedAsync(SupplierPaymentTestContext context, string name)
     {
         var data = new JsonObject();
+        if (name is "bill100" or "bill150" or "bill200" or "bill300")
+        {
+            var amount = name switch { "bill100" => "100", "bill150" => "150", "bill200" => "200", _ => "300" };
+            data["bill"] = (await context.Allocation.BillAsync(amount)).ToString();
+            return data;
+        }
         if (name is "mixed" or "compensation")
         {
             var bill = await context.Allocation.BillAsync("150");
@@ -186,14 +192,18 @@ public abstract class SupplierScenarioFixture(SqlServerFixture sqlServer, params
 }
 
 public sealed class SupplierCorrectionScenarios(SqlServerFixture server) : SupplierScenarioFixture(server,
-    "coordination", "closure", "restoredDebt", "receiptFalse", "receiptTrue");
+    "coordination", "closure", "restoredDebt", "receiptFalse", "receiptTrue", "bill150", "bill200");
+
+public sealed class SupplierAllocationCorrectionScenarios(SqlServerFixture server) : SupplierScenarioFixture(server, "bill100");
+
+public sealed class SupplierCorrectionParticipantScenarios(SqlServerFixture server) : SupplierScenarioFixture(server, "bill300");
 
 public sealed class SupplierReconciliationScenarios(SqlServerFixture server) : SupplierScenarioFixture(server,
     "mixed", "compensation", "equalLines", "sourcesFalse", "sourcesTrue");
 
 public sealed class SupplierRecoveryScenarios(SqlServerFixture server) : SupplierScenarioFixture(server, "recovery");
 
-public sealed class SupplierIsolationScenarios(SqlServerFixture server) : SupplierScenarioFixture(server, "sourcesFalse");
+public sealed class SupplierIsolationScenarios(SqlServerFixture server) : SupplierScenarioFixture(server, "sourcesFalse", "bill100");
 
 
 internal sealed record SupplierContextState(Guid ConfigurationVersion, Guid PurchaseOrderId, Guid SupplierId,
