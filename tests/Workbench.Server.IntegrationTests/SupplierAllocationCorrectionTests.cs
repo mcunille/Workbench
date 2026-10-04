@@ -7,15 +7,16 @@ using Xunit;
 namespace Workbench.Server.IntegrationTests;
 
 [Collection(SqlServerCollection.Name)]
-public sealed class SupplierAllocationCorrectionTests(SqlServerFixture sqlServer)
+public sealed class SupplierAllocationCorrectionTests(SqlServerFixture sqlServer, SupplierAllocationCorrectionScenarios scenarios) : IClassFixture<SupplierAllocationCorrectionScenarios>
 {
     [Theory]
     [InlineData(true)]
     public async Task ConcurrentUnapplicationsReleaseCapacityExactlyOnce(bool firstWins)
     {
         // GIVEN two independently submitted inverse commands for one actual application.
-        await using var context = await SupplierCorrectionFixture.OpenAsync(sqlServer);
-        var bill = await context.Allocation.BillAsync("100"); var payment = await context.CommandAsync(); await context.RecordAsync(payment);
+        await using var prepared = await scenarios.OpenAsync("bill100");
+        var context = prepared.Context;
+        var bill = Guid.Parse(prepared.Data["bill"]!.GetValue<string>()); var payment = await context.CommandAsync(); await context.RecordAsync(payment);
         var funding = Guid.Parse(payment["paymentId"]!.ToString());
         var applied = await context.Allocation.ApplyAsync(await context.Allocation.CommandAsync(funding, bill));
         var first = await SupplierCorrectionFixture.ReverseAsync(context, Guid.Parse(applied["applicationIds"]![0]!.ToString()));
@@ -39,8 +40,9 @@ public sealed class SupplierAllocationCorrectionTests(SqlServerFixture sqlServer
     public async Task ExplicitPartialReapplicationIsOneGroupAndPreservesCash()
     {
         // GIVEN a fully applied real deposit and an explicit retained application of forty.
-        await using var context = await SupplierCorrectionFixture.OpenAsync(sqlServer);
-        var bill = await context.Allocation.BillAsync("100");
+        await using var prepared = await scenarios.OpenAsync("bill100");
+        var context = prepared.Context;
+        var bill = Guid.Parse(prepared.Data["bill"]!.GetValue<string>());
         var payment = await context.CommandAsync(); await context.RecordAsync(payment);
         var funding = Guid.Parse(payment["paymentId"]!.ToString());
         var applied = await context.Allocation.ApplyAsync(await context.Allocation.CommandAsync(funding, bill));
@@ -124,8 +126,9 @@ public sealed class SupplierAllocationCorrectionTests(SqlServerFixture sqlServer
     public async Task ReversingApplicationRestoresBothCapacitiesWithoutChangingCash(bool embedded)
     {
         // GIVEN either an embedded or later allocation of an actual payment.
-        await using var context = await SupplierCorrectionFixture.OpenAsync(sqlServer);
-        var bill = await context.Allocation.BillAsync("100");
+        await using var prepared = await scenarios.OpenAsync("bill100");
+        var context = prepared.Context;
+        var bill = Guid.Parse(prepared.Data["bill"]!.GetValue<string>());
         var payment = await context.CommandAsync();
         if (embedded) await context.AllocateAsync(payment, bill, "100");
         var posted = await context.RecordAsync(payment);
