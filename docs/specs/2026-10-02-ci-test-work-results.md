@@ -288,5 +288,25 @@ duration weights. Its four-CPU, 16 GiB runner retains physical SQL storage,
 uncapped independent SQL engines and every existing deadline. Accept three only
 if **both** runs are green with no budget regressions and each finishes within
 **40m51** against current main's 50m51; otherwise restore two. Local defaults
-remain two during this hosted experiment. Results are pending; the ten-minute
-goal is not yet established.
+remain two during this hosted experiment.
+
+The first full trial on `f7b786b`
+[failed in 39m16](https://github.com/mcunille/Workbench/actions/runs/37192468267).
+All 1,847 unique server identities ran and exactly matched the two-process
+inventory; 1,841 passed and six hit their existing whole-case deadlines. These
+were reversal-first serial-order correction, unsupported corrected application,
+previously unapplied embedded payment correction, final-receipt rollback with
+reversal, grouped partial reapplication, and paid-bill replacement. The browser
+suite passed 121/122 cases. This failure rejects the experiment; an unchanged
+repeat cannot satisfy the agreed two-green-run criterion. Hosted concurrency is
+restored to two, retaining the verified bill-history and browser optimizations.
+
+Seventy valid resource samples had 79.18% weighted busy CPU, 0.48% I/O wait,
+at least 6.35 GiB available memory, and 1.451 GiB peak recorded memory of any
+container. The one-minute load peaked at 16.76. These samples suggest materially
+greater CPU pressure than the two-process trial, but cannot identify an
+individual timeout's cause or exclude brief pressure spikes. No assertion,
+financial deadline, SQL memory setting or case identity is removed to make the
+probe green. Fresh coverage remains unchanged because source and tests are
+identical to the verified two-process revision. The retained configuration's
+latest full gate passed in 49m14; **the ten-minute goal remains unproven**.
