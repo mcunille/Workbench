@@ -98,6 +98,7 @@ public partial class WorkbenchDbContext : IdentityDbContext<
 
         ConfigureInventory(modelBuilder);
         ConfigureGemReference(modelBuilder);
+        ConfigureGemReferenceTenant(modelBuilder);
         ConfigureAcquisitions(modelBuilder);
         ConfigureAcquisitionDocuments(modelBuilder);
         ConfigurePurchaseOrderDocuments(modelBuilder);

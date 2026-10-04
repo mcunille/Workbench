@@ -6,6 +6,15 @@ records. Web and worker direct INSERT/UPDATE/DELETE are denied; worker, operator
 maintenance receive no shared read grants. No catalog publish authority or schema-wide grant
 is introduced. Password provisioning accepts these exact object reads and rejects broader grants.
 
+GEM-06 additionally grants web SELECT on tenant-RLS `Gemology.TenantEntries` and `TenantOverrides`
+and EXECUTE on exactly `SaveTenantEntry`, `SetTenantEntryArchive`, and `SaveTenantOverrides`.
+Direct table INSERT/UPDATE/DELETE remain denied. Worker, operator and public receive no tenant
+reference reads or command execution. The commands require the SQL tenant proof, current enabled
+tenant/member authority, an explicit transaction, publication then tenant application locks, and
+expected rowversions; web cannot mutate another tenant or raw reference storage. C# owns effective
+Unicode identity, provenance and final-candidate reconciliation; SQL independently enforces scope,
+shape, versions and narrow writes. Service-admin authority supplies no tenant context or access.
+
 BK-05 bill mutations (`Purchasing.SaveSupplierBill`, `ReviewSupplierBill`, `PostSupplierBill`) have
 no `workbench_web` EXECUTE grant. The fixed `SupplierBillsManage` and `SupplierBillsPost` permissions
 are not assigned to production roles. Bill tables deny direct runtime writes; bounded read procedures

@@ -138,6 +138,8 @@ public static class PasswordPrincipalProvisioning
                                     (N'workbench_web', N'[Gemology].[Aliases]', N'SELECT'),
                                     (N'workbench_web', N'[Gemology].[SourceAssertions]', N'SELECT'),
                                     (N'workbench_web', N'[Gemology].[LocalityAssertions]', N'SELECT'),
+                                    (N'workbench_web', N'[Gemology].[TenantEntries]', N'SELECT'),
+                                    (N'workbench_web', N'[Gemology].[TenantOverrides]', N'SELECT'),
                                     (N'workbench_web', N'[Purchasing].[SupplierPaymentControl]', N'SELECT'),
                                     (N'workbench_web', N'[Purchasing].[SupplierReportBillIdentity]', N'SELECT'),
                                     (N'workbench_web', N'[Purchasing].[SupplierItemMovements]', N'SELECT'),
@@ -243,7 +245,10 @@ public static class PasswordPrincipalProvisioning
                                     (N'workbench_web', N'[Gemology].[SaveDraft]', N'EXECUTE'),
                                     (N'workbench_web', N'[Gemology].[ReadPublication]', N'EXECUTE'),
                                     (N'workbench_web', N'[Gemology].[ReadPublicationAudit]', N'EXECUTE'),
-                                    (N'workbench_web', N'[Gemology].[PublishDraftBatch]', N'EXECUTE')
+                                    (N'workbench_web', N'[Gemology].[PublishDraftBatch]', N'EXECUTE'),
+                                    (N'workbench_web', N'[Gemology].[SaveTenantEntry]', N'EXECUTE'),
+                                    (N'workbench_web', N'[Gemology].[SetTenantEntryArchive]', N'EXECUTE'),
+                                    (N'workbench_web', N'[Gemology].[SaveTenantOverrides]', N'EXECUTE')
                                 ) AS allowed(RoleName, ObjectName, PermissionNames)
                                 CROSS APPLY STRING_SPLIT(allowed.PermissionNames, ',') AS allowedPermission
                                 WHERE DATABASE_PRINCIPAL_ID(allowed.RoleName)=permission.grantee_principal_id
