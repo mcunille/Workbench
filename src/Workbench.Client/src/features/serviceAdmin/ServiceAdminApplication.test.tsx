@@ -22,8 +22,10 @@ vi.mock('../../api/gemReferenceAdmin', async (original) => ({
 }));
 
 const savedDraft: gems.GemReferenceDraftResponse = { id: 'draft', entryId: 'entry', rowVersion: 'draft-v1', expectedPublishedRowVersion: null, content: { id: 'entry', materialKind: 'organic', commonName: 'Amber', group: null, species: null, variety: null, description: null, aliases: [], sources: [], notableLocality: null, isRetired: false, retirementExplanation: null, redirectEntryId: null }, createdBy: 'admin', updatedBy: 'admin', createdAtUtc: '2026-10-01T00:00:00Z', updatedAtUtc: '2026-10-01T00:00:00Z', errors: {} };
+const originalShowModal = Object.getOwnPropertyDescriptor(HTMLDialogElement.prototype, 'showModal');
 
 beforeEach(() => {
+  Object.defineProperty(HTMLDialogElement.prototype, 'showModal', { configurable: true, value(this: HTMLDialogElement) { this.setAttribute('open', ''); } });
   vi.clearAllMocks();
   sessionStorage.clear();
   vi.mocked(gems.listGemDrafts).mockResolvedValue({ drafts: [], nextCursor: null });
@@ -33,7 +35,11 @@ beforeEach(() => {
   vi.mocked(gems.getSharedGem).mockRejectedValue(new gems.GemReferenceAdminApiError(404, {}));
   window.history.replaceState(null, '', '/service-admin/gem-reference');
 });
-afterEach(() => window.history.replaceState(null, '', '/'));
+afterEach(() => {
+  if (originalShowModal) Object.defineProperty(HTMLDialogElement.prototype, 'showModal', originalShowModal);
+  else Reflect.deleteProperty(HTMLDialogElement.prototype, 'showModal');
+  window.history.replaceState(null, '', '/');
+});
 
 describe('service-admin entry', () => {
   it('restores a rejected recovered batch to the shell selection before repairing its draft', async () => {
@@ -45,12 +51,20 @@ describe('service-admin entry', () => {
     vi.mocked(admin.getServiceAdminIdentity).mockResolvedValue({ accountId: 'admin', email: 'curator@example.test' });
     vi.mocked(gems.getGemPublication).mockResolvedValue({ requestId: pending.requestId, code: 'infrastructure_failure', entries: [], review: [] });
     vi.mocked(gems.getGemDraft).mockResolvedValue({ ...savedDraft, id: draftId });
-    vi.mocked(gems.saveGemDraft).mockResolvedValue({ ...savedDraft, id: draftId, rowVersion: 'draft-v2' });
+    vi.mocked(gems.saveGemDraft).mockResolvedValue({ ...savedDraft, id: draftId, rowVersion: 'draft-v2', content: { ...savedDraft.content, commonName: 'Repaired amber' } });
     render(<ServiceAdminApplication appearance={null} />);
     await screen.findByText(/Publication was rejected/);
-    // WHEN the recovered draft is opened for repair and saved THEN the shell retains that selection with the confirmed version.
+    // WHEN the recovered draft is repaired and navigation is requested before saving.
     fireEvent.click(screen.getByRole('button', { name: 'Edit draft' }));
     await screen.findByLabelText('Common name');
+    fireEvent.change(screen.getByLabelText('Common name'), { target: { value: 'Repaired amber' } });
+    fireEvent.click(screen.getByRole('link', { name: 'Gem reference' }));
+    // THEN keeping edits preserves the recovered draft and its unsaved repair.
+    expect(await screen.findByRole('dialog', { name: 'Discard changes?' })).toBeVisible();
+    fireEvent.click(screen.getByRole('button', { name: 'Keep editing' }));
+    expect(window.location.pathname).toBe(`/service-admin/gem-reference/drafts/${draftId}`);
+    expect(screen.getByLabelText('Common name')).toHaveValue('Repaired amber');
+    // WHEN the repair is confirmed saved THEN the shell retains the selection with the new version.
     fireEvent.click(screen.getByRole('button', { name: 'Save draft' }));
     await screen.findByText('Draft saved. Publication requires review.');
     await waitFor(() => expect(screen.getByRole('button', { name: 'Save draft' })).toBeEnabled());
@@ -142,8 +156,6 @@ describe('service-admin entry', () => {
 
   it('uses the existing discard decision before leaving a dirty editor or signing out', async () => {
     // GIVEN local edits in an authenticated new draft.
-    const originalModal = Object.getOwnPropertyDescriptor(HTMLDialogElement.prototype, 'showModal');
-    Object.defineProperty(HTMLDialogElement.prototype, 'showModal', { configurable: true, value(this: HTMLDialogElement) { this.setAttribute('open', ''); } });
     vi.mocked(admin.getServiceAdminIdentity).mockResolvedValue({ accountId: 'admin', email: 'curator@example.test' });
     vi.mocked(admin.signOutServiceAdmin).mockResolvedValue();
     window.history.replaceState(null, '', '/service-admin/gem-reference/new');
@@ -162,8 +174,6 @@ describe('service-admin entry', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Discard changes' }));
     await screen.findByRole('heading', { name: 'Service-admin sign in' });
     expect(admin.signOutServiceAdmin).toHaveBeenCalledOnce();
-    if (originalModal) Object.defineProperty(HTMLDialogElement.prototype, 'showModal', originalModal);
-    else Reflect.deleteProperty(HTMLDialogElement.prototype, 'showModal');
   });
   it('tenant_cookie_does_not_authenticate_admin', async () => {
     // GIVEN a valid tenant session and an absent service-admin session.
