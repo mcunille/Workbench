@@ -14,6 +14,7 @@
 .reference-page .reference-warning { color: var(--text); font-weight: 500; }
 .reference-back { display: inline-flex; align-items: center; min-height: 44px; margin-bottom: 1rem; }
 .reference-section { padding-block: 1.5rem; border-top: 1px solid var(--glass-edge); }
+.reference-section a, .reference-back { display: inline-flex; align-items: center; min-height: 44px; min-width: 44px; max-width: 100%; }
 .reference-section h2 { font-size: 1.25rem; margin-block: 0 0.5rem; }
 .reference-fields { margin: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1.5rem 2.5rem; }
 .reference-fields > div { min-width: 0; }
@@ -21,7 +22,10 @@
 .reference-fields dd { margin: 0.5rem 0 0; overflow-wrap: anywhere; }
 .reference-attribution { color: var(--muted); font-size: 0.875rem; }
 .reference-sources { list-style: none; padding: 0; }
-.reference-sources li { padding-block: 1rem; scroll-margin-top: 1rem; overflow-wrap: anywhere; }
+.reference-sources > li { padding-block: 1rem; overflow-wrap: anywhere; }
+.reference-assertions { list-style: none; padding: 0; }
+.reference-assertions li { padding-block: 0.5rem; scroll-margin-top: 1rem; }
+.reference-assertions p { margin-block: 0.25rem 0; }
 .reference-sources h3 { font-size: 1rem; margin-block: 0 0.5rem; }
 .reference-prose { white-space: pre-wrap; overflow-wrap: anywhere; }
 .reference-review { padding-block: 1rem; margin-bottom: 1.5rem; }

@@ -25,8 +25,9 @@ it('submits name/classification and filters, qualifies links and restores a trav
   const view = mount();
   // WHEN submitting a familiar name or classification and material/group filters.
   await screen.findByRole('link', { name: 'Ruby' });
+  expect(screen.getByRole('status')).toHaveTextContent('2 entries shown.');
   fireEvent.change(screen.getByLabelText('Material kind', { exact: true }), { target: { value: 'mineral' } });
-  fireEvent.change(screen.getByLabelText('Group'), { target: { value: ' Corundum ' } });
+  fireEvent.change(screen.getByLabelText('Group (exact match)'), { target: { value: ' Corundum ' } });
   submit(' red & ruby ');
   await waitFor(() => expect(api.browseGems).toHaveBeenLastCalledWith({ query: 'red & ruby', materialKind: 'mineral', group: 'Corundum' }, expect.any(AbortSignal)));
   // THEN identities and review warnings are visible without validated classification on the invalid row.
@@ -40,7 +41,7 @@ it('submits name/classification and filters, qualifies links and restores a trav
   view.unmount();
   mount(view.memory);
   expect(screen.getByLabelText('Search gems')).toHaveValue(' red & ruby ');
-  expect(screen.getByLabelText('Group')).toHaveValue(' Corundum ');
+  expect(screen.getByLabelText('Group (exact match)')).toHaveValue(' Corundum ');
   expect(screen.getByRole('link', { name: 'Private ruby' })).toHaveFocus();
 });
 
@@ -54,8 +55,22 @@ it('retains loaded rows and retries the failed continuation cursor', async () =>
   fireEvent.click(await screen.findByRole('button', { name: 'Retry' }));
   // THEN prior content stays, the same opaque cursor is used and results append.
   await screen.findByRole('link', { name: 'Emerald' });
+  expect(screen.getByRole('status')).toHaveTextContent('1 entry added; 2 entries shown.');
   expect(screen.getByRole('link', { name: 'Ruby' })).toBeVisible();
   expect(api.browseGems).toHaveBeenLastCalledWith({ cursor: 'next' }, expect.any(AbortSignal));
+});
+
+it('labels exact group matching and politely announces a successful new search', async () => {
+  // GIVEN an initial result and an independently submitted search.
+  mount();
+  await screen.findByRole('link', { name: 'Ruby' });
+  // WHEN applying the exact group filter THEN its matching rule is persistent.
+  expect(screen.getByLabelText('Group (exact match)', { exact: true })).toBeVisible();
+  submit('Ruby');
+  await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('1 entry shown.'));
+  // AND the completion cue is polite and describes loaded entries rather than a total.
+  expect(screen.getByRole('status')).toHaveAttribute('aria-live', 'polite');
+  expect(screen.getByRole('status')).not.toHaveTextContent(/total/i);
 });
 
 it('ignores older responses after a new search and clears filters explicitly', async () => {

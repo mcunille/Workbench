@@ -11,6 +11,7 @@ export function GemLibrary({ memory, follow, onAuthLost }: GemNavigation & { mem
   const [request, setRequest] = useState<{ cursor?: string } | undefined>(() => memory.snapshot?.page ? undefined : {});
   const [failure, setFailure] = useState<{ cursor?: string; message: string }>();
   const ended = useRef(false);
+  const [completion, setCompletion] = useState<{ added: number; continued: boolean }>();
   const heading = useRef<HTMLHeadingElement>(null);
   const list = useRef<HTMLUListElement>(null);
   useLayoutEffect(() => {
@@ -29,6 +30,7 @@ export function GemLibrary({ memory, follow, onAuthLost }: GemNavigation & { mem
     void browseGems({ ...filters, ...request }, controller.signal).then(result => {
       if (!current) return;
       setPage(previous => request.cursor && previous ? { entries: [...previous.entries, ...result.entries], nextCursor: result.nextCursor } : result);
+      setCompletion({ added: result.entries.length, continued: !!request.cursor });
       setRequest(undefined);
       setFailure(undefined);
     }).catch((error: unknown) => {
@@ -51,6 +53,7 @@ export function GemLibrary({ memory, follow, onAuthLost }: GemNavigation & { mem
     const cleaned = Object.fromEntries(Object.entries(next).map(([key, value]) => [key, value?.trim()]).filter(([, value]) => value));
     setFilters(cleaned);
     setPage(undefined);
+    setCompletion(undefined);
     setFailure(undefined);
     memory.select(undefined);
     memory.savePosition(0);
@@ -61,12 +64,11 @@ export function GemLibrary({ memory, follow, onAuthLost }: GemNavigation & { mem
     <form role="search" aria-label="Gem reference" className="reference-search" onSubmit={event => { event.preventDefault(); search(draft); }}>
       <label className="reference-query">Search gems<input type="search" maxLength={200} value={draft.query ?? ''} onChange={event => setDraft({ ...draft, query: event.target.value })} placeholder="Name, alias or classification" /></label>
       <div className="reference-filter"><label htmlFor="reference-material-kind">Material kind</label><select id="reference-material-kind" value={draft.materialKind ?? ''} onChange={event => setDraft({ ...draft, materialKind: event.target.value })}><option value="">All materials</option>{Object.entries(materialKinds).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></div>
-      <label>Group<input maxLength={200} value={draft.group ?? ''} onChange={event => setDraft({ ...draft, group: event.target.value })} /></label>
+      <label>Group (exact match)<input maxLength={200} value={draft.group ?? ''} onChange={event => setDraft({ ...draft, group: event.target.value })} /></label>
       <div className="button-row"><button type="submit">Search</button><button className="secondary" type="button" onClick={() => { setDraft({}); search({}); }}>Clear filters</button></div>
     </form>
     {failure ? <div className="form-message error"><p role="alert">{failure.message}</p><button type="button" onClick={() => { setRequest(failure.cursor ? { cursor: failure.cursor } : {}); setFailure(undefined); }}>Retry</button></div> : null}
-    {request ? <p role="status">Loading gem entries…</p> : null}
-    {!request && !failure && page?.entries.length === 0 ? <p role="status">{Object.keys(filters).length ? 'No gems match these filters.' : 'No gem entries are available yet.'}</p> : null}
+    <p role="status" aria-live="polite" aria-atomic="true">{request ? 'Loading gem entries…' : failure || !page ? '' : page.entries.length === 0 ? (Object.keys(filters).length ? 'No gems match these filters.' : 'No gem entries are available yet.') : `${completion?.continued ? `${completion.added} ${completion.added === 1 ? 'entry' : 'entries'} added; ` : ''}${page.entries.length} ${page.entries.length === 1 ? 'entry' : 'entries'} shown.`}</p>
     <ul ref={list} className="reference-results" aria-label="Gem entries">{page?.entries.map(entry => {
       const href = gemPath(entry.id, entry.origin);
       return <li key={href}><div><a href={href} onClick={event => { if (event.button === 0 && !event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey) memory.select(href); follow(event); }}>{entry.commonName}</a>

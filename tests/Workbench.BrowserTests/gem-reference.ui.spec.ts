@@ -24,7 +24,7 @@ for (const theme of ['light', 'dark'] as const) test(`keyboard browsing, source 
   const search = page.getByLabel('Search gems', { exact: true });
   await search.fill('Synthetic red gem');
   await page.getByLabel('Material kind', { exact: true }).selectOption('organic');
-  await page.getByLabel('Group', { exact: true }).fill('Synthetic group');
+  await page.getByLabel('Group (exact match)', { exact: true }).fill('Synthetic group');
   await search.focus();
   await page.keyboard.press('Enter');
   await expect.poll(() => received?.get('query')).toBe('Synthetic red gem');
@@ -41,7 +41,7 @@ for (const theme of ['light', 'dark'] as const) test(`keyboard browsing, source 
   const locality = page.locator('dt').filter({ hasText: /^Notable locality$/ }).locator('..');
   await locality.getByRole('link', { name: 'Supporting sources' }).focus();
   await page.keyboard.press('Enter');
-  await expect(page.locator(':target')).toContainText('Synthetic locality report');
+  await expect(page.locator(':target')).toHaveAccessibleName('Notable locality · Synthetic locality report');
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await page.evaluate(() => window.scrollTo(0, 0));
   await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(0);
@@ -73,4 +73,22 @@ test('retries failed loads and reads an invalid effective entry without a taxono
   await link.click();
   await expect(page.getByRole('region', { name: 'Needs review', exact: true })).toContainText('A mineral requires a species.');
   await expect(page.locator('dt').filter({ hasText: /^Species$/ })).toHaveCount(0);
+});
+
+test('standalone detail links retain 44px targets at phone widths', async ({ page }) => {
+  // GIVEN a retired sourced entry with a replacement and all standalone detail link types.
+  await identity(page);
+  await page.route('**/api/beta/gem-reference/**', route => route.fulfill({ json: { ...referenceFixture, retirement: { isRetired: true, explanation: 'Synthetic retirement.', redirectEntryId: 'replacement' } } }));
+  await page.goto('/gem-reference/workbench/ruby');
+  await expect(page.getByRole('heading', { name: 'Synthetic ruby', exact: true })).toBeVisible();
+  for (const width of [320, 390]) {
+    // WHEN reading at each supported phone width THEN every standalone detail link is a touch target.
+    await page.setViewportSize({ width, height: 844 });
+    const targets = await page.locator('.reference-page a').evaluateAll(links => links.map(link => ({ label: link.textContent, height: link.getBoundingClientRect().height, width: link.getBoundingClientRect().width })));
+    expect(targets.length).toBeGreaterThanOrEqual(6);
+    for (const target of targets) {
+      expect(target.height, `${width}px: ${target.label}`).toBeGreaterThanOrEqual(44);
+      expect(target.width, `${width}px: ${target.label}`).toBeGreaterThanOrEqual(44);
+    }
+  }
 });

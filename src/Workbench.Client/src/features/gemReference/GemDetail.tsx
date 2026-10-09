@@ -45,6 +45,7 @@ function DetailContent({ id, origin, follow, onAuthLost }: GemIdentity & GemNavi
       <section className="reference-section" aria-label="Reference locality"><h2>Reference locality</h2><p>This reference does not establish the origin of an individual specimen.</p><dl className="reference-fields">
         <Field entry={entry} name="notableLocality">{entry.notableLocality ? <><p>{entry.notableLocality.place}</p><p>{entry.notableLocality.scope}</p><p>Reviewed <time dateTime={entry.notableLocality.reviewedOn}>{entry.notableLocality.reviewedOn}</time></p></> : null}</Field>
       </dl></section>
+      <p className="reference-attribution"><strong>Not recorded: </strong><span id="reference-absence-help">No assertion is recorded for this field; this does not establish absence or a measured zero.</span></p>
       <Sources entry={entry} />
     </> : null}
   </article>;
@@ -59,7 +60,7 @@ function Field({ entry, name, children, absent }: { entry: GemReferenceDetailRes
   const sourceId = name === 'notableLocality' ? entry.notableLocality?.sourceAssertionId : field?.sources[0]?.id;
   const supportingSource = field?.sources.find(source => source.id === sourceId);
   return <div><dt>{fieldLabels[name]}</dt><dd>
-    {cleared ? 'Cleared by your tenant.' : empty ? absent ?? (tenant ? 'No tenant assertion recorded.' : 'No Workbench assertion recorded; this optional field is unasserted.') : children}
+    {cleared ? 'Cleared by your tenant.' : empty ? absent ?? <span aria-describedby="reference-absence-help">Not recorded</span> : children}
     <p className="reference-attribution">{tenant ? field?.sources.length ? 'Tenant-authored · tenant sources' : 'Tenant-authored · no sources supplied' : 'Workbench reference'}</p>
     {supportingSource ? <a href={`#${sourceAnchor(name, supportingSource.id)}`}>Supporting sources</a> : null}
   </dd></div>;
@@ -73,13 +74,25 @@ function safeSourceUrl(url: string | null) {
 }
 function Sources({ entry }: { entry: GemReferenceDetailResponse }) {
   const sources = Object.entries(entry.effectiveFields ?? {}).flatMap(([field, value]) => value.sources.map(source => ({ field, source })));
-  return <section className="reference-section" aria-label="Sources"><h2>Sources</h2>{sources.length ? <ul className="reference-sources">{sources.map(({ field, source }) => {
+  const groups = new Map<string, typeof sources>();
+  for (const assertion of sources) {
+    const { source } = assertion;
+    const key = JSON.stringify([source.title, source.publisher, source.citation, source.url, source.attribution]);
+    const group = groups.get(key);
+    if (group) group.push(assertion);
+    else groups.set(key, [assertion]);
+  }
+  return <section className="reference-section" aria-label="Sources"><h2>Sources</h2>{sources.length ? <ul className="reference-sources">{[...groups.entries()].map(([key, assertions]) => {
+    const source = assertions[0].source;
     const href = safeSourceUrl(source.url);
-    return <li key={`${field}:${source.id}`} id={sourceAnchor(field, source.id)} tabIndex={-1}>
+    return <li className="reference-source-group" key={key}>
       <h3>{href ? <a href={href} target="_blank" rel="noopener noreferrer">{source.title}</a> : source.title}</h3>
-      <p className="reference-attribution">{fieldLabels[field] ?? field} · {source.attribution === 'tenant' ? 'Tenant source' : 'Workbench source'} · {source.publisher}</p>
+      <p className="reference-attribution">{source.attribution === 'tenant' ? 'Tenant source' : 'Workbench source'} · {source.publisher}</p>
       {source.citation ? <p className="reference-prose">{source.citation}</p> : null}
-      <p>Reviewed <time dateTime={source.reviewedOn}>{source.reviewedOn}</time>{source.accessedOn ? <> · Accessed <time dateTime={source.accessedOn}>{source.accessedOn}</time></> : null}</p>
+      <ul className="reference-assertions">{assertions.map(({ field, source: assertion }) => <li key={`${field}:${assertion.id}`} id={sourceAnchor(field, assertion.id)} tabIndex={-1} aria-label={`${fieldLabels[field] ?? field} · ${assertion.title}`}>
+        <strong>{fieldLabels[field] ?? field}</strong>
+        <p>Reviewed <time dateTime={assertion.reviewedOn}>{assertion.reviewedOn}</time>{assertion.accessedOn ? <> · Accessed <time dateTime={assertion.accessedOn}>{assertion.accessedOn}</time></> : null}</p>
+      </li>)}</ul>
     </li>;
   })}</ul> : <p>No sources supplied for this effective entry.</p>}</section>;
 }

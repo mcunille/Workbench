@@ -25,16 +25,42 @@ it('renders field provenance, explicit clears, missing values and source dates',
   expect(field('Species')).toHaveTextContent('Workbench reference');
   expect(field('Group')).toHaveTextContent('Cleared by your tenant');
   expect(field('Variety')).toHaveTextContent('Tenant-authored · no sources supplied');
-  expect(field('Description')).toHaveTextContent('No Workbench assertion recorded');
+  expect(within(field('Description')).getByText('Not recorded')).toHaveAccessibleDescription('No assertion is recorded for this field; this does not establish absence or a measured zero.');
   expect(screen.getByText('Synthetic red gem')).toBeVisible();
   expect(screen.getByText(/does not establish the origin of an individual specimen/)).toBeVisible();
   expect(screen.getByRole('link', { name: 'Synthetic taxonomy' })).toHaveAttribute('rel', 'noopener noreferrer');
   const localityLink = within(field('Notable locality')).getByRole('link', { name: 'Supporting sources' });
   const target = document.getElementById(localityLink.getAttribute('href')!.slice(1));
-  expect(target).toHaveTextContent('Synthetic locality report');
-  expect(target).not.toHaveTextContent('Additional locality context');
+  expect(target).toHaveAccessibleName('Notable locality · Synthetic locality report');
   expect(target).toHaveTextContent('Reviewed 2026-10-01');
   expect(screen.getByRole('region', { name: 'Sources' })).toHaveTextContent('Accessed 2026-10-02');
+});
+
+it('groups identical bibliography while retaining each assertion, date and attribution', async () => {
+  // GIVEN two shared fields cite identical bibliography with distinct assertion IDs and dates.
+  const source = referenceFixture.effectiveFields!.species.sources[0];
+  vi.mocked(api.getGem).mockResolvedValue({ ...referenceFixture, effectiveFields: {
+    commonName: { state: 'inherit', attribution: 'workbench', sources: [{ ...source, id: 'name', field: 'commonName', reviewedOn: '2026-10-03', accessedOn: '2026-10-04' }] },
+    species: referenceFixture.effectiveFields!.species,
+    // AND tenant attribution and a different URL must each keep separate bibliography.
+    variety: { state: 'replace', attribution: 'tenant', sources: [{ ...source, id: 'tenant', field: 'variety', attribution: 'tenant' }] },
+    description: { state: 'inherit', attribution: 'workbench', sources: [{ ...source, id: 'different', field: 'description', url: 'https://example.test/different' }] },
+  } });
+  mount();
+  // WHEN reading THEN only genuinely identical metadata is shared.
+  await screen.findByRole('heading', { name: 'Synthetic ruby' });
+  const sources = screen.getByRole('region', { name: 'Sources' });
+  expect(within(sources).getAllByText('Synthetic classification citation')).toHaveLength(3);
+  for (const [label, reviewed, accessed] of [['Common name', '2026-10-03', '2026-10-04'], ['Species', '2026-10-01', '2026-10-02']]) {
+    const link = within(field(label)).getByRole('link', { name: 'Supporting sources' });
+    const target = document.getElementById(link.getAttribute('href')!.slice(1));
+    expect(target).toHaveAccessibleName(`${label} · Synthetic taxonomy`);
+    expect(target).toHaveTextContent(`Reviewed ${reviewed} · Accessed ${accessed}`);
+    expect(target?.closest('.reference-source-group')).toHaveTextContent('Workbench source');
+    expect(target?.closest('.reference-source-group')).not.toHaveTextContent('Tenant source');
+  }
+  expect(within(sources).getByText('Tenant source · Reference institute')).toBeVisible();
+  expect(within(sources).getAllByRole('link', { name: 'Synthetic taxonomy' }).map(link => link.getAttribute('href'))).toContain('https://example.test/different');
 });
 
 it('keeps an invalid entry visible with reasons but withholds taxonomy claims', async () => {
