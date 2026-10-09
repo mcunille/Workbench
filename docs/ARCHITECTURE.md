@@ -9,15 +9,37 @@ while non-mineral materials can omit inapplicable taxonomy. The reusable content
 enforces safe source links, source coverage, and redirect validity for later seed/publish callers.
 
 Tenant-authenticated `/api/beta/gem-reference` GET routes provide bounded literal search and
-coherent attributed detail under the web principal's four explicit SELECT grants. Detail reads
-use one joined query in a serializable transaction to keep fields and their sources together.
-Shared entities have no tenant ID; existing tenant SQL RLS remains unchanged. Runtime direct
+coherent attributed detail. Shared entities have no tenant ID. Runtime direct
 catalog writes are denied. GEM-04 installs the reviewed Diamond, Sapphire, Emerald, and Ruby
 pilot with nineteen field-level source assertions through a one-time data migration. The frozen
 seed ships inside the migration assembly; deployments require no content download. Existing
 pilot IDs (including retired entries) retain their values and provenance. Conflicting active
 identities under other IDs reject the transaction. See the [installation procedure](operations/database-migrations.md#pilot-catalog-distribution-and-installation).
-Tenant additions/overrides and tenant browser screens remain separate milestones.
+
+GEM-06 adds tenant-owned additions and sparse field overrides in `Gemology.TenantEntries` and
+`TenantOverrides`, protected by tenant SQL RLS. One effective projection resolves values,
+attribution, supporting citations and review dates together. Missing choices inherit; replacement
+uses only tenant sources; explicit clear removes optional values and displaced sources. Reset
+receives current shared content and retains an empty override row with an advancing rowversion
+to prevent an old token being reused. Shared publication never waits for tenant reconciliation:
+invalid effective entries retain their identities and choices, remain searchable, and expose
+field-level review reasons. Effective Unicode identity collisions flag each visible entry;
+archive can remove an addition collision, and other writes must leave a valid final candidate.
+
+Tenant reads acquire the publication lock then the tenant lock and materialize one catalog-sized
+effective snapshot. Browse sends scalar candidates to SQL for native collation matching and
+uniqueidentifier pagination, returning at most 50 rows. Snapshot materialization, duplicate
+derivation and scalar JSON size grow with the catalog; no load benchmark or performance gain is
+claimed. Detail citation arrays preserve ordinal field and .NET Guid ID ordering independently
+of SQL browse ordering. Tenant writes acquire exclusive locks in the same order, recheck active
+membership and SQL tenant proof, then compare both components of `effectiveVersion`, including
+absence, before the narrow command commits. Validation and conflicts preserve all stored choices.
+
+Identity is qualified by `(id, origin)`: `tenant` additions and `workbench` references can share
+a GUID after later publication. Detail accepts explicit origin; its default selects the tenant
+entry first, including archived entries. Addition update/archive/restore target tenant origin;
+override/reset target workbench origin. Service-admin readers and curation remain shared-only.
+GEM-08–10 browser workflows and full reference-library release acceptance remain outstanding.
 
 GEM-05 adds service-admin-only draft, combined review, publish, outcome, and audit APIs at
 `/api/beta/service-admin/gem-reference`. Drafts may be incomplete; publishing requires valid

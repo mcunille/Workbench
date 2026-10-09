@@ -214,6 +214,7 @@ This inventory describes checked-in migration behavior, not permission to execut
 | `20261001072507_AddServiceAdminIdentity` | `AddSharedGemReference` | Adds tenant-free service-admin accounts and hashed sessions, narrow web authentication procedures and operator-only maintenance. Extends mandatory transactional sanitation to delete admin sessions and advance every account security version before clearing the restore marker. Fails on unsupported sanitation predecessors; preserves tenant and financial evidence. Advances readiness and backup schema. Verify fresh creation, merged-base upgrade, restricted restore after later disablement/revocation, cached/fresh cookie and raw-token denial. | Always blocked (50020); retain accounts and session authority through forward correction or guarded recovery. |
 | `20261002192523_InstallGemReferencePilot` | `AddServiceAdminIdentity` | Installs the frozen reviewed four-gem pilot and nineteen citations for missing stable IDs; retains published/retired entries and their complete provenance. Identity conflicts reject the transaction. Advances readiness and backup schema. Verify exact fresh installation, rerun after publication, merged-base upgrade, conflict atomicity, and source-to-seed equality. | Always blocked (50020); use forward correction or protected recovery to preserve published content. |
 | `20261002192901_AddGemReferenceCuration` | `InstallGemReferencePilot` | Adds service-admin drafts, atomic shared publication/retirement, durable actor-bound outcomes, and publication audit through six restricted web commands. Preserves published provenance and tenant/admin identity; direct table writes remain denied. Advances readiness and backup schema; verify fresh creation, merged GEM-03/GEM-04 upgrade, rejected batches, lock-time revocation, exact retries, and transactional audit failure. | Always blocked (50020); forward correction or guarded recovery preserves drafts and publication evidence. |
+| `20261003214043_AddTenantGemReference` | `AddGemReferenceCuration` | Adds tenant entries and sparse overrides with RLS, two explicit web reads and three restricted write commands. Preserves shared publication, provenance, identities and tenant data; retained empty override rows prevent token ABA. Advances readiness and backup schema. Verify fresh creation, merged GEM-05 upgrade, actual-principal scope/authority, composite versions and reset retention. | Always blocked (50020); forward correction or guarded recovery preserves tenant additions and choices. |
 
 Product behavior, user-visible concurrency/retry rules and the shipped feature inventory belong in
 [collection documentation](../collection.md). Provider retry/backoff behavior belongs in
@@ -221,7 +222,15 @@ Product behavior, user-visible concurrency/retry rules and the shipped feature i
 The [migration source](../../src/Workbench.Server/Persistence/Migrations) is authoritative for SQL.
 
 
-The current required migration is `20261002192901_AddGemReferenceCuration`.
+The current required migration is `20261003214043_AddTenantGemReference`.
+
+GEM-06 introduces one coherent migration after merged GEM-05. It creates tenant-owned entries and
+sparse JSON choices, installs RLS and restricted commands, and advances readiness. Shared catalog,
+curation and existing tenant data remain intact. Native SQL backups include tenant reference data;
+restore sanitation remains responsible for invalidating restored authentication. Full reset retains
+an empty versioned override row. Down rejects destructive loss with 50020; use forward correction
+or protected restore and matching binaries. Fresh creation and upgrade from `AddGemReferenceCuration`
+must verify model/history, tenant scope, actual-principal command admission and the rollback guard.
 
 GEM-05 adds one coherent migration after the merged GEM-04 pilot baseline. It creates private
 command-owned drafts, immutable publication outcomes, and append-oriented publication audit;

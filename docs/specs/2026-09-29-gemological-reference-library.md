@@ -1,6 +1,6 @@
 # Gemological reference library
 
-**Status: In progress** — GEM-02–05 are merged. On 2026-10-02 the owner reduced GEM-01 to the four-mineral sample included in the repository and installed by GEM-04. GEM-07's service-admin browser workflow is implemented in this change; GEM-06 and GEM-08–10 remain to be delivered. The complete reference-library release is not implemented.
+**Status: In progress** — GEM-02–06 are merged. On 2026-10-02 the owner reduced GEM-01 to the four-mineral sample included in the repository and installed by GEM-04. GEM-07's service-admin browser workflow is implemented in this change; GEM-08–10 remain to be delivered. The complete reference-library release is not implemented.
 
 ## Purpose and audience
 
@@ -175,6 +175,16 @@ GEM-05 pull request; the dedicated editor is described in GEM-07. This does not 
 - **Predecessors:** GEM-02, GEM-03. **Parallel:** GEM-04 and GEM-06; its admin UI follows in GEM-07.
 
 #### GEM-06 — Store tenant additions and field-level overrides
+
+**Implementation:** Backend storage, effective tenant reads, addition/archive/restore and sparse
+override/reset APIs are implemented. Real SQL, authenticated HTTP and pure projection tests cover
+tenant isolation, provenance, reconciliation, composite conflicts, and pagination; focused manual
+mutation checks supplement those owners. Tenant additions and workbench references are qualified
+by origin, preserving both when later publication reuses a GUID. Backend delivery gates and running
+preview acceptance are recorded with the implementation PR. GEM-08–10 interfaces and complete
+reference-library release acceptance remain outstanding; this note does not mark the spec implemented.
+Effective browsing currently materializes a catalog-sized snapshot and scalar SQL JSON candidates;
+returned pages are bounded, but load/performance acceptance has not been measured.
 
 **Story:** As a tenant member, I want to add my own gem entries and replace selected Workbench fields so that my library reflects my knowledge without changing anyone else's reference.
 
