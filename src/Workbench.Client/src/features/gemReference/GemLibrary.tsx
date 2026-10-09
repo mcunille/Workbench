@@ -60,7 +60,7 @@ export function GemLibrary({ memory, follow, onAuthLost }: GemNavigation & { mem
     <header className="page-heading"><div><h1 ref={heading} tabIndex={-1}>Gem reference</h1><p className="lede">Explore the shared library and your tenant’s effective reference.</p></div></header>
     <form role="search" aria-label="Gem reference" className="reference-search" onSubmit={event => { event.preventDefault(); search(draft); }}>
       <label className="reference-query">Search gems<input type="search" maxLength={200} value={draft.query ?? ''} onChange={event => setDraft({ ...draft, query: event.target.value })} placeholder="Name, alias or classification" /></label>
-      <label>Material kind<select value={draft.materialKind ?? ''} onChange={event => setDraft({ ...draft, materialKind: event.target.value })}><option value="">All materials</option>{Object.entries(materialKinds).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
+      <div className="reference-filter"><label htmlFor="reference-material-kind">Material kind</label><select id="reference-material-kind" value={draft.materialKind ?? ''} onChange={event => setDraft({ ...draft, materialKind: event.target.value })}><option value="">All materials</option>{Object.entries(materialKinds).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></div>
       <label>Group<input maxLength={200} value={draft.group ?? ''} onChange={event => setDraft({ ...draft, group: event.target.value })} /></label>
       <div className="button-row"><button type="submit">Search</button><button className="secondary" type="button" onClick={() => { setDraft({}); search({}); }}>Clear filters</button></div>
     </form>

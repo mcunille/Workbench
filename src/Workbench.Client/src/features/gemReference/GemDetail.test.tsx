@@ -8,7 +8,7 @@ const follow = (event: React.MouseEvent<HTMLAnchorElement>) => event.preventDefa
 beforeEach(() => { lost.mockClear(); vi.spyOn(api, 'getGem').mockResolvedValue(referenceFixture); });
 afterEach(() => vi.restoreAllMocks());
 function mount() { return render(<GemDetail id="ruby" origin="workbench" follow={follow} onAuthLost={lost} />); }
-function field(name: string) { return screen.getByRole('term', { name }).parentElement!; }
+function field(name: string) { return screen.getByText(name, { selector: 'dt', exact: true }).parentElement!; }
 
 it('renders field provenance, explicit clears, missing values and source dates', async () => {
   // GIVEN shared assertions, tenant replacements and a cleared optional field.
@@ -41,8 +41,8 @@ it('keeps an invalid entry visible with reasons but withholds taxonomy claims', 
   await screen.findByRole('heading', { name: 'Synthetic ruby' });
   expect(screen.getByRole('region', { name: 'Needs review' })).toHaveTextContent('A mineral requires a species.');
   expect(screen.queryByText('Corundum', { exact: true })).not.toBeInTheDocument();
-  expect(screen.queryByRole('term', { name: 'Species' })).not.toBeInTheDocument();
-  expect(screen.queryByRole('term', { name: 'Material kind' })).not.toBeInTheDocument();
+  expect(screen.queryByText('Species', { selector: 'dt', exact: true })).not.toBeInTheDocument();
+  expect(screen.queryByText('Material kind', { selector: 'dt', exact: true })).not.toBeInTheDocument();
 });
 
 it.each(['javascript:alert(1)', 'data:text/html,test', 'https://user:secret@example.test/source', '/relative'])('keeps unsafe source %s as readable text', async url => {

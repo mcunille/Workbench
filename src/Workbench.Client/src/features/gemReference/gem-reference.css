@@ -1,7 +1,7 @@
 .reference-page { max-width: 72rem; min-width: 0; }
 .reference-page p { max-width: 72ch; }
 .reference-search { display: flex; flex-wrap: wrap; align-items: end; gap: 1rem; margin-block: 2rem; }
-.reference-search label { display: flex; flex-direction: column; gap: 0.5rem; min-width: 0; flex: 1 1 10rem; }
+.reference-search > label, .reference-search .reference-filter { display: flex; flex-direction: column; gap: 0.5rem; min-width: 0; flex: 1 1 10rem; }
 .reference-search .reference-query { flex: 2 1 18rem; }
 .reference-search input, .reference-search select { width: 100%; min-width: 0; }
 .reference-results { list-style: none; padding: 0; margin-block: 1.5rem; }
@@ -30,5 +30,5 @@
   .reference-results li { flex-direction: column; gap: 0.25rem; }
   .reference-layer { padding-top: 0; }
   .reference-fields { grid-template-columns: minmax(0, 1fr); }
-  .reference-search label, .reference-search .reference-query { flex-basis: 100%; }
+  .reference-search > label, .reference-search .reference-query, .reference-search .reference-filter { flex-basis: 100%; }
 }

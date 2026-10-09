@@ -56,7 +56,7 @@ function Field({ entry, name, children, absent }: { entry: GemReferenceDetailRes
   const tenant = field?.attribution === 'tenant';
   const empty = children === null || children === undefined || children === '';
   const cleared = field?.state === 'clear';
-  return <div><dt aria-label={fieldLabels[name]}>{fieldLabels[name]}</dt><dd>
+  return <div><dt>{fieldLabels[name]}</dt><dd>
     {cleared ? 'Cleared by your tenant.' : empty ? absent ?? (tenant ? 'No tenant assertion recorded.' : 'No Workbench assertion recorded; this optional field is unasserted.') : children}
     <p className="reference-attribution">{tenant ? field?.sources.length ? 'Tenant-authored · tenant sources' : 'Tenant-authored · no sources supplied' : 'Workbench reference'}</p>
     {field?.sources.length ? <a href={`#${sourceAnchor(name, field.sources[0].id)}`}>Supporting sources</a> : null}

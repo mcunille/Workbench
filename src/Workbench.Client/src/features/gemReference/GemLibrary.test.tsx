@@ -25,7 +25,7 @@ it('submits name/classification and filters, qualifies links and restores a trav
   const view = mount();
   // WHEN submitting a familiar name or classification and material/group filters.
   await screen.findByRole('link', { name: 'Ruby' });
-  fireEvent.change(screen.getByLabelText('Material kind'), { target: { value: 'mineral' } });
+  fireEvent.change(screen.getByLabelText('Material kind', { exact: true }), { target: { value: 'mineral' } });
   fireEvent.change(screen.getByLabelText('Group'), { target: { value: ' Corundum ' } });
   submit(' red & ruby ');
   await waitFor(() => expect(api.browseGems).toHaveBeenLastCalledWith({ query: 'red & ruby', materialKind: 'mineral', group: 'Corundum' }, expect.any(AbortSignal)));

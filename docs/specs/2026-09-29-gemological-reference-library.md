@@ -219,6 +219,16 @@ inspection remain part of PR delivery; this story does not complete the overall 
 
 #### GEM-08 — Browse the effective library
 
+**Implementation:** Tenant navigation at `/gem-reference` uses the effective read API for bounded
+search, material-kind/group filters and origin-qualified details. The
+[browsing guide](../gem-reference.md) explains field-level provenance, source dates, explicit
+clears, absent fields and specimen-origin limits. Entries needing review remain name-findable
+without a validated classification display. Component coverage owns request races, continuation
+retry, attribution and safe links; browser coverage exercises the integrated pilot and tenant
+override/addition reads plus synthetic keyboard/narrow-layout states in both appearances.
+Delivery-gate and preview evidence belong to the GEM-08 PR. This does not complete GEM-09 or the
+full reference-library release.
+
 **Story:** As a tenant member, I want to search and inspect gems by familiar name or classification so that I can use the shared reference and see my tenant's effective values.
 
 - **Scope:** Library navigation, search and material-kind/group filters, result list, detail view, source and layer labels, locality wording, missing-field explanation, loading/empty/error states, and safe external links. Use the effective API; no editing controls belong here.
