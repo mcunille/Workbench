@@ -35,6 +35,8 @@ import { DraftEditor } from './features/purchasing/DraftEditor';
 import { DraftMemory } from './features/purchasing/draftMemory';
 import { SupplierMemory } from './features/purchasing/supplierMemory';
 import { ServiceAdminApplication } from './features/serviceAdmin/ServiceAdminApplication';
+import { GemLibrary } from './features/gemReference/GemLibrary';
+import { GemLibraryMemory } from './features/gemReference/gemLibraryMemory';
 
 const narrowNavigationQuery = '(width < 900px)';
 function subscribeToNavigationWidth(update: () => void) {
@@ -87,6 +89,7 @@ function SignedInApplication({
   const [exportMemory] = useState(() => new ExportMemory());
   const [draftMemory] = useState(() => new DraftMemory());
   const [supplierMemory] = useState(() => new SupplierMemory());
+  const [gemMemory] = useState(() => new GemLibraryMemory());
   useLayoutEffect(() => () => exportMemory.dispose(), [exportMemory]);
   const [origins] = useState(
     () => new Map<string, 'active' | 'archived'>(),
@@ -129,8 +132,9 @@ function SignedInApplication({
   }
   const authLost = useCallback(() => {
     supplierMemory.clear();
+    gemMemory.clear();
     void refresh();
-  }, [refresh, supplierMemory]);
+  }, [refresh, supplierMemory, gemMemory]);
   const rolesSaved = useCallback(() => { void refresh('permissions'); }, [refresh]);
   if (!identity) return null;
   const canManageUsers = identity.permissions.includes(
@@ -190,6 +194,9 @@ function SignedInApplication({
           </a>
           {canReadAccounting ? <a className="navigation-destination" href="/accounting" title={navigationCollapsed ? 'Accounting' : undefined} aria-current={path === '/accounting' ? 'page' : undefined} onClick={navigation.follow}><Icon name="list" /><span className="navigation-label">Accounting</span></a> : null}
           <div className="navigation-secondary">
+            <a className="navigation-destination" href="/gem-reference" title={navigationCollapsed ? 'Gem reference' : undefined} aria-current={path === '/gem-reference' || path.startsWith('/gem-reference/') ? 'page' : undefined} onClick={navigation.follow}>
+              <Icon name="list" /><span className="navigation-label">Gem reference</span>
+            </a>
             {canManageUsers ? (
               <a
                 className="navigation-destination"
@@ -278,6 +285,8 @@ function SignedInApplication({
               follow={followFromCollection}
               onAuthLost={authLost}
             />
+          ) : path === '/gem-reference' ? (
+            <GemLibrary memory={gemMemory} follow={navigation.follow} onAuthLost={authLost} />
           ) : path === '/purchase-orders' ? (
             <DraftList memory={draftMemory} follow={navigation.follow} onAuthLost={authLost} />
           ) : path === '/suppliers' ? (
