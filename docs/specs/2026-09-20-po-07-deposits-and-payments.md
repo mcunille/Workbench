@@ -44,8 +44,8 @@ already require explainable corrections and closed-period protection. Current
 
 - PO-04 commits operational contents and preserves amendments; it creates no journal.
 - PO-05 uses four-place exact estimates and separates supplier and third-party charges.
-- [PO-06](2026-09-18-po-06-invoices-and-purchase-documents.md) implements private files only.
-  It creates no financial effects. BK-04–06 now supply separate internal recognition, structured bill,
+- [Purchase invoice files](../purchasing.md#keep-invoice-files-with-an-ordered-purchase) implement the PO-06 attachment scope only.
+  Attaching files creates no financial effects. BK-04–06 now supply separate internal recognition, structured bill,
   payment and allocation foundations; they do not enable the public bookkeeping workflow below.
 - `PurchaseOrderEndpoints.cs` and `PurchaseOrderContracts.cs` own commitment/revision APIs;
   `PurchaseOrderDocumentService.cs` owns purchase document storage. Extend their source boundaries,
