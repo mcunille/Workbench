@@ -41,13 +41,17 @@ internal static class FinancialEvidenceBackfill
           SELECT @Po=PurchaseOrderId,@Documents=Documents,@Inherited=InheritedEvidenceSetId,@Recorded=RecordedAtUtc,@Date=PostingDate
             FROM Accounting.FinancialEvidenceSource(@Tenant,@Kind,@Owner,@Revision);
           IF @Po IS NULL OR @Config IS NULL THROW 51012,@Diagnostic,1;
-          IF @Documents IS NOT NULL AND ISJSON(@Documents,ARRAY)<>1 THROW 51012,@Diagnostic,1;
+          -- Bill/payment snapshots always contain authenticated arrays, even when empty.
+          -- JSON_QUERY returns NULL for scalar corruption; that must not become unresolved evidence.
+          IF (@Kind IN('SupplierBill','SupplierPayment') AND @Documents IS NULL)
+            OR (@Documents IS NOT NULL AND ISJSON(@Documents,ARRAY)<>1) THROW 51012,@Diagnostic,1;
+          IF EXISTS(SELECT 1 FROM OPENJSON(@Documents) WHERE type<>5) THROW 51012,@Diagnostic,1;
           IF EXISTS(SELECT 1 FROM OPENJSON(@Documents) j
             LEFT JOIN Purchasing.PurchaseOrderDocuments d ON d.TenantId=@Tenant AND d.OrderId=@Po
               AND d.Id=TRY_CONVERT(uniqueidentifier,JSON_VALUE(j.value,'$.documentId'))
               AND d.RevisionId=TRY_CONVERT(uniqueidentifier,JSON_VALUE(j.value,'$.revisionId'))
             LEFT JOIN Storage.Revisions r ON r.TenantId=d.TenantId AND r.Id=d.RevisionId AND r.AttachmentId=d.AttachmentId
-            WHERE j.type<>5 OR d.Id IS NULL OR r.Id IS NULL OR r.State=0 OR r.Sha256 IS NULL OR r.Length IS NULL
+            WHERE d.Id IS NULL OR r.Id IS NULL OR r.State=0 OR r.Sha256 IS NULL OR r.Length IS NULL
               OR d.Sha256<>r.Sha256 OR d.Length<>r.Length OR d.MediaType<>r.MediaType
               OR JSON_VALUE(j.value,'$.digest') IS NULL OR JSON_VALUE(j.value,'$.digest')<>r.Sha256
               OR TRY_CONVERT(bigint,JSON_VALUE(j.value,'$.length')) IS NULL OR TRY_CONVERT(bigint,JSON_VALUE(j.value,'$.length'))<>r.Length
