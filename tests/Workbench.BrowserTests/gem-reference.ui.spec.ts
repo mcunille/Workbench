@@ -44,7 +44,8 @@ for (const theme of ['light', 'dark'] as const) test(`keyboard browsing, source 
   await expect(page.locator(':target')).toContainText('Synthetic locality report');
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await page.evaluate(() => window.scrollTo(0, 0));
-  await captureEvidence(page, `gem-reference/detail-390-${theme}.png`, { fullPage: true });
+  await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(0);
+  await captureEvidence(page, `gem-reference/detail-390-${theme}.png`);
   await page.setViewportSize({ width: 320, height: 700 });
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await page.getByRole('link', { name: 'Back to gem reference' }).click();

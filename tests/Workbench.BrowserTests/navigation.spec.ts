@@ -253,8 +253,8 @@ for (const width of [320, 390]) {
     await useAuthenticatedSession(page);
     await page.addStyleTag({ content: 'html { font-size: 200%; }' });
     const nav = page.getByRole('navigation', { name: 'Workspace' });
-    // WHEN either destination is active THEN all pill controls remain inside the viewport.
-    for (const destination of ['Administration', 'Inventory']) {
+    // WHEN a primary or secondary destination is active THEN all pill controls remain inside the viewport.
+    for (const destination of ['Administration', 'Gem reference', 'Inventory']) {
       await nav.getByRole('link', { name: destination, exact: true }).click();
       await expect(nav.getByRole('link', { name: destination, exact: true })).toHaveAttribute('aria-current', 'page');
       for (const control of await nav.locator('a, button').all()) {
