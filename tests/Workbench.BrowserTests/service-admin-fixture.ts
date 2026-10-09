@@ -20,19 +20,27 @@ export async function signInAdmin(page: Page, account = 1, freshSession = false)
   }
   await page.goto('/service-admin/sign-in');
   await expect(page.getByRole('heading', { name: 'Service-admin sign in' })).toBeVisible();
-  await enterAdminCredentials(page, account);
+  await enterAdminCredentials(page, account, false);
   await expect(page.getByRole('heading', { name: 'Gem reference', exact: true })).toBeVisible();
   if (!freshSession) sessions.set(account, await page.context().cookies());
 }
 
-export async function enterAdminCredentials(page: Page, account = 1) {
+export async function enterAdminCredentials(page: Page, account = 1, cacheSession = true) {
   // Reuse the disposable server's synthetic fixture without logging a password.
   const source = await readFile(new URL('../../scripts/run-browser-server.ps1', import.meta.url), 'utf8');
   const password = source.match(/Set-Content -LiteralPath \$serviceAdminPasswordFile -Value '([^']+)'/)?.[1];
   if (!password) throw new Error('Disposable service-admin fixture is missing.');
   await page.getByLabel('Email', { exact: true }).fill(`browser-service-admin-${account}@example.test`);
   await page.getByLabel('Password', { exact: true }).fill(password);
+  const login = page.waitForResponse(response => response.request().method() === 'POST' && response.url().endsWith('/api/beta/service-admin/auth/login'));
+  const identity = page.waitForResponse(response => response.request().method() === 'GET' && response.url().endsWith('/api/beta/service-admin/auth/me'));
   await page.getByRole('button', { name: 'Sign in', exact: true }).click();
+  const response = await login;
+  expect(response.status()).toBe(204);
+  expect((await identity).status()).toBe(200);
+  // A confirmed reauthentication replaces any revoked worker-local session.
+  // Fresh sign-in skips this cache until its revocation/recovery journey finishes.
+  if (cacheSession) sessions.set(account, await page.context().cookies());
 }
 
 export function syntheticContent(name: string): GemReferenceContent {

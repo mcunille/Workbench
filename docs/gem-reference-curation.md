@@ -47,9 +47,12 @@ blocked until you explicitly choose **Keep my edits with current versions** or *
 saved draft**. The latter restores the saved draft's original published baseline; a stale
 baseline may still require an explicit rebase before saving.
 
-If your admin session ends, sign in with the same account above the retained editor. Current
-versions are refreshed before saving resumes. Signing in as a different account clears that
-editor. Unsaved editorial content is held in memory and does not survive a browser reload.
+If your admin session ends while browsing, editing, reviewing or signing out, sign in with the
+same account above the retained view. Your selected draft IDs and versions, catalog search and
+view, and local edits remain available. Catalog and detail reads refresh after sign-in; current
+editor versions are refreshed before saving resumes. Signing in as a different account clears
+the selection, search and editor. Unsaved editorial content is held in memory and does not
+survive a browser reload.
 
 If a publication response is lost, its original request identity and selected draft versions
 remain in account-scoped session storage. **Check publication outcome** retrieves the durable
@@ -65,8 +68,8 @@ GEM-07 adds the service-admin browser workflow over the existing GEM-03 identity
 curation APIs. Its focused acceptance files are
 `tests/Workbench.BrowserTests/gem-curation.spec.ts` and `gem-curation.ui.spec.ts`: live SQL-backed
 create/save/reload/edit/batch publication/retirement, two-admin draft and published-base
-reconciliation, retained-editor reauthentication after an ended session, and direct cross-role
-denial. Intercepted keyboard, editor validation, dirty navigation and combined review run in
+reconciliation, retained-editor and retained-selection browsing recovery after an ended session,
+and direct cross-role denial. Intercepted keyboard, editor validation, dirty navigation and combined review run in
 light and dark appearances at 390px; load-retry and lost-response recovery run in the default
 appearance and viewport. These synthetic claims do not
 change the distributed four-mineral sample.

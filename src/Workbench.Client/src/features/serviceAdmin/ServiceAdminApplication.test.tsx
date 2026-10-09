@@ -6,7 +6,8 @@ import * as tenant from '../../api/auth';
 import * as gems from '../../api/gemReferenceAdmin';
 import { readPendingPublication, writePendingPublication } from './publicationAttempt';
 
-vi.mock('../../api/serviceAdmin', () => ({
+vi.mock('../../api/serviceAdmin', async (original) => ({
+  ...await original<typeof import('../../api/serviceAdmin')>(),
   getServiceAdminIdentity: vi.fn(), signInServiceAdmin: vi.fn(), signOutServiceAdmin: vi.fn(),
 }));
 vi.mock('../../api/auth', async (importOriginal) => ({
@@ -42,6 +43,110 @@ afterEach(() => {
 });
 
 describe('service-admin entry', () => {
+  it('clears catalog state and selected versions when recovery confirms a different account', async () => {
+    // GIVEN selected drafts and a retained search belonging to the original account.
+    vi.mocked(admin.getServiceAdminIdentity).mockResolvedValueOnce({ accountId: 'admin', email: 'first@example.test' })
+      .mockResolvedValue({ accountId: 'other', email: 'other@example.test' });
+    vi.mocked(gems.browseSharedGems).mockResolvedValue({ entries: [], nextCursor: null });
+    vi.mocked(gems.listGemDrafts).mockResolvedValue({ drafts: [savedDraft], nextCursor: null });
+    vi.mocked(admin.signOutServiceAdmin).mockRejectedValueOnce(new admin.ServiceAdminApiError(401));
+    vi.mocked(admin.signInServiceAdmin).mockResolvedValue();
+    render(<ServiceAdminApplication appearance={null} />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Drafts' }));
+    fireEvent.click(await screen.findByLabelText('Select Amber'));
+    fireEvent.click(screen.getByRole('button', { name: 'Published catalog' }));
+    fireEvent.change(screen.getByLabelText('Search shared gems'), { target: { value: 'private search' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Sign out' }));
+    await screen.findByRole('region', { name: 'Service-admin session recovery' });
+    // WHEN a different account signs in THEN its library starts without the former selection or search.
+    fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'other@example.test' } });
+    fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'synthetic-password' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Sign in' }));
+    await screen.findByText('other@example.test');
+    expect(screen.getByLabelText('Search shared gems')).toHaveValue('');
+    fireEvent.click(screen.getByRole('button', { name: 'Drafts' }));
+    expect(await screen.findByLabelText('Select Amber')).not.toBeChecked();
+    expect(screen.getByText('0 of 50 drafts selected')).toBeVisible();
+  });
+  it.each([
+    ['catalog initial', 401], ['catalog continuation', 403], ['drafts initial', 403],
+    ['drafts continuation', 401], ['detail', 401], ['detail drafts', 403], ['sign out', 401], ['sign out', 403],
+  ] as const)('recovers %s authorization failure (%s) and refetches retained browsing state', async (path, status) => {
+    // GIVEN an authenticated browser with a selected saved version and a search.
+    vi.mocked(admin.getServiceAdminIdentity).mockResolvedValue({ accountId: 'admin', email: 'curator@example.test' });
+    vi.mocked(admin.signInServiceAdmin).mockResolvedValue();
+    vi.mocked(gems.browseSharedGems).mockResolvedValue({ entries: [], nextCursor: null });
+    vi.mocked(gems.listGemDrafts).mockResolvedValue({ drafts: [savedDraft], nextCursor: 'next' });
+    const detail = { id: 'entry', commonName: 'Published amber', materialKind: 'organic', group: null, species: null, variety: null, layer: 'Shared', rowVersion: 'published-v1', aliases: [], description: null, notableLocality: null, sourceAssertions: [], retirement: { isRetired: false, explanation: null, redirectEntryId: null } };
+    vi.mocked(gems.getSharedGem).mockResolvedValue(detail);
+    render(<ServiceAdminApplication appearance={null} />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Drafts' }));
+    fireEvent.click(await screen.findByLabelText('Select Amber'));
+    fireEvent.click(screen.getByRole('button', { name: 'Published catalog' }));
+    fireEvent.change(screen.getByLabelText('Search shared gems'), { target: { value: 'amber' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Search' }));
+    await screen.findByText('No shared entries match this search.');
+    const denied = new gems.GemReferenceAdminApiError(status, {});
+    // WHEN a read or logout discovers that the session ended.
+    if (path.startsWith('drafts')) {
+      vi.mocked(gems.listGemDrafts).mockRejectedValueOnce(denied);
+      if (path.endsWith('continuation')) {
+        vi.mocked(gems.listGemDrafts).mockReset().mockResolvedValueOnce({ drafts: [savedDraft], nextCursor: 'next' }).mockRejectedValueOnce(denied).mockResolvedValue({ drafts: [savedDraft], nextCursor: null });
+      }
+      fireEvent.click(screen.getByRole('button', { name: 'Drafts' }));
+      if (path.endsWith('continuation')) fireEvent.click(await screen.findByRole('button', { name: 'Load more drafts' }));
+    } else if (path.startsWith('catalog')) {
+      vi.mocked(gems.browseSharedGems).mockReset().mockRejectedValueOnce(denied).mockResolvedValue({ entries: [], nextCursor: null });
+      if (path.endsWith('continuation')) {
+        vi.mocked(gems.browseSharedGems).mockReset().mockResolvedValueOnce({ entries: [], nextCursor: 'next' }).mockRejectedValueOnce(denied).mockResolvedValue({ entries: [], nextCursor: null });
+      }
+      fireEvent.change(screen.getByLabelText('Search shared gems'), { target: { value: 'retained search' } });
+      fireEvent.click(screen.getByRole('button', { name: 'Search' }));
+      if (path.endsWith('continuation')) fireEvent.click(await screen.findByRole('button', { name: 'Load more entries' }));
+    } else if (path.startsWith('detail')) {
+      if (path === 'detail') vi.mocked(gems.getSharedGem).mockRejectedValueOnce(denied);
+      else vi.mocked(gems.listGemDrafts).mockRejectedValueOnce(denied);
+      window.history.pushState(null, '', '/service-admin/gem-reference/entries/entry');
+      fireEvent.popState(window);
+    } else {
+      vi.mocked(admin.signOutServiceAdmin).mockRejectedValueOnce(new admin.ServiceAdminApiError(status));
+      fireEvent.click(screen.getByRole('button', { name: 'Sign out' }));
+    }
+    // THEN recovery retains the browsing route and selection through a failed login.
+    await screen.findByRole('region', { name: 'Service-admin session recovery' });
+    const retainedPath = window.location.pathname;
+    vi.mocked(admin.signInServiceAdmin).mockRejectedValueOnce(new Error('Rejected'));
+    const login = () => {
+      fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'curator@example.test' } });
+      fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'synthetic-password' } });
+      fireEvent.click(screen.getByRole('button', { name: 'Sign in' }));
+    };
+    login();
+    await screen.findByText(/We could not sign you in/);
+    expect(window.location.pathname).toBe(retainedPath);
+    const catalogReads = vi.mocked(gems.browseSharedGems).mock.calls.length;
+    const draftReads = vi.mocked(gems.listGemDrafts).mock.calls.length;
+    const detailReads = vi.mocked(gems.getSharedGem).mock.calls.length;
+    // WHEN the same account signs in THEN reads refresh and the saved selection remains reviewable.
+    login();
+    await waitFor(() => expect(screen.queryByRole('region', { name: 'Service-admin session recovery' })).not.toBeInTheDocument());
+    if (path.startsWith('detail')) {
+      await waitFor(() => expect(vi.mocked(gems.getSharedGem).mock.calls.length).toBeGreaterThan(detailReads));
+      await waitFor(() => expect(vi.mocked(gems.listGemDrafts).mock.calls.length).toBeGreaterThan(draftReads));
+    } else if (path.startsWith('drafts')) await waitFor(() => expect(vi.mocked(gems.listGemDrafts).mock.calls.length).toBeGreaterThan(draftReads));
+    else await waitFor(() => expect(vi.mocked(gems.browseSharedGems).mock.calls.length).toBeGreaterThan(catalogReads));
+    if (path.startsWith('detail')) expect(await screen.findByRole('heading', { name: 'Published amber' })).toBeVisible();
+    else {
+      if (!path.startsWith('drafts')) expect(screen.getByLabelText('Search shared gems')).toHaveValue(path.startsWith('catalog') ? 'retained search' : 'amber');
+      else expect(screen.getByRole('button', { name: 'Drafts' })).toHaveAttribute('aria-pressed', 'true');
+    }
+    if (path.startsWith('detail')) fireEvent.click(screen.getByRole('link', { name: 'Back to gem reference' }));
+    if (!path.startsWith('drafts')) fireEvent.click(screen.getByRole('button', { name: 'Drafts' }));
+    expect(await screen.findByLabelText('Select Amber')).toBeChecked();
+    vi.mocked(gems.reviewGemDrafts).mockResolvedValue({ entries: [] });
+    fireEvent.click(screen.getByRole('link', { name: 'Review 1 draft' }));
+    await waitFor(() => expect(gems.reviewGemDrafts).toHaveBeenCalledWith([{ draftId: 'draft', expectedDraftRowVersion: 'draft-v1' }]));
+  });
   it('restores a rejected recovered batch to the shell selection before repairing its draft', async () => {
     // GIVEN a review-route reload with an infrastructure rejection and no in-memory selection.
     const draftId = '22222222-2222-4222-8222-222222222222';

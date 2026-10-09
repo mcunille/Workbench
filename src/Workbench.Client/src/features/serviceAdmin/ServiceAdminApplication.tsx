@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState, type ReactNode } from 'react';
-import { getServiceAdminIdentity, signInServiceAdmin, signOutServiceAdmin, type CurrentServiceAdminResponse } from '../../api/serviceAdmin';
+import { getServiceAdminIdentity, signInServiceAdmin, signOutServiceAdmin, ServiceAdminApiError, type CurrentServiceAdminResponse } from '../../api/serviceAdmin';
 import { Brand } from '../../Brand';
 import { useNavigation } from '../../useNavigation';
 import { ServiceAdminSignIn } from './ServiceAdminSignIn';
@@ -87,8 +87,9 @@ export function ServiceAdminApplication({ appearance }: { appearance: ReactNode 
       setDirty(false, false);
       setStatus('signed-out');
       replace('/service-admin/sign-in');
-    } catch {
-      setSignOutFailed(true);
+    } catch (error: unknown) {
+      if (error instanceof ServiceAdminApiError && (error.status === 401 || error.status === 403)) authLost();
+      else setSignOutFailed(true);
     } finally {
       setSignOutPending(false);
     }
@@ -127,12 +128,12 @@ export function ServiceAdminApplication({ appearance }: { appearance: ReactNode 
         </nav>
         <div className="workspace-sheet">
           <main id="main" className="workspace">
-            {writesSuspended ? <section className="gem-reauth" aria-label="Service-admin session recovery"><p role="alert">Your service-admin session ended. Your draft edits remain below. Sign in with the same account to continue.</p><ServiceAdminSignIn signIn={signIn} /></section> : null}
+            {writesSuspended ? <section className="gem-reauth" aria-label="Service-admin session recovery"><p role="alert">Your service-admin session ended. Your draft selection and any edits remain below. Sign in with the same account to continue.</p><ServiceAdminSignIn signIn={signIn} /></section> : null}
             {pendingPublication && navigation.path !== '/service-admin/gem-reference/review' ? <p className="form-message"><a href="/service-admin/gem-reference/review" onClick={navigation.follow}>Resolve pending publication</a> before selecting another batch.</p> : null}
             {navigation.path === '/service-admin/gem-reference/review' ? <GemReview key={identity.accountId} accountId={identity.accountId} selection={selectedDrafts} onSelectionChange={setSelectedDrafts} onPublished={publicationCompleted} onEdit={(id) => navigation.navigate(`/service-admin/gem-reference/drafts/${encodeURIComponent(id)}`)} writesSuspended={writesSuspended} sessionRevision={sessionRevision} onAuthLost={authLost} onPendingChange={setPendingPublication} onDirtyChange={dirtyChanged} />
               : navigation.path === '/service-admin/gem-reference/new' || navigation.path.match(/^\/service-admin\/gem-reference\/drafts\/([^/]+)$/) || navigation.path.match(/^\/service-admin\/gem-reference\/entries\/([^/]+)\/edit$/) ? <GemEditor key={`${identity.accountId}:${navigation.viewId}`} draftId={navigation.path.includes('/drafts/') ? decodeURIComponent(navigation.path.split('/').at(-1)!) : undefined} entryId={navigation.path.endsWith('/edit') ? decodeURIComponent(navigation.path.split('/').at(-2)!) : undefined} onDirtyChange={dirtyChanged} onAuthLost={authLost} onSaved={draftSaved} writesSuspended={writesSuspended} sessionRevision={sessionRevision} />
-              : navigation.path.match(/^\/service-admin\/gem-reference\/entries\/([^/]+)$/) ? <GemDetail key={navigation.path} entryId={decodeURIComponent(navigation.path.split('/').at(-1)!)} follow={navigation.follow} />
-              : navigation.path === '/service-admin/gem-reference' ? <>{published ? <section className="gem-publication-result"><p role="status">Published {published.entries.length} shared {published.entries.length === 1 ? 'entry' : 'entries'}.</p><ul>{published.entries.map((entry, index) => <li key={entry.entryId}><a href={`/service-admin/gem-reference/entries/${encodeURIComponent(entry.entryId)}`} onClick={navigation.follow}>View published entry {index + 1}</a></li>)}</ul></section> : null}<GemCatalog selected={selectedDrafts} onSelectionChange={setSelectedDrafts} follow={navigation.follow} selectionLocked={pendingPublication || writesSuspended} /></>
+              : navigation.path.match(/^\/service-admin\/gem-reference\/entries\/([^/]+)$/) ? <GemDetail readsSuspended={writesSuspended} sessionRevision={sessionRevision} onAuthLost={authLost} key={`${identity.accountId}:${navigation.path}`} entryId={decodeURIComponent(navigation.path.split('/').at(-1)!)} follow={navigation.follow} />
+              : navigation.path === '/service-admin/gem-reference' ? <>{published ? <section className="gem-publication-result"><p role="status">Published {published.entries.length} shared {published.entries.length === 1 ? 'entry' : 'entries'}.</p><ul>{published.entries.map((entry, index) => <li key={entry.entryId}><a href={`/service-admin/gem-reference/entries/${encodeURIComponent(entry.entryId)}`} onClick={navigation.follow}>View published entry {index + 1}</a></li>)}</ul></section> : null}<GemCatalog key={identity.accountId} readsSuspended={writesSuspended} sessionRevision={sessionRevision} onAuthLost={authLost} selected={selectedDrafts} onSelectionChange={setSelectedDrafts} follow={navigation.follow} selectionLocked={pendingPublication || writesSuspended} /></>
                 : <><h1>{navigation.path.endsWith('/review') ? 'Review drafts' : 'Gem draft'}</h1><a href="/service-admin/gem-reference" onClick={navigation.follow}>Back to gem reference</a></>}
           </main>
         </div>

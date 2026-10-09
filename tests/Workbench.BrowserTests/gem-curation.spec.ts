@@ -3,6 +3,39 @@ import { expect, test } from './diagnostic-fixture';
 import { useAuthenticatedSession } from './auth-fixture';
 import { adminApi, createThroughUi, enterAdminCredentials, library, publishThroughUi, saveApi, saveThroughUi, signInAdmin, syntheticContent } from './service-admin-fixture';
 
+test('recovers revoked-session browsing while retaining a draft selection and search', async ({ page }) => {
+  // GIVEN a fresh isolated session with a selected saved draft and an active catalog search.
+  await signInAdmin(page, 1, true);
+  const name = `Browser browse recovery ${randomUUID().slice(0, 8)}`;
+  const draft = await saveApi(page.request, syntheticContent(name));
+  await page.getByRole('button', { name: 'Drafts', exact: true }).click();
+  await page.getByRole('checkbox', { name: `Select ${name}`, exact: true }).check();
+  await page.getByRole('button', { name: 'Published catalog', exact: true }).click();
+  await page.getByLabel('Search shared gems').fill(name);
+  await page.getByRole('button', { name: 'Search', exact: true }).click();
+  await expect(page.getByText('No shared entries match this search.')).toBeVisible();
+  // WHEN the server session is revoked and a read discovers the real authorization failure.
+  const token = (await (await page.request.get('/api/beta/service-admin/auth/antiforgery')).json()).requestToken;
+  expect((await page.request.post('/api/beta/service-admin/auth/logout', { headers: { 'X-CSRF-TOKEN': token } })).status()).toBe(204);
+  await page.getByRole('button', { name: 'Drafts', exact: true }).click();
+  await expect(page.getByRole('region', { name: 'Service-admin session recovery' })).toBeVisible();
+  await expect(page.getByText('1 of 50 drafts selected')).toBeVisible();
+  // WHEN the original account authenticates through the browser protocol THEN the draft list refreshes in place.
+  const login = page.waitForResponse(response => response.request().method() === 'POST' && response.url().endsWith('/api/beta/service-admin/auth/login'));
+  await enterAdminCredentials(page);
+  expect((await login).status()).toBe(204);
+  await expect(page.getByRole('region', { name: 'Service-admin session recovery' })).toHaveCount(0);
+  await expect(page.getByRole('checkbox', { name: `Select ${name}`, exact: true })).toBeChecked();
+  await page.getByRole('button', { name: 'Published catalog', exact: true }).click();
+  await expect(page.getByLabel('Search shared gems')).toHaveValue(name);
+  await page.getByRole('button', { name: 'Drafts', exact: true }).click();
+  // AND review still submits the exact saved draft version retained before revocation.
+  const review = page.waitForRequest(request => request.method() === 'POST' && request.url().endsWith(`${adminApi}/review`));
+  await page.getByRole('link', { name: 'Review 1 draft', exact: true }).click();
+  expect((await review).postDataJSON()).toEqual({ drafts: [{ draftId: draft.id, expectedDraftRowVersion: draft.rowVersion }] });
+  await expect(page.getByRole('region', { name: 'Draft 1 changes', exact: true })).toBeVisible();
+});
+
 test('reauthenticates an ended session without reloading or losing editor changes', async ({ page, browser }) => {
   // GIVEN a successful UI save has cached an authenticated antiforgery token.
   await signInAdmin(page, 1, true);

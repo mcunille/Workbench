@@ -3,7 +3,7 @@ import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import * as api from '../../api/gemReferenceAdmin';
 import { GemCatalog, GemDetail } from './GemCatalog';
 
-vi.mock('../../api/gemReferenceAdmin', () => ({ browseSharedGems: vi.fn(), listGemDrafts: vi.fn(), getSharedGem: vi.fn() }));
+vi.mock('../../api/gemReferenceAdmin', async (original) => ({ ...await original<typeof import('../../api/gemReferenceAdmin')>(), browseSharedGems: vi.fn(), listGemDrafts: vi.fn(), getSharedGem: vi.fn() }));
 const follow = vi.fn();
 const entry = { id: 'ruby', commonName: 'Ruby', materialKind: 'Mineral', group: 'Corundum', species: 'Corundum', variety: 'Ruby', layer: 'Shared' };
 function draft(id: string): api.GemReferenceDraftResponse {
@@ -20,6 +20,32 @@ beforeEach(() => {
 });
 
 describe('shared catalog', () => {
+  it.each(['response', 'authorization error'] as const)('ignores obsolete continuation %s after session recovery', async (completion) => {
+    // GIVEN a continuation from the old session that remains in flight.
+    let resolveOld!: (value: api.GemReferencePageResponse) => void;
+    let rejectOld!: (error: Error) => void;
+    const onAuthLost = vi.fn();
+    vi.mocked(api.browseSharedGems).mockResolvedValueOnce({ entries: [entry], nextCursor: 'next' })
+      .mockImplementationOnce(() => new Promise((resolve, reject) => { resolveOld = resolve; rejectOld = reject; }))
+      .mockResolvedValue({ entries: [{ ...entry, id: 'fresh', commonName: 'Fresh entry' }], nextCursor: null });
+    const props = { selected: [], onSelectionChange: vi.fn(), follow, onAuthLost };
+    const view = render(<GemCatalog {...props} sessionRevision={0} />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Load more entries' }));
+    // WHEN recovery invalidates that session and refreshes the current catalog.
+    view.rerender(<GemCatalog {...props} readsSuspended sessionRevision={0} />);
+    view.rerender(<GemCatalog {...props} sessionRevision={1} />);
+    await screen.findByRole('link', { name: 'Fresh entry' });
+    await act(async () => {
+      if (completion === 'response') resolveOld({ entries: [{ ...entry, id: 'obsolete', commonName: 'Obsolete entry' }], nextCursor: 'obsolete-cursor' });
+      else rejectOld(new api.GemReferenceAdminApiError(401, {}));
+    });
+    // THEN old data cannot append or reopen authentication recovery.
+    expect(screen.queryByRole('link', { name: 'Obsolete entry' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Load more entries' })).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Fresh entry' })).toBeVisible();
+    expect(onAuthLost).not.toHaveBeenCalled();
+  });
+
   it('ignores failure from a superseded effect request during lifecycle replay', async () => {
     // GIVEN a discarded initial request and a successful replacement request.
     let rejectDiscarded!: (error: Error) => void;
@@ -131,6 +157,29 @@ describe('shared catalog', () => {
 });
 
 describe('published detail', () => {
+  it.each(['response', 'authorization error'] as const)('ignores an obsolete detail %s after session recovery', async (completion) => {
+    // GIVEN a published detail read that is still in flight when its session ends.
+    const detail: api.GemReferenceDetailResponse = { ...entry, rowVersion: 'published-v1', aliases: [], description: null, notableLocality: null, sourceAssertions: [], retirement: { isRetired: false, explanation: null, redirectEntryId: null } };
+    let resolveOld!: (value: api.GemReferenceDetailResponse) => void;
+    let rejectOld!: (error: Error) => void;
+    const onAuthLost = vi.fn();
+    vi.mocked(api.getSharedGem).mockImplementationOnce(() => new Promise((resolve, reject) => { resolveOld = resolve; rejectOld = reject; }))
+      .mockResolvedValue({ ...detail, commonName: 'Current ruby' });
+    const view = render(<GemDetail entryId="ruby" follow={follow} onAuthLost={onAuthLost} />);
+    // WHEN the same account recovers and then the old read completes.
+    view.rerender(<GemDetail entryId="ruby" follow={follow} onAuthLost={onAuthLost} readsSuspended />);
+    view.rerender(<GemDetail entryId="ruby" follow={follow} onAuthLost={onAuthLost} sessionRevision={1} />);
+    await screen.findByRole('heading', { name: 'Current ruby' });
+    await act(async () => {
+      if (completion === 'response') resolveOld(detail);
+      else rejectOld(new api.GemReferenceAdminApiError(403, {}));
+    });
+    // THEN the current detail remains authoritative and old authorization errors stay discarded.
+    expect(screen.getByRole('heading', { name: 'Current ruby' })).toBeVisible();
+    expect(screen.queryByRole('heading', { name: 'Ruby' })).not.toBeInTheDocument();
+    expect(onAuthLost).not.toHaveBeenCalled();
+  });
+
   it('shows retired content, taxonomy, safe claim sources, review dates and available drafts', async () => {
     // GIVEN a retired published entry with one safe link and unsafe source URLs.
     const source = { id: 'source', field: 'description', title: 'Reference', publisher: 'Institute', url: 'https://example.test/reference', citation: 'Volume 1', accessedOn: '2026-09-01', reviewedOn: '2026-09-02', attribution: 'Shared' };

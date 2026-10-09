@@ -1,38 +1,53 @@
 import { useCallback, useEffect, useRef, useState, type MouseEvent } from 'react';
-import { browseSharedGems, getSharedGem, listGemDrafts, type GemReferenceDetailResponse, type GemReferenceDraftSelection } from '../../api/gemReferenceAdmin';
+import { browseSharedGems, getSharedGem, listGemDrafts, GemReferenceAdminApiError, type GemReferenceDetailResponse, type GemReferenceDraftSelection } from '../../api/gemReferenceAdmin';
 
 type Follow = (event: MouseEvent<HTMLAnchorElement>) => void;
 const library = '/service-admin/gem-reference';
 type Page<T> = { rows: T[]; nextCursor: string | null };
+type ReadSession = { readsSuspended?: boolean; sessionRevision?: number; onAuthLost?: () => void };
+function authorizationLost(error: unknown) {
+  return error instanceof GemReferenceAdminApiError && (error.status === 401 || error.status === 403);
+}
 
 // The server owns cursors. Request only the first page and explicit continuation pages.
-function useCursorPage<T>(load: (cursor?: string, signal?: AbortSignal) => Promise<Page<T>>) {
+function useCursorPage<T>(load: (cursor?: string, signal?: AbortSignal) => Promise<Page<T>>, { readsSuspended = false, sessionRevision = 0, onAuthLost }: ReadSession) {
   const [page, setPage] = useState<Page<T>>({ rows: [], nextCursor: null });
   const [pending, setPending] = useState(true);
   const [failed, setFailed] = useState(false);
-  const alive = useRef(false);
+  const generation = useRef(0);
   useEffect(() => {
-    alive.current = true;
-    let current = true;
+    const current = ++generation.current;
+    if (readsSuspended) return;
     const controller = new AbortController();
     void load(undefined, controller.signal).then((next) => {
-      if (current) { setPage(next); setPending(false); }
-    }).catch(() => { if (current) { setFailed(true); setPending(false); } });
-    return () => { current = false; alive.current = false; controller.abort(); };
-  }, [load]);
+      if (current === generation.current) { setPage(next); setPending(false); }
+    }).catch((error: unknown) => {
+      if (current !== generation.current) return;
+      if (authorizationLost(error)) { ++generation.current; onAuthLost?.(); }
+      else setFailed(true);
+      setPending(false);
+    });
+    return () => { generation.current = current + 1; controller.abort(); };
+  }, [load, readsSuspended, sessionRevision, onAuthLost]);
   async function request(cursor?: string) {
+    if (readsSuspended) return;
+    const current = generation.current;
     setPending(true);
     setFailed(false);
     try {
       const next = await load(cursor, new AbortController().signal);
-      if (alive.current) setPage((previous) => ({ rows: cursor ? [...previous.rows, ...next.rows] : next.rows, nextCursor: next.nextCursor }));
-    } catch { if (alive.current) setFailed(true); }
-    finally { if (alive.current) setPending(false); }
+      if (current === generation.current) setPage((previous) => ({ rows: cursor ? [...previous.rows, ...next.rows] : next.rows, nextCursor: next.nextCursor }));
+    } catch (error: unknown) {
+      if (current !== generation.current) return;
+      if (authorizationLost(error)) { ++generation.current; setPending(false); onAuthLost?.(); }
+      else setFailed(true);
+    }
+    finally { if (current === generation.current) setPending(false); }
   }
   return { ...page, pending, failed, retry: () => void request(page.rows.length ? page.nextCursor ?? undefined : undefined), more: () => void request(page.nextCursor ?? undefined) };
 }
 
-export function GemCatalog({ selected, onSelectionChange, follow, selectionLocked = false }: { selected: GemReferenceDraftSelection[]; onSelectionChange: (selected: GemReferenceDraftSelection[]) => void; follow: Follow; selectionLocked?: boolean }) {
+export function GemCatalog({ selected, onSelectionChange, follow, selectionLocked = false, ...session }: { selected: GemReferenceDraftSelection[]; onSelectionChange: (selected: GemReferenceDraftSelection[]) => void; follow: Follow; selectionLocked?: boolean } & ReadSession) {
   const [view, setView] = useState<'published' | 'drafts'>('published');
   const [search, setSearch] = useState('');
   const [query, setQuery] = useState('');
@@ -47,17 +62,17 @@ export function GemCatalog({ selected, onSelectionChange, follow, selectionLocke
         <label htmlFor="gem-search">Search shared gems</label>
         <div><input id="gem-search" type="search" value={search} onChange={(event) => setSearch(event.target.value)} /><button type="submit">Search</button></div>
       </form>
-      <PublishedCatalog key={query} query={query} follow={follow} />
-    </> : <DraftCatalog selected={selected} onSelectionChange={onSelectionChange} follow={follow} selectionLocked={selectionLocked} />}
+      <PublishedCatalog key={`${query}:${session.sessionRevision ?? 0}:${!!session.readsSuspended}`} query={query} follow={follow} {...session} />
+    </> : <DraftCatalog key={`${session.sessionRevision ?? 0}:${!!session.readsSuspended}`} selected={selected} onSelectionChange={onSelectionChange} follow={follow} selectionLocked={selectionLocked} {...session} />}
   </>;
 }
 
-function PublishedCatalog({ query, follow }: { query: string; follow: Follow }) {
+function PublishedCatalog({ query, follow, ...session }: { query: string; follow: Follow } & ReadSession) {
   const load = useCallback(async (cursor?: string, signal?: AbortSignal) => {
     const page = await browseSharedGems({ query: query || undefined, cursor }, signal);
     return { rows: page.entries, nextCursor: page.nextCursor };
   }, [query]);
-  const page = useCursorPage(load);
+  const page = useCursorPage(load, session);
   return <section aria-label="Published catalog">
     {page.failed ? <LoadFailure noun="catalog" retry={page.retry} /> : null}
     {page.pending ? <p role="status">Loading shared entries…</p> : null}
@@ -75,8 +90,8 @@ async function loadDraftPage(cursor?: string) {
   return { rows: page.drafts, nextCursor: page.nextCursor };
 }
 
-function DraftCatalog({ selected, onSelectionChange, follow, selectionLocked }: { selected: GemReferenceDraftSelection[]; onSelectionChange: (selected: GemReferenceDraftSelection[]) => void; follow: Follow; selectionLocked: boolean }) {
-  const page = useCursorPage(loadDraftPage);
+function DraftCatalog({ selected, onSelectionChange, follow, selectionLocked, ...session }: { selected: GemReferenceDraftSelection[]; onSelectionChange: (selected: GemReferenceDraftSelection[]) => void; follow: Follow; selectionLocked: boolean } & ReadSession) {
+  const page = useCursorPage(loadDraftPage, session);
   return <section aria-label="Saved drafts">
     <div className="gem-review-bar"><p>{selected.length} of 50 drafts selected</p>{selected.length ? <a className="button-link" href={`${library}/review`} onClick={follow}>Review {selected.length} {selected.length === 1 ? 'draft' : 'drafts'}</a> : null}</div>
     {selected.length === 50 ? <p role="status">Selection limit reached. Clear a draft to select another.</p> : null}
@@ -107,17 +122,26 @@ function safeSourceUrl(url: string | null): string | null {
   } catch { return null; }
 }
 
-export function GemDetail({ entryId, follow }: { entryId: string; follow: Follow }) {
+export function GemDetail({ entryId, follow, readsSuspended = false, sessionRevision = 0, onAuthLost }: { entryId: string; follow: Follow } & ReadSession) {
+  return <GemDetailContent key={`${entryId}:${sessionRevision}:${readsSuspended}`} entryId={entryId} follow={follow} readsSuspended={readsSuspended} sessionRevision={sessionRevision} onAuthLost={onAuthLost} />;
+}
+
+function GemDetailContent({ entryId, follow, readsSuspended = false, sessionRevision = 0, onAuthLost }: { entryId: string; follow: Follow } & ReadSession) {
   const [entry, setEntry] = useState<GemReferenceDetailResponse | null>(null);
   const [failed, setFailed] = useState(false);
   const [attempt, setAttempt] = useState(0);
-  const drafts = useCursorPage(loadDraftPage);
+  const drafts = useCursorPage(loadDraftPage, { readsSuspended, sessionRevision, onAuthLost });
   useEffect(() => {
     let current = true;
+    if (readsSuspended) return;
     void getSharedGem(entryId).then((detail) => { if (current) setEntry(detail); })
-      .catch(() => { if (current) setFailed(true); });
+      .catch((error: unknown) => {
+        if (!current) return;
+        if (authorizationLost(error)) onAuthLost?.();
+        else setFailed(true);
+      });
     return () => { current = false; };
-  }, [entryId, attempt]);
+  }, [entryId, attempt, readsSuspended, sessionRevision, onAuthLost]);
   return <>
     <a className="gem-back" href={library} onClick={follow}>Back to gem reference</a>
     {failed ? <LoadFailure noun="entry" retry={() => { setFailed(false); setAttempt((value) => value + 1); }} /> : null}
