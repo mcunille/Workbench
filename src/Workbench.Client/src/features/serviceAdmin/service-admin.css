@@ -1,0 +1,123 @@
+.service-admin-identity {
+  margin-top: auto;
+  overflow-wrap: anywhere;
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+
+.gem-page-heading, .gem-review-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.gem-page-heading h1 { margin-bottom: 0.5rem; }
+.gem-page-heading p, .gem-catalog-list p, .gem-source-list p { color: var(--muted); margin-block: 0.35rem; }
+.gem-page-heading .button-link, .gem-review-bar .button-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 0.65rem 1rem;
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  text-decoration: none;
+}
+.gem-page-heading .button-link:hover, .gem-review-bar .button-link:hover { background: var(--hover); }
+.gem-view-switch { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-block: 1rem 1.5rem; }
+.gem-view-switch button[aria-pressed="false"] { background: transparent; color: var(--muted); }
+.gem-search { max-width: 42rem; margin-bottom: 1.5rem; }
+.gem-search label { display: block; margin-bottom: 0.5rem; }
+.gem-search > div { display: flex; gap: 0.5rem; }
+.gem-search input { min-width: 0; flex: 1; }
+.gem-catalog-list, .gem-source-list { list-style: none; padding: 0; margin-block: 1rem 1.5rem; }
+.gem-catalog-list > li { display: flex; align-items: center; gap: 1rem; padding-block: 1rem; border-bottom: 1px solid var(--glass-edge); }
+.gem-catalog-list > li > div:first-child, .gem-row-content { flex: 1; min-width: 0; }
+.gem-catalog-list a { font-weight: 500; }
+.gem-catalog-list p, .gem-state { font-size: 0.875rem; }
+.gem-state { color: var(--muted); }
+.gem-draft-select { display: flex; align-items: center; justify-content: center; min-width: 44px; min-height: 44px; }
+.gem-draft-select input { width: 1.125rem; height: 1.125rem; accent-color: var(--accent); }
+.gem-back { display: inline-flex; align-items: center; min-height: 44px; margin-bottom: 1rem; }
+.gem-taxonomy { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1.25rem; margin-block: 2rem; max-width: 48rem; }
+.gem-taxonomy dt { font-size: 0.875rem; color: var(--muted); }
+.gem-taxonomy dd { margin: 0.35rem 0 0; }
+.gem-detail-section { margin-top: 2rem; max-width: 70ch; }
+.gem-detail-section h2 { margin-bottom: 0.75rem; }
+.gem-source-list > li { padding-block: 1rem; border-bottom: 1px solid var(--glass-edge); scroll-margin-top: 1rem; }
+.gem-source-list h3 { font-size: 1rem; margin-block: 0 0.5rem; }
+.gem-retirement { border-block: 1px solid var(--glass-edge); padding-block: 1rem; }
+.service-admin-shell .workspace { overflow-wrap: anywhere; }
+
+.gem-editor-layout { max-width: 70rem; }
+.gem-editor-conflicted { display: grid; grid-template-columns: minmax(0, 1fr) minmax(18rem, 1fr); gap: 2rem; }
+.gem-editor, .gem-conflict { min-width: 0; }
+.gem-editor-controls { border: 0; padding: 0; margin: 0; min-width: 0; }
+.gem-editor-section { margin-bottom: 2rem; scroll-margin-top: 1rem; }
+.gem-editor-section h2, .gem-conflict h2 { font-size: 1.25rem; margin-block: 0 0.75rem; }
+.gem-editor-section p, .gem-conflict p { color: var(--muted); max-width: 70ch; }
+.gem-form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
+.gem-form-grid label, .gem-alias-row label { display: flex; flex-direction: column; gap: 0.5rem; min-width: 0; }
+.gem-form-grid input, .gem-form-grid select, .gem-form-grid textarea, .gem-alias-row input { width: 100%; min-width: 0; }
+.gem-wide-field { grid-column: 1 / -1; }
+.gem-source-fields { min-width: 0; margin-block: 1.25rem; padding: 1rem 0; border: 0; border-top: 1px solid var(--glass-edge); }
+.gem-source-fields legend { font-weight: 500; padding-right: 0.5rem; }
+.gem-source-fields > button { margin-top: 1rem; }
+.gem-check { display: flex; align-items: center; gap: 0.75rem; min-height: 44px; }
+.gem-check input { width: 1.125rem; height: 1.125rem; accent-color: var(--accent); }
+.gem-alias-row { display: flex; align-items: end; gap: 0.75rem; margin-block: 1rem; }
+.gem-alias-row label { flex: 1; }
+.gem-editor-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 1rem; padding-block: 1rem; border-top: 1px solid var(--glass-edge); }
+.gem-error-summary { margin-bottom: 1.5rem; scroll-margin-top: 1rem; }
+.gem-error-summary a { color: inherit; text-underline-offset: 0.2em; }
+.gem-current-content { margin-bottom: 1.5rem; }
+.gem-current-content > div { margin-bottom: 0.75rem; }
+.gem-current-content dt { font-size: 0.875rem; color: var(--muted); }
+.gem-current-content dd { margin: 0.25rem 0 0; white-space: pre-wrap; }
+.gem-current-content ul { padding-left: 1.25rem; }
+.gem-reauth { margin-bottom: 2rem; }
+.gem-reauth .auth-card { max-width: 30rem; }
+.gem-review { max-width: 70rem; }
+.gem-review-entry { margin-block: 2rem 3rem; }
+.gem-review-entry h2 { font-size: 1.25rem; margin: 0; }
+.gem-review-field { padding-block: 1.25rem; border-top: 1px solid var(--glass-edge); }
+.gem-review-field h3 { font-size: 1rem; margin-block: 0 0.75rem; }
+.gem-review-values { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 2rem; }
+.gem-review-values > section { min-width: 0; white-space: pre-wrap; }
+.gem-review-values h4, .gem-review-object dt { color: var(--muted); font-weight: 400; font-size: 0.875rem; margin-block: 0 0.35rem; }
+.gem-review-values ul { padding-left: 1.25rem; margin-block: 0.35rem; }
+.gem-review-object { margin: 0; }
+.gem-review-object > div { margin-bottom: 0.75rem; }
+.gem-review-object dd { margin: 0; }
+.gem-review-publish { border-top: 1px solid var(--glass-edge); padding-top: 1rem; }
+.gem-publication-result { margin-bottom: 1.5rem; }
+
+@media (max-width: 48rem) {
+  .gem-editor-conflicted, .gem-form-grid, .gem-review-values { grid-template-columns: minmax(0, 1fr); }
+  .gem-alias-row { flex-wrap: wrap; }
+  .gem-taxonomy { grid-template-columns: minmax(0, 1fr); }
+  .gem-catalog-list > li { flex-wrap: wrap; gap: 0.5rem; }
+  .gem-row-content { flex-basis: calc(100% - 3.5rem); }
+  .service-admin-shell .service-admin-nav {
+    position: static;
+    transform: none;
+    width: 100%;
+    max-width: none;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    border-radius: 0;
+    padding: 0.75rem 1rem;
+  }
+
+  .service-admin-identity {
+    flex-basis: 100%;
+    margin-block: 0;
+  }
+
+  .service-admin-shell .workspace {
+    padding-bottom: 1rem;
+  }
+}

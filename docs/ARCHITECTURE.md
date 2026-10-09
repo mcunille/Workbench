@@ -39,7 +39,7 @@ Identity is qualified by `(id, origin)`: `tenant` additions and `workbench` refe
 a GUID after later publication. Detail accepts explicit origin; its default selects the tenant
 entry first, including archived entries. Addition update/archive/restore target tenant origin;
 override/reset target workbench origin. Service-admin readers and curation remain shared-only.
-GEM-07–10 browser workflows and full reference-library release acceptance remain outstanding.
+GEM-08–10 browser workflows and full reference-library release acceptance remain outstanding.
 
 GEM-05 adds service-admin-only draft, combined review, publish, outcome, and audit APIs at
 `/api/beta/service-admin/gem-reference`. Drafts may be incomplete; publishing requires valid
@@ -62,6 +62,23 @@ keys. SQL binds raw content and alias names/positions/count to the saved draft a
 uniqueness using the supplied identity key; it does not independently recompute semantic
 identity. Current admin authority alone does not make arbitrary direct SQL payloads safe.
 Callers must use the application normalization and validation path.
+
+GEM-07 mounts an independent service-admin React application at `/service-admin` before the
+tenant authentication provider. Its dedicated sign-in, shared catalog/detail, persisted draft
+editor and combined review use generated curation contracts and admin-only CSRF tokens.
+No tenant context or navigation destination is exposed. Failed saves retain local editorial
+content; stale versions require explicit comparison and reconciliation. Same-account session
+recovery keeps the editor mounted and refreshes its versions before further writes.
+
+An uncertain publication stores only its request ID and immutable draft/version selection
+in session storage scoped to the authenticated admin account. Reload, outcome lookup and
+identical retry recover the server receipt; a terminal rejection requires fresh review and
+confirmation. Passwords and unsaved editorial content are not persisted in that storage.
+The [curation guide](gem-reference-curation.md) owns the current operator and user workflow.
+Session resolution explicitly selects Read Committed isolation on its independent SQL
+connection: pooled connections previously used for serializable catalog detail reads must
+not carry that isolation into session renewal. The existing procedure's account/session
+locks and disablement, expiry and revocation checks remain authoritative.
 
 Draft saves, combined reviews, and publications load and validate the whole catalog while
 holding the exclusive publication lock. Lock-held duration grows with catalog size and has
@@ -427,20 +444,28 @@ PO-02 adds reusable tenant-owned suppliers with independently stored contact sna
 draft. Directory edits do not mutate orders; an explicit draft save applies reviewed snapshot
 changes. The transaction platform belongs to the order and is independent of the supplier link.
 Supplier archival prevents new selections while preserving existing links and snapshots.
+Duplicate supplier names do not establish identity; no name-based merging is implied.
+Social profiles are ordered reference text, not verified external identities or links, and are
+excluded from purchase contact snapshots. Empty profiles are omitted from canonical supplier
+requests so original six-field successful requests retain their exact retry identity.
 
 Permanent business PO numbers are assigned by a transactional tenant counter on first save and
-retained on deletion tombstones. Reference/name/title search runs within the tenant, with query-bound
+retained on deletion tombstones. The counter does not promise a gapless accounting sequence.
+Reference/name/title search runs within the tenant, with query-bound
 forward cursors. Beta draft writes fingerprint supplier, platform and supplier-based line pricing.
 Retired V1–V4 routes reject all requests, including old successful retries; no historical replay
 adapters remain. Current beta retries retain their compact receipts and cannot silently clear newer
 fields. Supplier writes use the same compact-receipt and rowversion
-reconciliation principles. See the [PO-02 specification](specs/2026-09-11-po-02-supplier-identity-and-references.md).
+reconciliation principles.
 
 PO-03 keeps the JSON aggregate. Supplier-based pricing introduced content schema 3 through the single
 current beta command implementation, with one quantity/unit and a per-unit or total-line amount.
 Exact decimal arithmetic calculates line amounts; a fixed total does not require quantity. Beta
 reads project older schema 1/2 entries without writing them. Complete old quotes retain their
 totals; unresolved references and structured quotes remain explicit until the owner resolves them.
+One supplier quantity basis avoids implying a separate inventory count. Older batch rates become
+per-unit prices only when four-place representation preserves the original rounded gross;
+otherwise preserve the line total. Never infer a basis for an unresolved reference price.
 SQL validates the same numeric, unit, compatibility and gross bounds as the server.
 
 All application APIs use `/api/beta/...` until the first release establishes v1. The
@@ -448,7 +473,9 @@ All application APIs use `/api/beta/...` until the first release establishes v1.
 adapters, and rollout/rollback boundaries. Public contract versions do not determine the lifetime
 of persisted content or immutable receipts.
 
-The authenticated calculation endpoint shares server rules without persisting input; the client cancels obsolete previews and hides stale results. Detail responses include derived line gross and subtotal information. See the [PO-03 specification](specs/2026-09-16-po-03-itemized-quantities-and-prices.md).
+The authenticated calculation endpoint shares server rules without persisting input; the client
+cancels obsolete previews and hides stale results. Detail responses include derived line gross
+and subtotal information.
 
 PO-05 extends the beta contract and writes content schema 4 with line/order discounts and categorized
 charge rows in the same aggregate. The server calculates four-place reductions from explicit
@@ -459,8 +486,11 @@ notes. New writes require adjustment properties; missing properties cannot erase
 inputs. The bundled client and server share one beta contract without revision negotiation; stale browsers rely on normal validation/conflict handling and may need a manual reload. Retired
 public routes remain unsupported. Stored receipt history remains intact.
 Reads upgrade older content without persisting it, preserving unresolved legacy quotes.
-Draft saves create no commitment, invoice, balance or ledger posting. See the
-[PO-05 specification](specs/2026-09-16-po-05-discounts-and-charges.md).
+One line discount and one order discount keep bases inspectable without sequential discount stacks;
+both apply to merchandise only. Unknown bases cannot produce validated totals from partial sums.
+The effective payee of a confirmed supplier charge includes the supplier ID and name snapshot:
+changing either requires fresh explanatory notes, while contact-only changes do not.
+Draft saves create no commitment, invoice, balance or ledger posting.
 
 PO-04 retains the same purchase row and permanent reference while introducing explicit Draft/Ordered
 state, calendar order date and sequential immutable revision snapshots. Commitment requires valid
@@ -471,6 +501,10 @@ reason and a versioned calculation snapshot. `PurchaseOrderReceipts` binds succe
 the actor, tenant, operation and canonical input. Restricted SQL commands atomically append history,
 update the current projection and save the receipt; tenant RLS and denied direct mutations protect
 both history tables. Existing draft receipt retries still succeed without reapplying old writes.
+Amendment no-op detection compares decoded content and the order date, retaining array order
+and scalar distinctions; JSON formatting, escaping and member order are not content changes.
+Reject an unchanged amendment before advancing versions, revisions or receipts. This semantic
+comparison does not change the exact canonical fingerprint used for request retry identity.
 The unified beta purchase API serves drafts, ordered purchases and paged history. See the
 [PO-04 specification](specs/2026-09-17-po-04-commitment-and-amendments.md).
 
@@ -480,7 +514,10 @@ acquisition or structured invoice is created. Restricted SQL preparation/finaliz
 serialize capacity and check PO/document versions around provider publication. File changes
 advance the PO rowversion without changing its agreed-content revision. Existing format validation,
 private downloads, exact-request recovery, seven-day retention and paired SQL/blob recovery apply.
-See the [PO-06 attachment scope](specs/2026-09-18-po-06-invoices-and-purchase-documents.md).
+Publish bytes outside parent locks, then recheck versions and current authority before exposing
+the document. Ambiguous publication retains bytes and operation evidence for exact retry or
+reconciliation; it must not be treated as permission to delete bytes and restart. Acquisition
+documents retain their independent ownership and lifecycle.
 
 ## Architectural invariants
 

@@ -7,6 +7,7 @@ exercised at a particular revision. Neither replaces current instructions.
 | Task | Start here / current owner |
 | --- | --- |
 | Use the collection | [Collection guide](collection.md) |
+| Curate the shared gem reference as a service admin | [Shared curation guide](gem-reference-curation.md) |
 | Plan and resume a supplier purchase | [Purchase order drafts](purchasing.md) |
 | Configure accounting policies, accounts, and roles | [Accounting setup](accounting.md) |
 | Read or decode downloaded files | [CSV and ZIP formats](collection-export.md) |

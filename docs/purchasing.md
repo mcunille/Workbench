@@ -96,8 +96,7 @@ No payment or balance due is inferred. Unknown third-party amounts leave the sup
 available when otherwise complete; the purchase total remains Unknown. Charge-only subtotals do
 not constitute a complete purchase estimate until merchandise is entered.
 
-The [PO-05 design](specs/2026-09-16-po-05-discounts-and-charges.md) defines these rules. This
-increment supplies the financial inputs preserved by PO-04 commitments and amendments. Structured invoices
+These financial inputs are preserved by PO-04 commitments and amendments. Structured invoices
 and payments remain separate work. The beta contract has no revision negotiation. Stale open clients may need a manual reload
 after preserving edits; ordinary endpoint validation and conflicts govern their requests. Current beta retries retain their original request identity and result.
 Retired API requests are unsupported; inspect the saved record before replacing an uncertain old save.
@@ -120,9 +119,12 @@ HTTP/HTTPS schemes, paths, queries and fragments are preserved. Websites remain 
 malformed addresses, other schemes, spaces and embedded credentials are rejected by the server.
 
 Selecting a supplier copies their details onto this draft. Editing the directory never rewrites
-saved purchases. **Use current supplier details** previews a refresh for this draft; confirm the
-replacement and then save. **Keep details as one-off** removes the directory link while retaining
-the copied details. Changing supplier asks what to do with an existing supplier order reference.
+saved purchases. Use **Choose supplier** to select or reselect a supplier. When details differ,
+review the replacement and choose **Use supplier details** or **Cancel**, then explicitly save
+the draft. Accepting replaces the supplier identity and contact details together. Changing
+supplier asks what to do with an existing supplier order reference.
+**Clear supplier** asks for confirmation before clearing the link, contact details and supplier
+order reference; the purchase platform remains unchanged. Cancel preserves all details.
 An inline supplier creation saves the directory record separately: discarding or failing to save
 the draft does not remove that supplier.
 
@@ -162,8 +164,8 @@ The [architecture](ARCHITECTURE.md#purchase-orders) owns compact retry receipts 
 The list is live browsing, not a snapshot: edits may move records above the current cursor;
 refresh to see them. A failed page load retains existing rows for retry. Existing collection
 and acquisition workflows remain independent of purchasing.
-The [PO-02 design](specs/2026-09-11-po-02-supplier-identity-and-references.md) extends those contracts
-with supplier snapshots, per-order platforms and permanent references. The [PO-03 design](specs/2026-09-16-po-03-itemized-quantities-and-prices.md) defines structured quantities and draft estimates with one supplier quantity/unit and per-unit or total-line pricing. After an upgrade, an older
+Supplier snapshots, per-order platforms and permanent references remain independent of directory
+edits. Draft estimates use one supplier quantity/unit and per-unit or total-line pricing. After an upgrade, an older
 client must preserve edits and reload before sending a new save. Retired API requests cannot
 resolve old receipts; inspect the saved record before replacing an uncertain old save, as
 described in [API lifecycle](api-lifecycle.md).
@@ -239,8 +241,9 @@ Invoice numbers, due dates, amount comparisons and duplicate supplier-reference 
 unavailable in the application. BK-05 provides an internal structured bill foundation with immutable
 revisions, review, duplicate resolutions and posting derived from stored components; it adds no bill
 entry UI or public write routes. BK-07 protects authentic posted evidence and reports retention
-separately from current byte availability. See the [attachment scope](specs/2026-09-18-po-06-invoices-and-purchase-documents.md)
-and [bill foundation](specs/2026-09-27-bk-05-structured-supplier-bills.md).
+separately from current byte availability. Files belong directly to the ordered purchase;
+acquisition documents remain separate. See [financial evidence retention](accounting.md#durable-financial-evidence)
+and the [bill foundation](specs/2026-09-27-bk-05-structured-supplier-bills.md).
 
 ## Payment and allocation foundation
 
@@ -275,4 +278,4 @@ and seller identifier. Edit either field, or use **Remove** to remove a pair, th
 Both fields are required for each added row; labels must be unique ignoring case. Up to 20 pairs
 are supported. Handles are plain text kept for reference; they need not be web addresses and
 have no opening action. The website is separate, and purchase-order snapshots stay unchanged.
-See the [supplier handles design](specs/2026-09-20-supplier-profiles.md).
+The [architecture](ARCHITECTURE.md#purchase-orders) owns snapshot and retry compatibility.

@@ -35,8 +35,8 @@ Tanzanite and Quartz edge materials. The owner approved the local visual directi
 current-source container smoke, full browser coverage, and scoped review passed.
 The refreshed final-source preview passed desktop and mobile visual inspection.
 
-[Beta API lifecycle and purchasing consolidation](2026-09-16-beta-api-lifecycle.md)
-records the approved transition for issue #120.
+[API lifecycle](../api-lifecycle.md) owns the beta contract, purchasing compatibility inventory,
+approved historical replay removal and coordinated rollout/recovery boundaries.
 
 [PO-07 bookkeeping foundation and prerequisites](2026-09-20-po-07-deposits-and-payments.md)
 retains the public payment workflow and remaining bookkeeping prerequisites. BK-01–07 supply
@@ -68,11 +68,11 @@ entry or production bookkeeping activation are delivered by BK-06; BK-07 supplie
 | --- | --- |
 | Foundation | [Base architecture](2026-08-31-base-application-architecture.md), [data/identity/tenancy](2026-09-01-data-identity-tenancy.md). Current release-unit rationale lives in [Architecture](../ARCHITECTURE.md#application-structure), and generated-contract/error guidance in [API lifecycle](../api-lifecycle.md#generated-contracts-and-api-errors). |
 | Collection | [Collector journey and validation](../collection.md#collector-journey-and-validation), [inventory foundation](2026-09-06-inventory-domain-foundation.md), [collection design links](../collection.md#design-records) |
-| Purchasing | [Small-business purchase orders and purchase finances (proposed)](2026-09-11-purchase-orders-and-purchase-finances.md), [PO-01 draft supplier orders](../purchasing.md), [Supplier social handles](2026-09-20-supplier-profiles.md), [PO-02 supplier identity and references](2026-09-11-po-02-supplier-identity-and-references.md), [PO-03 itemized quantities and prices](2026-09-16-po-03-itemized-quantities-and-prices.md), [PO-04 commitment and amendments](2026-09-17-po-04-commitment-and-amendments.md), [PO-05 discounts and additional charges](2026-09-16-po-05-discounts-and-charges.md) |
+| Purchasing | [Small-business purchase orders and purchase finances (proposed)](2026-09-11-purchase-orders-and-purchase-finances.md), [current purchase workflows](../purchasing.md), [technical constraints and rationale](../ARCHITECTURE.md#purchase-orders), [PO-04 commitment and amendments](2026-09-17-po-04-commitment-and-amendments.md) |
 | Visual decisions | [Current UI guidance](../../DESIGN.md), [floating labels](../../DESIGN.md#text-input), [original navigation interactions](2026-09-09-refined-navigation.md), [raised content workspace](2026-09-25-raised-content-workspace.md) |
 | Providers and recovery | [SQL-authoritative recovery policy](../operations/online-backup-recovery.md#sql-authoritative-recovery-policy). Provider rationale lives in [Architecture](../ARCHITECTURE.md#blob-storage); operational constraints and retained acceptance requirements live in the [provider runbook](../operations/blob-and-service-providers.md#retained-provider-acceptance-requirements). |
 | Deployment | [Azure design](2026-09-05-azure-deployment.md), [bootstrap and forwarded trust](../operations/azure-deployment.md), [security controls](../operations/azure-security-controls.md) |
-| Development and verification | [Current schema bookkeeping](2026-09-21-current-schema-bookkeeping.md), [Local iteration](../../CONTRIBUTING.md#focused-local-iteration), [concurrent gate](../../tests/README.md#gate-provenance-and-scheduling), [duration balancing](../../tests/README.md#refresh-server-timing-data), [test suite efficiency](../../tests/README.md), [worktree environments](2026-09-09-worktree-development-environments.md) |
+| Development and verification | [Current schema contract](../operations/database-migrations.md#maintaining-the-current-schema-contract), [Local iteration](../../CONTRIBUTING.md#focused-local-iteration), [concurrent gate](../../tests/README.md#gate-provenance-and-scheduling), [duration balancing](../../tests/README.md#refresh-server-timing-data), [test suite efficiency](../../tests/README.md), [worktree environments](2026-09-09-worktree-development-environments.md) |
 
 Local self-host update instructions and retained design rationale live in the
 [update runbook](../operations/local-self-host.md#update-an-existing-installation); dated checks remain
@@ -137,5 +137,3 @@ or required historical evidence. During an authorized [documentation cleanup](..
 a redundant spec may be retired after its durable knowledge is distilled into maintained docs
 and its references and retention needs are accounted for. Implementation status alone is not
 evidence that a spec is redundant.
-
-The implemented [PO-03 specification](2026-09-16-po-03-itemized-quantities-and-prices.md) consolidates supplier-based line pricing, its V4 compatibility contract and migration requirements.

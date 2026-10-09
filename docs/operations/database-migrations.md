@@ -135,6 +135,11 @@ recovery acceptance finish. This evidence is not a live Azure or paired blob-cop
 does not establish BK-07 physical retention holds. Full release verification, separate hardened
 container smoke and retained-preview/browser inspection remain pending for BK-06.
 
+An earlier unmerged BK-06 preview installation is not another supported migration baseline. If it
+needs preservation while installer SQL changes, use a reviewed forward refresh with before/after
+evidence; rerunning an already-recorded migration does not reinstall its procedures. Never delete
+financial history or reset migration markers as routine preview refresh.
+
 ### Financial evidence migration and recovery
 
 `20261008010000_AddFinancialEvidenceRetention` is the sole BK-07 release migration after merged
@@ -156,11 +161,6 @@ holds and removal state; acceptance requires its exact current fingerprint. Dest
 blocked with 50020. Use forward correction or guarded paired recovery. A preview that applied an
 earlier unmerged installer needs a separately reviewed data-preserving refresh; never reset migration
 history or delete retained data. Full gate and preview outcomes belong in the dated BK-07 evidence.
-
-An earlier unmerged BK-06 preview installation is not another supported migration baseline. If it
-needs preservation while installer SQL changes, use a reviewed forward refresh with before/after
-evidence; rerunning an already-recorded migration does not reinstall its procedures. Never delete
-financial history or reset migration markers as routine preview refresh.
 
 ## Authoring and validating a migration
 
@@ -224,7 +224,7 @@ This inventory describes checked-in migration behavior, not permission to execut
 | `20260918020000_IntegrateBetaDraftFinancialAdjustments` | `RemoveHistoricalDraftReplay` | Installs PO-05 validation and confirmed supplier correction protection on the single beta writer, removes all temporary V3/V4 prerequisites, and advances readiness/backup markers. Retains schema 1/2/3/4 content and exact receipt bytes. | Always blocked; use forward correction or guarded recovery. |
 | `20260918060000_AddPurchaseOrderCommitment` | `IntegrateBetaDraftFinancialAdjustments` | Consolidated PO-04: adds Draft/Ordered state, order date, immutable snapshots and actor-bound receipts, RLS and restricted commands. Includes retained-line projection, trimmed amendment reasons, supplier GUID normalization and decoded-content no-op detection. Preserves existing drafts, references, row versions and receipts without inferring commitments. Protects draft writers after receipt replay; advances readiness and backup markers. Stop older writers and deploy the matching beta application. | Always blocked; preserve agreed contents and history through forward correction or guarded recovery. |
 | `20260918061646_AddPurchaseOrderDocuments` | `AddPurchaseOrderCommitment` | Adds PO-owned private document metadata and durable request evidence, tenant-qualified ownership, RLS and restricted prepare/finalize procedures. Reserves up to 20 current or pending files per ordered PO, serializes parent versions and uses the existing publication, reconciliation and seven-day retention lifecycle. Preserves acquisition documents and ordered-content revisions. Advances readiness and backup markers; deploy the matching application. | Always blocked; retain metadata and command evidence through forward correction or guarded paired recovery. |
-| `20260918063409_HardenPurchaseOrderDocumentAuthority` | `AddPurchaseOrderDocuments` | Revalidates enabled tenant and active actor authority for document reservations, binds request replay to the original actor, and rechecks authority during finalization. A suspension during publication produces a terminal conflict and retains published bytes for cleanup. Kept as a separate forward migration because the predecessor was already applied to the retained local preview; its applied history is immutable. Advances readiness and backup markers. | Always blocked; retain authority controls through forward correction or guarded paired recovery. |
+| `20260918063409_HardenPurchaseOrderDocumentAuthority` | `AddPurchaseOrderDocuments` | Revalidates enabled tenant and active actor authority for document reservations, binds request replay to the original actor, and rechecks authority during finalization. A suspension during publication produces a terminal conflict and retains published bytes for cleanup. Historically delivered separately after the predecessor had been applied to a retained preview; both migrations are now merged immutable history. That historical choice is not an exemption from pre-merge consolidation for new changes. Advances readiness and backup markers. | Always blocked; retain authority controls through forward correction or guarded paired recovery. |
 | `20260921041331_MakeSupplierProfilesCustom` | `HardenPurchaseOrderDocumentAuthority` | Adds the optional JSON collection of custom platform/handle pairs and updates the restricted supplier writer in one release migration. Preserves existing supplier values, row versions and receipts; advances readiness and backup markers. Verify fresh creation, PR-base upgrade, legacy replay and restricted-writer validation. Deploy the matching API/client. | Always blocked; preserve handles and request evidence through forward correction or guarded recovery. |
 | `20260921051843_AddAccountingFoundation` | `MakeSupplierProfilesCustom` | Adds tenant accounting configuration, general accounts, revisions, receipts and two explicitly assigned accounting roles. Restricted commands validate current actor authority; runtime Identity role/claim writes are denied. Retains existing data without granting accounting access or creating balances. Advances readiness and backup markers; stop older writers and deploy the matching application. Verify fresh creation and upgrade from the predecessor. | Always blocked (50020); preserve configuration and authorization history through forward correction or guarded recovery. |
 | `20260923010000_AddAtomicJournal` | `AddAccountingFoundation` | Adds immutable journal/source/receipt records, first-posting policy freeze, exact SQL posting validation and used-account archive protection. No runtime posting grant or production source adapter. Preserves BK-01 data and replay bytes; advances readiness and backup markers. Verify fresh creation and upgrade from the merged BK-01 schema. Stop older writers and deploy the matching application. | Always blocked (50020); preserve financial history through forward correction or guarded recovery. |
@@ -327,6 +327,8 @@ application designer and snapshot do not map its accounts or sessions into tenan
 is the current application boundary used by readiness and newly emitted blob manifests.
 Append an ordinary migration there when adding its EF migration. `CurrentSchemaTests` compares
 the complete contract with the compiled EF inventory, independently of applied database history.
+Keeping the manifest explicit makes an accidental migration omission, rename or addition a
+discrepancy requiring review; deriving the expectation from EF would hide that discrepancy.
 The SQL migration must still advance the readiness procedure's marker explicitly. Historical
 migration SQL and upgrade fixture IDs remain immutable.
 
