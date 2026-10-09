@@ -39,7 +39,9 @@ Identity is qualified by `(id, origin)`: `tenant` additions and `workbench` refe
 a GUID after later publication. Detail accepts explicit origin; its default selects the tenant
 entry first, including archived entries. Addition update/archive/restore target tenant origin;
 override/reset target workbench origin. Service-admin readers and curation remain shared-only.
-GEM-08–10 browser workflows and full reference-library release acceptance remain outstanding.
+GEM-08 provides authenticated effective-library browsing at `/gem-reference`, with origin-qualified
+details, field-level attribution and citations, and classification withheld for entries needing review.
+GEM-09's tenant editing workflow and GEM-10's full reference-library release acceptance remain outstanding.
 
 GEM-05 adds service-admin-only draft, combined review, publish, outcome, and audit APIs at
 `/api/beta/service-admin/gem-reference`. Drafts may be incomplete; publishing requires valid
