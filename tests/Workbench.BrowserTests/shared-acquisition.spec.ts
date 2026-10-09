@@ -3,8 +3,6 @@ import { useAuthenticatedSession } from './auth-fixture';
 import { acquisitionPanel, createOrigin, createPiece } from './shared-acquisition-fixture';
 import { lifecycle } from './restoration-fixture';
 import { setAppearance } from './user-menu-fixture';
-
-test.setTimeout(120_000);
 test.use({ actionTimeout: 20_000 });
 
 async function selectAcquisition(page: import('@playwright/test').Page, source: string) {
@@ -71,8 +69,13 @@ test('H10 three stones share corrections, archive relationships and deliberate l
   await page.getByRole('button', { name: 'Edit acquisition', exact: true }).click();
   await expect(page.getByText(/every associated piece, including archived pieces/i)).toBeVisible();
   await page.getByLabel('Provenance notes (optional)', { exact: true }).fill('Corrected fair recollection');
+  const saved = page.waitForResponse(response => response.request().method() === 'PUT'
+    && new URL(response.url()).pathname === `/api/beta/items/${stones[2].id}/acquisition/${origin.acquisition.id}`);
   await page.getByRole('button', { name: 'Save acquisition', exact: true }).click();
-  await expect(acquisitionPanel(page).getByText('Corrected fair recollection', { exact: true })).toBeVisible();
+  expect((await saved).status()).toBe(200);
+  // THEN the editor closes and the saved definition, rather than the textarea, shows the correction.
+  await expect(acquisitionPanel(page).getByRole('heading', { name: 'Edit acquisition', exact: true })).toHaveCount(0);
+  await expect(acquisitionPanel(page).locator('dd').filter({ hasText: /^Corrected fair recollection$/ })).toBeVisible();
   for (const stone of stones) {
     const current = await (await page.request.get(`/api/beta/items/${stone.id}/acquisition`)).json();
     expect(current.acquisition.notes).toBe('Corrected fair recollection');

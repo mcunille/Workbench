@@ -102,8 +102,9 @@ public sealed class BackupRetentionTests
     [InlineData(false, true, "Locked", 37)]
     [InlineData(false, false, "Unlocked", 37)]
     [InlineData(false, false, "Locked", 36)]
-    public void ProtectionDriftRejectsExpiration(bool versioning, bool softDelete, string state, int days)
+    public async Task ProtectionDriftRejectsExpiration(bool versioning, bool softDelete, string state, int days)
     {
+        await Task.Yield();
         // GIVEN hidden-version retention or insufficient WORM protection.
         using var account = System.Text.Json.JsonDocument.Parse("""{"properties":{"publicNetworkAccess":"Disabled"},"sku":{"name":"Standard_GRS"}}""");
         using var service = System.Text.Json.JsonDocument.Parse(System.Text.Json.JsonSerializer.Serialize(new { properties = new { isVersioningEnabled = versioning, deleteRetentionPolicy = new { enabled = softDelete } } }));
@@ -126,8 +127,9 @@ public sealed class BackupRetentionTests
     }
 
     [Fact]
-    public void PrivateImmutableArchiveWithDirectDeletionSemanticsIsEligible()
+    public async Task PrivateImmutableArchiveWithDirectDeletionSemanticsIsEligible()
     {
+        await Task.Yield();
         // GIVEN private geo-redundant storage with sufficient locked protection and no hidden versions.
         using var account = System.Text.Json.JsonDocument.Parse("""{"properties":{"publicNetworkAccess":"Disabled"},"sku":{"name":"Standard_GRS"}}""");
         using var service = System.Text.Json.JsonDocument.Parse("""{"properties":{"isVersioningEnabled":false,"deleteRetentionPolicy":{"enabled":false}}}""");

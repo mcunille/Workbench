@@ -5,6 +5,37 @@ review. Read the applicable skill rather than reproducing its process here. Root
 [AGENTS.md](../AGENTS.md) defines the repository's explicit adaptations and authorization
 boundaries; [CONTRIBUTING.md](../CONTRIBUTING.md) owns application verification gates.
 
+## First principles: the five-step algorithm
+
+Apply a first-principles approach, often called "Elon's algorithm" from SpaceX, during design,
+implementation, and review. Work through these steps in strict order:
+
+1. **Question every requirement.** Challenge assumptions, rules, and constraints. Identify who
+   owns each requirement and the evidence or domain truth that justifies it. If no one can defend
+   a requirement, remove it through the applicable approval process.
+2. **Delete anything unnecessary.** The best part is no part. Remove unnecessary parts, steps,
+   and processes aggressively before improving them. The calibration rule is that if you do not
+   end up restoring roughly 10% of what you removed, you may not have deleted enough. Treat this
+   as a heuristic for challenging conservative deletion, not a deletion or restoration quota;
+   restore what evidence shows is needed.
+3. **Simplify and optimize.** Only simplify what remains after deletion. The most common mistake
+   of a smart engineer is to optimize a thing that should not exist in the first place. Prefer
+   the smallest coherent design that satisfies the remaining, justified requirements.
+4. **Accelerate cycle time.** Speed up the remaining process after deletion and simplification.
+   Measure the bottleneck and verify that faster feedback or execution preserves correctness.
+   Accelerating earlier only makes bad processes fail faster.
+5. **Automate last.** Automation is the final step, not the first. Automate only the justified,
+   simplified process after its cycle time has been addressed. Automating or optimizing too
+   early amplifies waste instead of eliminating it.
+
+Use the reasoning in the existing design and review artifacts; do not add a separate ceremony
+for each step. When new evidence challenges an earlier requirement, revisit that step before
+continuing downstream. Follow the [design principles](DESIGN-PRINCIPLES.md) when defending domain
+invariants, including financial history, tenant isolation, authorization, and data ownership.
+Challenging a requirement does not itself authorize removing an existing safeguard, verification
+gate, or approval boundary. Propose such changes explicitly and obtain the applicable approval;
+keep unrelated deletion outside the approved scope.
+
 ## Design and planning
 
 Use superpowers:brainstorming to classify design work and complete the selected path's reviews.

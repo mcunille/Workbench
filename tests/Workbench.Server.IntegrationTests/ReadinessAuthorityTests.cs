@@ -13,6 +13,21 @@ namespace Workbench.Server.IntegrationTests;
 public sealed class ReadinessAuthorityTests(SqlServerFixture sqlServer)
 {
     [Theory]
+    [InlineData("DROP PROCEDURE ServiceAdministration.ResolveSession")]
+    [InlineData("REVOKE EXECUTE ON ServiceAdministration.CreateSession FROM workbench_web")]
+    [InlineData("REVOKE SELECT ON ServiceAdministration.Accounts FROM workbench_web")]
+    [InlineData("GRANT SELECT ON ServiceAdministration.Accounts TO workbench_web")]
+    [InlineData("REVOKE EXECUTE ON Administration.DisableServiceAdmin FROM workbench_operator")]
+    [InlineData("GRANT SELECT ON ServiceAdministration.Sessions TO workbench_worker")]
+    [InlineData("GRANT EXECUTE ON Administration.ResetServiceAdminPassword TO workbench_web")]
+    public async Task MissingServiceAdminBoundaryPreventsReadiness(string sql)
+    {
+        // GIVEN a healthy deployment, WHEN its service-admin authority is removed or broadened.
+        // THEN readiness rejects the deployment before serving identity requests.
+        Assert.Equal(HealthStatus.Unhealthy, await CheckAfterChangeAsync(sql));
+    }
+
+    [Theory]
     [InlineData("REVOKE EXECUTE ON [Purchasing].[SaveSupplier] FROM [workbench_web]")]
     [InlineData("REVOKE SELECT ON [Purchasing].[Suppliers] FROM [workbench_web]")]
     [InlineData("REVOKE SELECT ON [Purchasing].[SupplierRequestReceipts] FROM [workbench_web]")]

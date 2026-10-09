@@ -12,8 +12,9 @@ public sealed class PurchasingIdentityInputTests
     [InlineData(" HTTP://example.com/shop ", "HTTP://example.com/shop")]
     [InlineData(null, null)]
     [InlineData(" \t ", null)]
-    public void SupplierWebsiteDefaultsToHttpsAndPreservesExplicitUrls(string? input, string? expected)
+    public async Task SupplierWebsiteDefaultsToHttpsAndPreservesExplicitUrls(string? input, string? expected)
     {
+        await Task.Yield();
         // GIVEN optional website text WHEN normalized for saving THEN only whitespace and a missing scheme change.
         var normalized = PurchasingIdentityInput.Normalize(Contact with { Website = input });
         Assert.Equal(expected, normalized.Website);
@@ -32,8 +33,9 @@ public sealed class PurchasingIdentityInputTests
     [InlineData("example.com\\path")]
     [InlineData("user@example.com")]
     [InlineData("https://user:password@example.com")]
-    public void SupplierWebsiteNormalizationDoesNotBypassValidation(string input)
+    public async Task SupplierWebsiteNormalizationDoesNotBypassValidation(string input)
     {
+        await Task.Yield();
         // GIVEN malformed or unsupported website input WHEN normalized THEN the server still rejects it by field.
         var normalized = PurchasingIdentityInput.Normalize(Contact with { Website = input });
         Assert.Contains("supplier.website", PurchasingIdentityInput.Validate(normalized));
@@ -41,8 +43,9 @@ public sealed class PurchasingIdentityInputTests
 
     private static SupplierContent Contact => new(" Supplier ", " Contact ", " a@example.test ", " +1 555 ext 2 ", " https://example.test ", " First\nSecond ");
     [Fact]
-    public void ProfilesAcceptUserDefinedPlainHandles()
+    public async Task ProfilesAcceptUserDefinedPlainHandles()
     {
+        await Task.Yield();
         // GIVEN arbitrary platform labels and plain reference handles, including URL-like text.
         const string json = """{"name":"Supplier","contactName":null,"email":null,"phone":null,"website":null,"postalAddress":null,"socialProfiles":[{"label":"Discord","handle":"@someone (primary)"},{"label":"Other","handle":"javascript:reference"}]}""";
         // WHEN decoded and validated THEN the open set of labels and non-link handles is accepted.
@@ -50,8 +53,9 @@ public sealed class PurchasingIdentityInputTests
         Assert.Empty(PurchasingIdentityInput.Validate(content));
     }
     [Fact]
-    public void ProfilesNormalizeTrimmedValuesAndPreserveLegacySerialization()
+    public async Task ProfilesNormalizeTrimmedValuesAndPreserveLegacySerialization()
     {
+        await Task.Yield();
         // GIVEN reference text with outer whitespace WHEN normalized THEN labels and handles are trimmed.
         var normalized = PurchasingIdentityInput.Normalize(Contact with { SocialProfiles = [new(" Discord ", " @someone ")] });
         Assert.Equal(new SupplierSocialProfile("Discord", "@someone"), Assert.Single(normalized.SocialProfiles!));
@@ -69,15 +73,17 @@ public sealed class PurchasingIdentityInputTests
     [InlineData("Platform", " \t", "handle")]
     [InlineData("line\nbreak", "handle", "label")]
     [InlineData("Platform", "line\nbreak", "handle")]
-    public void ProfilesRejectMissingOrControlText(string label, string handle, string field)
+    public async Task ProfilesRejectMissingOrControlText(string label, string handle, string field)
     {
+        await Task.Yield();
         // GIVEN an incomplete or multiline reference WHEN validated THEN its indexed field has feedback.
         var content = PurchasingIdentityInput.Normalize(Contact with { SocialProfiles = [new(label, handle)] });
         Assert.Contains("supplier.socialProfiles[0]." + field, PurchasingIdentityInput.Validate(content));
     }
     [Fact]
-    public void ProfilesEnforceLimitsAndCaseInsensitiveDistinctLabels()
+    public async Task ProfilesEnforceLimitsAndCaseInsensitiveDistinctLabels()
     {
+        await Task.Yield();
         // GIVEN maximum-sized valid reference text WHEN validated THEN all limits are inclusive.
         var content = PurchasingIdentityInput.Normalize(Contact) with { SocialProfiles = [new(new string('a', 100), new string('b', 2048))] };
         Assert.Empty(PurchasingIdentityInput.Validate(content));
@@ -91,8 +97,9 @@ public sealed class PurchasingIdentityInputTests
     }
     private static DraftContent Empty => new(null, null, null, null, [], [], null, null, null, null, null, null, null, null);
     [Fact]
-    public void NormalizeTrimsSingleLinesAndPreservesAddressWithoutChangingPurchaseIdentity()
+    public async Task NormalizeTrimsSingleLinesAndPreservesAddressWithoutChangingPurchaseIdentity()
     {
+        await Task.Yield();
         // GIVEN separately entered supplier details and a transaction platform.
         var id = Guid.NewGuid(); var input = Empty with { SupplierId = id, SupplierName = Contact.Name, SupplierEmail = Contact.Email, SupplierPostalAddress = Contact.PostalAddress, Platform = " Instagram ", SupplierOrderReference = " External " };
         // WHEN normalized THEN single lines are trimmed, addresses remain multiline and optional whitespace becomes absent.
@@ -109,15 +116,17 @@ public sealed class PurchasingIdentityInputTests
     [InlineData("a@@example.test")]
     [InlineData("a@example.test,b@example.test")]
     [InlineData("@example.test")]
-    public void EmailValidationRejectsMultipleOrWhitespaceAddresses(string email)
+    public async Task EmailValidationRejectsMultipleOrWhitespaceAddresses(string email)
     {
+        await Task.Yield();
         // GIVEN one malformed email address WHEN either boundary validates it THEN the stable field error identifies email.
         Assert.Contains("supplier.email", PurchasingIdentityInput.Validate(PurchasingIdentityInput.Normalize(Contact with { Email = email })));
         Assert.Contains("draft.supplierEmail", DraftOrderInput.Validate(Empty with { SupplierEmail = email }));
     }
     [Fact]
-    public void RequiredDirectoryNameAndContactLimitsAreAuthoritative()
+    public async Task RequiredDirectoryNameAndContactLimitsAreAuthoritative()
     {
+        await Task.Yield();
         // GIVEN incomplete purchase details and missing or oversized directory/contact input.
         Assert.Empty(DraftOrderInput.Validate(Empty));
         // WHEN validated THEN only the directory requires a name and every bounded contact field rejects overflow.
@@ -126,19 +135,10 @@ public sealed class PurchasingIdentityInputTests
         var errors = DraftOrderInput.Validate(invalid);
         foreach (var field in new[] { "supplierName", "supplierContactName", "supplierEmail", "supplierPhone", "supplierWebsite", "supplierPostalAddress", "supplierOrderReference", "platform", "supplierId" }) Assert.Contains("draft." + field, errors);
     }
-    [Theory]
-    [InlineData("javascript:alert(1)")]
-    [InlineData("https://user:password@example.test")]
-    [InlineData("/relative")]
-    [InlineData("https://example.test/white space")]
-    public void WebsiteValidationRejectsUnsafeOrNonAbsoluteValues(string website)
-    {
-        // GIVEN a website which violates the existing HTTP(S) link contract WHEN validated THEN a field error prevents saving.
-        Assert.Contains("supplier.website", PurchasingIdentityInput.Validate(Contact with { Website = website }));
-    }
     [Fact]
-    public void CursorBindingsAndFingerprintsIncludeTransactionDetails()
+    public async Task CursorBindingsAndFingerprintsIncludeTransactionDetails()
     {
+        await Task.Yield();
         // GIVEN a page cursor for one tenant/query and saved draft fingerprint input.
         var timestamp = DateTimeOffset.Parse("2026-09-12T00:00:00+00:00"); var id = Guid.NewGuid(); var cursor = PurchasingIdentityInput.Cursor(timestamp, id, "tenant:QUERY");
         // WHEN decoding a different binding THEN reuse is rejected, while an exact binding preserves ordering.

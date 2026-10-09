@@ -4,8 +4,6 @@ import { browserBaseUrl } from './browser-environment';
 import { expect, test, type Page } from './diagnostic-fixture';
 import { photoSignIn } from './photo-fixture';
 
-test.setTimeout(120_000);
-
 async function checkTextContrast(page: Page) {
   for (const text of await page.locator('h1:visible, h2:visible, h3:visible, label:visible, dt:visible, dd:visible, [role="alert"]:visible').all()) {
     const contrast = await text.evaluate(element => {

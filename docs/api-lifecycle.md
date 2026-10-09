@@ -12,6 +12,38 @@ beta. See [design principles](DESIGN-PRINCIPLES.md#13-evolve-apis-deliberately).
 
 ## Generated contracts and API errors
 
+GEM-06 extends the authenticated tenant-session GET routes at `/api/beta/gem-reference` and
+`/api/beta/gem-reference/{id}` with effective tenant content. Existing shared response fields and
+the shared meaning of `rowVersion` remain; additive metadata includes `origin`, `effectiveVersion`,
+field attribution/state/sources, sparse choices, archive state, and review reasons. Detail accepts
+`origin=tenant|workbench`; without it a retained tenant addition takes precedence, including when
+archived. This keeps both identities addressable if later shared publication reuses a tenant GUID.
+Top-level detail citations retain ordinal field then .NET Guid ID ordering.
+
+Browse searches effective literal names/aliases/taxonomy and material-kind/group filters, with
+50 entries per page. Ordinary browse excludes retirement and archive; `includeArchived=true`
+adds tenant archives. Effective v2 cursors bind filters, archive visibility, and the final origin
+tie-breaker after SQL name/uniqueidentifier ordering. Existing v1 cursors remain valid for ordinary
+effective browsing with workbench origin; they cannot enable archive browsing. Service-admin reads
+retain shared-only content and v1 cursors. Invalid effective entries remain searchable with review
+reasons. All tenant read/write responses are private/no-store, including binding failures.
+
+Tenant-session writes add POST `tenant-entries`, PUT `tenant-entries/{id}`, POST
+`tenant-entries/{id}/archive` and `/restore`, PUT `{id}/overrides`, and POST `{id}/reset` under the
+same reference prefix. Writes require existing member authorization and antiforgery. Additions
+use caller-generated IDs; all subsequent writes require both eight-byte base64 components of
+`effectiveVersion`, with null preserving absence. Override PUT supplies the complete desired
+sparse map; inherit removes a choice, clear removes optional content, and reset accepts an
+optional field (null resets all). The route selects origin: addition writes target tenant entries,
+override/reset target workbench entries. No caller-supplied tenant context is accepted.
+
+Success returns current effective detail. Typed validation returns 400 and field errors; absent
+or inaccessible targets return 404; stale versions, duplicate identities, and unreconciled state
+return 409 with current accessible detail when available. Rejections preserve stored choices;
+inaccessible IDs reveal no other tenant data. An uncertain save is resolved by rereading, and
+replaying an old token conflicts. Request bodies are bounded to 1 MiB before parsing. These are
+backend contracts; tenant and service-admin editing screens remain separate GEM milestones.
+
 Server-generated OpenAPI owns the client API declarations. Regenerate the checked-in TypeScript
 declarations with server contract changes; do not hand-edit them or maintain duplicate handwritten
 response interfaces. Handwritten copies can compile after the server changes, concealing drift.

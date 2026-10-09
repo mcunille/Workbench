@@ -1,5 +1,85 @@
 # Workbench architecture
 
+## Shared gem reference foundation
+
+GEM-02 stores tenant-independent shared entries, aliases, field-linked source assertions,
+locality claims, and retirement metadata in `Gemology`. Stable IDs survive retirement;
+normalized identity keys prevent duplicate active shared entries. Mineral species is required,
+while non-mineral materials can omit inapplicable taxonomy. The reusable content validator
+enforces safe source links, source coverage, and redirect validity for later seed/publish callers.
+
+Tenant-authenticated `/api/beta/gem-reference` GET routes provide bounded literal search and
+coherent attributed detail. Shared entities have no tenant ID. Runtime direct
+catalog writes are denied. GEM-04 installs the reviewed Diamond, Sapphire, Emerald, and Ruby
+pilot with nineteen field-level source assertions through a one-time data migration. The frozen
+seed ships inside the migration assembly; deployments require no content download. Existing
+pilot IDs (including retired entries) retain their values and provenance. Conflicting active
+identities under other IDs reject the transaction. See the [installation procedure](operations/database-migrations.md#pilot-catalog-distribution-and-installation).
+
+GEM-06 adds tenant-owned additions and sparse field overrides in `Gemology.TenantEntries` and
+`TenantOverrides`, protected by tenant SQL RLS. One effective projection resolves values,
+attribution, supporting citations and review dates together. Missing choices inherit; replacement
+uses only tenant sources; explicit clear removes optional values and displaced sources. Reset
+receives current shared content and retains an empty override row with an advancing rowversion
+to prevent an old token being reused. Shared publication never waits for tenant reconciliation:
+invalid effective entries retain their identities and choices, remain searchable, and expose
+field-level review reasons. Effective Unicode identity collisions flag each visible entry;
+archive can remove an addition collision, and other writes must leave a valid final candidate.
+
+Tenant reads acquire the publication lock then the tenant lock and materialize one catalog-sized
+effective snapshot. Browse sends scalar candidates to SQL for native collation matching and
+uniqueidentifier pagination, returning at most 50 rows. Snapshot materialization, duplicate
+derivation and scalar JSON size grow with the catalog; no load benchmark or performance gain is
+claimed. Detail citation arrays preserve ordinal field and .NET Guid ID ordering independently
+of SQL browse ordering. Tenant writes acquire exclusive locks in the same order, recheck active
+membership and SQL tenant proof, then compare both components of `effectiveVersion`, including
+absence, before the narrow command commits. Validation and conflicts preserve all stored choices.
+
+Identity is qualified by `(id, origin)`: `tenant` additions and `workbench` references can share
+a GUID after later publication. Detail accepts explicit origin; its default selects the tenant
+entry first, including archived entries. Addition update/archive/restore target tenant origin;
+override/reset target workbench origin. Service-admin readers and curation remain shared-only.
+GEM-07–10 browser workflows and full reference-library release acceptance remain outstanding.
+
+GEM-05 adds service-admin-only draft, combined review, publish, outcome, and audit APIs at
+`/api/beta/service-admin/gem-reference`. Drafts may be incomplete; publishing requires valid
+claim-level sources and a valid final shared catalog. A selected batch contains 1–50 distinct
+drafts and uses both draft and base published rowversions. Draft saves explicitly rebase only
+when the caller supplies the current published version. Admin reads use only shared catalog
+tables and private command-owned curation storage, without a tenant EF context.
+
+The web principal executes six named curation procedures and still cannot write catalog tables
+directly or read/write raw drafts, receipts, and audit tables. Commands revalidate current
+service-admin account/session authority; draft saves and publication serialize through a
+transaction-owned application lock and recheck authority after acquiring it. Publication
+validates final identities/redirects and selected versions, updates every selected entry and
+claim atomically, removes only selected successful drafts, and commits its request receipt and
+success audit together. Rejections preserve drafts and record a durable failure outcome/audit.
+Infrastructure rollback leaves no completed receipt and attempts a separate failure audit.
+
+The internal publication command trusts C# to derive Unicode-normalized identity and alias
+keys. SQL binds raw content and alias names/positions/count to the saved draft and checks
+uniqueness using the supplied identity key; it does not independently recompute semantic
+identity. Current admin authority alone does not make arbitrary direct SQL payloads safe.
+Callers must use the application normalization and validation path.
+
+Draft saves, combined reviews, and publications load and validate the whole catalog while
+holding the exclusive publication lock. Lock-held duration grows with catalog size and has
+not been measured. Before expanding the catalog, measure that duration; any narrower locking
+design must preserve coherent final-catalog validation and atomic publication.
+
+Request identity is global and tied to its original actor. Exact retries compare a canonical
+selection of draft IDs and versions (selection order is insignificant), then return the stored
+outcome before loading drafts. Changed retries conflict. Receipt reads are restricted to their
+actor; shared drafts and publication audit are visible to authorized service admins. Writes
+require dedicated admin antiforgery and a bounded 1 MiB JSON body. No rollback/history UI,
+second approver, new database credential, or tenant-data bypass is introduced.
+
+Durable outcomes are deserialized into the current response contract. Future contract changes
+must preserve historical receipt readability and verify representative older receipt fixtures.
+Deleting receipts would weaken delayed-retry protection and requires an explicit replay-expiry
+contract. Receipts retain field summaries and errors, not before/after content history.
+
 **Status:** Implemented
 
 This document is the authoritative living description of Workbench's current technical
@@ -215,7 +295,7 @@ See the [export contract](collection-export.md) for package contents and browser
 
 The [H9 acquisition context](specs/2026-09-09-acquisition-context.md) records an optional origin event
 with method, free-text source, partial acquired date, and collector-recorded provenance notes.
-[H10 shared acquisitions](specs/2026-09-09-shared-acquisitions.md) lets several individually recorded
+Shared acquisitions let several individually recorded
 pieces share that context. `Inventory.Acquisitions` has a separate identity and rowversion;
 `Inventory.AcquisitionItems` uses tenant-qualified foreign keys and permits at most one current
 acquisition per item. `Inventory.AcquisitionCreationRecords` retains immutable creation replay
@@ -227,6 +307,10 @@ checking the active item, expected membership, and old/target acquisition versio
 item first and acquisitions in deterministic order, then advances the affected rowversions.
 Removing the last connection preserves the acquisition. Creation retries never create another
 item, and old acquisition-creation replays cannot restore a removed or replaced connection.
+Empty acquisitions remain discoverable so correcting membership does not destroy origin context.
+Link commands use checked conditional retries rather than a persistent command ledger. Matching
+current membership cannot prove that an earlier request committed; an uncertain save requires
+explicit reconciliation before adopting fresh versions.
 
 Tenant-scoped, paginated acquisition discovery and membership reads support shared navigation;
 membership browsing excludes archived pieces unless explicitly requested. Archive and restore
@@ -243,8 +327,8 @@ publication and integrity verification precede the SQL transaction exposing the 
 finalization retires its bytes through the existing retention lifecycle. Session application locks
 serialize exact request UUIDs across replicas. Rename and removal retain command evidence; successful
 replay does not resurrect removed documents. Original validated bytes are private attachment downloads
-after complete bounded digest verification. The [H11 design](specs/2026-09-11-h11-acquisition-documents.md)
-defines content policy, parser qualification, resource bounds and recovery behavior.
+after complete bounded digest verification. The [provider runbook](operations/blob-and-service-providers.md#acquisition-document-validation)
+owns content policy, parser qualification, resource bounds and recovery behavior.
 
 `Inventory.Items` holds tenant-owned physical identities. H1 enforces `TrackingKind = Individual`
 and has no editable quantity, financial value, category requirement, or purchase parent. Names
@@ -305,12 +389,16 @@ a versioned server-computed fingerprint rejects reuse of the same request UUID w
 Retries return recorded success without executing again. Receipts retain identifiers, resulting
 version and completion time, not historical request/response bodies. Current details are loaded
 separately after success, with explicit comparison if the draft has changed since that save.
+Compact receipts provide duplicate prevention without retaining historical draft bodies; they
+are operational evidence, not a user-visible edit history. Pruning requires an explicit replay-expiry
+contract. Draft deletion clears content while retaining a tombstone for receipt foreign keys and
+the permanent PO reference; this does not offer archive or restore semantics.
 
 Updates replace one draft document after rowversion validation. A per-request transaction lock and
 draft row lock serialize competing retries and edits. The authenticated, antiforgery-protected API
 is private/no-store and bounds request bodies before binding. Tenant-scoped browsing uses descending
-updated-time/UUID keyset pagination; it is a live list and refreshes after local saves. See the
-[PO-01 specification](specs/2026-09-11-po-01-draft-supplier-orders.md) for contracts and recovery behavior.
+updated-time/UUID keyset pagination; it is a live list and refreshes after local saves. The
+[purchasing guide](purchasing.md) owns user-facing recovery behavior.
 
 PO-02 adds reusable tenant-owned suppliers with independently stored contact snapshots on each
 draft. Directory edits do not mutate orders; an explicit draft save applies reviewed snapshot
@@ -537,6 +625,30 @@ safe content disposition, and the scope of any direct-upload credentials in addi
 size validation.
 
 ## Identity and authorization
+
+Service-admin identity is independent of tenant identity. SQL-owned `ServiceAdministration`
+accounts and hashed sessions have no tenant column or tenant-data context. The dedicated
+`WorkbenchServiceAdmin` cookie scheme and `ServiceAdmin` policy protect
+`/api/beta/service-admin/auth` routes; each route selects only its own authority, even when a browser
+carries both cookies or accounts share an email. Admin requests cannot construct tenant context,
+request actor or `WorkbenchDbContext`. Namespaced admin identity claims also keep antiforgery
+authority independent. There is no catalog editor or publishing workflow in this increment.
+
+Every authenticated admin request resolves current enabled state, security version, revocation
+and expiry through restricted SQL procedures using the existing web principal. Operator-only
+provision, disable, password reset and session revoke commands are exposed through the database
+CLI, with protected file inputs. The web and worker receive no maintenance authority or operator
+credential, and none of these roles receives direct account/session table access. Account changes
+and issuance serialize so stale password verification cannot issue new authority after revocation.
+
+Mandatory restore sanitation deletes all admin sessions and increments every account security
+version in the same transaction as tenant invalidation, key deletion, audit and restore-marker
+clearance. Pre-backup tokens and cookies stay invalid when restore rolls back a later disablement
+or revocation, including with a cached key ring. Fresh sign-in requires the restored enabled state;
+sanitation preserves disabled state. The web persists keys through a tenant-free key-only context
+mapping the existing `Identity.DataProtectionKeys` table, retaining tenant cookie compatibility.
+See [database principals](operations/database-principals.md#service-admin-identity-maintenance)
+and [restore operations](operations/database-backup-restore.md).
 
 Initial authentication uses built-in ASP.NET Core Identity with durable server-side session state.
 Cookies contain an opaque session reference rather than a complete authorization state. Session

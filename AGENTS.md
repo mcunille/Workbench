@@ -2,6 +2,7 @@
 
 ## Scope and completion
 
+- Apply the [first-principles five-step algorithm](docs/development-workflow.md#first-principles-the-five-step-algorithm) during design, implementation, and review, in strict order: question requirements, delete unnecessary parts or steps, simplify and optimize, accelerate cycle time, then automate. Treat the roughly 10% restoration calibration as a heuristic, not a quota. Questioning existing safeguards or approval gates does not authorize removing them; follow the applicable approval process.
 - Use the applicable superpowers skills for design, planning, execution, debugging, and internal review. Complete the selected workflow's design and planning handoffs before implementation; a request for a bounded change does not skip its short design review. Preserve approval of an already reviewed artifact, but do not treat it as approval of a later artifact that has not been presented.
 - Continue until the requested behavior is implemented, relevant checks pass, and any requested running application has been inspected. Fix failures caused by the change. Report unrelated failures and concrete blockers accurately.
 - Preserve the repository skills' separate approval gates for publishing review comments and other collaboration writes. Merging and production operations require explicit authorization; implementation approval alone does not authorize them.

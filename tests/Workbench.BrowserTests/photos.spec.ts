@@ -3,7 +3,6 @@ import { setAppearance } from './user-menu-fixture';
 import { browserBaseUrl } from './browser-environment';
 import { expect, test } from './diagnostic-fixture';
 import { cameraImage, photoSignIn, savedPhotoItem } from './photo-fixture';
-test.setTimeout(180_000);
 
 test('prepares a camera image locally and persists uncropped photos across sessions and views', async ({
   page,

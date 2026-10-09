@@ -10,8 +10,9 @@ public sealed class DevelopmentDatabaseInspectionTests
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
-    public void LaterKnownMigrationsPreserveRetainedBranchUpgradeSupport(bool betaBranch)
+    public async Task LaterKnownMigrationsPreserveRetainedBranchUpgradeSupport(bool betaBranch)
     {
+        await Task.Yield();
         // GIVEN an application that adds a migration after the documented integration boundary.
         string[] known = ["base", "20260917010000_AddSupplierBasedDraftPricing",
             "20260917015000_PrepareRetainedBetaFinancialUpgrade", "20260917020000_AddDraftFinancialAdjustments",
@@ -48,8 +49,9 @@ public sealed class DevelopmentDatabaseInspectionTests
     [InlineData("base,old,b1,b2", false)]
     [InlineData("base,po03,prep,f1,f2,b1,b2,final,future", false)]
     [InlineData("base,po03,b1,b1", false)]
-    public void OnlyDocumentedBranchHistoriesAndOrderedForwardProgressAreCompatible(string history, bool expected)
+    public async Task OnlyDocumentedBranchHistoriesAndOrderedForwardProgressAreCompatible(string history, bool expected)
     {
+        await Task.Yield();
         // GIVEN the merged migration order and one retained or interrupted branch history.
         var ids = new Dictionary<string, string>
         {
@@ -75,8 +77,9 @@ public sealed class DevelopmentDatabaseInspectionTests
     [InlineData("old,current", false)]
     [InlineData("base,current,old", false)]
     [InlineData("base,old,old,current", false)]
-    public void OnlyTheCompletedHistoricalPo03SequenceIsCompatible(string history, bool expected)
+    public async Task OnlyTheCompletedHistoricalPo03SequenceIsCompatible(string history, bool expected)
     {
+        await Task.Yield();
         // GIVEN the consolidated release and a retained development history.
         const string old = "20260916183834_AddStructuredDraftOrderLines";
         const string current = "20260917010000_AddSupplierBasedDraftPricing";
@@ -94,8 +97,9 @@ public sealed class DevelopmentDatabaseInspectionTests
     [InlineData("001_A,002_Other", false)]
     [InlineData("002_B", false)]
     [InlineData("002_B,001_A", false)]
-    public void OnlyAnExactPrefixCanBeMigrated(string history, bool expected)
+    public async Task OnlyAnExactPrefixCanBeMigrated(string history, bool expected)
     {
+        await Task.Yield();
         // GIVEN the image's ordered migrations and a retained database history.
         string[] known = ["001_A", "002_B"];
         var applied = history.Split(',', StringSplitOptions.RemoveEmptyEntries);

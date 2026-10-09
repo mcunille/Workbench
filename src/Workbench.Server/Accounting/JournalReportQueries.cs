@@ -113,7 +113,7 @@ internal static class JournalReportQueries
                         reader.GetString(4), reader.GetString(5), reader.GetString(6),
                         FormatSmall(reader.GetDecimal(7), header.Scale), FormatSmall(reader.GetDecimal(8), header.Scale)));
             }
-            var corrections = await JournalCorrectionQueries.ForJournal(id, database, ct);
+            var corrections = await CorrectionsForJournal(id, database, ct);
             var recognition = await PurchaseRecognitionReports.ReadAsync(database, id, ct);
             var evidenceOwner = recognition?.SourceId ?? source.SourceId;
             var evidenceRevision = recognition?.SourceRevision ?? source.SourceRevision;
@@ -388,6 +388,22 @@ internal static class JournalReportQueries
             parts[1].AsSpan(scale).IndexOfAnyExcept('0') >= 0)
             throw new InvalidOperationException("Journal aggregate has precision beyond its stored scale.");
         return scale == 0 ? parts[0] : $"{parts[0]}.{parts[1][..scale]}";
+    }
+
+    private static async Task<IReadOnlyList<JournalCorrectionEvidence>> CorrectionsForJournal(
+        Guid journalId, WorkbenchDbContext database, CancellationToken ct)
+    {
+        var groups = await database.JournalCorrectionGroups.AsNoTracking()
+            .Where(group => group.OriginalJournalId == journalId ||
+                group.ReversalJournalId == journalId || group.ReplacementJournalId == journalId)
+            .OrderBy(group => group.RecordedAtUtc).ThenBy(group => group.Id)
+            .ToListAsync(ct);
+        return groups.Select(group => new JournalCorrectionEvidence(group.Id,
+            group.OriginalJournalId == journalId ? "Original" :
+                group.ReversalJournalId == journalId ? "Reversal" : "Replacement",
+            group.OriginalJournalId, group.ReversalJournalId, group.ReplacementJournalId,
+            group.Reason, group.PostingDate, group.RecordedAtUtc,
+            group.EvidenceJson, Convert.ToHexString(group.EvidenceSha256))).ToArray();
     }
 
     private static bool Retryable(SqlException error) => error.Number is -2 or 1205 or 1222 or 51010;

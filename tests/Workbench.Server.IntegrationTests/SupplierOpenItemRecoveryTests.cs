@@ -13,7 +13,7 @@ using Xunit;
 namespace Workbench.Server.IntegrationTests;
 
 [Collection(SqlServerCollection.Name)]
-public sealed class SupplierOpenItemRecoveryTests(SqlServerFixture sqlServer)
+public sealed class SupplierOpenItemRecoveryTests(SqlServerFixture sqlServer, SupplierRecoveryScenarios scenarios) : IClassFixture<SupplierRecoveryScenarios>
 {
     [Fact]
     public async Task UpgradeAndRestorePreserveSupplierFinancialHistory()
@@ -56,16 +56,16 @@ public sealed class SupplierOpenItemRecoveryTests(SqlServerFixture sqlServer)
     public async Task RestoreRetainsReversedApplicationsAndUnavailableDocumentEvidence()
     {
         // GIVEN a real payment, application and inverse, with stored document metadata whose bytes are unavailable.
-        await using var context = await SupplierCorrectionFixture.OpenAsync(sqlServer);
-        var bill = await context.Allocation.BillAsync("150");
-        var (document, revision) = await context.Bills.SeedDocumentAsync();
-        var payment = await context.CommandAsync("100", "2026-09-10");
-        payment["evidence"] = new JsonObject { ["documents"] = new JsonArray(new JsonObject { ["documentId"] = document.ToString(), ["revisionId"] = revision.ToString() }), ["missingEvidenceReason"] = null };
-        var request = Guid.NewGuid(); var receipt = await context.RecordAsync(payment, request);
-        var applied = await context.Allocation.ApplyAsync(await context.Allocation.CommandAsync(Guid.Parse(payment["paymentId"]!.ToString()), bill, "60"));
-        var reverse = await SupplierCorrectionFixture.ReverseAsync(context, Guid.Parse(applied["applicationIds"]![0]!.ToString()));
-        var reversalRequest = Guid.NewGuid();
-        var reversed = await context.Bills.ExecuteAsync("ReverseSupplierApplication", reversalRequest, reverse);
+        await using var prepared = await scenarios.OpenAsync("recovery");
+        var context = prepared.Context;
+        var document = Guid.Parse(prepared.Data["document"]!.ToString());
+        var revision = Guid.Parse(prepared.Data["revision"]!.ToString());
+        var payment = prepared.Data["payment"]!.AsObject();
+        var request = Guid.Parse(prepared.Data["request"]!.ToString());
+        var receipt = prepared.Data["receipt"]!.AsObject();
+        var reverse = prepared.Data["reverse"]!.AsObject();
+        var reversalRequest = Guid.Parse(prepared.Data["reversalRequest"]!.ToString());
+        var reversed = prepared.Data["reversed"]!.AsObject();
         var before = await SupplierSnapshotAsync(context.Bills);
         // WHEN restoring and accepting the independently missing revision through the storage recovery boundary.
         await RestoreAsync(context.Bills, revision);

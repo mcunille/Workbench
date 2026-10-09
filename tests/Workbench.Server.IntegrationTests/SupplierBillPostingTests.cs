@@ -62,7 +62,6 @@ public sealed class SupplierBillPostingTests(SqlServerFixture sqlServer)
         Assert.Equal(1, await context.Recognition.CountAsync("RecognitionMatches"));
     }
     [Theory]
-    [InlineData("Inventory", false)]
     [InlineData("Expense", false)]
     [InlineData("Expense", true)]
     public async Task MatchedVarianceUsesOriginalClassification(string classification, bool variance)

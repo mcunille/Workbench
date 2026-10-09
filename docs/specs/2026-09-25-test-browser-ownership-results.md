@@ -2,8 +2,7 @@
 
 Implementation evidence for [issue #161](https://github.com/mcunille/Workbench/issues/161).
 The baseline is `4b4d5ef`, after the assertion, duplicate and SQL setup cleanups (#165, #167, #169).
-This applies the existing [test ownership rules](../../tests/README.md) and
-[efficiency design](2026-09-16-test-suite-efficiency.md). Product behavior, API contracts,
+This applies the existing [test ownership rules](../../tests/README.md). Product behavior, API contracts,
 worker limits, timeouts, rate limits, diagnostics and session ownership are unchanged.
 
 ## Retained regression detectors

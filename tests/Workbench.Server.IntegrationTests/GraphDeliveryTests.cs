@@ -73,8 +73,9 @@ public sealed class GraphDeliveryTests
     }
 
     [Fact]
-    public void GraphOriginMustMatchApplicationOrigin()
+    public async Task GraphOriginMustMatchApplicationOrigin()
     {
+        await Task.Yield();
         // GIVEN otherwise valid configuration pointing identity links at a different host.
         var configuration = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
         {
@@ -122,8 +123,9 @@ public sealed class GraphDeliveryTests
     [InlineData("00000000-0000-0000-0000-000000000000", "https://workbench.example")]
     [InlineData("5c9a104a-55b5-47cd-9db3-e674ad4b02ec", "http://workbench.example")]
     [InlineData("5c9a104a-55b5-47cd-9db3-e674ad4b02ec", "https://user:password@workbench.example")]
-    public void InvalidMailboxOrOriginIsRejected(string mailbox, string origin)
+    public async Task InvalidMailboxOrOriginIsRejected(string mailbox, string origin)
     {
+        await Task.Yield();
         // GIVEN an invalid configured mailbox or origin.
         var options = Options();
         options.MailboxId = mailbox;
@@ -188,8 +190,9 @@ public sealed class GraphDeliveryTests
     }
 
     [Fact]
-    public void InvalidConfigurationFailsClosed()
+    public async Task InvalidConfigurationFailsClosed()
     {
+        await Task.Yield();
         // GIVEN a Graph origin containing an injected token query.
         var options = Options();
         options.PublicOrigin = "https://workbench.example/?token=secret";

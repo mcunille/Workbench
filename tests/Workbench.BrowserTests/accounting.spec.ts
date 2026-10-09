@@ -3,8 +3,6 @@ import { expect, test } from './diagnostic-fixture';
 import { useAuthenticatedSession } from './auth-fixture';
 import { setAppearance } from './user-menu-fixture';
 
-test.setTimeout(150_000);
-
 test('accounting setup preserves explicit policies, guarded mappings, coverage, and role separation', async ({ page }) => {
   // GIVEN a tenant administrator without automatically granted accounting authority
   await useAuthenticatedSession(page);

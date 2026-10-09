@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Identity;
 using Workbench.Server.Administration;
 using Workbench.Server.Identity;
 using Workbench.Server.Persistence;
+using Workbench.Server.ServiceAdministration;
 using Workbench.Server.Storage;
 using Microsoft.Extensions.Configuration;
 using System.Text.Json;
@@ -15,6 +16,8 @@ static async Task<int> RunAsync(string[] arguments)
 {
     try
     {
+        if (arguments is ["service-admin", ..])
+            return await RunServiceAdminAsync(arguments);
         if (arguments is ["backup", "capture"])
             return await OnlineBackupCommand.RunAsync(new ConfigurationBuilder().AddEnvironmentVariables().Build(), CancellationToken.None);
         if (arguments is ["backup", "expire"])
@@ -173,6 +176,57 @@ static Dictionary<string, string> ParseOptions(IEnumerable<string> arguments)
     return options;
 }
 
+static async Task<int> RunServiceAdminAsync(string[] arguments)
+{
+    if (arguments.Length < 2) throw new ArgumentException("The service-admin action is missing.");
+    var action = arguments[1];
+    string[] required = action switch
+    {
+        "provision" => ["--connection-file", "--expected-database", "--email", "--password-file"],
+        "reset-password" => ["--connection-file", "--expected-database", "--account-id", "--password-file"],
+        "disable" or "revoke-sessions" => ["--connection-file", "--expected-database", "--account-id"],
+        _ => throw new ArgumentException("The service-admin action is unsupported."),
+    };
+    if (arguments.Length != 2 + required.Length * 2) throw new ArgumentException("The service-admin options are invalid.");
+    var options = new Dictionary<string, string>(StringComparer.Ordinal);
+    for (var index = 2; index < arguments.Length; index += 2)
+    {
+        var name = arguments[index];
+        var value = arguments[index + 1];
+        if (!required.Contains(name, StringComparer.Ordinal) || string.IsNullOrWhiteSpace(value) ||
+            value.StartsWith("--", StringComparison.Ordinal) || !options.TryAdd(name, value))
+            throw new ArgumentException("The service-admin options are invalid.");
+    }
+    var connection = await ReadValidatedConnectionAsync(options["--connection-file"], options["--expected-database"]);
+    var commands = new ServiceAdminOperatorCommands(connection, new PasswordHasher<ServiceAdminAccount>(), TimeProvider.System);
+    var password = options.TryGetValue("--password-file", out var passwordFile)
+        ? (await File.ReadAllTextAsync(passwordFile)).TrimEnd('\r', '\n') : null;
+    if (action == "provision")
+    {
+        var id = await commands.ProvisionAsync(options["--email"], password!, CancellationToken.None);
+        Console.WriteLine($"Service-admin account provisioned successfully: {id}.");
+        return 0;
+    }
+    if (!Guid.TryParse(options["--account-id"], out var accountId))
+        throw new ArgumentException("The service-admin account identifier is invalid.");
+    switch (action)
+    {
+        case "disable":
+            await commands.DisableAsync(accountId, CancellationToken.None);
+            Console.WriteLine("Service-admin account disabled successfully.");
+            break;
+        case "reset-password":
+            await commands.ResetPasswordAsync(accountId, password!, CancellationToken.None);
+            Console.WriteLine("Service-admin password reset successfully.");
+            break;
+        case "revoke-sessions":
+            await commands.RevokeSessionsAsync(accountId, CancellationToken.None);
+            Console.WriteLine("Service-admin sessions revoked successfully.");
+            break;
+    }
+    return 0;
+}
+
 static async Task<string> ReadValidatedConnectionAsync(string connectionFile, string expectedDatabase)
 {
     if (!File.Exists(connectionFile) || string.IsNullOrWhiteSpace(expectedDatabase))
@@ -200,6 +254,10 @@ static int Usage()
           Workbench.Database migrate --connection-file <path> --expected-database <name>
           Workbench.Database bootstrap --connection-file <path> --expected-database <name> --tenant-name <name> --admin-email <email> --password-file <path>
           Workbench.Database tenant create --connection-file <path> --expected-database <name> --tenant-name <name> --admin-email <email> --password-file <path>
+          Workbench.Database service-admin provision --connection-file <operator-path> --expected-database <name> --email <email> --password-file <path>
+          Workbench.Database service-admin disable --connection-file <operator-path> --expected-database <name> --account-id <guid>
+          Workbench.Database service-admin reset-password --connection-file <operator-path> --expected-database <name> --account-id <guid> --password-file <path>
+          Workbench.Database service-admin revoke-sessions --connection-file <operator-path> --expected-database <name> --account-id <guid>
           Workbench.Database principals provision --connection-file <path> --expected-database <name> --web-user <name> --web-password-file <path> --operator-user <name> --operator-password-file <path> --migrator-user <name> --migrator-password-file <path> --tenant-context-proof-key-file <path>
           Workbench.Database restore sanitize --connection-file <path> --expected-database <name> --correlation-id <id>
           Workbench.Database principals provision-entra --connection-file <setup-path> --expected-database <name> --identity-file <path> --tenant-context-proof-key-file <path>

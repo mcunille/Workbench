@@ -34,8 +34,11 @@ the runner defaults. The gate uses two isolated server processes by default; adj
 `-ServerPartitions` (2–4) and `-ServerConcurrency` (1–4) for available Docker resources. Live browser
 tests use one worker; fully intercepted UI tests have their own bounded project. Every discovered
 server case must pass exactly once. See the
-[concurrent gate design](docs/specs/2026-09-09-concurrent-verification-gate.md) for artifact
+[gate provenance and scheduling](tests/README.md#gate-provenance-and-scheduling) for artifact
 provenance and the aggregate CI check.
+The `Required verification gate` aggregate requires all named jobs to succeed, including setup,
+deployment and container smoke. Failed, cancelled, skipped or missing jobs cannot pass. Require
+that aggregate in branch protection separately; the workflow does not configure protection.
 The second requires Docker and verifies a SQL-backed runtime image as non-root and read-only with no Node.js,
 source files, setup credential, operator credential, or migrator credential. If Docker is
 unavailable, state that limit explicitly; do not report the container gate as passed.
@@ -66,7 +69,7 @@ If another checkout is using the default browser port, set `WORKBENCH_BROWSER_PO
 before running `npm test --prefix tests/Workbench.BrowserTests` or `./scripts/verify.ps1`.
 
 See [test ownership and cost](tests/README.md) for choosing API, SQL, component, or browser coverage
-and [the efficiency design](docs/specs/2026-09-16-test-suite-efficiency.md) for measured changes.
+and [measurement guidance](tests/README.md#measuring-changes) for comparable timing evidence.
 Routine evidence screenshots are disabled; set `WORKBENCH_BROWSER_EVIDENCE_DIRECTORY` to an
 external local directory to capture them. Layout assertions and safe failure diagnostics always run.
 Existing navigation/menu captures continue to use `WORKBENCH_MENU_EVIDENCE_DIRECTORY`.
@@ -95,8 +98,9 @@ SQL integration tests require Docker; photo-processing tests can run without SQL
 
 Focused runs are iteration feedback. The full `verify.ps1` and `smoke-container.ps1` delivery gates
 above remain required; use `verify.ps1 -SkipDependencyInstall` when npm dependencies are unchanged.
-See the [local test iteration design](docs/specs/2026-09-08-local-test-iteration.md) for database
-template isolation, measurement results, and the cold-start tradeoff.
+See [database setup](tests/README.md#database-setup) for independent template restores and explicit
+migration drills, and [timing-data refresh](tests/README.md#refresh-server-timing-data) for trusted
+partition measurements. Template setup remains part of process time, even for a focused SQL run.
 
 ## Before proposing a change
 
@@ -176,10 +180,11 @@ Run the browser isolation, synthetic capture/privacy, and deliberate-failure con
 installing browser npm dependencies and Chromium:
 
 ```powershell
-node --test tests/Workbench.BrowserTests/safe-diagnostics.test.mjs `
+node --test --test-timeout=30000 tests/Workbench.BrowserTests/safe-diagnostics.test.mjs `
   tests/Workbench.BrowserTests/browser-isolation.test.mjs `
   tests/Workbench.BrowserTests/browser-isolation-wiring.test.mjs `
-  tests/Workbench.BrowserTests/diagnostic-budget.test.mjs
+  tests/Workbench.BrowserTests/diagnostic-budget.test.mjs `
+  tests/Workbench.BrowserTests/browser-time-budget.test.mjs
 ```
 
 The deliberate-failure cleanup check also requires PowerShell and Docker; it starts no

@@ -13,8 +13,9 @@ namespace Workbench.Server.IntegrationTests;
 public sealed class SessionCookieConfigurationTests
 {
     [Fact]
-    public void CookieTicketContainsOnlyOpaqueTokenAndFormatVersion()
+    public async Task CookieTicketContainsOnlyOpaqueTokenAndFormatVersion()
     {
+        await Task.Yield();
         // GIVEN an opaque session token WHEN its cookie principal is constructed.
         var principal = SessionCookieHandler.CreateCookiePrincipal("opaque-random-token");
 

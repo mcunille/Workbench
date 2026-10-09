@@ -9,8 +9,9 @@ public sealed class AccountingInputTests
     private static AccountingConfiguration Empty => new(new(null, null, null, null, null, null, null, null, null, null), [], []);
 
     [Fact]
-    public void ReceiptAccrualIsASupportedOptionalMapping()
+    public async Task ReceiptAccrualIsASupportedOptionalMapping()
     {
+        await Task.Yield();
         // GIVEN an incomplete setup with a receipt-accrual assignment.
         var configuration = Empty with { Mappings = [new AccountingMapping("GoodsReceivedNotInvoiced", Guid.NewGuid())] };
         // WHEN validating the fixed catalog THEN the new slot is accepted without requiring all slots.
@@ -20,8 +21,9 @@ public sealed class AccountingInputTests
     }
 
     [Fact]
-    public void RecognitionAssetMappingsUseDistinctAccounts()
+    public async Task RecognitionAssetMappingsUseDistinctAccounts()
     {
+        await Task.Yield();
         // GIVEN inventory and prepayment assigned to the same asset account.
         var account = Guid.NewGuid();
         var configuration = Empty with { Mappings = [new AccountingMapping("Inventory", account), new AccountingMapping("Prepayment", account)] };
@@ -30,8 +32,9 @@ public sealed class AccountingInputTests
     }
 
     [Fact]
-    public void IncompleteConfigurationIsAllowedButMalformedValuesAreRejected()
+    public async Task IncompleteConfigurationIsAllowedButMalformedValuesAreRejected()
     {
+        await Task.Yield();
         // GIVEN a resumable setup with no policies chosen.
         var configuration = Empty;
         Assert.Empty(AccountingInput.Validate(configuration));
@@ -57,8 +60,9 @@ public sealed class AccountingInputTests
     [InlineData("Equity", "General", true)]
     [InlineData("Income", "General", true)]
     [InlineData("Unknown", "General", false)]
-    public void AccountPurposeRequiresItsFinancialType(string type, string purpose, bool valid)
+    public async Task AccountPurposeRequiresItsFinancialType(string type, string purpose, bool valid)
     {
+        await Task.Yield();
         // GIVEN a general business account, independent of business activity.
         var accounts = new[] { new AccountingAccountContent("100", "Account", type, purpose, null) };
         // WHEN checking financial eligibility THEN incompatible type/purpose pairs fail.
@@ -66,8 +70,9 @@ public sealed class AccountingInputTests
     }
 
     [Fact]
-    public void DuplicateCodesAndBlankAccountsCannotEnterAChart()
+    public async Task DuplicateCodesAndBlankAccountsCannotEnterAChart()
     {
+        await Task.Yield();
         // GIVEN a starter chart with codes differing only by letter case.
         var accounts = new[] { new AccountingAccountContent("cash", "Cash", "Asset", "Cash", null),
             new AccountingAccountContent("CASH", "", "Asset", "General", null) };
@@ -77,8 +82,9 @@ public sealed class AccountingInputTests
     }
 
     [Fact]
-    public void CoverageRequiresTruthfulEvidenceAndDistinctReferences()
+    public async Task CoverageRequiresTruthfulEvidenceAndDistinctReferences()
     {
+        await Task.Yield();
         // GIVEN coverage that claims a statement without dates and repeats an account.
         var coverage = new AccountingCoverage(Guid.NewGuid(), true, null, "Statement", null, null, null, null, true, []);
         var configuration = Empty with { Coverage = [coverage, coverage] };
@@ -94,8 +100,9 @@ public sealed class AccountingInputTests
     }
 
     [Fact]
-    public void CompleteSetupStillReportsEveryUnsupportedClassAndNeverActivatesBooks()
+    public async Task CompleteSetupStillReportsEveryUnsupportedClassAndNeverActivatesBooks()
     {
+        await Task.Yield();
         // GIVEN policies, all four controls and a fully attested funding-account inventory.
         var controls = AccountingCatalog.Slots.Take(4).Select((slot, index) => new AccountingAccountResponse(Guid.NewGuid(), $"2{index}", slot,
             AccountingCatalog.RequiredType(slot)!, slot, null, false, Guid.NewGuid().ToString("D"))).ToArray();

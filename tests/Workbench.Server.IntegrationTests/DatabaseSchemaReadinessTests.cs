@@ -12,20 +12,11 @@ public sealed class DatabaseSchemaReadinessTests(SqlServerFixture sqlServer)
 {
     [Theory]
     [InlineData("AddBlobAndOperationalProviders")]
-    [InlineData("AddDeploymentQueueTelemetry")]
-    [InlineData("DeferInvitationIdentityClaim")]
-    [InlineData("AddProviderRetryDelay")]
-    [InlineData("AddAcquisitionDocuments")]
-    [InlineData("AddDraftSupplierOrders")]
-    [InlineData("AddSupplierIdentityAndPurchaseReferences")]
-    [InlineData("AddSupplierBasedDraftPricing")]
-    [InlineData("ConsolidateBetaDraftCommands")]
-    [InlineData("AddPurchaseOrderCommitment")]
-    [InlineData("AddPurchaseOrderDocuments")]
-    [InlineData("20260928034802_AddSupplierBills")]
+    [InlineData("20260928071548_AddSupplierOpenItems")]
     public async Task PriorReleaseSchemaIsUnreadyUntilDeploymentMigrationIsApplied(string priorMigration)
     {
-        // GIVEN a prior release schema lacks one of this release's required worker or identity capabilities.
+        // GIVEN an early schema or the immediate predecessor of the current release.
+        // ReadinessAuthorityTests independently probes required authorities from a healthy baseline.
         await using var prior = await AuthTestApplication.CreateAsync(sqlServer, priorMigration: priorMigration);
         using var client = prior.CreateClient();
         // WHEN the current application probes that older schema.

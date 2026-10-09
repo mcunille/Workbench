@@ -134,6 +134,12 @@ public static class PasswordPrincipalProvisioning
                                     (N'workbench_web', N'[Purchasing].[ReadSupplierBillHistory]', N'EXECUTE'),
                                     (N'workbench_web', N'[Purchasing].[SupplierOpenItems]', N'SELECT'),
                                     (N'workbench_web', N'[Purchasing].[SupplierItemControl]', N'SELECT'),
+                                    (N'workbench_web', N'[Gemology].[Entries]', N'SELECT'),
+                                    (N'workbench_web', N'[Gemology].[Aliases]', N'SELECT'),
+                                    (N'workbench_web', N'[Gemology].[SourceAssertions]', N'SELECT'),
+                                    (N'workbench_web', N'[Gemology].[LocalityAssertions]', N'SELECT'),
+                                    (N'workbench_web', N'[Gemology].[TenantEntries]', N'SELECT'),
+                                    (N'workbench_web', N'[Gemology].[TenantOverrides]', N'SELECT'),
                                     (N'workbench_web', N'[Purchasing].[SupplierPaymentControl]', N'SELECT'),
                                     (N'workbench_web', N'[Purchasing].[SupplierReportBillIdentity]', N'SELECT'),
                                     (N'workbench_web', N'[Purchasing].[SupplierItemMovements]', N'SELECT'),
@@ -237,7 +243,24 @@ public static class PasswordPrincipalProvisioning
                                     (N'workbench_web', N'[Security].[ReadOperationalReadiness]', N'EXECUTE'),
                                     (N'workbench_web', N'[Security].[fn_tenant_access]', N'SELECT'),
                                     (N'workbench_operator', N'[Administration].[ProvisionTenant]', N'EXECUTE'),
-                                    (N'workbench_operator', N'[Administration].[SanitizeRestore]', N'EXECUTE')
+                                    (N'workbench_operator', N'[Administration].[SanitizeRestore]', N'EXECUTE'),
+                                    (N'workbench_operator', N'[Administration].[ProvisionServiceAdmin]', N'EXECUTE'),
+                                    (N'workbench_operator', N'[Administration].[DisableServiceAdmin]', N'EXECUTE'),
+                                    (N'workbench_operator', N'[Administration].[ResetServiceAdminPassword]', N'EXECUTE'),
+                                    (N'workbench_operator', N'[Administration].[RevokeServiceAdminSessions]', N'EXECUTE'),
+                                    (N'workbench_web', N'[ServiceAdministration].[FindAccountForLogin]', N'EXECUTE'),
+                                    (N'workbench_web', N'[ServiceAdministration].[CreateSession]', N'EXECUTE'),
+                                    (N'workbench_web', N'[ServiceAdministration].[ResolveSession]', N'EXECUTE'),
+                                    (N'workbench_web', N'[ServiceAdministration].[RevokeSession]', N'EXECUTE'),
+                                    (N'workbench_web', N'[Gemology].[ReadDrafts]', N'EXECUTE'),
+                                    (N'workbench_web', N'[Gemology].[ReadDraft]', N'EXECUTE'),
+                                    (N'workbench_web', N'[Gemology].[SaveDraft]', N'EXECUTE'),
+                                    (N'workbench_web', N'[Gemology].[ReadPublication]', N'EXECUTE'),
+                                    (N'workbench_web', N'[Gemology].[ReadPublicationAudit]', N'EXECUTE'),
+                                    (N'workbench_web', N'[Gemology].[PublishDraftBatch]', N'EXECUTE'),
+                                    (N'workbench_web', N'[Gemology].[SaveTenantEntry]', N'EXECUTE'),
+                                    (N'workbench_web', N'[Gemology].[SetTenantEntryArchive]', N'EXECUTE'),
+                                    (N'workbench_web', N'[Gemology].[SaveTenantOverrides]', N'EXECUTE')
                                 ) AS allowed(RoleName, ObjectName, PermissionNames)
                                 CROSS APPLY STRING_SPLIT(allowed.PermissionNames, ',') AS allowedPermission
                                 WHERE DATABASE_PRINCIPAL_ID(allowed.RoleName)=permission.grantee_principal_id

@@ -10,12 +10,32 @@ namespace Workbench.Server.IntegrationTests.Infrastructure;
 
 public sealed class SqlServerFixture : IAsyncLifetime
 {
-    private readonly Lazy<Task<SchemaTemplate>> _schemaTemplate;
+    private readonly Lazy<Task<SqlDatabaseTemplate>> _schemaTemplate;
+    private readonly System.Collections.Concurrent.ConcurrentDictionary<string, Lazy<Task<SupplierScenarioFixture.Scenario>>> _supplierScenarios = new();
+    private readonly SemaphoreSlim _supplierPreparation = new(1);
+    private SupplierScenarioFixture.Scenario? _supplierBase;
     private readonly MsSqlContainer _container = new MsSqlBuilder(
         "mcr.microsoft.com/mssql/server:2022-CU20-ubuntu-22.04")
         .Build();
 
-    public SqlServerFixture() => _schemaTemplate = new(CreateSchemaTemplateAsync);
+    public SqlServerFixture()
+    {
+        _schemaTemplate = new(CreateSchemaTemplateAsync);
+    }
+
+    internal Task<SupplierScenarioFixture.Scenario> GetSupplierScenarioAsync(string name)
+        => _supplierScenarios.GetOrAdd(name, scenario => new(() => PrepareSupplierScenarioAsync(scenario))).Value;
+
+    private async Task<SupplierScenarioFixture.Scenario> PrepareSupplierScenarioAsync(string name)
+    {
+        await _supplierPreparation.WaitAsync();
+        try
+        {
+            _supplierBase ??= await SupplierScenarioFixture.CreateAsync(this, null);
+            return await SupplierScenarioFixture.CreateAsync(this, name, _supplierBase);
+        }
+        finally { _supplierPreparation.Release(); }
+    }
 
     public async Task InitializeAsync()
     {
@@ -30,6 +50,9 @@ public sealed class SqlServerFixture : IAsyncLifetime
             RECONFIGURE;
             """, connection);
         await command.ExecuteNonQueryAsync();
+        // Prepare the shared, unseeded current schema during fixture startup, before case deadlines.
+        // Explicit fresh/upgrade drills still create their own databases and run their own migrations.
+        await _schemaTemplate.Value;
     }
 
     public Task DisposeAsync() => _container.DisposeAsync().AsTask();
@@ -55,6 +78,11 @@ public sealed class SqlServerFixture : IAsyncLifetime
         }
 
         var template = await _schemaTemplate.Value;
+        return await RestoreTemplateAsync(template);
+    }
+
+    internal async Task<SqlTestDatabase> RestoreTemplateAsync(SqlDatabaseTemplate template)
+    {
         var name = $"workbench_test_{Guid.NewGuid():N}";
         var master = new SqlConnectionStringBuilder(_container.GetConnectionString()) { InitialCatalog = "master" };
         var database = new SqlTestDatabase(name, master.ConnectionString,
@@ -73,8 +101,8 @@ public sealed class SqlServerFixture : IAsyncLifetime
             restore.Parameters.AddWithValue("@dataPath", $"/var/opt/mssql/data/{name}.mdf");
             restore.Parameters.AddWithValue("@logPath", $"/var/opt/mssql/data/{name}_log.ldf");
             await restore.ExecuteNonQueryAsync();
-            // The migrated template has no users or application data. Each clone also
-            // needs its own tenant proof key before any credentials or host are created.
+            // Both unseeded schema and prepared-history clones need their own proof
+            // key before fresh credentials, sessions or hosts are created.
             await using var rekey = new SqlCommand($"UPDATE [{name}].[Security].[TenantContextKeys] SET [ProofKey] = CRYPT_GEN_RANDOM(32) WHERE [Id] = 1", connection);
             if (await rekey.ExecuteNonQueryAsync() != 1)
                 throw new InvalidOperationException("The restored test database has no tenant proof key.");
@@ -87,13 +115,18 @@ public sealed class SqlServerFixture : IAsyncLifetime
         }
     }
 
-    private async Task<SchemaTemplate> CreateSchemaTemplateAsync()
+    private async Task<SqlDatabaseTemplate> CreateSchemaTemplateAsync()
     {
         await using var database = await CreateDatabaseAsync();
         await DatabaseMigrator.MigrateAsync(database.AdminConnectionString, default);
-        var name = new SqlConnectionStringBuilder(database.AdminConnectionString).InitialCatalog;
+        return await CaptureTemplateAsync(database.AdminConnectionString);
+    }
+
+    internal async Task<SqlDatabaseTemplate> CaptureTemplateAsync(string connectionString)
+    {
+        var name = new SqlConnectionStringBuilder(connectionString).InitialCatalog;
         var backupPath = $"/var/opt/mssql/data/{name}.bak";
-        await using var connection = new SqlConnection(database.AdminConnectionString);
+        await using var connection = new SqlConnection(connectionString);
         await connection.OpenAsync();
         string dataName;
         string logName;
@@ -110,10 +143,10 @@ public sealed class SqlServerFixture : IAsyncLifetime
         backup.Parameters.AddWithValue("@path", backupPath);
         await backup.ExecuteNonQueryAsync();
         // Backup storage is inside this fixture's disposable container, never shared across runs.
-        return new SchemaTemplate(backupPath, dataName, logName);
+        return new SqlDatabaseTemplate(backupPath, dataName, logName);
     }
 
-    private sealed record SchemaTemplate(string BackupPath, string DataName, string LogName);
+    internal sealed record SqlDatabaseTemplate(string BackupPath, string DataName, string LogName);
 
     public async Task<SqlTestDatabase> CreateDatabaseAsync()
     {

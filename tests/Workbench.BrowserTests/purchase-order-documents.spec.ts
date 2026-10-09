@@ -8,7 +8,6 @@ import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { randomUUID } from 'node:crypto';
 
-test.setTimeout(180_000);
 const runFile = promisify(execFile);
 
 async function seedFinancialEvidence(mode: 'add' | 'expire', orderId: string, documentId: string, actorId: string) {

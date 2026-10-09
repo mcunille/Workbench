@@ -9,8 +9,9 @@ namespace Workbench.Server.IntegrationTests;
 public sealed class OperationalConfigurationTests
 {
     [Fact]
-    public void MessageDeliveryCannotOverrideTheInstallationOrigin()
+    public async Task MessageDeliveryCannotOverrideTheInstallationOrigin()
     {
+        await Task.Yield();
         // GIVEN worker configuration with conflicting URL authorities.
         var configuration = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
         {
@@ -47,8 +48,9 @@ public sealed class OperationalConfigurationTests
     [InlineData("")]
     [InlineData("not-a-uuid")]
     [InlineData("00000000-0000-0000-0000-000000000000")]
-    public void FilesystemCannotStartOrCreateAProviderWithoutAnInstallationId(string? installation)
+    public async Task FilesystemCannotStartOrCreateAProviderWithoutAnInstallationId(string? installation)
     {
+        await Task.Yield();
         // GIVEN a durable filesystem root but no usable installation identity.
         var configuration = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
         {
@@ -65,8 +67,9 @@ public sealed class OperationalConfigurationTests
     }
 
     [Fact]
-    public void ChangingTheStorageLocationCannotReuseItsDurableAlias()
+    public async Task ChangingTheStorageLocationCannotReuseItsDurableAlias()
     {
+        await Task.Yield();
         // GIVEN two filesystem configurations with different physical roots.
         var first = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
         {
@@ -86,16 +89,18 @@ public sealed class OperationalConfigurationTests
     }
 
     [Fact]
-    public void ProductionCannotUseUnconfiguredStorage()
+    public async Task ProductionCannotUseUnconfiguredStorage()
     {
+        await Task.Yield();
         // GIVEN no selected durable provider, WHEN production configuration is checked,
         // THEN startup fails closed.
         Assert.Throws<InvalidOperationException>(() => OperationalConfiguration.Validate(new ConfigurationBuilder().Build(), development: false));
     }
 
     [Fact]
-    public void MultipleReplicasCannotUseAnUnsharedFilesystem()
+    public async Task MultipleReplicasCannotUseAnUnsharedFilesystem()
     {
+        await Task.Yield();
         // GIVEN two replicas configured with a private local volume.
         var configuration = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
         {

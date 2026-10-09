@@ -13,7 +13,7 @@ using Xunit;
 namespace Workbench.Server.IntegrationTests;
 
 [Collection(SqlServerCollection.Name)]
-public sealed class SupplierReconciliationTests(SqlServerFixture sqlServer)
+public sealed class SupplierReconciliationTests(SqlServerFixture sqlServer, SupplierReconciliationScenarios scenarios) : IClassFixture<SupplierReconciliationScenarios>
 {
     [Fact]
     public async Task CapturedReportReleasesAccountingBeforeResponseProcessing()
@@ -165,18 +165,10 @@ public sealed class SupplierReconciliationTests(SqlServerFixture sqlServer)
     public async Task MixedPaymentCorrectionAndCompensationKeepTheirExactOwners()
     {
         // GIVEN embedded and standalone applications, plus a retained embedded unapplication.
-        await using var context = await SupplierCorrectionFixture.OpenAsync(sqlServer);
-        var bill = await context.Allocation.BillAsync("150");
-        var payment = await context.CommandAsync("120"); await context.AllocateAsync(payment, bill, "60");
-        var posted = await context.RecordAsync(payment); var id = Guid.Parse(payment["paymentId"]!.ToString());
-        await context.Allocation.ApplyAsync(await context.Allocation.CommandAsync(id, bill, "30"));
-        var embedded = Guid.Parse(posted["applicationIds"]![0]!.ToString());
-        await context.Bills.ExecuteAsync("ReverseSupplierApplication", Guid.NewGuid(), await SupplierCorrectionFixture.ReverseAsync(context, embedded));
-        Assert.True((await Read(context)).IsComplete);
-        var before = await context.Bills.ScalarAsync<DateTimeOffset>("SELECT SYSDATETIMEOFFSET()");
-        var replacement = await context.CommandAsync("80", "2026-09-20"); await context.AllocateAsync(replacement, bill, "50");
-        // WHEN the mixed correction records original inverse, standalone inverse, compensation, and replacement.
-        await context.Bills.ExecuteAsync("CorrectSupplierPayment", Guid.NewGuid(), await SupplierCorrectionFixture.CorrectionAsync(context, id, replacement));
+        await using var prepared = await scenarios.OpenAsync("mixed");
+        var context = prepared.Context;
+        var before = DateTimeOffset.Parse(prepared.Data["before"]!.ToString());
+        // WHEN reading the genuine mixed correction's inverse, compensation and replacement history.
         var current = await Read(context);
         // THEN each whole-group owner reconciles and earlier recorded history remains unchanged.
         Assert.True(current.IsComplete, System.Text.Json.JsonSerializer.Serialize(current));
@@ -187,63 +179,49 @@ public sealed class SupplierReconciliationTests(SqlServerFixture sqlServer)
     }
 
     [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public async Task ApplicationAndReversalSourceIdentitiesCannotDetach(bool reapply)
+    [InlineData(false, "application")]
+    [InlineData(false, "reversal")]
+    [InlineData(true, "application")]
+    [InlineData(true, "reapplication")]
+    [InlineData(true, "reversal")]
+    public async Task ApplicationAndReversalSourceIdentitiesCannotDetach(bool reapply, string role)
     {
         // GIVEN authentic standalone allocation and reversal, optionally with reapplication in the reversal group.
-        await using var context = await SupplierCorrectionFixture.OpenAsync(sqlServer);
-        var bill = await context.Allocation.BillAsync("100");
-        var payment = await context.CommandAsync(); await context.RecordAsync(payment);
-        var funding = Guid.Parse(payment["paymentId"]!.ToString());
-        var applied = await context.Allocation.ApplyAsync(await context.Allocation.CommandAsync(funding, bill, "60"));
-        var application = Guid.Parse(applied["applicationIds"]![0]!.ToString());
-        var reverse = await SupplierCorrectionFixture.ReverseAsync(context, application);
-        if (reapply)
-        {
-            var retain = await context.Allocation.CommandAsync(funding, bill, "40", "2026-09-20");
-            reverse["reapplications"] = new JsonArray(new JsonObject
-            {
-                ["fundingItemId"] = funding.ToString(),
-                ["expectedFundingItemVersion"] = retain["expectedFundingItemVersion"]!.DeepClone(),
-                ["billId"] = bill.ToString(),
-                ["itemId"] = bill.ToString(),
-                ["expectedItemVersion"] = retain["targets"]![0]!["expectedItemVersion"]!.DeepClone(),
-                ["amount"] = "40"
-            });
-        }
-        await context.Bills.ExecuteAsync("ReverseSupplierApplication", Guid.NewGuid(), reverse);
+        await using var prepared = await scenarios.OpenAsync(reapply ? "sourcesTrue" : "sourcesFalse");
+        var context = prepared.Context;
         var valid = await Read(context); Assert.True(valid.IsComplete);
         var sources = JsonNode.Parse(await context.Bills.ScalarAsync<string>("""
             SELECT Id,SourceId,SourceKind,EventKind,SourceRevision,PostingDate,RecordedAtUtc FROM Accounting.SourceEvents
             WHERE SourceKind IN('SupplierApplication','SupplierApplicationReversal') ORDER BY SourceKind,Id FOR JSON PATH
             """))!.AsArray();
         Assert.Equal(reapply ? 3 : 2, sources.Count);
-        foreach (var source in sources)
+        var selected = sources.Single(source => role == "reversal"
+            ? source!["SourceKind"]!.ToString() == "SupplierApplicationReversal"
+            : source!["SourceKind"]!.ToString() == "SupplierApplication" &&
+                (source["SourceId"]!.ToString() == prepared.Data["application"]!.ToString()) == (role == "application"));
+        var source = selected!;
+        var table = source!["SourceKind"]!.ToString() == "SupplierApplication" ? "SupplierApplications" : "SupplierApplicationReversals";
+        var sourceWhere = $"WHERE Id='{source["Id"]}'";
+        var ownerWhere = $"WHERE Id='{source["SourceId"]}'";
+        var faults = new[]
         {
-            var table = source!["SourceKind"]!.ToString() == "SupplierApplication" ? "SupplierApplications" : "SupplierApplicationReversals";
-            var sourceWhere = $"WHERE Id='{source["Id"]}'";
-            var ownerWhere = $"WHERE Id='{source["SourceId"]}'";
-            var faults = new[]
-            {
-                ("Accounting.SourceEvents", "SourceRevision", "NEWID()", source["SourceRevision"]!.ToString(), sourceWhere),
-                ("Accounting.SourceEvents", "SourceKind", "'PurchaseRecognition'", source["SourceKind"]!.ToString(), sourceWhere),
-                ("Accounting.SourceEvents", "EventKind", "'Invoice'", source["EventKind"]!.ToString(), sourceWhere),
-                ($"Purchasing.{table}", "PostingDate", "DATEADD(day,1,PostingDate)", source["PostingDate"]!.ToString(), ownerWhere),
-                ($"Purchasing.{table}", "RecordedAtUtc", "DATEADD(second,-1,RecordedAtUtc)", source["RecordedAtUtc"]!.ToString(), ownerWhere)
-            };
-            foreach (var (faultTable, column, changed, original, where) in faults)
-            {
-                // WHEN exactly one source or owner identity changes while all journal/item arithmetic remains intact.
-                await context.Bills.AdminAsync($"UPDATE {faultTable} SET {column}={changed} {where}");
-                var corrupt = await Read(context);
-                // THEN invalid-source readback identifies the detached evidence, even inside a composed group.
-                Assert.False(corrupt.IsComplete, $"Accepted detached {source["SourceKind"]}.{column} (reapply={reapply})");
-                Assert.Contains(corrupt.Controls.Items, c => c.InvalidSourceEvidenceCount > 0);
-                Assert.Equal(Pair(valid), Pair(corrupt));
-                await context.Bills.AdminAsync($"UPDATE {faultTable} SET {column}='{original}' {where}");
-                Assert.True((await Read(context)).IsComplete);
-            }
+            ("Accounting.SourceEvents", "SourceRevision", "NEWID()", source["SourceRevision"]!.ToString(), sourceWhere),
+            ("Accounting.SourceEvents", "SourceKind", "'PurchaseRecognition'", source["SourceKind"]!.ToString(), sourceWhere),
+            ("Accounting.SourceEvents", "EventKind", "'Invoice'", source["EventKind"]!.ToString(), sourceWhere),
+            ($"Purchasing.{table}", "PostingDate", "DATEADD(day,1,PostingDate)", source["PostingDate"]!.ToString(), ownerWhere),
+            ($"Purchasing.{table}", "RecordedAtUtc", "DATEADD(second,-1,RecordedAtUtc)", source["RecordedAtUtc"]!.ToString(), ownerWhere)
+        };
+        foreach (var (faultTable, column, changed, original, where) in faults)
+        {
+            // WHEN exactly one source or owner identity changes while all journal/item arithmetic remains intact.
+            await context.Bills.AdminAsync($"UPDATE {faultTable} SET {column}={changed} {where}");
+            var corrupt = await Read(context);
+            // THEN invalid-source readback identifies the detached evidence, even inside a composed group.
+            Assert.False(corrupt.IsComplete, $"Accepted detached {source["SourceKind"]}.{column} (reapply={reapply})");
+            Assert.Contains(corrupt.Controls.Items, c => c.InvalidSourceEvidenceCount > 0);
+            Assert.Equal(Pair(valid), Pair(corrupt));
+            await context.Bills.AdminAsync($"UPDATE {faultTable} SET {column}='{original}' {where}");
+            Assert.True((await Read(context)).IsComplete);
         }
     }
 
@@ -251,17 +229,10 @@ public sealed class SupplierReconciliationTests(SqlServerFixture sqlServer)
     public async Task CompensationCannotOwnAStandaloneUnapplySharingItsPayment()
     {
         // GIVEN equal embedded and standalone applications sharing the same payment, bill and historical controls.
-        await using var context = await SupplierCorrectionFixture.OpenAsync(sqlServer);
-        var bill = await context.Allocation.BillAsync("150");
-        var payment = await context.CommandAsync("120"); await context.AllocateAsync(payment, bill, "60");
-        var posted = await context.RecordAsync(payment); var funding = Guid.Parse(payment["paymentId"]!.ToString());
-        var applied = await context.Allocation.ApplyAsync(await context.Allocation.CommandAsync(funding, bill, "60"));
-        var embedded = Guid.Parse(posted["applicationIds"]![0]!.ToString());
-        var standalone = Guid.Parse(applied["applicationIds"]![0]!.ToString());
-        await context.Bills.ExecuteAsync("ReverseSupplierApplication", Guid.NewGuid(), await SupplierCorrectionFixture.ReverseAsync(context, embedded));
-        await context.Bills.ExecuteAsync("ReverseSupplierApplication", Guid.NewGuid(), await SupplierCorrectionFixture.ReverseAsync(context, standalone));
-        Assert.True((await Read(context)).IsComplete);
-        await context.Bills.ExecuteAsync("CorrectSupplierPayment", Guid.NewGuid(), await SupplierCorrectionFixture.CorrectionAsync(context, funding));
+        await using var prepared = await scenarios.OpenAsync("compensation");
+        var context = prepared.Context;
+        var embedded = Guid.Parse(prepared.Data["embedded"]!.ToString());
+        var standalone = Guid.Parse(prepared.Data["standalone"]!.ToString());
         var valid = await Read(context); Assert.True(valid.IsComplete);
         Assert.Equal(("0.00", "150.00"), Pair(valid));
         // WHEN a privileged fault redirects the valid embedded compensation to the standalone unapply's exact source/journal.
@@ -312,18 +283,14 @@ public sealed class SupplierReconciliationTests(SqlServerFixture sqlServer)
         }
     }
 
-
     [Fact]
     public async Task EqualValuedCorrectionLinesCannotExchangeItemOwnership()
     {
         // GIVEN two equal bills settled by a fully allocated payment and then corrected.
-        await using var context = await SupplierCorrectionFixture.OpenAsync(sqlServer);
-        var first = await context.Allocation.BillAsync("60");
-        await context.Bills.AdminAsync("UPDATE Accounting.Accounts SET Version=NEWID(),Name='Later payable snapshot' WHERE Purpose='SupplierPayable'");
-        var second = await context.Allocation.BillAsync("60");
-        var payment = await context.CommandAsync("120"); await context.AllocateAsync(payment, first, "60"); await context.AllocateAsync(payment, second, "60");
-        await context.RecordAsync(payment);
-        await context.Bills.ExecuteAsync("CorrectSupplierPayment", Guid.NewGuid(), await SupplierCorrectionFixture.CorrectionAsync(context, Guid.Parse(payment["paymentId"]!.ToString())));
+        await using var prepared = await scenarios.OpenAsync("equalLines");
+        var context = prepared.Context;
+        var first = Guid.Parse(prepared.Data["first"]!.ToString());
+        var second = Guid.Parse(prepared.Data["second"]!.ToString());
         Assert.True((await Read(context)).IsComplete);
         // WHEN equal-valued debt movement ownership is exchanged across distinct inverse lines.
         await context.Bills.AdminAsync($"""
@@ -359,7 +326,6 @@ public sealed class SupplierReconciliationTests(SqlServerFixture sqlServer)
         await using var sql = new Microsoft.Data.SqlClient.SqlCommand($"SELECT COUNT(*) FROM Purchasing.SupplierReportBillIdentity('{JournalTestContext.TenantId}','{bill}')", other);
         Assert.Equal(0, (int)(await sql.ExecuteScalarAsync())!);
     }
-
 
     [Fact]
     public async Task UnassignedLegacyRecognitionRequiresItsStoredSourceIdentity()

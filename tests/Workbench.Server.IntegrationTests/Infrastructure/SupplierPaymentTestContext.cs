@@ -9,6 +9,25 @@ internal sealed class SupplierPaymentTestContext(SupplierAllocationTestContext a
     public SupplierBillTestContext Bills => Allocation.Bills;
     public Guid Bank { get; private set; }
     public Guid Advance { get; private set; }
+
+    internal static async Task<SupplierPaymentTestContext> RestoreAsync(SqlTestDatabase database, SupplierContextState state)
+    {
+        var application = await AuthTestApplication.CreateFromDatabaseAsync(database);
+        JournalTestContext? journal = null;
+        try
+        {
+            journal = await JournalTestContext.OpenRestoredAsync(application, state.ConfigurationVersion);
+            var recognition = PurchaseRecognitionTestContext.Restore(journal, state);
+            var allocation = new SupplierAllocationTestContext(new SupplierOpenItemTestContext(new SupplierBillTestContext(recognition)));
+            return new SupplierPaymentTestContext(allocation) { Bank = state.Bank, Advance = state.Advance };
+        }
+        catch
+        {
+            if (journal is not null) await journal.Connection.DisposeAsync();
+            await application.DisposeAsync();
+            throw;
+        }
+    }
     public static async Task<SupplierPaymentTestContext> OpenAsync(SqlServerFixture fixture, string? priorMigration = null)
     {
         var result = new SupplierPaymentTestContext(await SupplierAllocationTestContext.OpenAsync(fixture, priorMigration));

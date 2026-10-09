@@ -15,6 +15,36 @@ namespace Workbench.Server.IntegrationTests;
 public sealed class DatabasePermissionTests(SqlServerFixture sqlServer)
 {
     [Fact]
+    public async Task ServiceAdminAuthorityIsLimitedToNamedCommands()
+    {
+        // GIVEN the actual web, worker and operator database principals.
+        await using var database = await sqlServer.CreateMigratedDatabaseAsync();
+        var web = await database.CreateWebUserAsync();
+        var worker = await database.CreateRoleUserAsync("workbench_worker");
+        var op = await database.CreateRoleUserAsync("workbench_operator");
+        await ServiceAdminIdentityDatabaseTests.ProvisionAsync(op, Guid.NewGuid());
+        // WHEN principals attempt direct table access, THEN SQL denies all four operations.
+        foreach (var principal in new[] { web, worker, op })
+            foreach (var table in new[] { "Accounts", "Sessions" })
+                foreach (var query in new[] { $"SELECT * FROM ServiceAdministration.{table}", $"INSERT ServiceAdministration.{table} DEFAULT VALUES", $"UPDATE ServiceAdministration.{table} SET Id=NEWID() WHERE 1=0", $"DELETE ServiceAdministration.{table} WHERE 1=0" })
+                    await AssertDeniedAsync(principal, query, 229);
+        // AND web/worker cannot invoke operator commands; worker/operator cannot invoke authentication commands.
+        foreach (var principal in new[] { web, worker })
+            foreach (var command in new[] { "ProvisionServiceAdmin", "DisableServiceAdmin", "ResetServiceAdminPassword", "RevokeServiceAdminSessions" })
+                await AssertDeniedAsync(principal, $"EXEC Administration.{command}", 229);
+        foreach (var principal in new[] { worker, op })
+            foreach (var command in new[] { "FindAccountForLogin", "CreateSession", "ResolveSession", "RevokeSession" })
+                await AssertDeniedAsync(principal, $"EXEC ServiceAdministration.{command}", 229);
+        // AND credential lookup exposes only the candidate; it neither includes tenant context nor extra results.
+        await using var connection = new SqlConnection(web); await connection.OpenAsync();
+        await using var lookup = new SqlCommand("EXEC ServiceAdministration.FindAccountForLogin @NormalizedEmail=N'ADMIN@EXAMPLE.COM'", connection);
+        await using var reader = await lookup.ExecuteReaderAsync();
+        Assert.True(await reader.ReadAsync());
+        Assert.Equal(new[] { "Id", "Email", "NormalizedEmail", "PasswordHash", "IsEnabled", "SecurityVersion", "CreatedAtUtc" }, Enumerable.Range(0, reader.FieldCount).Select(reader.GetName));
+        Assert.False(await reader.ReadAsync()); Assert.False(await reader.NextResultAsync());
+    }
+
+    [Fact]
     public async Task ProofProtectedProceduresFailClosedWhenTheProofKeyIsMissing()
     {
         await using var database = await sqlServer.CreateDatabaseAsync();

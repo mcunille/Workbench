@@ -20,13 +20,13 @@ public sealed class SupplierBillDraftTests(SqlServerFixture sqlServer)
         var original = await context.SaveAsync(Guid.NewGuid(), draft);
         if (reviewed) original = await context.ReviewAsync(Guid.NewGuid(), context.ReviewCommand(original));
         var id = Guid.Parse(original["billId"]!.ToString());
-        var before = await SupplierBillQueryTests.ReadAsync(context, "ReadSupplierBill", ("@BillId", id));
+        var before = await context.ReadAsync("ReadSupplierBill", ("@BillId", id));
         var invoice = context.CompleteDraft();
         // WHEN an actual invoice is submitted as a revision of that pro forma.
         var conversion = context.Change(original, "Revise", invoice["revision"]!.AsObject());
         // THEN conversion rejects without changing the source, review pointer or command history.
         Assert.Equal(51009, (await Assert.ThrowsAsync<SqlException>(() => context.SaveAsync(Guid.NewGuid(), conversion))).Number);
-        Assert.Equal(before.ToJsonString(), (await SupplierBillQueryTests.ReadAsync(context, "ReadSupplierBill", ("@BillId", id))).ToJsonString());
+        Assert.Equal(before.ToJsonString(), (await context.ReadAsync("ReadSupplierBill", ("@BillId", id))).ToJsonString());
         Assert.Equal(1, await context.ScalarAsync<int>("SELECT COUNT(*) FROM Purchasing.SupplierBillRevisions"));
         Assert.Equal(reviewed ? 2 : 1, await context.ScalarAsync<int>("SELECT COUNT(*) FROM Purchasing.SupplierBillReceipts"));
         // AND ordinary pro forma editing still works, while a new invoice explicitly resolves its predecessor's duplicate.
@@ -44,7 +44,7 @@ public sealed class SupplierBillDraftTests(SqlServerFixture sqlServer)
         });
         actual = await context.ReviewAsync(Guid.NewGuid(), review);
         Assert.Equal("Posted", (await context.ExecuteAsync("PostSupplierBill", Guid.NewGuid(), context.PostCommand(actual)))["state"]!.ToString());
-        var retained = await SupplierBillQueryTests.ReadAsync(context, "ReadSupplierBill", ("@BillId", id));
+        var retained = await context.ReadAsync("ReadSupplierBill", ("@BillId", id));
         Assert.Equal("ProForma", retained["revision"]!["kind"]!.ToString());
         Assert.Null(retained["posting"]);
     }

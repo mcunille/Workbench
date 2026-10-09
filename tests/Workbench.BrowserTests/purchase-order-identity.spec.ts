@@ -1,8 +1,6 @@
 import { expect, test, type Page } from './diagnostic-fixture';
 import { useAuthenticatedSession as signIn } from './auth-fixture';
 
-test.setTimeout(120_000);
-
 async function saveDraft(page: Page) {
   const saved = page.waitForResponse(response => response.url().includes('/api/beta/purchase-order-drafts') && !response.url().endsWith('/calculate') &&
     ['POST', 'PUT'].includes(response.request().method()));

@@ -24,7 +24,7 @@ jobs:
         with:
           node-version: 26.7.0
       - name: Verify Live integration is disabled
-        run: node --test tests/Workbench.BuildTests/ImpeccableLaunchers.test.mjs
+        run: node --test --test-timeout=30000 tests/Workbench.BuildTests/ImpeccableLaunchers.test.mjs
 
   local-setup-contracts:
     name: Windows local setup contracts
@@ -121,7 +121,7 @@ jobs:
 
       - name: Verify safe browser diagnostics
         shell: pwsh
-        run: node --test tests/Workbench.BrowserTests/safe-diagnostics.test.mjs tests/Workbench.BrowserTests/browser-isolation.test.mjs tests/Workbench.BrowserTests/browser-isolation-wiring.test.mjs tests/Workbench.BrowserTests/diagnostic-budget.test.mjs
+        run: node --test --test-timeout=30000 tests/Workbench.BrowserTests/safe-diagnostics.test.mjs tests/Workbench.BrowserTests/browser-isolation.test.mjs tests/Workbench.BrowserTests/browser-isolation-wiring.test.mjs tests/Workbench.BrowserTests/diagnostic-budget.test.mjs tests/Workbench.BrowserTests/browser-time-budget.test.mjs
 
       - name: Verify source and published output
         shell: pwsh

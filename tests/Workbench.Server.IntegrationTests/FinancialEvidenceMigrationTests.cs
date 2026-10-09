@@ -9,7 +9,7 @@ namespace Workbench.Server.IntegrationTests;
 [Collection(SqlServerCollection.Name)]
 public sealed class FinancialEvidenceMigrationTests(SqlServerFixture sqlServer)
 {
-    internal const string PriorMigration = "20260928071548_AddSupplierOpenItems";
+    internal const string PriorMigration = "20261003214043_AddTenantGemReference";
 
     [Theory]
     [InlineData(false, false)]
@@ -17,7 +17,7 @@ public sealed class FinancialEvidenceMigrationTests(SqlServerFixture sqlServer)
     [InlineData(false, true)]
     public async Task UpgradePreservesHistoryAndPinsOnlyPostedLegacyEvidence(bool zero, bool reviewOnly)
     {
-        // GIVEN an actual BK-06 database and uploaded historical evidence, including a purged SQL lifecycle.
+        // GIVEN an actual merged GEM-06 database and uploaded historical evidence, including a purged SQL lifecycle.
         await using var context = await SupplierBillPostingTests.OpenAsync(sqlServer, PriorMigration);
         using var storage = new PurchaseOrderDocumentEndpointTests.TestStorage();
         var document = await FinancialEvidencePostingTests.UploadAsync(context, storage);

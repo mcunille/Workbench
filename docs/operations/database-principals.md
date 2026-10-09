@@ -1,5 +1,20 @@
 # Database principals
 
+GEM-02 grants `workbench_web` SELECT on exactly `Gemology.Entries`, `Aliases`,
+`SourceAssertions`, and `LocalityAssertions`. These shared reference tables contain no tenant
+records. Web and worker direct INSERT/UPDATE/DELETE are denied; worker, operator, and storage
+maintenance receive no shared read grants. No catalog publish authority or schema-wide grant
+is introduced. Password provisioning accepts these exact object reads and rejects broader grants.
+
+GEM-06 additionally grants web SELECT on tenant-RLS `Gemology.TenantEntries` and `TenantOverrides`
+and EXECUTE on exactly `SaveTenantEntry`, `SetTenantEntryArchive`, and `SaveTenantOverrides`.
+Direct table INSERT/UPDATE/DELETE remain denied. Worker, operator and public receive no tenant
+reference reads or command execution. The commands require the SQL tenant proof, current enabled
+tenant/member authority, an explicit transaction, publication then tenant application locks, and
+expected rowversions; web cannot mutate another tenant or raw reference storage. C# owns effective
+Unicode identity, provenance and final-candidate reconciliation; SQL independently enforces scope,
+shape, versions and narrow writes. Service-admin authority supplies no tenant context or access.
+
 BK-05 bill mutations (`Purchasing.SaveSupplierBill`, `ReviewSupplierBill`, `PostSupplierBill`) have
 no `workbench_web` EXECUTE grant. The fixed `SupplierBillsManage` and `SupplierBillsPost` permissions
 are not assigned to production roles. Bill tables deny direct runtime writes; bounded read procedures
@@ -34,7 +49,7 @@ workload owner/migrator authority.
 | --- | --- | --- |
 | Setup/database owner | One-time initialization and principal provisioning; protected administrative restore work and local development recovery-link generation. | No standing credential in web, workers, ordinary development agents or scheduled jobs. Backup/restore server authority is separate from the restricted operator role. |
 | `workbench_migrator` | Explicit reviewed EF migration jobs. SQL grants database `CONTROL`, including authority to alter schema/security controls. | Deployment control-plane identity, not a tenant-data isolation boundary. Deliver only to a separately authorized one-shot migration job; never to web/operator/worker configuration. |
-| `workbench_operator` | Execute `Administration.ProvisionTenant` and `Administration.SanitizeRestore` for bootstrap/additional tenants and restore sanitation. | No general tenant-data browsing. Direct Identity/Tenancy/Security data access is denied; development recovery-link generation and `MarkRestorePending` are denied. Keep in protected operator tooling only. |
+| `workbench_operator` | Execute `Administration.ProvisionTenant` and `Administration.SanitizeRestore` for bootstrap/additional tenants and restore sanitation; execute `ProvisionServiceAdmin`, `DisableServiceAdmin`, `ResetServiceAdminPassword` and `RevokeServiceAdminSessions` in `Administration` for service-admin identity maintenance. | No general tenant-data browsing. Direct Identity/Tenancy/Security and ServiceAdministration account/session access is denied; development recovery-link generation and `MarkRestorePending` are denied. Keep in protected operator tooling only. |
 | `workbench_web` | Tenant-scoped runtime reads/writes; narrow identity resolution, invitation claims, item/photo/acquisition/purchase/supplier commands and readiness procedures. Items allow direct SELECT/INSERT, with UPDATE/DELETE denied; creation snapshots, acquisitions, purchase drafts, suppliers, purchase counters, immutable purchase revisions and request receipts are SELECT-only with writes through restricted commands. Purchasing exposes restricted draft create/update/delete, purchase commit/amend and supplier commands; direct table writes remain denied, including reference allocation and retry receipts. Accounting setup, accounts, revisions, receipts and role assignments are SELECT-only; writes use `Accounting.Save` and `Administration.AssignAccountingRoles`. Journal entries/lines, source events, posting receipts, policy freezes, periods, period closures and receipts, and correction groups and receipts are SELECT-only under tenant RLS. Direct runtime writes to these durable accounting tables are denied. The internal `Accounting.PostJournal`, `Accounting.EnsureOpenPeriod`, `Accounting.ClosePeriod` and `Accounting.CorrectJournal` kernels have no runtime execute grants; no production posting, correction or close adapter is installed. Runtime direct writes to Identity roles and claims are denied. | Web credential only in the web workload. No migration history/security-control changes or raw tenant proof-store access. Do not reuse for worker, migration or operator tools. |
 | `workbench_worker` | Tenant-scoped reads of queue, storage metadata, identity operations/users and protection keys; tenant audit INSERT. Execute bounded `ClaimWork`, `LockWork`, `CompleteWork`, `RetryWork` and aggregate `ReadWorkQueueStatus`. | Separate worker credential/configuration. Cross-tenant claim returns references without protected payloads; aggregate status exposes counts/age without tenant rows. Tenant proof is required for subsequent tenant reads. Do not combine with web/operator/migrator/owner roles. |
 | `workbench_storage_maintenance` | Execute `Storage.ExportManifest`, `AssertMigrationReady`, `RelocateRevision`, `CompleteRecoveryVerification`, `ReplayDeletion`, `ReadRecoveryInventory`, `AcceptFileRecovery`, and `ReadFileRecoveryCompletion`. | Protected maintenance/recovery tooling, never an ordinary web/worker user. Narrow procedures can handle cross-tenant manifests/recovery; this is not general tenant-data browsing. Offline or isolated-target requirements still apply to the selected runbook. |
@@ -78,6 +93,33 @@ proof key, shared protection certificate, storage binding and selected delivery 
 with their own SQL connection (`ConnectionStrings:Worker` or `WORKBENCH_WORKER_CONNECTION`).
 Shared protection authority means web/worker separation is not cryptographic isolation.
 
+Service-admin browser identities are independent of SQL workload principals and tenant identities.
+The web role receives only `ServiceAdministration.FindAccountForLogin`, `CreateSession`,
+`ResolveSession` and `RevokeSession` execution. It has no password-write command: compatible older
+hashes can authenticate, but credential replacement or hash upgrades require an audited operator
+password reset. The operator role
+receives only the four named service-admin maintenance commands; the worker receives neither set.
+All three roles are denied direct SELECT, INSERT, UPDATE and DELETE on service-admin accounts and
+sessions. No new SQL credential is needed or delivered to the web image or configuration.
+
+GEM-05 also grants web execution of `Gemology.ReadDrafts`, `ReadDraft`, `SaveDraft`,
+`ReadPublication`, `ReadPublicationAudit`, and `PublishDraftBatch`. Each requires a current
+service-admin account/session pair, with enabled-account, security-version, revocation, and
+expiry checks. Writes revalidate authority after acquiring the catalog transaction lock.
+Worker, operator, and public receive no curation EXECUTE grants. Raw `Gemology.Drafts`,
+`PublishRequests`, and `PublicationAudit` SELECT/INSERT/UPDATE/DELETE remain denied to web,
+worker, and operator, and direct published catalog mutation remains denied. The commands use
+ownership chaining for their narrow writes; do not add broad schema grants or put an operator
+credential in the web process. Admin HTTP routes resolve actor/session from the dedicated
+authenticated principal and never accept tenant identity or client-supplied audit authority.
+
+`PublishDraftBatch` is an internal application command: C# derives Unicode-normalized identity
+and alias keys and validates the final catalog. SQL binds raw content and alias projections to
+saved drafts and checks uniqueness against supplied keys; it does not independently derive
+semantic identity. A direct SQL caller with current admin authority must still honor this
+normalization contract. See the [shared reference architecture](../ARCHITECTURE.md#shared-gem-reference-foundation)
+for the lock-duration and durable-receipt compatibility constraints.
+
 Development recovery links return a raw credential-reset capability for an existing account. They
 require the local one-time setup/owner connection, never production web/operator configuration,
 and an explicitly named new output file. Remove that file immediately after use.
@@ -97,6 +139,39 @@ Tenant administrators manage users inside their tenant after provisioning. For m
 [database backup and restore](database-backup-restore.md). SQL operator authority alone does not
 perform the administrative SQL restore or storage verification.
 
+## Service-admin identity maintenance
+
+Use the restricted operator connection and separate access-controlled password files. Provision
+prints the new non-secret account ID; retain it for subsequent maintenance. Each command requires
+the connection file's database to exactly match `--expected-database`.
+
+```powershell
+Workbench.Database service-admin provision --connection-file <operator-path> --expected-database <name> `
+  --email <email> --password-file <password-path>
+Workbench.Database service-admin revoke-sessions --connection-file <operator-path> --expected-database <name> `
+  --account-id <guid>
+Workbench.Database service-admin reset-password --connection-file <operator-path> --expected-database <name> `
+  --account-id <guid> --password-file <replacement-password-path>
+Workbench.Database service-admin disable --connection-file <operator-path> --expected-database <name> `
+  --account-id <guid>
+```
+
+Passwords must satisfy the current Workbench policy: 14–1024 characters, at least four distinct
+characters, and an uppercase letter, lowercase letter, digit and non-alphanumeric character.
+Password files may end in a newline; other password whitespace is preserved. Remove temporary
+secret files after use. The tool never accepts a password value or connection string as an option.
+Unknown, repeated, missing or malformed options fail before maintenance; failures emit a generic
+message without input values. Duplicate normalized emails and absent target accounts also fail
+without partial changes. Email uniqueness belongs to the separate service-admin account store;
+the same email may identify a tenant account independently.
+
+Revoke-sessions ends existing browser authority on the next request while allowing a fresh sign-in.
+Reset-password replaces the credential and revokes existing sessions; it preserves a disabled
+account's disabled state. Disable ends existing sessions and denies subsequent sign-in. This CLI
+provides no enable command, public registration or tenant-admin invitation path. Other successes
+emit only the action outcome. These commands maintain identities and do not grant tenant data or
+provide a catalog editor or publishing workflow.
+
 ## Source and verification
 
 The matrix is checked against [baseline grants](../../src/Workbench.Server/Persistence/Migrations/20260904061246_EstablishSecurityBoundaries.cs),
@@ -106,6 +181,9 @@ The matrix is checked against [baseline grants](../../src/Workbench.Server/Persi
 [aggregate queue grants](../../src/Workbench.Server/Persistence/Migrations/20260906031109_AddDeploymentQueueTelemetry.cs),
 [storage-maintenance grants](../../src/Workbench.Server/Persistence/StorageMaintenanceSchema.cs),
 and [file-recovery grants](../../src/Workbench.Server/Persistence/FileRecoverySchema.cs).
+Service-admin grants are installed by
+[the identity schema](../../src/Workbench.Server/Persistence/ServiceAdminIdentitySchema.cs) and
+invoked by [operator commands](../../src/Workbench.Server/ServiceAdministration/ServiceAdminOperatorCommands.cs).
 Collection grants evolve through the [migration inventory](database-migrations.md#migration-compatibility-matrix).
 Accounting kernel provisioning removes only accidental runtime `GRANT` entries from web and worker
 principals; an existing protective `DENY` is preserved. No migration or reprovisioning step grants

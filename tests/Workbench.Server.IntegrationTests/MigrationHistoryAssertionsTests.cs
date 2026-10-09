@@ -12,8 +12,9 @@ public sealed class MigrationHistoryAssertionsTests
     private const string RetainedMigration = "20260916183834_AddStructuredDraftOrderLines";
 
     [Fact]
-    public void AcceptsCurrentHistory()
+    public async Task AcceptsCurrentHistory()
     {
+        await Task.Yield();
         // GIVEN exactly the current release manifest.
         var applied = CurrentSchema.Migrations.ToArray();
 
@@ -22,8 +23,9 @@ public sealed class MigrationHistoryAssertionsTests
     }
 
     [Fact]
-    public void AcceptsExplicitRetainedHistoryInItsOrderedPosition()
+    public async Task AcceptsExplicitRetainedHistoryInItsOrderedPosition()
     {
+        await Task.Yield();
         // GIVEN current migrations and an explicitly retained preview migration.
         var applied = CurrentSchema.Migrations.Append(RetainedMigration).Order(StringComparer.Ordinal);
 
@@ -38,8 +40,9 @@ public sealed class MigrationHistoryAssertionsTests
     [InlineData("extra")]
     [InlineData("case")]
     [InlineData("duplicate")]
-    public void RejectsHistoryThatDoesNotMatchTheCurrentManifest(string difference)
+    public async Task RejectsHistoryThatDoesNotMatchTheCurrentManifest(string difference)
     {
+        await Task.Yield();
         // GIVEN a history with an omitted, reordered, changed, extra, or duplicate migration.
         var applied = CurrentSchema.Migrations.ToList();
         switch (difference)
@@ -57,8 +60,9 @@ public sealed class MigrationHistoryAssertionsTests
     }
 
     [Fact]
-    public void RejectsUndeclaredRetainedHistory()
+    public async Task RejectsUndeclaredRetainedHistory()
     {
+        await Task.Yield();
         // GIVEN a preview migration that was not declared as retained by this test.
         var applied = CurrentSchema.Migrations.Append(RetainedMigration).Order(StringComparer.Ordinal);
 
@@ -67,8 +71,9 @@ public sealed class MigrationHistoryAssertionsTests
     }
 
     [Fact]
-    public void RequiresDeclaredRetainedHistoryToBePresent()
+    public async Task RequiresDeclaredRetainedHistoryToBePresent()
     {
+        await Task.Yield();
         // GIVEN current history without the preview migration the caller expects to retain.
         var applied = CurrentSchema.Migrations;
 

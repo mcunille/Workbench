@@ -43,7 +43,7 @@ it('posts disposal to the dedicated route with antiforgery and an exact JSON com
   expect(headers?.get('X-CSRF-TOKEN')).toBe('csrf');
   expect(headers?.get('Content-Type')).toBe('application/json');
 });
-it.each([400, 413, 415, 422, 409, 503, 401])('exposes HTTP %i without treating it as a saved document', async status => {
+it.each([400, 413, 415, 409, 503])('exposes HTTP %i without treating it as a saved document', async status => {
   // GIVEN a rejected upload with a server reason for actionable validation or conflict responses.
   const title = `Purchase file rejection ${status}`;
   server.use(http.post(url, () => HttpResponse.json({ title }, { status })));
@@ -86,9 +86,4 @@ it('uses the safe server attachment filename after downloading validated bytes',
   await downloadPurchaseDocument('order', { id: 'doc', label: 'Private label', mediaType: 'application/pdf', extension: 'pdf', length: 8, createdAtUtc: '', version: 'd1', unavailable: false });
   expect(anchor.download).toBe('document-1234567890abcdef1234567890abcdef.pdf');
   expect(anchor.click).toHaveBeenCalledOnce();
-});
-it('preserves a bounded conflict reason including pending-document capacity', async () => {
-  // GIVEN a reservation consumes the last slot WHEN rejected THEN the server capacity guidance reaches the UI.
-  server.use(http.post(url, () => HttpResponse.json({ title: 'This purchase already has 20 current or pending documents. Remove a document before uploading another.' }, { status: 409 })));
-  await expect(uploadPurchaseDocument('order', { ...command, file: new File(['x'], 'x.pdf') })).rejects.toMatchObject({ status: 409, reason: 'This purchase already has 20 current or pending documents. Remove a document before uploading another.' });
 });

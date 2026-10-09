@@ -63,7 +63,7 @@ internal static class FinancialEvidenceSchema
                 DENY INSERT,UPDATE,DELETE ON [{schema}].[{table}] TO workbench_web;
                 DENY INSERT,UPDATE,DELETE ON [{schema}].[{table}] TO workbench_worker;
                 """);
-        Alter(migration, "Security.ReadDatabaseReadiness", ("20260928071548_AddSupplierOpenItems", "20260929010000_AddFinancialEvidenceRetention"));
+        Alter(migration, "Security.ReadDatabaseReadiness", ("20261003214043_AddTenantGemReference", "20261008010000_AddFinancialEvidenceRetention"));
     }
 
     // Read the actual durable predecessor, validate each anchor, and modify only this release's procedures.

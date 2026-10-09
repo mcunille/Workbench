@@ -97,6 +97,8 @@ public partial class WorkbenchDbContext : IdentityDbContext<
             .OnDelete(DeleteBehavior.Restrict);
 
         ConfigureInventory(modelBuilder);
+        ConfigureGemReference(modelBuilder);
+        ConfigureGemReferenceTenant(modelBuilder);
         ConfigureAcquisitions(modelBuilder);
         ConfigureAcquisitionDocuments(modelBuilder);
         ConfigurePurchaseOrderDocuments(modelBuilder);

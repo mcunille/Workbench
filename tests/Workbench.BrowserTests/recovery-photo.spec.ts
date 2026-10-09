@@ -2,8 +2,6 @@ import { captureEvidence } from './evidence-fixture';
 import { expect, test } from './diagnostic-fixture';
 import { smallPhotoImage, photoSignIn, savedPhotoItem } from './photo-fixture';
 
-test.setTimeout(180_000);
-
 test('explains a recovery loss on an otherwise usable item', async ({ page }) => {
   // GIVEN a saved item/photo and the API's accepted-loss response (SQL acceptance is integration-tested separately).
   await photoSignIn(page);

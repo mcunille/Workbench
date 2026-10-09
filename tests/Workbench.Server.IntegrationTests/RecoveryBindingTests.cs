@@ -11,8 +11,9 @@ public sealed class RecoveryBindingTests
     [Theory]
     [InlineData("D")]
     [InlineData("N")]
-    public void EquivalentPhysicalAzureSourceIsRejected(string format)
+    public async Task EquivalentPhysicalAzureSourceIsRejected(string format)
     {
+        await Task.Yield();
         // GIVEN an original binding and another spelling of the same physical installation.
         var id = Guid.NewGuid();
         var configuration = Config(id.ToString(), id.ToString(format).ToUpperInvariant(), "https://source.blob.core.windows.net/files");
@@ -24,8 +25,9 @@ public sealed class RecoveryBindingTests
     [Theory]
     [InlineData("D")]
     [InlineData("N")]
-    public void OriginalAliasSpellingIsPreservedForCatalogMatching(string format)
+    public async Task OriginalAliasSpellingIsPreservedForCatalogMatching(string format)
     {
+        await Task.Yield();
         // GIVEN a legitimate original alias using a noncanonical UUID spelling.
         var configuration = Config(Guid.NewGuid().ToString(format).ToUpperInvariant(), Guid.NewGuid().ToString(), "https://recovered.blob.core.windows.net/files");
         // WHEN validating a physically independent destination.
@@ -35,8 +37,9 @@ public sealed class RecoveryBindingTests
     }
 
     [Fact]
-    public void FilesystemRootCannotBeReusedWithAnotherInstallationId()
+    public async Task FilesystemRootCannotBeReusedWithAnotherInstallationId()
     {
+        await Task.Yield();
         // GIVEN the same filesystem root with a changed UUID and platform-equivalent path spelling.
         var path = Path.GetFullPath(Path.GetTempPath());
         var config = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
@@ -53,8 +56,9 @@ public sealed class RecoveryBindingTests
     }
 
     [Fact]
-    public void InventedOriginalSourceCannotAuthorizeCleanup()
+    public async Task InventedOriginalSourceCannotAuthorizeCleanup()
     {
+        await Task.Yield();
         // GIVEN a source declaration inconsistent with retained SQL bindings.
         var config = Config(Guid.NewGuid().ToString(), Guid.NewGuid().ToString(), "https://recovered.blob.core.windows.net/files");
         var inventory = Inventory(config);
@@ -63,8 +67,9 @@ public sealed class RecoveryBindingTests
         Assert.Throws<InvalidOperationException>(() => RecoveryBinding.Validate(config, inventory));
     }
     [Fact]
-    public void PurgedHistoryFromEarlierProviderDoesNotBlockAnotherRecovery()
+    public async Task PurgedHistoryFromEarlierProviderDoesNotBlockAnotherRecovery()
     {
+        await Task.Yield();
         // GIVEN retained content in the current store and purged history from a previous relocation.
         var config = Config(Guid.NewGuid().ToString(), Guid.NewGuid().ToString(), "https://recovered.blob.core.windows.net/files");
         var inventory = Inventory(config);
@@ -76,8 +81,9 @@ public sealed class RecoveryBindingTests
     [Theory]
     [InlineData("https://files.example.com/workbench")]
     [InlineData("https://source.privatelink.blob.core.windows.net/workbench")]
-    public void AlternateAzureEndpointCannotConcealPhysicalReuse(string target)
+    public async Task AlternateAzureEndpointCannotConcealPhysicalReuse(string target)
     {
+        await Task.Yield();
         // GIVEN an endpoint alias that could route to the original account.
         var config = Config(Guid.NewGuid().ToString(), Guid.NewGuid().ToString(), target);
         // WHEN validating isolation, THEN only canonical account/container endpoints are accepted.

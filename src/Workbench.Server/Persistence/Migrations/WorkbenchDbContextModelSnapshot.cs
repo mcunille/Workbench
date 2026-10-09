@@ -1103,6 +1103,302 @@ namespace Workbench.Server.Persistence.Migrations
                         });
                 });
 
+            modelBuilder.Entity("Workbench.Server.Gemology.GemReferenceAlias", b =>
+                {
+                    b.Property<Guid>("EntryId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("Position")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<byte[]>("NormalizedKey")
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("binary(32)")
+                        .HasComputedColumnSql("CONVERT(binary(32), HASHBYTES('SHA2_256', [NormalizedName]))", true);
+
+                    b.Property<string>("NormalizedName")
+                        .IsRequired()
+                        .HasMaxLength(4000)
+                        .HasColumnType("nvarchar(4000)");
+
+                    b.HasKey("EntryId", "Position");
+
+                    b.HasIndex("EntryId", "NormalizedKey")
+                        .IsUnique();
+
+                    b.ToTable("Aliases", "Gemology", t =>
+                        {
+                            t.HasCheckConstraint("CK_GemAliases_Name", "LEN(LTRIM(RTRIM([Name])))>0 AND LEN([NormalizedName])>0");
+
+                            t.HasCheckConstraint("CK_GemAliases_Position", "[Position]>=0 AND [Position]<20");
+                        });
+                });
+
+            modelBuilder.Entity("Workbench.Server.Gemology.GemReferenceEntry", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("CommonName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
+
+                    b.Property<string>("Group")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<byte[]>("IdentityKey")
+                        .IsRequired()
+                        .HasColumnType("binary(32)");
+
+                    b.Property<bool>("IsRetired")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("MaterialKind")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<Guid?>("RedirectEntryId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("RetirementExplanation")
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<string>("Species")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("Variety")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("IdentityKey")
+                        .IsUnique()
+                        .HasFilter("[IsRetired] = 0");
+
+                    b.HasIndex("RedirectEntryId");
+
+                    b.HasIndex("CommonName", "Id");
+
+                    b.ToTable("Entries", "Gemology", t =>
+                        {
+                            t.HasCheckConstraint("CK_GemEntries_Id", "[Id]<>'00000000-0000-0000-0000-000000000000'");
+
+                            t.HasCheckConstraint("CK_GemEntries_Kind", "[MaterialKind] COLLATE Latin1_General_100_BIN2 IN ('mineral','mineraloid','organic','rockAggregate')");
+
+                            t.HasCheckConstraint("CK_GemEntries_Name", "LEN(LTRIM(RTRIM([CommonName])))>0");
+
+                            t.HasCheckConstraint("CK_GemEntries_OptionalText", "([Group] IS NULL OR LEN(LTRIM(RTRIM([Group])))>0) AND ([Species] IS NULL OR LEN(LTRIM(RTRIM([Species])))>0) AND ([Variety] IS NULL OR LEN(LTRIM(RTRIM([Variety])))>0) AND ([Description] IS NULL OR LEN(LTRIM(RTRIM([Description])))>0) AND ([RetirementExplanation] IS NULL OR LEN(LTRIM(RTRIM([RetirementExplanation])))>0)");
+
+                            t.HasCheckConstraint("CK_GemEntries_Redirect", "[RedirectEntryId] IS NULL OR [RedirectEntryId]<>[Id]");
+
+                            t.HasCheckConstraint("CK_GemEntries_Retirement", "([IsRetired]=0 AND [RedirectEntryId] IS NULL AND [RetirementExplanation] IS NULL) OR ([IsRetired]=1 AND ([RetirementExplanation] IS NOT NULL OR [RedirectEntryId] IS NOT NULL))");
+
+                            t.HasCheckConstraint("CK_GemEntries_Species", "[MaterialKind] COLLATE Latin1_General_100_BIN2<>'mineral' OR ([Species] IS NOT NULL AND LEN(LTRIM(RTRIM([Species])))>0)");
+                        });
+                });
+
+            modelBuilder.Entity("Workbench.Server.Gemology.GemReferenceLocalityAssertion", b =>
+                {
+                    b.Property<Guid>("EntryId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Place")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<DateOnly>("ReviewedOn")
+                        .HasColumnType("date");
+
+                    b.Property<string>("Scope")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<Guid>("SourceAssertionId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("SourceField")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.HasKey("EntryId");
+
+                    b.HasIndex("EntryId", "SourceAssertionId", "SourceField", "ReviewedOn");
+
+                    b.ToTable("LocalityAssertions", "Gemology", t =>
+                        {
+                            t.HasCheckConstraint("CK_GemLocality_Claim", "LEN(LTRIM(RTRIM([Place])))>0 AND LEN(LTRIM(RTRIM([Scope])))>0 AND [SourceField] COLLATE Latin1_General_100_BIN2='notableLocality'");
+                        });
+                });
+
+            modelBuilder.Entity("Workbench.Server.Gemology.GemReferenceSourceAssertion", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateOnly?>("AccessedOn")
+                        .HasColumnType("date");
+
+                    b.Property<string>("Citation")
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
+
+                    b.Property<Guid>("EntryId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Field")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<string>("Publisher")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<DateOnly>("ReviewedOn")
+                        .HasColumnType("date");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("Url")
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("SourceAssertions", "Gemology", t =>
+                        {
+                            t.HasCheckConstraint("CK_GemSources_Dates", "[ReviewedOn]>'0001-01-01' AND ([AccessedOn] IS NULL OR [AccessedOn]>'0001-01-01')");
+
+                            t.HasCheckConstraint("CK_GemSources_Field", "[Field] COLLATE Latin1_General_100_BIN2 IN ('materialKind','commonName','aliases','group','species','variety','description','notableLocality')");
+
+                            t.HasCheckConstraint("CK_GemSources_Id", "[Id]<>'00000000-0000-0000-0000-000000000000'");
+
+                            t.HasCheckConstraint("CK_GemSources_Identification", "LEN(LTRIM(RTRIM([Title])))>0 AND LEN(LTRIM(RTRIM([Publisher])))>0 AND (([Url] IS NOT NULL AND LEN(LTRIM(RTRIM([Url])))>0) OR ([Citation] IS NOT NULL AND LEN(LTRIM(RTRIM([Citation])))>0))");
+                        });
+                });
+
+            modelBuilder.Entity("Workbench.Server.Gemology.GemReferenceTenantEntry", b =>
+                {
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("ContentJson")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid>("CreatedBy")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<bool>("IsArchived")
+                        .HasColumnType("bit");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<DateTimeOffset>("UpdatedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid>("UpdatedBy")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("TenantId", "Id");
+
+                    b.HasIndex("TenantId", "CreatedBy");
+
+                    b.HasIndex("TenantId", "UpdatedBy");
+
+                    b.ToTable("TenantEntries", "Gemology", t =>
+                        {
+                            t.HasCheckConstraint("CK_GemTenantEntries_Content", "ISJSON([ContentJson],OBJECT)=1 AND DATALENGTH([ContentJson])<=2097152");
+
+                            t.HasCheckConstraint("CK_GemTenantEntries_Id", "[Id]<>'00000000-0000-0000-0000-000000000000'");
+                        });
+                });
+
+            modelBuilder.Entity("Workbench.Server.Gemology.GemReferenceTenantOverride", b =>
+                {
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("EntryId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid>("CreatedBy")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("OverridesJson")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<DateTimeOffset>("UpdatedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid>("UpdatedBy")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("TenantId", "EntryId");
+
+                    b.HasIndex("EntryId");
+
+                    b.HasIndex("TenantId", "CreatedBy");
+
+                    b.HasIndex("TenantId", "UpdatedBy");
+
+                    b.ToTable("TenantOverrides", "Gemology", t =>
+                        {
+                            t.HasCheckConstraint("CK_GemTenantOverrides_Content", "ISJSON([OverridesJson],OBJECT)=1 AND DATALENGTH([OverridesJson])<=2097152");
+                        });
+                });
+
             modelBuilder.Entity("Workbench.Server.Identity.IdentityOperation", b =>
                 {
                     b.Property<Guid>("Id")
@@ -4322,6 +4618,100 @@ namespace Workbench.Server.Persistence.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("Workbench.Server.Gemology.GemReferenceAlias", b =>
+                {
+                    b.HasOne("Workbench.Server.Gemology.GemReferenceEntry", null)
+                        .WithMany("Aliases")
+                        .HasForeignKey("EntryId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Workbench.Server.Gemology.GemReferenceEntry", b =>
+                {
+                    b.HasOne("Workbench.Server.Gemology.GemReferenceEntry", null)
+                        .WithMany()
+                        .HasForeignKey("RedirectEntryId")
+                        .OnDelete(DeleteBehavior.Restrict);
+                });
+
+            modelBuilder.Entity("Workbench.Server.Gemology.GemReferenceLocalityAssertion", b =>
+                {
+                    b.HasOne("Workbench.Server.Gemology.GemReferenceEntry", null)
+                        .WithOne("NotableLocality")
+                        .HasForeignKey("Workbench.Server.Gemology.GemReferenceLocalityAssertion", "EntryId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Workbench.Server.Gemology.GemReferenceSourceAssertion", null)
+                        .WithMany()
+                        .HasForeignKey("EntryId", "SourceAssertionId", "SourceField", "ReviewedOn")
+                        .HasPrincipalKey("EntryId", "Id", "Field", "ReviewedOn")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Workbench.Server.Gemology.GemReferenceSourceAssertion", b =>
+                {
+                    b.HasOne("Workbench.Server.Gemology.GemReferenceEntry", null)
+                        .WithMany("SourceAssertions")
+                        .HasForeignKey("EntryId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Workbench.Server.Gemology.GemReferenceTenantEntry", b =>
+                {
+                    b.HasOne("Workbench.Server.Tenancy.Tenant", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Workbench.Server.Identity.WorkbenchUser", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId", "CreatedBy")
+                        .HasPrincipalKey("TenantId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Workbench.Server.Identity.WorkbenchUser", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId", "UpdatedBy")
+                        .HasPrincipalKey("TenantId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Workbench.Server.Gemology.GemReferenceTenantOverride", b =>
+                {
+                    b.HasOne("Workbench.Server.Gemology.GemReferenceEntry", null)
+                        .WithMany()
+                        .HasForeignKey("EntryId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Workbench.Server.Tenancy.Tenant", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Workbench.Server.Identity.WorkbenchUser", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId", "CreatedBy")
+                        .HasPrincipalKey("TenantId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Workbench.Server.Identity.WorkbenchUser", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId", "UpdatedBy")
+                        .HasPrincipalKey("TenantId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("Workbench.Server.Identity.IdentityOperation", b =>
                 {
                     b.HasOne("Workbench.Server.Identity.WorkbenchUser", null)
@@ -5264,6 +5654,15 @@ namespace Workbench.Server.Persistence.Migrations
                         .HasForeignKey("TenantId", "AttachmentId", "PreviousRevisionId")
                         .HasPrincipalKey("TenantId", "AttachmentId", "Id")
                         .OnDelete(DeleteBehavior.Restrict);
+                });
+
+            modelBuilder.Entity("Workbench.Server.Gemology.GemReferenceEntry", b =>
+                {
+                    b.Navigation("Aliases");
+
+                    b.Navigation("NotableLocality");
+
+                    b.Navigation("SourceAssertions");
                 });
 #pragma warning restore 612, 618
         }

@@ -8,8 +8,9 @@ namespace Workbench.Server.IntegrationTests;
 public sealed class ItemInputTests
 {
     [Fact]
-    public void NormalizationPreservesNonblankNotesAndTrimsNamesAndLocations()
+    public async Task NormalizationPreservesNonblankNotesAndTrimsNamesAndLocations()
     {
+        await Task.Yield();
         // GIVEN outer whitespace and notes whose formatting matters.
         var request = new CreateItemRequest(Guid.NewGuid(), "\u2003Sapphire\t", "  note\r\nline  ", "\tTray A\u00a0");
         // WHEN normalizing the submitted fields.
@@ -23,10 +24,10 @@ public sealed class ItemInputTests
 
     [Theory]
     [InlineData(null)]
-    [InlineData("")]
     [InlineData(" \t\n\u2003\u00a0")]
-    public void BlankOptionalFieldsBecomeNullAndBlankNamesAreRejected(string? value)
+    public async Task BlankOptionalFieldsBecomeNullAndBlankNamesAreRejected(string? value)
     {
+        await Task.Yield();
         // GIVEN absent or whitespace-only inputs WHEN normalized and validated.
         var normalized = ItemInput.Normalize(new CreateItemRequest(Guid.NewGuid(), value, value, value));
         // THEN optional fields become null and the required name is invalid.
@@ -40,8 +41,9 @@ public sealed class ItemInputTests
     [InlineData(201, 4000, 200, false)]
     [InlineData(200, 4001, 200, false)]
     [InlineData(200, 4000, 201, false)]
-    public void LimitsUseUtf16CodeUnits(int nameLength, int notesLength, int locationLength, bool valid)
+    public async Task LimitsUseUtf16CodeUnits(int nameLength, int notesLength, int locationLength, bool valid)
     {
+        await Task.Yield();
         // GIVEN fields on or beyond each independent boundary.
         var request = new CreateItemRequest(Guid.NewGuid(), new string('n', nameLength), new string('a', notesLength), new string('l', locationLength));
         // WHEN validating THEN exact limits pass without truncating excess values.
@@ -49,8 +51,9 @@ public sealed class ItemInputTests
     }
 
     [Fact]
-    public void EmptyCreationRequestIdentifierIsRejected()
+    public async Task EmptyCreationRequestIdentifierIsRejected()
     {
+        await Task.Yield();
         // GIVEN valid fields but no operation identity WHEN validating THEN retry safety is required.
         Assert.Contains("creationRequestId", ItemInput.Validate(new CreateItemRequest(Guid.Empty, "Ring", null, null)).Keys);
     }

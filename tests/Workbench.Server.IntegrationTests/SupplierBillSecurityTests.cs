@@ -23,12 +23,11 @@ public sealed class SupplierBillSecurityTests(SqlServerFixture sqlServer)
               SELECT @session,@tenant,@actor,CRYPT_GEN_RANDOM(32),SecurityVersion,SYSUTCDATETIME(),SYSUTCDATETIME(),DATEADD(hour,1,SYSUTCDATETIME()),DATEADD(hour,2,SYSUTCDATETIME()) FROM [Identity].Users WHERE Id=@actor;
             """, ("@tenant", JournalTestContext.OtherTenantId), ("@actor", AuthTestApplication.OtherTenantUserId), ("@session", session));
         await using var other = await context.Journal.OpenOtherTenantAsync();
-        var queries = new Workbench.Server.Purchasing.SupplierBillQueries(other);
         // WHEN foreign and missing identities are probed THEN the response and history reveal neither.
-        var foreign = await Assert.ThrowsAsync<SqlException>(() => queries.ReadAsync(AuthTestApplication.OtherTenantUserId, session, Guid.Parse(reviewed["billId"]!.ToString()), default));
-        var missing = await Assert.ThrowsAsync<SqlException>(() => queries.ReadAsync(AuthTestApplication.OtherTenantUserId, session, Guid.NewGuid(), default));
+        var foreign = await Assert.ThrowsAsync<SqlException>(() => SupplierBillTestContext.ReadAsync(other, AuthTestApplication.OtherTenantUserId, session, "ReadSupplierBill", ("@BillId", Guid.Parse(reviewed["billId"]!.ToString()))));
+        var missing = await Assert.ThrowsAsync<SqlException>(() => SupplierBillTestContext.ReadAsync(other, AuthTestApplication.OtherTenantUserId, session, "ReadSupplierBill", ("@BillId", Guid.NewGuid())));
         Assert.Equal(51004, foreign.Number); Assert.Equal(foreign.Message, missing.Message);
-        Assert.Equal(51004, (await Assert.ThrowsAsync<SqlException>(() => queries.HistoryAsync(AuthTestApplication.OtherTenantUserId, session, Guid.Parse(reviewed["billId"]!.ToString()), 0, 10, default))).Number);
+        Assert.Equal(51004, (await Assert.ThrowsAsync<SqlException>(() => SupplierBillTestContext.ReadAsync(other, AuthTestApplication.OtherTenantUserId, session, "ReadSupplierBillHistory", ("@BillId", Guid.Parse(reviewed["billId"]!.ToString())), ("@AfterSequence", 0L), ("@Take", 10)))).Number);
         var postInput = context.PostCommand(reviewed);
         await using (var post = new SqlCommand("EXEC Purchasing.PostSupplierBill @ActorId=@actor,@SessionId=@session,@RequestId=@request,@Command=@input", other))
         {

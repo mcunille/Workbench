@@ -85,7 +85,7 @@ test('an intentional Playwright failure retains safe files and still fails; pass
       test('passing layout', async ({ page }) => { await page.setContent('<button>OK</button>'); });`);
     await writeFile(join(root, 'playwright.config.ts'), `export default { testDir: '.', testMatch: '*.spec.ts', workers: 1, reporter: [[${JSON.stringify(fileURLToPath(new URL('./diagnostic-reporter.ts', import.meta.url))) }, {outputFile: ${JSON.stringify(join(root, 'results.json'))}}], ['line']], metadata: {diagnosticsRoot: ${JSON.stringify(evidence)}}, outputDir: ${JSON.stringify(join(root, 'raw'))}, use: {trace:'off'} };`);
     // WHEN Playwright runs the actual failing assertion and automatic teardown.
-    const run = spawnSync('pwsh', ['-NoProfile', '-File', fileURLToPath(new URL('../../scripts/test-browser.ps1', import.meta.url)), '--config', join(root, 'playwright.config.ts')], { encoding: 'utf8', timeout: 60000 });
+    const run = spawnSync('pwsh', ['-NoProfile', '-File', fileURLToPath(new URL('../../scripts/test-browser.ps1', import.meta.url)), '--config', join(root, 'playwright.config.ts')], { encoding: 'utf8', timeout: 25000 });
     // THEN its original failure remains nonzero and the logged artifact path resolves to retained files.
     assert.equal(run.status, 1, run.stdout + run.stderr);
     // AND retained JSON preserves outcomes and timings without error, console or attachment data.
@@ -96,7 +96,8 @@ test('an intentional Playwright failure retains safe files and still fails; pass
     assert.deepEqual(summary.tests.map(test => test.status), ['failed', 'passed']);
     assert.ok(summary.tests.every(test => test.duration >= 0 && test.file === 'contract.spec.ts'));
     assert.ok(!summaryText.includes('SECRET_CANARY'));
-    assert.deepEqual(Object.keys(summary.tests[0]).sort(), ['column', 'duration', 'expectedStatus', 'file', 'id', 'line', 'retry', 'status']);
+    assert.deepEqual(Object.keys(summary.tests[0]).sort(), ['column', 'duration', 'expectedStatus', 'file', 'id', 'line', 'retry', 'status', 'timeout']);
+    assert.ok(summary.tests.every(test => test.timeout === 30_000));
     assert.ok(run.stdout.includes('Safe browser layout evidence:'), run.stdout + run.stderr);
     const directories = await readdir(evidence);
     assert.equal(directories.length, 1);

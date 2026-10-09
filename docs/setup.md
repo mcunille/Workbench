@@ -35,6 +35,8 @@ These are also the defaults, so `./scripts/dev-up.ps1` works without prompts. Te
 apply when creating an environment; subsequent starts preserve the saved identity and test data.
 The command builds current source, initializes the database with the existing migration and
 bootstrap commands, starts the API/UI, and checks readiness before printing its URL.
+The migration installs the reviewed four-gem pilot catalog once. Later refreshes preserve
+published changes; see [pilot distribution and installation](operations/database-migrations.md#pilot-catalog-distribution-and-installation).
 
 Open the reported `http://localhost:<port>` address. Docker chooses an available loopback port;
 SQL has no published host port. The initial login is stored privately in
@@ -95,6 +97,13 @@ For a retained Windows QA service with worker and localhost HTTPS, use the autom
 [local self-host installation](operations/local-self-host.md). For production requirements, start
 with the [production operations audit](operations/production-readiness.md). Development SQL and
 loopback previews are not production installations.
+
+Tenant bootstrap does not create a service-admin identity. An installation operator provisions
+that separate identity with `Workbench.Database service-admin provision`, passing protected
+operator-connection and password files and the exact target database name. Follow the
+[service-admin maintenance procedure](operations/database-principals.md#service-admin-identity-maintenance)
+for provision, disable, password reset and session revocation. Never put an operator connection
+into the web configuration or replace the tenant login with this separate identity.
 
 For local verification install the repository-pinned .NET SDK **10.0.401**, Node.js **26.7.0**, and
 npm **11.19.0**, and install Playwright Chromium before browser tests:

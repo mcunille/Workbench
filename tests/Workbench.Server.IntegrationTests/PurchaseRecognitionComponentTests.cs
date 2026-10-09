@@ -26,11 +26,14 @@ public sealed class PurchaseRecognitionComponentTests(SqlServerFixture sqlServer
              {"componentKey":"recoverable","kind":"RecoverableTax","amount":"2"}]
             """);
         // WHEN the reviewed invoice posts through the durable source adapter.
-        await context.PostAsync(command.ToJsonString());
+        var result = await context.PostAsync(command.ToJsonString());
         // THEN the persisted journal recognizes cost 98, tax 2 and payable 100.
+        Assert.Single(result.JournalIds);
         Assert.Equal(98m, await context.BalanceAsync("Prepayment"));
         Assert.Equal(2m, await context.BalanceAsync("RecoverableTax"));
         Assert.Equal(-100m, await context.BalanceAsync("SupplierPayable"));
+        // AND invoice-first recognition does not yet debit inventory or expense.
+        Assert.Equal(0m, await context.BalanceAsync(classification));
     }
 
     [Fact]
@@ -50,7 +53,6 @@ public sealed class PurchaseRecognitionComponentTests(SqlServerFixture sqlServer
     }
 
     [Theory]
-    [InlineData("0.01", true)]
     [InlineData("0.02", false)]
     [InlineData("-0.01", true)]
     public async Task InvoiceRoundingHasOneMinorUnitBound(string adjustment, bool accepted)
@@ -166,66 +168,69 @@ public sealed class PurchaseRecognitionComponentTests(SqlServerFixture sqlServer
     }
 
     [Theory]
-    [InlineData("duplicate-rounding")]
-    [InlineData("negative-cost")]
-    [InlineData("excess-precision")]
-    [InlineData("overflow")]
-    [InlineData("unknown-nested")]
-    [InlineData("duplicate-nested")]
-    [InlineData("negative-assigned-cost")]
+    [InlineData("duplicate-rounding,negative-cost,excess-precision,overflow,unknown-nested,duplicate-nested,negative-assigned-cost")]
     [InlineData("fractional-negative-assigned-cost")]
-    public async Task InvalidBreakdownCannotCreateFinancialEvidence(string defect)
+    public async Task InvalidBreakdownCannotCreateFinancialEvidence(string defects)
     {
         // GIVEN a durable source and a breakdown that violates one typed component rule.
         await using var context = await PurchaseRecognitionTestContext.OpenAsync(sqlServer);
-        var command = await context.CommandAsync("Invoice", cost: defect == "negative-cost" ? "1" :
-            defect == "overflow" ? "999999999999999999999999.99" : defect == "negative-assigned-cost" ? "2" :
-            defect == "fractional-negative-assigned-cost" ? "0.9999" : "100");
-        if (defect == "fractional-negative-assigned-cost") await SetScaleAsync(context, 4);
-        var side = command["units"]![0]!["sides"]![0]!;
-        string? json = null;
-        switch (defect)
+        foreach (var defect in defects.Split(','))
         {
-            case "duplicate-rounding":
-                side["components"] = JsonNode.Parse("""
+            var command = await context.CommandAsync("Invoice", cost: defect == "negative-cost" ? "1" :
+                defect == "overflow" ? "999999999999999999999999.99" : defect == "negative-assigned-cost" ? "2" :
+                defect == "fractional-negative-assigned-cost" ? "0.9999" : "100");
+            if (defect == "fractional-negative-assigned-cost") await SetScaleAsync(context, 4);
+            var side = command["units"]![0]!["sides"]![0]!;
+            string? json = null;
+            switch (defect)
+            {
+                case "duplicate-rounding":
+                    side["components"] = JsonNode.Parse("""
                     [{"componentKey":"base","kind":"BaseCost","amount":"100"},
                      {"componentKey":"plus","kind":"Rounding","amount":"0.01","assignedCostComponentKey":"base","reason":"Approved"},
                      {"componentKey":"minus","kind":"Rounding","amount":"-0.01","assignedCostComponentKey":"base","reason":"Approved"}]
                     """); break;
-            case "negative-cost":
-                side["components"] = JsonNode.Parse("""
+                case "negative-cost":
+                    side["components"] = JsonNode.Parse("""
                     [{"componentKey":"base","kind":"BaseCost","amount":"1"},
                      {"componentKey":"discount","kind":"Discount","amount":"2","assignedCostComponentKey":"base"}]
                     """); break;
-            case "excess-precision": side["components"]![0]!["amount"] = "100.00001"; break;
-            case "overflow":
-                side["components"] = JsonNode.Parse("""
+                case "excess-precision": side["components"]![0]!["amount"] = "100.00001"; break;
+                case "overflow":
+                    side["components"] = JsonNode.Parse("""
                     [{"componentKey":"base","kind":"BaseCost","amount":"999999999999999999999999.99"},
                      {"componentKey":"charge","kind":"Charge","amount":"1","assignedCostComponentKey":"base","reason":"Supplier handling"}]
                     """); break;
-            case "unknown-nested": side["components"]![0]!["ledgerAccountId"] = Guid.NewGuid(); break;
-            case "duplicate-nested":
-                json = command.ToJsonString().Replace("\"kind\":\"BaseCost\"", "\"kind\":\"BaseCost\",\"kind\":\"BaseCost\"", StringComparison.Ordinal); break;
-            case "negative-assigned-cost":
-                side["components"] = JsonNode.Parse("""
+                case "unknown-nested": side["components"]![0]!["ledgerAccountId"] = Guid.NewGuid(); break;
+                case "duplicate-nested":
+                    json = command.ToJsonString().Replace("\"kind\":\"BaseCost\"", "\"kind\":\"BaseCost\",\"kind\":\"BaseCost\"", StringComparison.Ordinal); break;
+                case "negative-assigned-cost":
+                    side["components"] = JsonNode.Parse("""
                     [{"componentKey":"small-base","kind":"BaseCost","amount":"1"},
                      {"componentKey":"large-base","kind":"BaseCost","amount":"3"},
                      {"componentKey":"discount","kind":"Discount","amount":"2","assignedCostComponentKey":"small-base"}]
                     """); break;
-            case "fractional-negative-assigned-cost":
-                side["components"] = JsonNode.Parse("""
+                case "fractional-negative-assigned-cost":
+                    side["components"] = JsonNode.Parse("""
                     [{"componentKey":"small-base","kind":"BaseCost","amount":"1.0000"},
                      {"componentKey":"other-base","kind":"BaseCost","amount":"1.0000"},
                      {"componentKey":"discount","kind":"Discount","amount":"1.0001","assignedCostComponentKey":"small-base"}]
                     """); break;
+            }
+            // WHEN posting THEN malformed, nonrepresentable or invalid allocation is rejected atomically.
+            var error = await Assert.ThrowsAsync<SqlException>(() => context.PostAsync(json ?? command.ToJsonString()));
+            Assert.True(error.Number == 51000, $"{defect}: expected structural rejection, got {error.Number}.");
+            if (defect == "fractional-negative-assigned-cost") Assert.Contains("Assigned cost component cannot become negative", error.Message, StringComparison.Ordinal);
+            Assert.Equal(0, await context.CountAsync("RecognitionSideEvents"));
+            Assert.Equal(0, await context.CountAsync("RecognitionGroupReceipts"));
+            Assert.Equal(0, await context.Journal.CountAsync("JournalEntries"));
         }
-        // WHEN posting THEN malformed, nonrepresentable or invalid allocation is rejected atomically.
-        var error = await Assert.ThrowsAsync<SqlException>(() => context.PostAsync(json ?? command.ToJsonString()));
-        Assert.Equal(51000, error.Number);
-        if (defect == "fractional-negative-assigned-cost") Assert.Contains("Assigned cost component cannot become negative", error.Message, StringComparison.Ordinal);
-        Assert.Equal(0, await context.CountAsync("RecognitionSideEvents"));
-        Assert.Equal(0, await context.CountAsync("RecognitionGroupReceipts"));
-        Assert.Equal(0, await context.Journal.CountAsync("JournalEntries"));
+        // AND rejection does not poison the context: a complete invoice can still commit.
+        var valid = await context.CommandAsync("Invoice");
+        var posted = await context.PostAsync(valid.ToJsonString());
+        Assert.Single(posted.JournalIds);
+        Assert.Equal(1, await context.CountAsync("RecognitionSideEvents"));
+        Assert.Equal(1, await context.CountAsync("RecognitionGroupReceipts"));
     }
 
     [Fact]

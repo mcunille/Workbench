@@ -1,4 +1,5 @@
 // Copyright (c) 2026 The White Stag Collection.
+using System.Text.Json;
 using System.Text.Json.Nodes;
 using Microsoft.Data.SqlClient;
 
@@ -85,6 +86,23 @@ internal sealed class SupplierBillTestContext(PurchaseRecognitionTestContext rec
     }
     public Task<JsonObject> SaveAsync(Guid requestId, JsonObject command, SqlConnection? connection = null)
         => ExecuteAsync("SaveSupplierBill", requestId, command, connection);
+    public Task<JsonObject> ReadAsync(string procedure, params (string Name, object Value)[] parameters)
+        => ReadAsync(Journal.Connection, JournalTestContext.ActorId, Journal.SessionId, procedure, parameters);
+
+    internal static async Task<JsonObject> ReadAsync(SqlConnection connection, Guid actorId, Guid sessionId,
+        string procedure, params (string Name, object Value)[] parameters)
+    {
+        await using var command = new SqlCommand($"Purchasing.{procedure}", connection) { CommandType = System.Data.CommandType.StoredProcedure };
+        command.Parameters.AddWithValue("@ActorId", actorId);
+        command.Parameters.AddWithValue("@SessionId", sessionId);
+        foreach (var (name, value) in parameters) command.Parameters.AddWithValue(name, value);
+        return JsonNode.Parse((string)(await command.ExecuteScalarAsync())!)!.AsObject();
+    }
+
+    public async Task<SupplierBillDetail> ReadDetailAsync(Guid billId)
+        => (await ReadAsync("ReadSupplierBill", ("@BillId", billId))).Deserialize<SupplierBillDetail>(JsonSerializerOptions.Web)
+            ?? throw new InvalidOperationException("Bill query returned no result.");
+
     public async Task<JsonObject> ExecuteAsync(string procedure, Guid requestId, JsonObject command, SqlConnection? connection = null)
     {
         await using var sql = new SqlCommand($"EXEC Purchasing.{procedure} @ActorId=@actor,@SessionId=@session,@RequestId=@request,@Command=@command", connection ?? Journal.Connection);
@@ -124,3 +142,8 @@ internal sealed class SupplierBillTestContext(PurchaseRecognitionTestContext rec
     }
     public ValueTask DisposeAsync() => Recognition.DisposeAsync();
 }
+
+internal sealed record SupplierBillEvidence(Guid DocumentId, Guid RevisionId, string Digest, long Length, string Label, bool Available);
+internal sealed record SupplierBillDetail(Guid BillId, Guid PurchaseOrderId, Guid SupplierId, string Currency, string State,
+    Guid RevisionId, string Version, string SupplierName, JsonElement Revision, JsonElement? Review, JsonElement? Posting, IReadOnlyList<SupplierBillEvidence> Evidence,
+    Workbench.Server.Accounting.FinancialEvidenceSetResponse? FinancialEvidence = null);

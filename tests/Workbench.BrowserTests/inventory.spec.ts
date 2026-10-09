@@ -4,9 +4,6 @@ import { useAuthenticatedSession as signIn, signInThroughUi } from './auth-fixtu
 import { browserBaseUrl } from './browser-environment';
 import { expect, test, type Page } from './diagnostic-fixture';
 
-
-test.setTimeout(120_000);
-
 function itemLink(page: Page, name: string) {
   return page.getByRole('link').filter({ has: page.getByText(name, { exact: true }) });
 }

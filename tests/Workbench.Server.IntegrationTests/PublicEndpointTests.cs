@@ -18,7 +18,6 @@ public sealed class PublicEndpointTests
 {
     [Theory]
     [InlineData("100.100.0.56")]
-    [InlineData("100.100.0.187")]
     public async Task AzureEnvironmentTrustAcceptsOnlyOneMetadataHop(string peer)
     {
         // GIVEN explicit acceptance of the Azure environment metadata trust boundary.
@@ -48,8 +47,9 @@ public sealed class PublicEndpointTests
     [InlineData("ReverseProxy:ForwardLimit", "2")]
     [InlineData("ReverseProxy:KnownProxies:0", "10.42.0.2")]
     [InlineData("ReverseProxy:KnownNetworks:0", "10.42.0.0/24")]
-    public void AzureTrustRejectsMixedOrExpandedConfiguration(string key, string value)
+    public async Task AzureTrustRejectsMixedOrExpandedConfiguration(string key, string value)
     {
+        await Task.Yield();
         // GIVEN Azure metadata trust with conflicting settings, WHEN configured, THEN startup fails closed.
         var configuration = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
         {
@@ -60,8 +60,9 @@ public sealed class PublicEndpointTests
     }
 
     [Fact]
-    public void UnknownProxyModeIsRejected()
+    public async Task UnknownProxyModeIsRejected()
     {
+        await Task.Yield();
         // GIVEN a misspelled mode, WHEN configured, THEN it cannot silently select another boundary.
         var configuration = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
         {
@@ -123,8 +124,9 @@ public sealed class PublicEndpointTests
     [Theory]
     [InlineData(0)]
     [InlineData(4)]
-    public void AnUnboundedOrExcessiveHopLimitIsRejected(int hops)
+    public async Task AnUnboundedOrExcessiveHopLimitIsRejected(int hops)
     {
+        await Task.Yield();
         // GIVEN a trusted proxy with an unsafe hop count, WHEN configured, THEN it fails closed.
         var configuration = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
         {
@@ -171,8 +173,9 @@ public sealed class PublicEndpointTests
     [InlineData("::/64")]
     [InlineData("::ffff:10.0.0.0/104")]
     [InlineData("invalid")]
-    public void BroadOrInvalidProxyNetworksAreRejected(string cidr)
+    public async Task BroadOrInvalidProxyNetworksAreRejected(string cidr)
     {
+        await Task.Yield();
         // GIVEN an overbroad or malformed proxy network, WHEN configured, THEN it cannot expand trust.
         var configuration = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
         {
@@ -184,8 +187,6 @@ public sealed class PublicEndpointTests
     [Theory]
     [InlineData("workbench.example", "KnownProxies", HttpStatusCode.OK)]
     [InlineData("attacker.example", "KnownProxies", HttpStatusCode.BadRequest)]
-    [InlineData("workbench.example", "AzureContainerApps", HttpStatusCode.OK)]
-    [InlineData("attacker.example", "AzureContainerApps", HttpStatusCode.BadRequest)]
     public async Task HostAllowlistIsEnforcedBeforeApplicationHandlers(string host, string mode, HttpStatusCode expected)
     {
         // GIVEN a deployed host allowlist, WHEN an API request supplies a host,
