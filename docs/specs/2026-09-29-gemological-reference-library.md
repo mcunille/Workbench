@@ -1,6 +1,6 @@
 # Gemological reference library
 
-**Status: In progress** — GEM-02–06 are merged. On 2026-10-02 the owner reduced GEM-01 to the four-mineral sample included in the repository and installed by GEM-04. GEM-07's service-admin browser workflow is implemented in this change; GEM-08–10 remain to be delivered. The complete reference-library release is not implemented.
+**Status: In progress** — GEM-02–07 are merged. On 2026-10-02 the owner reduced GEM-01 to the four-mineral sample included in the repository and installed by GEM-04. GEM-08's effective-library browsing workflow is implemented in this change; GEM-09–10 remain to be delivered. The complete reference-library release is not implemented.
 
 ## Purpose and audience
 
@@ -181,7 +181,7 @@ override/reset APIs are implemented. Real SQL, authenticated HTTP and pure proje
 tenant isolation, provenance, reconciliation, composite conflicts, and pagination; focused manual
 mutation checks supplement those owners. Tenant additions and workbench references are qualified
 by origin, preserving both when later publication reuses a GUID. Backend delivery gates and running
-preview acceptance are recorded with the implementation PR. GEM-08–10 interfaces and complete
+preview acceptance are recorded with the implementation PR. GEM-09's tenant editing interface and GEM-10's complete
 reference-library release acceptance remain outstanding; this note does not mark the spec implemented.
 Effective browsing currently materializes a catalog-sized snapshot and scalar SQL JSON candidates;
 returned pages are bounded, but load/performance acceptance has not been measured.
@@ -218,6 +218,16 @@ inspection remain part of PR delivery; this story does not complete the overall 
 - **Predecessors:** GEM-05. **Parallel:** GEM-08 and GEM-09 after their respective prerequisites; coordinate navigation and shared UI components before editing them.
 
 #### GEM-08 — Browse the effective library
+
+**Implementation:** Tenant navigation at `/gem-reference` uses the effective read API for bounded
+search, material-kind/group filters and origin-qualified details. The
+[browsing guide](../gem-reference.md) explains field-level provenance, source dates, explicit
+clears, absent fields and specimen-origin limits. Entries needing review remain name-findable
+without a validated classification display. Component coverage owns request races, continuation
+retry, attribution and safe links; browser coverage exercises the integrated pilot and tenant
+override/addition reads plus synthetic keyboard/narrow-layout states in both appearances.
+Delivery-gate and preview evidence belong to the GEM-08 PR. This does not complete GEM-09 or the
+full reference-library release.
 
 **Story:** As a tenant member, I want to search and inspect gems by familiar name or classification so that I can use the shared reference and see my tenant's effective values.
 

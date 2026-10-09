@@ -212,7 +212,7 @@
 @media (max-width: 48rem) {
   .workspace-layout {
     --mobile-nav-control-height: 44px;
-    --mobile-nav-padding: 0.375rem;
+    --mobile-nav-padding: 6px;
     --mobile-nav-bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
     --mobile-nav-height: calc(var(--mobile-nav-control-height) + var(--mobile-nav-padding) * 2 + 2px);
     --mobile-nav-clearance: calc(var(--mobile-nav-height) + var(--mobile-nav-bottom) + 1rem);
@@ -231,7 +231,7 @@
     flex-direction: row;
     flex-wrap: nowrap;
     align-items: center;
-    gap: 0.25rem;
+    gap: 4px;
     padding: var(--mobile-nav-padding);
     border: 1px solid color-mix(in srgb, var(--text) 14%, transparent);
     border-radius: 2rem;
@@ -245,10 +245,11 @@
     flex-wrap: nowrap;
     justify-content: center;
     gap: 0.5rem;
-    padding: 0.625rem 0.75rem;
+    padding: 0.625rem 0;
     border-radius: 1.5rem;
     white-space: nowrap;
   }
+  .workspace-nav .navigation-destination > .icon { flex: 0 0 18px; width: 18px; height: 18px; }
   .workspace-nav .navigation-destination:not([aria-current]) .navigation-label,
   .workspace-nav .user-menu-identity {
     position: absolute;
@@ -259,7 +260,7 @@
     white-space: nowrap;
   }
   .navigation-destination[aria-current] .navigation-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
-  .navigation-secondary { margin: 0; min-width: 0; }
+  .navigation-secondary { display: contents; }
   .navigation-secondary:empty { display: none; }
   .user-menu { position: static; flex: 0 0 auto; margin: 0; padding: 0; border: 0; }
   .user-menu button.user-menu-trigger { width: 44px; height: var(--mobile-nav-control-height); min-height: var(--mobile-nav-control-height); padding: 0; justify-content: center; gap: 0; border-radius: 50%; }
