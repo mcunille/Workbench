@@ -19,7 +19,7 @@ BK-05 bill mutations (`Purchasing.SaveSupplierBill`, `ReviewSupplierBill`, `Post
 no `workbench_web` EXECUTE grant. The fixed `SupplierBillsManage` and `SupplierBillsPost` permissions
 are not assigned to production roles. Bill tables deny direct runtime writes; bounded read procedures
 require current management or accounting-report authority. Do not activate these commands as a
-deployment shortcut: public entry, evidence holds, complete bill corrections and production
+deployment shortcut: public entry, complete bill corrections and production
 reconciliation acceptance remain release gates.
 
 BK-06 supplier financial tables expose tenant-RLS SELECT to `workbench_web`; direct INSERT, UPDATE
@@ -37,6 +37,20 @@ access. Worker function reads remain unavailable. Password-principal provisionin
 read grants without broadening financial mutation authority. API reads require AccountingReportsRead;
 new write permissions are unnecessary for reporting. Supported recognition-attribution reconstruction
 is a protected maintenance/source-owner operation, not a web/worker repair command.
+
+BK-07 exposes tenant-RLS evidence reads and narrowly grants web execution of
+`Accounting.ReadFinancialEvidence`, `Purchasing.DisposeRetainedDocument`,
+`Purchasing.ReadRetainedDocumentDisposal`, `Storage.RequireFinancialEvidenceDeletion` and
+`Storage.FinancialEvidenceRecoveryPending`. Evidence tables deny direct runtime DML; both `Held`
+and `IndependentHeld` deny direct web/worker updates. Capture, acquisition, supplements and internal
+builders have no runtime execution authority. Existing source-owned procedures call them by ownership
+chain; this adds no public financial writer. Disposal requires current document management and
+`AccountingConfigurationManage`; readback and saved outcomes reauthorize each request.
+
+The online backup collector has separate direct CONNECT and `Storage.ExportManifest` EXECUTE
+authority, scoped to the configured installation's SQL database. It receives no workload role or raw
+financial read/write permission. See [collector provisioning](online-backup-recovery.md#deploy-and-verify-backup-collection)
+for private SQL connectivity and managed-identity requirements.
 
 This is the authoritative operational matrix for Workbench database identities. Role names below
 are SQL roles; provision a distinct database user or managed identity for each workload. Application

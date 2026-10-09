@@ -1,6 +1,6 @@
 # PO-07: ledger-backed purchase payments and bookkeeping prerequisites
 
-**Status:** Public PO-07 workflow remains proposed; BK-01–06 prerequisites have separate approved
+**Status:** Public PO-07 workflow remains proposed; BK-01–07 prerequisites have separate approved
 implementation boundaries described below. Remaining stories require their own approval and release
 evidence. This replaces the unimplemented aggregate "Confirm supplier total" proposal and does not
 activate production bookkeeping.
@@ -29,9 +29,12 @@ financial-write UI/routes remain absent. `BookkeepingAvailable` stays false. Fut
 bill/credit correction participants have disposable tests only; BK-07 retention, BK-08 business
 sources and the remaining PO-07 release stories are not delivered by this increment.
 
-The [BK-07 durable evidence design](2026-09-28-bk-07-durable-financial-evidence.md) records the
-approved design for retention and recovery protection. Its implementation plan requires review;
-BK-07 runtime behavior is not yet implemented.
+The implemented [BK-07 durable evidence design](2026-09-28-bk-07-durable-financial-evidence.md)
+adds authentic source capture, frozen retention, ordinary-removal and cleanup protection, explicit
+authorized disposal, indefinite legacy backfill and paired recovery. Its maintained contracts live
+in [Accounting](../accounting.md#durable-financial-evidence) and the
+[provider runbook](../operations/blob-and-service-providers.md#financial-evidence-retention).
+Public financial writers and production bookkeeping remain unavailable.
 
 ## Decision and evidence
 

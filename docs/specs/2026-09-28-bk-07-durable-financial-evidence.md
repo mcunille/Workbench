@@ -1,12 +1,15 @@
 # BK-07: durable financial evidence
 
-**Status:** Design direction and written specification approved in chat. No BK-07 runtime
-implementation or verification is claimed. The implementation plan requires its separate
-review/execution-method handoff before implementation.
+**Status:** Approved design and implementation plan executed. Authentic capture, frozen retention,
+SQL removal/cleanup guards, authorized readback/disposal, client workflow, legacy backfill and paired
+recovery are implemented. Current integration verification and independent whole-branch review are
+recorded separately; implementation does not activate bookkeeping or authorize production rollout.
 
 Parent: [PO-07 bookkeeping prerequisites](2026-09-20-po-07-deposits-and-payments.md).
 Baseline: `ddb2101a887bd33f43f91c00ef07a3fbc0698de3`, including merged BK-01–06 and
-schema `20260928071548_AddSupplierOpenItems`.
+schema `20260928071548_AddSupplierOpenItems`. Subsequent main integration advances the actual merged
+upgrade base to `20261003214043_AddTenantGemReference`; the sole BK-07 migration is
+`20261008010000_AddFinancialEvidenceRetention`. Existing merged migrations remain unchanged.
 
 ## Outcome and scope
 
@@ -188,7 +191,8 @@ After legitimate disposal, an older backup may contain bytes until that backup e
 must reapply the restored SQL disposition before users/workers resume; it must not present disposed
 bytes as active evidence or promise physical erasure from all backups.
 
-Ship one forward migration after `20260928071548_AddSupplierOpenItems`. Preserve all merged
+Ship one forward migration after the actual merged base, `20261003214043_AddTenantGemReference`.
+Preserve all merged
 migrations and financial hashes. Backfill links from authenticated existing posted bill/payment
 and source evidence only, including reversed and zero-value sources; exclude draft/review-only
 records. Use indefinite protection for legacy evidence because the original retention policy was

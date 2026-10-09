@@ -135,6 +135,28 @@ recovery acceptance finish. This evidence is not a live Azure or paired blob-cop
 does not establish BK-07 physical retention holds. Full release verification, separate hardened
 container smoke and retained-preview/browser inspection remain pending for BK-06.
 
+### Financial evidence migration and recovery
+
+`20261008010000_AddFinancialEvidenceRetention` is the sole BK-07 release migration after merged
+`20261003214043_AddTenantGemReference`. It installs tenant-qualified immutable evidence records,
+independent/effective holds, source capture, disposal and current recovery guards without rewriting
+merged migrations or financial hashes. Deploy matching binaries with older writers/workers stopped;
+the compatibility hold protects old cleanup readers but does not authorize mixed-version operation.
+
+Backfill authentic posted bill/payment/recognition evidence, including zero-value and reversed
+sources, with indefinite protection. Draft/review-only records are excluded. Legacy descriptive
+recognition strings remain unresolved and cannot invent source mutation authority. Malformed or
+contradictory typed source identity aborts the migration transaction with source/owner/tenant
+diagnostics; correct the source through a reviewed procedure before retrying. Removed/purged
+metadata is preserved and surviving bytes require recovery verification; no document is reactivated.
+
+Disposable tests cover fresh creation, actual merged-base upgrade, preserved financial/replay bytes,
+invalid-source rollback and blocked Down. Recovery inventory includes links, deadlines, receipts,
+holds and removal state; acceptance requires its exact current fingerprint. Destructive Down remains
+blocked with 50020. Use forward correction or guarded paired recovery. A preview that applied an
+earlier unmerged installer needs a separately reviewed data-preserving refresh; never reset migration
+history or delete retained data. Full gate and preview outcomes belong in the dated BK-07 evidence.
+
 An earlier unmerged BK-06 preview installation is not another supported migration baseline. If it
 needs preservation while installer SQL changes, use a reviewed forward refresh with before/after
 evidence; rerunning an already-recorded migration does not reinstall its procedures. Never delete
@@ -215,6 +237,7 @@ This inventory describes checked-in migration behavior, not permission to execut
 | `20261002192523_InstallGemReferencePilot` | `AddServiceAdminIdentity` | Installs the frozen reviewed four-gem pilot and nineteen citations for missing stable IDs; retains published/retired entries and their complete provenance. Identity conflicts reject the transaction. Advances readiness and backup schema. Verify exact fresh installation, rerun after publication, merged-base upgrade, conflict atomicity, and source-to-seed equality. | Always blocked (50020); use forward correction or protected recovery to preserve published content. |
 | `20261002192901_AddGemReferenceCuration` | `InstallGemReferencePilot` | Adds service-admin drafts, atomic shared publication/retirement, durable actor-bound outcomes, and publication audit through six restricted web commands. Preserves published provenance and tenant/admin identity; direct table writes remain denied. Advances readiness and backup schema; verify fresh creation, merged GEM-03/GEM-04 upgrade, rejected batches, lock-time revocation, exact retries, and transactional audit failure. | Always blocked (50020); forward correction or guarded recovery preserves drafts and publication evidence. |
 | `20261003214043_AddTenantGemReference` | `AddGemReferenceCuration` | Adds tenant entries and sparse overrides with RLS, two explicit web reads and three restricted write commands. Preserves shared publication, provenance, identities and tenant data; retained empty override rows prevent token ABA. Advances readiness and backup schema. Verify fresh creation, merged GEM-05 upgrade, actual-principal scope/authority, composite versions and reset retention. | Always blocked (50020); forward correction or guarded recovery preserves tenant additions and choices. |
+| `20261008010000_AddFinancialEvidenceRetention` | `AddTenantGemReference` | Adds authentic immutable financial evidence, frozen retention, independent/effective holds, authorized disposal and recovery inventory/manifest guards. Legacy posted links are indefinite; malformed typed ownership aborts upgrade. Preserves hashes, removed/purged state and all prior migrations. Advances readiness and backup schema; use matching binaries. | Always blocked (50020); forward correction or guarded paired recovery preserves financial evidence. |
 
 Product behavior, user-visible concurrency/retry rules and the shipped feature inventory belong in
 [collection documentation](../collection.md). Provider retry/backoff behavior belongs in

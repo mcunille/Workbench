@@ -24,7 +24,7 @@ checks. Role changes apply on the next request; losing access clears private in-
 ## Policies
 
 Open **Accounting** and record the country/region, functional currency, explicitly confirmed decimal
-scale, fiscal start month, starting approach/date, and proposed document retention. Incomplete policy
+scale, fiscal start month, starting approach/date, and document retention. Incomplete policy
 drafts can be saved. The current catalog offers US, Canada, Australia, UK, New Zealand, Germany,
 France, Japan, Switzerland, and India, with state/province selections for US, Canada, and Australia.
 Currency selection is independent of country. Catalog availability does not assert tax support.
@@ -37,8 +37,10 @@ Choose complete history from the business's beginning or a later cutover with re
 balances. These are plans only. An empty application does not prove that the business has no prior
 cash, purchases, funding, inventory, liabilities, or other financial activity.
 
-Retention settings are proposals pending the later evidence-retention capability. Unset retention
-stays unresolved; entering a duration does not start deleting documents or enforce a legal policy.
+Retention settings govern new links to posted financial evidence. Choose 1–1000 calendar years and
+record the rationale; an unset duration means indefinite protection. Existing links keep their frozen
+policy even after configuration changes. Expiry permits explicit disposal; it never starts automatic
+deletion or certifies compliance with a jurisdiction's rules.
 
 ## Accounts and mappings
 
@@ -155,8 +157,9 @@ permissions before returning the original receipt. Nonabandoned bills also preve
 
 Bounded internal reads expose source history, posting links and honest current evidence availability.
 History retains each review's PO version, supplier snapshot and captured evidence after revision or
-abandonment clears the current review. Document metadata/digests survive in reviewed snapshots; BK-07 physical retention holds are not yet
-delivered, so later removal or recovery loss can make the file unavailable. No paid/outstanding amount
+abandonment clears the current review. Document metadata/digests survive in reviewed snapshots;
+posting atomically acquires BK-07 retention links. Recovery loss can still make bytes unavailable
+without erasing that evidence. No paid/outstanding amount
 is inferred from these records. Runtime mutation grants and production role assignments for
 `SupplierBillsManage`/`SupplierBillsPost` remain absent. See the
 [BK-05 specification](specs/2026-09-27-bk-05-structured-supplier-bills.md).
@@ -199,7 +202,7 @@ Payment correction reverses recorded cash evidence; it is distinct from an actua
 These commands have no runtime mutation grants, assigned production write permissions or public
 write UI/routes. `BookkeepingAvailable` remains false. Credit/refund sources and complete bill
 correction workflows are future work; disposable adapters test their allocation-participant contracts
-only. BK-07 physical evidence holds remain future work. See the
+only. Posted evidence is protected by the BK-07 retention boundary below. See the
 [BK-06 specification](specs/2026-09-27-bk-06-supplier-open-items-and-allocations.md) for implementation
 evidence and remaining release gates, and [Architecture](ARCHITECTURE.md#supplier-open-items-and-allocations)
 for the unmeasured reporting-cost limit.
@@ -209,3 +212,32 @@ the [BK-02 specification](specs/2026-09-23-bk-02-atomic-journal.md) defines the 
 the [BK-03 specification](specs/2026-09-24-bk-03-corrections-and-period-controls.md) defines internal
 period and correction controls;
 the [PO-07 prerequisites](specs/2026-09-20-po-07-deposits-and-payments.md) describe later bookkeeping gates.
+
+## Durable financial evidence
+
+BK-07 links authentic posted bill, payment and recognition sources to exact private document
+revisions, digests and lengths in the source transaction, including zero-value sources. Review alone
+does not acquire a hold. Original source snapshots, labels, links and receipts remain immutable;
+corrections, settlement and permission loss never release them. Internal source-owned supplements
+append reasoned history and require the original source's current mutation authority.
+
+Each new link freezes the policy version, years, rationale, and deadline. Its anchor is the later of
+the posting date at midnight UTC and SQL's recorded instant; calendar-year addition clamps leap days
+and rejects overflow. Legacy posted evidence receives indefinite protection. Descriptive recognition
+strings cannot establish authenticated document ownership or supplement authority.
+
+Ordinary file removal rejects linked evidence even after expiry. Explicit disposal requires document
+management plus `AccountingConfigurationManage`, a nonblank reason, current versions, finite expired
+deadlines for every link, no independent hold and completed recovery verification. One durable receipt
+removes live visibility and schedules cleanup after at least seven days. Physical cleanup rechecks
+holds, deadlines and receipt membership; the receipt alone does not prove bytes were deleted.
+
+Retention grants no access. Source readback also requires document-read authority, every request and
+retry reauthorizes, and access loss clears private client state. Availability distinguishes declared
+absence, available content, missing/corrupt recovery content and disposed bytes. Recovery preserves
+links and policy while recording unavailable bytes explicitly. Backup-set expiry follows its separate
+recovery window; old backups may retain disposed bytes until expiry.
+
+See [purchasing disposal](purchasing.md#keep-invoice-files-with-an-ordered-purchase),
+[recovery operations](operations/blob-and-service-providers.md#financial-evidence-retention), and
+the [BK-07 specification](specs/2026-09-28-bk-07-durable-financial-evidence.md).

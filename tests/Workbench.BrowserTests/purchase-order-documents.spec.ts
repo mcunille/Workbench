@@ -204,19 +204,27 @@ test('uploaded financial evidence remains retained until explicit disposal and c
     await expect(files.getByText(/Financial evidence retained/)).toBeVisible();
     await expect(files.getByRole('button', { name: 'Remove Synthetic retained invoice' })).toBeDisabled();
     await expect(files.getByRole('button', { name: 'Dispose Synthetic retained invoice' })).toHaveCount(0);
+    for (const dark of [false, true]) {
+      await setAppearance(page, dark);
+      await captureEvidence(files, `bk-07/retained-${dark ? 'dark' : 'light'}.png`);
+    }
     await seedFinancialEvidence('expire', orderId, uploaded.id, identity.userId);
     await page.reload();
     // WHEN eligible, keyboard activation opens a narrow, reasoned confirmation with protected focus.
     await page.setViewportSize({ width: 390, height: 844 });
     const dispose = files.getByRole('button', { name: 'Dispose Synthetic retained invoice' });
-    await dispose.focus(); await page.keyboard.press('Enter');
     const dialog = page.getByRole('dialog', { name: /Dispose retained document/ });
-    await expect(dialog).toBeVisible();
-    await expect(dialog.getByLabel('Reason for disposal')).toBeFocused();
-    await expect(dialog.getByRole('button', { name: 'Dispose document' })).toBeDisabled();
-    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-    await page.keyboard.press('Escape');
-    await expect(dispose).toBeFocused();
+    for (const dark of [false, true]) {
+      await setAppearance(page, dark);
+      await dispose.focus(); await page.keyboard.press('Enter');
+      await expect(dialog).toBeVisible();
+      await expect(dialog.getByLabel('Reason for disposal')).toBeFocused();
+      await expect(dialog.getByRole('button', { name: 'Dispose document' })).toBeDisabled();
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+      await captureEvidence(dialog, `bk-07/disposal-narrow-${dark ? 'dark' : 'light'}.png`);
+      await page.keyboard.press('Escape');
+      await expect(dispose).toBeFocused();
+    }
     await dispose.click();
     await dialog.getByLabel('Reason for disposal').fill('Retention period completed for synthetic evidence.');
     let requestId = '';

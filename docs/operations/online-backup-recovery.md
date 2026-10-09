@@ -145,6 +145,14 @@ The manifest is read before enumeration; new uploads after that inventory remain
 An enumerated version that disappears also yields `Incomplete`; access errors, timeouts and integrity
 failures yield failure. Neither advances successful freshness. Expiration reports `BackupRetentionStatus` separately and cannot advance capture freshness.
 
+BK-07 financial retention and this catalog window are separate controls. Frozen source-link deadlines
+protect authoritative bytes; they do not retain every historical backup indefinitely. After explicit
+disposal, older protected catalogs may still contain bytes until their own expiry. Recovery applies
+the restored SQL disposition before users/workers resume and never presents disposed bytes as active.
+The required SQL inventory is a read-only completeness boundary, not financial mutation authority.
+Local tests exercise that boundary through a restricted export principal; hosted managed identity,
+private DNS/network connectivity and Azure/WORM behavior still require the operational drills below.
+
 Check all of:
 
 - execution Succeeded and `OnlineBackupStatus` with `Outcome=IntegrityChecked`;
