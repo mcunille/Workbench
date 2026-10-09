@@ -57,6 +57,7 @@ export function SignIn() {
       <a className="text-link" href="/recover">
         Forgot your password?
       </a>
+      <a className="text-link" href="/service-admin/sign-in">Service-admin sign in</a>
     </section>
   );
 }
