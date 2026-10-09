@@ -39,13 +39,8 @@ public sealed class SupplierPaymentEvidenceTests(SqlServerFixture sqlServer)
         Assert.Equal(0, await context.Bills.ScalarAsync<int>(query));
     }
 
-    [Theory]
-    [InlineData("unknown")]
-    [InlineData("revision")]
-    [InlineData("removed")]
-    [InlineData("recovery")]
-    [InlineData("otherOrder")]
-    public async Task EvidenceSnapshotsSurviveChangesButNewPaymentsRequireAvailableOwnedRevision(string mutation)
+    [Fact]
+    public async Task EvidenceSnapshotsSurviveChangesButNewPaymentsRequireAvailableOwnedRevision()
     {
         // GIVEN an available private PO document proves the corresponding valid command can commit.
         await using var context = await SupplierPaymentTestContext.OpenAsync(sqlServer);
@@ -56,37 +51,43 @@ public sealed class SupplierPaymentEvidenceTests(SqlServerFixture sqlServer)
         var id = valid["paymentId"]!.GetValue<string>();
         var snapshot = await context.Bills.ScalarAsync<string>($"SELECT EvidenceJson FROM Purchasing.SupplierPayments WHERE Id='{id}'");
         Assert.Equal(new string('A', 64), JsonNode.Parse(snapshot)!["evidence"]!["documents"]![0]!["digest"]!.GetValue<string>());
-        var bad = await context.CommandAsync(); bad["evidence"] = valid["evidence"]!.DeepClone();
-        switch (mutation)
+        var label = await context.Bills.ScalarAsync<string>($"SELECT Label FROM Purchasing.PurchaseOrderDocuments WHERE Id='{document}'");
+        foreach (var mutation in new[] { "unknown", "revision", "removed", "recovery", "otherOrder" })
         {
-            case "unknown": bad["evidence"]!["documents"]![0]!["documentId"] = Guid.NewGuid().ToString(); break;
-            case "revision": bad["evidence"]!["documents"]![0]!["revisionId"] = Guid.NewGuid().ToString(); break;
-            case "removed": await context.Bills.AdminAsync($"UPDATE Purchasing.PurchaseOrderDocuments SET RemovedAtUtc=SYSUTCDATETIME(),Label='Changed label' WHERE Id='{document}'"); break;
-            case "recovery": await context.Bills.AdminAsync($"INSERT Storage.RecoveryFiles(TenantId,RevisionId,ReportId,Generation,Reason,AcceptedAtUtc) VALUES('{JournalTestContext.TenantId}','{revision}',NEWID(),1,'Missing',SYSUTCDATETIME())"); break;
-            case "otherOrder":
-                await context.Bills.AdminAsync($"""
-                    DECLARE @Other uniqueidentifier=NEWID();
-                    INSERT Purchasing.DraftOrders(Id,TenantId,IsDeleted,State,OrderDate,Revision,SupplierId,Currency,ContentSchemaVersion,ContentJson,CreatedAtUtc,UpdatedAtUtc,CreatedByUserId,UpdatedByUserId)
-                      SELECT @Other,TenantId,0,State,OrderDate,Revision,SupplierId,Currency,ContentSchemaVersion,ContentJson,CreatedAtUtc,UpdatedAtUtc,CreatedByUserId,UpdatedByUserId FROM Purchasing.DraftOrders WHERE Id='{context.Bills.Recognition.PurchaseOrderId}';
-                    UPDATE Purchasing.PurchaseOrderDocuments SET OrderId=@Other WHERE Id='{document}';
-                    """); break;
+            var bad = await context.CommandAsync(); bad["evidence"] = valid["evidence"]!.DeepClone();
+            switch (mutation)
+            {
+                case "unknown": bad["evidence"]!["documents"]![0]!["documentId"] = Guid.NewGuid().ToString(); break;
+                case "revision": bad["evidence"]!["documents"]![0]!["revisionId"] = Guid.NewGuid().ToString(); break;
+                case "removed": await context.Bills.AdminAsync($"UPDATE Purchasing.PurchaseOrderDocuments SET RemovedAtUtc=SYSUTCDATETIME(),Label='Changed label' WHERE Id='{document}'"); break;
+                case "recovery": await context.Bills.AdminAsync($"INSERT Storage.RecoveryFiles(TenantId,RevisionId,ReportId,Generation,Reason,AcceptedAtUtc) VALUES('{JournalTestContext.TenantId}','{revision}',NEWID(),1,'Missing',SYSUTCDATETIME())"); break;
+                case "otherOrder":
+                    await context.Bills.AdminAsync($"""
+                        DECLARE @Other uniqueidentifier=NEWID();
+                        INSERT Purchasing.DraftOrders(Id,TenantId,IsDeleted,State,OrderDate,Revision,SupplierId,Currency,ContentSchemaVersion,ContentJson,CreatedAtUtc,UpdatedAtUtc,CreatedByUserId,UpdatedByUserId)
+                          SELECT @Other,TenantId,0,State,OrderDate,Revision,SupplierId,Currency,ContentSchemaVersion,ContentJson,CreatedAtUtc,UpdatedAtUtc,CreatedByUserId,UpdatedByUserId FROM Purchasing.DraftOrders WHERE Id='{context.Bills.Recognition.PurchaseOrderId}';
+                        UPDATE Purchasing.PurchaseOrderDocuments SET OrderId=@Other WHERE Id='{document}';
+                        """); break;
+            }
+            var before = await SupplierPaymentValidationTests.Counts(context);
+            // WHEN new evidence no longer names an available revision on this PO THEN no source or journal survives.
+            Assert.Equal(51004, (await Assert.ThrowsAsync<SqlException>(() => context.RecordAsync(bad))).Number);
+            Assert.Equal(before, await SupplierPaymentValidationTests.Counts(context));
+            // AND recorded evidence and replay are immutable despite current document changes.
+            Assert.Equal(snapshot, await context.Bills.ScalarAsync<string>($"SELECT EvidenceJson FROM Purchasing.SupplierPayments WHERE Id='{id}'"));
+            Assert.Equal(result.ToJsonString(), (await context.RecordAsync(valid, request)).ToJsonString());
+            // AND restore the independent fault before the next probe.
+            if (mutation == "removed") await context.Bills.AdminAsync($"UPDATE Purchasing.PurchaseOrderDocuments SET RemovedAtUtc=NULL,Label='{label.Replace("'", "''")}' WHERE Id='{document}'");
+            if (mutation == "recovery") await context.Bills.AdminAsync($"DELETE Storage.RecoveryFiles WHERE RevisionId='{revision}' AND TenantId='{JournalTestContext.TenantId}'");
+            if (mutation == "otherOrder") await context.Bills.AdminAsync($"UPDATE Purchasing.PurchaseOrderDocuments SET OrderId='{context.Bills.Recognition.PurchaseOrderId}' WHERE Id='{document}'");
         }
-        var before = await SupplierPaymentValidationTests.Counts(context);
-        // WHEN new evidence no longer names an available revision on this PO THEN no source or journal survives.
-        Assert.Equal(51004, (await Assert.ThrowsAsync<SqlException>(() => context.RecordAsync(bad))).Number);
-        Assert.Equal(before, await SupplierPaymentValidationTests.Counts(context));
-        // AND recorded evidence and replay are immutable despite current document changes.
-        Assert.Equal(snapshot, await context.Bills.ScalarAsync<string>($"SELECT EvidenceJson FROM Purchasing.SupplierPayments WHERE Id='{id}'"));
-        Assert.Equal(result.ToJsonString(), (await context.RecordAsync(valid, request)).ToJsonString());
     }
 
     [Fact]
     public async Task MissingDocumentEvidenceIsExplicitAndReceiptFaultRollsBackEverything()
     {
-        // GIVEN a real successfully recorded missing-document payment and a second payment with one immediate allocation.
+        // GIVEN a real missing-document payment with one immediate allocation.
         await using var context = await SupplierPaymentTestContext.OpenAsync(sqlServer);
-        var first = await context.CommandAsync(); await context.RecordAsync(first);
-        Assert.Equal("Receipt not supplied", await context.Bills.ScalarAsync<string>("SELECT JSON_VALUE(EvidenceJson,'$.evidence.missingEvidenceReason') FROM Purchasing.SupplierPayments"));
         var bill = await context.Allocation.BillAsync(); var payment = await context.CommandAsync(); await context.AllocateAsync(payment, bill, "100");
         var before = await SupplierPaymentValidationTests.Counts(context);
         await context.Bills.AdminAsync("CREATE TRIGGER Purchasing.FailPaymentReceipt ON Purchasing.SupplierFinancialReceipts AFTER INSERT AS THROW 51999,'Payment receipt fault',1;");
@@ -98,7 +99,8 @@ public sealed class SupplierPaymentEvidenceTests(SqlServerFixture sqlServer)
         }
         finally { await context.Bills.AdminAsync("DROP TRIGGER Purchasing.FailPaymentReceipt"); }
         var result = await context.RecordAsync(payment); var group = result["groupId"]!.GetValue<string>();
-        // AND a successful retry records one common instant across the complete atomic group.
+        // AND a successful retry explicitly records the missing evidence and one common atomic instant.
+        Assert.Equal("Receipt not supplied", await context.Bills.ScalarAsync<string>("SELECT JSON_VALUE(EvidenceJson,'$.evidence.missingEvidenceReason') FROM Purchasing.SupplierPayments"));
         Assert.Equal(1, await context.Bills.ScalarAsync<int>($"""
             SELECT COUNT(DISTINCT RecordedAtUtc) FROM(
               SELECT RecordedAtUtc FROM Purchasing.SupplierFinancialGroups WHERE Id='{group}'

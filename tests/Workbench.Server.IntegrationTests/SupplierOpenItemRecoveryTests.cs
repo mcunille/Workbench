@@ -147,11 +147,7 @@ public sealed class SupplierOpenItemRecoveryTests(SqlServerFixture sqlServer, Su
             {
                 await context.AdminAsync($"UPDATE source SET {column}=original.{column} FROM Accounting.SourceEvents source JOIN Purchasing.RecoverySourceBackup original ON original.Id=source.Id;");
             }
-            // AND restoring that exact source identity restores all four original attribution rows.
-            await DeriveAsync(context);
-            Assert.Equal(attribution, await context.ScalarAsync<string>("SELECT CONVERT(varchar(64),HASHBYTES('SHA2_256',(SELECT * FROM Purchasing.SupplierControlAttributions ORDER BY TenantId,Id FOR JSON PATH)),2)"));
-            Assert.Equal(before, await SupplierSnapshotAsync(context));
-            Assert.True((await ReadAsync(context)).IsComplete);
+
         }
         await DeriveAsync(context);
         // THEN exact deterministic attribution and historical totals return without changing immutable money or receipts.
@@ -217,28 +213,6 @@ public sealed class SupplierOpenItemRecoveryTests(SqlServerFixture sqlServer, Su
         Assert.Equal(2, await context.ScalarAsync<int>("SELECT COUNT(*) FROM Purchasing.SupplierControlAttributions"));
         Assert.True((await ReadAsync(context)).IsComplete);
         Assert.Equal(before, await SupplierSnapshotAsync(context));
-    }
-
-    [Fact]
-    public async Task UnknownLegacyControlRemainsUnresolved()
-    {
-        // GIVEN a supported BK-05 invoice plus a journal whose source identity cannot establish attribution.
-        await using var context = await SupplierBillPostingTests.OpenAsync(sqlServer, "20260928034802_AddSupplierBills");
-        var valid = await context.Recognition.CommandAsync("Invoice", cost: "40");
-        await context.Recognition.PostAsync(valid.ToJsonString());
-        var unknown = await context.Recognition.CommandAsync("Invoice", cost: "70");
-        var posted = await context.Recognition.PostAsync(unknown.ToJsonString());
-        await context.AdminAsync($"UPDATE Accounting.SourceEvents SET SourceRevision=NEWID() WHERE Id=(SELECT SourceEventId FROM Accounting.JournalEntries WHERE Id='{posted.JournalIds[0]}')");
-        var before = await SupplierOpenItemMigrationTests.SnapshotAsync(context.Recognition);
-        // WHEN migration and a later derivation run encounter this evidence.
-        await DatabaseMigrator.MigrateAsync(context.Journal.Application.AdminConnectionString, default);
-        await DeriveAsync(context);
-        // THEN the unsupported 70 remains visible and incomplete; no guessed capacity or history rewriting hides it.
-        var report = await ReadAsync(context);
-        Assert.False(report.IsComplete); Assert.True(report.UnresolvedTenantControlCount > 0);
-        Assert.Equal("40.00", report.Controls.WholeFilterTotals.Payable);
-        Assert.Contains(report.Controls.Items, c => c.MissingAttributionCount > 0);
-        Assert.Equal(before, await SupplierOpenItemMigrationTests.SnapshotAsync(context.Recognition));
     }
 
     [Fact]

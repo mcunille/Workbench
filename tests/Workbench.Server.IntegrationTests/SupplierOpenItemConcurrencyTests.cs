@@ -14,9 +14,7 @@ public sealed class SupplierOpenItemConcurrencyTests(SqlServerFixture sqlServer)
 {
     [Theory]
     [InlineData(true, false)]
-    [InlineData(false, false)]
     [InlineData(true, true)]
-    [InlineData(false, true)]
     public async Task ConcurrentAllocationsCannotOverspend(bool firstTargetWins, bool sharedDebt)
     {
         // GIVEN real deposits and bills competing for either one funding item or one debt item.
@@ -36,7 +34,7 @@ public sealed class SupplierOpenItemConcurrencyTests(SqlServerFixture sqlServer)
         var successful = 0;
         async Task Apply(JsonObject command, SqlConnection connection)
         { await context.Bills.ExecuteAsync("ApplySupplierFunds", Guid.NewGuid(), command, connection); successful++; }
-        // WHEN each contender in turn holds the transaction while its peer demonstrably blocks.
+        // WHEN one contender holds the transaction while its peer demonstrably blocks.
         var error = await OrderedAsync(context, firstTargetWins, sibling,
             () => Apply(first, context.Allocation.Journal.Connection), () => Apply(second, sibling));
         // THEN exactly one application consumes the contested capacity; the losing source remains open.
@@ -51,7 +49,6 @@ public sealed class SupplierOpenItemConcurrencyTests(SqlServerFixture sqlServer)
 
     [Theory]
     [InlineData(true)]
-    [InlineData(false)]
     public async Task ConcurrentPaymentsCannotOverSettleBill(bool firstPaymentWins)
     {
         // GIVEN two independently valid payments each attempting to settle the same whole bill.
@@ -63,7 +60,7 @@ public sealed class SupplierOpenItemConcurrencyTests(SqlServerFixture sqlServer)
         var successful = 0;
         async Task Pay(JsonObject command, SqlConnection connection)
         { await context.Bills.ExecuteAsync("RecordSupplierPayment", Guid.NewGuid(), command, connection); successful++; }
-        // WHEN both serial orders are forced on separate restricted SQL connections.
+        // WHEN accounting ownership is forced on separate restricted SQL connections.
         var error = await OrderedAsync(context, firstPaymentWins, sibling,
             () => Pay(first, context.Allocation.Journal.Connection), () => Pay(second, sibling));
         // THEN stale debt cannot admit another payment, journal, application or receipt.

@@ -42,6 +42,14 @@ finally {
 }
 
 # GIVEN discovered facts and multiple rows of the same theory
+# GIVEN multiple methods share an expensive class fixture
+$classInventory = @('Suite.Shared.First', 'Suite.Shared.Second', 'Suite.Other.First')
+# WHEN independent processes receive their assignments
+$classPartitions = @(New-ServerTestPartitions -TestNames $classInventory -PartitionCount 2)
+# THEN the fixture's methods execute in one process and prepare its history only once.
+if (@($classPartitions | Where-Object { $_.Tests -contains $classInventory[0] -and $_.Tests -contains $classInventory[1] }).Count -ne 1) {
+    throw 'Class fixture methods must remain in one process.'
+}
 Assert-ServerTestProjects -TestProjects @('server.csproj') -SupportedProject 'server.csproj'
 Assert-Rejected { Assert-ServerTestProjects -TestProjects @('server.csproj', 'new-tests.csproj') -SupportedProject 'server.csproj' } 'project inventory changed'
 Assert-Rejected { Assert-ServerTestProjects -TestProjects @() -SupportedProject 'server.csproj' } 'project inventory changed'
@@ -175,9 +183,9 @@ finally {
 }
 Write-Host 'Server partition completeness and failure propagation passed.'
 # GIVEN skewed measured durations and a new test without history
-$skewNames = @('Suite.A', 'Suite.B', 'Suite.C', 'Suite.D', 'Suite.New')
-$weights = @{ 'Suite.A' = 20.0; 'Suite.B' = 18.0; 'Suite.C' = 2.0; 'Suite.D' = 1.0 }
-# WHEN whole methods are scheduled by predicted duration
+$skewNames = @('Suite.A.Test', 'Suite.B.Test', 'Suite.C.Test', 'Suite.D.Test', 'Suite.New.Test')
+$weights = @{ 'Suite.A.Test' = 20.0; 'Suite.B.Test' = 18.0; 'Suite.C.Test' = 2.0; 'Suite.D.Test' = 1.0 }
+# WHEN whole classes are scheduled by predicted duration
 $weighted = @(New-ServerTestPartitions -TestNames $skewNames -PartitionCount 2 -Durations $weights -FallbackSeconds 1)
 # THEN the loads are 21 seconds each with one explicitly recorded fallback.
 if (($weighted.PredictedSeconds -join ',') -ne '21,21' -or ($weighted.FallbackTests | Measure-Object -Sum).Sum -ne 1) { throw 'Duration balancing or fallback failed.' }
@@ -189,7 +197,7 @@ $again = @(New-ServerTestPartitions -TestNames $reversed -PartitionCount 2 -Dura
 if (($weighted | ConvertTo-Json -Depth 6 -Compress) -cne ($again | ConvertTo-Json -Depth 6 -Compress)) { throw 'Duration assignment depends on discovery order.' }
 # GIVEN a theory whose total duration exceeds each fact
 # WHEN scheduled THEN its rows remain together and their weights are summed.
-$theory = @(New-ServerTestPartitions -TestNames @('Suite.T(x: 2)', 'Suite.T(x: 1)', 'Suite.F', 'Suite.G') -PartitionCount 2 -Durations @{ 'Suite.T(x: 1)' = 6; 'Suite.T(x: 2)' = 6; 'Suite.F' = 10; 'Suite.G' = 2 })
+$theory = @(New-ServerTestPartitions -TestNames @('Suite.T.Test(x: 2)', 'Suite.T.Test(x: 1)', 'Suite.F.Test', 'Suite.G.Test') -PartitionCount 2 -Durations @{ 'Suite.T.Test(x: 1)' = 6; 'Suite.T.Test(x: 2)' = 6; 'Suite.F.Test' = 10; 'Suite.G.Test' = 2 })
 if ($theory[0].PredictedSeconds -ne 12 -or $theory[0].Tests.Count -ne 2 -or $theory[1].PredictedSeconds -ne 12) { throw 'Theory duration aggregation failed.' }
 # GIVEN invalid weights WHEN consumed THEN fail closed, including obsolete entries.
 foreach ($bad in @(-1, 0, [double]::NaN, [double]::PositiveInfinity, '5')) {
@@ -206,7 +214,7 @@ try {
     # WHEN loaded THEN its exact bytes are identified by SHA256 and provenance is retained.
     $loaded = Read-ServerTestDurations $datasetPath
     if ($loaded.Sha256 -cne (Get-FileHash $datasetPath -Algorithm SHA256).Hash.ToLowerInvariant() -or $loaded.SourceRevision -cne $dataset.sourceRevision) { throw 'Dataset provenance missing.' }
-    $casePartitions = @(New-ServerTestPartitions -TestNames @('Suite.Test', 'Suite.test') -PartitionCount 2 -Durations $loaded.Durations)
+    $casePartitions = @(New-ServerTestPartitions -TestNames @('Suite.Test', 'suite.Test') -PartitionCount 2 -Durations $loaded.Durations)
     if ($casePartitions[1].FallbackTests -ne 1 -or $casePartitions[0].PredictedSeconds -ne 5) { throw 'Duration identity must be ordinal.' }
     # GIVEN malformed versions/provenance/weights WHEN loaded THEN they cannot silently fall back.
     foreach ($field in @('schemaVersion', 'sourceRevision', 'sourceRunUrl', 'fallbackSeconds', 'durations')) {
@@ -218,7 +226,7 @@ try {
 finally { Remove-Item -LiteralPath $datasetRoot -Recurse -Force }
 # GIVEN individually finite weights whose partition total overflows
 # WHEN scheduled THEN invalid predicted totals are rejected.
-Assert-Rejected { New-ServerTestPartitions -TestNames @('A', 'B', 'C', 'D') -PartitionCount 2 -Durations @{ A = 1.7e308; B = 1.7e308; C = 1.7e308; D = 1.7e308 } } 'duration'
+Assert-Rejected { New-ServerTestPartitions -TestNames @('A.Test', 'B.Test', 'C.Test', 'D.Test') -PartitionCount 2 -Durations @{ 'A.Test' = 1.7e308; 'B.Test' = 1.7e308; 'C.Test' = 1.7e308; 'D.Test' = 1.7e308 } } 'duration'
 # GIVEN CI evidence retention WHEN a partition run records its timing dataset
 # THEN the uploaded artifact retains that dataset identity alongside results.
 $workflow = Get-Content (Join-Path $PSScriptRoot '../../.github/workflows/ci.yml') -Raw
