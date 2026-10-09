@@ -6,6 +6,14 @@ specs. Git preserves chronology; dated evidence records retain their specific ve
 
 ## Find a decision
 
+[BK-07 durable financial evidence](2026-09-28-bk-07-durable-financial-evidence.md) implements
+atomic evidence holds, configured retention, authorized disposal, and paired recovery protection.
+The approved implementation includes capture, retention, disposal, UI, recovery and legacy backfill.
+Independent internal review is complete; release verification remains failed. The
+[2026-10-09 checkpoint](../operations/evidence/2026-10-09-bk-07-verification-checkpoint.md) records
+the unresolved local server/remote browser failures, passing smoke and partial preview inspection.
+Production bookkeeping remains unavailable; maintained invariants live in [Accounting](../accounting.md#durable-financial-evidence).
+
 [Gemological reference library](2026-09-29-gemological-reference-library.md) proposes a sourced
 Workbench catalog curated through a separate service-admin editor, with tenant additions and
 field-level overrides. The first release is a standalone reference; numerical type properties
@@ -33,7 +41,7 @@ The refreshed final-source preview passed desktop and mobile visual inspection.
 approved historical replay removal and coordinated rollout/recovery boundaries.
 
 [PO-07 bookkeeping foundation and prerequisites](2026-09-20-po-07-deposits-and-payments.md)
-retains the public payment workflow and remaining bookkeeping prerequisites. BK-01–06 supply
+retains the public payment workflow and remaining bookkeeping prerequisites. BK-01–07 supply
 internal foundations with their own documented boundaries; production bookkeeping remains unavailable.
 
 [BK-01 accounting configuration, accounts, and authorization](2026-09-21-bk-01-accounting-foundation.md)
@@ -56,7 +64,7 @@ four-control read APIs with frozen posting/recorded cutoffs. BK-05 is merged. Ta
 mutation and supported-base upgrade/guarded SQL recovery evidence is recorded; complete-branch
 review, full verification, container smoke and retained-preview inspection remain pending.
 Reporting cost is unmeasured and grows with history. No runtime write grants, public financial
-entry, BK-07 physical holds or production bookkeeping activation are delivered.
+entry or production bookkeeping activation are delivered by BK-06; BK-07 supplies physical holds.
 
 | Area | Records |
 | --- | --- |

@@ -5,16 +5,150 @@ import * as api from '../../api/purchaseOrderDocuments';
 import { ApiError } from '../../api/auth';
 import { ItemValidationError } from '../../api/items';
 
-vi.mock('../../api/purchaseOrderDocuments', async original => ({ ...await original<typeof import('../../api/purchaseOrderDocuments')>(), getPurchaseDocuments: vi.fn(), uploadPurchaseDocument: vi.fn(), changePurchaseDocument: vi.fn(), getPurchaseDocumentOperation: vi.fn(), downloadPurchaseDocument: vi.fn() }));
+vi.mock('../../api/purchaseOrderDocuments', async original => ({ ...await original<typeof import('../../api/purchaseOrderDocuments')>(), getPurchaseDocuments: vi.fn(), uploadPurchaseDocument: vi.fn(), changePurchaseDocument: vi.fn(), disposePurchaseDocument: vi.fn(), getPurchaseDocumentOperation: vi.fn(), downloadPurchaseDocument: vi.fn() }));
 const document = { id: 'file-1', label: 'Supplier invoice', mediaType: 'application/pdf', extension: 'pdf', length: 256, createdAtUtc: '2026-09-18T00:00:00Z', version: 'd1', unavailable: false };
 const completed = { requestId: 'request', state: 'Completed', documentId: 'file-1', orderVersion: 'v2' };
 const pdf = (name = 'supplier.pdf') => new File(['%PDF-example'], name, { type: 'application/pdf' });
 const props = () => ({ orderId: 'order', onAuthLost: vi.fn(), onCurrent: vi.fn().mockResolvedValue(undefined), onStateChange: vi.fn() });
 beforeEach(() => {
+  HTMLDialogElement.prototype.showModal = function () { this.open = true; };
   vi.resetAllMocks();
   vi.mocked(api.getPurchaseDocuments).mockResolvedValue({ documents: [], orderVersion: 'v1' });
   vi.mocked(api.uploadPurchaseDocument).mockResolvedValue(completed);
   vi.mocked(api.changePurchaseDocument).mockResolvedValue(completed);
+  vi.mocked(api.disposePurchaseDocument).mockResolvedValue(completed);
+});
+
+const retained = { ...document, retention: { retained: true, retainUntilUtc: '2025-09-18T00:00:00Z', indefinite: false, evidenceVersion: 'ZXY=', canDispose: true, disposalBlockReason: null } };
+
+it('requires explicit reasoned disposal and blocks ordinary removal for retained evidence', async () => {
+  // GIVEN a retained invoice whose server status permits disposal.
+  vi.mocked(api.getPurchaseDocuments).mockResolvedValue({ documents: [retained], orderVersion: 'v1' });
+  render(<PurchaseDocuments {...props()} />);
+  // WHEN the owner opens disposal THEN ordinary Remove stays blocked and a reason is required.
+  expect(await screen.findByRole('button', { name: 'Remove Supplier invoice' })).toBeDisabled();
+  fireEvent.click(screen.getByRole('button', { name: 'Dispose Supplier invoice' }));
+  expect(screen.getByRole('dialog')).toHaveAccessibleName(/dispose retained document/i);
+  expect(screen.getByRole('dialog')).toHaveTextContent('Supplier invoice');
+  expect(screen.getByRole('button', { name: 'Dispose document' })).toBeDisabled();
+  fireEvent.change(screen.getByRole('textbox', { name: 'Reason for disposal' }), { target: { value: 'Retention complete' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Dispose document' }));
+  // THEN exact server versions accompany one disposal command.
+  await waitFor(() => expect(api.disposePurchaseDocument).toHaveBeenCalledOnce());
+  expect(api.disposePurchaseDocument).toHaveBeenCalledWith('order', 'file-1', expect.objectContaining({ expectedOrderVersion: 'v1', expectedDocumentVersion: 'd1', expectedEvidenceVersion: 'ZXY=', reason: 'Retention complete' }));
+});
+
+it('keeps an uncertain disposal immutable through lookup 404 and same-request retry', async () => {
+  // GIVEN the first disposal response is lost and status lookup finds no durable operation yet.
+  vi.mocked(api.getPurchaseDocuments).mockResolvedValue({ documents: [retained], orderVersion: 'v1' });
+  vi.mocked(api.disposePurchaseDocument).mockRejectedValueOnce(new TypeError('offline')).mockResolvedValue(completed);
+  vi.mocked(api.getPurchaseDocumentOperation).mockRejectedValue(new ApiError(404));
+  render(<PurchaseDocuments {...props()} />);
+  fireEvent.click(await screen.findByRole('button', { name: 'Dispose Supplier invoice' }));
+  fireEvent.change(screen.getByRole('textbox', { name: 'Reason for disposal' }), { target: { value: 'Expired policy' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Dispose document' }));
+  // WHEN retrying THEN the original payload, including reason and ID, is sent unchanged.
+  fireEvent.click(await screen.findByRole('button', { name: 'Check and retry disposal' }));
+  await waitFor(() => expect(api.disposePurchaseDocument).toHaveBeenCalledTimes(2));
+  expect(vi.mocked(api.disposePurchaseDocument).mock.calls[1]).toEqual(vi.mocked(api.disposePurchaseDocument).mock.calls[0]);
+});
+
+it('clears private retained-document state when disposal authority is lost', async () => {
+  // GIVEN a private retained invoice and disposal authority revoked during submission.
+  const callbacks = props();
+  vi.mocked(api.getPurchaseDocuments).mockResolvedValue({ documents: [retained], orderVersion: 'v1' });
+  vi.mocked(api.disposePurchaseDocument).mockRejectedValue(new ApiError(403));
+  render(<PurchaseDocuments {...callbacks} />);
+  fireEvent.click(await screen.findByRole('button', { name: 'Dispose Supplier invoice' }));
+  fireEvent.change(screen.getByRole('textbox', { name: 'Reason for disposal' }), { target: { value: 'Private reason' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Dispose document' }));
+  // THEN the dialog, document and reason vanish before notifying the parent.
+  await waitFor(() => expect(callbacks.onAuthLost).toHaveBeenCalledOnce());
+  expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  expect(screen.queryByText('Supplier invoice')).not.toBeInTheDocument();
+  expect(screen.queryByDisplayValue('Private reason')).not.toBeInTheDocument();
+});
+
+it('reviews a disposal conflict before a new explicit submission', async () => {
+  // GIVEN another session changed the retained file after its first disposal attempt.
+  vi.mocked(api.getPurchaseDocuments).mockResolvedValueOnce({ documents: [retained], orderVersion: 'v1' })
+    .mockResolvedValue({ documents: [{ ...retained, version: 'd2', retention: { ...retained.retention, evidenceVersion: 'ZXY2' } }], orderVersion: 'v2' });
+  vi.mocked(api.disposePurchaseDocument).mockRejectedValueOnce(new api.PurchaseDocumentConflict('The evidence changed.')).mockResolvedValue(completed);
+  render(<PurchaseDocuments {...props()} />);
+  fireEvent.click(await screen.findByRole('button', { name: 'Dispose Supplier invoice' }));
+  fireEvent.change(screen.getByRole('textbox', { name: 'Reason for disposal' }), { target: { value: 'Original reason' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Dispose document' }));
+  await waitFor(() => expect(screen.getByRole('button', { name: 'Review current files' })).toBeEnabled());
+  // WHEN review is chosen THEN saved versions are reloaded and the stale command is released.
+  fireEvent.click(screen.getByRole('button', { name: 'Review current files' }));
+  await waitFor(() => expect(api.getPurchaseDocuments).toHaveBeenCalledTimes(2));
+  await waitFor(() => expect(screen.queryByRole('button', { name: 'Review current files' })).not.toBeInTheDocument());
+  expect(api.disposePurchaseDocument).toHaveBeenCalledTimes(1);
+  fireEvent.click(screen.getByRole('button', { name: 'Dispose Supplier invoice' }));
+  fireEvent.change(screen.getByRole('textbox', { name: 'Reason for disposal' }), { target: { value: 'Reviewed reason' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Dispose document' }));
+  // THEN a new explicit request uses refreshed versions and a new request ID.
+  await waitFor(() => expect(api.disposePurchaseDocument).toHaveBeenCalledTimes(2));
+  const commands = vi.mocked(api.disposePurchaseDocument).mock.calls;
+  expect(commands[1][2]).toMatchObject({ expectedOrderVersion: 'v2', expectedDocumentVersion: 'd2', expectedEvidenceVersion: 'ZXY2', reason: 'Reviewed reason' });
+  expect(commands[1][2].requestId).not.toBe(commands[0][2].requestId);
+});
+
+it('keeps the disposal reason available for correction after definite validation rejection', async () => {
+  // GIVEN a server validation error, rather than an uncertain outcome.
+  vi.mocked(api.getPurchaseDocuments).mockResolvedValue({ documents: [retained], orderVersion: 'v1' });
+  vi.mocked(api.disposePurchaseDocument).mockRejectedValueOnce(new ItemValidationError({ reason: ['Explain why retention has ended.'] })).mockResolvedValue(completed);
+  render(<PurchaseDocuments {...props()} />);
+  fireEvent.click(await screen.findByRole('button', { name: 'Dispose Supplier invoice' }));
+  fireEvent.change(screen.getByRole('textbox', { name: 'Reason for disposal' }), { target: { value: 'Too short' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Dispose document' }));
+  // WHEN the rejection arrives THEN the same dialog retains editable input and explains the error.
+  expect(await screen.findByRole('alert')).toHaveTextContent('Explain why retention has ended.');
+  expect(screen.getByRole('dialog')).toBeVisible();
+  expect(screen.getByRole('textbox', { name: 'Reason for disposal' })).toHaveValue('Too short');
+  fireEvent.change(screen.getByRole('textbox', { name: 'Reason for disposal' }), { target: { value: 'The retention deadline has elapsed.' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Dispose document' }));
+  // THEN correction is a new explicit request, with no uncertain-operation lookup.
+  await waitFor(() => expect(api.disposePurchaseDocument).toHaveBeenCalledTimes(2));
+  const commands = vi.mocked(api.disposePurchaseDocument).mock.calls;
+  expect(commands[1][2].reason).toBe('The retention deadline has elapsed.');
+  expect(commands[1][2].requestId).not.toBe(commands[0][2].requestId);
+  expect(api.getPurchaseDocumentOperation).not.toHaveBeenCalled();
+});
+
+it('restores the reason if an uncertain disposal retry receives definite validation rejection', async () => {
+  // GIVEN a lost first response, an absent saved operation, and a validation rejection on exact retry.
+  vi.mocked(api.getPurchaseDocuments).mockResolvedValue({ documents: [retained], orderVersion: 'v1' });
+  vi.mocked(api.disposePurchaseDocument).mockRejectedValueOnce(new TypeError('offline'))
+    .mockRejectedValueOnce(new ItemValidationError({ reason: ['Explain the disposal decision.'] })).mockResolvedValue(completed);
+  vi.mocked(api.getPurchaseDocumentOperation).mockRejectedValue(new ApiError(404));
+  render(<PurchaseDocuments {...props()} />);
+  fireEvent.click(await screen.findByRole('button', { name: 'Dispose Supplier invoice' }));
+  fireEvent.change(screen.getByRole('textbox', { name: 'Reason for disposal' }), { target: { value: 'Original private reason' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Dispose document' }));
+  await waitFor(() => expect(screen.getByRole('button', { name: 'Check and retry disposal' })).toBeEnabled());
+  // WHEN lookup returns 404 and the immutable retry is rejected definitely.
+  fireEvent.click(screen.getByRole('button', { name: 'Check and retry disposal' }));
+  expect(await screen.findByRole('dialog')).toBeVisible();
+  expect(screen.getByRole('textbox', { name: 'Reason for disposal' })).toHaveValue('Original private reason');
+  expect(screen.getByRole('alert')).toHaveTextContent('Explain the disposal decision.');
+  // THEN editing produces a new request only after that definitive answer.
+  fireEvent.change(screen.getByRole('textbox', { name: 'Reason for disposal' }), { target: { value: 'Corrected decision' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Dispose document' }));
+  await waitFor(() => expect(api.disposePurchaseDocument).toHaveBeenCalledTimes(3));
+  const commands = vi.mocked(api.disposePurchaseDocument).mock.calls;
+  expect(commands[1]).toEqual(commands[0]);
+  expect(commands[2][2].requestId).not.toBe(commands[1][2].requestId);
+  expect(commands[2][2].reason).toBe('Corrected decision');
+});
+
+it('describes an indefinite frozen retention without implying a later policy change releases it', async () => {
+  // GIVEN the server reports an indefinite saved financial evidence link.
+  vi.mocked(api.getPurchaseDocuments).mockResolvedValue({ documents: [{ ...retained, retention: { ...retained.retention, retainUntilUtc: null, indefinite: true, canDispose: false, evidenceVersion: null } }], orderVersion: 'v1' });
+  render(<PurchaseDocuments {...props()} />);
+  // THEN status states the indefinite hold and offers no disposal action.
+  expect(await screen.findByText('Financial evidence retained indefinitely. Ordinary removal is unavailable.')).toBeVisible();
+  expect(screen.queryByRole('button', { name: 'Dispose Supplier invoice' })).not.toBeInTheDocument();
 });
 async function select(files: File[]) {
   fireEvent.click(await screen.findByRole('button', { name: 'Add invoice files' }));

@@ -8,6 +8,8 @@ namespace Workbench.Server.IntegrationTests;
 [Collection(SqlServerCollection.Name)]
 public sealed class SupplierOpenItemMigrationTests(SqlServerFixture sqlServer)
 {
+    private const string TargetMigration = "20260928071548_AddSupplierOpenItems";
+
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
@@ -21,7 +23,7 @@ public sealed class SupplierOpenItemMigrationTests(SqlServerFixture sqlServer)
         if (missingLink) await context.AdminAsync("DELETE Purchasing.SupplierBillPostingEvents");
         var before = await SnapshotAsync(context.Recognition);
         // WHEN upgraded THEN supported ownership is derived; missing ownership remains visibly unresolved.
-        await DatabaseMigrator.MigrateAsync(context.Journal.Application.AdminConnectionString, default);
+        await DatabaseMigrator.MigrateToAsync(context.Journal.Application.AdminConnectionString, TargetMigration, default);
         Assert.Equal(before, await SnapshotAsync(context.Recognition));
         Assert.Equal(missingLink ? 0 : 1, await context.ScalarAsync<int>("SELECT COUNT(*) FROM Purchasing.SupplierOpenItems WHERE BillId IS NOT NULL"));
         Assert.Equal(0, await context.ScalarAsync<int>("SELECT COUNT(*) FROM Purchasing.SupplierOpenItems WHERE BillId IS NULL"));
@@ -43,7 +45,7 @@ public sealed class SupplierOpenItemMigrationTests(SqlServerFixture sqlServer)
             : $"UPDATE Accounting.JournalLines SET AccountPurpose='General' WHERE JournalId='{posted.JournalIds[0]}' AND AccountPurpose='SupplierPayable'");
         var before = await SnapshotAsync(context);
         // WHEN upgraded THEN only proven control evidence creates capacity and no original evidence changes.
-        await DatabaseMigrator.MigrateAsync(context.Journal.Application.AdminConnectionString, default);
+        await DatabaseMigrator.MigrateToAsync(context.Journal.Application.AdminConnectionString, TargetMigration, default);
         Assert.Equal(before, await SnapshotAsync(context));
         Assert.Equal(306.60m, await PurchaseRecognitionCorrectionTests.ScalarAsync<decimal>(context, "SELECT SUM(Amount) FROM Purchasing.SupplierItemMovements"));
         Assert.Equal(1, await PurchaseRecognitionCorrectionTests.ScalarAsync<int>(context, "SELECT COUNT(*) FROM Purchasing.SupplierOpenItems"));
@@ -71,7 +73,7 @@ public sealed class SupplierOpenItemMigrationTests(SqlServerFixture sqlServer)
             """));
         var before = await SnapshotAsync(context);
         // WHEN upgraded THEN only derived evidence is added; original source, journal and receipt bytes survive.
-        await DatabaseMigrator.MigrateAsync(context.Journal.Application.AdminConnectionString, default);
+        await DatabaseMigrator.MigrateToAsync(context.Journal.Application.AdminConnectionString, TargetMigration, default);
         Assert.Equal(before, await SnapshotAsync(context));
         Assert.Equal(280m, await PurchaseRecognitionCorrectionTests.ScalarAsync<decimal>(context, "SELECT COALESCE(SUM(Amount),0) FROM Purchasing.SupplierItemMovements"));
         Assert.Equal(0, await PurchaseRecognitionCorrectionTests.ScalarAsync<int>(context, $"SELECT COUNT(*) FROM Purchasing.SupplierControlAttributions WHERE AccountId<>'{context.Accounts["SupplierPayable"]}'"));

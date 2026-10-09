@@ -14,10 +14,13 @@ internal static class SupplierOpenItemQueries
             i => (i.Kind, Units(i.Balance)), protection))), ct);
 
     internal static Task<IResult> Read(Guid id, HttpContext http, WorkbenchDbContext db, IDataProtectionProvider protection, CancellationToken ct) =>
-        Run(http, db, protection, $"item:{id:D}", snapshot =>
+        Run(http, db, protection, $"item:{id:D}", async snapshot =>
         {
             var item = snapshot.SelectedItems.SingleOrDefault(i => i.Id == id);
-            return Task.FromResult(item is null ? JournalReportEndpoints.Unavailable() : Results.Ok(Summary(snapshot, item)));
+            if (item is null) return JournalReportEndpoints.Unavailable();
+            var actor = http.RequestServices.GetRequiredService<Authorization.RequestActor>();
+            var evidence = await FinancialEvidenceQueries.ReadAsync(db, actor, item.SourceId, item.SourceRevisionId, ct);
+            return Results.Ok(Summary(snapshot, item) with { FinancialEvidence = evidence });
         }, ct);
 
     internal static Task<IResult> History(Guid id, HttpContext http, WorkbenchDbContext db, IDataProtectionProvider protection, CancellationToken ct) =>

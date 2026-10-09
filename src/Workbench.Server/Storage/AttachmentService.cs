@@ -144,6 +144,8 @@ public sealed partial class AttachmentService(WorkbenchDbContext database, IBlob
         {
             return;
         }
+        await database.Database.ExecuteSqlInterpolatedAsync(
+            $"EXEC Storage.RequireFinancialEvidenceDeletion @TenantId={actor.TenantId},@AttachmentId={attachmentId},@PhysicalCleanup=0", cancellationToken);
         var now = DateTimeOffset.UtcNow;
         attachment.DeletedAtUtc = now;
         attachment.DeleteAfterUtc = now.AddDays(7);

@@ -6,8 +6,9 @@ using System.Text;
 namespace Workbench.Server.Storage;
 
 public sealed record RecoveryRevision(Guid TenantId, Guid RevisionId, string ProviderAlias, long? Length, string? Sha256,
-    int State, string RowVersion);
-public sealed record RecoveryInventory(string Database, string Server, long Generation, IReadOnlyList<RecoveryRevision> Rows);
+    int State, string RowVersion, bool FinanciallyProtected = false, bool Disposed = false);
+public sealed record RecoveryInventory(string Database, string Server, long Generation, IReadOnlyList<RecoveryRevision> Rows,
+    string? FinancialEvidenceFingerprint = null);
 public sealed record MissingRecoveryFile(Guid TenantId, Guid RevisionId, string Reason);
 public sealed record FileRecoveryReport(int Version, Guid ReportId, Guid InstallationId, string TargetAlias, string InventoryJson,
     string Fingerprint, IReadOnlyList<MissingRecoveryFile> Missing, IReadOnlyList<BlobObjectId> Orphans);
@@ -22,7 +23,7 @@ public static class FileRecovery
             throw new InvalidOperationException("A distinct isolated target and resolved SQL operations are required.");
         await target.CheckReadyAsync(cancellationToken);
         var missing = new List<MissingRecoveryFile>();
-        foreach (var row in inventory.Rows.Where(row => row.State == 1))
+        foreach (var row in inventory.Rows.Where(RequiresContent))
         {
             if (row.Length is null || row.Sha256 is null) throw new InvalidDataException("Invalid SQL content metadata.");
             try
@@ -42,6 +43,8 @@ public static class FileRecovery
         return new FileRecoveryReport(1, Guid.NewGuid(), installationId, target.Alias, inventoryJson,
             Fingerprint(inventoryJson), missing, orphans.OrderBy(id => id.TenantId).ThenBy(id => id.RevisionId).ToArray());
     }
+
+    internal static bool RequiresContent(RecoveryRevision row) => !row.Disposed && (row.State == 1 || row.FinanciallyProtected);
 
     // SQL HASHBYTES receives nvarchar: its exact UTF-16 bytes are the report concurrency token.
     public static string Fingerprint(string inventoryJson) => Convert.ToHexString(SHA256.HashData(Encoding.Unicode.GetBytes(inventoryJson)));

@@ -7,17 +7,24 @@ using Xunit;
 namespace Workbench.Server.IntegrationTests;
 
 [Collection(SqlServerCollection.Name)]
-public sealed class SupplierCorrectionParticipantTests(SqlServerFixture sqlServer)
+public sealed class SupplierCorrectionParticipantTests(SupplierParticipantScenarios scenarios) : IClassFixture<SupplierParticipantScenarios>, IAsyncLifetime
 {
+    private PreparedSupplierScenario? _paidBillScenario;
+    public Task InitializeAsync() => Task.CompletedTask;
+    public async Task DisposeAsync()
+    {
+        if (_paidBillScenario is not null) await _paidBillScenario.DisposeAsync();
+    }
+
     [Fact]
     public async Task PaidBillReplacementPreservesCash()
     {
         // GIVEN a genuine bill and genuine cash payment, fully applied by production posting.
-        await using var context = await SupplierCorrectionFixture.OpenAsync(sqlServer);
-        var bill = await context.Allocation.BillAsync("300");
-        var payment = await context.CommandAsync("300"); await context.AllocateAsync(payment, bill, "300");
-        var paid = await context.RecordAsync(payment);
-        var funding = Guid.Parse(payment["paymentId"]!.ToString());
+        var prepared = _paidBillScenario = await scenarios.OpenAsync("embedded300");
+        var context = prepared.Context;
+        var bill = Guid.Parse(prepared.Data["bill"]!.ToString());
+        var funding = Guid.Parse(prepared.Data["funding"]!.ToString());
+        var paid = prepared.Data["posted"]!.AsObject();
         var cashBefore = await CashEvidenceAsync(context);
         var reverse = await SupplierCorrectionFixture.ReverseAsync(context, Guid.Parse(paid["applicationIds"]![0]!.ToString()));
         var reapply = await context.Allocation.CommandAsync(funding, bill, "280", "2026-09-20");
@@ -44,10 +51,10 @@ public sealed class SupplierCorrectionParticipantTests(SqlServerFixture sqlServe
     public async Task RefundedCreditReplacementLeavesClearingDebt()
     {
         // GIVEN a disposable credit owner and an independently recorded cash refund of eighteen.
-        await using var context = await SupplierCorrectionFixture.OpenAsync(sqlServer);
-        var credit = await context.Allocation.SourceAsync("CreditReceivable", "18");
-        var refund = await context.Allocation.SourceAsync("RefundClearing", "18", "2026-09-15", context.Bank);
-        await context.Allocation.ParticipantAsync(credit, refund, amount: 18);
+        await using var prepared = await scenarios.OpenAsync("refundedCredit");
+        var context = prepared.Context;
+        var credit = Guid.Parse(prepared.Data["credit"]!.ToString());
+        var refund = Guid.Parse(prepared.Data["refund"]!.ToString());
         var application = await context.Bills.ScalarAsync<Guid>("SELECT Id FROM Purchasing.SupplierApplications");
         var reverse = await SupplierCorrectionFixture.ReverseAsync(context, application);
         var cashBefore = await CashEvidenceAsync(context);

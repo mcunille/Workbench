@@ -19,7 +19,7 @@ BK-05 bill mutations (`Purchasing.SaveSupplierBill`, `ReviewSupplierBill`, `Post
 no `workbench_web` EXECUTE grant. The fixed `SupplierBillsManage` and `SupplierBillsPost` permissions
 are not assigned to production roles. Bill tables deny direct runtime writes; bounded read procedures
 require current management or accounting-report authority. Do not activate these commands as a
-deployment shortcut: public entry, evidence holds, complete bill corrections and production
+deployment shortcut: public entry, complete bill corrections and production
 reconciliation acceptance remain release gates.
 
 BK-06 supplier financial tables expose tenant-RLS SELECT to `workbench_web`; direct INSERT, UPDATE
@@ -38,6 +38,20 @@ read grants without broadening financial mutation authority. API reads require A
 new write permissions are unnecessary for reporting. Supported recognition-attribution reconstruction
 is a protected maintenance/source-owner operation, not a web/worker repair command.
 
+BK-07 exposes tenant-RLS evidence reads and narrowly grants web execution of
+`Accounting.ReadFinancialEvidence`, `Purchasing.DisposeRetainedDocument`,
+`Purchasing.ReadRetainedDocumentDisposal`, `Storage.RequireFinancialEvidenceDeletion` and
+`Storage.FinancialEvidenceRecoveryPending`. Evidence tables deny direct runtime DML; both `Held`
+and `IndependentHeld` deny direct web/worker updates. Capture, acquisition, supplements and internal
+builders have no runtime execution authority. Existing source-owned procedures call them by ownership
+chain; this adds no public financial writer. Disposal requires current document management and
+`AccountingConfigurationManage`; readback and saved outcomes reauthorize each request.
+
+The online backup collector has separate direct CONNECT and `Storage.ExportManifest` EXECUTE
+authority, scoped to the configured installation's SQL database. It receives no workload role or raw
+financial read/write permission. See [collector provisioning](online-backup-recovery.md#deploy-and-verify-backup-collection)
+for private SQL connectivity and managed-identity requirements.
+
 This is the authoritative operational matrix for Workbench database identities. Role names below
 are SQL roles; provision a distinct database user or managed identity for each workload. Application
 tenant administrators are not SQL operators. Never combine workload roles or give a restricted
@@ -53,6 +67,7 @@ workload owner/migrator authority.
 | `workbench_web` | Tenant-scoped runtime reads/writes; narrow identity resolution, invitation claims, item/photo/acquisition/purchase/supplier commands and readiness procedures. Items allow direct SELECT/INSERT, with UPDATE/DELETE denied; creation snapshots, acquisitions, purchase drafts, suppliers, purchase counters, immutable purchase revisions and request receipts are SELECT-only with writes through restricted commands. Purchasing exposes restricted draft create/update/delete, purchase commit/amend and supplier commands; direct table writes remain denied, including reference allocation and retry receipts. Accounting setup, accounts, revisions, receipts and role assignments are SELECT-only; writes use `Accounting.Save` and `Administration.AssignAccountingRoles`. Journal entries/lines, source events, posting receipts, policy freezes, periods, period closures and receipts, and correction groups and receipts are SELECT-only under tenant RLS. Direct runtime writes to these durable accounting tables are denied. The internal `Accounting.PostJournal`, `Accounting.EnsureOpenPeriod`, `Accounting.ClosePeriod` and `Accounting.CorrectJournal` kernels have no runtime execute grants; no production posting, correction or close adapter is installed. Runtime direct writes to Identity roles and claims are denied. | Web credential only in the web workload. No migration history/security-control changes or raw tenant proof-store access. Do not reuse for worker, migration or operator tools. |
 | `workbench_worker` | Tenant-scoped reads of queue, storage metadata, identity operations/users and protection keys; tenant audit INSERT. Execute bounded `ClaimWork`, `LockWork`, `CompleteWork`, `RetryWork` and aggregate `ReadWorkQueueStatus`. | Separate worker credential/configuration. Cross-tenant claim returns references without protected payloads; aggregate status exposes counts/age without tenant rows. Tenant proof is required for subsequent tenant reads. Do not combine with web/operator/migrator/owner roles. |
 | `workbench_storage_maintenance` | Execute `Storage.ExportManifest`, `AssertMigrationReady`, `RelocateRevision`, `CompleteRecoveryVerification`, `ReplayDeletion`, `ReadRecoveryInventory`, `AcceptFileRecovery`, and `ReadFileRecoveryCompletion`. | Protected maintenance/recovery tooling, never an ordinary web/worker user. Narrow procedures can handle cross-tenant manifests/recovery; this is not general tenant-data browsing. Offline or isolated-target requirements still apply to the selected runbook. |
+| Online backup collector (separate managed-identity user) | Direct EXECUTE grant only on `Storage.ExportManifest`, plus CONNECT. No workload-role membership, table reads or mutation grants. | Read-only cross-tenant revision identity/hash inventory; provision separately using the [online backup procedure](online-backup-recovery.md#deploy-and-verify-backup-collection). Expiration receives no SQL user. |
 
 Storage-provider and mail managed identities are additional cloud authorities. SQL role membership
 does not grant Azure storage access or permission to send mail. See

@@ -28,9 +28,9 @@ internal sealed class SupplierPaymentTestContext(SupplierAllocationTestContext a
             throw;
         }
     }
-    public static async Task<SupplierPaymentTestContext> OpenAsync(SqlServerFixture fixture)
+    public static async Task<SupplierPaymentTestContext> OpenAsync(SqlServerFixture fixture, string? priorMigration = null)
     {
-        var result = new SupplierPaymentTestContext(await SupplierAllocationTestContext.OpenAsync(fixture));
+        var result = new SupplierPaymentTestContext(await SupplierAllocationTestContext.OpenAsync(fixture, priorMigration));
         try
         {
             var created = await result.Allocation.Journal.SaveAsync(Guid.NewGuid(), "CreateAccounts", """

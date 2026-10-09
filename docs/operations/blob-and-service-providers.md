@@ -145,6 +145,36 @@ A hold prevents deletion. The worker rechecks retention under a SQL lock, delete
 records purged revisions while retaining ownership, provenance, digest, and audit history. Interrupted
 uploads remain recoverable pending operations; reconciliation reports their unreferenced bytes.
 
+### Financial evidence retention
+
+BK-07 acquires authoritative source/revision links and effective `Held` protection in the posting
+transaction. Independent holds remain separate and cannot be cleared by disposal. Ordinary removal
+rejects linked documents, including expired links; preparation and completion both revalidate.
+Generic deletion, work admission and completion also enforce the SQL predicate, protecting older
+workers that still read only `Held`. Cleanup holds the attachment lock through provider deletion and
+never acquires a PO/accounting lock afterward.
+
+Each link freezes its policy and later-of-posting/recorded anchor. Unset policy and legacy posted
+links are indefinite. Finite expiry only permits reasoned disposal with document-management and
+accounting-configuration authority, current versions, complete expired link membership and no
+independent hold or pending recovery. The immutable receipt removes live visibility and starts at
+least seven days of grace. Cleanup rechecks effective/independent holds, deadlines and exact receipt
+membership; successful authorization is not a physical-erasure claim.
+
+Paired manifests include protected removed/purged revisions. Recovery inspection and relocation
+verify their exact digest/length; missing or corrupt bytes require a bound accepted disposition and
+remain unavailable without erasing financial links. Every SQL revision identity protects against
+orphan cleanup. Disposed bytes are never resurrected as active evidence. Recovery fingerprints bind
+links, policy, additions/disposal membership, holds and removal state, so old or stale reports cannot
+accept changed protection. Sanitation sets recovery pending even when only protected purged content
+remains. Follow [backup/restore](database-backup-restore.md) before resuming workers.
+
+Financial retention protects authoritative content; backup sets retain their separate recovery
+window. Older backups may contain disposed bytes until expiry. Online capture compares provider
+copies with mandatory SQL inventory and reports missing protected identities as incomplete; an
+accepted missing-file disposition cannot establish successful backup freshness. Local evidence does
+not attest hosted Azure identity/network access or WORM behavior.
+
 ## Identity delivery and worker
 
 Hosted scheduled jobs use `dotnet Workbench.Server.dll --worker --drain`. `Worker:MaxItems` defaults
@@ -305,8 +335,10 @@ and `Target` as the intended provider. Run `storage migrate` with the same conne
 offline-confirmation and config-file arguments. Migration refuses unresolved pending revisions; reconcile
 them against the original store before cutover. A privileged offline repair may mark a pending operation
 failed only after establishing that it has no retained content and any abandoned bytes have been handled
-under the retention/cleanup procedure. Failed and purged revisions retain provenance but require no
-further provider deletion. Do not mark an ambiguous publication failed merely to bypass this gate.
+under the retention/cleanup procedure. Failed and purged revisions retain provenance; financially
+protected revisions still require surviving bytes to be verified and copied unless legitimately
+disposed. Other failed/purged revisions require no further provider deletion. Do not mark an
+ambiguous publication failed merely to bypass this gate.
 The copy checks destination readiness, including Azure container privacy, before writing bytes.
 It verifies the source, copies immutable bytes with
 create-only semantics, verifies all destinations, and transactionally changes SQL aliases with digest

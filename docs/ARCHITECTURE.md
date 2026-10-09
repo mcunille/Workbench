@@ -197,7 +197,7 @@ atomically while preserving the original committed records. Journal detail adds 
 relationships; the period GET reports explicit ranges of up to 120 months without materializing an
 open month. The [BK-03 design](specs/2026-09-24-bk-03-corrections-and-period-controls.md) records
 the constraints. Bookkeeping activation, production sources, reconciliation acceptance, public close
-and correction actions, and retained financial files remain gated by the parent prerequisites.
+and correction actions remain gated by the parent prerequisites. BK-07 supplies financial-file retention.
 
 ### Classified purchase recognition
 
@@ -231,8 +231,8 @@ bill-owned financial evidence. Read procedures expose bounded history and live f
 The same tenant accounting lock serializes bill commands with period closing and PO changes.
 
 The single additive migration installs no runtime mutation grants or production role assignments;
-`BookkeepingAvailable` remains false. Public bill entry and allocation, bill corrections and physical
-evidence holds are separate release work. See the [BK-05 design](specs/2026-09-27-bk-05-structured-supplier-bills.md).
+`BookkeepingAvailable` remains false. Public bill entry, allocation and bill corrections are separate
+release work; BK-07 supplies evidence holds. See the [BK-05 design](specs/2026-09-27-bk-05-structured-supplier-bills.md).
 
 ### Supplier open items and allocations
 
@@ -273,10 +273,33 @@ The single forward migration follows merged BK-05. Supported recognition attribu
 only after full source/group/item/movement/journal identity proof; it adds missing derived attribution
 without changing financial history. Conflicting, detached or unknown evidence remains unresolved.
 There is no runtime repair API. Runtime financial mutation grants and production write-permission
-assignments remain absent; `BookkeepingAvailable` stays false. BK-07 retention and public financial
-entry remain separate gates. See [supplier read APIs](accounting.md#supplier-open-items-and-read-apis),
+assignments remain absent; `BookkeepingAvailable` stays false. Public financial
+entry remains a separate gate. See [supplier read APIs](accounting.md#supplier-open-items-and-read-apis),
 [migration/recovery boundaries](operations/database-migrations.md#supplier-open-item-migration-and-recovery)
 and the [BK-06 specification](specs/2026-09-27-bk-06-supplier-open-items-and-allocations.md).
+
+### Durable financial evidence
+
+BK-07 adds immutable tenant-qualified evidence sets, revision links, additions and disposal receipts
+at authentic source posting. RLS and denied runtime DML protect ownership; no public financial writer
+or supplement editor is enabled. Frozen policy deadlines use the later posting/recorded anchor;
+legacy links are indefinite. Corrections inherit exact authenticated evidence without reacquiring
+missing bytes or changing original hashes. Free-text references do not invent ownership.
+
+Accounting coordination precedes the PO lock; stable attachment-before-revision acquisition
+serializes capture, removal and disposal. Cleanup takes no PO/accounting lock after its attachment
+lock. SQL guards protect preparation, completion, generic deletion and old-worker compatibility via
+effective `Held`, while independent holds remain separate. Explicit authorized disposal records all
+link membership and schedules seven-day grace; physical deletion revalidates it under the lock.
+
+Authorized readback separates retention from availability and reauthorizes every replay. Recovery
+fingerprints bind links, frozen policy, receipts, holds and removal state; protected removed/purged
+identities remain required content until disposal. SQL manifests drive strict recovery and online
+capture completeness. Missing bytes require explicit recovery disposition and cannot advance backup
+freshness. Backup-set expiry remains independent of authoritative financial retention.
+
+See [accounting invariants](accounting.md#durable-financial-evidence) and
+[migration/recovery operations](operations/database-migrations.md#financial-evidence-migration-and-recovery).
 
 ### Collection records export
 

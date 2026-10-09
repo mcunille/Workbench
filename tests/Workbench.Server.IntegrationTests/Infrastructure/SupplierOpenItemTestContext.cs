@@ -11,9 +11,9 @@ internal sealed class SupplierOpenItemTestContext(SupplierBillTestContext bills)
     public PurchaseRecognitionTestContext Recognition => Bills.Recognition;
     public JournalTestContext Journal => Bills.Journal;
 
-    public static async Task<SupplierOpenItemTestContext> OpenAsync(SqlServerFixture fixture)
+    public static async Task<SupplierOpenItemTestContext> OpenAsync(SqlServerFixture fixture, string? priorMigration = null)
     {
-        var context = new SupplierOpenItemTestContext(await SupplierBillTestContext.OpenAsync(fixture));
+        var context = new SupplierOpenItemTestContext(await SupplierBillTestContext.OpenAsync(fixture, priorMigration));
         try
         {
             await context.Bills.AdminAsync(SupplierOpenItemAdapterSql.Install);

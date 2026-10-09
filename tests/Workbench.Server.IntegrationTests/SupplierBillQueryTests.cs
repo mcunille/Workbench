@@ -84,7 +84,7 @@ public sealed class SupplierBillQueryTests(SqlServerFixture sqlServer)
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
-    public async Task UnavailableEvidenceDoesNotRewritePostedSnapshot(bool recoveryMissing)
+    public async Task LossOrDeniedRemovalPreservesPostedEvidenceReadback(bool recoveryMissing)
     {
         // GIVEN immutable private document metadata linked to a reviewed supplier invoice.
         await using var context = await OpenAsync(sqlServer);
@@ -96,13 +96,16 @@ public sealed class SupplierBillQueryTests(SqlServerFixture sqlServer)
         var id = Guid.Parse(posted["billId"]!.GetValue<string>());
         var before = await context.ReadAsync("ReadSupplierBill", ("@BillId", id));
         Assert.True(before["evidence"]?[0]?["available"]?.GetValue<bool>());
-        // WHEN the document metadata records subsequent ordinary removal (BK-07 holds are not delivered).
-        await context.AdminAsync(recoveryMissing
-            ? $"INSERT Storage.RecoveryFiles(TenantId,RevisionId,ReportId,Generation,Reason,AcceptedAtUtc) VALUES('{JournalTestContext.TenantId}','{revisionId}',NEWID(),1,'Missing',SYSUTCDATETIME())"
-            : $"UPDATE Purchasing.PurchaseOrderDocuments SET RemovedAtUtc=SYSUTCDATETIME() WHERE Id='{documentId}'");
+        // WHEN recovery records missing bytes, or ordinary removal is denied by financial retention.
+        if (recoveryMissing)
+            await context.AdminAsync($"INSERT Storage.RecoveryFiles(TenantId,RevisionId,ReportId,Generation,Reason,AcceptedAtUtc) VALUES('{JournalTestContext.TenantId}','{revisionId}',NEWID(),1,'Missing',SYSUTCDATETIME())");
+        else
+            Assert.Equal(51011, (await Assert.ThrowsAsync<Microsoft.Data.SqlClient.SqlException>(() => context.AdminAsync(
+                $"UPDATE Purchasing.PurchaseOrderDocuments SET RemovedAtUtc=SYSUTCDATETIME() WHERE Id='{documentId}'"))).Number);
         var after = await context.ReadAsync("ReadSupplierBill", ("@BillId", id));
-        // THEN live availability changes while immutable financial and document evidence survives.
-        Assert.False(after["evidence"]![0]!["available"]!.GetValue<bool>());
+        // THEN readback distinguishes unavailable bytes from denied removal without rewriting the posting.
+        Assert.Equal(!recoveryMissing, after["evidence"]![0]!["available"]!.GetValue<bool>());
+        Assert.Equal(0, await context.ScalarAsync<int>("SELECT COUNT(*) FROM Purchasing.PurchaseOrderDocuments WHERE RemovedAtUtc IS NOT NULL"));
         Assert.Equal(new string('A', 64), after["evidence"]![0]!["digest"]!.GetValue<string>());
         Assert.Equal(before["posting"]!.ToJsonString(), after["posting"]!.ToJsonString());
     }

@@ -184,12 +184,17 @@ public sealed class SupplierOpenItemConcurrencyTests(SqlServerFixture sqlServer)
             command.Parameters.AddWithValue("@document", document); command.Parameters.AddWithValue("@documentVersion", version); command.Parameters.AddWithValue("@actor", JournalTestContext.ActorId);
             await command.ExecuteNonQueryAsync();
         }
-        // WHEN actual PO/document locks force each serial order THEN removed evidence cannot support a new payment.
+        // WHEN actual PO/document locks force each serial order THEN the winning operation governs evidence availability.
         var error = await RowOrderedAsync(context, paymentFirst, sibling, () => context.RecordAsync(payment), Remove);
-        if (paymentFirst) Assert.Null(error); else Assert.Equal(51009, error?.Number);
+        Assert.Equal(paymentFirst ? 51011 : 51009, error?.Number);
         Assert.Equal(paymentFirst ? 1 : 0, await context.Bills.ScalarAsync<int>("SELECT COUNT(*) FROM Purchasing.SupplierPayments"));
-        Assert.Equal(1, await context.Bills.ScalarAsync<int>("SELECT COUNT(*) FROM Purchasing.PurchaseOrderDocuments WHERE RemovedAtUtc IS NOT NULL"));
-        if (paymentFirst) Assert.Equal(new string('A', 64), await context.Bills.ScalarAsync<string>("SELECT JSON_VALUE(EvidenceJson,'$.evidence.documents[0].digest') FROM Purchasing.SupplierPayments"));
+        Assert.Equal(paymentFirst ? 0 : 1, await context.Bills.ScalarAsync<int>("SELECT COUNT(*) FROM Purchasing.PurchaseOrderDocuments WHERE RemovedAtUtc IS NOT NULL"));
+        Assert.Equal(paymentFirst ? 1 : 0, await context.Bills.ScalarAsync<int>($"SELECT COUNT(*) FROM Accounting.FinancialEvidenceLinks WHERE DocumentId='{document}' AND RevisionId='{revision}' AND Sha256=REPLICATE('A',64)"));
+        if (paymentFirst)
+        {
+            Assert.Equal(version, await context.Bills.ScalarAsync<byte[]>($"SELECT RowVersion FROM Purchasing.PurchaseOrderDocuments WHERE Id='{document}'"));
+            Assert.Equal(new string('A', 64), await context.Bills.ScalarAsync<string>("SELECT JSON_VALUE(EvidenceJson,'$.evidence.documents[0].digest') FROM Purchasing.SupplierPayments"));
+        }
     }
 
     [Theory]

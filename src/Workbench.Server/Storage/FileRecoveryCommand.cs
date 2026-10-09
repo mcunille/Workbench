@@ -138,7 +138,7 @@ public static class FileRecoveryCommand
                 candidates.Add((entry, sourceAlias));
             }
         }
-        foreach (var row in inventory.Rows.Where(row => row.State == 1))
+        foreach (var row in inventory.Rows.Where(FileRecovery.RequiresContent))
         {
             foreach (var candidate in candidates.Where(entry => entry.SourceAlias == row.ProviderAlias &&
                 entry.Object.Source.TenantId == row.TenantId && entry.Object.Source.RevisionId == row.RevisionId &&

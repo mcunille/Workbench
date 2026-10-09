@@ -9,6 +9,46 @@ namespace Workbench.Server.IntegrationTests;
 [Collection(SqlServerCollection.Name)]
 public sealed class SupplierPaymentCorrectionTests(SqlServerFixture sqlServer, SupplierCorrectionScenarios scenarios) : IClassFixture<SupplierCorrectionScenarios>
 {
+    [Theory]
+    [InlineData(false, false)]
+    [InlineData(true, false)]
+    [InlineData(true, true)]
+    public async Task CorrectionRetainsMissingOriginalEvidenceAndSuccessorInheritsItsSet(bool replace, bool repeatsOriginal)
+    {
+        // GIVEN a posted payment with uploaded evidence whose bytes later become recovery-missing.
+        await using var context = await SupplierCorrectionFixture.OpenAsync(sqlServer);
+        using var storage = new PurchaseOrderDocumentEndpointTests.TestStorage();
+        var document = await FinancialEvidencePostingTests.UploadAsync(context.Bills, storage);
+        var original = await context.CommandAsync();
+        original["evidence"] = new JsonObject { ["documents"] = FinancialEvidencePostingTests.Documents(document), ["missingEvidenceReason"] = null };
+        await context.RecordAsync(original);
+        var originalSet = await context.Bills.ScalarAsync<Guid>("SELECT Id FROM Accounting.FinancialEvidenceSets");
+        var links = await context.Bills.ScalarAsync<string>("SELECT * FROM Accounting.FinancialEvidenceLinks FOR JSON PATH");
+        await context.Bills.AdminAsync($"INSERT Storage.RecoveryFiles(TenantId,RevisionId,ReportId,Generation,Reason,AcceptedAtUtc) VALUES('{JournalTestContext.TenantId}','{document.Revision}',NEWID(),1,'Missing',SYSUTCDATETIME())");
+        var replacement = replace ? await context.CommandAsync("90", "2026-09-20") : null;
+        if (repeatsOriginal) replacement!["evidence"] = original["evidence"]!.DeepClone();
+        if (repeatsOriginal)
+        {
+            var fabricated = replacement!.DeepClone().AsObject();
+            fabricated["evidence"]!["documents"]![0]!["revisionId"] = Guid.NewGuid().ToString();
+            Assert.Equal(51004, (await Assert.ThrowsAsync<SqlException>(() => SupplierCorrectionFixture.CorrectionAsync(context, Guid.Parse(original["paymentId"]!.ToString()), fabricated))).Number);
+        }
+        var correction = await SupplierCorrectionFixture.CorrectionAsync(context, Guid.Parse(original["paymentId"]!.ToString()), replacement);
+        // WHEN the owner reverses or replaces money THEN historical file availability does not block correction.
+        await context.Bills.ExecuteAsync("CorrectSupplierPayment", Guid.NewGuid(), correction);
+        Assert.Equal(links, await context.Bills.ScalarAsync<string>("SELECT * FROM Accounting.FinancialEvidenceLinks FOR JSON PATH"));
+        Assert.True(await context.Bills.ScalarAsync<bool>("SELECT Held FROM Storage.Attachments"));
+        if (replace) Assert.Equal(originalSet, await context.Bills.ScalarAsync<Guid>("SELECT InheritedEvidenceSetId FROM Accounting.FinancialEvidenceSets WHERE InheritedEvidenceSetId IS NOT NULL"));
+        // AND authorized successor readback traverses its authentic ancestor without acquiring a new deadline.
+        var readSet = replace ? await context.Bills.ScalarAsync<Guid>("SELECT Id FROM Accounting.FinancialEvidenceSets WHERE InheritedEvidenceSetId IS NOT NULL") : originalSet;
+        var read = JsonNode.Parse(await FinancialEvidenceDisposalTests.ExecuteAsync(context.Bills,
+            $"EXEC Accounting.ReadFinancialEvidence '{JournalTestContext.ActorId}','{context.Bills.Journal.SessionId}','{readSet}'"))!;
+        var retained = Assert.Single(read["links"]!.AsArray());
+        Assert.Equal(document.Document, Guid.Parse(retained!["documentId"]!.ToString()));
+        Assert.Equal("Missing", retained["availability"]!.ToString());
+        Assert.Equal(links, await context.Bills.ScalarAsync<string>("SELECT * FROM Accounting.FinancialEvidenceLinks FOR JSON PATH"));
+    }
+
     [Fact]
     public async Task ReplacementPreviewUsesRecordCommandValidation()
     {
@@ -96,10 +136,10 @@ public sealed class SupplierPaymentCorrectionTests(SqlServerFixture sqlServer, S
     public async Task UnsupportedCorrectedApplicationRejectsEveryDependentOwner()
     {
         // GIVEN a genuine standalone application and a privileged future adapter using the real inverse kernel.
-        await using var context = await SupplierCorrectionFixture.OpenAsync(sqlServer);
-        var bill = await context.Allocation.BillAsync("100"); var payment = await context.CommandAsync(); await context.RecordAsync(payment);
-        var funding = Guid.Parse(payment["paymentId"]!.ToString());
-        var applied = await context.Allocation.ApplyAsync(await context.Allocation.CommandAsync(funding, bill));
+        await using var prepared = await scenarios.OpenAsync("application100");
+        var context = prepared.Context;
+        var funding = Guid.Parse(prepared.Data["funding"]!.ToString());
+        var applied = prepared.Data["posted"]!.AsObject();
         var correction = await SupplierCorrectionFixture.CorrectionAsync(context, funding);
         var reverse = await SupplierCorrectionFixture.ReverseAsync(context, Guid.Parse(applied["applicationIds"]![0]!.ToString()));
         await context.Bills.AdminAsync("""
@@ -161,6 +201,7 @@ public sealed class SupplierPaymentCorrectionTests(SqlServerFixture sqlServer, S
         var application = Guid.Parse(prepared.Data["application"]!.ToString());
         var document = Guid.Parse(prepared.Data["document"]!.ToString());
         var replacement = prepared.Data["replacement"]!.AsObject();
+        var revision = Guid.Parse(replacement["evidence"]!["documents"]![0]!["revisionId"]!.ToString());
         var correction = prepared.Data["correction"]!.AsObject();
         var before = await SupplierOpenItemAtomicityTests.SnapshotAsync(context);
         var evidenceErrors = new List<Exception?>();
@@ -183,12 +224,24 @@ public sealed class SupplierPaymentCorrectionTests(SqlServerFixture sqlServer, S
                 wait.Parameters.AddWithValue("@waiter", context.Allocation.Journal.Connection.ServerProcessId); wait.Parameters.AddWithValue("@holder", holder.ServerProcessId);
                 using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(7));
                 while ((int)(await wait.ExecuteScalarAsync(timeout.Token))! != 1) await Task.Yield();
-                // THEN an independent genuine evidence validation can still acquire its document/storage locks immediately.
+                // THEN document/storage rows remain available before complete source coordination.
+                // Full validation also takes the PO coordination lock, so probe only these later locks.
                 await using (var begin = new SqlCommand("SET LOCK_TIMEOUT 0; BEGIN TRAN", observer)) await begin.ExecuteNonQueryAsync();
-                await using var evidence = new SqlCommand("DECLARE @validated nvarchar(max); EXEC Purchasing.ValidateBillEvidence @tenant,@po,@input,@validated OUTPUT; SELECT @validated;", observer);
+                await using var evidence = new SqlCommand("""
+                    SELECT COUNT(*) FROM Purchasing.PurchaseOrderDocuments WITH(UPDLOCK,HOLDLOCK)
+                      WHERE TenantId=@tenant AND OrderId=@po AND Id=@document AND RevisionId=@revision;
+                    SELECT COUNT(*) FROM Storage.Attachments WITH(UPDLOCK,HOLDLOCK)
+                      WHERE TenantId=@tenant AND Id=(SELECT AttachmentId FROM Purchasing.PurchaseOrderDocuments WHERE TenantId=@tenant AND Id=@document);
+                    SELECT COUNT(*) FROM Storage.Revisions WITH(UPDLOCK,HOLDLOCK)
+                      WHERE TenantId=@tenant AND Id=@revision;
+                    """, observer);
                 evidence.Parameters.AddWithValue("@tenant", JournalTestContext.TenantId); evidence.Parameters.AddWithValue("@po", context.Bills.Recognition.PurchaseOrderId);
-                evidence.Parameters.AddWithValue("@input", replacement["evidence"]!.ToJsonString());
-                evidenceErrors.Add(await Record.ExceptionAsync(async () => Assert.Contains(document.ToString(), (string)(await evidence.ExecuteScalarAsync())!, StringComparison.OrdinalIgnoreCase)));
+                evidence.Parameters.AddWithValue("@document", document); evidence.Parameters.AddWithValue("@revision", revision);
+                evidenceErrors.Add(await Record.ExceptionAsync(async () =>
+                {
+                    await using var rows = await evidence.ExecuteReaderAsync();
+                    do { Assert.True(await rows.ReadAsync()); Assert.Equal(1, rows.GetInt32(0)); } while (await rows.NextResultAsync());
+                }));
             }
             finally
             {
@@ -200,47 +253,6 @@ public sealed class SupplierPaymentCorrectionTests(SqlServerFixture sqlServer, S
             Assert.Equal(before, await SupplierOpenItemAtomicityTests.SnapshotAsync(context));
         }
         Assert.All(evidenceErrors, error => Assert.Null(error));
-    }
-
-    [Fact]
-    public async Task ReplacementCommitsAfterCoordinationAndEvidenceAreReleased()
-    {
-        // GIVEN the same genuine replacement with both coordination rows and its document locked.
-        await using var prepared = await scenarios.OpenAsync("coordination");
-        var context = prepared.Context;
-        await using var holder = new SqlConnection(context.Allocation.Journal.Application.AdminConnectionString);
-        await holder.OpenAsync();
-        await using (var begin = new SqlCommand("BEGIN TRAN", holder)) await begin.ExecuteNonQueryAsync();
-        await using (var hold = new SqlCommand("""
-            SELECT ApplicationId FROM Purchasing.SupplierApplicationVersions WITH(UPDLOCK,HOLDLOCK) WHERE ApplicationId=@application;
-            SELECT ItemId FROM Purchasing.SupplierItemVersions WITH(UPDLOCK,HOLDLOCK) WHERE ItemId=@funding;
-            SELECT Id FROM Purchasing.PurchaseOrderDocuments WITH(UPDLOCK,HOLDLOCK) WHERE Id=@document;
-            """, holder))
-        {
-            hold.Parameters.AddWithValue("@application", Guid.Parse(prepared.Data["application"]!.ToString()));
-            hold.Parameters.AddWithValue("@funding", Guid.Parse(prepared.Data["funding"]!.ToString()));
-            hold.Parameters.AddWithValue("@document", Guid.Parse(prepared.Data["document"]!.ToString()));
-            await hold.ExecuteNonQueryAsync();
-        }
-        // WHEN correction waits on the independent owner before that owner releases its locks.
-        var pending = context.Bills.ExecuteAsync("CorrectSupplierPayment", Guid.NewGuid(), prepared.Data["correction"]!.AsObject());
-        try
-        {
-            await using var observer = new SqlConnection(context.Allocation.Journal.Application.AdminConnectionString);
-            await observer.OpenAsync();
-            await using var wait = new SqlCommand("SELECT COUNT(*) FROM sys.dm_exec_requests WHERE session_id=@waiter AND blocking_session_id=@holder AND wait_type LIKE 'LCK_M_%'", observer);
-            wait.Parameters.AddWithValue("@waiter", context.Allocation.Journal.Connection.ServerProcessId);
-            wait.Parameters.AddWithValue("@holder", holder.ServerProcessId);
-            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(7));
-            while ((int)(await wait.ExecuteScalarAsync(timeout.Token))! != 1) await Task.Yield();
-        }
-        finally
-        {
-            await using (var release = new SqlCommand("ROLLBACK", holder)) await release.ExecuteNonQueryAsync();
-            await pending;
-        }
-        // THEN the replacement settles the original bill completely.
-        Assert.Equal(0m, await context.Allocation.BalanceAsync(Guid.Parse(prepared.Data["bill"]!.ToString())));
     }
 
     [Fact]
@@ -462,17 +474,16 @@ public sealed class SupplierPaymentCorrectionTests(SqlServerFixture sqlServer, S
     public async Task CorrectionAndDependencyCommandsRecheckBothSerialOrders(string contender, bool correctionFirst)
     {
         // GIVEN a correction preview and a competing command using the same current dependency versions.
-        await using var context = await SupplierCorrectionFixture.OpenAsync(sqlServer);
-        var bill = await context.Allocation.BillAsync("200");
-        var payment = await context.CommandAsync();
-        if (contender == "ReverseSupplierApplication") await context.AllocateAsync(payment, bill, "100");
-        var posted = await context.RecordAsync(payment);
-        var id = Guid.Parse(payment["paymentId"]!.ToString());
+        await using var prepared = await scenarios.OpenAsync(contender == "ReverseSupplierApplication" ? "raceEmbedded" : "racePayment");
+        var context = prepared.Context;
+        var bill = Guid.Parse(prepared.Data["bill"]!.ToString());
+        var id = Guid.Parse(prepared.Data["funding"]!.ToString());
         var replacement = contender == "RecordSupplierPayment" ? await context.CommandAsync("100", "2026-09-20") : null;
         if (replacement is not null) await context.AllocateAsync(replacement, bill, "100");
-        var correction = await SupplierCorrectionFixture.CorrectionAsync(context, id, replacement);
+        var correction = contender == "ReverseSupplierApplication" ? prepared.Data["correction"]!.AsObject()
+            : await SupplierCorrectionFixture.CorrectionAsync(context, id, replacement);
         JsonObject other;
-        if (contender == "ReverseSupplierApplication") other = await SupplierCorrectionFixture.ReverseAsync(context, Guid.Parse(posted["applicationIds"]![0]!.ToString()));
+        if (contender == "ReverseSupplierApplication") other = prepared.Data["reverse"]!.AsObject();
         else if (contender == "CorrectSupplierPayment") other = correction.DeepClone().AsObject();
         else if (contender == "ApplySupplierFunds") other = await context.Allocation.CommandAsync(id, bill, "100", "2026-09-20");
         else { other = await context.CommandAsync("100", "2026-09-20"); await context.AllocateAsync(other, bill, "100"); }
@@ -586,14 +597,13 @@ public sealed class SupplierPaymentCorrectionTests(SqlServerFixture sqlServer, S
     public async Task ExplicitReplacementUsesOneGroupAndCorrectionAuthority(string amount, decimal remaining)
     {
         // GIVEN a real paid bill and an explicit smaller or larger replacement; Record authority is later revoked.
-        await using var context = await SupplierCorrectionFixture.OpenAsync(sqlServer);
-        var bill = await context.Allocation.BillAsync("150");
-        var payment = await context.CommandAsync(); await context.AllocateAsync(payment, bill, "100");
-        await context.RecordAsync(payment);
-        var id = Guid.Parse(payment["paymentId"]!.ToString());
-        var replacement = await context.CommandAsync(amount, "2026-09-20"); await context.AllocateAsync(replacement, bill, amount);
+        await using var prepared = await scenarios.OpenAsync("embedded150");
+        var context = prepared.Context;
+        var bill = Guid.Parse(prepared.Data["bill"]!.ToString());
+        var id = Guid.Parse(prepared.Data["funding"]!.ToString());
+        var replacement = prepared.Data["replacement" + amount]!.AsObject();
         var replacementId = Guid.Parse(replacement["paymentId"]!.ToString());
-        var correction = await SupplierCorrectionFixture.CorrectionAsync(context, id, replacement);
+        var correction = prepared.Data["correction" + amount]!.AsObject();
         await context.Bills.AdminAsync("DELETE FROM [Identity].RoleClaims WHERE ClaimValue='SupplierPaymentsRecord';");
         // WHEN the authorized correction owner posts the exact requested replacement.
         var result = await context.Bills.ExecuteAsync("CorrectSupplierPayment", Guid.NewGuid(), correction);
@@ -667,9 +677,9 @@ internal static class SupplierCorrectionFixture
     {
         Assert.Equal(0, await context.Bills.ScalarAsync<int>("SELECT COUNT(*) FROM Accounting.JournalLines l OUTER APPLY(SELECT SUM(a.Amount) Amount FROM Purchasing.SupplierControlAttributions a WHERE a.TenantId=l.TenantId AND a.JournalId=l.JournalId AND a.Ordinal=l.Ordinal AND a.AccountId=l.AccountId AND a.AccountVersion=l.AccountVersion) a WHERE l.AccountPurpose IN('SupplierPayable','SupplierAdvance','SupplierCreditReceivable','SupplierRefundClearing') AND COALESCE(a.Amount,0)<>CASE WHEN l.AccountType='Asset' THEN l.Debit-l.Credit ELSE l.Credit-l.Debit END"));
     }
-    internal static async Task<SupplierPaymentTestContext> OpenAsync(SqlServerFixture fixture)
+    internal static async Task<SupplierPaymentTestContext> OpenAsync(SqlServerFixture fixture, string? priorMigration = null)
     {
-        var context = await SupplierPaymentTestContext.OpenAsync(fixture);
+        var context = await SupplierPaymentTestContext.OpenAsync(fixture, priorMigration);
         await context.Bills.AdminAsync("""
             GRANT EXECUTE ON Purchasing.ReverseSupplierApplication TO workbench_web;
             GRANT EXECUTE ON Purchasing.PreviewSupplierPaymentCorrection TO workbench_web;
