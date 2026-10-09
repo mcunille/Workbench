@@ -48,19 +48,8 @@ public sealed class SqlServerFixture : IAsyncLifetime
             RECONFIGURE;
             EXEC sp_configure 'contained database authentication', 1;
             RECONFIGURE;
-            -- Approved experiment: remove parallel plans within each disposable test engine.
-            EXEC sp_configure 'max degree of parallelism', 1;
-            RECONFIGURE;
             """, connection);
         await command.ExecuteNonQueryAsync();
-        await using var readParallelism = new SqlCommand("""
-            SELECT CONVERT(int, value_in_use)
-            FROM sys.configurations
-            WHERE name = 'max degree of parallelism';
-            """, connection);
-        var maxDop = Convert.ToInt32(await readParallelism.ExecuteScalarAsync());
-        Console.WriteLine($"SQL MAXDOP experiment: effective setting {maxDop}.");
-        if (maxDop != 1) throw new InvalidOperationException("SQL MAXDOP experiment configuration was not applied.");
         // Prepare the shared, unseeded current schema during fixture startup, before case deadlines.
         // Explicit fresh/upgrade drills still create their own databases and run their own migrations.
         await _schemaTemplate.Value;

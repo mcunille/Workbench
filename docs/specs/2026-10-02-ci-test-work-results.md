@@ -355,3 +355,24 @@ coverage matches GEM-06 main exactly across lines, branches, statements and
 functions (512 tests passed on each side). Formatter, workflow pins and partition
 contracts passed; fresh internal review found no critical or important defects.
 Full server coverage against GEM-06 main and hosted probe results are pending.
+
+The first full hosted MAXDOP trial on `b9b85d8`
+[failed in 37m42](https://github.com/mcunille/Workbench/actions/runs/37877891308).
+All 1,968 unique server identities ran, with 1,966 passed and two existing
+whole-case deadlines: reversal-first serial-order correction and grouped partial
+reapplication. All 122 browser cases passed. Each of the three SQL fixtures
+reported effective MAXDOP one. Sixty-seven valid resource samples had 78.07%
+weighted busy CPU, 0.75% I/O wait, at least 6.39 GiB available memory and 1.441 GiB
+peak recorded usage of any container; peak one-minute load was 17.29.
+
+This run is 38 seconds slower than current main's 37m04 and fails reliability;
+it establishes neither a retained saving nor the ten-minute goal. The CPU samples
+do not show a large reduction from the prior three-process experiment, whose
+production baseline differs, and cannot establish a timeout cause. Because the
+first run failed, no repeat can satisfy the agreed two-green-run criterion.
+The temporary MAXDOP setter, effective-setting guard and recording are removed,
+and hosted concurrency returns to two. Source, tests, scripts and workflow match
+the rebased pre-probe revision `d94c49d`; production remains identical to GEM-06
+main. Current/default documentation again describes the retained two-process
+configuration. Full coverage evidence for the frozen MAXDOP probe and fresh
+restored-source verification remain pending.
