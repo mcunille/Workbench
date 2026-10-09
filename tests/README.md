@@ -31,6 +31,15 @@ the subject. Keep fresh migration-to-provisioning evidence as well as effective-
 Permission matrices that only need an already established current schema may use isolated clones.
 Do not replace real SQL security, transaction, concurrency, or recovery evidence with mocks.
 
+Current-schema `PurchaseRecognitionTestContext` cases restore immutable recognition inputs prepared
+once during SQL fixture initialization: synthetic identities, adapters, supplier/order, six accounts,
+configuration and mappings. Every case retains its own database, account map, contained principal,
+proof key, security stamps and session. Prepared backups contain no contained web credential or live
+session. Recognition posting and supplier transitions remain inside their owning case bodies.
+Explicit prior-migration requests use the original preparation path; direct journal contexts retain
+their initially unconfigured accounting state. Include cold input preparation in process and gate
+wall time when comparing performance.
+
 `SupplierScenarioFixture` prepares immutable supplier histories through production commands in
 the collection's disposable SQL container. Each class fixture declares only its required histories;
 the container caches each history once and prepares them serially before case bodies. A separate

@@ -1,7 +1,5 @@
 // Copyright (c) 2026 The White Stag Collection.
-using System.Text.Json;
 using System.Text.Json.Nodes;
-using Microsoft.Data.SqlClient;
 using Xunit;
 
 namespace Workbench.Server.IntegrationTests.Infrastructure;
@@ -37,14 +35,8 @@ public abstract class SupplierScenarioFixture(SqlServerFixture sqlServer, params
             : await SupplierPaymentTestContext.RestoreAsync(await server.RestoreTemplateAsync(preparedBase.Database), preparedBase.Context);
         var data = name is null ? new JsonObject() : await SeedAsync(context, name);
         var recognition = context.Bills.Recognition;
-        var state = new SupplierContextState(context.Allocation.Journal.ConfigurationVersion,
-            recognition.PurchaseOrderId, recognition.SupplierId, recognition.PurchaseOrderVersion,
-            JsonSerializer.Serialize(recognition.Accounts), context.Bank, context.Advance);
-        // Do not retain a usable contained credential or live session in the backup.
-        var principal = new SqlConnectionStringBuilder(context.Allocation.Journal.Application.WebConnectionString).UserID;
-        await context.Allocation.Journal.Connection.CloseAsync();
-        await context.Bills.AdminAsync($"DELETE FROM [Identity].Sessions; DROP USER [{principal.Replace("]", "]]")}];");
-        var database = await server.CaptureTemplateAsync(context.Allocation.Journal.Application.AdminConnectionString);
+        var state = new SupplierContextState(recognition.CaptureState(), context.Bank, context.Advance);
+        var database = await server.CapturePreparedTemplateAsync(context.Allocation.Journal);
         var label = name is null ? "supplier base" : $"supplier history '{name}'";
         Console.WriteLine($"Prepared {label} in {clock.Elapsed.TotalSeconds:F3}s; startup remains included in process and gate wall time.");
         return new(database, state, data.ToJsonString());
@@ -212,8 +204,7 @@ public sealed class SupplierIsolationScenarios(SqlServerFixture server) : Suppli
 
 public sealed class SupplierEvidenceScenarios(SqlServerFixture server) : SupplierScenarioFixture(server, "equalDebtAttribution");
 
-internal sealed record SupplierContextState(Guid ConfigurationVersion, Guid PurchaseOrderId, Guid SupplierId,
-    string PurchaseOrderVersion, string AccountsJson, Guid Bank, Guid Advance);
+internal sealed record SupplierContextState(RecognitionContextState Recognition, Guid Bank, Guid Advance);
 
 internal sealed record PreparedSupplierScenario(SupplierPaymentTestContext Context, JsonObject Data) : IAsyncDisposable
 {

@@ -16,8 +16,8 @@ internal sealed class SupplierPaymentTestContext(SupplierAllocationTestContext a
         JournalTestContext? journal = null;
         try
         {
-            journal = await JournalTestContext.OpenRestoredAsync(application, state.ConfigurationVersion);
-            var recognition = PurchaseRecognitionTestContext.Restore(journal, state);
+            journal = await JournalTestContext.OpenRestoredAsync(application, state.Recognition.ConfigurationVersion);
+            var recognition = PurchaseRecognitionTestContext.Restore(journal, state.Recognition);
             var allocation = new SupplierAllocationTestContext(new SupplierOpenItemTestContext(new SupplierBillTestContext(recognition)));
             return new SupplierPaymentTestContext(allocation) { Bank = state.Bank, Advance = state.Advance };
         }

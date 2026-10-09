@@ -15,7 +15,10 @@ internal sealed class PurchaseRecognitionTestContext : IAsyncDisposable
     public Dictionary<string, Guid> Accounts { get; } = [];
     private PurchaseRecognitionTestContext(JournalTestContext journal) => Journal = journal;
 
-    internal static PurchaseRecognitionTestContext Restore(JournalTestContext journal, SupplierContextState state)
+    internal RecognitionContextState CaptureState() => new(Journal.ConfigurationVersion, PurchaseOrderId, SupplierId,
+        PurchaseOrderVersion, JsonSerializer.Serialize(Accounts));
+
+    internal static PurchaseRecognitionTestContext Restore(JournalTestContext journal, RecognitionContextState state)
     {
         var result = new PurchaseRecognitionTestContext(journal)
         {
@@ -29,6 +32,40 @@ internal sealed class PurchaseRecognitionTestContext : IAsyncDisposable
     }
 
     public static async Task<PurchaseRecognitionTestContext> OpenAsync(SqlServerFixture fixture, string? priorMigration = null)
+    {
+        // Historical upgrade drills build and migrate their own original schema.
+        if (priorMigration is not null) return await OpenFreshAsync(fixture, priorMigration);
+
+        var prepared = await fixture.GetRecognitionInputsAsync();
+        var database = await fixture.RestoreTemplateAsync(prepared.Database);
+        var application = await AuthTestApplication.CreateFromDatabaseAsync(database);
+        JournalTestContext? journal = null;
+        try
+        {
+            journal = await JournalTestContext.OpenRestoredAsync(application, prepared.Context.ConfigurationVersion);
+            return Restore(journal, prepared.Context);
+        }
+        catch
+        {
+            if (journal is not null) await journal.Connection.DisposeAsync();
+            await application.DisposeAsync();
+            throw;
+        }
+    }
+
+    internal sealed record PreparedInputs(SqlServerFixture.SqlDatabaseTemplate Database, RecognitionContextState Context);
+
+    internal static async Task<PreparedInputs> PrepareAsync(SqlServerFixture fixture)
+    {
+        var clock = System.Diagnostics.Stopwatch.StartNew();
+        await using var context = await OpenFreshAsync(fixture);
+        var state = context.CaptureState();
+        var template = await fixture.CapturePreparedTemplateAsync(context.Journal);
+        Console.WriteLine($"Prepared recognition inputs in {clock.Elapsed.TotalSeconds:F3}s; startup remains included in process and gate wall time.");
+        return new(template, state);
+    }
+
+    private static async Task<PurchaseRecognitionTestContext> OpenFreshAsync(SqlServerFixture fixture, string? priorMigration = null)
     {
         var result = new PurchaseRecognitionTestContext(await JournalTestContext.OpenAsync(fixture, priorMigration));
         try
@@ -160,3 +197,6 @@ internal sealed class PurchaseRecognitionTestContext : IAsyncDisposable
 }
 
 internal sealed record RecognitionResult(Guid CommandId, Guid[] UnitIds, Guid[] EventIds, Guid[] MatchIds, Guid? CorrectionGroupId, Guid[] JournalIds, DateTimeOffset RecordedAtUtc);
+
+internal sealed record RecognitionContextState(Guid ConfigurationVersion, Guid PurchaseOrderId, Guid SupplierId,
+    string PurchaseOrderVersion, string AccountsJson);

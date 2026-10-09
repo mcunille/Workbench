@@ -11,6 +11,7 @@ namespace Workbench.Server.IntegrationTests.Infrastructure;
 public sealed class SqlServerFixture : IAsyncLifetime
 {
     private readonly Lazy<Task<SqlDatabaseTemplate>> _schemaTemplate;
+    private readonly Lazy<Task<PurchaseRecognitionTestContext.PreparedInputs>> _recognitionInputs;
     private readonly System.Collections.Concurrent.ConcurrentDictionary<string, Lazy<Task<SupplierScenarioFixture.Scenario>>> _supplierScenarios = new();
     private readonly SemaphoreSlim _supplierPreparation = new(1);
     private SupplierScenarioFixture.Scenario? _supplierBase;
@@ -21,7 +22,10 @@ public sealed class SqlServerFixture : IAsyncLifetime
     public SqlServerFixture()
     {
         _schemaTemplate = new(CreateSchemaTemplateAsync);
+        _recognitionInputs = new(() => PurchaseRecognitionTestContext.PrepareAsync(this));
     }
+
+    internal Task<PurchaseRecognitionTestContext.PreparedInputs> GetRecognitionInputsAsync() => _recognitionInputs.Value;
 
     internal Task<SupplierScenarioFixture.Scenario> GetSupplierScenarioAsync(string name)
         => _supplierScenarios.GetOrAdd(name, scenario => new(() => PrepareSupplierScenarioAsync(scenario))).Value;
@@ -53,6 +57,9 @@ public sealed class SqlServerFixture : IAsyncLifetime
         // Prepare the shared, unseeded current schema during fixture startup, before case deadlines.
         // Explicit fresh/upgrade drills still create their own databases and run their own migrations.
         await _schemaTemplate.Value;
+        // Only immutable inputs are shared: recognition posting and every supplier transition
+        // remain in independent case databases. Cold preparation is part of process wall time.
+        await _recognitionInputs.Value;
     }
 
     public Task DisposeAsync() => _container.DisposeAsync().AsTask();
@@ -144,6 +151,18 @@ public sealed class SqlServerFixture : IAsyncLifetime
         await backup.ExecuteNonQueryAsync();
         // Backup storage is inside this fixture's disposable container, never shared across runs.
         return new SqlDatabaseTemplate(backupPath, dataName, logName);
+    }
+
+    internal async Task<SqlDatabaseTemplate> CapturePreparedTemplateAsync(JournalTestContext journal)
+    {
+        // Never capture a usable contained credential or live session in a prepared backup.
+        var principal = new SqlConnectionStringBuilder(journal.Application.WebConnectionString).UserID;
+        await journal.Connection.CloseAsync();
+        await using var connection = new SqlConnection(journal.Application.AdminConnectionString);
+        await connection.OpenAsync();
+        await using var removeAuthority = new SqlCommand($"DELETE FROM [Identity].Sessions; DROP USER [{principal.Replace("]", "]]", StringComparison.Ordinal)}];", connection);
+        await removeAuthority.ExecuteNonQueryAsync();
+        return await CaptureTemplateAsync(journal.Application.AdminConnectionString);
     }
 
     internal sealed record SqlDatabaseTemplate(string BackupPath, string DataName, string LogName);
