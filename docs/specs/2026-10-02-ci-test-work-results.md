@@ -310,3 +310,48 @@ financial deadline, SQL memory setting or case identity is removed to make the
 probe green. Fresh coverage remains unchanged because source and tests are
 identical to the verified two-process revision. The retained configuration's
 latest full gate passed in 49m14; **the ten-minute goal remains unproven**.
+
+## Approved MAXDOP experiment (October 8)
+
+The restored two-process revision `72cdd25`
+[passed in 47m31](https://github.com/mcunille/Workbench/actions/runs/37194663307).
+The next approved bounded experiment questions parallel query plans within each
+test SQL engine while three engines share a four-CPU runner. It removes that
+additional level of parallelism by setting `max degree of parallelism` to one
+only in disposable server test fixtures. An effective-setting query and startup
+guard ensure the engine applied the requested configuration before schema or case
+execution. The existing isolation keeper failed on the guard before the setter
+was added; its captured output reported the engine's original setting as zero.
+This validates experiment configuration, not a claim that a particular failed
+financial command previously used a parallel execution plan.
+
+Every case, financial assertion, 30-second deadline, physical database,
+authentication boundary, uncapped memory setting and duration weight remains.
+Production configuration and SQL are unchanged. Fewer parallel query workers may
+reduce contention, but queries can become slower and the suite no longer covers
+parallel query plans under this setting. These tradeoffs require measurement;
+the prior CPU samples do not establish the cause of individual deadlines.
+
+Before this experiment, main advanced to GEM-06 revision
+`afdde62dddee4835a16eb8ccde86a318f8cc553c`. The branch was rebased without conflicts.
+Its [green main baseline](https://github.com/mcunille/Workbench/actions/runs/37217965497)
+passed all 1,998 server cases in **37m04** overall: server stage 2,021.745s,
+client 98.874s, browser 186.980s, prerequisites 133.285s. Main added 121 cases;
+the branch's expected inventory is 1,968 after the approved net retirement of
+30. Source changes and faster setup/client stages mean older timings cannot
+establish a ten-minute improvement against this new baseline.
+
+The approved probe runs the complete three-process hosted gate twice on unchanged
+source, records CPU/memory and effective MAXDOP, and retains the original 40m51
+ceiling. A ten-minute claim against the newer 37m04 baseline additionally requires
+**27m04**. Do not use the older 50m51 comparator to claim the goal on newer source.
+Acceptance requires both green full gates, exact inventory coverage, no deadline
+regressions and at most 5% relative coverage loss. Otherwise restore the prior
+engine setting and two processes. All 16 fresh focused financial/isolation cases
+passed with effective MAXDOP one. The branch has 1,968 ordinal-unique discovered
+identities: all 121 upstream additions remain, and the approved retirement set is
+unchanged at 38 removed examples and eight keeper/group identities. Fresh client
+coverage matches GEM-06 main exactly across lines, branches, statements and
+functions (512 tests passed on each side). Formatter, workflow pins and partition
+contracts passed; fresh internal review found no critical or important defects.
+Full server coverage against GEM-06 main and hosted probe results are pending.

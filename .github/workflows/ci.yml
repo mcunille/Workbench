@@ -126,7 +126,7 @@ jobs:
       - name: Verify source and published output
         shell: pwsh
         run: |
-          # Retain actual pressure alongside timings for the bounded two-process configuration
+          # Retain actual pressure alongside timings for the bounded three-process MAXDOP=1 experiment
           # on this public repository's four-CPU, 16 GiB Linux runner.
           New-Item -ItemType Directory -Path artifacts/ci-resources -Force | Out-Null
           $resources = Start-Job {
@@ -150,7 +150,7 @@ jobs:
             }
           }
           try {
-            ./scripts/verify.ps1 -SkipDependencyInstall -ServerPartitions 2 -ServerConcurrency 2
+            ./scripts/verify.ps1 -SkipDependencyInstall -ServerPartitions 3 -ServerConcurrency 3
           }
           finally {
             Stop-Job $resources -ErrorAction Continue
