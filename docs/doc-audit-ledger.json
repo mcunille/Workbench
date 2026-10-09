@@ -79,39 +79,11 @@
       "note": "Uncoached collector trial is explicitly pending; no current participant evidence was inspected. Its linked docs/demos/h12/verification.md was deleted by b2eac07. ItemExportEndpoints emits CSV v2; ItemPackageSnapshot uses serializable snapshots; ItemAcquisitionExportTests asserts deduplicated documents and only selected identities. Resolve scenario acceptance before retirement. Proposed destinations: docs/collection.md Usability for export-comprehension acceptance, docs/collection-export.md for continued v1/v2 decoding and rationale against parallel producers, docs/ARCHITECTURE.md for no provider reads under SQL locks. Repair H7/H9/collection/architecture references. Current behavior section describes the pre-H12 v1 baseline, not current implementation."
     },
     {
-      "path": "docs/specs/2026-09-11-po-02-supplier-identity-and-references.md",
-      "reviewedAtUtc": "2026-10-09T06:03:33Z",
-      "reviewedRevision": "35adcd568a4c846b54d7cd996c8c0d575ed93b98",
-      "outcome": "distill-then-delete",
-      "note": "First fix stale docs/purchasing.md instructions: it advertises Use current supplier details/Keep details as one-off, while DraftEditor.tsx and DraftSupplier.test.tsx implement reviewed supplier replacement and Clear supplier clearing link/contact/reference while preserving platform, matching the spec. Preserve duplicate-name identity, permanent non-gapless numbering and archived-link rationale in docs/ARCHITECTURE.md; SupplierOrderingTests covers alphabetical paging. Historical V1/V2 replay is superseded by docs/api-lifecycle.md. Repair purchasing/architecture/index links. Cleanup not applied."
-    },
-    {
       "path": "docs/specs/2026-09-11-purchase-orders-and-purchase-finances.md",
       "reviewedAtUtc": "2026-10-09T06:03:33Z",
       "reviewedRevision": "35adcd568a4c846b54d7cd996c8c0d575ed93b98",
       "outcome": "keep",
-      "note": "Separate proposed roadmap retains unfinished PO-08-19 lifecycle/fulfillment/exception/export outcomes, cross-currency/consolidated billing questions and integrated owner validation; docs/purchasing.md only owns current use and internal BK foundations do not complete the scenario. Update historical baseline/status to distinguish delivered increments; move appended PO-04 implementation details into docs/ARCHITECTURE.md and migration runbook after preservation. Referenced by specs index and PO-02/03/04/05/06. No whole-scenario acceptance inferred; updates not applied."
-    },
-    {
-      "path": "docs/specs/2026-09-16-beta-api-lifecycle.md",
-      "reviewedAtUtc": "2026-10-09T06:03:33Z",
-      "reviewedRevision": "35adcd568a4c846b54d7cd996c8c0d575ed93b98",
-      "outcome": "delete",
-      "note": "docs/api-lifecycle.md already owns beta promotion policy, approved historical replay removal, no revision negotiation, compatibility inventory and rollback rationale. BetaApiContractTests covers current beta contract and retired-route rejection in source. No separate unfinished requirement or evidence obligation identified. Repair API guide and specs index links; preserve immutable migrations. Static audit only; deletion not applied."
-    },
-    {
-      "path": "docs/specs/2026-09-16-po-03-itemized-quantities-and-prices.md",
-      "reviewedAtUtc": "2026-10-09T06:03:33Z",
-      "reviewedRevision": "35adcd568a4c846b54d7cd996c8c0d575ed93b98",
-      "outcome": "distill-then-delete",
-      "note": "DraftOrderInput.ReadEntries and DraftOrderSupplierPricingDatabaseTests retain legacy projections and exact totals; V4 routes/replay are superseded by docs/api-lifecycle.md. Preserve single supplier pricing basis and exact batch-normalization versus line-total fallback rationale in docs/ARCHITECTURE.md Purchase orders; docs/purchasing.md owns precision/unknown/legacy recovery and docs/operations/database-migrations.md owns retained histories. Repair architecture, purchasing and specs index links. Static audit only; cleanup not applied."
-    },
-    {
-      "path": "docs/specs/2026-09-16-po-05-discounts-and-charges.md",
-      "reviewedAtUtc": "2026-10-09T06:03:33Z",
-      "reviewedRevision": "35adcd568a4c846b54d7cd996c8c0d575ed93b98",
-      "outcome": "distill-then-delete",
-      "note": "docs/purchasing.md and docs/ARCHITECTURE.md own current estimates and beta behavior. DraftOrderFinancialDatabaseTests covers confirmed supplier-payee corrections, known-base validation, stale shapes and two saved currency transitions. Preserve single-discount rationale, merchandise-only bases and supplier ID/name as effective confirmed payee in architecture; retain entered-tax versus accounting distinction in purchasing. Repair architecture/purchasing/index links. Static audit only; cleanup not applied."
+      "note": "Separate proposed roadmap retains unfinished PO-08-19 lifecycle/fulfillment/exception/export outcomes, cross-currency/consolidated billing questions and integrated owner validation; docs/purchasing.md only owns current use and internal BK foundations do not complete the scenario. Update historical baseline/status to distinguish delivered increments; move appended PO-04 implementation details into docs/ARCHITECTURE.md and migration runbook after preservation. Referenced by specs index and PO-02/03/04/05/06. No whole-scenario acceptance inferred; updates not applied. Authorized follow-up cleanup applied: refreshed delivered-versus-proposed baseline, retained unfinished requirements and scenario acceptance, and moved PO-04 semantic no-op rationale to architecture; migration runbook retains clone reconciliation. Original reviewed revision remains the audit baseline."
     },
     {
       "path": "docs/specs/2026-09-17-po-04-commitment-and-amendments.md",
@@ -119,34 +91,6 @@
       "reviewedRevision": "35adcd568a4c846b54d7cd996c8c0d575ed93b98",
       "outcome": "investigate",
       "note": "Approved interface refinements explicitly leave final verification/finish evidence pending; latest spec commit 5aad676 is merged PO-04 but merge/status does not prove those gates. PurchaseOrderDatabaseTests describes immutable history, no-op and currency guards. Resolve revision-specific UI acceptance before retirement; then distill same-row identity, local-only amendment drafts and semantic content versus exact request identity into docs/ARCHITECTURE.md/docs/purchasing.md. Migration runbook owns retained clone procedure. Static audit; no fresh application evidence."
-    },
-    {
-      "path": "docs/specs/2026-09-18-po-06-invoices-and-purchase-documents.md",
-      "reviewedAtUtc": "2026-10-09T06:03:33Z",
-      "reviewedRevision": "35adcd568a4c846b54d7cd996c8c0d575ed93b98",
-      "outcome": "distill-then-delete",
-      "note": "PurchaseOrderDocumentAuthorityTests and interruption/command tests cover reservation limits, current authority, ambiguous publication and exact-operation recovery in source. Preserve file-not-invoice-grouping rationale in docs/purchasing.md and publication/recheck/ambiguous-byte constraints in docs/ARCHITECTURE.md. Both PO-06 migrations are merged immutable history; retained-preview wording must not imply a current unmerged-migration exemption. docs/operations/database-migrations.md owns history. Repair architecture/purchasing/PO-07 links. Cleanup not applied."
-    },
-    {
-      "path": "docs/specs/2026-09-20-optional-purchase-titles.md",
-      "reviewedAtUtc": "2026-10-09T06:03:33Z",
-      "reviewedRevision": "35adcd568a4c846b54d7cd996c8c0d575ed93b98",
-      "outcome": "delete",
-      "note": "docs/purchasing.md already owns optional titles and reference-backed title/supplier/item/empty labeling. purchaseLabel.ts and both list endpoints implement display-only fallback and firstItemDescription; purchase-orders.spec.ts includes supplier/items/empty drafts. No incoming tracked repository references or separate unresolved requirements/evidence duty found. Static audit only; external consumers not inventoried and deletion not applied."
-    },
-    {
-      "path": "docs/specs/2026-09-20-supplier-profiles.md",
-      "reviewedAtUtc": "2026-10-09T06:03:33Z",
-      "reviewedRevision": "35adcd568a4c846b54d7cd996c8c0d575ed93b98",
-      "outcome": "distill-then-delete",
-      "note": "docs/purchasing.md owns custom plain-text handle UX and migration runbook owns consolidated history. PurchasingIdentityInput, SupplierProfileTests and supplier-profiles.spec.ts support current behavior in source. Preserve plain-reference/no-external-authority rationale, snapshot exclusion and empty-profile canonical omission for six-field retry identity in docs/ARCHITECTURE.md. Repair purchasing/specs index links. Historical reconciliation remains an explicitly scoped local operation; cleanup not applied."
-    },
-    {
-      "path": "docs/specs/2026-09-21-current-schema-bookkeeping.md",
-      "reviewedAtUtc": "2026-10-09T06:03:33Z",
-      "reviewedRevision": "35adcd568a4c846b54d7cd996c8c0d575ed93b98",
-      "outcome": "distill-then-delete",
-      "note": "Fixed backup-allowlist direction is superseded by merged bbb06da: StorageMaintenanceCommand.IsSupportedSchema and BlobManifestValidationTests accept known CurrentSchema releases from AddItemDetailEditing plus six retired exceptions. docs/operations/database-migrations.md Maintaining the current schema contract owns this revised policy, manifest rationale and independent historical oracles. CurrentSchemaTests/MigrationHistoryAssertions retain exact inventory/history checks. Repair specs index link; preserve guards and exact manifest bindings. Static audit; cleanup not applied."
     }
   ]
 }
