@@ -61,7 +61,13 @@ public sealed class SupplierPaymentEvidenceTests(SqlServerFixture sqlServer)
         {
             case "unknown": bad["evidence"]!["documents"]![0]!["documentId"] = Guid.NewGuid().ToString(); break;
             case "revision": bad["evidence"]!["documents"]![0]!["revisionId"] = Guid.NewGuid().ToString(); break;
-            case "removed": await context.Bills.AdminAsync($"UPDATE Purchasing.PurchaseOrderDocuments SET RemovedAtUtc=SYSUTCDATETIME(),Label='Changed label' WHERE Id='{document}'"); break;
+            case "removed":
+                // The posted original is retained; a different unlinked document can still be removed.
+                var unavailable = await context.Bills.SeedDocumentAsync();
+                await context.Bills.AdminAsync($"UPDATE Purchasing.PurchaseOrderDocuments SET RemovedAtUtc=SYSUTCDATETIME() WHERE Id='{unavailable.DocumentId}'");
+                bad["evidence"]!["documents"]![0]!["documentId"] = unavailable.DocumentId.ToString();
+                bad["evidence"]!["documents"]![0]!["revisionId"] = unavailable.RevisionId.ToString();
+                break;
             case "recovery": await context.Bills.AdminAsync($"INSERT Storage.RecoveryFiles(TenantId,RevisionId,ReportId,Generation,Reason,AcceptedAtUtc) VALUES('{JournalTestContext.TenantId}','{revision}',NEWID(),1,'Missing',SYSUTCDATETIME())"); break;
             case "otherOrder":
                 await context.Bills.AdminAsync($"""

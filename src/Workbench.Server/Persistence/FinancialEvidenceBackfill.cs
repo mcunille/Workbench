@@ -18,11 +18,22 @@ internal static class FinancialEvidenceBackfill
           SELECT p.TenantId,'SupplierPayment',p.Id,p.RevisionId,c.OriginalPaymentId,
             TRY_CONVERT(uniqueidentifier,JSON_VALUE(p.EvidenceJson,'$.command.expectedConfigurationVersion'))
           FROM Purchasing.SupplierPayments p LEFT JOIN Purchasing.SupplierPaymentCorrections c ON c.TenantId=p.TenantId AND c.GroupId=p.GroupId;
+        IF EXISTS(SELECT 1 FROM Purchasing.RecognitionSideEvents e WHERE e.CorrectionGroupId IS NOT NULL AND
+          ((SELECT COUNT(*) FROM Purchasing.RecognitionEventCorrections c
+            JOIN Purchasing.RecognitionSideEvents original ON original.TenantId=c.TenantId AND original.Id=c.OriginalEventId
+            WHERE c.TenantId=e.TenantId AND c.CorrectionGroupId=e.CorrectionGroupId AND original.Side=e.Side)<>1
+           OR NOT EXISTS(SELECT 1 FROM Purchasing.RecognitionEventCorrections c
+            JOIN Purchasing.RecognitionSideEvents original ON original.TenantId=c.TenantId AND original.Id=c.OriginalEventId
+            JOIN Purchasing.RecognitionCorrectionGroups g ON g.TenantId=c.TenantId AND g.Id=c.CorrectionGroupId
+            WHERE c.TenantId=e.TenantId AND c.CorrectionGroupId=e.CorrectionGroupId AND original.Side=e.Side
+              AND c.ReplacementEventId=e.Id AND original.UnitId=g.UnitId AND e.UnitId=g.ReplacementUnitId)))
+          THROW 51012,'BK-07 upgrade: inconsistent recognition correction ownership; inspect original/replacement event, unit and side identities. No changes were applied.',1;
         INSERT @Owners
           SELECT e.TenantId,'PurchaseRecognition',e.Id,e.SourceRevision,old.Id,e.ConfigurationVersion
           FROM Purchasing.RecognitionSideEvents e
-          LEFT JOIN Purchasing.RecognitionEventCorrections c ON c.TenantId=e.TenantId AND c.CorrectionGroupId=e.CorrectionGroupId
-          LEFT JOIN Purchasing.RecognitionSideEvents old ON old.TenantId=c.TenantId AND old.Id=c.OriginalEventId AND old.Side=e.Side
+          OUTER APPLY(SELECT original.Id FROM Purchasing.RecognitionEventCorrections c
+            JOIN Purchasing.RecognitionSideEvents original ON original.TenantId=c.TenantId AND original.Id=c.OriginalEventId
+            WHERE c.TenantId=e.TenantId AND c.CorrectionGroupId=e.CorrectionGroupId AND original.Side=e.Side) old
           WHERE NOT EXISTS(SELECT 1 FROM Purchasing.SupplierBillRevisions b WHERE b.TenantId=e.TenantId AND b.BillId=e.SourceId AND b.Id=e.SourceRevision);
         DECLARE @Tenant uniqueidentifier,@Kind varchar(32),@Owner uniqueidentifier,@Revision uniqueidentifier,@Config uniqueidentifier,
           @Set uniqueidentifier,@Po uniqueidentifier,@Documents nvarchar(max),@Inherited uniqueidentifier,@Recorded datetimeoffset,@Date date,

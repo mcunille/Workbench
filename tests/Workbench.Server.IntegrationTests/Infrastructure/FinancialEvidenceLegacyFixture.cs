@@ -75,3 +75,13 @@ public sealed class FinancialEvidencePaymentLegacyFixture(SqlServerFixture serve
             Guid.Parse(original["paymentId"]!.ToString()), replacement));
     }
 }
+
+public sealed class FinancialEvidenceRecognitionLegacyFixture(SqlServerFixture server) : FinancialEvidenceLegacyFixture(server)
+{
+    internal override async Task PrepareAsync(SupplierPaymentTestContext payment)
+    {
+        var context = payment.Bills.Recognition;
+        var original = await PurchaseRecognitionCorrectionTests.MatchedAsync(context);
+        await context.CorrectAsync((await PurchaseRecognitionCorrectionTests.CorrectionAsync(context, original, "98")).ToJsonString());
+    }
+}

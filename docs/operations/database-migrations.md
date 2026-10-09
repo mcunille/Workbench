@@ -222,7 +222,7 @@ Product behavior, user-visible concurrency/retry rules and the shipped feature i
 The [migration source](../../src/Workbench.Server/Persistence/Migrations) is authoritative for SQL.
 
 
-The current required migration is `20261003214043_AddTenantGemReference`.
+The current required migration is `20261008010000_AddFinancialEvidenceRetention`.
 
 GEM-06 introduces one coherent migration after merged GEM-05. It creates tenant-owned entries and
 sparse JSON choices, installs RLS and restricted commands, and advances readiness. Shared catalog,

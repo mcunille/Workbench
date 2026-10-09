@@ -7,10 +7,59 @@ using Xunit;
 namespace Workbench.Server.IntegrationTests;
 
 [Collection(SqlServerCollection.Name)]
-public sealed class FinancialEvidenceMigrationTests(FinancialEvidenceLegacyFixture legacy, FinancialEvidencePaymentLegacyFixture payments)
-    : IClassFixture<FinancialEvidenceLegacyFixture>, IClassFixture<FinancialEvidencePaymentLegacyFixture>
+public sealed class FinancialEvidenceMigrationTests(FinancialEvidenceLegacyFixture legacy, FinancialEvidencePaymentLegacyFixture payments,
+    FinancialEvidenceRecognitionLegacyFixture recognition)
+    : IClassFixture<FinancialEvidenceLegacyFixture>, IClassFixture<FinancialEvidencePaymentLegacyFixture>, IClassFixture<FinancialEvidenceRecognitionLegacyFixture>, IAsyncLifetime
 {
     internal const string PriorMigration = "20261003214043_AddTenantGemReference";
+    private SupplierPaymentTestContext? _legacyUpgrade;
+    public Task InitializeAsync() => Task.CompletedTask;
+    public async Task DisposeAsync()
+    {
+        // The actual migration and all preservation assertions remain in the timed theory.
+        if (_legacyUpgrade is not null) await _legacyUpgrade.DisposeAsync();
+    }
+
+    [Fact]
+    public async Task UpgradePreservesBothMatchedRecognitionReplacementParents()
+    {
+        // GIVEN an authentic matched receipt/invoice unit replaced on the actual merged predecessor.
+        await using var payment = await recognition.OpenAsync();
+        var context = payment.Bills;
+        var before = await FinancialEvidencePostingTests.FinancialHashesAsync(context);
+        // WHEN the release derives one owner per event without multiplying the two correction sides.
+        await DatabaseMigrator.MigrateAsync(context.Journal.Application.AdminConnectionString, default);
+        // THEN each successor inherits its own side's original, and financial/source history is byte-identical.
+        Assert.Equal(before, await FinancialEvidencePostingTests.FinancialHashesAsync(context));
+        Assert.Equal(4, await context.ScalarAsync<int>("SELECT COUNT(*) FROM Accounting.FinancialEvidenceSets WHERE OwnerKind='PurchaseRecognition'"));
+        Assert.Equal(2, await context.ScalarAsync<int>("""
+            SELECT COUNT(*) FROM Purchasing.RecognitionEventCorrections c
+            JOIN Purchasing.RecognitionSideEvents old ON old.TenantId=c.TenantId AND old.Id=c.OriginalEventId
+            JOIN Purchasing.RecognitionSideEvents successor ON successor.TenantId=c.TenantId AND successor.Id=c.ReplacementEventId AND successor.Side=old.Side
+            JOIN Accounting.FinancialEvidenceSets parent ON parent.TenantId=c.TenantId AND parent.OwnerKind='PurchaseRecognition' AND parent.OwnerId=old.Id
+            JOIN Accounting.FinancialEvidenceSets child ON child.TenantId=c.TenantId AND child.OwnerKind='PurchaseRecognition'
+              AND child.OwnerId=successor.Id AND child.InheritedEvidenceSetId=parent.Id
+            """));
+        await MigrationHistoryAssertions.AssertCurrentAsync(context.Journal.Application.AdminConnectionString);
+    }
+
+    [Fact]
+    public async Task ContradictoryRecognitionReplacementAbortsTheWholeUpgrade()
+    {
+        // GIVEN authentic matched replacement history with a contradictory, foreign-key-valid replacement identity.
+        await using var payment = await recognition.OpenAsync();
+        var context = payment.Bills;
+        await context.AdminAsync("UPDATE Purchasing.RecognitionEventCorrections SET ReplacementEventId=OriginalEventId");
+        var before = await FinancialEvidencePostingTests.FinancialHashesAsync(context);
+        // WHEN the migration validates the recorded correction ownership.
+        var error = await Assert.ThrowsAsync<SqlException>(() => DatabaseMigrator.MigrateAsync(context.Journal.Application.AdminConnectionString, default));
+        // THEN it rejects the contradiction, leaves no partial release/evidence tables and preserves the source bytes.
+        Assert.Equal(51012, error.Number);
+        Assert.Contains("recognition correction", error.Message, StringComparison.Ordinal);
+        Assert.Equal(0, await context.ScalarAsync<int>($"SELECT COUNT(*) FROM dbo.__EFMigrationsHistory WHERE MigrationId='{CurrentSchema.MigrationId}'"));
+        Assert.Equal(0, await context.ScalarAsync<int>("SELECT COUNT(*) FROM sys.tables WHERE name='FinancialEvidenceSets'"));
+        Assert.Equal(before, await FinancialEvidencePostingTests.FinancialHashesAsync(context));
+    }
 
     [Theory]
     [InlineData(false, false)]
@@ -19,7 +68,7 @@ public sealed class FinancialEvidenceMigrationTests(FinancialEvidenceLegacyFixtu
     public async Task UpgradePreservesHistoryAndPinsOnlyPostedLegacyEvidence(bool zero, bool reviewOnly)
     {
         // GIVEN an actual merged GEM-06 database and uploaded historical evidence, including a purged SQL lifecycle.
-        await using var payment = await legacy.OpenAsync();
+        var payment = _legacyUpgrade = await legacy.OpenAsync();
         var context = payment.Bills;
         using var storage = new PurchaseOrderDocumentEndpointTests.TestStorage();
         var document = await FinancialEvidencePostingTests.UploadAsync(context, storage);
