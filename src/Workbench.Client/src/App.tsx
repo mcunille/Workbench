@@ -36,6 +36,7 @@ import { DraftMemory } from './features/purchasing/draftMemory';
 import { SupplierMemory } from './features/purchasing/supplierMemory';
 import { ServiceAdminApplication } from './features/serviceAdmin/ServiceAdminApplication';
 import { GemLibrary } from './features/gemReference/GemLibrary';
+import { GemDetail } from './features/gemReference/GemDetail';
 import { GemLibraryMemory } from './features/gemReference/gemLibraryMemory';
 
 const narrowNavigationQuery = '(width < 900px)';
@@ -287,6 +288,8 @@ function SignedInApplication({
             />
           ) : path === '/gem-reference' ? (
             <GemLibrary memory={gemMemory} follow={navigation.follow} onAuthLost={authLost} />
+          ) : /^\/gem-reference\/(workbench|tenant)\/[^/]+$/.test(path) ? (
+            <GemDetail id={path.split('/')[3]} origin={path.split('/')[2] as 'workbench' | 'tenant'} follow={navigation.follow} onAuthLost={authLost} />
           ) : path === '/purchase-orders' ? (
             <DraftList memory={draftMemory} follow={navigation.follow} onAuthLost={authLost} />
           ) : path === '/suppliers' ? (

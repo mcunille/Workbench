@@ -1,0 +1,83 @@
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import * as api from '../../api/gemReference';
+import { GemDetail } from './GemDetail';
+import { referenceFixture } from './gemFixture';
+
+const lost = vi.fn();
+const follow = (event: React.MouseEvent<HTMLAnchorElement>) => event.preventDefault();
+beforeEach(() => { lost.mockClear(); vi.spyOn(api, 'getGem').mockResolvedValue(referenceFixture); });
+afterEach(() => vi.restoreAllMocks());
+function mount() { return render(<GemDetail id="ruby" origin="workbench" follow={follow} onAuthLost={lost} />); }
+function field(name: string) { return screen.getByRole('term', { name }).parentElement!; }
+
+it('renders field provenance, explicit clears, missing values and source dates', async () => {
+  // GIVEN shared assertions, tenant replacements and a cleared optional field.
+  mount();
+  expect(screen.getByRole('status')).toHaveTextContent('Loading');
+  // WHEN opening the origin-qualified effective detail.
+  await screen.findByRole('heading', { name: 'Synthetic ruby' });
+  // THEN each claim retains its own attribution and limits rather than borrowing shared sources.
+  expect(api.getGem).toHaveBeenCalledWith('ruby', 'workbench', expect.any(AbortSignal));
+  expect(field('Species')).toHaveTextContent('Corundum');
+  expect(field('Species')).toHaveTextContent('Workbench reference');
+  expect(field('Group')).toHaveTextContent('Cleared by your tenant');
+  expect(field('Variety')).toHaveTextContent('Tenant-authored · no sources supplied');
+  expect(field('Description')).toHaveTextContent('No Workbench assertion recorded');
+  expect(screen.getByText('Synthetic red gem')).toBeVisible();
+  expect(screen.getByText(/does not establish the origin of an individual specimen/)).toBeVisible();
+  expect(screen.getByRole('link', { name: 'Synthetic taxonomy' })).toHaveAttribute('rel', 'noopener noreferrer');
+  const localityLink = within(field('Notable locality')).getByRole('link', { name: 'Supporting sources' });
+  const target = document.getElementById(localityLink.getAttribute('href')!.slice(1));
+  expect(target).toHaveTextContent('Synthetic locality report');
+  expect(target).toHaveTextContent('Reviewed 2026-10-01');
+  expect(screen.getByRole('region', { name: 'Sources' })).toHaveTextContent('Accessed 2026-10-02');
+});
+
+it('keeps an invalid entry visible with reasons but withholds taxonomy claims', async () => {
+  // GIVEN shared corrections have invalidated a retained tenant override.
+  vi.mocked(api.getGem).mockResolvedValue({ ...referenceFixture, needsReview: true, reviewReasons: { species: ['A mineral requires a species.'] } });
+  mount();
+  // WHEN reading THEN identity/reasons remain available without a classification assertion.
+  await screen.findByRole('heading', { name: 'Synthetic ruby' });
+  expect(screen.getByRole('region', { name: 'Needs review' })).toHaveTextContent('A mineral requires a species.');
+  expect(screen.queryByText('Corundum', { exact: true })).not.toBeInTheDocument();
+  expect(screen.queryByRole('term', { name: 'Species' })).not.toBeInTheDocument();
+  expect(screen.queryByRole('term', { name: 'Material kind' })).not.toBeInTheDocument();
+});
+
+it.each(['javascript:alert(1)', 'data:text/html,test', 'https://user:secret@example.test/source', '/relative'])('keeps unsafe source %s as readable text', async url => {
+  // GIVEN an untrusted URL alongside an independently attributed tenant citation.
+  vi.mocked(api.getGem).mockResolvedValue({ ...referenceFixture, effectiveFields: { variety: { state: 'replace', attribution: 'tenant', sources: [{ ...referenceFixture.effectiveFields!.species.sources[0], field: 'variety', attribution: 'tenant', url }] } } });
+  mount();
+  // WHEN viewing sources THEN text survives and no active unsafe link is emitted.
+  await screen.findByRole('heading', { name: 'Synthetic taxonomy' });
+  expect(screen.queryByRole('link', { name: 'Synthetic taxonomy' })).not.toBeInTheDocument();
+  expect(screen.getByText('Synthetic classification citation')).toBeVisible();
+  expect(screen.getByRole('region', { name: 'Sources' })).toHaveTextContent('Tenant source');
+});
+
+it('explains absent non-mineral taxonomy and retirement with a qualified redirect', async () => {
+  // GIVEN a retired tenant-authored organic entry without invented species.
+  vi.mocked(api.getGem).mockResolvedValue({ ...referenceFixture, origin: 'tenant', materialKind: 'organic', species: null, variety: null, layer: 'tenantEntry', retirement: { isRetired: true, explanation: 'Use the corrected identity.', redirectEntryId: 'replacement' }, effectiveFields: { species: { state: 'replace', attribution: 'tenant', sources: [] } } });
+  mount();
+  // WHEN reading THEN absence and retirement remain explicit.
+  await screen.findByText('Use the corrected identity.');
+  expect(field('Species')).toHaveTextContent('Mineral species is not required for this material kind');
+  expect(screen.getByRole('link', { name: 'View replacement entry' })).toHaveAttribute('href', '/gem-reference/workbench/replacement');
+});
+
+it('distinguishes missing details, transient retry and ended authority', async () => {
+  // GIVEN a missing entry, a transient failure, a successful retry and an ended session.
+  vi.mocked(api.getGem).mockRejectedValueOnce(new api.GemReferenceApiError(404, null)).mockRejectedValueOnce(new api.GemReferenceApiError(503, null)).mockResolvedValueOnce(referenceFixture).mockRejectedValueOnce(new api.GemReferenceApiError(403, null));
+  const first = mount();
+  await screen.findByText('Gem reference not found.');
+  first.unmount();
+  const second = mount();
+  // WHEN retrying THEN content returns without claiming that the failed load was empty.
+  fireEvent.click(await screen.findByRole('button', { name: 'Retry' }));
+  await screen.findByRole('heading', { name: 'Synthetic ruby' });
+  second.unmount();
+  mount();
+  // AND ended authority is handed to the tenant authentication flow.
+  await waitFor(() => expect(lost).toHaveBeenCalledOnce());
+});
