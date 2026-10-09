@@ -12,6 +12,9 @@ function field(name: string) { return screen.getByText(name, { selector: 'dt', e
 
 it('renders field provenance, explicit clears, missing values and source dates', async () => {
   // GIVEN shared assertions, tenant replacements and a cleared optional field.
+  // AND the locality's designated supporting citation is second, not the first field source.
+  const selectedSource = referenceFixture.effectiveFields!.notableLocality.sources[0];
+  vi.mocked(api.getGem).mockResolvedValue({ ...referenceFixture, effectiveFields: { ...referenceFixture.effectiveFields, notableLocality: { ...referenceFixture.effectiveFields!.notableLocality, sources: [{ ...selectedSource, id: 'additional', title: 'Additional locality context' }, selectedSource] } } });
   mount();
   expect(screen.getByRole('status')).toHaveTextContent('Loading');
   // WHEN opening the origin-qualified effective detail.
@@ -29,6 +32,7 @@ it('renders field provenance, explicit clears, missing values and source dates',
   const localityLink = within(field('Notable locality')).getByRole('link', { name: 'Supporting sources' });
   const target = document.getElementById(localityLink.getAttribute('href')!.slice(1));
   expect(target).toHaveTextContent('Synthetic locality report');
+  expect(target).not.toHaveTextContent('Additional locality context');
   expect(target).toHaveTextContent('Reviewed 2026-10-01');
   expect(screen.getByRole('region', { name: 'Sources' })).toHaveTextContent('Accessed 2026-10-02');
 });
