@@ -1,4 +1,4 @@
-name: Same-host scheduling measurement
+name: Same-host final fixture comparison
 on:
   push:
     branches: [codex/supplier-fixture-measurement]
@@ -6,7 +6,7 @@ permissions:
   contents: read
 jobs:
   scheduling-pair:
-    name: Same candidate with two and four workers
+    name: Candidate four workers then original baseline
     runs-on: ubuntu-latest
     timeout-minutes: 180
     steps:
@@ -16,7 +16,7 @@ jobs:
           persist-credentials: false
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
-          ref: fca470a6a2ec29f69c5fbd1934829a576eff3893
+          ref: 35adcd568a4c846b54d7cd996c8c0d575ed93b98
           path: two
           persist-credentials: false
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
@@ -32,12 +32,12 @@ jobs:
           node-version: 26.7.0
       - name: Prepare both checkouts and measure full gates
         shell: pwsh
-        run: ./measurement/measurement/scheduling-pair.ps1 -Workspace .
+        run: ./measurement/measurement/scheduling-pair.ps1 -Workspace . -OriginalBaseline -FourFirst
       - name: Retain timing, complete inventories and resource observations
         if: ${{ always() }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
-          name: same-host-scheduling-evidence
+          name: same-host-final-evidence
           if-no-files-found: error
           path: |
             scheduling-pair.json
@@ -60,3 +60,4 @@ jobs:
             four/artifacts/verification/**/timing.json
             four/artifacts/verification/**/*.trx
             four/artifacts/verification/**/test.log
+

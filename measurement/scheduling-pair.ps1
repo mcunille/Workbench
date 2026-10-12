@@ -1,11 +1,12 @@
-param([Parameter(Mandatory)][string]$Workspace)
+param([Parameter(Mandatory)][string]$Workspace, [switch]$OriginalBaseline, [switch]$FourFirst)
 $ErrorActionPreference = 'Stop'
 $workspaceRoot = (Resolve-Path $Workspace).Path
-$expected = 'fca470a6a2ec29f69c5fbd1934829a576eff3893'
+$expectedByPhase = @{two='fca470a6a2ec29f69c5fbd1934829a576eff3893';four='fca470a6a2ec29f69c5fbd1934829a576eff3893'}
+if ($OriginalBaseline) { $expectedByPhase.two = '35adcd568a4c846b54d7cd996c8c0d575ed93b98' }
 foreach ($phase in @('two','four')) {
     Push-Location (Join-Path $workspaceRoot $phase)
     try {
-        if ((git rev-parse HEAD).Trim() -ne $expected) { throw 'Unexpected candidate source revision.' }
+        if ((git rev-parse HEAD).Trim() -ne $expectedByPhase[$phase]) { throw 'Unexpected source revision.' }
         dotnet restore Workbench.slnx --locked-mode
         if ($LASTEXITCODE) { throw "$phase locked restore failed." }
         npm ci --prefix src/Workbench.Client --ignore-scripts --no-audit --no-fund
@@ -26,7 +27,8 @@ if ($LASTEXITCODE) { throw 'SQL image preparation failed.' }
 lscpu | Set-Content (Join-Path $workspaceRoot 'runner-cpu.txt')
 Get-Content /proc/meminfo | Set-Content (Join-Path $workspaceRoot 'runner-memory.txt')
 $outcomes = @()
-foreach ($phase in @('two','four')) {
+$phaseOrder = if ($FourFirst) { @('four','two') } else { @('two','four') }
+foreach ($phase in $phaseOrder) {
     $workers = if ($phase -eq 'two') { 2 } else { 4 }
     $leftoverSql = @(docker ps --filter ancestor=mcr.microsoft.com/mssql/server:2022-CU20-ubuntu-22.04 --format '{{.ID}}')
     if ($LASTEXITCODE -or $leftoverSql.Count) { throw 'The phase cannot start with unavailable Docker or a running SQL container from the previous phase.' }
@@ -62,7 +64,7 @@ foreach ($phase in @('two','four')) {
             $succeeded = $true
         }
         catch { Write-Warning "Canonical $phase failed: $($_.Exception.Message)" }
-        $outcomes += [pscustomobject]@{Phase=$phase;Revision=$expected;Workers=$workers;Succeeded=$succeeded;Seconds=$clock.Elapsed.TotalSeconds}
+        $outcomes += [pscustomobject]@{Phase=$phase;Revision=$expectedByPhase[$phase];Workers=$workers;Succeeded=$succeeded;Seconds=$clock.Elapsed.TotalSeconds}
         $outcomes | ConvertTo-Json | Set-Content (Join-Path $workspaceRoot 'scheduling-pair.json')
     }
     finally {
