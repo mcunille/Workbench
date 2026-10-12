@@ -13,20 +13,22 @@ async function inspectLayout(page: Page) {
     .filter(element => element.getBoundingClientRect().right > window.innerWidth + 1 || element.scrollWidth > element.clientWidth + 1)
     .map(element => ({ tag: element.tagName, className: element.className, width: element.getBoundingClientRect().width, scrollWidth: element.scrollWidth })));
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), JSON.stringify(overflow)).toBe(true);
-  for (const title of await page.locator('h1, .item-title, .lede, small, dt, label, .workspace-nav a').all()) {
-    const titleContrast = await title.evaluate(title => {
-      // Canvas normalizes both rgb() and color(srgb ...) from glass color-mix().
-      const context = document.createElement('canvas').getContext('2d')!;
-      const channels = (value: string) => {
-        context.clearRect(0, 0, 1, 1);
-        context.fillStyle = value;
-        context.fillRect(0, 0, 1, 1);
-        return Array.from(context.getImageData(0, 0, 1, 1).data);
-      };
-      const luminance = (color: number[]) => color.slice(0, 3).map(channel => {
-        const value = channel / 255;
-        return value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4;
-      }).reduce((sum, value, index) => sum + value * [0.2126, 0.7152, 0.0722][index], 0);
+  // Measure each group in one browser call: a full-suite collection contains
+  // earlier holdings, so per-element round trips otherwise consume the case budget.
+  const textContrasts = await page.locator('h1, .item-title, .lede, small, dt, label, .workspace-nav a').evaluateAll(titles => {
+    // Canvas normalizes both rgb() and color(srgb ...) from glass color-mix().
+    const context = document.createElement('canvas').getContext('2d')!;
+    const channels = (value: string) => {
+      context.clearRect(0, 0, 1, 1);
+      context.fillStyle = value;
+      context.fillRect(0, 0, 1, 1);
+      return Array.from(context.getImageData(0, 0, 1, 1).data);
+    };
+    const luminance = (color: number[]) => color.slice(0, 3).map(channel => {
+      const value = channel / 255;
+      return value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4;
+    }).reduce((sum, value, index) => sum + value * [0.2126, 0.7152, 0.0722][index], 0);
+    return titles.map(title => {
       let parent: Element | null = title;
       const layers: number[][] = [];
       while (parent) {
@@ -38,13 +40,16 @@ async function inspectLayout(page: Page) {
         under.map((channel, index) => over[index] * over[3] / 255 + channel * (1 - over[3] / 255)), [255, 255, 255]);
       const foregroundLight = luminance(channels(getComputedStyle(title).color));
       const backgroundLight = luminance(background);
-      return (Math.max(foregroundLight, backgroundLight) + 0.05) / (Math.min(foregroundLight, backgroundLight) + 0.05);
+      return { text: title.textContent, contrast: (Math.max(foregroundLight, backgroundLight) + 0.05) / (Math.min(foregroundLight, backgroundLight) + 0.05) };
     });
-    expect(titleContrast, `Text contrast: ${await title.textContent()}`).toBeGreaterThanOrEqual(4.5);
+  });
+  for (const title of textContrasts) {
+    expect(title.contrast, `Text contrast: ${title.text}`).toBeGreaterThanOrEqual(4.5);
   }
-  for (const target of await page.locator('button:visible, a:visible, select:visible, input:visible').all()) {
-    const bounds = await target.boundingBox();
-    expect(bounds?.height, `Touch target: ${await target.textContent()}`).toBeGreaterThanOrEqual(44);
+  const touchTargets = await page.locator('button:visible, a:visible, select:visible, input:visible').evaluateAll(targets =>
+    targets.map(target => ({ text: target.textContent, height: target.getBoundingClientRect().height })));
+  for (const target of touchTargets) {
+    expect(target.height, `Touch target: ${target.text}`).toBeGreaterThanOrEqual(44);
   }
 }
 
