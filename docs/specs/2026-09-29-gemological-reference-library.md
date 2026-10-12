@@ -181,8 +181,9 @@ override/reset APIs are implemented. Real SQL, authenticated HTTP and pure proje
 tenant isolation, provenance, reconciliation, composite conflicts, and pagination; focused manual
 mutation checks supplement those owners. Tenant additions and workbench references are qualified
 by origin, preserving both when later publication reuses a GUID. Backend delivery gates and running
-preview acceptance are recorded with the implementation PR. GEM-09's tenant editing interface and GEM-10's complete
-reference-library release acceptance remain outstanding; this note does not mark the spec implemented.
+preview acceptance are recorded with the implementation PR. GEM-09's tenant editing interface is described
+below; GEM-10's complete reference-library release acceptance remains outstanding. This note does not
+mark the spec implemented.
 Effective browsing currently materializes a catalog-sized snapshot and scalar SQL JSON candidates;
 returned pages are bounded, but load/performance acceptance has not been measured.
 
