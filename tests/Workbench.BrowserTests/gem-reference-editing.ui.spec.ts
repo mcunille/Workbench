@@ -18,12 +18,14 @@ for (const theme of ['light', 'dark'] as const) test(`tenant keyboard editing, v
   await page.getByRole('button', { name: 'Add Common name source' }).click();
   await page.getByLabel('Common name source 1 title').fill('Synthetic handbook'); await page.getByLabel('Common name source 1 publisher').fill('Test institute');
   const citation = 'Synthetic publication evidence with long citation text. '.repeat(20);
-  await page.getByLabel('Common name source 1 publication citation').fill(citation);
+  await page.getByLabel('Common name source 1 publication citation').fill(citation + '\nPage 9.');
   await page.getByLabel('Common name source 1 review date').fill('2026-10-01');
   // WHEN keyboard submits a rejected draft THEN its citation survives and error recovery is readable.
   await page.getByRole('button', { name: 'Save changes', exact: true }).focus(); await page.keyboard.press('Enter');
   await expect(page.getByRole('alert')).toContainText('Review this synthetic name.');
-  await expect(page.getByLabel('Common name source 1 publication citation')).toHaveValue(citation);
+  await expect(page.getByLabel('Common name source 1 publication citation')).toHaveValue(citation + ' Page 9.');
+  await expect(name).toHaveAttribute('aria-invalid', 'true');
+  await expect(name).toHaveAccessibleDescription('Review this synthetic name.');
   await expect(page.getByRole('alert')).toBeFocused();
   await captureEvidence(page, `gem-reference/editor-${theme}-390.png`, { fullPage: true });
   // AND enlarged text at 320px does not create horizontal scrolling or cover the final controls.

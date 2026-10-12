@@ -17,3 +17,4 @@ export function gemPath(id: string, origin: string = 'workbench') {
 }
 export type GemNavigation = { follow: (event: MouseEvent<HTMLAnchorElement>) => void; onAuthLost: () => void };
 export type GemIdentity = { id: string; origin: GemOrigin };
+export const singleLineGemText = (value: string) => value.replace(/\r\n|\r|\n/g, ' ');

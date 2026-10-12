@@ -18,6 +18,8 @@ material kind and applicable classification, add optional aliases and notes, the
 **Save changes**. Mineral entries require a species. Sources are optional for personal reference
 claims except notable locality, which requires a citation supporting its exact scope. A source
 can use a safe HTTP(S) URL or an identifiable publication citation, with publisher and review date.
+Descriptions and publication citations use the API's single-line text format; the editor converts
+pasted or typed line breaks to spaces and explains this beside those controls.
 
 Open a tenant entry and choose **Edit entry** to update it. **Archive tenant entry** hides it from
 ordinary searches after confirmation. To find it again, select **Include archived tenant entries**

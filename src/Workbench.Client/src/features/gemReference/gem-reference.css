@@ -40,6 +40,7 @@
 .reference-editor input, .reference-editor select, .reference-editor textarea { width: 100%; min-width: 0; }
 .reference-editor select, .reference-editor input:not([type="checkbox"]), .reference-editor button { min-height: 44px; }
 .reference-editor textarea { resize: vertical; }
+.reference-field-error { color: var(--danger); overflow-wrap: anywhere; }
 .reference-edit-inputs { min-width: 0; padding: 0; border: 0; margin: 1rem 0 0; }
 .reference-source-editor { min-width: 0; border: 1px solid var(--glass-edge); padding: 1rem; margin-block: 1rem; }
 .reference-editor h3 { font-size: 1rem; margin-block: 0.75rem 0.5rem; }

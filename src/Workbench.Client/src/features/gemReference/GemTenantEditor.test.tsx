@@ -4,7 +4,7 @@ import { GemTenantEditor } from './GemTenantEditor';
 import { newGemDraft } from './gemEditorDraft';
 
 vi.mock('../../api/gemReference', async original => ({ ...await original<typeof api>(), getGem: vi.fn(), createTenantGem: vi.fn(), updateTenantGem: vi.fn(), saveGemOverrides: vi.fn(), resetGem: vi.fn() }));
-const callbacks = { onDirtyChange: vi.fn(), onAuthLost: vi.fn(), onSaved: vi.fn(), onCancel: vi.fn() };
+const callbacks = { onDirtyChange: vi.fn(), onAuthLost: vi.fn(), onSaved: vi.fn(), onChanged: vi.fn(), onCancel: vi.fn() };
 const content = { ...newGemDraft('entry').content, commonName: 'Reference gem', species: 'Corundum' };
 function entry(origin: api.GemOrigin = 'workbench', revision = 'shared-v1'): api.GemReferenceDetailResponse {
   return { ...content, origin, rowVersion: revision, layer: origin === 'tenant' ? 'tenantEntry' : 'workbenchReference', sourceAssertions: [], retirement: { isRetired: false, explanation: null, redirectEntryId: null }, workbenchContent: origin === 'workbench' ? content : null, effectiveVersion: { sharedRowVersion: origin === 'workbench' ? revision : null, tenantRowVersion: 'tenant-v1' }, overrides: {} };
@@ -33,7 +33,7 @@ it('creates a tenant entry with a publication citation and retains all inputs on
   fireEvent.click(screen.getByRole('button', { name: 'Add Common name source' }));
   change('Common name source 1 title', 'Notebook'); change('Common name source 1 publisher', 'Owner'); change('Common name source 1 publication citation', 'Page 9'); change('Common name source 1 review date', '2026-10-01');
   // WHEN validation fails THEN user values and source text remain editable.
-  save(); await screen.findByText('Species is required.');
+  save(); expect(await screen.findByRole('alert')).toHaveTextContent('Species is required.');
   expect(screen.getByLabelText('Common name', { exact: true })).toHaveValue('Personal ruby');
   expect(screen.getByLabelText('Common name source 1 publication citation')).toHaveValue('Page 9');
   const first = vi.mocked(api.createTenantGem).mock.calls[0][0];
@@ -183,4 +183,31 @@ it('locks overlapping saves and retains an existing-entry draft while checking a
   expect(api.updateTenantGem).toHaveBeenCalledTimes(1);
   fireEvent.click(screen.getByRole('button', { name: 'Keep my draft with current versions' }));
   expect(callbacks.onDirtyChange).toHaveBeenLastCalledWith(true, false);
+});
+
+it('associates server field and source errors with the editable controls', async () => {
+  // GIVEN the server rejects a field value and a source collection.
+  vi.mocked(api.createTenantGem).mockRejectedValueOnce(new api.GemReferenceApiError(400, { code: 'validation_failed', errors: { species: ['Species is required.'], sources: ['Review the source and its review date.'] } }));
+  mount(); change('Common name', 'Personal gem');
+  fireEvent.click(screen.getByRole('button', { name: 'Add Common name source' }));
+  // WHEN saving THEN the focused summary and the controls expose their reasons together.
+  save(); await screen.findByRole('alert');
+  expect(screen.getByRole('textbox', { name: 'Species' })).toHaveAttribute('aria-invalid', 'true');
+  expect(screen.getByRole('textbox', { name: 'Species' })).toHaveAccessibleDescription('Species is required.');
+  expect(screen.getByRole('textbox', { name: 'Common name source 1 title' })).toHaveAccessibleDescription('Review the source and its review date.');
+  expect(screen.getByRole('alert')).toHaveFocus();
+});
+
+it('converts description and citation line breaks to spaces with visible contract guidance', async () => {
+  // GIVEN pasted prose and a publication citation include ordinary line breaks.
+  mount(); change('Common name', 'Personal gem'); change('Species', 'Corundum');
+  change('Description', 'First paragraph.\nSecond paragraph.');
+  fireEvent.click(screen.getByRole('button', { name: 'Add Description source' }));
+  change('Description source 1 title', 'Handbook'); change('Description source 1 publisher', 'Institute');
+  change('Description source 1 publication citation', 'Volume 1.\r\nPage 9.');
+  change('Description source 1 review date', '2026-10-01');
+  // WHEN saving THEN both values satisfy the existing single-line API contract.
+  expect(screen.getByRole('textbox', { name: 'Description' })).toHaveAccessibleDescription(/Line breaks are converted to spaces/);
+  save(); await waitFor(() => expect(callbacks.onSaved).toHaveBeenCalled());
+  expect(vi.mocked(api.createTenantGem).mock.calls[0][0]).toMatchObject({ description: 'First paragraph. Second paragraph.', sources: [expect.objectContaining({ citation: 'Volume 1. Page 9.' })] });
 });

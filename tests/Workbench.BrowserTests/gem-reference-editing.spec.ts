@@ -28,7 +28,7 @@ test('tenant creates, refreshes, resolves a concurrent edit and archives/restore
   await page.goto('/gem-reference'); await page.getByRole('link', { name: 'Add entry', exact: true }).click();
   await page.getByLabel('Common name', { exact: true }).fill(name);
   await page.getByRole('combobox', { name: 'Material kind', exact: true }).selectOption('organic');
-  await page.getByRole('textbox', { name: 'Description', exact: true }).fill('Personal reference notes');
+  await page.getByRole('textbox', { name: 'Description', exact: true }).fill('Personal reference\nnotes');
   const saved = await saveTenant(page, 'POST');
   await page.reload(); await expect(page.getByRole('heading', { name, exact: true })).toBeVisible();
   await expect(page.locator('dt').filter({ hasText: /^Description$/ }).locator('..')).toContainText('Tenant-authored · no sources supplied');

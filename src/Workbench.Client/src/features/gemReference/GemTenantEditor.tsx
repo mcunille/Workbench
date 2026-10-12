@@ -7,9 +7,9 @@ import { GemConflictComparison } from './GemConflictComparison';
 import { GemConfirmationDialog } from './GemConfirmationDialog';
 import { fieldLabels } from './gemPresentation';
 import './gem-reference.css';
-export type GemTenantEditorProps = { id?: string; origin?: GemOrigin; onDirtyChange: (dirty: boolean, uncertain: boolean) => void; onAuthLost: () => void; onSaved: (entry: GemReferenceDetailResponse) => void; onCancel: () => void };
+export type GemTenantEditorProps = { id?: string; origin?: GemOrigin; onDirtyChange: (dirty: boolean, uncertain: boolean) => void; onAuthLost: () => void; onSaved: (entry: GemReferenceDetailResponse) => void; onChanged: () => void; onCancel: () => void };
 type Mode = 'loading' | 'editing' | 'saving' | 'uncertain' | 'checking' | 'comparison' | 'load-failed';
-export function GemTenantEditor({ id, origin = 'tenant', onDirtyChange, onAuthLost, onSaved, onCancel }: GemTenantEditorProps) {
+export function GemTenantEditor({ id, origin = 'tenant', onDirtyChange, onAuthLost, onSaved, onChanged, onCancel }: GemTenantEditorProps) {
   const [draft, setDraft] = useState(() => newGemDraft(id ?? crypto.randomUUID()));
   const [baseline, setBaseline] = useState<GemReferenceDetailResponse>();
   const [snapshot, setSnapshot] = useState(() => JSON.stringify(draft));
@@ -50,7 +50,7 @@ export function GemTenantEditor({ id, origin = 'tenant', onDirtyChange, onAuthLo
     setBaseline(entry); setDraft(next); setSnapshot(JSON.stringify(next)); setCurrent(undefined); setErrors({}); setMode('editing');
     setMessage(notify ? 'Changes saved.' : 'Current entry loaded.');
     onDirtyChange(false, false);
-    if (notify) onSaved(entry);
+    if (notify) onSaved(entry); else onChanged();
   }
   function authFailure(error: unknown) {
     if ((error instanceof GemReferenceApiError || error instanceof ApiError) && (error.status === 401 || error.status === 403)) { onAuthLost(); return true; }
@@ -117,7 +117,7 @@ export function GemTenantEditor({ id, origin = 'tenant', onDirtyChange, onAuthLo
       {mode === 'comparison' && current ? <GemConflictComparison current={current} draft={draft} onUseCurrent={() => accept(current, false)} onKeepDraft={keepDraft} /> : null}
       {mode === 'uncertain' ? <button type="button" onClick={() => void check()}>Check current entry</button> : null}
       <form onSubmit={event => { event.preventDefault(); void write(); }}>
-        <GemTenantFields draft={draft} entry={baseline} onChange={setDraft} disabled={locked} />
+        <GemTenantFields draft={draft} entry={baseline} errors={errors} onChange={setDraft} disabled={locked} />
         <p className="reference-attribution">Unsaved changes remain in this page only. Reloading or ending your session discards them.</p>
         <div className="button-row"><button type="submit" disabled={locked}>{mode === 'saving' ? 'Saving…' : 'Save changes'}</button><button type="button" className="secondary" disabled={mode === 'saving' || mode === 'checking'} onClick={onCancel}>Cancel</button>{baseline?.origin === 'workbench' ? <button type="button" className="secondary" disabled={locked} onClick={() => setResetConfirmation(true)}>Reset all fields to Workbench</button> : null}</div>
       </form>
