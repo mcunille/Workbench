@@ -31,7 +31,7 @@ public abstract class SupplierScenarioFixture(SqlServerFixture sqlServer, params
     {
         var clock = System.Diagnostics.Stopwatch.StartNew();
         await using var context = preparedBase is null
-            ? await SupplierCorrectionFixture.OpenAsync(server)
+            ? await SupplierCorrectionFixture.OpenFreshAsync(server)
             : await SupplierPaymentTestContext.RestoreAsync(await server.RestoreTemplateAsync(preparedBase.Database), preparedBase.Context);
         var data = name is null ? new JsonObject() : await SeedAsync(context, name);
         var recognition = context.Bills.Recognition;

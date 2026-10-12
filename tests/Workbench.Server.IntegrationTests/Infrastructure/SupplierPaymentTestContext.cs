@@ -10,6 +10,16 @@ internal sealed class SupplierPaymentTestContext(SupplierAllocationTestContext a
     public Guid Bank { get; private set; }
     public Guid Advance { get; private set; }
 
+    internal static async Task<SupplierScenarioFixture.Scenario> PrepareAsync(SqlServerFixture fixture)
+    {
+        var clock = System.Diagnostics.Stopwatch.StartNew();
+        await using var context = await OpenFreshAsync(fixture);
+        var state = new SupplierContextState(context.Bills.Recognition.CaptureState(), context.Bank, context.Advance);
+        var database = await fixture.CapturePreparedTemplateAsync(context.Allocation.Journal);
+        Console.WriteLine($"Prepared payment inputs in {clock.Elapsed.TotalSeconds:F3}s; startup remains included in process and gate wall time.");
+        return new(database, state, "{}");
+    }
+
     internal static async Task<SupplierPaymentTestContext> RestoreAsync(SqlTestDatabase database, SupplierContextState state)
     {
         var application = await AuthTestApplication.CreateFromDatabaseAsync(database);
@@ -29,6 +39,12 @@ internal sealed class SupplierPaymentTestContext(SupplierAllocationTestContext a
         }
     }
     public static async Task<SupplierPaymentTestContext> OpenAsync(SqlServerFixture fixture)
+    {
+        var prepared = await fixture.GetPaymentInputsAsync();
+        return await RestoreAsync(await fixture.RestoreTemplateAsync(prepared.Database), prepared.Context);
+    }
+
+    private static async Task<SupplierPaymentTestContext> OpenFreshAsync(SqlServerFixture fixture)
     {
         var result = new SupplierPaymentTestContext(await SupplierAllocationTestContext.OpenAsync(fixture));
         try

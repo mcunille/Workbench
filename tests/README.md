@@ -40,6 +40,13 @@ Explicit prior-migration requests use the original preparation path; direct jour
 their initially unconfigured accounting state. Include cold input preparation in process and gate
 wall time when comparing performance.
 
+Payment and correction contexts also restore unposted supplier inputs. Their backups remain
+separate: payment inputs retain only payment authority, while correction inputs include the
+original correction grants and role claim. Adapter installation, bank/advance accounts and
+configuration mappings are prepared once; bills, payments, allocations and corrections still
+execute in each case. Both templates are prepared before case deadlines and their cold cost
+remains part of process and gate wall time.
+
 `SupplierScenarioFixture` prepares immutable supplier histories through production commands in
 the collection's disposable SQL container. Each class fixture declares only its required histories;
 the container caches each history once and prepares them serially before case bodies. A separate

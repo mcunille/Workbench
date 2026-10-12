@@ -669,16 +669,26 @@ internal static class SupplierCorrectionFixture
     }
     internal static async Task<SupplierPaymentTestContext> OpenAsync(SqlServerFixture fixture)
     {
+        var prepared = await fixture.GetCorrectionInputsAsync();
+        return await SupplierPaymentTestContext.RestoreAsync(await fixture.RestoreTemplateAsync(prepared.Database), prepared.Context);
+    }
+
+    internal static async Task<SupplierPaymentTestContext> OpenFreshAsync(SqlServerFixture fixture)
+    {
         var context = await SupplierPaymentTestContext.OpenAsync(fixture);
-        await context.Bills.AdminAsync("""
-            GRANT EXECUTE ON Purchasing.ReverseSupplierApplication TO workbench_web;
-            GRANT EXECUTE ON Purchasing.PreviewSupplierPaymentCorrection TO workbench_web;
-            GRANT EXECUTE ON Purchasing.CorrectSupplierPayment TO workbench_web;
-            INSERT [Identity].RoleClaims(TenantId,RoleId,ClaimType,ClaimValue)
-              SELECT TenantId,RoleId,N'workbench/permission',N'SupplierPaymentsCorrect'
-              FROM Administration.AccountingRoles WHERE Kind='Administrator';
-            """);
-        return context;
+        try
+        {
+            await context.Bills.AdminAsync("""
+                GRANT EXECUTE ON Purchasing.ReverseSupplierApplication TO workbench_web;
+                GRANT EXECUTE ON Purchasing.PreviewSupplierPaymentCorrection TO workbench_web;
+                GRANT EXECUTE ON Purchasing.CorrectSupplierPayment TO workbench_web;
+                INSERT [Identity].RoleClaims(TenantId,RoleId,ClaimType,ClaimValue)
+                  SELECT TenantId,RoleId,N'workbench/permission',N'SupplierPaymentsCorrect'
+                  FROM Administration.AccountingRoles WHERE Kind='Administrator';
+                """);
+            return context;
+        }
+        catch { await context.DisposeAsync(); throw; }
     }
     internal static async Task<JsonObject> CorrectionAsync(SupplierPaymentTestContext context, Guid payment, JsonObject? replacement = null)
     {

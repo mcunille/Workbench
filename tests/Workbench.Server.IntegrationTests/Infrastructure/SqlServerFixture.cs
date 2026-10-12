@@ -12,9 +12,10 @@ public sealed class SqlServerFixture : IAsyncLifetime
 {
     private readonly Lazy<Task<SqlDatabaseTemplate>> _schemaTemplate;
     private readonly Lazy<Task<PurchaseRecognitionTestContext.PreparedInputs>> _recognitionInputs;
+    private readonly Lazy<Task<SupplierScenarioFixture.Scenario>> _paymentInputs;
+    private readonly Lazy<Task<SupplierScenarioFixture.Scenario>> _correctionInputs;
     private readonly System.Collections.Concurrent.ConcurrentDictionary<string, Lazy<Task<SupplierScenarioFixture.Scenario>>> _supplierScenarios = new();
     private readonly SemaphoreSlim _supplierPreparation = new(1);
-    private SupplierScenarioFixture.Scenario? _supplierBase;
     private readonly MsSqlContainer _container = new MsSqlBuilder(
         "mcr.microsoft.com/mssql/server:2022-CU20-ubuntu-22.04")
         .Build();
@@ -23,9 +24,13 @@ public sealed class SqlServerFixture : IAsyncLifetime
     {
         _schemaTemplate = new(CreateSchemaTemplateAsync);
         _recognitionInputs = new(() => PurchaseRecognitionTestContext.PrepareAsync(this));
+        _paymentInputs = new(() => SupplierPaymentTestContext.PrepareAsync(this));
+        _correctionInputs = new(() => SupplierScenarioFixture.CreateAsync(this, null));
     }
 
     internal Task<PurchaseRecognitionTestContext.PreparedInputs> GetRecognitionInputsAsync() => _recognitionInputs.Value;
+    internal Task<SupplierScenarioFixture.Scenario> GetPaymentInputsAsync() => _paymentInputs.Value;
+    internal Task<SupplierScenarioFixture.Scenario> GetCorrectionInputsAsync() => _correctionInputs.Value;
 
     internal Task<SupplierScenarioFixture.Scenario> GetSupplierScenarioAsync(string name)
         => _supplierScenarios.GetOrAdd(name, scenario => new(() => PrepareSupplierScenarioAsync(scenario))).Value;
@@ -35,8 +40,8 @@ public sealed class SqlServerFixture : IAsyncLifetime
         await _supplierPreparation.WaitAsync();
         try
         {
-            _supplierBase ??= await SupplierScenarioFixture.CreateAsync(this, null);
-            return await SupplierScenarioFixture.CreateAsync(this, name, _supplierBase);
+            var preparedBase = await _correctionInputs.Value;
+            return await SupplierScenarioFixture.CreateAsync(this, name, preparedBase);
         }
         finally { _supplierPreparation.Release(); }
     }
@@ -60,6 +65,9 @@ public sealed class SqlServerFixture : IAsyncLifetime
         // Only immutable inputs are shared: recognition posting and every supplier transition
         // remain in independent case databases. Cold preparation is part of process wall time.
         await _recognitionInputs.Value;
+        // Payment-only inputs must not inherit correction grants or role claims.
+        await _paymentInputs.Value;
+        await _correctionInputs.Value;
     }
 
     public Task DisposeAsync() => _container.DisposeAsync().AsTask();
