@@ -1,6 +1,6 @@
 # CI test work deletion and class fixture routing
 
-**Status:** Implemented and verified; the ten-minute elapsed-time goal is not demonstrated.
+**Status:** Retained runtime passed hosted verification; the ten-minute goal is not demonstrated. Latest local coverage collection includes one deadline failure.
 
 The goal is at least ten minutes less hosted end-to-end CI, with client and Server assembly line/branch coverage losing at most 5% relative to the comparable baseline. This batch retains two server processes on one runner.
 
@@ -354,7 +354,7 @@ unchanged at 38 removed examples and eight keeper/group identities. Fresh client
 coverage matches GEM-06 main exactly across lines, branches, statements and
 functions (512 tests passed on each side). Formatter, workflow pins and partition
 contracts passed; fresh internal review found no critical or important defects.
-Full server coverage against GEM-06 main and hosted probe results are pending.
+Hosted probe results and restored-source verification are recorded below.
 
 The first full hosted MAXDOP trial on `b9b85d8`
 [failed in 37m42](https://github.com/mcunille/Workbench/actions/runs/37877891308).
@@ -365,7 +365,7 @@ reported effective MAXDOP one. Sixty-seven valid resource samples had 78.07%
 weighted busy CPU, 0.75% I/O wait, at least 6.39 GiB available memory and 1.441 GiB
 peak recorded usage of any container; peak one-minute load was 17.29.
 
-This run is 38 seconds slower than current main's 37m04 and fails reliability;
+This run is 38 seconds slower than pinned GEM-06 main's 37m04 and fails reliability;
 it establishes neither a retained saving nor the ten-minute goal. The CPU samples
 do not show a large reduction from the prior three-process experiment, whose
 production baseline differs, and cannot establish a timeout cause. Because the
@@ -374,5 +374,90 @@ The temporary MAXDOP setter, effective-setting guard and recording are removed,
 and hosted concurrency returns to two. Source, tests, scripts and workflow match
 the rebased pre-probe revision `d94c49d`; production remains identical to GEM-06
 main. Current/default documentation again describes the retained two-process
-configuration. Full coverage evidence for the frozen MAXDOP probe and fresh
-restored-source verification remain pending.
+configuration. The rejected probe's local collector also hit a reversal-first
+deadline; it was cancelled rather than used as passing coverage evidence.
+
+The restored revision `85f0c43`
+[passed its full hosted gate in 37m00](https://github.com/mcunille/Workbench/actions/runs/37880982290).
+All 1,968 unique server identities passed and exactly match the rejected probe's
+inventory; all 122 browser cases passed. The server stage took 2,011.535s,
+client 106.437s, browser 184.666s and prerequisites 140.886s. Sixty-six valid
+resource samples with no sampling errors show 44.79% busy CPU, 3.32% I/O wait,
+at least 8.04 GiB available memory, 1.535 GiB peak recorded usage of any
+container and peak one-minute load 9.28. These are sampled observations, not
+proof of an individual failure's cause or absence of brief pressure spikes.
+
+Against pinned GEM-06 main's 37m04, the four-second difference establishes no meaningful
+saving and does not meet the ten-minute goal. Untouched GEM-06 main's full local
+coverage run passed all 1,998 cases with zero failures or skips: 110,500/112,534
+lines and 5,897/7,528 branches. Its XML, TRX and log were preserved and the copied
+XML's hash verified. The restored-source serial collector stopped before producing
+a report. Its log records 28 failures: 26 from a shared coordination-history SQL
+setup timeout, one atomicity fault-injection timeout and one recognition-matching
+failure. A fresh isolated correction class run with collection passed 25/26;
+the receipt fault-injection case received command timeout -2 instead of injected
+error 51995. Its exact two-case method subsequently passed without collection
+using the same verified separate build. These observations do not establish a
+root cause or fix; failed or interrupted collectors are not passing verification.
+
+On October 11, coverage verification restarted using the green hosted run's two
+cohorts (996 and 972 cases) and separately built and instrumented assemblies.
+Collector inclusion remains Server and Database;
+no test, assertion or deadline changes. Matched Debug collection finished on
+October 12: all 1,968 unique identities ran with exact hosted inventory parity,
+1,967 passed, one failed and none skipped. Cohort one passed 995/996 in 42m41;
+cohort two passed 972/972 in 42m16. The failed collector is not passing reliability
+or final coverage acceptance evidence.
+
+The first isolated cohort attempt hit 32 operator-command setup failures because
+its relocated build output did not match the test helper's database CLI lookup.
+That attempt was stopped and excluded. Copying the freshly built CLI to the
+helper-required ignored output location, with its hash verified, allowed all 32
+affected cases to pass. The second Release cohort passed all 972 cases with exact
+inventory parity, but its coverage cannot be directly compared to the saved Debug
+baseline. The remaining Release collector was cancelled and both cohorts rebuilt
+in Debug. Both builds passed with zero warnings or errors. The stop guard initially
+matched both parent and child processes, delaying cancellation; a brief third owned
+fixture overlap during transition cannot be excluded. The final retry used two
+cohorts. No stale standard-output CLI is used. Other
+checkout tests started on the same host during collection; local timings are
+therefore not controlled CI performance measurements.
+
+The matched Debug retry encountered the existing 30-second replacement-preview
+deadline in `PreviewIncludesReplacementEffectsAndRejectsClosedReplacementWithoutWrites`.
+The case body is identical to pinned GEM-06 main. Post-failure numeric SQL samples
+showed no blocking and roughly CPU-bound active requests, but do not establish the
+failure's cause. No fix is claimed and no assertion or deadline is relaxed.
+
+Native Coverlet 6.0.4 summaries reproduce each original collector report's counts.
+The merge normalizes exactly two generated-document paths and their file-local
+type hashes; complete instrumentation structures then match after excluding hit
+counts, with collision checks. Native merging preserves both baseline denominators
+rather than double-counting generated code from the isolated build directories.
+Original JSON/XML reports and the normalization record remain in ignored local
+artifacts. The measured counts are:
+
+| Scope | Metric | Pinned GEM-06 baseline | Restored measurement | Relative loss |
+| --- | --- | --- | --- | --- |
+| Server assembly | Lines | 110500/112534 | 110499/112534 | 0.000905% |
+| Server assembly | Branches | 5897/7528 | 5895/7528 | 0.033916% |
+| Client | Lines | 2747/3047 | 2747/3047 | 0% |
+| Client | Branches | 3902/4720 | 3902/4720 | 0% |
+
+Each numerical loss is below 5%, but the one failed local case remains a verification
+limit. These counts do not turn that collector green or establish SQL-engine branch
+coverage. The restored hosted full gate above passed every case; no ten-minute
+saving or completed root-cause fix is claimed.
+
+Main has since advanced to `8067146`, including GEM-07 through GEM-09. These
+measurements retain `afdde62` as their pinned GEM-06 baseline; they do not establish
+a saving against newer main. A future timing claim requires a matched newer source
+baseline and cannot inherit the older 50m51 reference.
+
+The retained hosted TRX reports sum to 3,424.253 seconds of case execution across
+two serial workers. With those observed case durations unchanged, ideal balancing
+and zero setup still require 1,712.126 seconds (28m32) before any other gate work.
+That exceeds the pinned baseline's 27m04 whole-gate target. Setup-only optimization
+therefore cannot close this measured gap; case work or execution capacity must
+change. Runner variation prevents treating this conditional bound as a prediction
+of future timings.
