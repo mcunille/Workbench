@@ -4,6 +4,10 @@
 .reference-search > label, .reference-search .reference-filter { display: flex; flex-direction: column; gap: 0.5rem; min-width: 0; flex: 1 1 10rem; }
 .reference-search .reference-query { flex: 2 1 18rem; }
 .reference-search input, .reference-search select { width: 100%; min-width: 0; }
+.reference-search .reference-check { flex-direction: row; align-items: center; min-height: 44px; }
+.reference-search .reference-check input { width: auto; }
+.reference-page .button { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; }
+.reference-entry-actions, .reference-tenant-actions { margin-block: 1rem; }
 .reference-results { list-style: none; padding: 0; margin-block: 1.5rem; }
 .reference-results li { display: flex; align-items: start; justify-content: space-between; gap: 1.5rem; padding-block: 1.25rem; border-top: 1px solid var(--glass-edge); }
 .reference-results li > div { min-width: 0; }

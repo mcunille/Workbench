@@ -38,6 +38,8 @@ import { ServiceAdminApplication } from './features/serviceAdmin/ServiceAdminApp
 import { GemLibrary } from './features/gemReference/GemLibrary';
 import { GemDetail } from './features/gemReference/GemDetail';
 import { GemLibraryMemory } from './features/gemReference/gemLibraryMemory';
+import { GemTenantEditor } from './features/gemReference/GemTenantEditor';
+import { gemPath } from './features/gemReference/gemPresentation';
 
 const narrowNavigationQuery = '(width < 900px)';
 function subscribeToNavigationWidth(update: () => void) {
@@ -288,8 +290,12 @@ function SignedInApplication({
             />
           ) : path === '/gem-reference' ? (
             <GemLibrary memory={gemMemory} follow={navigation.follow} onAuthLost={authLost} />
+          ) : path === '/gem-reference/new' || /^\/gem-reference\/(workbench|tenant)\/[^/]+\/edit$/.test(path) ? (
+            <GemTenantEditor key={navigation.viewId} id={path === '/gem-reference/new' ? undefined : path.split('/')[3]} origin={path === '/gem-reference/new' ? 'tenant' : path.split('/')[2] as 'workbench' | 'tenant'}
+              onDirtyChange={navigation.setDirty} onAuthLost={authLost} onCancel={() => navigation.navigate(path === '/gem-reference/new' ? '/gem-reference' : gemPath(path.split('/')[3], path.split('/')[2]))}
+              onSaved={entry => { gemMemory.invalidateResults(); navigation.setDirty(false, false); navigation.navigate(gemPath(entry.id, entry.origin)); }} />
           ) : /^\/gem-reference\/(workbench|tenant)\/[^/]+$/.test(path) ? (
-            <GemDetail id={path.split('/')[3]} origin={path.split('/')[2] as 'workbench' | 'tenant'} follow={navigation.follow} onAuthLost={authLost} />
+            <GemDetail id={path.split('/')[3]} origin={path.split('/')[2] as 'workbench' | 'tenant'} follow={navigation.follow} onAuthLost={authLost} onChanged={() => gemMemory.invalidateResults()} />
           ) : path === '/purchase-orders' ? (
             <DraftList memory={draftMemory} follow={navigation.follow} onAuthLost={authLost} />
           ) : path === '/suppliers' ? (

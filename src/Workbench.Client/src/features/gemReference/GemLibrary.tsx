@@ -50,7 +50,7 @@ export function GemLibrary({ memory, follow, onAuthLost }: GemNavigation & { mem
     return () => { current = false; controller.abort(); };
   }, [request, filters, memory, onAuthLost]);
   function search(next: LibraryFilters) {
-    const cleaned = Object.fromEntries(Object.entries(next).map(([key, value]) => [key, value?.trim()]).filter(([, value]) => value));
+    const cleaned = Object.fromEntries(Object.entries(next).map(([key, value]) => [key, typeof value === 'string' ? value.trim() : value]).filter(([, value]) => value));
     setFilters(cleaned);
     setPage(undefined);
     setCompletion(undefined);
@@ -60,11 +60,12 @@ export function GemLibrary({ memory, follow, onAuthLost }: GemNavigation & { mem
     setRequest({});
   }
   return <section className="reference-page">
-    <header className="page-heading"><div><h1 ref={heading} tabIndex={-1}>Gem reference</h1><p className="lede">Explore the shared library and your tenant’s effective reference.</p></div></header>
+    <header className="page-heading"><div><h1 ref={heading} tabIndex={-1}>Gem reference</h1><p className="lede">Explore the shared library and your tenant’s effective reference.</p></div><a className="button primary" href="/gem-reference/new" onClick={follow}>Add entry</a></header>
     <form role="search" aria-label="Gem reference" className="reference-search" onSubmit={event => { event.preventDefault(); search(draft); }}>
       <label className="reference-query">Search gems<input type="search" maxLength={200} value={draft.query ?? ''} onChange={event => setDraft({ ...draft, query: event.target.value })} placeholder="Name, alias or classification" /></label>
       <div className="reference-filter"><label htmlFor="reference-material-kind">Material kind</label><select id="reference-material-kind" value={draft.materialKind ?? ''} onChange={event => setDraft({ ...draft, materialKind: event.target.value })}><option value="">All materials</option>{Object.entries(materialKinds).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></div>
       <label>Group (exact match)<input maxLength={200} value={draft.group ?? ''} onChange={event => setDraft({ ...draft, group: event.target.value })} /></label>
+      <label className="reference-check"><input type="checkbox" checked={draft.includeArchived ?? false} onChange={event => setDraft({ ...draft, includeArchived: event.target.checked })} />Include archived tenant entries</label>
       <div className="button-row"><button type="submit">Search</button><button className="secondary" type="button" onClick={() => { setDraft({}); search({}); }}>Clear filters</button></div>
     </form>
     {failure ? <div className="form-message error"><p role="alert">{failure.message}</p><button type="button" onClick={() => { setRequest(failure.cursor ? { cursor: failure.cursor } : {}); setFailure(undefined); }}>Retry</button></div> : null}
