@@ -7,14 +7,15 @@ using Xunit;
 namespace Workbench.Server.IntegrationTests;
 
 [Collection(SqlServerCollection.Name)]
-public sealed class SupplierCorrectionParticipantTests(SqlServerFixture sqlServer)
+public sealed class SupplierCorrectionParticipantTests(SqlServerFixture sqlServer, SupplierCorrectionParticipantScenarios scenarios) : IClassFixture<SupplierCorrectionParticipantScenarios>
 {
     [Fact]
     public async Task PaidBillReplacementPreservesCash()
     {
         // GIVEN a genuine bill and genuine cash payment, fully applied by production posting.
-        await using var context = await SupplierCorrectionFixture.OpenAsync(sqlServer);
-        var bill = await context.Allocation.BillAsync("300");
+        await using var prepared = await scenarios.OpenAsync("bill300");
+        var context = prepared.Context;
+        var bill = Guid.Parse(prepared.Data["bill"]!.GetValue<string>());
         var payment = await context.CommandAsync("300"); await context.AllocateAsync(payment, bill, "300");
         var paid = await context.RecordAsync(payment);
         var funding = Guid.Parse(payment["paymentId"]!.ToString());

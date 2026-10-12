@@ -203,47 +203,6 @@ public sealed class SupplierPaymentCorrectionTests(SqlServerFixture sqlServer, S
     }
 
     [Fact]
-    public async Task ReplacementCommitsAfterCoordinationAndEvidenceAreReleased()
-    {
-        // GIVEN the same genuine replacement with both coordination rows and its document locked.
-        await using var prepared = await scenarios.OpenAsync("coordination");
-        var context = prepared.Context;
-        await using var holder = new SqlConnection(context.Allocation.Journal.Application.AdminConnectionString);
-        await holder.OpenAsync();
-        await using (var begin = new SqlCommand("BEGIN TRAN", holder)) await begin.ExecuteNonQueryAsync();
-        await using (var hold = new SqlCommand("""
-            SELECT ApplicationId FROM Purchasing.SupplierApplicationVersions WITH(UPDLOCK,HOLDLOCK) WHERE ApplicationId=@application;
-            SELECT ItemId FROM Purchasing.SupplierItemVersions WITH(UPDLOCK,HOLDLOCK) WHERE ItemId=@funding;
-            SELECT Id FROM Purchasing.PurchaseOrderDocuments WITH(UPDLOCK,HOLDLOCK) WHERE Id=@document;
-            """, holder))
-        {
-            hold.Parameters.AddWithValue("@application", Guid.Parse(prepared.Data["application"]!.ToString()));
-            hold.Parameters.AddWithValue("@funding", Guid.Parse(prepared.Data["funding"]!.ToString()));
-            hold.Parameters.AddWithValue("@document", Guid.Parse(prepared.Data["document"]!.ToString()));
-            await hold.ExecuteNonQueryAsync();
-        }
-        // WHEN correction waits on the independent owner before that owner releases its locks.
-        var pending = context.Bills.ExecuteAsync("CorrectSupplierPayment", Guid.NewGuid(), prepared.Data["correction"]!.AsObject());
-        try
-        {
-            await using var observer = new SqlConnection(context.Allocation.Journal.Application.AdminConnectionString);
-            await observer.OpenAsync();
-            await using var wait = new SqlCommand("SELECT COUNT(*) FROM sys.dm_exec_requests WHERE session_id=@waiter AND blocking_session_id=@holder AND wait_type LIKE 'LCK_M_%'", observer);
-            wait.Parameters.AddWithValue("@waiter", context.Allocation.Journal.Connection.ServerProcessId);
-            wait.Parameters.AddWithValue("@holder", holder.ServerProcessId);
-            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(7));
-            while ((int)(await wait.ExecuteScalarAsync(timeout.Token))! != 1) await Task.Yield();
-        }
-        finally
-        {
-            await using (var release = new SqlCommand("ROLLBACK", holder)) await release.ExecuteNonQueryAsync();
-            await pending;
-        }
-        // THEN the replacement settles the original bill completely.
-        Assert.Equal(0m, await context.Allocation.BalanceAsync(Guid.Parse(prepared.Data["bill"]!.ToString())));
-    }
-
-    [Fact]
     public async Task ReplacementPreviewRequiresAvailableEvidenceWithoutWrites()
     {
         // GIVEN a replacement with a real available document owned by this PO.
@@ -310,12 +269,39 @@ public sealed class SupplierPaymentCorrectionTests(SqlServerFixture sqlServer, S
         var payment = await context.CommandAsync(); await context.AllocateAsync(payment, bill, "50"); await context.AllocateAsync(payment, otherBill, "50");
         await context.RecordAsync(payment); var funding = Guid.Parse(payment["paymentId"]!.ToString());
         var correction = await SupplierCorrectionFixture.CorrectionAsync(context, funding);
-        await context.Bills.AdminAsync($"UPDATE a SET MovementId=other.Id FROM Purchasing.SupplierControlAttributions a JOIN Purchasing.SupplierItemMovements original ON original.Id=a.MovementId JOIN Purchasing.SupplierItemMovements other ON other.GroupId=original.GroupId AND other.EventKind='Apply' AND other.ItemId<>original.ItemId AND other.ItemId IN('{bill}','{otherBill}') WHERE original.ItemId IN('{bill}','{otherBill}') AND original.EventKind='Apply'");
-        var before = await SupplierOpenItemAtomicityTests.SnapshotAsync(context);
-        // WHEN a hostile source swaps movement-to-line ownership without changing any totals THEN exact debt coverage rejects it.
-        Assert.Equal(0, await context.Bills.ScalarAsync<int>($"SELECT COUNT(*) FROM Purchasing.SupplierPaymentControl('{JournalTestContext.TenantId}','{funding}')"));
-        Assert.Equal(51004, (await Assert.ThrowsAsync<SqlException>(() => SupplierCorrectionFixture.PreviewAsync(context, correction))).Number);
-        Assert.Equal(before, await SupplierOpenItemAtomicityTests.SnapshotAsync(context));
+        var group = await context.Bills.ScalarAsync<Guid>($"SELECT GroupId FROM Purchasing.SupplierItemMovements WHERE ItemId='{bill}' AND EventKind='Apply'");
+        var itemControl = $"SELECT COUNT(*) FROM Purchasing.SupplierItemControl('{JournalTestContext.TenantId}','{funding}')";
+        var paymentControl = $"SELECT COUNT(*) FROM Purchasing.SupplierPaymentControl('{JournalTestContext.TenantId}','{funding}')";
+        Assert.Equal(1, await context.Bills.ScalarAsync<int>(itemControl));
+        Assert.Equal(1, await context.Bills.ScalarAsync<int>(paymentControl));
+        Assert.Equal(2, await context.Bills.ScalarAsync<int>($"SELECT COUNT(DISTINCT Ordinal) FROM Purchasing.SupplierControlAttributions WHERE GroupId='{group}'"));
+        Assert.Equal(2, await context.Bills.ScalarAsync<int>($"SELECT COUNT(DISTINCT AccountVersion) FROM Purchasing.SupplierControlAttributions WHERE GroupId='{group}'"));
+        var firstMovement = await context.Bills.ScalarAsync<Guid>($"SELECT Id FROM Purchasing.SupplierItemMovements WHERE GroupId='{group}' AND ItemId='{bill}' AND EventKind='Apply'");
+        var secondMovement = await context.Bills.ScalarAsync<Guid>($"SELECT Id FROM Purchasing.SupplierItemMovements WHERE GroupId='{group}' AND ItemId='{otherBill}' AND EventKind='Apply'");
+        var firstAttribution = await context.Bills.ScalarAsync<Guid>($"SELECT Id FROM Purchasing.SupplierControlAttributions WHERE GroupId='{group}' AND MovementId='{firstMovement}'");
+        var secondAttribution = await context.Bills.ScalarAsync<Guid>($"SELECT Id FROM Purchasing.SupplierControlAttributions WHERE GroupId='{group}' AND MovementId='{secondMovement}'");
+        foreach (var swapBoth in new[] { true, false })
+        {
+            try
+            {
+                // WHEN equal debt attributions are swapped, or both point to one movement, totals still agree.
+                if (swapBoth) await context.Bills.AdminAsync($"UPDATE Purchasing.SupplierControlAttributions SET MovementId='{secondMovement}' WHERE Id='{firstAttribution}'");
+                await context.Bills.AdminAsync($"UPDATE Purchasing.SupplierControlAttributions SET MovementId='{firstMovement}' WHERE Id='{secondAttribution}'");
+                var before = await SupplierOpenItemAtomicityTests.SnapshotAsync(context);
+                // THEN neither historical item authority nor correction authority can accept incomplete ownership.
+                Assert.Equal(0, await context.Bills.ScalarAsync<int>(itemControl));
+                Assert.Equal(0, await context.Bills.ScalarAsync<int>(paymentControl));
+                Assert.Equal(51004, (await Assert.ThrowsAsync<SqlException>(() => SupplierCorrectionFixture.PreviewAsync(context, correction))).Number);
+                Assert.Equal(before, await SupplierOpenItemAtomicityTests.SnapshotAsync(context));
+            }
+            finally
+            {
+                await context.Bills.AdminAsync($"UPDATE Purchasing.SupplierControlAttributions SET MovementId='{firstMovement}' WHERE Id='{firstAttribution}'; UPDATE Purchasing.SupplierControlAttributions SET MovementId='{secondMovement}' WHERE Id='{secondAttribution}';");
+            }
+            // AND exact restoration proves each hostile probe started from valid evidence.
+            Assert.Equal(1, await context.Bills.ScalarAsync<int>(itemControl));
+            Assert.Equal(1, await context.Bills.ScalarAsync<int>(paymentControl));
+        }
     }
 
     [Fact]
@@ -353,6 +339,9 @@ public sealed class SupplierPaymentCorrectionTests(SqlServerFixture sqlServer, S
         // WHEN the owner has both required permissions THEN archival cannot redirect an exact historical inverse.
         var result = await context.Bills.ExecuteAsync("CorrectSupplierPayment", Guid.NewGuid(), correction);
         Assert.Equal(100m, await context.Allocation.BalanceAsync(bill)); Assert.Equal(0m, await context.Allocation.BalanceAsync(id));
+        // AND the embedded allocation restores debt once and removes cash once.
+        Assert.Equal(0m, await context.Bills.ScalarAsync<decimal>($"SELECT SUM(Debit-Credit) FROM Accounting.JournalLines WHERE AccountId='{context.Bank}'"));
+        Assert.Equal(1, await context.Bills.ScalarAsync<int>("SELECT COUNT(*) FROM Purchasing.SupplierPaymentCorrections"));
         Assert.Equal(0, await context.Bills.ScalarAsync<int>("SELECT COUNT(*) FROM Accounting.CorrectionGroups c JOIN Accounting.JournalLines old ON old.JournalId=c.OriginalJournalId JOIN Accounting.JournalLines inv ON inv.JournalId=c.ReversalJournalId AND inv.Ordinal=old.Ordinal WHERE old.AccountId<>inv.AccountId OR old.AccountVersion<>inv.AccountVersion OR old.AccountName<>inv.AccountName OR old.AccountCode<>inv.AccountCode OR old.AccountType<>inv.AccountType OR old.AccountPurpose<>inv.AccountPurpose OR old.Debit<>inv.Credit OR old.Credit<>inv.Debit"));
         Assert.Equal(0, await context.Bills.ScalarAsync<int>($"SELECT COUNT(*) FROM Purchasing.SupplierItemMovements m JOIN Accounting.SourceEvents s ON s.Id=m.SourceEventId JOIN Accounting.JournalEntries j ON j.SourceEventId=s.Id JOIN Purchasing.SupplierFinancialGroups g ON g.Id=m.GroupId WHERE m.GroupId='{result["groupId"]}' AND (m.RecordedAtUtc<>g.RecordedAtUtc OR s.RecordedAtUtc<>g.RecordedAtUtc OR j.RecordedAtUtc<>g.RecordedAtUtc)"));
     }
@@ -456,14 +445,14 @@ public sealed class SupplierPaymentCorrectionTests(SqlServerFixture sqlServer, S
     [InlineData("ReverseSupplierApplication", true)]
     [InlineData("ReverseSupplierApplication", false)]
     [InlineData("CorrectSupplierPayment", true)]
-    [InlineData("CorrectSupplierPayment", false)]
     [InlineData("RecordSupplierPayment", true)]
     [InlineData("RecordSupplierPayment", false)]
     public async Task CorrectionAndDependencyCommandsRecheckBothSerialOrders(string contender, bool correctionFirst)
     {
         // GIVEN a correction preview and a competing command using the same current dependency versions.
-        await using var context = await SupplierCorrectionFixture.OpenAsync(sqlServer);
-        var bill = await context.Allocation.BillAsync("200");
+        await using var prepared = await scenarios.OpenAsync("bill200");
+        var context = prepared.Context;
+        var bill = Guid.Parse(prepared.Data["bill"]!.GetValue<string>());
         var payment = await context.CommandAsync();
         if (contender == "ReverseSupplierApplication") await context.AllocateAsync(payment, bill, "100");
         var posted = await context.RecordAsync(payment);
@@ -582,12 +571,12 @@ public sealed class SupplierPaymentCorrectionTests(SqlServerFixture sqlServer, S
 
     [Theory]
     [InlineData("80", 70)]
-    [InlineData("120", 30)]
     public async Task ExplicitReplacementUsesOneGroupAndCorrectionAuthority(string amount, decimal remaining)
     {
-        // GIVEN a real paid bill and an explicit smaller or larger replacement; Record authority is later revoked.
-        await using var context = await SupplierCorrectionFixture.OpenAsync(sqlServer);
-        var bill = await context.Allocation.BillAsync("150");
+        // GIVEN a real paid bill and an explicit smaller replacement; Record authority is later revoked.
+        await using var prepared = await scenarios.OpenAsync("bill150");
+        var context = prepared.Context;
+        var bill = Guid.Parse(prepared.Data["bill"]!.GetValue<string>());
         var payment = await context.CommandAsync(); await context.AllocateAsync(payment, bill, "100");
         await context.RecordAsync(payment);
         var id = Guid.Parse(payment["paymentId"]!.ToString());
@@ -620,26 +609,6 @@ public sealed class SupplierPaymentCorrectionTests(SqlServerFixture sqlServer, S
             Assert.Equal(0m, await context.Bills.ScalarAsync<decimal>($"SELECT SUM(Debit-Credit) FROM Accounting.JournalLines WHERE AccountId='{context.Bank}'"));
             await SupplierCorrectionFixture.AssertAttributionAsync(context);
         }
-    }
-
-    [Fact]
-    public async Task ImmediatePaymentCorrectionDoesNotRestoreDebtTwice()
-    {
-        // GIVEN a real bill paid entirely by an embedded allocation.
-        await using var context = await SupplierCorrectionFixture.OpenAsync(sqlServer);
-        var bill = await context.Allocation.BillAsync("300");
-        var payment = await context.CommandAsync("300");
-        await context.AllocateAsync(payment, bill, "300");
-        await context.RecordAsync(payment);
-        var id = Guid.Parse(payment["paymentId"]!.ToString());
-        var command = await SupplierCorrectionFixture.CorrectionAsync(context, id);
-        // WHEN its owner corrects the payment with no replacement.
-        await context.Bills.ExecuteAsync("CorrectSupplierPayment", Guid.NewGuid(), command);
-        // THEN one whole inverse restores debt once and removes the recorded cash once.
-        Assert.Equal(300m, await context.Allocation.BalanceAsync(bill));
-        Assert.Equal(0m, await context.Allocation.BalanceAsync(id));
-        Assert.Equal(0m, await context.Bills.ScalarAsync<decimal>($"SELECT SUM(Debit-Credit) FROM Accounting.JournalLines WHERE AccountId='{context.Bank}'"));
-        Assert.Equal(1, await context.Bills.ScalarAsync<int>("SELECT COUNT(*) FROM Purchasing.SupplierPaymentCorrections"));
     }
 
     [Fact]

@@ -125,7 +125,38 @@ jobs:
 
       - name: Verify source and published output
         shell: pwsh
-        run: ./scripts/verify.ps1 -SkipDependencyInstall
+        run: |
+          # Retain actual pressure alongside timings for the bounded two-process configuration
+          # on this public repository's four-CPU, 16 GiB Linux runner.
+          New-Item -ItemType Directory -Path artifacts/ci-resources -Force | Out-Null
+          $resources = Start-Job {
+            $ErrorActionPreference = 'Stop'
+            while ($true) {
+              try {
+                $containers = @(docker stats --no-stream --format '{{.ID}} {{.CPUPerc}} {{.MemUsage}} {{.MemPerc}}')
+                if ($LASTEXITCODE -ne 0) { throw 'Container statistics unavailable.' }
+                [pscustomobject]@{
+                  Timestamp = [DateTimeOffset]::UtcNow.ToString('o')
+                  Cpu = (Get-Content /proc/stat -TotalCount 1)
+                  Memory = @(Get-Content /proc/meminfo | Select-String '^(MemTotal|MemAvailable|SwapTotal|SwapFree):' | ForEach-Object Line)
+                  Load = (Get-Content /proc/loadavg)
+                  Containers = $containers
+                } | ConvertTo-Json -Compress
+              }
+              catch {
+                [pscustomobject]@{ Timestamp = [DateTimeOffset]::UtcNow.ToString('o'); SamplingError = $_.Exception.GetType().Name } | ConvertTo-Json -Compress
+              }
+              Start-Sleep -Seconds 30
+            }
+          }
+          try {
+            ./scripts/verify.ps1 -SkipDependencyInstall -ServerPartitions 2 -ServerConcurrency 2
+          }
+          finally {
+            Stop-Job $resources -ErrorAction Continue
+            Receive-Job $resources -ErrorAction Continue | Set-Content artifacts/ci-resources/samples.jsonl -ErrorAction Continue
+            Remove-Job $resources -ErrorAction Continue
+          }
 
       - name: Retain gate timings and partition evidence
         if: ${{ always() }}
@@ -143,6 +174,7 @@ jobs:
             artifacts/verification/**/test.log
             artifacts/verification/**/discovery.log
             artifacts/browser/results.json
+            artifacts/ci-resources/samples.jsonl
 
       - name: Retain safe browser failure diagnostics
         id: browser-diagnostics
