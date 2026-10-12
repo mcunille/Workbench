@@ -6,6 +6,11 @@ specs. Git preserves chronology; dated evidence records retain their specific ve
 
 ## Find a decision
 
+[Auction market research and results history](2026-10-12-auction-market-research.md) proposes a
+tenant-owned library of auction lots, comparable observations and versioned assessments, with
+freshness checks and next-morning capture of published auction outcomes. It is a product proposal
+for review, connected to the MCP direction; no research automation or purchasing is implemented.
+
 [Gemological reference library](2026-09-29-gemological-reference-library.md) proposes a sourced
 Workbench catalog curated through a separate service-admin editor, with tenant additions and
 field-level overrides. The first release is a standalone reference; numerical type properties
