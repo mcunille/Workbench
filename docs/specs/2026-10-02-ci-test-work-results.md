@@ -461,3 +461,49 @@ That exceeds the pinned baseline's 27m04 whole-gate target. Setup-only optimizat
 therefore cannot close this measured gap; case work or execution capacity must
 change. Runner variation prevents treating this conditional bound as a prediction
 of future timings.
+
+## October 12 rebase and verification
+
+The retained change was rebased onto main `8fe565a` (GEM-07 through GEM-09 and
+the shared-skill routing update). Main independently adopted the browser inventory
+DOM batching, so the conflicting branch helper was dropped in favor of main's
+implementation. Production source and `inventory.spec.ts` are identical to this
+new base. The retained scheduling, snapshot and test-retirement changes received
+a fresh read-only internal review with no critical or important findings.
+
+The coverage and hosted timing measurements above remain pinned to GEM-06 main
+`afdde62` and restored revision `85f0c43`. They are historical evidence, not
+coverage or timing measurements of the newly rebased source. Current-source
+verification uses an isolated Node.js 26.7.0 installation because the machine's
+global Node version has advanced; repository toolchain pins remain unchanged.
+
+Exact main `8fe565a` subsequently
+[passed run 38216139502](https://github.com/mcunille/Workbench/actions/runs/38216139502):
+1,999 unique server cases passed across its two partitions and 141 browser rows
+passed. Its source gate took 3,338.246s (55m38), including 3,153.260s for the
+server stage. These timings differ substantially from the earlier pinned baseline;
+they require a comparable current-source hosted branch run before attributing
+any saving. The rebased branch discovers 1,969 server cases, retaining the net
+30-case reduction and the new upstream case.
+
+The first local post-rebase gate passed its build and 633 client cases but rejected
+a documentation edit made after the build receipt. Its source-provenance guard
+correctly prevented publication. The two ownership-verified testhosts were stopped
+and this attempt is excluded from passing full-gate evidence. The retry freezes
+tracked files throughout verification.
+
+The frozen retry passed `verify.ps1 -SkipDependencyInstall` on revision `7618184`
+using the dependencies installed by the first attempt. All 1,969 unique server
+cases passed exactly once (1,045 and 924), all 633 client cases and 141 browser
+cases passed, and the current-source published-output probe passed. Build,
+formatting, API drift, documentation and client checks passed. Gate
+`0099e378ac9047bdb07a01c13f2a3351` took 1,855.747s (30m56), with 1,736.005s
+in the server stage, on a 16-CPU local host. This is not a hosted CI timing
+comparison. The subsequent `smoke-container.ps1 -ComposeIngressPrefix '172.30'`
+passed the hardened SQL-backed runtime and local Compose checks using disposable
+resources. Public CA issuance and SMTP delivery remain outside that smoke test.
+
+Current-source non-collector verification is green. This does not convert the
+older failed collector into passing coverage acceptance evidence. Current-base
+hosted performance and a fully passing matched coverage comparison remain
+unresolved; no ten-minute saving or overall objective completion is claimed.
