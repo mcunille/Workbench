@@ -8,15 +8,21 @@ $global:workbenchNpmCalls = [Collections.Generic.List[string]]::new()
 $global:workbenchDotnetCalls = [Collections.Generic.List[string]]::new()
 $global:workbenchSqlcmdCalls = [Collections.Generic.List[string]]::new()
 $global:workbenchForceTestFailure = $false
+$global:workbenchNodeVersion = 'v26.8.1'
+$global:workbenchNodeExitCode = 0
+$global:workbenchNpmVersion = '11.19.0'
+$global:workbenchNpmExitCode = 0
 
 function global:node {
-    if ($args.Count -eq 1 -and $args[0] -eq '--version') { 'v26.7.0' }
-    $global:LASTEXITCODE = 0
+    if ($args.Count -eq 1 -and $args[0] -eq '--version') { $global:workbenchNodeVersion }
+    $global:LASTEXITCODE = $global:workbenchNodeExitCode
 }
 
 function global:npm {
     if ($args.Count -eq 1 -and $args[0] -eq '--version') {
-        '11.19.0'
+        $global:workbenchNpmVersion
+        $global:LASTEXITCODE = $global:workbenchNpmExitCode
+        return
     }
     else {
         $global:workbenchNpmCalls.Add(($args -join ' '))
@@ -54,7 +60,7 @@ function global:sqlcmd {
 
 try {
     if ((dotnet --version) -ne '10.0.402' -or
-        (node --version) -ne 'v26.7.0' -or
+        (node --version) -ne 'v26.8.1' -or
         (npm --version) -ne '11.19.0') {
         throw 'Command shims did not return the expected tool versions.'
     }
@@ -75,6 +81,79 @@ try {
     # GIVEN client tests sharing the gate runner with .NET formatting and compilation
     $tokens = $null; $parseErrors = $null
     $ast = [Management.Automation.Language.Parser]::ParseFile($verifyScript, [ref]$tokens, [ref]$parseErrors)
+    # GIVEN installed Node releases on either side of the supported range, including invalid output
+    # AND the real prerequisite functions and Node invocation from the verification entry point
+    foreach ($functionName in @('Assert-NativeCommandSucceeded', 'Assert-ToolVersion')) {
+        $definition = $ast.Find({
+            param($node)
+            $node -is [Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -eq $functionName
+        }, $true)
+        . ([scriptblock]::Create($definition.Extent.Text))
+    }
+    $nodeCheck = $ast.Find({
+        param($node)
+        $node -is [Management.Automation.Language.CommandAst] -and
+        $node.GetCommandName() -eq 'Assert-ToolVersion' -and
+        @($node.CommandElements | Where-Object { $_ -is [Management.Automation.Language.StringConstantExpressionAst] -and $_.Value -eq 'Node.js' }).Count -eq 1
+    }, $true)
+    foreach ($case in @(
+        @{ Version = 'v26.8.0'; ExitCode = 0; Accepted = $true },
+        @{ Version = 'v26.8.1'; ExitCode = 0; Accepted = $true },
+        @{ Version = 'v26.9.0'; ExitCode = 0; Accepted = $true },
+        @{ Version = 'v26.99.99'; ExitCode = 0; Accepted = $true },
+        @{ Version = 'v26.7.99'; ExitCode = 0; Accepted = $false },
+        @{ Version = 'v25.99.99'; ExitCode = 0; Accepted = $false },
+        @{ Version = 'v27.0.0'; ExitCode = 0; Accepted = $false },
+        @{ Version = 'v26.8.0-rc.1'; ExitCode = 0; Accepted = $false },
+        @{ Version = 'invalid'; ExitCode = 0; Accepted = $false },
+        @{ Version = 'v26.8.1'; ExitCode = 1; Accepted = $false }
+    )) {
+        $global:workbenchNodeVersion = $case.Version
+        $global:workbenchNodeExitCode = $case.ExitCode
+        $accepted = $true
+        # WHEN verification checks the installed Node version
+        try { & ([scriptblock]::Create($nodeCheck.Extent.Text)) }
+        catch { $accepted = $false }
+        # THEN stable v26 releases from 26.8.0 are admitted and all other cases are rejected.
+        if ($accepted -ne $case.Accepted) {
+            throw "Unexpected Node admission for $($case.Version) (exit $($case.ExitCode)): accepted=$accepted."
+        }
+    }
+    $global:workbenchNodeVersion = 'v26.8.1'
+    $global:workbenchNodeExitCode = 0
+    $global:LASTEXITCODE = 0
+    # GIVEN bundled npm 11 updates, older versions, a new major, and invalid output
+    $npmCheck = $ast.Find({
+        param($node)
+        $node -is [Management.Automation.Language.CommandAst] -and
+        $node.GetCommandName() -eq 'Assert-ToolVersion' -and
+        @($node.CommandElements | Where-Object { $_ -is [Management.Automation.Language.StringConstantExpressionAst] -and $_.Value -eq 'npm' }).Count -eq 1
+    }, $true)
+    foreach ($case in @(
+        @{ Version = '11.19.0'; ExitCode = 0; Accepted = $true },
+        @{ Version = '11.20.0'; ExitCode = 0; Accepted = $true },
+        @{ Version = '11.99.99'; ExitCode = 0; Accepted = $true },
+        @{ Version = '11.18.99'; ExitCode = 0; Accepted = $false },
+        @{ Version = '10.99.99'; ExitCode = 0; Accepted = $false },
+        @{ Version = '12.0.0'; ExitCode = 0; Accepted = $false },
+        @{ Version = '11.19.0-rc.1'; ExitCode = 0; Accepted = $false },
+        @{ Version = 'invalid'; ExitCode = 0; Accepted = $false },
+        @{ Version = '11.19.0'; ExitCode = 1; Accepted = $false }
+    )) {
+        $global:workbenchNpmVersion = $case.Version
+        $global:workbenchNpmExitCode = $case.ExitCode
+        $accepted = $true
+        # WHEN verification checks the installed npm version
+        try { & ([scriptblock]::Create($npmCheck.Extent.Text)) }
+        catch { $accepted = $false }
+        # THEN stable npm 11 releases from 11.19.0 are admitted and all other cases are rejected.
+        if ($accepted -ne $case.Accepted) {
+            throw "Unexpected npm admission for $($case.Version) (exit $($case.ExitCode)): accepted=$accepted."
+        }
+    }
+    $global:workbenchNpmVersion = '11.19.0'
+    $global:workbenchNpmExitCode = 0
+    $global:LASTEXITCODE = 0
     $clientStage = $ast.Find({
         param($node)
         $node -is [Management.Automation.Language.CommandAst] -and
@@ -157,4 +236,8 @@ finally {
     Remove-Variable workbenchDotnetCalls -Scope Global -ErrorAction SilentlyContinue
     Remove-Variable workbenchSqlcmdCalls -Scope Global -ErrorAction SilentlyContinue
     Remove-Variable workbenchForceTestFailure -Scope Global -ErrorAction SilentlyContinue
+    Remove-Variable workbenchNodeVersion -Scope Global -ErrorAction SilentlyContinue
+    Remove-Variable workbenchNodeExitCode -Scope Global -ErrorAction SilentlyContinue
+    Remove-Variable workbenchNpmVersion -Scope Global -ErrorAction SilentlyContinue
+    Remove-Variable workbenchNpmExitCode -Scope Global -ErrorAction SilentlyContinue
 }

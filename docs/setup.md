@@ -109,8 +109,8 @@ operator-connection and password files and the exact target database name. Follo
 for provision, disable, password reset and session revocation. Never put an operator connection
 into the web configuration or replace the tenant login with this separate identity.
 
-For local verification install the repository-pinned .NET SDK **10.0.402**, Node.js **26.7.0**, and
-npm **11.19.0**, and install Playwright Chromium before browser tests:
+For local verification install .NET SDK **10.0.402**, stable Node.js **>=26.8.0 <27**, and
+npm **>=11.19.0 <12**, and install Playwright Chromium before browser tests:
 
 ```powershell
 npm ci --prefix tests/Workbench.BrowserTests --ignore-scripts --no-audit --no-fund
