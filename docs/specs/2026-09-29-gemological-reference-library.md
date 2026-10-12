@@ -1,6 +1,6 @@
 # Gemological reference library
 
-**Status: In progress** — GEM-02–07 are merged. On 2026-10-02 the owner reduced GEM-01 to the four-mineral sample included in the repository and installed by GEM-04. GEM-08's effective-library browsing workflow is implemented in this change; GEM-09–10 remain to be delivered. The complete reference-library release is not implemented.
+**Status: In progress** — GEM-02–08 are merged. On 2026-10-02 the owner reduced GEM-01 to the four-mineral sample included in the repository and installed by GEM-04. GEM-09's tenant editing workflow is implemented in this change; GEM-10 remains to be delivered. The complete reference-library release is not implemented.
 
 ## Purpose and audience
 
@@ -237,6 +237,16 @@ full reference-library release.
 - **Predecessors:** GEM-02, GEM-06. **Parallel:** GEM-07; GEM-09 may begin after this screen's shared interaction contract is integrated.
 
 #### GEM-09 — Add and customize entries in the tenant UI
+
+**Implementation:** Tenant members can add/edit entries, archive/restore through origin-qualified
+details, include archived entries in library searches, and customize all supported shared fields
+with explicit inherit/replace/clear choices. The editor shows current Workbench values and sources,
+stages single-field resets, confirms whole-entry resets, preserves rejected drafts, and requires
+explicit reconciliation of changed composite versions or uncertain saves. Claim-level tenant sources
+remain separate from displaced Workbench assertions. The [tenant guide](../gem-reference.md) records
+save/reset, source, archive and unsaved-draft semantics. Component and real browser evidence,
+current-source delivery gates and preview inspection are recorded with the GEM-09 PR; this note
+does not complete GEM-10 or the full reference-library release.
 
 **Story:** As a tenant member, I want to add entries and adjust or reset Workbench fields so that I can maintain a personal reference without altering the curated catalog.
 

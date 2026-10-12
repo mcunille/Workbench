@@ -16,6 +16,7 @@ it('preserves retained invalid choices and strips displaced shared citations fro
 it('serializes aliases as an empty replacement and explicit clears without sources', () => {
   // GIVEN aliases deliberately replaced with no search terms and a sourced description.
   const draft = newGemDraft('stable');
+  expect(draft.content.species).toBeNull();
   draft.content.description = 'Personal notes';
   draft.content.sources = [{ id: 'citation', field: 'description', title: 'Notebook', publisher: 'Owner', url: null, citation: 'Page 1', reviewedOn: '2026-10-01', accessedOn: null }];
   // WHEN replacing aliases and clearing description THEN empty aliases are not inheritance.

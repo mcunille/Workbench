@@ -2,7 +2,7 @@ import type { GemReferenceContent, GemReferenceDetailResponse, GemReferenceField
 
 export type GemEditorDraft = { content: GemReferenceContent; overrides: Record<string, GemReferenceFieldOverride> };
 export function newGemDraft(id: string): GemEditorDraft {
-  return { content: { id, materialKind: 'mineral', commonName: '', species: '', group: null, variety: null, description: null, aliases: [], sources: [], notableLocality: null, isRetired: false, retirementExplanation: null, redirectEntryId: null }, overrides: {} };
+  return { content: { id, materialKind: 'mineral', commonName: '', species: null, group: null, variety: null, description: null, aliases: [], sources: [], notableLocality: null, isRetired: false, retirementExplanation: null, redirectEntryId: null }, overrides: {} };
 }
 export function draftFromGem(entry: GemReferenceDetailResponse): GemEditorDraft {
   const { id, materialKind, commonName, species, group, variety, description, aliases, notableLocality } = entry;
