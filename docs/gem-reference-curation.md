@@ -74,6 +74,7 @@ light and dark appearances at 390px; load-retry and lost-response recovery run i
 appearance and viewport. These synthetic claims do not
 change the distributed four-mineral sample.
 
-Tenant additions and overrides, the tenant library screens, inventory linking, numerical
-properties, bulk import and an audit-history UI remain outside GEM-07. The complete
-[reference-library release](specs/2026-09-29-gemological-reference-library.md) remains incomplete.
+Tenant additions, overrides and the tenant library screens are described in the
+[tenant guide](gem-reference.md). The integrated first reference-library release is accepted in
+the [release record](gem-reference-acceptance.md). Inventory linking, numerical properties,
+bulk import and an audit-history UI remain outside this release.

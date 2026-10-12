@@ -9,6 +9,7 @@ exercised at a particular revision. Neither replaces current instructions.
 | Use the collection | [Collection guide](collection.md) |
 | Browse the tenant-effective gem reference | [Gem reference guide](gem-reference.md) |
 | Curate the shared gem reference as a service admin | [Shared curation guide](gem-reference-curation.md) |
+| Review reference-library release coverage and limits | [Gem reference acceptance](gem-reference-acceptance.md) |
 | Plan and resume a supplier purchase | [Purchase order drafts](purchasing.md) |
 | Configure accounting policies, accounts, and roles | [Accounting setup](accounting.md) |
 | Read or decode downloaded files | [CSV and ZIP formats](collection-export.md) |
