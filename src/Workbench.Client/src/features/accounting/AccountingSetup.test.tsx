@@ -45,18 +45,26 @@ describe('Accounting setup', () => {
     handlers();
     server.use(http.put('*/api/beta/accounting/setup', () => HttpResponse.json({ errors: { 'policies.retentionYears': ['Use 1–1000 years or leave unresolved.'] } }, { status: 400 })));
     render(<AccountingSetup canManage onAuthLost={vi.fn()} onDirtyChange={vi.fn()} />);
-    fireEvent.change(await screen.findByLabelText('Proposed document retention (years)'), { target: { value: '1001' } });
+    fireEvent.change(await screen.findByLabelText('Financial document retention (years)'), { target: { value: '1001' } });
     fireEvent.click(screen.getByRole('button', { name: 'Transaction coverage' }));
     // WHEN saving fails THEN the summary receives focus and keeps the draft
     fireEvent.click(screen.getByRole('button', { name: 'Save setup' }));
     const summary = await screen.findByRole('region', { name: 'Review setup errors' });
     await waitFor(() => expect(summary).toHaveFocus());
-    fireEvent.click(screen.getByRole('button', { name: /Proposed document retention.*Use 1–1000/ }));
-    const field = screen.getByLabelText('Proposed document retention (years)');
+    fireEvent.click(screen.getByRole('button', { name: /Financial document retention.*Use 1–1000/ }));
+    const field = screen.getByLabelText('Financial document retention (years)');
     await waitFor(() => expect(field).toHaveFocus());
     expect(field).toHaveValue(1001);
     expect(field).toHaveAttribute('aria-invalid', 'true');
     expect(field).toHaveAccessibleDescription('Use 1–1000 years or leave unresolved.');
+  });
+  it('explains that saved retention applies to new evidence links and unresolved policy protects indefinitely', async () => {
+    // GIVEN the current accounting policy setup.
+    handlers();
+    render(<AccountingSetup canManage onAuthLost={vi.fn()} onDirtyChange={vi.fn()} />);
+    // WHEN reading retention guidance THEN future-only and indefinite behavior is explicit.
+    expect(await screen.findByRole('group', { name: 'Retention and policy notes' })).toHaveTextContent(/future evidence links/i);
+    expect(screen.getByRole('group', { name: 'Retention and policy notes' })).toHaveTextContent(/indefinitely/i);
   });
   it('explains a hidden account edit and returns to it without losing the draft', async () => {
     // GIVEN an unfinished account edit

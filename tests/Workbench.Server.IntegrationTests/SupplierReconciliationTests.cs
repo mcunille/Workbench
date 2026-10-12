@@ -2,9 +2,11 @@
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Data.SqlClient;
 using System.Text.Json.Nodes;
 using Workbench.Server.Accounting;
+using Workbench.Server.Authorization;
 using Workbench.Server.IntegrationTests.Infrastructure;
 using Workbench.Server.Persistence;
 using Workbench.Server.Tenancy;
@@ -338,7 +340,11 @@ public sealed class SupplierReconciliationTests(SqlServerFixture sqlServer, Supp
         await using (var connection = await context.Allocation.Journal.OpenSiblingAsync())
         await using (var db = new WorkbenchDbContext(new DbContextOptionsBuilder<WorkbenchDbContext>().UseSqlServer(connection).Options, new TenantContext(JournalTestContext.TenantId)))
         {
-            var result = await SupplierOpenItemQueries.Read(id, new DefaultHttpContext(), db, new EphemeralDataProtectionProvider(), default);
+            using var services = new ServiceCollection().AddScoped(_ => new RequestActor(JournalTestContext.ActorId,
+                JournalTestContext.TenantId, context.Allocation.Journal.SessionId, new HashSet<string> { "AccountingReportsRead" })).BuildServiceProvider();
+            using var scope = services.CreateScope();
+            var http = new DefaultHttpContext { RequestServices = scope.ServiceProvider };
+            var result = await SupplierOpenItemQueries.Read(id, http, db, new EphemeralDataProtectionProvider(), default);
             var item = Assert.IsType<SupplierOpenItemSummary>(Assert.IsAssignableFrom<IValueHttpResult>(result).Value);
             Assert.Null(item.BillId); Assert.Equal(id, item.SourceId); Assert.Equal("PurchaseRecognition", item.SourceKind);
             Assert.Equal("40.00", item.Balance); Assert.True(item.HasValidSource);

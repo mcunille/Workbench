@@ -47,6 +47,7 @@ public static class CurrentSchema
         "20261002192523_InstallGemReferencePilot",
         "20261002192901_AddGemReferenceCuration",
         "20261003214043_AddTenantGemReference",
+        "20261008010000_AddFinancialEvidenceRetention",
     ]);
 
     public static string MigrationId => Migrations[^1];

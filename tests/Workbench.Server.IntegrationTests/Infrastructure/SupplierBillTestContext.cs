@@ -145,4 +145,5 @@ internal sealed class SupplierBillTestContext(PurchaseRecognitionTestContext rec
 
 internal sealed record SupplierBillEvidence(Guid DocumentId, Guid RevisionId, string Digest, long Length, string Label, bool Available);
 internal sealed record SupplierBillDetail(Guid BillId, Guid PurchaseOrderId, Guid SupplierId, string Currency, string State,
-    Guid RevisionId, string Version, string SupplierName, JsonElement Revision, JsonElement? Review, JsonElement? Posting, IReadOnlyList<SupplierBillEvidence> Evidence);
+    Guid RevisionId, string Version, string SupplierName, JsonElement Revision, JsonElement? Review, JsonElement? Posting, IReadOnlyList<SupplierBillEvidence> Evidence,
+    Workbench.Server.Accounting.FinancialEvidenceSetResponse? FinancialEvidence = null);

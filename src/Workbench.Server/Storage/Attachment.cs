@@ -13,5 +13,6 @@ public sealed class Attachment : ITenantOwned
     public DateTimeOffset? DeletedAtUtc { get; set; }
     public DateTimeOffset? DeleteAfterUtc { get; set; }
     public bool Held { get; set; }
+    public bool IndependentHeld { get; set; }
     public byte[] RowVersion { get; set; } = [];
 }

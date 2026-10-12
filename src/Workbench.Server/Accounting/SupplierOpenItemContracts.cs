@@ -5,7 +5,8 @@ public sealed record SupplierReportTotals(string Payable, string Advance, string
     string RefundClearing, string NetSupplierPosition);
 public sealed record SupplierOpenItemSummary(Guid Id, string Kind, Guid SupplierId, Guid PurchaseOrderId,
     Guid? BillId, string Currency, string SourceKind, Guid SourceId, Guid SourceRevisionId,
-    DateOnly SourcePostingDate, DateOnly? DueDate, string Balance, bool HasValidSource, DateOnly PostingThrough, DateTimeOffset RecordedThrough);
+    DateOnly SourcePostingDate, DateOnly? DueDate, string Balance, bool HasValidSource, DateOnly PostingThrough, DateTimeOffset RecordedThrough,
+    FinancialEvidenceSetResponse? FinancialEvidence = null);
 public sealed record SupplierItemHistoryEntry(Guid Id, Guid ItemId, Guid GroupId, long GroupSequence,
     string EventKind, Guid SourceEventId, Guid? JournalId, IReadOnlyList<Guid> ApplicationIds, Guid? CorrectionId, Guid? SupplierCorrectionId,
     DateOnly PostingDate, DateTimeOffset RecordedAtUtc, string Amount);

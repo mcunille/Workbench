@@ -16,46 +16,9 @@ namespace Workbench.Server.IntegrationTests;
 public sealed class SupplierOpenItemRecoveryTests(SqlServerFixture sqlServer, SupplierRecoveryScenarios scenarios) : IClassFixture<SupplierRecoveryScenarios>
 {
     [Fact]
-    public async Task UpgradeAndRestorePreserveSupplierFinancialHistory()
-    {
-        // GIVEN real BK-05 bill and non-bill correction histories on the merged predecessor schema.
-        await using var context = await SupplierBillPostingTests.OpenAsync(sqlServer, "20260928034802_AddSupplierBills");
-        var reviewed = await SupplierBillPostingTests.ReviewedAsync(context);
-        var billCommand = context.PostCommand(reviewed); var billRequest = Guid.NewGuid();
-        var billReceipt = await context.ExecuteAsync("PostSupplierBill", billRequest, billCommand);
-        var invoice = await context.Recognition.CommandAsync("Invoice", cost: "40"); var recognitionRequest = Guid.NewGuid();
-        var recognitionReceipt = await context.Recognition.PostAsync(invoice.ToJsonString(), recognitionRequest);
-        var beforeCorrection = await context.ScalarAsync<DateTimeOffset>("SELECT SYSDATETIMEOFFSET()");
-        await context.Recognition.CorrectAsync((await PurchaseRecognitionCorrectionTests.CorrectionAsync(context.Recognition, invoice, "30")).ToJsonString());
-        await PostOtherTenantHistoryAsync(context);
-        var before = await SupplierOpenItemMigrationTests.SnapshotAsync(context.Recognition);
-        // WHEN upgrading and then restoring the upgraded database through the guarded sanitation sequence.
-        await DatabaseMigrator.MigrateAsync(context.Journal.Application.AdminConnectionString, default);
-        Assert.Equal(before, await SupplierOpenItemMigrationTests.SnapshotAsync(context.Recognition));
-        await MigrationHistoryAssertions.AssertCurrentAsync(context.Journal.Application.AdminConnectionString);
-        var beforeRestore = await SupplierSnapshotAsync(context);
-        await RestoreAsync(context);
-        // THEN both cutoff balances, all immutable bytes, and original authorized retries survive.
-        Assert.Equal(before, await SupplierOpenItemMigrationTests.SnapshotAsync(context.Recognition));
-        Assert.Equal(beforeRestore, await SupplierSnapshotAsync(context));
-        Assert.Equal("150.00", (await ReadAsync(context, "?postingThrough=2026-02-28")).Controls.WholeFilterTotals.Payable);
-        Assert.Equal("150.00", (await ReadAsync(context, $"?recordedThrough={Uri.EscapeDataString(beforeCorrection.ToUniversalTime().ToString("O"))}")).Controls.WholeFilterTotals.Payable);
-        var current = await ReadAsync(context);
-        Assert.True(current.IsComplete); Assert.Equal("140.00", current.Controls.WholeFilterTotals.Payable);
-        Assert.Equal(billReceipt.ToJsonString(), (await context.ExecuteAsync("PostSupplierBill", billRequest, billCommand)).ToJsonString());
-        Assert.Equal(System.Text.Json.JsonSerializer.Serialize(recognitionReceipt), System.Text.Json.JsonSerializer.Serialize(await context.Recognition.PostAsync(invoice.ToJsonString(), recognitionRequest)));
-        Assert.Equal(beforeRestore, await SupplierSnapshotAsync(context));
-        await using var other = await context.Journal.OpenOtherTenantAsync();
-        await using var sql = new SqlCommand("SELECT COUNT(*) FROM Purchasing.SupplierItemMovements", other);
-        Assert.Equal(0, await sql.ExecuteScalarAsync());
-        sql.CommandText = "SELECT COUNT(*) FROM Accounting.JournalEntries";
-        Assert.Equal(1, await sql.ExecuteScalarAsync());
-    }
-
-    [Fact]
     public async Task RestoreRetainsReversedApplicationsAndUnavailableDocumentEvidence()
     {
-        // GIVEN a real payment, application and inverse, with stored document metadata whose bytes are unavailable.
+        // GIVEN real bill, non-bill correction, payment and inverse histories, foreign history and unavailable document bytes.
         await using var prepared = await scenarios.OpenAsync("recovery");
         var context = prepared.Context;
         var document = Guid.Parse(prepared.Data["document"]!.ToString());
@@ -82,14 +45,31 @@ public sealed class SupplierOpenItemRecoveryTests(SqlServerFixture sqlServer, Su
         Assert.Equal(1, await context.Bills.ScalarAsync<int>($"SELECT COUNT(*) FROM Purchasing.PurchaseOrderDocuments WHERE Id='{document}' AND RevisionId='{revision}'"));
         var prior = await ReadAsync(context.Bills, "?postingThrough=2026-09-16");
         var current = await ReadAsync(context.Bills);
-        Assert.True(prior.IsComplete); Assert.True(current.IsComplete);
-        Assert.Equal(("40.00", "90.00"), (prior.Controls.WholeFilterTotals.Advance, prior.Controls.WholeFilterTotals.Payable));
-        Assert.Equal(("100.00", "150.00"), (current.Controls.WholeFilterTotals.Advance, current.Controls.WholeFilterTotals.Payable));
+        var recorded = await ReadAsync(context.Bills, $"?recordedThrough={Uri.EscapeDataString(prepared.Data["beforeInvoiceCorrection"]!.ToString())}");
+        var originalInvoice = await ReadAsync(context.Bills, "?postingThrough=2026-02-28");
+        Assert.True(prior.IsComplete); Assert.True(current.IsComplete); Assert.True(recorded.IsComplete); Assert.True(originalInvoice.IsComplete);
+        Assert.Equal(("40.00", "120.00"), (prior.Controls.WholeFilterTotals.Advance, prior.Controls.WholeFilterTotals.Payable));
+        Assert.Equal(("100.00", "180.00"), (current.Controls.WholeFilterTotals.Advance, current.Controls.WholeFilterTotals.Payable));
+        Assert.Equal(("100.00", "190.00"), (recorded.Controls.WholeFilterTotals.Advance, recorded.Controls.WholeFilterTotals.Payable));
+        Assert.Equal(("0.00", "40.00"), (originalInvoice.Controls.WholeFilterTotals.Advance, originalInvoice.Controls.WholeFilterTotals.Payable));
+        // AND each distinct original source replays its actual pre-backup receipt.
+        var billReceipt = prepared.Data["billReceipt"]!.AsObject();
+        Assert.Equal(billReceipt["receipt"]!.ToJsonString(), (await context.Bills.ExecuteAsync("PostSupplierBill",
+            Guid.Parse(billReceipt["requestId"]!.ToString()), billReceipt["command"]!.AsObject())).ToJsonString());
+        Assert.Equal(prepared.Data["invoiceReceipt"]!.ToString(), System.Text.Json.JsonSerializer.Serialize(await context.Bills.Recognition.PostAsync(
+            prepared.Data["invoice"]!.ToJsonString(), Guid.Parse(prepared.Data["invoiceRequest"]!.ToString()))));
         Assert.Equal(receipt.ToJsonString(), (await context.RecordAsync(payment, request)).ToJsonString());
         Assert.Equal(reversed.ToJsonString(), (await context.Bills.ExecuteAsync("ReverseSupplierApplication", reversalRequest, reverse)).ToJsonString());
         var newPayment = await context.CommandAsync(); newPayment["evidence"] = payment["evidence"]!.DeepClone();
         Assert.Equal(51004, (await Assert.ThrowsAsync<SqlException>(() => context.RecordAsync(newPayment))).Number);
         Assert.Equal(before, await SupplierSnapshotAsync(context.Bills));
+        await MigrationHistoryAssertions.AssertCurrentAsync(context.Allocation.Journal.Application.AdminConnectionString);
+        // AND guarded sanitation preserves the foreign tenant's history without exposing this tenant's movements.
+        await using var other = await context.Allocation.Journal.OpenOtherTenantAsync();
+        await using var sql = new SqlCommand("SELECT COUNT(*) FROM Purchasing.SupplierItemMovements", other);
+        Assert.Equal(0, await sql.ExecuteScalarAsync());
+        sql.CommandText = "SELECT COUNT(*) FROM Accounting.JournalEntries";
+        Assert.Equal(1, await sql.ExecuteScalarAsync());
     }
 
     [Fact]
@@ -259,7 +239,7 @@ public sealed class SupplierOpenItemRecoveryTests(SqlServerFixture sqlServer, Su
 
     internal static Task DeriveAsync(SupplierBillTestContext context) => context.AdminAsync("BEGIN TRY BEGIN TRAN; " + SupplierOpenItemBackfill.Sql + " COMMIT; END TRY BEGIN CATCH IF @@TRANCOUNT>0 ROLLBACK; THROW; END CATCH;");
 
-    private static async Task PostOtherTenantHistoryAsync(SupplierBillTestContext context)
+    internal static async Task PostOtherTenantHistoryAsync(SupplierBillTestContext context)
     {
         // Independent tenant setup supplies no receipt or journal; the real kernel records its source below.
         var session = Guid.NewGuid(); var source = Guid.NewGuid(); var revision = Guid.NewGuid();
