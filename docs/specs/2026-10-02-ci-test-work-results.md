@@ -1,8 +1,8 @@
 # CI test work deletion and class fixture routing
 
-**Status:** Retained runtime passed hosted verification; the ten-minute goal is not demonstrated. Latest local coverage collection includes one deadline failure.
+**Status:** Fresh matched coverage passed within 5%. One rebased hosted gate passed; its unchanged-head repeat failed a client focus assertion. A reliable ten-minute saving is not demonstrated.
 
-The goal is at least ten minutes less hosted end-to-end CI, with client and Server assembly line/branch coverage losing at most 5% relative to the comparable baseline. This batch retains two server processes on one runner.
+The goal is at least ten minutes less hosted end-to-end CI, with client and Server/Database collector line/branch coverage losing at most 5% relative to the comparable baseline. This batch retains two server processes on one runner.
 
 ## Retired 15 cases and remaining owners
 
@@ -439,8 +439,8 @@ artifacts. The measured counts are:
 
 | Scope | Metric | Pinned GEM-06 baseline | Restored measurement | Relative loss |
 | --- | --- | --- | --- | --- |
-| Server assembly | Lines | 110500/112534 | 110499/112534 | 0.000905% |
-| Server assembly | Branches | 5897/7528 | 5895/7528 | 0.033916% |
+| Server/Database collector | Lines | 110500/112534 | 110499/112534 | 0.000905% |
+| Server/Database collector | Branches | 5897/7528 | 5895/7528 | 0.033916% |
 | Client | Lines | 2747/3047 | 2747/3047 | 0% |
 | Client | Branches | 3902/4720 | 3902/4720 | 0% |
 
@@ -457,10 +457,10 @@ baseline and cannot inherit the older 50m51 reference.
 The retained hosted TRX reports sum to 3,424.253 seconds of case execution across
 two serial workers. With those observed case durations unchanged, ideal balancing
 and zero setup still require 1,712.126 seconds (28m32) before any other gate work.
-That exceeds the pinned baseline's 27m04 whole-gate target. Setup-only optimization
-therefore cannot close this measured gap; case work or execution capacity must
-change. Runner variation prevents treating this conditional bound as a prediction
-of future timings.
+That exceeds the pinned baseline's 27m04 whole-gate target. Fixture startup and
+balancing alone cannot close this gap with those case durations unchanged.
+Optimizing preconditions inside cases can change the case-work bound. Runner
+variation prevents treating this conditional bound as a prediction of future timings.
 
 ## October 12 rebase and verification
 
@@ -478,7 +478,7 @@ verification uses an isolated Node.js 26.7.0 installation because the machine's
 global Node version has advanced; repository toolchain pins remain unchanged.
 
 Exact main `8fe565a` subsequently
-[passed run 38216139502](https://github.com/mcunille/Workbench/actions/runs/38216139502):
+[passed run 38216139502, attempt 1](https://github.com/mcunille/Workbench/actions/runs/38216139502/attempts/1):
 1,999 unique server cases passed across its two partitions and 141 browser rows
 passed. Its source gate took 3,338.246s (55m38), including 3,153.260s for the
 server stage. These timings differ substantially from the earlier pinned baseline;
@@ -503,7 +503,86 @@ comparison. The subsequent `smoke-container.ps1 -ComposeIngressPrefix '172.30'`
 passed the hardened SQL-backed runtime and local Compose checks using disposable
 resources. Public CA issuance and SMTP delivery remain outside that smoke test.
 
-Current-source non-collector verification is green. This does not convert the
-older failed collector into passing coverage acceptance evidence. Current-base
-hosted performance and a fully passing matched coverage comparison remain
-unresolved; no ten-minute saving or overall objective completion is claimed.
+At that checkpoint, current-source non-collector verification was green and the
+fresh matched coverage comparison was pending. The older failed collector remains
+failed; the following fresh comparison supplies separate current-source evidence.
+
+## Fresh matched coverage and repeated hosted measurements
+
+Main source `8fe565a` and retained head `35fbb83` were collected in Debug using
+Coverlet 6.0.4 with the same Server/Database inclusion. Each used two separately
+built, independently instrumented assemblies and its exact passing hosted cohorts.
+All 1,999 main cases and all 1,969 branch cases passed exactly once, with no missing,
+duplicate, failed or skipped identities. Main cohorts passed 985 and 1,014 cases;
+branch cohorts passed 1,045 and 924. Both paired client collectors passed all 633
+cases across 94 files using pinned Node.js 26.7.0 and one worker. Local SQL
+collection stayed at two owned fixtures, and client collection ran between the
+baseline and branch SQL collections.
+
+The baseline source was an exact Git archive inside the existing isolated
+workspace. Its generated assembly informational version inherited parent head
+`35fbb83`, matching the branch's display metadata; it did not carry `8fe565a` as
+its binary version identifier. The source archive hash and original reports are
+retained. Fresh database CLI outputs were copied to each existing helper's expected
+ignored location and their hashes verified. No stale standard-output CLI supplied
+the evidence. Native summaries reproduce every original XML report. Merging
+normalizes exactly two generated-document paths and file-local type hashes with
+collision guards and complete instrumentation-shape checks. Mapping source roots
+also proves identical production probe identities across baseline and branch.
+
+| Scope | Metric | Main `8fe565a` | Branch `35fbb83` | Relative loss |
+| --- | --- | --- | --- | --- |
+| Server/Database collector | Lines | 110502/112537 | 110502/112537 | 0% |
+| Server/Database collector | Branches | 5895/7528 | 5895/7528 | 0% |
+| Client | Lines | 3489/3829 | 3489/3829 | 0% |
+| Client | Branches | 4969/6005 | 4965/6005 | 0.080499% |
+| Client | Statements | 4865/5613 | 4863/5613 | 0.041110% |
+| Client | Functions | 1408/1639 | 1408/1639 | 0% |
+
+All measured losses satisfy the 5% relative limit with passing collectors.
+Client implementation and tests are unchanged from the baseline; their small
+counter differences are observations rather than a client test retirement.
+Coverlet measures .NET probes, not SQL-engine branches. These fresh passing
+collectors supersede the pending coverage acceptance above, but do not establish
+a root-cause fix for the historical failures.
+
+Hosted repetitions retained identical source within each pair, two SQL workers
+and four reported CPUs per runner. End-to-end elapsed time runs from the attempt's
+start to completion of its required aggregate job, including setup and queuing
+within that interval.
+
+| Source and attempt | Full CI | Source gate | Outcome |
+| --- | --- | --- | --- |
+| [Main 1](https://github.com/mcunille/Workbench/actions/runs/38216139502/attempts/1) | 57m23 | 55m38.246 | Passed: 1999 server, 141 browser |
+| [Main 2](https://github.com/mcunille/Workbench/actions/runs/38216139502/attempts/2) | 50m44 | 48m47.038 | Passed: 1999 server, 141 browser |
+| [Branch 1](https://github.com/mcunille/Workbench/actions/runs/38226111747/attempts/1) | 46m13 | 44m42.564 | Passed: 1969 server, 141 browser |
+| [Branch 2](https://github.com/mcunille/Workbench/actions/runs/38226111747/attempts/2) | 46m51 | 45m11.996 | Failed client focus assertion; all 1969 server and 141 browser cases passed |
+
+The first paired difference is 11m10, but main's repeat is 6m39 faster than its
+first attempt. The green branch run is only 4m31 faster than that repeated main
+baseline. The failed branch gate is ineligible as passing performance acceptance.
+These observations do not establish a reliable ten-minute improvement; no overall
+objective completion is claimed.
+
+The repeated branch gate passed 632/633 client cases. Its sole failure was
+`associates server field and source errors with the editable controls` in
+`GemTenantEditor.test.tsx:198`: the alert existed but the heading held focus.
+Both component and test are unchanged from pinned main, as is the gate's
+single-worker client stage. Twenty unchanged focused local repetitions passed;
+they neither reproduce nor fix the hosted failure. Waiting for DOM presence before
+asserting focus is a synchronization hypothesis, not an established root cause.
+No assertion, deadline or client source was changed.
+
+| Sampled branch resources | Attempt 1 | Attempt 2 |
+| --- | --- | --- |
+| Valid samples / sampling errors | 83 / 0 | 84 / 0 |
+| Weighted busy CPU | 57.75% | 43.98% |
+| I/O wait | 0.47% | 2.90% |
+| Minimum available memory | 8.38 GiB | 7.43 GiB |
+| Peak recorded usage of any container | 1.497 GiB | 1.557 GiB |
+| Peak one-minute load | 14.78 | 9.67 |
+
+These sampled values do not establish the focus failure's cause or exclude brief
+pressure spikes. No new memory caps, SQL engine settings or worker increases were
+retained. A proposed two-runner capacity spike remains unapproved and unimplemented;
+the retained batch continues to use one runner with two server workers.
