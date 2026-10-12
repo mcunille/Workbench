@@ -1,26 +1,14 @@
-name: Recognition fixture measurement
+name: Same-host canonical fixture measurement
 on:
   push:
     branches: [codex/supplier-fixture-measurement]
 permissions:
   contents: read
-env:
-  CANDIDATE_SHA: fca470a6a2ec29f69c5fbd1934829a576eff3893
 jobs:
-  coverage:
-    name: Full coverage (${{ matrix.phase }})
+  canonical-pair:
+    name: Same-host baseline and candidate gates
     runs-on: ubuntu-latest
     timeout-minutes: 180
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - phase: before
-            sha: 35adcd568a4c846b54d7cd996c8c0d575ed93b98
-            cases: 1999
-          - phase: after
-            sha: fca470a6a2ec29f69c5fbd1934829a576eff3893
-            cases: 2001
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
@@ -28,41 +16,13 @@ jobs:
           persist-credentials: false
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
-          ref: ${{ matrix.sha }}
-          path: source
+          ref: 35adcd568a4c846b54d7cd996c8c0d575ed93b98
+          path: before
           persist-credentials: false
-      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68
-        with:
-          dotnet-version: 10.0.401
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
-        with:
-          node-version: 26.7.0
-      - name: Collect and verify complete coverage
-        shell: pwsh
-        run: ./measurement/measurement/coverage.ps1 -Repository ./source -ExpectedCases ${{ matrix.cases }}
-      - name: Retain current coverage and exact inventory
-        if: ${{ always() }}
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
-        with:
-          name: coverage-${{ matrix.phase }}
-          if-no-files-found: error
-          path: source/artifacts/hosted-coverage/
-  verify:
-    name: Source and release unit (${{ matrix.phase }})
-    runs-on: ubuntu-latest
-    timeout-minutes: 120
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - phase: before
-            sha: 35adcd568a4c846b54d7cd996c8c0d575ed93b98
-          - phase: after
-            sha: fca470a6a2ec29f69c5fbd1934829a576eff3893
-    steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
-          ref: ${{ matrix.sha }}
+          ref: fca470a6a2ec29f69c5fbd1934829a576eff3893
+          path: after
           persist-credentials: false
       - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68
         with:
@@ -70,63 +30,31 @@ jobs:
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
         with:
           node-version: 26.7.0
-          cache: npm
-          cache-dependency-path: |
-            src/Workbench.Client/package-lock.json
-            tests/Workbench.BrowserTests/package-lock.json
-      - name: Verify build orchestration
+      - name: Prepare both revisions and run unchanged canonical gates sequentially
         shell: pwsh
-        run: |
-          ./tests/Workbench.BuildTests/WorkflowActions.Tests.ps1
-          ./tests/Workbench.BuildTests/VerificationScripts.Tests.ps1
-          ./tests/Workbench.BuildTests/VerificationStages.Tests.ps1
-          ./tests/Workbench.BuildTests/ServerPartitions.Tests.ps1
-          ./tests/Workbench.BuildTests/ServerDurations.Tests.ps1
-          ./tests/Workbench.BuildTests/ArtifactReuse.Tests.ps1
-          ./tests/Workbench.BuildTests/PublishedProcess.Tests.ps1
-          ./tests/Workbench.BuildTests/FocusedTests.Tests.ps1
-          ./tests/Workbench.BuildTests/RestoreDatabase.Tests.ps1
-          ./tests/Workbench.BuildTests/RestoreDatabase.Sql.Tests.ps1
-      - name: Install dependencies
-        shell: pwsh
-        run: |
-          npm ci --prefix src/Workbench.Client --ignore-scripts --no-audit --no-fund
-          if ($LASTEXITCODE) { throw 'Client install failed.' }
-          npm ci --prefix tests/Workbench.BrowserTests --ignore-scripts --no-audit --no-fund
-          if ($LASTEXITCODE) { throw 'Browser install failed.' }
-      - name: Install Chromium
-        shell: pwsh
-        run: npm exec --prefix tests/Workbench.BrowserTests -- playwright install --with-deps chromium
-      - name: Verify safe browser diagnostics
-        shell: pwsh
-        run: node --test --test-timeout=30000 tests/Workbench.BrowserTests/safe-diagnostics.test.mjs tests/Workbench.BrowserTests/browser-isolation.test.mjs tests/Workbench.BrowserTests/browser-isolation-wiring.test.mjs tests/Workbench.BrowserTests/diagnostic-budget.test.mjs tests/Workbench.BrowserTests/browser-time-budget.test.mjs
-      - name: Verify source and published output
-        shell: pwsh
-        run: ./scripts/verify.ps1 -SkipDependencyInstall
-      - name: Retain timing and inventory evidence
+        run: ./measurement/measurement/canonical-pair.ps1 -Workspace .
+      - name: Retain comparable timing and complete inventory evidence
         if: ${{ always() }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
-          name: verification-evidence-${{ matrix.phase }}
+          name: same-host-canonical-evidence
           if-no-files-found: error
           path: |
-            artifacts/verification/**/gate.json
-            artifacts/verification/**/stages.json
-            artifacts/verification/**/duration-dataset.json
-            artifacts/verification/**/inventory.json
-            artifacts/verification/**/timing.json
-            artifacts/verification/**/*.trx
-            artifacts/verification/**/test.log
-            artifacts/verification/**/discovery.log
-            artifacts/browser/results.json
-  smoke:
-    name: Hardened container smoke
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
-        with:
-          ref: ${{ env.CANDIDATE_SHA }}
-          persist-credentials: false
-      - name: Build and smoke test runtime image
-        shell: pwsh
-        run: ./scripts/smoke-container.ps1
+            canonical-pair.json
+            runner-cpu.txt
+            before/artifacts/verification/**/gate.json
+            before/artifacts/verification/**/stages.json
+            before/artifacts/verification/**/inventory.json
+            before/artifacts/verification/**/duration-dataset.json
+            before/artifacts/verification/**/discovery.log
+            before/artifacts/verification/**/timing.json
+            before/artifacts/verification/**/*.trx
+            before/artifacts/verification/**/test.log
+            after/artifacts/verification/**/gate.json
+            after/artifacts/verification/**/stages.json
+            after/artifacts/verification/**/inventory.json
+            after/artifacts/verification/**/duration-dataset.json
+            after/artifacts/verification/**/discovery.log
+            after/artifacts/verification/**/timing.json
+            after/artifacts/verification/**/*.trx
+            after/artifacts/verification/**/test.log
