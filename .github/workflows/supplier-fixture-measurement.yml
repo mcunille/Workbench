@@ -1,12 +1,12 @@
-name: Same-host canonical fixture measurement
+name: Same-host scheduling measurement
 on:
   push:
     branches: [codex/supplier-fixture-measurement]
 permissions:
   contents: read
 jobs:
-  canonical-pair:
-    name: Same-host baseline and candidate gates
+  scheduling-pair:
+    name: Same candidate with two and four workers
     runs-on: ubuntu-latest
     timeout-minutes: 180
     steps:
@@ -16,13 +16,13 @@ jobs:
           persist-credentials: false
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
-          ref: 35adcd568a4c846b54d7cd996c8c0d575ed93b98
-          path: before
+          ref: fca470a6a2ec29f69c5fbd1934829a576eff3893
+          path: two
           persist-credentials: false
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           ref: fca470a6a2ec29f69c5fbd1934829a576eff3893
-          path: after
+          path: four
           persist-credentials: false
       - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68
         with:
@@ -30,31 +30,33 @@ jobs:
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
         with:
           node-version: 26.7.0
-      - name: Prepare both revisions and run unchanged canonical gates sequentially
+      - name: Prepare both checkouts and measure full gates
         shell: pwsh
-        run: ./measurement/measurement/canonical-pair.ps1 -Workspace .
-      - name: Retain comparable timing and complete inventory evidence
+        run: ./measurement/measurement/scheduling-pair.ps1 -Workspace .
+      - name: Retain timing, complete inventories and resource observations
         if: ${{ always() }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
-          name: same-host-canonical-evidence
+          name: same-host-scheduling-evidence
           if-no-files-found: error
           path: |
-            canonical-pair.json
+            scheduling-pair.json
             runner-cpu.txt
-            before/artifacts/verification/**/gate.json
-            before/artifacts/verification/**/stages.json
-            before/artifacts/verification/**/inventory.json
-            before/artifacts/verification/**/duration-dataset.json
-            before/artifacts/verification/**/discovery.log
-            before/artifacts/verification/**/timing.json
-            before/artifacts/verification/**/*.trx
-            before/artifacts/verification/**/test.log
-            after/artifacts/verification/**/gate.json
-            after/artifacts/verification/**/stages.json
-            after/artifacts/verification/**/inventory.json
-            after/artifacts/verification/**/duration-dataset.json
-            after/artifacts/verification/**/discovery.log
-            after/artifacts/verification/**/timing.json
-            after/artifacts/verification/**/*.trx
-            after/artifacts/verification/**/test.log
+            runner-memory.txt
+            *-resources.jsonl
+            two/artifacts/verification/**/gate.json
+            two/artifacts/verification/**/stages.json
+            two/artifacts/verification/**/inventory.json
+            two/artifacts/verification/**/duration-dataset.json
+            two/artifacts/verification/**/discovery.log
+            two/artifacts/verification/**/timing.json
+            two/artifacts/verification/**/*.trx
+            two/artifacts/verification/**/test.log
+            four/artifacts/verification/**/gate.json
+            four/artifacts/verification/**/stages.json
+            four/artifacts/verification/**/inventory.json
+            four/artifacts/verification/**/duration-dataset.json
+            four/artifacts/verification/**/discovery.log
+            four/artifacts/verification/**/timing.json
+            four/artifacts/verification/**/*.trx
+            four/artifacts/verification/**/test.log
