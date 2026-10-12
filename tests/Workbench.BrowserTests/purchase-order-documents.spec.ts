@@ -220,6 +220,25 @@ test('uploaded financial evidence remains retained until explicit disposal and c
       await expect(dialog).toBeVisible();
       await expect(dialog.getByLabel('Reason for disposal')).toBeFocused();
       await expect(dialog.getByRole('button', { name: 'Dispose document' })).toBeDisabled();
+      // AND an enabled destructive confirmation remains readable in either appearance and viewport.
+      await dialog.getByLabel('Reason for disposal').fill('Retention period completed for synthetic evidence.');
+      const confirm = dialog.getByRole('button', { name: 'Dispose document' });
+      await expect(confirm).toBeEnabled();
+      for (const width of [320, 1280]) {
+        await page.setViewportSize({ width, height: 844 });
+        const contrast = await confirm.evaluate(element => {
+          const luminance = (color: string) => color.match(/[\d.]+/g)!.slice(0, 3).map(Number).map(channel => {
+            const value = channel / 255;
+            return value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4;
+          }).reduce((sum, value, index) => sum + value * [0.2126, 0.7152, 0.0722][index], 0);
+          const style = getComputedStyle(element);
+          const foreground = luminance(style.color); const background = luminance(style.backgroundColor);
+          return (Math.max(foreground, background) + 0.05) / (Math.min(foreground, background) + 0.05);
+        });
+        expect(contrast, `Disposal label contrast (${dark ? 'dark' : 'light'}, ${width}px)`).toBeGreaterThanOrEqual(4.5);
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+      }
+      await page.setViewportSize({ width: 390, height: 844 });
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
       await captureEvidence(dialog, `bk-07/disposal-narrow-${dark ? 'dark' : 'light'}.png`);
       await page.keyboard.press('Escape');

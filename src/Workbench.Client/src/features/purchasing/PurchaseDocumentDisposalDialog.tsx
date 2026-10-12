@@ -19,7 +19,7 @@ export function PurchaseDocumentDisposalDialog({ document, initialReason = '', o
     {error ? <p role="alert" className="po-document-error">{error}</p> : null}
     <div className="button-row">
       <button type="button" className="secondary" disabled={busy} onClick={onClose}>Cancel</button>
-      <button type="button" className="primary danger" disabled={busy || !reason.trim()} onClick={() => onConfirm(reason)}>Dispose document</button>
+      <button type="button" className="primary" disabled={busy || !reason.trim()} onClick={() => onConfirm(reason)}>Dispose document</button>
     </div>
   </dialog>;
 }
