@@ -11,5 +11,6 @@ export class GemLibraryMemory {
   save(snapshot: Snapshot) { this.snapshot = snapshot; }
   select(href?: string) { this.selected = href; }
   savePosition(top: number) { this.scrollY = top; }
+  invalidateResults() { if (this.snapshot) this.snapshot = { draft: this.snapshot.draft, filters: this.snapshot.filters }; this.selected = undefined; this.scrollY = 0; }
   clear() { this.snapshot = undefined; this.selected = undefined; this.scrollY = 0; }
 }

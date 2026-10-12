@@ -2,11 +2,12 @@ import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 're
 import { getGem, GemReferenceApiError, type GemReferenceDetailResponse } from '../../api/gemReference';
 import { fieldLabels, gemPath, layerLabel, materialKinds, type GemIdentity, type GemNavigation } from './gemPresentation';
 import './gem-reference.css';
+import { GemTenantActions } from './GemTenantActions';
 
-export function GemDetail(props: GemIdentity & GemNavigation) {
+export function GemDetail(props: GemIdentity & GemNavigation & { onChanged?: () => void }) {
   return <DetailContent key={`${props.origin}:${props.id}`} {...props} />;
 }
-function DetailContent({ id, origin, follow, onAuthLost }: GemIdentity & GemNavigation) {
+function DetailContent({ id, origin, follow, onAuthLost, onChanged }: GemIdentity & GemNavigation & { onChanged?: () => void }) {
   const [entry, setEntry] = useState<GemReferenceDetailResponse>();
   const [failure, setFailure] = useState<number>();
   const [attempt, setAttempt] = useState(0);
@@ -28,6 +29,8 @@ function DetailContent({ id, origin, follow, onAuthLost }: GemIdentity & GemNavi
     {failure === 404 ? <><h1>Gem reference not found.</h1><p>This entry is unavailable to your tenant.</p></> : failure ? <div className="form-message error"><p role="alert">We could not load this gem entry. Try again.</p><button type="button" onClick={() => { setFailure(undefined); setAttempt(value => value + 1); }}>Retry</button></div> : !entry ? <p role="status">Loading gem entry…</p> : null}
     {entry ? <>
       <header className="page-heading"><div><h1 ref={heading} tabIndex={-1}>{entry.commonName}</h1><p className="reference-layer">{layerLabel(entry.layer)}</p></div></header>
+      <div className="button-row reference-entry-actions"><a className="button secondary" href={`${gemPath(id, origin)}/edit`} onClick={follow}>{origin === 'tenant' ? 'Edit entry' : 'Customize for this tenant'}</a></div>
+      {origin === 'tenant' ? <GemTenantActions entry={entry} onChange={result => { setEntry(result); onChanged?.(); }} onAuthLost={onAuthLost} /> : null}
       {entry.retirement.isRetired ? <section className="reference-section" aria-label="Retired entry"><h2>Retired entry</h2><p>{entry.retirement.explanation}</p>{entry.retirement.redirectEntryId ? <a href={gemPath(entry.retirement.redirectEntryId, 'workbench')} onClick={follow}>View replacement entry</a> : null}</section> : null}
       {entry.isArchived ? <p role="status">Archived tenant entry</p> : null}
       {entry.needsReview ? <section className="reference-review" aria-label="Needs review"><h2>Needs review</h2><p>Classification is unavailable until this entry is reconciled. Its identity and retained reference information remain visible.</p><ul>{Object.entries(entry.reviewReasons ?? {}).flatMap(([field, reasons]) => reasons.map((reason, index) => <li key={`${field}:${index}`}><strong>{fieldLabels[field] ?? field}: </strong>{reason}</li>))}</ul></section> : null}

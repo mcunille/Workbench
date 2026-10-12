@@ -10,6 +10,45 @@ afterEach(() => vi.restoreAllMocks());
 function mount() { return render(<GemDetail id="ruby" origin="workbench" follow={follow} onAuthLost={lost} />); }
 function field(name: string) { return screen.getByText(name, { selector: 'dt', exact: true }).parentElement!; }
 
+it('offers customization for shared references and confirms tenant archive/restore with current versions', async () => {
+  // GIVEN a shared entry exposes tenant customization, never shared retirement.
+  Object.defineProperty(HTMLDialogElement.prototype, 'showModal', { configurable: true, value(this: HTMLDialogElement) { this.setAttribute('open', ''); } });
+  const sharedView = mount(); await screen.findByRole('heading', { name: 'Synthetic ruby' });
+  expect(screen.getByRole('link', { name: 'Customize for this tenant' })).toHaveAttribute('href', '/gem-reference/workbench/ruby/edit');
+  expect(screen.queryByRole('button', { name: 'Archive tenant entry' })).not.toBeInTheDocument(); sharedView.unmount();
+  const version = { sharedRowVersion: null, tenantRowVersion: 'v1' };
+  const tenant = { ...referenceFixture, origin: 'tenant', layer: 'tenantEntry', effectiveVersion: version };
+  vi.mocked(api.getGem).mockResolvedValue(tenant);
+  const archive = vi.spyOn(api, 'setTenantGemArchived').mockResolvedValueOnce({ ...tenant, isArchived: true, effectiveVersion: { ...version, tenantRowVersion: 'v2' } }).mockResolvedValueOnce({ ...tenant, isArchived: false });
+  render(<GemDetail id="ruby" origin="tenant" follow={follow} onAuthLost={lost} />);
+  await screen.findByRole('link', { name: 'Edit entry' });
+  // WHEN archiving THEN confirmation precedes mutation; restore uses the returned version.
+  fireEvent.click(screen.getByRole('button', { name: 'Archive tenant entry' }));
+  expect(archive).not.toHaveBeenCalled();
+  fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Archive entry' }));
+  await screen.findByRole('button', { name: 'Restore tenant entry' });
+  fireEvent.click(screen.getByRole('button', { name: 'Restore tenant entry' }));
+  fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Restore entry' }));
+  await waitFor(() => expect(archive).toHaveBeenCalledTimes(2));
+  expect(archive.mock.calls[1]).toEqual(['ruby', false, { ...version, tenantRowVersion: 'v2' }]);
+});
+
+it('requires another confirmation after a stale archive and retains detail on a failed check', async () => {
+  // GIVEN a tenant detail changed while its archive confirmation was open.
+  Object.defineProperty(HTMLDialogElement.prototype, 'showModal', { configurable: true, value(this: HTMLDialogElement) { this.setAttribute('open', ''); } });
+  const tenant = { ...referenceFixture, origin: 'tenant', effectiveVersion: { sharedRowVersion: null, tenantRowVersion: 'old' } };
+  vi.mocked(api.getGem).mockResolvedValue(tenant);
+  const current = { ...tenant, commonName: 'Current tenant name', effectiveVersion: { sharedRowVersion: null, tenantRowVersion: 'new' } };
+  const archive = vi.spyOn(api, 'setTenantGemArchived').mockRejectedValueOnce(new api.GemReferenceApiError(409, { code: 'stale_entry', current })).mockResolvedValue({ ...current, isArchived: true });
+  render(<GemDetail id="ruby" origin="tenant" follow={follow} onAuthLost={lost} />);
+  await screen.findByRole('button', { name: 'Archive tenant entry' });
+  fireEvent.click(screen.getByRole('button', { name: 'Archive tenant entry' })); fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Archive entry' }));
+  // THEN the changed entry is shown without automatic archive; the user decides again.
+  await screen.findByRole('heading', { name: 'Current tenant name' });
+  expect(archive).toHaveBeenCalledTimes(1);
+  expect(screen.getByRole('alert')).toHaveTextContent('changed');
+});
+
 it('renders field provenance, explicit clears, missing values and source dates', async () => {
   // GIVEN shared assertions, tenant replacements and a cleared optional field.
   // AND the locality's designated supporting citation is second, not the first field source.

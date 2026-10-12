@@ -19,6 +19,22 @@ function submit(value: string) {
   fireEvent.click(screen.getByRole('button', { name: 'Search' }));
 }
 
+it('restarts cursor scope when including archived entries and refreshes saved changes without losing filters', async () => {
+  // GIVEN a cached result traversal and an unsaved search draft.
+  const memory = new GemLibraryMemory();
+  memory.save({ draft: { query: 'draft search' }, filters: { query: 'Ruby' }, page: { entries: [ruby], nextCursor: 'old-cursor' } });
+  memory.invalidateResults();
+  mount(memory);
+  await screen.findByRole('link', { name: 'Ruby' });
+  expect(api.browseGems).toHaveBeenLastCalledWith({ query: 'Ruby' }, expect.any(AbortSignal));
+  expect(screen.getByLabelText('Search gems')).toHaveValue('draft search');
+  // WHEN archive inclusion is selected and searched THEN pagination begins again under the new scope.
+  fireEvent.click(screen.getByLabelText('Include archived tenant entries'));
+  fireEvent.click(screen.getByRole('button', { name: 'Search' }));
+  await waitFor(() => expect(api.browseGems).toHaveBeenLastCalledWith({ query: 'draft search', includeArchived: true }, expect.any(AbortSignal)));
+  expect(screen.getByRole('link', { name: 'Add entry' })).toHaveAttribute('href', '/gem-reference/new');
+});
+
 it('submits name/classification and filters, qualifies links and restores a traversal', async () => {
   // GIVEN both origins use one GUID and the tenant row needs review.
   vi.mocked(api.browseGems).mockResolvedValue({ entries: [ruby, { ...ruby, origin: 'tenant', commonName: 'Private ruby', layer: 'tenantEntry', needsReview: true }], nextCursor: null });

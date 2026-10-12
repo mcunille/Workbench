@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { App } from './App';
 import * as auth from './api/auth';
 import * as system from './api/system';
@@ -41,4 +41,32 @@ it('dispatches origin-qualified details and returns to the private search', asyn
   fireEvent.click(screen.getByRole('link', { name: 'Back to gem reference' }));
   // AND returning restores the selected result and active library destination.
   expect(await screen.findByRole('link', { name: 'Synthetic ruby' })).toHaveFocus();
+});
+
+it('refreshes a cached filtered library after adopting an uncertain committed creation', async () => {
+  // GIVEN a filtered library is cached before a creation loses its response.
+  window.history.replaceState(null, '', '/gem-reference');
+  vi.spyOn(window, 'scrollTo').mockImplementation(() => {});
+  vi.spyOn(system, 'getSystem').mockResolvedValue({ name: 'Workbench', version: '1' });
+  vi.spyOn(auth, 'getCurrentIdentity').mockResolvedValue({ userId: 'person', tenantName: 'Studio', email: 'person@example.test', permissions: ['TenantAccess'] });
+  const browse = vi.spyOn(gems, 'browseGems').mockResolvedValue({ entries: [], nextCursor: null });
+  const create = vi.spyOn(gems, 'createTenantGem').mockRejectedValue(new TypeError('Response lost'));
+  vi.spyOn(gems, 'getGem').mockImplementation(async id => ({ ...referenceFixture, id, origin: 'tenant', commonName: 'Recovered gem', effectiveVersion: { sharedRowVersion: null, tenantRowVersion: 'v2' } }));
+  render(<App />);
+  const search = await screen.findByRole('searchbox', { name: 'Search gems' });
+  fireEvent.change(search, { target: { value: 'Recovered' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Search' }));
+  await waitFor(() => expect(browse).toHaveBeenLastCalledWith(expect.objectContaining({ query: 'Recovered' }), expect.any(AbortSignal)));
+  fireEvent.click(screen.getByRole('link', { name: 'Add entry' }));
+  fireEvent.change(await screen.findByLabelText('Common name', { exact: true }), { target: { value: 'Recovered gem' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
+  fireEvent.click(await screen.findByRole('button', { name: 'Check current entry' }));
+  // WHEN the confirmed saved entry is adopted and the member returns to the library.
+  fireEvent.click(await screen.findByRole('button', { name: 'Use current entry' }));
+  browse.mockResolvedValue({ entries: [{ ...referenceFixture, id: 'recovered', origin: 'tenant', commonName: 'Recovered gem' }], nextCursor: null });
+  fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+  // THEN the retained search is fetched again and the recovered entry is visible without another POST.
+  expect(await screen.findByRole('link', { name: 'Recovered gem' })).toBeVisible();
+  expect(screen.getByRole('searchbox', { name: 'Search gems' })).toHaveValue('Recovered');
+  expect(create).toHaveBeenCalledTimes(1);
 });

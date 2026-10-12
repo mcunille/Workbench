@@ -4,6 +4,10 @@
 .reference-search > label, .reference-search .reference-filter { display: flex; flex-direction: column; gap: 0.5rem; min-width: 0; flex: 1 1 10rem; }
 .reference-search .reference-query { flex: 2 1 18rem; }
 .reference-search input, .reference-search select { width: 100%; min-width: 0; }
+.reference-search .reference-check { flex-direction: row; align-items: center; min-height: 44px; }
+.reference-search .reference-check input { width: auto; }
+.reference-page .button { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; }
+.reference-entry-actions, .reference-tenant-actions { margin-block: 1rem; }
 .reference-results { list-style: none; padding: 0; margin-block: 1.5rem; }
 .reference-results li { display: flex; align-items: start; justify-content: space-between; gap: 1.5rem; padding-block: 1.25rem; border-top: 1px solid var(--glass-edge); }
 .reference-results li > div { min-width: 0; }
@@ -30,7 +34,23 @@
 .reference-prose { white-space: pre-wrap; overflow-wrap: anywhere; }
 .reference-review { padding-block: 1rem; margin-bottom: 1.5rem; }
 .reference-review h2 { font-size: 1.25rem; }
+.reference-edit-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1.25rem 2rem; }
+.reference-edit-grid > * { min-width: 0; }
+.reference-editor label { display: flex; flex-direction: column; gap: 0.5rem; margin-block: 0.75rem; }
+.reference-editor input, .reference-editor select, .reference-editor textarea { width: 100%; min-width: 0; }
+.reference-editor select, .reference-editor input:not([type="checkbox"]), .reference-editor button { min-height: 44px; }
+.reference-editor textarea { resize: vertical; }
+.reference-field-error { color: var(--danger); overflow-wrap: anywhere; }
+.reference-edit-inputs { min-width: 0; padding: 0; border: 0; margin: 1rem 0 0; }
+.reference-source-editor { min-width: 0; border: 1px solid var(--glass-edge); padding: 1rem; margin-block: 1rem; }
+.reference-editor h3 { font-size: 1rem; margin-block: 0.75rem 0.5rem; }
+.reference-editor .reference-check { flex-direction: row; align-items: center; min-height: 44px; }
+.reference-check input { width: auto; }
+.reference-shared-value { overflow-wrap: anywhere; }
+.reference-conflict-row { padding-block: 0.75rem; border-top: 1px solid var(--glass-edge); }
+.reference-confirmation { max-width: min(36rem, calc(100vw - 2rem)); overflow-wrap: anywhere; }
 @media (width < 700px) {
+  .reference-edit-grid { grid-template-columns: minmax(0, 1fr); }
   .reference-results li { flex-direction: column; gap: 0.25rem; }
   .reference-layer { padding-top: 0; }
   .reference-fields { grid-template-columns: minmax(0, 1fr); }
