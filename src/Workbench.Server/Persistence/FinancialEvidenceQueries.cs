@@ -12,7 +12,7 @@ namespace Workbench.Server.Persistence;
 internal static class FinancialEvidenceQueries
 {
     internal static async Task<FinancialEvidenceSetResponse?> ReadAsync(WorkbenchDbContext db, RequestActor actor,
-        Guid ownerId, Guid revisionId, CancellationToken ct, Guid? recognitionEventId = null)
+        string ownerKind, Guid ownerId, Guid revisionId, CancellationToken ct)
     {
         // Supplier detail has already released its monetary report snapshot transaction. Give
         // live evidence its own boundary; journal detail reuses its existing transaction.
@@ -21,9 +21,8 @@ internal static class FinancialEvidenceQueries
         var connection = (SqlConnection)db.Database.GetDbConnection();
         var transaction = (SqlTransaction)db.Database.CurrentTransaction!.GetDbTransaction();
         await CoordinateReadAsync(db, ct);
-        var set = await db.FinancialEvidenceSets.AsNoTracking().Where(s => s.OwnerRevisionId == revisionId &&
-            ((s.OwnerKind == "SupplierBill" || s.OwnerKind == "SupplierPayment") && s.OwnerId == ownerId ||
-             s.OwnerKind == "PurchaseRecognition" && s.OwnerId == (recognitionEventId ?? ownerId)))
+        var set = await db.FinancialEvidenceSets.AsNoTracking().Where(s => s.OwnerKind == ownerKind &&
+            s.OwnerId == ownerId && s.OwnerRevisionId == revisionId)
             .Select(s => (Guid?)s.Id).SingleOrDefaultAsync(ct);
         FinancialEvidenceSetResponse? result = null;
         if (set is not null)
@@ -84,12 +83,7 @@ internal static class FinancialEvidenceReadSchema
         migration.Sql(BuildSql);
         migration.Sql(ReadSql);
         migration.Sql("GRANT EXECUTE ON Accounting.ReadFinancialEvidence TO workbench_web; DENY EXECUTE ON Accounting.BuildFinancialEvidence TO workbench_web; DENY EXECUTE ON Accounting.BuildFinancialEvidence TO workbench_worker;");
-        FinancialEvidenceSchema.Alter(migration, "Purchasing.ReadSupplierBill",
-            ("SET @Result=(SELECT b.Id billId", """
-                DECLARE @FinancialSet uniqueidentifier=(SELECT Id FROM Accounting.FinancialEvidenceSets WHERE TenantId=@TenantId AND OwnerKind='SupplierBill' AND OwnerId=@BillId),@FinancialJson nvarchar(max);
-                EXEC Accounting.BuildFinancialEvidence @TenantId,@FinancialSet,@FinancialJson OUTPUT;
-                SET @Result=(SELECT JSON_QUERY(@FinancialJson) financialEvidence,b.Id billId
-                """));
+
     }
 
     private const string BuildSql = """

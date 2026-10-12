@@ -72,7 +72,7 @@ it('clears private retained-document state when disposal authority is lost', asy
 it('reviews a disposal conflict before a new explicit submission', async () => {
   // GIVEN another session changed the retained file after its first disposal attempt.
   vi.mocked(api.getPurchaseDocuments).mockResolvedValueOnce({ documents: [retained], orderVersion: 'v1' })
-    .mockResolvedValue({ documents: [{ ...retained, version: 'd2', retention: { ...retained.retention, evidenceVersion: 'ZXY2' } }], orderVersion: 'v2' });
+    .mockResolvedValue({ documents: [{ ...retained, label: 'Reviewed invoice', version: 'd2', retention: { ...retained.retention, evidenceVersion: 'ZXY2' } }], orderVersion: 'v2' });
   vi.mocked(api.disposePurchaseDocument).mockRejectedValueOnce(new api.PurchaseDocumentConflict('The evidence changed.')).mockResolvedValue(completed);
   render(<PurchaseDocuments {...props()} />);
   fireEvent.click(await screen.findByRole('button', { name: 'Dispose Supplier invoice' }));
@@ -84,7 +84,9 @@ it('reviews a disposal conflict before a new explicit submission', async () => {
   await waitFor(() => expect(api.getPurchaseDocuments).toHaveBeenCalledTimes(2));
   await waitFor(() => expect(screen.queryByRole('button', { name: 'Review current files' })).not.toBeInTheDocument());
   expect(api.disposePurchaseDocument).toHaveBeenCalledTimes(1);
-  fireEvent.click(screen.getByRole('button', { name: 'Dispose Supplier invoice' }));
+  expect(screen.getByRole('dialog')).toHaveTextContent('Reviewed invoice');
+  expect(screen.getByRole('textbox', { name: 'Reason for disposal' })).toHaveValue('Original reason');
+  expect(screen.getByRole('textbox', { name: 'Reason for disposal' })).toBeEnabled();
   fireEvent.change(screen.getByRole('textbox', { name: 'Reason for disposal' }), { target: { value: 'Reviewed reason' } });
   fireEvent.click(screen.getByRole('button', { name: 'Dispose document' }));
   // THEN a new explicit request uses refreshed versions and a new request ID.
@@ -92,6 +94,38 @@ it('reviews a disposal conflict before a new explicit submission', async () => {
   const commands = vi.mocked(api.disposePurchaseDocument).mock.calls;
   expect(commands[1][2]).toMatchObject({ expectedOrderVersion: 'v2', expectedDocumentVersion: 'd2', expectedEvidenceVersion: 'ZXY2', reason: 'Reviewed reason' });
   expect(commands[1][2].requestId).not.toBe(commands[0][2].requestId);
+  // AND success clears the reason before a later, separate disposal intent.
+  await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+  fireEvent.click(screen.getByRole('button', { name: 'Dispose Reviewed invoice' }));
+  expect(screen.getByRole('textbox', { name: 'Reason for disposal' })).toHaveValue('');
+  // AND cancellation clears a newly edited reason.
+  fireEvent.change(screen.getByRole('textbox', { name: 'Reason for disposal' }), { target: { value: 'Cancelled reason' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Dispose Reviewed invoice' }));
+  expect(screen.getByRole('textbox', { name: 'Reason for disposal' })).toHaveValue('');
+});
+
+it.each([
+  { state: 'missing', documents: [] },
+  { state: 'no longer disposable', documents: [{ ...retained, retention: { ...retained.retention, canDispose: false } }] },
+  { state: 'without an evidence version', documents: [{ ...retained, retention: { ...retained.retention, evidenceVersion: null } }] },
+])('clears a conflicted disposal intent when the refreshed file is $state', async ({ documents }) => {
+  // GIVEN a conflicted disposal whose original target cannot be safely confirmed after refresh.
+  vi.mocked(api.getPurchaseDocuments).mockResolvedValueOnce({ documents: [retained], orderVersion: 'v1' })
+    .mockResolvedValue({ documents: [...documents, { ...retained, id: 'other-file', label: 'Other invoice' }], orderVersion: 'v2' });
+  vi.mocked(api.disposePurchaseDocument).mockRejectedValue(new api.PurchaseDocumentConflict('The evidence changed.'));
+  render(<PurchaseDocuments {...props()} />);
+  fireEvent.click(await screen.findByRole('button', { name: 'Dispose Supplier invoice' }));
+  fireEvent.change(screen.getByRole('textbox', { name: 'Reason for disposal' }), { target: { value: 'Original private reason' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Dispose document' }));
+  // WHEN reviewing THEN no dialog is reopened and no disposal is replayed.
+  fireEvent.click(await screen.findByRole('button', { name: 'Review current files' }));
+  await waitFor(() => expect(screen.queryByRole('button', { name: 'Review current files' })).not.toBeInTheDocument());
+  expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  expect(api.disposePurchaseDocument).toHaveBeenCalledOnce();
+  // AND a different eligible document starts with its own empty reason.
+  fireEvent.click(screen.getByRole('button', { name: 'Dispose Other invoice' }));
+  expect(screen.getByRole('textbox', { name: 'Reason for disposal' })).toHaveValue('');
 });
 
 it('keeps the disposal reason available for correction after definite validation rejection', async () => {

@@ -19,7 +19,7 @@ internal static class SupplierOpenItemQueries
             var item = snapshot.SelectedItems.SingleOrDefault(i => i.Id == id);
             if (item is null) return JournalReportEndpoints.Unavailable();
             var actor = http.RequestServices.GetRequiredService<Authorization.RequestActor>();
-            var evidence = await FinancialEvidenceQueries.ReadAsync(db, actor, item.SourceId, item.SourceRevisionId, ct);
+            var evidence = await FinancialEvidenceQueries.ReadAsync(db, actor, item.SourceKind, item.SourceId, item.SourceRevisionId, ct);
             return Results.Ok(Summary(snapshot, item) with { FinancialEvidence = evidence });
         }, ct);
 

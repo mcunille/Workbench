@@ -143,7 +143,12 @@ export function PurchaseDocuments({ orderId, onAuthLost, onCurrent, onStateChang
       try {
         const current = await refresh();
         if (!active.current) return;
-        if (editor && editor.kind !== 'upload') {
+        if (command?.kind === 'dispose') {
+          const document = current.documents.find(item => item.id === command.document.id);
+          if (!document) { close(); setMessage('That file is no longer attached. Current files are shown.'); return; }
+          if (!document.retention?.canDispose || !document.retention.evidenceVersion) { close(); setMessage('That file is no longer available for disposal. Current files are shown.'); return; }
+          setEditor({ kind: 'dispose', document, initialReason: command.payload.reason });
+        } else if (editor && editor.kind !== 'upload') {
           const document = current.documents.find(item => item.id === editor.document.id);
           if (!document) { close(); setMessage('That file is no longer attached. Current files are shown.'); return; }
           setEditor({ ...editor, document });

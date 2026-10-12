@@ -29,6 +29,8 @@ public sealed class PurchaseOrderDocumentService(WorkbenchDbContext database, IB
     {
         // Keep documents and their parent version in one stable SQL state.
         await using var transaction = await database.Database.BeginTransactionAsync(IsolationLevel.RepeatableRead, cancellationToken);
+        // Append writes attachment then evidence state; retention reads those rows in reverse.
+        // Coordinate before taking read locks to prevent their concrete lock inversion.
         await FinancialEvidenceQueries.CoordinateReadAsync(database, cancellationToken);
         var order = await RequireContextAsync(orderId, cancellationToken);
         var documents = await database.PurchaseOrderDocuments.AsNoTracking().Where(row => row.OrderId == orderId && row.RemovedAtUtc == null)

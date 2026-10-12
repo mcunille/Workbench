@@ -9,9 +9,10 @@ specs. Git preserves chronology; dated evidence records retain their specific ve
 [BK-07 durable financial evidence](2026-09-28-bk-07-durable-financial-evidence.md) implements
 atomic evidence holds, configured retention, authorized disposal, and paired recovery protection.
 The approved implementation includes capture, retention, disposal, UI, recovery and legacy backfill.
-Independent internal review is complete; release verification remains failed. The
-[2026-10-09 checkpoint](../operations/evidence/2026-10-09-bk-07-verification-checkpoint.md) records
-the unresolved local server/remote browser failures, passing smoke and partial preview inspection.
+Independent internal review, the latest local full gate and container smoke passed. The
+[2026-10-11 feedback checkpoint](../operations/evidence/2026-10-11-bk-07-feedback-verification.md)
+records current results and preview limits; remote verification of this delivery remains pending.
+The [2026-10-09 checkpoint](../operations/evidence/2026-10-09-bk-07-verification-checkpoint.md) retains the earlier failed results.
 Production bookkeeping remains unavailable; maintained invariants live in [Accounting](../accounting.md#durable-financial-evidence).
 
 [Gemological reference library](2026-09-29-gemological-reference-library.md) proposes a sourced

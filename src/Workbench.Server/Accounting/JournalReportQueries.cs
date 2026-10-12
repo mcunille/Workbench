@@ -115,18 +115,33 @@ internal static class JournalReportQueries
             }
             var corrections = await CorrectionsForJournal(id, database, ct);
             var recognition = await PurchaseRecognitionReports.ReadAsync(database, id, ct);
-            var evidenceOwner = recognition?.SourceId ?? source.SourceId;
+            var evidenceKind = source.SourceKind;
+            var evidenceOwner = source.SourceId;
             var evidenceRevision = recognition?.SourceRevision ?? source.SourceRevision;
-            if (recognition is null)
+            if (recognition is not null)
+            {
+                // Bill-backed recognition shares the bill's evidence; standalone sides own evidence by event ID.
+                var billBacked = await database.FinancialEvidenceSets.AsNoTracking().AnyAsync(
+                    set => set.OwnerKind == "SupplierBill" && set.OwnerId == recognition.SourceId &&
+                        set.OwnerRevisionId == recognition.SourceRevision, ct);
+                evidenceKind = billBacked ? "SupplierBill" : "PurchaseRecognition";
+                evidenceOwner = billBacked ? recognition.SourceId : recognition.EventId;
+            }
+            else
             {
                 var original = await (from correction in database.JournalCorrectionGroups.AsNoTracking()
                                       join journal in database.JournalEntries.AsNoTracking() on correction.OriginalJournalId equals journal.Id
                                       join originalSource in database.JournalSourceEvents.AsNoTracking() on journal.SourceEventId equals originalSource.Id
                                       where correction.ReversalJournalId == id
-                                      select new { originalSource.SourceId, originalSource.SourceRevision }).SingleOrDefaultAsync(ct);
-                if (original is not null) { evidenceOwner = original.SourceId; evidenceRevision = original.SourceRevision; }
+                                      select new { originalSource.SourceKind, originalSource.SourceId, originalSource.SourceRevision }).SingleOrDefaultAsync(ct);
+                if (original is not null)
+                {
+                    evidenceKind = original.SourceKind;
+                    evidenceOwner = original.SourceId;
+                    evidenceRevision = original.SourceRevision;
+                }
             }
-            var evidence = await FinancialEvidenceQueries.ReadAsync(database, actor, evidenceOwner, evidenceRevision, ct, recognition?.EventId);
+            var evidence = await FinancialEvidenceQueries.ReadAsync(database, actor, evidenceKind, evidenceOwner, evidenceRevision, ct);
             await tx.CommitAsync(ct);
             return Results.Ok(new JournalDetail(header, lines, source, corrections, recognition, evidence));
         }

@@ -29,13 +29,8 @@ internal static class FinancialEvidenceStorageGuards
             END;
             """);
         migration.Sql(RequireDeletionSql);
-        // Use one physical key lock for every live acquisition and deletion path regardless
-        // of the optimizer's covering-index choice. Acquire/Append route through this validator.
-        FinancialEvidenceSchema.Alter(migration, "Purchasing.ValidateBillEvidence",
-            ("Storage.Attachments WITH(UPDLOCK,HOLDLOCK)", "Storage.Attachments WITH(UPDLOCK,HOLDLOCK,INDEX(PK_Attachments))"));
+
         migration.Sql("GRANT EXECUTE ON Storage.RequireFinancialEvidenceDeletion TO workbench_web;");
-        InstallDocumentGuards(migration);
-        InstallWorkerGuards(migration);
         migration.Sql("""
             CREATE TRIGGER Storage.PreserveFinancialAttachment ON Storage.Attachments AFTER UPDATE,DELETE AS BEGIN
               SET NOCOUNT ON;
@@ -103,57 +98,4 @@ internal static class FinancialEvidenceStorageGuards
         END;
         """;
 
-    private static void InstallDocumentGuards(MigrationBuilder migration)
-    {
-        FinancialEvidenceSchema.Alter(migration, "Purchasing.PreparePurchaseOrderDocument",
-            ("DECLARE @Id uniqueidentifier=NEWID(),@AttachmentId uniqueidentifier=NULL,@RevisionId uniqueidentifier=NULL,@Now datetimeoffset=SYSUTCDATETIME();", """
-                DECLARE @Id uniqueidentifier=NEWID(),@AttachmentId uniqueidentifier=NULL,@RevisionId uniqueidentifier=NULL,@Now datetimeoffset=SYSUTCDATETIME();
-                IF @Kind=2
-                BEGIN
-                  SELECT @AttachmentId=AttachmentId FROM Purchasing.PurchaseOrderDocuments WHERE TenantId=@TenantId AND Id=@DocumentId;
-                  EXEC Storage.RequireFinancialEvidenceDeletion @TenantId,@AttachmentId,0;
-                  IF EXISTS(SELECT 1 FROM Accounting.FinancialEvidenceLinks WHERE TenantId=@TenantId AND AttachmentId=@AttachmentId)
-                    THROW 51011,'Financial evidence is retained. Use authorized retention disposal.',1;
-                END;
-                """));
-        FinancialEvidenceSchema.Alter(migration, "Purchasing.FinishPurchaseOrderDocument",
-            ("IF @Conflict=0", """
-                IF @Kind=2
-                BEGIN
-                  SELECT @AttachmentId=AttachmentId FROM Purchasing.PurchaseOrderDocuments WHERE TenantId=@TenantId AND Id=@DocumentId;
-                  DECLARE @HeldAttachment uniqueidentifier;
-                  SELECT @HeldAttachment=Id FROM Storage.Attachments WITH(UPDLOCK,HOLDLOCK,INDEX(PK_Attachments)) WHERE TenantId=@TenantId AND Id=@AttachmentId;
-                  IF EXISTS(SELECT 1 FROM Accounting.FinancialEvidenceLinks WHERE TenantId=@TenantId AND AttachmentId=@AttachmentId)
-                    SET @Conflict=1;
-                END;
-                IF @Conflict=0
-                """));
-    }
-
-    private static void InstallWorkerGuards(MigrationBuilder migration)
-    {
-        FinancialEvidenceSchema.Alter(migration, "Operations.LockWork",
-            ("SELECT COUNT(*) FROM [Operations].[WorkItems] WITH (UPDLOCK, HOLDLOCK)", """
-                DECLARE @Tenant uniqueidentifier,@Attachment uniqueidentifier;
-                SELECT @Tenant=TenantId,@Attachment=AttachmentId FROM Operations.WorkItems WITH(UPDLOCK,HOLDLOCK)
-                WHERE Id=@Id AND LeaseOwner=@Owner AND Generation=@Generation AND State=1 AND LeaseExpiresAtUtc>SYSUTCDATETIME() AND Kind=1;
-                IF @Attachment IS NOT NULL EXEC Storage.RequireFinancialEvidenceDeletion @Tenant,@Attachment,1;
-                SELECT COUNT(*) FROM [Operations].[WorkItems] WITH (UPDLOCK, HOLDLOCK)
-                """));
-        FinancialEvidenceSchema.Alter(migration, "Operations.CompleteWork",
-            ("DECLARE @Completed TABLE", """
-                DECLARE @Tenant uniqueidentifier,@Attachment uniqueidentifier;
-                SELECT @Tenant=TenantId,@Attachment=AttachmentId FROM Operations.WorkItems WITH(UPDLOCK,HOLDLOCK)
-                WHERE Id=@Id AND LeaseOwner=@Owner AND Generation=@Generation AND State=1 AND LeaseExpiresAtUtc>SYSUTCDATETIME() AND Kind=1;
-                IF @Attachment IS NOT NULL EXEC Storage.RequireFinancialEvidenceDeletion @Tenant,@Attachment,1;
-                DECLARE @Completed TABLE
-                """));
-        FinancialEvidenceSchema.Alter(migration, "Storage.ReplayDeletion",
-            ("UPDATE [Operations].[WorkItems] SET [State] = 0", """
-                DECLARE @Tenant uniqueidentifier,@Attachment uniqueidentifier;
-                SELECT @Tenant=TenantId,@Attachment=AttachmentId FROM Operations.WorkItems WITH(UPDLOCK,HOLDLOCK) WHERE Id=@Id AND Kind=1 AND State=3;
-                IF @Attachment IS NOT NULL EXEC Storage.RequireFinancialEvidenceDeletion @Tenant,@Attachment,1;
-                UPDATE [Operations].[WorkItems] SET [State] = 0
-                """));
-    }
 }

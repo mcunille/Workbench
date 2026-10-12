@@ -34,12 +34,7 @@ internal static class FinancialEvidenceDisposal
               RETURN 1;
             END;
             """);
-        FinancialEvidenceSchema.Alter(migration, "Purchasing.PreparePurchaseOrderDocument",
-            ("IF EXISTS(SELECT 1 FROM Purchasing.PurchaseOrderDocumentOperations WHERE TenantId=@TenantId AND RequestId=@RequestId)", """
-                IF EXISTS(SELECT 1 FROM Accounting.FinancialEvidenceReceipts WHERE TenantId=@TenantId AND RequestId=@RequestId AND Operation='Dispose')
-                  THROW 50077,'Use the authorized disposal operation to recover this request.',1;
-                IF EXISTS(SELECT 1 FROM Purchasing.PurchaseOrderDocumentOperations WHERE TenantId=@TenantId AND RequestId=@RequestId)
-                """));
+
         foreach (var table in new[] { "FinancialEvidenceDisposals", "FinancialEvidenceDisposalLinks" })
         {
             migration.Sql($"""

@@ -2,10 +2,11 @@
 
 **Status:** Approved design and implementation plan executed. Authentic capture, frozen retention,
 SQL removal/cleanup guards, authorized readback/disposal, client workflow, legacy backfill and paired
-recovery are implemented. Independent internal review is complete; **release verification failed**
-with unresolved local server and remote browser failures. The [2026-10-09 verification checkpoint](../operations/evidence/2026-10-09-bk-07-verification-checkpoint.md)
-records exact gates, smoke, diagnostic and partial preview limits. Implementation does not activate
-bookkeeping or authorize production rollout.
+recovery are implemented. Independent internal review and the latest local source/published gate,
+container smoke and scoped preview inspection passed. The [2026-10-11 feedback checkpoint](../operations/evidence/2026-10-11-bk-07-feedback-verification.md)
+records the current evidence and limits; the [2026-10-09 checkpoint](../operations/evidence/2026-10-09-bk-07-verification-checkpoint.md)
+retains the earlier failed results. Remote verification of the feedback delivery remains pending.
+Implementation does not activate bookkeeping or authorize production rollout.
 
 Parent: [PO-07 bookkeeping prerequisites](2026-09-20-po-07-deposits-and-payments.md).
 Baseline: `ddb2101a887bd33f43f91c00ef07a3fbc0698de3`, including merged BK-01–06 and
@@ -234,7 +235,7 @@ tests. Each acceptance case owns a distinct regression:
 8. Backup/restore/rebinding retains all source hashes and evidence links; missing/corrupt held files
    are visible, protected files are not orphans, and disposed bytes are not resurrected as active.
    Altering retention state invalidates a previously prepared recovery report.
-9. Fresh installation and upgrade from the merged BK-06 schema preserve existing financial data,
+9. Fresh installation and upgrade from the merged GEM-06 (`AddTenantGemReference`) schema preserve existing financial data,
    including removed legacy evidence and pending cleanup. Test migration guards and rollback refusal.
 10. Ordinary unposted files retain their existing lifecycle without accounting setup. In the isolated
     preview, inspect retained status, blocked ordinary removal, disposal confirmation and permission

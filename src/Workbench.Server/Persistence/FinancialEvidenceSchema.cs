@@ -10,13 +10,11 @@ internal static class FinancialEvidenceSchema
         migration.Sql("UPDATE Storage.Attachments SET IndependentHeld=Held;");
         migration.Sql(FinancialEvidenceCapture.DeadlineSql);
         migration.Sql(FinancialEvidenceSourceAdapters.SourceSql);
-        migration.Sql(FinancialEvidenceSourceAdapters.ValidateSql);
         migration.Sql(FinancialEvidenceInheritance.LinksSql);
         migration.Sql(FinancialEvidenceInheritance.ValidateSql);
         migration.Sql(FinancialEvidenceCapture.AcquireSql);
         migration.Sql(FinancialEvidenceCapture.CaptureSql);
         migration.Sql(FinancialEvidenceCapture.AppendSql);
-        FinancialEvidenceSourceAdapters.InstallHooks(migration);
         migration.Sql("""
             DENY UPDATE ON OBJECT::Storage.Attachments(Held,IndependentHeld) TO workbench_web;
             DENY UPDATE ON OBJECT::Storage.Attachments(Held,IndependentHeld) TO workbench_worker;
@@ -63,20 +61,5 @@ internal static class FinancialEvidenceSchema
                 DENY INSERT,UPDATE,DELETE ON [{schema}].[{table}] TO workbench_web;
                 DENY INSERT,UPDATE,DELETE ON [{schema}].[{table}] TO workbench_worker;
                 """);
-        Alter(migration, "Security.ReadDatabaseReadiness", ("20261003214043_AddTenantGemReference", "20261008010000_AddFinancialEvidenceRetention"));
-    }
-
-    // Read the actual durable predecessor, validate each anchor, and modify only this release's procedures.
-    internal static void Alter(MigrationBuilder migration, string procedure, params (string Before, string After)[] replacements)
-    {
-        var sql = $"DECLARE @Definition nvarchar(max)=OBJECT_DEFINITION(OBJECT_ID(N'{procedure}')); IF @Definition IS NULL THROW 50020,'Missing financial evidence predecessor.',1;\n";
-        foreach (var (before, after) in replacements)
-        {
-            var escaped = before.Replace("'", "''", StringComparison.Ordinal);
-            sql += $"IF CHARINDEX(N'{escaped}',@Definition)=0 THROW 50020,'Unsupported financial evidence predecessor: {procedure}.',1;\n";
-            sql += $"SET @Definition=REPLACE(@Definition,N'{escaped}',N'{after.Replace("'", "''", StringComparison.Ordinal)}');\n";
-        }
-        sql += "SET @Definition=REPLACE(@Definition,N'CREATE PROCEDURE',N'ALTER PROCEDURE'); EXEC sys.sp_executesql @Definition;";
-        migration.Sql(sql);
     }
 }
