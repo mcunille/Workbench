@@ -25,6 +25,8 @@ jobs:
           node-version: 26.7.0
       - name: Verify Live integration is disabled
         run: node --test --test-timeout=30000 tests/Workbench.BuildTests/ImpeccableLaunchers.test.mjs
+      - name: Verify staged file size hook
+        run: node --test --test-timeout=30000 tests/Workbench.BuildTests/StagedFileSize.test.mjs
 
   local-setup-contracts:
     name: Windows local setup contracts
