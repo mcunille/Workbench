@@ -75,7 +75,44 @@ retains its own specialist assignments. Coordinate shared Git-index operations; 
 owns integration and publication. Serialize edits and tests that share files, databases, or build
 outputs.
 
-## Internal review and local skills
+## Skill installation and ownership
+
+`codebase-design`, `review-pr`, and `handle-pr-feedback` are maintained in the private
+`mcunille/skills` repository and installed at user scope in `~/.agents/skills/`. Workbench
+does not vendor these three skills or their shared GitHub references. Install complete skill
+directories, including references, licenses, provenance, and tests. Avoid same-name project
+copies: Codex does not merge duplicate skills or provide a reliable project override.
+
+The reviewed migration baseline is skills revision
+`a0aad81c38f30312d56f198c81a756a8771ad0f1`. With authorized access to that repository,
+install the three skills using the library's pinned installer:
+
+```powershell
+npx --yes skills@1.7.2 add 'mcunille/skills#a0aad81c38f30312d56f198c81a756a8771ad0f1' --agent codex --skill codebase-design review-pr handle-pr-feedback --global --copy
+```
+
+Inspect existing user and project installations before accepting replacement of any destination.
+Alternatively, copy the three complete directories from a clean local clone at that reviewed
+revision into `~/.agents/skills/`, preserving existing installations until differences have been
+reviewed. Review later source revisions before updating; do not synchronize from a moving branch
+automatically. Refresh or restart Codex if needed and confirm the three skills appear at user scope.
+Missing skills must be reported before a workflow that requires them; do not silently substitute
+another workflow or restore vendored copies. Installing these skills does not grant collaboration
+write permissions or replace Workbench's required Superpowers handoffs.
+
+The library owns its generic skill regression tests. Run the review-boundary suite from the
+installed `review-pr` directory with `pwsh -NoProfile -File tests/ReviewBoundary.Tests.ps1`.
+Workbench CI and application verification do not require private-library access or a personal
+skill installation. Workbench-specific refactoring coverage tooling, Impeccable launchers and
+their tests remain here with the four remaining local skills.
+
+Root AGENTS.md and this workflow own Workbench design, planning, authorization, and delivery rules;
+CONTRIBUTING.md and tests/README.md own verification gates and test boundaries. The migration
+runbook and root guidance continue to require consolidation of development-only migrations,
+durability at merge into main, and fresh creation plus upgrade from the merged PR base. Generic
+skills discover these policies from the consuming repository rather than embedding them.
+
+## Internal review and skills
 
 Follow the selected superpowers execution skill's review and fix loop. Review the complete task
 or branch range, not just the last commit, and verify the integrated result against current source.
