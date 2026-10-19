@@ -119,6 +119,7 @@ public partial class WorkbenchDbContext : IdentityDbContext<
         ConfigureSupplierBills(modelBuilder);
         ConfigureSupplierOpenItems(modelBuilder);
         ConfigureSupplierPayments(modelBuilder);
+        ConfigureSupplierCredits(modelBuilder);
         ConfigureFinancialEvidence(modelBuilder);
     }
 

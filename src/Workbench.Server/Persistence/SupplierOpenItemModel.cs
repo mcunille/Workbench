@@ -39,7 +39,7 @@ public partial class WorkbenchDbContext
 
         var group = builder.Entity<SupplierFinancialGroup>();
         group.ToTable("SupplierFinancialGroups", "Purchasing", t => t.HasCheckConstraint("CK_SupplierFinancialGroups_Operation",
-            "[Operation] COLLATE Latin1_General_100_BIN2 IN ('OpenRecognitionPayable','RecordPayment','Apply','ReverseApplication','CorrectPayment','CorrectSource')"));
+            "[Operation] COLLATE Latin1_General_100_BIN2 IN ('OpenRecognitionPayable','RecordPayment','Apply','ReverseApplication','CorrectPayment','CorrectSource','RecordCredit')"));
         group.HasKey(x => new { x.TenantId, x.Id });
         group.Property(x => x.Sequence).UseIdentityColumn();
         group.HasIndex(x => new { x.TenantId, x.Sequence }).IsUnique();

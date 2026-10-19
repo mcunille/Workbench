@@ -1,0 +1,114 @@
+// Copyright (c) 2026 The White Stag Collection.
+using System.Text.Json.Nodes;
+using Microsoft.Data.SqlClient;
+
+namespace Workbench.Server.IntegrationTests.Infrastructure;
+
+internal sealed class SupplierCreditTestContext(SupplierPaymentTestContext payments) : IAsyncDisposable
+{
+    public SupplierPaymentTestContext Payments { get; } = payments;
+    public SupplierBillTestContext Bills => Payments.Bills;
+    public Guid Bank => Payments.Bank;
+    public Guid CreditAccount { get; private set; }
+    public Guid ClearingAccount { get; private set; }
+
+    public static async Task<SupplierCreditTestContext> OpenAsync(SqlServerFixture fixture)
+    {
+        var context = new SupplierCreditTestContext(await SupplierPaymentTestContext.OpenAsync(fixture));
+        try
+        {
+            var accounts = await context.Payments.Allocation.Journal.SaveAsync(Guid.NewGuid(), "CreateAccounts", """
+                [{"code":"CRBK08","name":"Supplier credit receivables","type":"Asset","purpose":"SupplierCreditReceivable"},
+                 {"code":"RCBK08","name":"Supplier refund clearing","type":"Liability","purpose":"SupplierRefundClearing"}]
+                """);
+            var ids = JsonNode.Parse(accounts.Ids)!.AsArray();
+            context.CreditAccount = Guid.Parse(ids[0]!.GetValue<string>());
+            context.ClearingAccount = Guid.Parse(ids[1]!.GetValue<string>());
+            await context.Bills.AdminAsync($$"""
+                UPDATE Accounting.Configurations SET Payload=JSON_MODIFY(JSON_MODIFY(Payload,
+                  'append $.mappings',JSON_QUERY('{"slot":"SupplierCreditReceivable","accountId":"{{context.CreditAccount}}"}')),
+                  'append $.mappings',JSON_QUERY('{"slot":"SupplierRefundClearing","accountId":"{{context.ClearingAccount}}"}'));
+                INSERT [Identity].RoleClaims(TenantId,RoleId,ClaimType,ClaimValue)
+                  SELECT TenantId,RoleId,N'workbench/permission',N'SupplierCreditsPost'
+                  FROM Administration.AccountingRoles WHERE Kind='Administrator';
+                IF OBJECT_ID(N'Purchasing.PostSupplierCredit') IS NOT NULL
+                  GRANT EXECUTE ON Purchasing.PostSupplierCredit TO workbench_web;
+                """);
+            return context;
+        }
+        catch { await context.DisposeAsync(); throw; }
+    }
+
+    public async Task<Guid> ExpenseBillAsync(string amount, string date = "2026-09-15")
+    {
+        var receipt = await Bills.Recognition.CommandAsync(classification: "Expense", cost: amount);
+        receipt["postingDate"] = date;
+        await Bills.Recognition.PostAsync(receipt.ToJsonString());
+        var draft = Bills.CompleteDraft(Guid.NewGuid().ToString());
+        var revision = draft["revision"]!.AsObject();
+        revision["total"] = amount;
+        revision["postingDate"] = date;
+        var unit = revision["units"]![0]!;
+        unit["classification"] = "Expense";
+        unit["unitId"] = receipt["units"]![0]!["unitId"]!.DeepClone();
+        unit["expectedPriorEventRevision"] = 1;
+        unit["components"]![0]!["amount"] = amount;
+        unit["components"]![1]!["amount"] = "0";
+        var reviewed = await SupplierBillPostingTests.ReviewedAsync(Bills, draft);
+        await Bills.ExecuteAsync("PostSupplierBill", Guid.NewGuid(), Bills.PostCommand(reviewed));
+        return Guid.Parse(reviewed["billId"]!.GetValue<string>());
+    }
+
+    public async Task<JsonObject> CreditCommandAsync(Guid bill, string amount, string date = "2026-09-16")
+    {
+        var revision = await Bills.ScalarAsync<Guid>($"SELECT RevisionId FROM Purchasing.SupplierBillPostings WHERE BillId='{bill}'");
+        var invoice = await Bills.ScalarAsync<Guid>($"SELECT e.Id FROM Purchasing.SupplierBillPostingEvents b JOIN Purchasing.RecognitionSideEvents e ON e.TenantId=b.TenantId AND e.Id=b.EventId WHERE b.BillId='{bill}' AND e.Side='Invoice'");
+        return new JsonObject
+        {
+            ["schemaVersion"] = 1,
+            ["operation"] = "PostSupplierCredit",
+            ["expectedConfigurationVersion"] = Bills.Journal.ConfigurationVersion.ToString(),
+            ["purchaseOrderId"] = Bills.Recognition.PurchaseOrderId.ToString(),
+            ["expectedPurchaseOrderVersion"] = Bills.Recognition.PurchaseOrderVersion,
+            ["supplierId"] = Bills.Recognition.SupplierId.ToString(),
+            ["currency"] = "USD",
+            ["postingDate"] = date,
+            ["creditId"] = Guid.NewGuid().ToString(),
+            ["creditRevisionId"] = Guid.NewGuid().ToString(),
+            ["documentDate"] = date,
+            ["effectiveDate"] = date,
+            ["reference"] = Guid.NewGuid().ToString(),
+            ["reason"] = "Supplier agreed a reduction to the reviewed service cost",
+            ["total"] = amount,
+            ["claims"] = new JsonArray(new JsonObject
+            {
+                ["claimId"] = Guid.NewGuid().ToString(),
+                ["billId"] = bill.ToString(),
+                ["billRevisionId"] = revision.ToString(),
+                ["recognitionEventId"] = invoice.ToString(),
+                ["componentKey"] = "base",
+                ["amount"] = amount
+            }),
+            ["duplicateResolutions"] = new JsonArray(),
+            ["allocations"] = new JsonArray(),
+            ["evidence"] = new JsonObject { ["documents"] = new JsonArray(), ["missingEvidenceReason"] = "Credit note supplied without a file" }
+        };
+    }
+
+    public async Task<JsonObject> CreditAsync(Guid bill, string amount, string date = "2026-09-16")
+        => await Bills.ExecuteAsync("PostSupplierCredit", Guid.NewGuid(), await CreditCommandAsync(bill, amount, date));
+
+    public Task<decimal> BalanceAsync(Guid item) => Payments.Allocation.BalanceAsync(item);
+    public async Task<JsonObject> ExecuteRawAsync(string json, Guid? request = null)
+    {
+        await using var command = new SqlCommand("EXEC Purchasing.PostSupplierCredit @ActorId,@SessionId,@RequestId,@Command", Bills.Journal.Connection);
+        command.Parameters.AddWithValue("@ActorId", JournalTestContext.ActorId);
+        command.Parameters.AddWithValue("@SessionId", Bills.Journal.SessionId);
+        command.Parameters.AddWithValue("@RequestId", request ?? Guid.NewGuid());
+        command.Parameters.AddWithValue("@Command", json);
+        return JsonNode.Parse((string)(await command.ExecuteScalarAsync())!)!.AsObject();
+    }
+    public Task<decimal> BankBalanceAsync() => Bills.ScalarAsync<decimal>($"SELECT COALESCE(SUM(Debit-Credit),0) FROM Accounting.JournalLines WHERE AccountId='{Bank}'");
+    public Task<string> ReadOriginalBillEvidenceAsync(Guid bill) => Bills.ScalarAsync<string>($"SELECT r.*,JSON_QUERY((SELECT p.* FROM Purchasing.SupplierBillPostings p WHERE p.TenantId=r.TenantId AND p.BillId=r.BillId FOR JSON PATH)) posting FROM Purchasing.SupplierBillRevisions r WHERE r.BillId='{bill}' ORDER BY r.Sequence FOR JSON PATH");
+    public ValueTask DisposeAsync() => Payments.DisposeAsync();
+}

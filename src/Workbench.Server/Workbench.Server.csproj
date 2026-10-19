@@ -23,6 +23,7 @@
     <InternalsVisibleTo Include="Workbench.Server.IntegrationTests" />
     <EmbeddedResource Include="Persistence\Migrations\InstallGemReferencePilot.sql" LogicalName="Workbench.GemReferencePilot.sql" />
     <EmbeddedResource Include="Persistence\Migrations\FinancialEvidence\*.sql" LogicalName="Workbench.FinancialEvidence.%(Filename)%(Extension)" />
+    <EmbeddedResource Include="Persistence\Migrations\SupplierCredits\*.sql" LogicalName="Workbench.SupplierCredits.%(Filename)%(Extension)" />
     <Content Update="wwwroot\index.html" CopyToPublishDirectory="Never" />
     <Content Include="$(PkgMagick_NET-Q8-AnyCPU)/Notice.txt" Link="third-party-notices/Magick.NET.txt" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <None Update="third-party-notices/PdfPig.txt" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />

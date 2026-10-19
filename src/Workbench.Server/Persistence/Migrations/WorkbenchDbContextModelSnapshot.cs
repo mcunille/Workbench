@@ -659,7 +659,7 @@ namespace Workbench.Server.Persistence.Migrations
 
                     b.ToTable("FinancialEvidenceSets", "Accounting", t =>
                         {
-                            t.HasCheckConstraint("CK_FinancialEvidenceSets_Owner", "[OwnerKind] COLLATE Latin1_General_100_BIN2 IN ('SupplierBill','SupplierPayment','PurchaseRecognition')");
+                            t.HasCheckConstraint("CK_FinancialEvidenceSets_Owner", "[OwnerKind] COLLATE Latin1_General_100_BIN2 IN ('SupplierBill','SupplierPayment','PurchaseRecognition','SupplierCredit')");
                         });
                 });
 
@@ -3507,6 +3507,174 @@ namespace Workbench.Server.Persistence.Migrations
                         });
                 });
 
+            modelBuilder.Entity("Workbench.Server.Purchasing.SupplierCredit", b =>
+                {
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("ActorId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Currency")
+                        .IsRequired()
+                        .HasMaxLength(3)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(3)");
+
+                    b.Property<DateOnly>("DocumentDate")
+                        .HasColumnType("date");
+
+                    b.Property<DateOnly>("EffectiveDate")
+                        .HasColumnType("date");
+
+                    b.Property<Guid>("GroupId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("NormalizedReference")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<DateOnly>("PostingDate")
+                        .HasColumnType("date");
+
+                    b.Property<Guid>("PurchaseOrderId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
+
+                    b.Property<DateTimeOffset>("RecordedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("Reference")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<Guid>("RevisionId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("SourceSnapshotJson")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<Guid>("SupplierId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<decimal>("Total")
+                        .HasPrecision(28, 4)
+                        .HasColumnType("decimal(28,4)");
+
+                    b.HasKey("TenantId", "Id");
+
+                    b.HasIndex("TenantId", "ActorId");
+
+                    b.HasIndex("TenantId", "GroupId");
+
+                    b.HasIndex("TenantId", "PurchaseOrderId");
+
+                    b.HasIndex("TenantId", "RevisionId")
+                        .IsUnique();
+
+                    b.HasIndex("TenantId", "SupplierId", "NormalizedReference");
+
+                    b.ToTable("SupplierCredits", "Purchasing", t =>
+                        {
+                            t.HasCheckConstraint("CK_SupplierCredits_Source", "[Total]>0 AND [DocumentDate]<=[PostingDate] AND [EffectiveDate]<=[PostingDate] AND LEN([NormalizedReference])>0 AND LEN([Reason])>0 AND ISJSON([SourceSnapshotJson],OBJECT)=1 AND DATALENGTH([SourceSnapshotJson])<=262144");
+                        });
+                });
+
+            modelBuilder.Entity("Workbench.Server.Purchasing.SupplierCreditClaim", b =>
+                {
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("AccountId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("AccountVersion")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<decimal>("Amount")
+                        .HasPrecision(28, 4)
+                        .HasColumnType("decimal(28,4)");
+
+                    b.Property<Guid>("BillId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("BillRevisionId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("ComponentKey")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<Guid>("CreditId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("OriginalJournalId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("OriginalJournalOrdinal")
+                        .HasColumnType("int");
+
+                    b.Property<Guid>("RecognitionEventId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Treatment")
+                        .IsRequired()
+                        .HasMaxLength(24)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(24)");
+
+                    b.HasKey("TenantId", "Id");
+
+                    b.HasIndex("TenantId", "AccountId");
+
+                    b.HasIndex("TenantId", "BillId", "BillRevisionId");
+
+                    b.HasIndex("TenantId", "OriginalJournalId", "OriginalJournalOrdinal");
+
+                    b.HasIndex("TenantId", "RecognitionEventId", "ComponentKey");
+
+                    b.HasIndex("TenantId", "CreditId", "RecognitionEventId", "ComponentKey")
+                        .IsUnique();
+
+                    b.ToTable("SupplierCreditClaims", "Purchasing", t =>
+                        {
+                            t.HasCheckConstraint("CK_SupplierCreditClaims_Amount", "[Amount]>0 AND [Treatment] COLLATE Latin1_General_100_BIN2 IN ('Expense','Prepayment','Inventory','RecoverableTax')");
+                        });
+                });
+
+            modelBuilder.Entity("Workbench.Server.Purchasing.SupplierCreditVersion", b =>
+                {
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("CreditId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.HasKey("TenantId", "CreditId");
+
+                    b.ToTable("SupplierCreditVersions", "Purchasing");
+                });
+
             modelBuilder.Entity("Workbench.Server.Purchasing.SupplierFinancialGroup", b =>
                 {
                     b.Property<Guid>("TenantId")
@@ -3543,7 +3711,7 @@ namespace Workbench.Server.Persistence.Migrations
 
                     b.ToTable("SupplierFinancialGroups", "Purchasing", t =>
                         {
-                            t.HasCheckConstraint("CK_SupplierFinancialGroups_Operation", "[Operation] COLLATE Latin1_General_100_BIN2 IN ('OpenRecognitionPayable','RecordPayment','Apply','ReverseApplication','CorrectPayment','CorrectSource')");
+                            t.HasCheckConstraint("CK_SupplierFinancialGroups_Operation", "[Operation] COLLATE Latin1_General_100_BIN2 IN ('OpenRecognitionPayable','RecordPayment','Apply','ReverseApplication','CorrectPayment','CorrectSource','RecordCredit')");
                         });
                 });
 
@@ -5447,6 +5615,80 @@ namespace Workbench.Server.Persistence.Migrations
                     b.HasOne("Workbench.Server.Accounting.JournalLineRow", null)
                         .WithMany()
                         .HasForeignKey("TenantId", "JournalId", "Ordinal")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Workbench.Server.Purchasing.SupplierCredit", b =>
+                {
+                    b.HasOne("Workbench.Server.Identity.WorkbenchUser", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId", "ActorId")
+                        .HasPrincipalKey("TenantId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Workbench.Server.Purchasing.SupplierFinancialGroup", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId", "GroupId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Workbench.Server.Purchasing.DraftOrder", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId", "PurchaseOrderId")
+                        .HasPrincipalKey("TenantId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Workbench.Server.Purchasing.Supplier", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId", "SupplierId")
+                        .HasPrincipalKey("TenantId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Workbench.Server.Purchasing.SupplierCreditClaim", b =>
+                {
+                    b.HasOne("Workbench.Server.Accounting.AccountingAccount", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId", "AccountId")
+                        .HasPrincipalKey("TenantId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Workbench.Server.Purchasing.SupplierCredit", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId", "CreditId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Workbench.Server.Purchasing.SupplierBillRevision", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId", "BillId", "BillRevisionId")
+                        .HasPrincipalKey("TenantId", "BillId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Workbench.Server.Accounting.JournalLineRow", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId", "OriginalJournalId", "OriginalJournalOrdinal")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Workbench.Server.Purchasing.RecognitionComponent", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId", "RecognitionEventId", "ComponentKey")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Workbench.Server.Purchasing.SupplierCreditVersion", b =>
+                {
+                    b.HasOne("Workbench.Server.Purchasing.SupplierCredit", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId", "CreditId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
                 });
