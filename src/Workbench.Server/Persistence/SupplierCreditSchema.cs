@@ -7,6 +7,18 @@ internal static class SupplierCreditSchema
 {
     internal static void Up(MigrationBuilder migrationBuilder, string migrationId)
     {
+        // Deployment metadata binds a private producer to its existing recorded posting
+        // permission. It stores no tenant facts and confers no business eligibility itself.
+        migrationBuilder.Sql("""
+            CREATE TABLE Purchasing.RecognitionSourceOwners(
+              PostingPermission nvarchar(100) COLLATE Latin1_General_100_BIN2 NOT NULL PRIMARY KEY,
+              CorrectionPermission nvarchar(100) COLLATE Latin1_General_100_BIN2 NOT NULL,
+              ValidatorSchema sysname NOT NULL,ValidatorName sysname NOT NULL,DefinitionSha256 binary(32) NOT NULL,
+              CONSTRAINT CK_RecognitionSourceOwners_Module CHECK(ValidatorSchema=N'Purchasing' AND LEN(ValidatorName)>0
+                AND LEN(PostingPermission)>0 AND LEN(CorrectionPermission)>0));
+            DENY SELECT,INSERT,UPDATE,DELETE ON Purchasing.RecognitionSourceOwners TO workbench_web;
+            DENY SELECT,INSERT,UPDATE,DELETE ON Purchasing.RecognitionSourceOwners TO workbench_worker;
+            """);
         foreach (var procedure in new[]
         {
             "Purchasing.SupplierRecognitionExpenseControl", "Purchasing.CanonicalizeSupplierCredit", "Purchasing.CanonicalizeSupplierCash", "Purchasing.CanonicalizeSupplierSourceCorrection", "Purchasing.SupplierCreditPosition",
@@ -16,7 +28,13 @@ internal static class SupplierCreditSchema
             "Purchasing.SupplierRefundReleaseControl", "Purchasing.SupplierItemControl",
             "Accounting.FinancialEvidenceSource", "Accounting.AppendFinancialEvidence",
             "Purchasing.RequireSupplierComposition", "Purchasing.ApplySupplierFundsCore",
-            "Purchasing.BuildSupplierCreditCorrectionSources", "Purchasing.PlanSupplierCreditCapacity", "Purchasing.PlanSupplierCreditEvidence",
+            "Purchasing.BuildSupplierCreditCorrectionSources", "Purchasing.PlanSupplierCreditCapacity", "Purchasing.PlanSupplierCreditEvidence", "Purchasing.PlanSupplierCreditPositionBindings",
+            "Purchasing.ValidateBillRecognitionOwner", "Purchasing.ValidateRecognitionSourceOwner", "Purchasing.PlanBillRecognitionSources", "Purchasing.RequireBillCorrectionSourceAuthority",
+            "Purchasing.BuildSupplierBillCorrectionSource", "Purchasing.BuildBillDependentCreditSources", "Purchasing.PlanBillRecognitionAdjustments",
+            "Purchasing.ResolveBillCreditSuccessorIntents", "Purchasing.ProjectBillCreditCapacity", "Purchasing.PlanBillReapplications", "Purchasing.PlanSupplierBillCorrection", "Purchasing.PreviewSupplierBillCorrection",
+            "Purchasing.RequireSupplierBillComposition", "Purchasing.ReverseSupplierBillSource", "Purchasing.AppendSupplierBillSuccessor",
+            "Purchasing.PostSupplierBillCore", "Purchasing.PostSupplierBill", "Purchasing.PostBillRecognitionSuccessors", "Purchasing.PostSupplierBillSuccessor",
+            "Purchasing.DeriveRecognitionOpenItems", "Purchasing.CorrectSupplierBill", "Accounting.CorrectJournalCore",
             "Purchasing.PlanSupplierSourceCorrection", "Purchasing.PreviewSupplierCreditCorrection",
             "Purchasing.RequireSupplierSourceComposition", "Purchasing.ReleaseSupplierCashSettlement",
             "Purchasing.ReverseSupplierCreditSource", "Purchasing.PostSupplierRecognitionCreditAdjustment",
@@ -29,7 +47,7 @@ internal static class SupplierCreditSchema
             var parts = procedure switch
             {
                 "Accounting.PostJournal" or "Purchasing.AppendSupplierEventGroup" => new[] { $"{procedure}.1", $"{procedure}.2", $"{procedure}.3" },
-                "Purchasing.PostRecognition" => new[] { $"{procedure}.1", $"{procedure}.2" },
+                "Purchasing.PostRecognition" or "Accounting.CorrectJournalCore" => new[] { $"{procedure}.1", $"{procedure}.2" },
                 _ => new[] { procedure }
             };
             var sql = new System.Text.StringBuilder();
@@ -43,6 +61,12 @@ internal static class SupplierCreditSchema
             }
             migrationBuilder.Sql(sql.ToString());
         }
+
+        migrationBuilder.Sql("""
+            INSERT Purchasing.RecognitionSourceOwners(PostingPermission,CorrectionPermission,ValidatorSchema,ValidatorName,DefinitionSha256)
+              VALUES(N'SupplierBillsPost',N'SupplierBillsCorrect',N'Purchasing',N'ValidateBillRecognitionOwner',
+                HASHBYTES('SHA2_256',CONVERT(varbinary(max),OBJECT_DEFINITION(OBJECT_ID(N'Purchasing.ValidateBillRecognitionOwner')))));
+            """);
 
         foreach (var table in new[] { "SupplierCredits", "SupplierCreditClaims", "SupplierCreditVersions", "SupplierCashSources", "SupplierCashSettlements", "SupplierCashVersions", "SupplierSourceCorrections", "SupplierSourceCorrectionMembers", "SupplierCashSettlementReleases" })
         {
@@ -67,7 +91,10 @@ internal static class SupplierCreditSchema
         }
         foreach (var procedure in new[] { "CanonicalizeSupplierCredit", "AppendSupplierCredit", "AssertSupplierCreditCapacity", "ValidateSupplierCreditClaims", "CanonicalizeSupplierCash", "AppendSupplierCashSettlement", "CanonicalizeSupplierSourceCorrection", "BuildSupplierCreditCorrectionSources", "PlanSupplierCreditCapacity", "PlanSupplierCreditEvidence", "PlanSupplierSourceCorrection", "RequireSupplierSourceComposition", "ReleaseSupplierCashSettlement",
             "ReverseSupplierCreditSource", "PostSupplierRecognitionCreditAdjustment", "ApplySupplierClearingFunds",
-            "ValidateSupplierSourceCorrectionGroup", "PostSupplierCreditCore" })
+            "ValidateSupplierSourceCorrectionGroup", "PostSupplierCreditCore", "BuildSupplierBillCorrectionSource", "PlanSupplierBillCorrection",
+            "RequireSupplierBillComposition", "ReverseSupplierBillSource", "AppendSupplierBillSuccessor", "PostSupplierBillCore", "PostSupplierBillSuccessor", "PostBillRecognitionSuccessors",
+            "ValidateBillRecognitionOwner", "ValidateRecognitionSourceOwner", "PlanBillRecognitionSources", "RequireBillCorrectionSourceAuthority", "BuildBillDependentCreditSources", "PlanBillRecognitionAdjustments",
+            "ResolveBillCreditSuccessorIntents", "ProjectBillCreditCapacity", "PlanBillReapplications", "PlanSupplierCreditPositionBindings" })
         {
             migrationBuilder.Sql($"""
                 DENY EXECUTE ON Purchasing.{procedure} TO workbench_web;

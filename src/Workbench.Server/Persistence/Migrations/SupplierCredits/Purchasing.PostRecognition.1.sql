@@ -2,7 +2,8 @@
 ALTER PROCEDURE Purchasing.PostRecognition
   @ActorId uniqueidentifier,@SessionId uniqueidentifier,@RequestId uniqueidentifier,
   @RequiredPermission nvarchar(max),@Command nvarchar(max),
-  @ParentCorrectionGroupId uniqueidentifier=NULL,@ResultJson nvarchar(max)=NULL OUTPUT,@SuppressResult bit=0
+  @ParentCorrectionGroupId uniqueidentifier=NULL,@ResultJson nvarchar(max)=NULL OUTPUT,@SuppressResult bit=0,
+  @BillOwnerRequestId uniqueidentifier=NULL
 AS
 BEGIN
   SET NOCOUNT ON; SET XACT_ABORT ON;
@@ -72,6 +73,16 @@ BEGIN
   OPEN unit_cursor; FETCH NEXT FROM unit_cursor INTO @UnitId,@Unit;
   WHILE @@FETCH_STATUS=0
   BEGIN
+    DECLARE @BillGroup uniqueidentifier,@BillCorrection uniqueidentifier,@BillNow datetimeoffset,@BillPlan nvarchar(max),@BillBinding nvarchar(max);
+    IF @BillOwnerRequestId IS NOT NULL
+    BEGIN
+      EXEC Purchasing.RequireSupplierBillComposition @ActorId,@SessionId,@BillOwnerRequestId,N'SuccessorRecognition',@UnitId,@Unit,
+        @BillGroup OUTPUT,@BillCorrection OUTPUT,@BillNow OUTPUT,@BillPlan OUTPUT;
+      SELECT @BillBinding=JSON_QUERY(value,'$.binding') FROM OPENJSON(@BillPlan,'$.units')
+        WHERE TRY_CONVERT(uniqueidentifier,JSON_VALUE(value,'$.binding.successorUnitId'))=@UnitId;
+      SET @ParentCorrectionGroupId=TRY_CONVERT(uniqueidentifier,JSON_VALUE(@BillBinding,'$.correctionGroupId'));
+      SET @Now=@BillNow;
+    END;
     DECLARE @Classification varchar(16)=JSON_VALUE(@Unit,'$.classification'),@Quantity decimal(28,6)=CONVERT(decimal(28,6),JSON_VALUE(@Unit,'$.quantity')),
       @Prior int=TRY_CONVERT(int,JSON_VALUE(@Unit,'$.expectedPriorEventRevision'));
     IF @Classification COLLATE Latin1_General_100_BIN2 NOT IN ('Expense','Inventory') OR @Quantity<=0 OR @Prior IS NULL OR @Prior<0

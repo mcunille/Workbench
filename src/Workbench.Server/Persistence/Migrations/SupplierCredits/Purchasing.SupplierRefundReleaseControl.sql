@@ -13,9 +13,11 @@ AS BEGIN
     AND correction.GroupId=released.GroupId AND correction.SourceKind='SupplierCredit' AND correction.SourceId=settlement.ItemId
     AND correction.ActorId=released.ActorId AND correction.RecordedAtUtc=released.RecordedAtUtc
   JOIN Purchasing.SupplierFinancialGroups financialGroup ON financialGroup.TenantId=correction.TenantId AND financialGroup.Id=correction.GroupId
-    AND financialGroup.Operation='CorrectCredit' AND financialGroup.RecordedAtUtc=correction.RecordedAtUtc
+    AND financialGroup.Operation IN('CorrectCredit','CorrectBill') AND financialGroup.RecordedAtUtc=correction.RecordedAtUtc
   JOIN Purchasing.SupplierFinancialReceipts receipt ON receipt.TenantId=financialGroup.TenantId AND receipt.GroupId=financialGroup.Id
-    AND receipt.Operation='CorrectSupplierCredit' AND receipt.ActorId=correction.ActorId AND receipt.RecordedAtUtc=correction.RecordedAtUtc
+    AND (financialGroup.Operation='CorrectCredit' AND receipt.Operation='CorrectSupplierCredit'
+      OR financialGroup.Operation='CorrectBill' AND receipt.Operation='CorrectSupplierBill')
+    AND receipt.ActorId=correction.ActorId AND receipt.RecordedAtUtc=correction.RecordedAtUtc
     AND financialGroup.SourceId=TRY_CONVERT(uniqueidentifier,JSON_VALUE(receipt.CanonicalInput,'$.sourceId'))
   JOIN Accounting.SourceEvents sourceEvent ON sourceEvent.TenantId=released.TenantId AND sourceEvent.SourceKind='SupplierRefundRelease'
     AND sourceEvent.SourceId=released.SettlementId AND sourceEvent.SourceRevision=correction.Id AND sourceEvent.EventKind='Release'

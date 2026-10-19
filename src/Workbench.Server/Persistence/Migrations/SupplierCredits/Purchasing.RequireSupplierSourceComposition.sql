@@ -9,6 +9,12 @@ AS BEGIN
   IF @@TRANCOUNT=0 OR @Tenant IS NULL OR @OwnerRequestId IS NULL OR @EntityId IS NULL
     OR APPLOCK_MODE('public',N'Accounting:'+CONVERT(nvarchar(36),@Tenant),'Transaction')<>'Exclusive'
     THROW 51009,'Source composition requires its owner transaction.',1;
+  IF EXISTS(SELECT 1 FROM Purchasing.SupplierFinancialReceipts WHERE TenantId=@Tenant AND RequestId=@OwnerRequestId AND Operation='CorrectSupplierBill')
+  BEGIN
+    EXEC Purchasing.RequireSupplierBillComposition @ActorId,@SessionId,@OwnerRequestId,@ChildKind,@EntityId,@Details,
+      @GroupId OUTPUT,@CorrectionId OUTPUT,@RecordedAtUtc OUTPUT,@Plan OUTPUT;
+    RETURN;
+  END;
   BEGIN TRY EXEC Accounting.RequirePermission @ActorId,@SessionId,N'SupplierCreditsCorrect'; END TRY
   BEGIN CATCH IF ERROR_NUMBER()=50903 THROW 51003,'Current source correction authority is required.',1; THROW; END CATCH;
   SET @GroupId=NULL; SET @CorrectionId=NULL; SET @RecordedAtUtc=NULL; SET @Plan=NULL;

@@ -53,7 +53,7 @@ AS BEGIN
       OR (SELECT COUNT(*) FROM OPENJSON(decision.value))<>4 OR EXISTS(SELECT 1 FROM OPENJSON(decision.value) field WHERE
         field.[key] COLLATE Latin1_General_100_BIN2 NOT IN('sourceKind','sourceId','expectedSourceVersion','replacement')
         OR (field.[key]='replacement' AND field.type NOT IN(0,5)) OR (field.[key]<>'replacement' AND field.type<>1))
-      OR JSON_VALUE(decision.value,'$.sourceKind') COLLATE Latin1_General_100_BIN2 NOT IN('SupplierCredit','SupplierBill','SupplierRefund','SupplierRefundRepayment'))
+      OR JSON_VALUE(decision.value,'$.sourceKind') COLLATE Latin1_General_100_BIN2 NOT IN('SupplierCredit','SupplierBill','SupplierRefund','SupplierRefundRepayment','PurchaseRecognition'))
     OR EXISTS(SELECT 1 FROM OPENJSON(@Command,'$.sourceDecisions') GROUP BY JSON_VALUE(value,'$.sourceKind'),JSON_VALUE(value,'$.sourceId') HAVING COUNT(*)>1)
     OR EXISTS(SELECT 1 FROM OPENJSON(@Command,'$.reapplications') target WHERE target.type<>5
       OR (SELECT COUNT(*) FROM OPENJSON(target.value))<>3 OR EXISTS(SELECT 1 FROM OPENJSON(target.value) field WHERE field.type<>1

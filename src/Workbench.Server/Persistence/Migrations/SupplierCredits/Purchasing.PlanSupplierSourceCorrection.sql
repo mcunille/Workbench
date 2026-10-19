@@ -111,6 +111,8 @@ AS BEGIN
     CROSS APPLY(VALUES(reapply.FundingId),(reapply.DebtId)) item(ItemId);
   DECLARE @SourceCapacity nvarchar(max),@RecognitionAdjustments nvarchar(max);
   EXEC Purchasing.PlanSupplierCreditCapacity @TenantId,@Sources,@SourceCapacity OUTPUT,@RecognitionAdjustments OUTPUT;
+  DECLARE @PositionBindings nvarchar(max);
+  EXEC Purchasing.PlanSupplierCreditPositionBindings @TenantId,@Sources,@PositionBindings OUTPUT;
   INSERT @Effects SELECT 'RecognitionAdjustment',CONVERT(uniqueidentifier,JSON_VALUE(value,'$.recognitionEventId')),NULL,
     CONVERT(date,JSON_VALUE(value,'$.postingDate'),23),CONVERT(decimal(28,4),JSON_VALUE(value,'$.amount')) FROM OPENJSON(@RecognitionAdjustments);
   IF EXISTS(SELECT 1 FROM @Effects effect WHERE effect.PostingDate<TRY_CONVERT(date,JSON_VALUE(@Policy,'$.policies.plannedStartDate'),23))
@@ -119,6 +121,9 @@ AS BEGIN
     AND closed.PeriodStart=DATEFROMPARTS(YEAR(effect.PostingDate),MONTH(effect.PostingDate),1))
     THROW 51009,'A correction effect falls in a closed posting period.',1;
   DECLARE @Dependencies TABLE(Kind varchar(40),Id uniqueidentifier,Version varchar(66),ParentId uniqueidentifier,Amount decimal(28,4),PostingDate date);
+  INSERT @Dependencies SELECT 'ProposedCreditPosition',TRY_CONVERT(uniqueidentifier,JSON_VALUE(value,'$.recognitionEventId')),
+    CONVERT(varchar(64),HASHBYTES('SHA2_256',CONVERT(varbinary(max),value)),2),
+    TRY_CONVERT(uniqueidentifier,JSON_VALUE(value,'$.creditId')),NULL,TRY_CONVERT(date,JSON_VALUE(value,'$.postingDate'),23) FROM OPENJSON(@PositionBindings);
   INSERT @Dependencies SELECT 'RecognitionAdjustment',CONVERT(uniqueidentifier,JSON_VALUE(value,'$.recognitionEventId')),
     JSON_VALUE(value,'$.recognitionEvidenceSha256'),CONVERT(uniqueidentifier,JSON_VALUE(value,'$.invoiceEventId')),
     CONVERT(decimal(28,4),JSON_VALUE(value,'$.amount')),CONVERT(date,JSON_VALUE(value,'$.postingDate'),23) FROM OPENJSON(@RecognitionAdjustments);

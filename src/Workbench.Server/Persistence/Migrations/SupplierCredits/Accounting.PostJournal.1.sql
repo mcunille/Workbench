@@ -151,9 +151,9 @@ BEGIN
       OR APPLOCK_MODE('public',N'Accounting:'+CONVERT(nvarchar(36),@TenantId),'Transaction')<>'Exclusive'
       OR NOT EXISTS(SELECT 1 FROM Purchasing.SupplierCredits c
         JOIN Purchasing.SupplierFinancialGroups g ON g.TenantId=c.TenantId AND g.Id=c.GroupId
-          AND (g.Operation='RecordCredit' AND g.SourceId=c.Id OR g.Operation='CorrectCredit' AND EXISTS(
+          AND (g.Operation='RecordCredit' AND g.SourceId=c.Id OR g.Operation IN('CorrectCredit','CorrectBill') AND EXISTS(
         SELECT 1 FROM Purchasing.SupplierSourceCorrections parent WHERE parent.TenantId=c.TenantId AND parent.GroupId=c.GroupId
-          AND parent.ReplacementSourceId=c.Id AND parent.ReplacementSourceRevisionId=c.RevisionId
+          AND parent.SourceKind='SupplierCredit' AND parent.ReplacementSourceId=c.Id AND parent.ReplacementSourceRevisionId=c.RevisionId
           AND parent.ActorId=c.ActorId AND parent.RecordedAtUtc=c.RecordedAtUtc)) AND g.RecordedAtUtc=c.RecordedAtUtc
         JOIN Purchasing.SupplierFinancialReceipts receipt ON receipt.TenantId=c.TenantId AND receipt.GroupId=c.GroupId
           AND receipt.RequestId=@RequestId AND receipt.Operation='PostSupplierCredit' AND receipt.ActorId=c.ActorId

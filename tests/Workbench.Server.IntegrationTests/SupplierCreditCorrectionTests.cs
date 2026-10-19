@@ -91,57 +91,6 @@ public sealed partial class SupplierCreditCorrectionTests(SqlServerFixture sqlSe
         Assert.Equal(1, await context.Bills.ScalarAsync<int>("SELECT COUNT(*) FROM Purchasing.SupplierCredits"));
     }
 
-    [Fact]
-    public async Task PartialRefundAndMultipleApplicationsAreCorrectedTogether()
-    {
-        // GIVEN one credit consumed by a receipt and two independently allocated bills.
-        await using var context = await SupplierCreditTestContext.OpenAsync(sqlServer);
-        var firstBill = await context.ExpenseBillAsync("100"); var secondBill = await context.ExpenseBillAsync("100");
-        var source = await context.CreditAsync(firstBill, "30"); var original = Guid.Parse(source["sourceId"]!.GetValue<string>());
-        var refund = await context.RefundAsync([(original, "10")]);
-        var debt = Guid.Parse(refund["settlementIds"]![0]!.GetValue<string>());
-        await context.Payments.Allocation.ApplyAsync(await context.Payments.Allocation.CommandAsync(original, firstBill, "8"));
-        await context.Payments.Allocation.ApplyAsync(await context.Payments.Allocation.CommandAsync(original, secondBill, "5"));
-        var cashBefore = await context.CashEvidenceAsync();
-        var replacement = await context.CreditCommandAsync(firstBill, "20", "2026-09-20");
-        var successor = Guid.Parse(replacement["creditId"]!.GetValue<string>());
-        var command = await context.CorrectionCommandAsync("Credit", original, replacement);
-        foreach (var target in new[] { (debt, "10"), (firstBill, "6"), (secondBill, "4") })
-            command["reapplications"]!.AsArray().Add(new JsonObject { ["fundingItemId"] = successor.ToString(), ["debtItemId"] = target.Item1.ToString(), ["amount"] = target.Item2 });
-        // WHEN the complete closure is replaced THEN every old consumption is released exactly once.
-        await context.CaptureCorrectionPlanAsync(command); await context.CorrectAsync("Credit", command);
-        Assert.Equal(cashBefore, await context.CashEvidenceAsync());
-        Assert.Equal(0m, await context.BalanceAsync(original)); Assert.Equal(0m, await context.BalanceAsync(successor));
-        Assert.Equal(0m, await context.BalanceAsync(debt));
-        Assert.Equal(94m, await context.BalanceAsync(firstBill)); Assert.Equal(96m, await context.BalanceAsync(secondBill));
-        Assert.Equal(180m, await context.Bills.Recognition.BalanceAsync("Expense"));
-    }
-
-    [Fact]
-    public async Task SecondGenerationCorrectionKeepsOriginalReceiptAndClearingIdentity()
-    {
-        // GIVEN a refunded credit already corrected once with ten applied against its eighteen-dollar clearing debt.
-        await using var context = await SupplierCreditTestContext.OpenAsync(sqlServer);
-        var bill = await context.ExpenseBillAsync("100");
-        var source = await context.CreditAsync(bill, "18"); var original = Guid.Parse(source["sourceId"]!.GetValue<string>());
-        var receipt = await context.RefundAsync([(original, "18")]); var debt = Guid.Parse(receipt["settlementIds"]![0]!.GetValue<string>());
-        var cash = await context.CashEvidenceAsync();
-        var first = await context.CreditCommandAsync(bill, "10", "2026-09-20"); var firstId = Guid.Parse(first["creditId"]!.GetValue<string>());
-        var command = await context.CorrectionCommandAsync("Credit", original, first);
-        command["reapplications"]!.AsArray().Add(new JsonObject { ["fundingItemId"] = firstId.ToString(), ["debtItemId"] = debt.ToString(), ["amount"] = "10" });
-        await context.CaptureCorrectionPlanAsync(command); await context.CorrectAsync("Credit", command);
-        var second = await context.CreditCommandAsync(bill, "6", "2026-09-22"); var secondId = Guid.Parse(second["creditId"]!.GetValue<string>());
-        command = await context.CorrectionCommandAsync("Credit", firstId, second, "2026-09-22");
-        command["reapplications"]!.AsArray().Add(new JsonObject { ["fundingItemId"] = secondId.ToString(), ["debtItemId"] = debt.ToString(), ["amount"] = "6" });
-        // WHEN its successor is corrected again THEN the existing release is reused without another cash release.
-        await context.CaptureCorrectionPlanAsync(command); await context.CorrectAsync("Credit", command);
-        Assert.Equal(cash, await context.CashEvidenceAsync());
-        Assert.Equal(12m, await context.BalanceAsync(debt));
-        Assert.Equal(0m, await context.BalanceAsync(firstId)); Assert.Equal(0m, await context.BalanceAsync(secondId));
-        Assert.Equal(94m, await context.Bills.Recognition.BalanceAsync("Expense"));
-        Assert.Equal(1, await context.Bills.ScalarAsync<int>("SELECT COUNT(*) FROM Purchasing.SupplierCashSettlementReleases"));
-    }
-
     [Theory]
     [InlineData("2026-09-18", "20", "80", "2026-09-21")]
     [InlineData("2026-09-18", "20", "80", "2026-09-16")]

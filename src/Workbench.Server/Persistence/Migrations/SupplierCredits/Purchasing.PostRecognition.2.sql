@@ -67,6 +67,12 @@
     IF DATALENGTH(@Evidence)>262144 THROW 51000,'Recognition evidence exceeds its bound.',1;
     DELETE @Lines WHERE Debit=0 AND Credit=0;
     DECLARE @EventId uniqueidentifier=NEWID(),@JournalId uniqueidentifier=NULL,@JournalRequestId uniqueidentifier=NEWID(),@LinesJson nvarchar(max),@Snapshot nvarchar(max);
+    IF @BillOwnerRequestId IS NOT NULL
+    BEGIN
+      IF @Side='Invoice' SET @EventId=CONVERT(uniqueidentifier,JSON_VALUE(@BillBinding,'$.invoiceEventId'));
+      ELSE SELECT @EventId=TRY_CONVERT(uniqueidentifier,JSON_VALUE(value,'$.eventId')) FROM OPENJSON(@BillPlan,'$.recognitionSuccessors')
+        WHERE TRY_CONVERT(uniqueidentifier,JSON_VALUE(value,'$.unitId'))=@UnitId;
+    END;
     IF EXISTS(SELECT 1 FROM @Lines)
     BEGIN
       SET @LinesJson=(SELECT ROW_NUMBER() OVER(ORDER BY Slot) ordinal,AccountId accountId,AccountVersion accountVersion,

@@ -101,11 +101,11 @@
       OR EXISTS(SELECT 1 FROM Purchasing.SupplierApplicationReversals WHERE TenantId=@TenantId AND ApplicationId=@InverseApplication)
       OR NOT EXISTS(SELECT 1 FROM Purchasing.SupplierFinancialReceipts r JOIN Purchasing.SupplierFinancialGroups g
         ON g.TenantId=r.TenantId AND g.Id=r.GroupId WHERE r.TenantId=@TenantId AND r.GroupId=@SourceRevision AND r.ActorId=@ActorId
-        AND JSON_VALUE(r.ResultJson,'$.state')='pending' AND (g.RecordedAtUtc=TRY_CONVERT(datetimeoffset,JSON_VALUE(r.ResultJson,'$.recordedAtUtc')) OR r.Operation='CorrectSupplierCredit' AND g.RecordedAtUtc=r.RecordedAtUtc)
+        AND JSON_VALUE(r.ResultJson,'$.state')='pending' AND (g.RecordedAtUtc=TRY_CONVERT(datetimeoffset,JSON_VALUE(r.ResultJson,'$.recordedAtUtc')) OR r.Operation IN('CorrectSupplierCredit','CorrectSupplierBill') AND g.RecordedAtUtc=r.RecordedAtUtc)
         AND ((r.Operation='ReverseSupplierApplication' AND TRY_CONVERT(uniqueidentifier,JSON_VALUE(r.CanonicalInput,'$.applicationId'))=@InverseApplication)
           OR (r.Operation='CorrectSupplierPayment' AND EXISTS(SELECT 1 FROM Purchasing.SupplierApplications a WHERE a.TenantId=@TenantId AND a.Id=@InverseApplication
             AND a.FundingItemId=TRY_CONVERT(uniqueidentifier,JSON_VALUE(r.CanonicalInput,'$.paymentId'))))
-          OR (r.Operation='CorrectSupplierCredit' AND g.Operation='CorrectCredit' AND EXISTS(
+          OR ((r.Operation='CorrectSupplierCredit' AND g.Operation='CorrectCredit' OR r.Operation='CorrectSupplierBill' AND g.Operation='CorrectBill') AND EXISTS(
             SELECT 1 FROM OPENJSON(r.ResultJson,'$.plan.applications') child
             WHERE TRY_CONVERT(uniqueidentifier,JSON_VALUE(child.value,'$.applicationId'))=@InverseApplication
               AND TRY_CONVERT(date,JSON_VALUE(child.value,'$.postingDate'),23)=@PostingDate))))

@@ -3947,7 +3947,7 @@ namespace Workbench.Server.Persistence.Migrations
 
                     b.ToTable("SupplierFinancialGroups", "Purchasing", t =>
                         {
-                            t.HasCheckConstraint("CK_SupplierFinancialGroups_Operation", "[Operation] COLLATE Latin1_General_100_BIN2 IN ('OpenRecognitionPayable','RecordPayment','Apply','ReverseApplication','CorrectPayment','CorrectSource','RecordCredit','RecordRefund','CorrectCredit')");
+                            t.HasCheckConstraint("CK_SupplierFinancialGroups_Operation", "[Operation] COLLATE Latin1_General_100_BIN2 IN ('OpenRecognitionPayable','RecordPayment','Apply','ReverseApplication','CorrectPayment','CorrectSource','RecordCredit','RecordRefund','CorrectCredit','CorrectBill')");
                         });
                 });
 

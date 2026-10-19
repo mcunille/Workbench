@@ -11,9 +11,10 @@ AS BEGIN
     IF NOT EXISTS(SELECT 1 FROM Purchasing.SupplierFinancialReceipts receipt
       CROSS APPLY OPENJSON(receipt.ResultJson,'$.plan.sources') source
       JOIN Purchasing.SupplierSourceCorrections correction ON correction.TenantId=receipt.TenantId AND correction.GroupId=receipt.GroupId
+        AND correction.SourceKind='SupplierCredit' AND correction.ActorId=receipt.ActorId AND correction.RecordedAtUtc=receipt.RecordedAtUtc
         AND correction.SourceId=TRY_CONVERT(uniqueidentifier,JSON_VALUE(source.value,'$.sourceId'))
         AND correction.ReplacementSourceId=TRY_CONVERT(uniqueidentifier,JSON_VALUE(source.value,'$.replacementId'))
-      WHERE receipt.TenantId=@TenantId AND receipt.GroupId=@CorrectionGroupId AND receipt.Operation='CorrectSupplierCredit'
+      WHERE receipt.TenantId=@TenantId AND receipt.GroupId=@CorrectionGroupId AND receipt.Operation IN('CorrectSupplierCredit','CorrectSupplierBill')
         AND correction.ReplacementSourceId=@ProposedCreditId
         AND JSON_VALUE(receipt.ResultJson,'$.state')='pending'
         AND CONVERT(varbinary(max),JSON_QUERY(source.value,'$.replacement.claims'))=CONVERT(varbinary(max),@Claims)

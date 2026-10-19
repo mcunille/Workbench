@@ -150,7 +150,7 @@ BEGIN
         ON g.TenantId=r.TenantId AND g.Id=r.GroupId
         WHERE r.TenantId=@TenantId AND r.GroupId=@GroupId AND g.RecordedAtUtc=@RecordedAtUtc
           AND JSON_VALUE(r.ResultJson,'$.state')='pending' AND r.ActorId=(SELECT TOP(1) ActorId FROM @InverseApplications)
-          AND (r.Operation IN('ReverseSupplierApplication','CorrectSupplierPayment') OR r.Operation='CorrectSupplierCredit'
+          AND (r.Operation IN('ReverseSupplierApplication','CorrectSupplierPayment') OR r.Operation IN('CorrectSupplierCredit','CorrectSupplierBill')
             AND NOT EXISTS(SELECT 1 FROM @InverseApplications expected WHERE NOT EXISTS(
               SELECT 1 FROM OPENJSON(r.ResultJson,'$.plan.applications') owned
               WHERE TRY_CONVERT(uniqueidentifier,JSON_VALUE(owned.value,'$.applicationId'))=expected.ApplicationId

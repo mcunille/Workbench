@@ -3,11 +3,14 @@ RETURNS TABLE AS RETURN
   SELECT b.PurchaseOrderId,b.SupplierId,receipt.ActorId,CONVERT(date,JSON_VALUE(r.Payload,'$.postingDate')) PostingDate,p.RecordedAtUtc,
     HASHBYTES('SHA2_256',CONVERT(varbinary(max),r.Payload)) SourceSnapshotSha256,
     review.EvidenceJson Documents,JSON_VALUE(r.Payload,'$.missingEvidenceReason') MissingEvidenceReason,
-    CONVERT(bit,0) LegacyEvidence,CONVERT(nvarchar(100),N'SupplierBillsManage') MutationPermission,CONVERT(uniqueidentifier,NULL) InheritedEvidenceSetId
+    CONVERT(bit,0) LegacyEvidence,CONVERT(nvarchar(100),CASE WHEN parent.Id IS NULL THEN N'SupplierBillsManage' ELSE N'SupplierBillsCorrect' END) MutationPermission,
+    (SELECT original.Id FROM Accounting.FinancialEvidenceSets original WHERE original.TenantId=b.TenantId
+      AND original.OwnerKind='SupplierBill' AND original.OwnerId=parent.SourceId AND original.OwnerRevisionId=parent.SourceRevisionId) InheritedEvidenceSetId
   FROM Purchasing.SupplierBillPostings p JOIN Purchasing.SupplierBills b ON b.TenantId=p.TenantId AND b.Id=p.BillId
   JOIN Purchasing.SupplierBillRevisions r ON r.TenantId=p.TenantId AND r.BillId=p.BillId AND r.Id=p.RevisionId
   JOIN Purchasing.SupplierBillReviews review ON review.TenantId=p.TenantId AND review.Id=p.ReviewId AND review.RevisionId=p.RevisionId
   JOIN Purchasing.RecognitionGroupReceipts receipt ON receipt.TenantId=p.TenantId AND receipt.RequestId=p.RecognitionRequestId
+  LEFT JOIN Purchasing.SupplierSourceCorrections parent ON parent.TenantId=p.TenantId AND parent.SourceKind='SupplierBill' AND parent.ReplacementSourceId=p.BillId
   WHERE @OwnerKind='SupplierBill' AND p.TenantId=@TenantId AND p.BillId=@OwnerId AND p.RevisionId=@OwnerRevisionId
   UNION ALL
   SELECT p.PurchaseOrderId,p.SupplierId,p.ActorId,p.PostingDate,p.RecordedAtUtc,HASHBYTES('SHA2_256',CONVERT(varbinary(max),p.EvidenceJson)),
