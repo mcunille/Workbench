@@ -7,7 +7,7 @@ RUN npm ci --ignore-scripts --no-audit --no-fund
 COPY src/Workbench.Client/ ./
 RUN npm run build
 
-FROM mcr.microsoft.com/dotnet/sdk:10.0.401-noble AS server-build
+FROM mcr.microsoft.com/dotnet/sdk:10.0.402-noble AS server-build
 WORKDIR /src
 RUN mkdir -p /runtime-data/blobs
 COPY global.json Directory.Build.props Directory.Packages.props ./
@@ -30,7 +30,7 @@ RUN dotnet publish src/Workbench.Database/Workbench.Database.csproj \
     --output /database/publish \
     -p:UseAppHost=false
 
-FROM mcr.microsoft.com/dotnet/aspnet:10.0.12-noble-chiseled-extra AS runtime
+FROM mcr.microsoft.com/dotnet/aspnet:10.0.13-noble-chiseled-extra AS runtime
 WORKDIR /app
 ENV ASPNETCORE_HTTP_PORTS=8080 \
     DOTNET_EnableDiagnostics=0 \
