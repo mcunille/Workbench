@@ -1,0 +1,51 @@
+name: Supplier fixture measurement
+run-name: Distributed coverage comparison
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  coverage:
+    name: Full coverage (${{ matrix.phase }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - phase: before
+            sha: 7577619a876ffa9cee889736d816486eb614f878
+            cases: 1999
+          - phase: after
+            sha: 9309eeec3fdb58340aa3894d7e6048c549600eb5
+            cases: 2001
+    steps:
+      - name: Check out measurement tooling
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          path: measurement
+          persist-credentials: false
+      - name: Check out frozen source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ matrix.sha }}
+          path: source
+          persist-credentials: false
+      - name: Set up .NET
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
+        with:
+          dotnet-version: 10.0.402
+      - name: Set up Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: 26.7.0
+      - name: Collect identical complete coverage
+        shell: pwsh
+        run: ./measurement/measurement/coverage.ps1 -Repository ./source -ExpectedCases ${{ matrix.cases }}
+      - name: Retain raw coverage and inventory
+        if: ${{ always() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: coverage-${{ matrix.phase }}
+          if-no-files-found: error
+          path: source/artifacts/hosted-coverage/
