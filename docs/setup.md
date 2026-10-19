@@ -5,6 +5,29 @@ SQL container, persistent SQL/blob volumes, network, credentials, and browser se
 The API serves the built UI at one loopback URL. Closing the terminal leaves the preview running.
 Operate only this checkout's environment; preserve other checkouts' state and resources.
 
+## Client linting and compiler compatibility
+
+Run `npm run lint --prefix src/Workbench.Client` for Oxlint. The client configuration
+preserves the previous TypeScript, React Hooks, React Compiler and Vite Fast Refresh rule
+severities and options, including the generated API and `dist` exclusions. Most rules run
+natively. React Compiler `config` and `gating` validation retain `eslint-plugin-react-hooks`
+through Oxlint's JavaScript plugin bridge, which is currently alpha. ESLint remains pinned
+to satisfy that plugin's peer dependency; the lint command does not invoke ESLint.
+
+Typechecking remains a separate `npm run typecheck --prefix src/Workbench.Client` step using
+`tsc -b` and both client project references. The existing lint policy does not use type-aware
+rules, so this migration does not add `oxlint-tsgolint` or change formatting.
+
+As checked on 2026-10-19 for [issue #221](https://github.com/mcunille/Workbench/issues/221),
+TypeScript remains at 5.9.3: released `openapi-typescript@7.13.0` requires TypeScript `^5.x`.
+Replacing typescript-eslint removes the lint-tooling blocker, but does not make TypeScript
+7.0.2 a supported compiler for the full toolchain. Retry the upgrade when a released API
+generator supports TypeScript 7, then verify a clean locked install and valid peer graph,
+lint, both TypeScript projects (including test types and Vite configuration), API generation
+without declaration/schema drift, tests, production build, and the delivery gates. Do not
+override peer requirements. See the [Oxlint migration guide](https://oxc.rs/docs/guide/usage/linter/migrate-from-eslint.html)
+and [TypeScript 7 migration notes](https://devblogs.microsoft.com/typescript/announcing-typescript-7-0/).
+
 ## Credential use
 
 Use the migration credential only for explicit migration commands; the web process must use the

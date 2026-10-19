@@ -96,7 +96,7 @@ export function GemReview({ accountId, selection, onPublished, onEdit, writesSus
     if (pending && !writesSuspended) void Promise.resolve().then(() => { if (current) return resolvePublication(pending, false); });
     return () => { current = false; };
     // Recovery starts on mount and on a restored session; explicit buttons own subsequent queries.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // oxlint-disable-next-line react/exhaustive-deps
   }, [accountId, sessionRevision, writesSuspended]);
 
   async function publish() {
