@@ -147,6 +147,25 @@ function New-DistributedServerPlan {
     ); DurationDataset=$DurationDataset; TestProjects=$TestProjects }
 }
 
+function Assert-DistributedServerPlan {
+    param([object]$Plan)
+    if ($Plan.Version -ne 1 -or $Plan.Partitions.Count -ne 4 -or $Plan.Hosts.Count -ne 2) { throw 'Invalid global partition plan version or shape.' }
+    Assert-ServerTestProjects $Plan.TestProjects 'tests/Workbench.Server.IntegrationTests/Workbench.Server.IntegrationTests.csproj'
+    $null = New-ServerTestPartitions -TestNames $Plan.Inventory -PartitionCount 4
+    Assert-ServerTestCoverage @('1','2','3','4') @($Plan.Partitions.Id | ForEach-Object {[string]$_})
+    Assert-ServerTestPartitions $Plan.Inventory $Plan.Partitions
+    Assert-ServerTestCoverage @('A','B') @($Plan.Hosts.Id)
+    foreach ($entry in $Plan.Hosts) {
+        $ids = if ($entry.Id -ceq 'A') {@('1','2')} else {@('3','4')}
+        Assert-ServerTestCoverage $ids @($entry.PartitionIds | ForEach-Object {[string]$_})
+    }
+    foreach ($partition in $Plan.Partitions) {
+        $methods=[Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
+        foreach ($name in $partition.Tests) { $null=$methods.Add(($name -replace '\(.*$', '')) }
+        Assert-ServerTestCoverage @($methods) @($partition.Methods)
+    }
+}
+
 function Assert-ServerPartitionResult {
     param([object]$Partition, [string]$ResultPath, [int]$ExitCode)
     if ($ExitCode -ne 0) { throw "Server partition $($Partition.Id) failed with exit code $ExitCode." }

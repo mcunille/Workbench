@@ -1,5 +1,6 @@
 $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot '../../scripts/verification-artifacts.ps1')
+. (Join-Path $PSScriptRoot '../../scripts/server-partition-contract.ps1')
 $transportScript = Join-Path $PSScriptRoot '../../scripts/verification-transport.ps1'
 if (Test-Path $transportScript) { . $transportScript }
 function Assert-Rejected([scriptblock]$Action, [string]$Category) {
@@ -34,7 +35,8 @@ try {
     Set-Content (Join-Path $runtime.client 'index.html') 'client'
     Set-Content (Join-Path $runtime.tests 'Workbench.Server.IntegrationTests.dll') 'tests'
     $runtime.server = Join-Path $producer 'output/published/server'; $runtime.database = Join-Path $producer 'output/published/database'
-    $plan = [pscustomobject]@{ Version=1; Inventory=@('Suite.A'); Partitions=@(); Hosts=@(); DurationDataset=@{ Sha256=('a'*64) }; TestProjects=@('tests.csproj') }
+    $testNames=@('Suite.A','Suite.B','Suite.C','Suite.D')
+    $plan = New-DistributedServerPlan $testNames @(New-ServerTestPartitions $testNames 4) @{Sha256=('a'*64)} @('tests/Workbench.Server.IntegrationTests/Workbench.Server.IntegrationTests.csproj')
     # GIVEN current-run source/build evidence WHEN exported and relocated THEN local path checks remain strict.
     $bundle = Export-VerificationTransport $producer $context $receipt $local $plan $runtime (Join-Path $producer 'output/bundle')
     $imported = Import-VerificationTransport $consumer $bundle.BundleRoot $context $bundle.TransportHash $bundle.PlanHash (Join-Path $consumer 'output/valid')
@@ -79,6 +81,16 @@ try {
     Assert-Rejected { Import-VerificationTransport $consumer $bundle.BundleRoot $context (Get-FileHash $bundle.ManifestPath).Hash $bundle.PlanHash (Join-Path $consumer 'output/version') } 'version'
     Set-Content $bundle.ManifestPath $manifestText -NoNewline
     Assert-Rejected { Import-VerificationTransport $consumer $bundle.BundleRoot $context ('0'*64) $bundle.PlanHash (Join-Path $consumer 'output/digest') } 'digest'
+    # GIVEN an unknown test assembly in a producer plan THEN reject before authorizing execution.
+    $planPath=Join-Path $bundle.BundleRoot 'plan.json'
+    $planText=Get-Content $planPath -Raw
+    $badPlan=$planText|ConvertFrom-Json; $badPlan.TestProjects=@('unknown.csproj')
+    $badPlan|ConvertTo-Json -Depth 30|Set-Content $planPath
+    $badManifest=$manifestText|ConvertFrom-Json; $badManifest.PlanHash=(Get-FileHash $planPath).Hash
+    $badManifest|ConvertTo-Json -Depth 30|Set-Content $bundle.ManifestPath
+    Assert-Rejected { Import-VerificationTransport $consumer $bundle.BundleRoot $context (Get-FileHash $bundle.ManifestPath).Hash $badManifest.PlanHash (Join-Path $consumer 'output/assembly') } 'project inventory'
+    Set-Content $planPath $planText -NoNewline
+    Set-Content $bundle.ManifestPath $manifestText -NoNewline
     # GIVEN a reparse-point directory WHEN inventoried THEN content outside the bundle is never traversed.
     $link = Join-Path $bundle.BundleRoot 'payload/tests/link'
     New-Item -ItemType $(if ($IsWindows) { 'Junction' } else { 'SymbolicLink' }) -Path $link -Target $consumer | Out-Null

@@ -1,4 +1,5 @@
 . (Join-Path $PSScriptRoot 'verification-artifacts.ps1')
+. (Join-Path $PSScriptRoot 'server-partition-contract.ps1')
 
 function Assert-VerificationTransportPath {
     param([string]$Path)
@@ -41,7 +42,7 @@ function Export-VerificationTransport {
     $local = Get-VerificationArtifacts $RepositoryRoot $LocalManifestPath $Context.InvocationId
     if ($BuildReceipt.RunId -cne $Context.InvocationId -or $BuildReceipt.RepositoryRoot -cne [IO.Path]::GetFullPath($RepositoryRoot) -or
         $BuildReceipt.Configuration -cne $Context.Configuration -or $BuildReceipt.SourceHash -cne (Get-VerificationSourceHash $RepositoryRoot -BeforeGeneration)) { throw 'Transport source build receipt mismatch.' }
-    if ($Plan.Version -ne 1) { throw 'Unsupported transport plan version.' }
+    Assert-DistributedServerPlan $Plan
     if ($RuntimeRoots.Count -ne 4 -or @('server','database','client','tests' | Where-Object { -not $RuntimeRoots.ContainsKey($_) }).Count -or
         [IO.Path]::GetFullPath($RuntimeRoots.server) -cne $local.ServerRoot -or [IO.Path]::GetFullPath($RuntimeRoots.database) -cne $local.DatabaseRoot) { throw 'Unexpected transport runtime roots.' }
     if (Test-Path -LiteralPath $OutputRoot) { throw 'Transport output must be fresh.' }
@@ -88,7 +89,7 @@ function Import-VerificationTransport {
     $planPath = Join-Path $BundleRoot 'plan.json'
     if ($manifest.PlanHash -cne $ExpectedPlanHash -or (Get-FileHash -LiteralPath $planPath -Algorithm SHA256).Hash -cne $ExpectedPlanHash) { throw 'Transport plan digest mismatch.' }
     $plan = Get-Content -LiteralPath $planPath -Raw | ConvertFrom-Json
-    if ($plan.Version -ne 1) { throw 'Unsupported transport plan version.' }
+    Assert-DistributedServerPlan $plan
     $seen = [Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
     foreach ($file in $manifest.Files) {
         Assert-VerificationTransportPath $file.Path
