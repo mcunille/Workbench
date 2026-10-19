@@ -1,9 +1,9 @@
 # Development workflow
 
 Use the installed superpowers skills for design, planning, execution, debugging, and internal
-review. Read the applicable skill rather than reproducing its process here. Root
-[AGENTS.md](../AGENTS.md) defines the repository's explicit adaptations and authorization
-boundaries; [CONTRIBUTING.md](../CONTRIBUTING.md) owns application verification gates.
+review. Read the applicable skill rather than reproducing its process here. This guide owns
+Workbench's workflow adaptations; root [AGENTS.md](../AGENTS.md) defines shared scope, authorization,
+and delivery requirements. [CONTRIBUTING.md](../CONTRIBUTING.md) owns application verification gates.
 
 ## First principles: the five-step algorithm
 
@@ -43,12 +43,14 @@ A bounded change needs the short in-chat design approval. Architectural work nee
 spec review and the subsequent implementation-plan handoff; approval of an earlier stage does
 not approve an unseen artifact. Once a particular artifact is approved, preserve that approval.
 
-Keep durable specs in `docs/specs/`, including changes requiring a spec under CONTRIBUTING.md.
+Keep durable specs in `docs/specs/`, including those produced by superpowers:brainstorming and
+changes requiring a spec under CONTRIBUTING.md.
 Update living architecture and product documentation when implementation makes the design current.
 Keep plans in the ignored `docs/superpowers/plans/` directory and use the selected execution skill's
 ignored workspace for ledgers, task briefs, and review packages. Plans and execution scratch are
-not committed. Follow superpowers:writing-plans for plan content, self-review, and the user's
-execution-method choice.
+not committed. When an implementation plan is required, use superpowers:writing-plans for its task
+structure, self-review, and user handoff, including plan review and execution-method selection
+before implementation.
 
 ## Execution and verification
 
@@ -56,16 +58,12 @@ Use superpowers:executing-plans or superpowers:subagent-driven-development accor
 approved handoff. Use superpowers:systematic-debugging for failures, including its escalation
 conditions, and superpowers:verification-before-completion for completion claims.
 
-Reuse an existing isolated workspace rather than creating a nested worktree. Start and refresh
-this checkout's preview through `scripts/dev-up.ps1` as documented in [setup](setup.md). Keep
-credentials private and preserve other checkouts' environments and unrelated edits.
+Reuse an existing isolated workspace rather than creating a nested worktree. For local preview
+lifecycle and browser verification, follow [setup](setup.md).
 
-Repository TDD, characterization coverage for behavior-preserving refactors, Gherkin comments,
-mutation testing, and stack-specific test boundaries remain applicable. Component tests may mock
-the feature API boundary as described in the client guidance; real SQL tests establish persistence,
-concurrency, and tenant-isolation behavior. Run the applicable CONTRIBUTING.md delivery gates;
-focused task tests do not replace them. Documentation-only changes use affected documentation and
-guidance checks without requiring an application build or container smoke run.
+Follow [test method](../tests/README.md#test-method) and stack-specific test boundaries. Component
+tests may mock the feature API boundary as described in the client guidance; real SQL tests establish
+persistence, concurrency, and tenant-isolation behavior.
 
 For superpowers dispatches, follow the selected skill's model-selection rules and Codex tool
 adaptation. Resolve role tiers against the current tool's available models and supported reasoning
@@ -106,11 +104,8 @@ Workbench CI and application verification do not require private-library access 
 skill installation. Workbench-specific refactoring coverage tooling, Impeccable launchers and
 their tests remain here with the four remaining local skills.
 
-Root AGENTS.md and this workflow own Workbench design, planning, authorization, and delivery rules;
-CONTRIBUTING.md and tests/README.md own verification gates and test boundaries. The migration
-runbook and root guidance continue to require consolidation of development-only migrations,
-durability at merge into main, and fresh creation plus upgrade from the merged PR base. Generic
-skills discover these policies from the consuming repository rather than embedding them.
+Generic skills discover Workbench policies through root AGENTS.md and its conditional references
+rather than embedding repository-specific contracts.
 
 ## Internal review and skills
 
@@ -175,9 +170,10 @@ introducing new hooks or changing repository guidance. Review those changes befo
 
 ## Delivery
 
-Verified implementation is delivered through a ready-for-review PR; this is the already-selected
-finishing option under AGENTS.md. Keep the branch and worktree for feedback. Merge, production
-operations, and separately gated collaboration writes require their own authorization.
+Follow root [delivery and authorization requirements](../AGENTS.md#workflow-and-authority).
+Keep the branch and worktree for feedback. For visual PR evidence, follow
+[verification evidence](../CONTRIBUTING.md#verification-evidence); for schema changes, complete
+[migration authoring and validation](operations/database-migrations.md#authoring-and-validating-a-migration).
 
 ## Guidance maintenance
 

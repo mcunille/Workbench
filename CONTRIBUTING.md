@@ -137,6 +137,21 @@ general cleanup as approval of an unstated breaking change.
 Specs describe the reasoning behind a change. The vision and design-principles documents describe
 the project's current direction and must remain understandable without reconstructing spec history.
 
+## Verification evidence
+
+When visual evidence helps reviewers understand the result, include a `VERIFICATION EVIDENCE`
+section in the PR description with a representative Playwright screenshot or short recording of
+the affected workflow. Capture the current source, use non-sensitive sample data, and caption the
+evidence with the revision, state shown, and any verification limits. Visual evidence supplements
+the required checks; it does not establish behavior that was not exercised.
+
+Keep verification images and recordings outside the repository and Git history. Upload them as
+GitHub attachments using a supported GitHub CLI version with `gh pr edit --attach` (and
+`--body-file` when updating the description); do not use browser debugging for uploads. Preserve
+the existing PR description and verify that the resulting attachment URL appears in it. If
+attachment support or permission is unavailable, report the blocker rather than committing the
+media.
+
 ## License
 
 By contributing, you agree that your contributions will be licensed under the repository's

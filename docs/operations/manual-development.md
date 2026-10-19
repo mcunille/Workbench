@@ -130,6 +130,10 @@ connection strings directly. Never put actual passwords in commands or commit th
 | `DEV_TENANT_NAME` | Name of the first tenant |
 | `DEV_ADMIN_EMAIL`, `DEV_ADMIN_PASSWORD` | Application login identity, not a SQL principal |
 
+Agents may load the ignored `.env.dev` through `scripts/dev-env.ps1` for local development.
+Follow [credential use](../setup.md#credential-use). The startup procedure below removes privileged
+credentials before launching the web process.
+
 `dev-env.ps1` prefers the checkout's `.env.dev`; `WORKBENCH_DEV_ENV_FILE` is a fallback only when
 that file does not exist. It derives `WORKBENCH_WEB_CONNECTION` from the web fields. Production
 workers and maintenance operations have additional distinct principals and secret mounts; see the

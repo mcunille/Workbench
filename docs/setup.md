@@ -3,6 +3,12 @@
 Use the per-worktree preview for local development and agent changes. Each checkout gets its own
 SQL container, persistent SQL/blob volumes, network, credentials, and browser session cookies.
 The API serves the built UI at one loopback URL. Closing the terminal leaves the preview running.
+Operate only this checkout's environment; preserve other checkouts' state and resources.
+
+## Credential use
+
+Use the migration credential only for explicit migration commands; the web process must use the
+web credential.
 
 ## Prerequisites
 
@@ -44,8 +50,9 @@ published changes; see [pilot distribution and installation](operations/database
 
 Open the reported `http://localhost:<port>` address. Docker chooses an available loopback port;
 SQL has no published host port. The initial login is stored privately in
-`.dev-environment/secrets/login.txt`. Read it with a private editor; do not print or attach it to
-logs, chat, or pull requests. The command reports the file path, not the password.
+the protected, ignored `.dev-environment/secrets/login.txt`. Read it privately for browser
+verification; do not print or attach it to logs, chat, or pull requests. The command reports the
+file path, not the password.
 
 Sign in, exercise the changed workflow, and reload to confirm the saved state. Agents should
 give the user the reported URL and describe what they actually tested. Readiness verifies the
