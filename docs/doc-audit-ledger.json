@@ -2,6 +2,20 @@
   "version": 1,
   "reviews": [
     {
+      "path": "docs/specs/2026-08-31-base-application-architecture.md",
+      "reviewedAtUtc": "2026-10-19T07:39:10Z",
+      "reviewedRevision": "2a3e7d752d1a2a900515db4730551f357f5899f2",
+      "outcome": "investigate",
+      "note": "Outstanding implementation evidence retains accepted module-dependency checks and OpenTelemetry exports. Source/tests/config search and Workbench.Server.csproj do not establish them; docs/ARCHITECTURE.md Observability and audit describes a closed-schema console logger. Resolve through implementation evidence or approved replacement before retirement. Destinations: architecture and operations/production-readiness.md. Incoming: architecture and specs index. Static audit; no hosted/runtime acceptance rerun."
+    },
+    {
+      "path": "docs/specs/2026-09-01-data-identity-tenancy.md",
+      "reviewedAtUtc": "2026-10-19T07:39:10Z",
+      "reviewedRevision": "2a3e7d752d1a2a900515db4730551f357f5899f2",
+      "outcome": "investigate",
+      "note": "Database principals and migration security retains unestablished release/hash CLI enforcement and provenance. Workbench.Database/Program.cs validates expected database; Persistence/DatabaseMigrator.cs delegates to EF without explicit release/hash inputs. Operator checks do not prove CLI enforcement. Preserve accepted requirement pending evidence or approved replacement. Owners: architecture, principal matrix, migration runbook. Incoming: architecture, gem-reference parent, index. No migration/restore drill run."
+    },
+    {
       "path": "docs/specs/2026-09-06-inventory-domain-foundation.md",
       "reviewedAtUtc": "2026-09-28T07:33:18Z",
       "reviewedRevision": "552a97c9ae4e3f2b418ac5cb6c161dbf625bf10d",
@@ -91,6 +105,62 @@
       "reviewedRevision": "35adcd568a4c846b54d7cd996c8c0d575ed93b98",
       "outcome": "investigate",
       "note": "Approved interface refinements explicitly leave final verification/finish evidence pending; latest spec commit 5aad676 is merged PO-04 but merge/status does not prove those gates. PurchaseOrderDatabaseTests describes immutable history, no-op and currency guards. Resolve revision-specific UI acceptance before retirement; then distill same-row identity, local-only amendment drafts and semantic content versus exact request identity into docs/ARCHITECTURE.md/docs/purchasing.md. Migration runbook owns retained clone procedure. Static audit; no fresh application evidence."
+    },
+    {
+      "path": "docs/specs/2026-09-21-bk-01-accounting-foundation.md",
+      "reviewedAtUtc": "2026-10-19T07:39:10Z",
+      "reviewedRevision": "2a3e7d752d1a2a900515db4730551f357f5899f2",
+      "outcome": "update",
+      "note": "Problem and outcome mislabels the pre-BK-01 baseline Current evidence: WorkbenchPermissions defines accounting permissions; Administration/AccountingRoleEndpoints.cs supplies assignment. Relabel baseline and link docs/accounting.md Access and ARCHITECTURE.md Accounting configuration. Distinguish original proposed retention from BK-07. AccountingRoleTests covers assignment and role-write denial; AccountingInput.Setup keeps availability false. Preserve portability/cutover, coverage and deferred role/calendar rules. Incoming: owners, PO-07, BK-02-04, index."
+    },
+    {
+      "path": "docs/specs/2026-09-23-bk-02-atomic-journal.md",
+      "reviewedAtUtc": "2026-10-19T07:39:10Z",
+      "reviewedRevision": "2a3e7d752d1a2a900515db4730551f357f5899f2",
+      "outcome": "distill-then-delete",
+      "note": "Distill tenant-lock rationale/measurement prerequisite, receipt versus event uniqueness, UTF-16LE digests and recorded-time-not-commit-order limits into docs/ARCHITECTURE.md Atomic journal foundation and docs/accounting.md Journal read APIs; preserve upgrade/replay rules in migration runbook. JournalSchema.cs and JournalAtomicityTests inspect atomic commit/rollback. Repair owner, PO-07 and BK-03-06 links. No distinct retention need established; static evidence, not fresh tests or release acceptance."
+    },
+    {
+      "path": "docs/specs/2026-09-24-bk-03-corrections-and-period-controls.md",
+      "reviewedAtUtc": "2026-10-19T07:39:10Z",
+      "reviewedRevision": "2a3e7d752d1a2a900515db4730551f357f5899f2",
+      "outcome": "distill-then-delete",
+      "note": "Owners docs/accounting.md Journal read APIs and ARCHITECTURE.md Atomic journal foundation already cover controls. Preserve on-demand calendar rationale, future close validation under lock, historical inverse versus current replacement, correction-not-refund and production-close gates before retirement. Migration runbook owns history preservation. AccountingPeriodSchema.cs, JournalCorrectionSchema.cs and AccountingPeriodConcurrencyTests inspect both lock orders. Repair owners, BK-04-06 and index links. No separate retention need; no runtime rerun."
+    },
+    {
+      "path": "docs/specs/2026-09-25-bk-04-classified-purchase-recognition.md",
+      "reviewedAtUtc": "2026-10-19T07:39:10Z",
+      "reviewedRevision": "2a3e7d752d1a2a900515db4730551f357f5899f2",
+      "outcome": "distill-then-delete",
+      "note": "Status says delivery pending; Git 50bef8f records merged PR #181, not production acceptance. Before retirement distill worked postings/variance into docs/accounting.md Internal purchase recognition; invoice-only alternative, successor identity and cross-revision capacity/date floors into ARCHITECTURE.md Classified purchase recognition. PurchaseRecognitionCorrections.cs and PurchaseRecognitionCorrectionTests inspect group rebuilding and surviving-revision limits. Migration runbook owns compatibility. Repair owners, BK-05-06, index; old test counts are not fresh evidence."
+    },
+    {
+      "path": "docs/specs/2026-09-25-raised-content-workspace.md",
+      "reviewedAtUtc": "2026-10-19T07:39:10Z",
+      "reviewedRevision": "2a3e7d752d1a2a900515db4730551f357f5899f2",
+      "outcome": "distill-then-delete",
+      "note": "DESIGN.md Authenticated navigation owns implemented geometry/materials; navigation.css and navigation.spec.ts inspect sheet geometry, fallback paint, stacking and forced colors. Preserve continuous flush sheet versus inset-card rationale, independent reading width and navigation interaction layer above sheet in DESIGN before retirement. No separate retention need from approval chronology/test counts. Repair DESIGN, docs/specs indexes and refined-navigation successor links. No visual/browser rerun."
+    },
+    {
+      "path": "docs/specs/2026-09-27-bk-05-structured-supplier-bills.md",
+      "reviewedAtUtc": "2026-10-19T07:39:10Z",
+      "reviewedRevision": "2a3e7d752d1a2a900515db4730551f357f5899f2",
+      "outcome": "distill-then-delete",
+      "note": "Original Evidence and readback permits removal until BK-07; FinancialEvidence/Purchasing.PostSupplierBill.sql now calls Accounting.CaptureFinancialEvidence atomically. Owners: docs/accounting.md Internal supplier bills/Durable financial evidence and architecture. Preserve ASCII duplicate normalization, exact conflict revisions, pro-forma identity, stored-source posting and inventory-variance limits before retirement. SupplierBillReviewTests, SupplierBillCorrectionGuardTests and FinancialEvidenceConcurrencyTests inspect these boundaries. Repair owners, purchasing, PO-07, BK-06 links; static only."
+    },
+    {
+      "path": "docs/specs/2026-09-28-mcp-agent-interface.md",
+      "reviewedAtUtc": "2026-10-19T07:39:10Z",
+      "reviewedRevision": "2a3e7d752d1a2a900515db4730551f357f5899f2",
+      "outcome": "keep",
+      "note": "Separate product/architecture proposal retains unfinished role catalog, client/workload credential flow, approval categories, role-expansion policy and full eligible parity. IRequestActor.cs remains human UserId/TenantId/SessionId; scoped src/tests/config search found no MCP registration/service principal. Incoming: roadmap, index, auction-market proposal. Linked official authorization/tools pages resolve but prove no client compatibility. Keep proposal distinct from current API contracts; no transport probe run."
+    },
+    {
+      "path": "docs/specs/2026-09-28-mcp-milestones-and-stories.md",
+      "reviewedAtUtc": "2026-10-19T07:39:10Z",
+      "reviewedRevision": "2a3e7d752d1a2a900515db4730551f357f5899f2",
+      "outcome": "keep",
+      "note": "Distinct future handoff audience needs stable MCP-01-25 IDs, approved-decision versus implemented predecessors, conditional approval dependency and revision-specific parity acceptance. Parent proposal omits task sequence; combining would impair bounded handoffs. RequestActor remains human-only; no MCP registration found in scoped search. Incoming: parent, index, auction-market proposal. No story authorized/completed here; MCP-01/23/25 must reconcile newly delivered gem-reference workflows."
     }
   ]
 }
