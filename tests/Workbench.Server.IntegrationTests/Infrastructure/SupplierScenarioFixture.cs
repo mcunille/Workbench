@@ -53,7 +53,42 @@ public abstract class SupplierScenarioFixture(SqlServerFixture sqlServer, params
     private static async Task<JsonObject> SeedAsync(SupplierPaymentTestContext context, string name)
     {
         var data = new JsonObject();
-        if (name is "mixed" or "compensation")
+        if (name is "payment100" or "application100" or "embedded100" or "embedded150" or "embedded300" or "racePayment" or "raceEmbedded")
+        {
+            // These tests own correction, inverse or competing-command behavior. Their
+            // prerequisite bills/payments remain real production commands, shared once.
+            var billAmount = name.StartsWith("race", StringComparison.Ordinal) ? "200" : name == "embedded300" ? "300" : name == "embedded150" ? "150" : "100";
+            var paymentAmount = name == "embedded300" ? "300" : "100";
+            var bill = await context.Allocation.BillAsync(billAmount);
+            var payment = await context.CommandAsync(paymentAmount);
+            if (name.StartsWith("embedded", StringComparison.Ordinal) || name == "raceEmbedded")
+                await context.AllocateAsync(payment, bill, paymentAmount);
+            var posted = await context.RecordAsync(payment);
+            var funding = Guid.Parse(payment["paymentId"]!.ToString());
+            if (name == "application100") posted = await context.Allocation.ApplyAsync(await context.Allocation.CommandAsync(funding, bill));
+            data["bill"] = bill.ToString(); data["funding"] = funding.ToString();
+            data["posted"] = posted;
+            if (name == "raceEmbedded")
+            {
+                data["correction"] = await SupplierCorrectionFixture.CorrectionAsync(context, funding);
+                data["reverse"] = await SupplierCorrectionFixture.ReverseAsync(context, Guid.Parse(posted["applicationIds"]![0]!.ToString()));
+            }
+            if (name == "embedded150")
+                foreach (var amount in new[] { "80", "120" })
+                {
+                    var replacement = await context.CommandAsync(amount, "2026-09-20"); await context.AllocateAsync(replacement, bill, amount);
+                    data["replacement" + amount] = replacement.DeepClone();
+                    data["correction" + amount] = await SupplierCorrectionFixture.CorrectionAsync(context, funding, replacement);
+                }
+        }
+        else if (name == "refundedCredit")
+        {
+            var credit = await context.Allocation.SourceAsync("CreditReceivable", "18");
+            var refund = await context.Allocation.SourceAsync("RefundClearing", "18", "2026-09-15", context.Bank);
+            await context.Allocation.ParticipantAsync(credit, refund, amount: 18);
+            data["credit"] = credit.ToString(); data["refund"] = refund.ToString();
+        }
+        else if (name is "mixed" or "compensation")
         {
             var bill = await context.Allocation.BillAsync("150");
             var payment = await context.CommandAsync("120"); await context.AllocateAsync(payment, bill, "60");
@@ -169,6 +204,14 @@ public abstract class SupplierScenarioFixture(SqlServerFixture sqlServer, params
             data["document"] = document.ToString(); data["revision"] = revision.ToString(); data["payment"] = payment;
             data["request"] = request.ToString(); data["receipt"] = receipt; data["reverse"] = reverse;
             data["reversalRequest"] = reversalRequest.ToString(); data["reversed"] = reversed;
+            // One recovery history carries bill, non-bill correction, payment and inverse receipts.
+            data["billReceipt"] = JsonNode.Parse(await context.Bills.ScalarAsync<string>($"SELECT RequestId requestId,JSON_QUERY(CanonicalInput) command,JSON_QUERY(ResultJson) receipt FROM Purchasing.SupplierBillReceipts WHERE BillId='{bill}' AND Operation='Post' FOR JSON PATH,WITHOUT_ARRAY_WRAPPER"));
+            var invoice = await context.Bills.Recognition.CommandAsync("Invoice", cost: "40"); var invoiceRequest = Guid.NewGuid();
+            var invoiceReceipt = await context.Bills.Recognition.PostAsync(invoice.ToJsonString(), invoiceRequest);
+            data["beforeInvoiceCorrection"] = (await context.Bills.ScalarAsync<DateTimeOffset>("SELECT SYSDATETIMEOFFSET()")).ToUniversalTime().ToString("O");
+            await context.Bills.Recognition.CorrectAsync((await PurchaseRecognitionCorrectionTests.CorrectionAsync(context.Bills.Recognition, invoice, "30")).ToJsonString());
+            data["invoice"] = invoice; data["invoiceRequest"] = invoiceRequest.ToString(); data["invoiceReceipt"] = JsonSerializer.Serialize(invoiceReceipt);
+            await SupplierOpenItemRecoveryTests.PostOtherTenantHistoryAsync(context.Bills);
         }
         else if (name.StartsWith("receipt", StringComparison.Ordinal))
         {
@@ -201,7 +244,12 @@ public abstract class SupplierScenarioFixture(SqlServerFixture sqlServer, params
 }
 
 public sealed class SupplierCorrectionScenarios(SqlServerFixture server) : SupplierScenarioFixture(server,
-    "coordination", "closure", "restoredDebt", "receiptFalse", "receiptTrue");
+    "coordination", "closure", "restoredDebt", "receiptFalse", "receiptTrue", "application100", "racePayment", "raceEmbedded", "embedded150");
+
+public sealed class SupplierAllocationCorrectionScenarios(SqlServerFixture server) : SupplierScenarioFixture(server,
+    "payment100", "application100", "embedded100");
+
+public sealed class SupplierParticipantScenarios(SqlServerFixture server) : SupplierScenarioFixture(server, "embedded300", "refundedCredit");
 
 public sealed class SupplierReconciliationScenarios(SqlServerFixture server) : SupplierScenarioFixture(server,
     "mixed", "compensation", "equalLines", "sourcesFalse", "sourcesTrue");

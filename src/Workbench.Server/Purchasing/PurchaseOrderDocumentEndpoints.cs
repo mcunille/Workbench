@@ -14,9 +14,14 @@ public static class PurchaseOrderDocumentEndpoints
     public static void MapPurchaseOrderDocuments(this RouteGroupBuilder purchases)
     {
         var group = purchases.MapGroup("/{id:guid}/documents");
+        group.AddEndpointFilter(async (context, next) =>
+        {
+            context.HttpContext.Response.Headers.CacheControl = "private, no-store";
+            return await next(context);
+        });
         group.MapGet("", ListAsync).Produces<PurchaseOrderDocumentsResponse>().ProducesProblem(404).ProducesProblem(409).ProducesProblem(503);
         group.MapGet("/operations/{requestId:guid}", OperationAsync)
-            .Produces<PurchaseOrderDocumentOperationResponse>().ProducesProblem(404).ProducesProblem(503);
+            .Produces<PurchaseOrderDocumentOperationResponse>().ProducesProblem(403).ProducesProblem(404).ProducesProblem(503);
         group.MapGet("/{documentId:guid}/download", DownloadAsync)
             .Produces<byte[]>(contentType: "application/octet-stream").ProducesProblem(404).ProducesProblem(410).ProducesProblem(503);
         var upload = group.MapPost("", UploadAsync)
@@ -24,12 +29,17 @@ public static class PurchaseOrderDocumentEndpoints
             .Accepts<UploadPurchaseOrderDocumentRequest>("multipart/form-data");
         var rename = group.MapPut("/{documentId:guid}", RenameAsync).WithMetadata(WorkbenchAntiforgeryMetadata.Instance);
         var remove = group.MapDelete("/{documentId:guid}", RemoveAsync).WithMetadata(WorkbenchAntiforgeryMetadata.Instance);
-        foreach (var endpoint in new[] { upload, rename, remove })
+        var disposal = group.MapPost("/{documentId:guid}/retention-disposals", DisposeAsync).WithMetadata(WorkbenchAntiforgeryMetadata.Instance);
+        foreach (var endpoint in new[] { upload, rename, remove, disposal })
         {
             endpoint.Produces<PurchaseOrderDocumentOperationResponse>();
             foreach (var status in new[] { 400, 401, 403, 404, 409, 413, 415, 422, 503 }) endpoint.ProducesProblem(status);
         }
     }
+
+    private static Task<IResult> DisposeAsync(Guid id, Guid documentId, DisposePurchaseOrderDocumentRequest request,
+        PurchaseOrderDocumentDisposalService service, CancellationToken cancellationToken) =>
+        ExecuteAsync(async () => Results.Ok(await service.DisposeAsync(id, documentId, request, cancellationToken)));
 
     private static Task<IResult> ListAsync(Guid id, PurchaseOrderDocumentService service, CancellationToken cancellationToken) =>
         ExecuteAsync(async () => Results.Ok(await service.ListAsync(id, cancellationToken)));
@@ -117,7 +127,11 @@ public static class PurchaseOrderDocumentEndpoints
             return Results.Problem(statusCode: 410, title: "This document could not be recovered. Keep its record and contact the administrator, or add another copy.",
                 extensions: new Dictionary<string, object?> { ["code"] = "file_unavailable_after_recovery" });
         }
-        catch (DocumentInputException error) { return Results.Problem(statusCode: error.StatusCode, title: error.Message); }
+        catch (DocumentInputException error)
+        {
+            return Results.Problem(statusCode: error.StatusCode, title: error.Message,
+                extensions: error.Code is null ? null : new Dictionary<string, object?> { ["code"] = error.Code });
+        }
         catch (UnauthorizedAccessException) { return Results.Problem(statusCode: 403, title: "Document access is denied."); }
         catch (Exception error) when (error is IOException or InvalidDataException or SqlException or DbUpdateException or OperationCanceledException)
         { return Results.Problem(statusCode: 503, title: "The document operation could not be confirmed. Retry the same operation or check its saved status."); }

@@ -19,6 +19,7 @@ public sealed class RecognitionUnit
 
 public sealed class RecognitionSideEvent
 {
+    public string? EvidenceMutationPermission { get; set; }
     public Guid TenantId { get; set; }
     public Guid Id { get; set; }
     public Guid UnitId { get; set; }

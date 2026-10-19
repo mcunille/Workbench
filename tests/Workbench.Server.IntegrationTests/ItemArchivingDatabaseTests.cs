@@ -160,7 +160,7 @@ public sealed class ItemArchivingDatabaseTests(SqlServerFixture sqlServer)
             seed.Parameters.AddWithValue("@tenant", tenant);
             await seed.ExecuteNonQueryAsync();
         }
-        var retained = await RetainedEvidenceAsync(admin);
+        var retained = await RetainedEvidenceAsync(admin, legacyAttachments: true);
         await using var token = new SqlCommand("SELECT [RowVersion] FROM [Inventory].[Items] WHERE [Id]=@id", admin);
         token.Parameters.AddWithValue("@id", id);
         var version = (byte[])(await token.ExecuteScalarAsync())!;
@@ -168,11 +168,13 @@ public sealed class ItemArchivingDatabaseTests(SqlServerFixture sqlServer)
         // WHEN the additive migration upgrades the populated base database.
         await DatabaseMigrator.MigrateAsync(database.AdminConnectionString, CancellationToken.None);
 
-        // THEN all retained records remain byte-for-byte equivalent and existing items are active.
+        // THEN durable legacy records survive; attachment concurrency tokens may advance as new hold metadata is installed.
         var item = await RecordAsync(admin, id);
         Assert.Null(item.ArchivedAtUtc);
         Assert.Equal(version, item.Version);
-        Assert.Equal(retained, await RetainedEvidenceAsync(admin));
+        Assert.Equal(retained, await RetainedEvidenceAsync(admin, legacyAttachments: true));
+        // AND every subsequent operation preserves the complete current-schema evidence, including new columns and tokens.
+        retained = await RetainedEvidenceAsync(admin);
         await using var owner = await ConnectAsync(database, tenant);
         Assert.Equal(1, await ArchiveAsync(owner, id, version));
         var archived = await RecordAsync(admin, id);
@@ -202,13 +204,14 @@ public sealed class ItemArchivingDatabaseTests(SqlServerFixture sqlServer)
         Assert.Equal(retained, await RetainedEvidenceAsync(admin));
     }
 
-    private static async Task<string> RetainedEvidenceAsync(SqlConnection connection)
+    private static async Task<string> RetainedEvidenceAsync(SqlConnection connection, bool legacyAttachments = false)
     {
-        await using var command = new SqlCommand("""
+        var attachments = legacyAttachments ? "[Id],[TenantId],[CreatedAtUtc],[CurrentRevisionId],[DeletedAtUtc],[DeleteAfterUtc],[Held]" : "*";
+        await using var command = new SqlCommand($"""
             SELECT (SELECT * FROM [Inventory].[ItemCreationSnapshots] ORDER BY [ItemId] FOR JSON PATH, INCLUDE_NULL_VALUES) AS [snapshots],
                 (SELECT * FROM [Inventory].[ItemPhotos] ORDER BY [Id] FOR JSON PATH, INCLUDE_NULL_VALUES) AS [photos],
                 (SELECT * FROM [Inventory].[ItemPhotoOperations] ORDER BY [Id] FOR JSON PATH, INCLUDE_NULL_VALUES) AS [operations],
-                (SELECT * FROM [Storage].[Attachments] ORDER BY [Id] FOR JSON PATH, INCLUDE_NULL_VALUES) AS [attachments],
+                (SELECT {attachments} FROM [Storage].[Attachments] ORDER BY [Id] FOR JSON PATH, INCLUDE_NULL_VALUES) AS [attachments],
                 (SELECT * FROM [Storage].[Revisions] ORDER BY [Id] FOR JSON PATH, INCLUDE_NULL_VALUES) AS [revisions]
             FOR JSON PATH;
             """, connection);

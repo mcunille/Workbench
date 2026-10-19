@@ -45,10 +45,40 @@ On the first deployment set `enableSchedule=false`, `enableRetentionSchedule=fal
 `initializeProtection=false` on every subsequent deployment so the template does not attempt to
 update a locked policy. The job starts Manual. It receives source Blob Data Reader,
 control-plane Reader for SQL retention and the two storage accounts, and a custom destination blob
-read/write role without deletion. No SQL login, mail identity, production write access, secret-read
-permission, or workload-control permission is provisioned for the collector. Web and worker identities
+read/write role without deletion. Before capture, provision the narrow SQL export permission described
+below. No mail identity, production write access, secret-read permission, or workload-control permission
+is provisioned for the collector. Web and worker identities
 receive no destination permission. The destination writer role is **not** inherently append-only;
 locked storage immutability enforces non-replacement.
+
+BK-07 capture also requires authoritative SQL inventory. In the database identified by
+`Backup__SqlResourceId`, use a protected Entra administrator session to create the capture job's
+system-managed identity as a database user and grant only the existing read-only export procedure:
+
+```sql
+CREATE USER [<capture-job-name>] FROM EXTERNAL PROVIDER;
+GRANT CONNECT TO [<capture-job-name>];
+GRANT EXECUTE ON OBJECT::Storage.ExportManifest TO [<capture-job-name>];
+```
+
+For an existing custom collector, pause its schedule for this upgrade, provision and verify this
+permission, deploy the new image, then complete manual capture verification before resuming it.
+
+Resolve the exact capture job identity before provisioning; do not reuse the registry-pull or
+expiration identity. Entra resolution must identify its service principal unambiguously. Do not add
+this user to web, worker, maintenance, operator or migrator roles, and do not grant table reads or
+financial mutation procedures. `ExportManifest` executes as owner to return cross-tenant revision
+identities and content hashes; it does not expose source documents or change SQL. The existing five-role
+application principal manifest does not provision this separate collector user.
+
+The collector derives the encrypted Azure SQL server/database connection from the SQL resource ID
+and authenticates with its system-managed identity. Its existing private Container Apps environment
+must resolve `<sourceSqlServerName>.database.windows.net` through the SQL private DNS zone and reach
+the existing SQL private endpoint on TCP 1433 (plus the configured SQL redirect ports, if enabled).
+Verify the environment's VNet/DNS/NSG path; do not enable public SQL access as a workaround. The backup
+template references the existing environment and SQL deployment; it does not create another SQL
+endpoint or grant database permissions. Missing identity, permission, network access or inventory
+fails capture before publishing a catalog. Re-run manual capture before enabling its schedule.
 
 The template creates a 37-day container immutability policy. Locking that policy is a separate,
 explicitly approved Azure operation; it cannot subsequently be shortened or removed while protected
@@ -92,19 +122,36 @@ dotnet /opt/workbench/database/Workbench.Database.dll backup capture
 The Bicep template supplies `Backup__*` environment settings, including installation, source/destination
 bindings, original SQL resource ID, release digest/schema and recovery key version identifiers.
 It uses the job's system identity. There is no connection string or secret in those settings.
+The installation ID must match production `Storage__InstallationId`; the source account/container and
+SQL resource ID must identify that same installation. The Azure adapter enumerates only that installation
+prefix, and SQL manifest provider aliases must be `azure`; mixed or stale provider bindings fail capture.
 The collector reads actual SQL retention and source versioning/soft-delete configuration. Source
 retention must cover SQL retention plus two days. Catalog lifetime is that same interval (maximum 37
 days). The job fails on missing protection or inconsistent bindings rather than silently reducing
 coverage. Key identifiers refer to recovery material already exported and verified independently;
 the collector cannot verify Bitwarden or export secrets. Keep those dependencies current on rotation.
 
-A valid run checks retained unexpired catalog objects, inventories exact published source versions,
+A valid run checks retained unexpired catalog objects, reads the SQL manifest, inventories exact published source versions,
 copies them create-only, reads back hashes and publishes a protected catalog. Each version copy is
 bounded to 25 MiB, matching the application's current maximum. Larger future content requires an
 explicit collector update. Staged/unrecognized objects are counted separately. Enumeration is a
 coverage interval, not a snapshot of SQL. An upload occurring later is eligible for the next run.
-An enumerated version that disappears yields `Incomplete`; access errors, timeouts and integrity
+Each manifest tenant/revision must have an archived version whose verified digest and length exactly
+match SQL. This includes financially protected removed or purged identities; logically disposed
+identities are excluded by SQL. A required identity absent from enumeration or lacking matching bytes
+is recorded as a `sql:<tenant>/<revision>` gap and yields `Incomplete`, including previously accepted
+missing-file recovery dispositions. Such dispositions never turn missing bytes into a successful backup.
+The manifest is read before enumeration; new uploads after that inventory remain eligible for a later run.
+An enumerated version that disappears also yields `Incomplete`; access errors, timeouts and integrity
 failures yield failure. Neither advances successful freshness. Expiration reports `BackupRetentionStatus` separately and cannot advance capture freshness.
+
+BK-07 financial retention and this catalog window are separate controls. Frozen source-link deadlines
+protect authoritative bytes; they do not retain every historical backup indefinitely. After explicit
+disposal, older protected catalogs may still contain bytes until their own expiry. Recovery applies
+the restored SQL disposition before users/workers resume and never presents disposed bytes as active.
+The required SQL inventory is a read-only completeness boundary, not financial mutation authority.
+Local tests exercise that boundary through a restricted export principal; hosted managed identity,
+private DNS/network connectivity and Azure/WORM behavior still require the operational drills below.
 
 Check all of:
 

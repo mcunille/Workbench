@@ -221,19 +221,29 @@ label. A conflicting change requires **Review current files** before explicitly 
 Unsaved selections exist only in the open page. Files already uploaded stay attached if you cancel
 the remaining selection. Finish or cancel file editing before opening an amendment or history.
 
-Each saved file offers **Download**, **Rename** and **Remove**. Rename affects only its label;
+Each saved file offers **Download**, **Rename** and, when unlinked, **Remove**. Rename affects only its label;
 file bytes cannot be edited. Removal asks for confirmation and immediately revokes download
 access; retained copies follow the seven-day retention policy and any holds. Recovery-unavailable
 files keep their metadata and explain that another copy or administrator help is needed.
+
+Posted financial evidence shows **Financial evidence retained** and disables ordinary removal, even
+after its retention deadline. **Dispose** appears only when every link has expired, no independent
+hold exists, recovery is ready, and the user has both document management and accounting configuration
+authority. The confirmation names the file and requires a reason; cancel or Escape preserves it.
+Disposal removes live access while permanently retaining accounting metadata and its receipt, then
+schedules byte cleanup no earlier than seven days later. Expiry alone never removes a file.
+After a lost response, **Check and retry disposal** resolves the original request. Permission loss
+closes private file state and denies retries without removing the evidence history.
 
 Files do not create structured invoice amounts, payments, credits or inventory and do not advance
 the agreed order revision. One file may contain several invoices, or one invoice may span files.
 Invoice numbers, due dates, amount comparisons and duplicate supplier-reference warnings remain
 unavailable in the application. BK-05 provides an internal structured bill foundation with immutable
 revisions, review, duplicate resolutions and posting derived from stored components; it adds no bill
-entry UI or public write routes. Private file links report current availability without promising
-future evidence holds. Files belong directly to the ordered purchase; acquisition documents
-remain separate. See the [bill foundation](specs/2026-09-27-bk-05-structured-supplier-bills.md).
+entry UI or public write routes. BK-07 protects authentic posted evidence and reports retention
+separately from current byte availability. Files belong directly to the ordered purchase;
+acquisition documents remain separate. See [financial evidence retention](accounting.md#durable-financial-evidence)
+and the [bill foundation](specs/2026-09-27-bk-05-structured-supplier-bills.md).
 
 ## Payment and allocation foundation
 
@@ -247,8 +257,8 @@ these financial effects, and zero payable balance does not mean the purchase is 
 There is no payment or allocation entry action in the purchase screen, no public financial-write
 route and no runtime financial mutation grant. Ordinary purchase planning and amendments still do
 not require accounting setup. Financial history prevents changing the PO supplier even after reversal.
-The bookkeeping availability flag stays false. Complete bill correction, credit/refund workflows and
-BK-07 physical evidence holds remain future work; their disposable allocation-participant tests do
+The bookkeeping availability flag stays false. Complete bill correction and credit/refund workflows
+remain future work; their disposable allocation-participant tests do
 not provide business entrypoints. See the [BK-06 scope](specs/2026-09-27-bk-06-supplier-open-items-and-allocations.md).
 
 ## Delete an unwanted draft

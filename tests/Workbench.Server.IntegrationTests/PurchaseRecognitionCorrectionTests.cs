@@ -10,6 +10,48 @@ namespace Workbench.Server.IntegrationTests;
 [Collection(SqlServerCollection.Name)]
 public sealed class PurchaseRecognitionCorrectionTests(SqlServerFixture sqlServer)
 {
+    [Theory]
+    [InlineData(false, false)]
+    [InlineData(true, false)]
+    [InlineData(true, true)]
+    public async Task CorrectionKeepsOriginalTypedEvidenceReachableAfterRecoveryLoss(bool replace, bool repeatsOriginal)
+    {
+        // GIVEN authentic typed recognition evidence and a later recovery disposition for its bytes.
+        await using var context = await PurchaseRecognitionTestContext.OpenAsync(sqlServer);
+        var bills = new SupplierBillTestContext(context);
+        using var storage = new PurchaseOrderDocumentEndpointTests.TestStorage();
+        var document = await FinancialEvidencePostingTests.UploadAsync(bills, storage);
+        var original = await context.CommandAsync(); var side = original["units"]![0]!["sides"]![0]!;
+        side["evidence"]!["documents"] = FinancialEvidencePostingTests.Documents(document);
+        await StoreAsync(context, side); await context.PostAsync(original.ToJsonString());
+        var originalSet = await bills.ScalarAsync<Guid>("SELECT Id FROM Accounting.FinancialEvidenceSets");
+        var links = await bills.ScalarAsync<string>("SELECT * FROM Accounting.FinancialEvidenceLinks FOR JSON PATH");
+        await bills.AdminAsync($"INSERT Storage.RecoveryFiles(TenantId,RevisionId,ReportId,Generation,Reason,AcceptedAtUtc) VALUES('{JournalTestContext.TenantId}','{document.Revision}',NEWID(),1,'Missing',SYSUTCDATETIME())");
+        var correction = await CorrectionAsync(context, original, replace ? "90" : null);
+        if (repeatsOriginal)
+        {
+            var successorSide = correction["replacement"]!["sides"]![0]!;
+            successorSide["evidence"]!["documents"] = FinancialEvidencePostingTests.Documents(document);
+            var fabricated = correction.DeepClone().AsObject(); var fabricatedSide = fabricated["replacement"]!["sides"]![0]!;
+            fabricatedSide["evidence"]!["documents"]![0]!["revisionId"] = Guid.NewGuid().ToString();
+            await StoreAsync(context, fabricatedSide);
+            Assert.Equal(51004, (await Assert.ThrowsAsync<SqlException>(() => context.CorrectAsync(fabricated.ToJsonString()))).Number);
+            await StoreAsync(context, successorSide);
+        }
+        // WHEN reversing or replacing the source THEN historical protection survives without reacquiring old bytes.
+        await context.CorrectAsync(correction.ToJsonString());
+        Assert.Equal(links, await bills.ScalarAsync<string>("SELECT * FROM Accounting.FinancialEvidenceLinks FOR JSON PATH"));
+        Assert.True(await bills.ScalarAsync<bool>("SELECT Held FROM Storage.Attachments"));
+        if (replace) Assert.Equal(originalSet, await bills.ScalarAsync<Guid>("SELECT InheritedEvidenceSetId FROM Accounting.FinancialEvidenceSets WHERE InheritedEvidenceSetId IS NOT NULL"));
+        // AND source readback follows correction ancestry while preserving the original unavailable identity.
+        var readSet = replace ? await bills.ScalarAsync<Guid>("SELECT Id FROM Accounting.FinancialEvidenceSets WHERE InheritedEvidenceSetId IS NOT NULL") : originalSet;
+        var read = JsonNode.Parse(await FinancialEvidenceDisposalTests.ExecuteAsync(bills,
+            $"EXEC Accounting.ReadFinancialEvidence '{JournalTestContext.ActorId}','{context.Journal.SessionId}','{readSet}'"))!;
+        var retained = Assert.Single(read["links"]!.AsArray());
+        Assert.Equal(document.Document, Guid.Parse(retained!["documentId"]!.ToString()));
+        Assert.Equal("Missing", retained["availability"]!.ToString());
+    }
+
     [Fact]
     public async Task MatchedUnitCorrectionRebuildsBothSides()
     {
