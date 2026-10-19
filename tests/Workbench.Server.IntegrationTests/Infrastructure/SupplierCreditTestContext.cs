@@ -39,21 +39,33 @@ internal sealed class SupplierCreditTestContext(SupplierPaymentTestContext payme
         catch { await context.DisposeAsync(); throw; }
     }
 
-    public async Task<Guid> ExpenseBillAsync(string amount, string date = "2026-09-15")
+    public async Task<Guid> ExpenseBillAsync(string amount, string date = "2026-09-15",
+        string classification = "Expense", string tax = "0", string rounding = "0")
     {
-        var receipt = await Bills.Recognition.CommandAsync(classification: "Expense", cost: amount);
+        var cost = (decimal.Parse(amount, System.Globalization.CultureInfo.InvariantCulture)
+            + decimal.Parse(rounding, System.Globalization.CultureInfo.InvariantCulture)).ToString(System.Globalization.CultureInfo.InvariantCulture);
+        var receipt = await Bills.Recognition.CommandAsync(classification: classification, cost: cost);
         receipt["postingDate"] = date;
         await Bills.Recognition.PostAsync(receipt.ToJsonString());
         var draft = Bills.CompleteDraft(Guid.NewGuid().ToString());
         var revision = draft["revision"]!.AsObject();
-        revision["total"] = amount;
+        revision["total"] = (decimal.Parse(cost, System.Globalization.CultureInfo.InvariantCulture)
+            + decimal.Parse(tax, System.Globalization.CultureInfo.InvariantCulture)).ToString(System.Globalization.CultureInfo.InvariantCulture);
         revision["postingDate"] = date;
         var unit = revision["units"]![0]!;
-        unit["classification"] = "Expense";
+        unit["classification"] = classification;
         unit["unitId"] = receipt["units"]![0]!["unitId"]!.DeepClone();
         unit["expectedPriorEventRevision"] = 1;
         unit["components"]![0]!["amount"] = amount;
-        unit["components"]![1]!["amount"] = "0";
+        unit["components"]![1]!["amount"] = tax;
+        if (rounding != "0") unit["components"]!.AsArray().Add(new JsonObject
+        {
+            ["componentKey"] = "rounding",
+            ["kind"] = "Rounding",
+            ["amount"] = rounding,
+            ["assignedCostComponentKey"] = "base",
+            ["reason"] = "Supplier rounded the original invoice"
+        });
         var reviewed = await SupplierBillPostingTests.ReviewedAsync(Bills, draft);
         await Bills.ExecuteAsync("PostSupplierBill", Guid.NewGuid(), Bills.PostCommand(reviewed));
         return Guid.Parse(reviewed["billId"]!.GetValue<string>());
@@ -93,6 +105,31 @@ internal sealed class SupplierCreditTestContext(SupplierPaymentTestContext payme
             ["allocations"] = new JsonArray(),
             ["evidence"] = new JsonObject { ["documents"] = new JsonArray(), ["missingEvidenceReason"] = "Credit note supplied without a file" }
         };
+    }
+
+    public async Task<(Guid BillId, Guid InvoiceEventId, Guid UnitId)> PrepaymentBillAsync(string amount)
+    {
+        var draft = Bills.CompleteDraft(Guid.NewGuid().ToString());
+        var revision = draft["revision"]!;
+        revision["total"] = amount;
+        revision["units"]![0]!["classification"] = "Expense";
+        revision["units"]![0]!["components"]![0]!["amount"] = amount;
+        revision["units"]![0]!["components"]![1]!["amount"] = "0";
+        var reviewed = await SupplierBillPostingTests.ReviewedAsync(Bills, draft);
+        await Bills.ExecuteAsync("PostSupplierBill", Guid.NewGuid(), Bills.PostCommand(reviewed));
+        var bill = Guid.Parse(reviewed["billId"]!.GetValue<string>());
+        var invoice = await Bills.ScalarAsync<Guid>($"SELECT EventId FROM Purchasing.SupplierBillPostingEvents WHERE BillId='{bill}'");
+        var unit = await Bills.ScalarAsync<Guid>($"SELECT UnitId FROM Purchasing.RecognitionSideEvents WHERE Id='{invoice}'");
+        return (bill, invoice, unit);
+    }
+
+    public async Task RecognizeAsync(Guid unit, string cost, string date = "2026-09-17")
+    {
+        var receipt = await Bills.Recognition.CommandAsync(classification: "Expense", cost: cost);
+        receipt["postingDate"] = date;
+        receipt["units"]![0]!["unitId"] = unit.ToString();
+        receipt["units"]![0]!["expectedPriorEventRevision"] = 1;
+        await Bills.Recognition.PostAsync(receipt.ToJsonString());
     }
 
     public async Task<JsonObject> CreditAsync(Guid bill, string amount, string date = "2026-09-16")

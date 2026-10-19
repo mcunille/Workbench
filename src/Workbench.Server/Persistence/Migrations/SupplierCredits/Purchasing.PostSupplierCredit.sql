@@ -17,8 +17,8 @@ AS BEGIN
     EXEC Purchasing.CanonicalizeSupplierCredit N'PostSupplierCredit',@Command,@Canonical OUTPUT;
     IF EXISTS(SELECT 1 FROM OPENJSON(@Canonical,'$.allocations'))
     BEGIN
-      EXEC Accounting.RequirePermission @ActorId,@SessionId,N'SupplierAllocationsManage';
-      THROW 51009,'Supplier credit allocation requires its integrated source participant.',1;
+      BEGIN TRY EXEC Accounting.RequirePermission @ActorId,@SessionId,N'SupplierAllocationsManage'; END TRY
+      BEGIN CATCH IF ERROR_NUMBER()=50903 THROW 51003,'Current allocation authority is required.',1; THROW; END CATCH;
     END;
     IF EXISTS(SELECT 1 FROM Purchasing.SupplierFinancialReceipts WHERE TenantId=@Tenant AND RequestId=@RequestId)
     BEGIN
@@ -57,44 +57,34 @@ AS BEGIN
     EXEC Accounting.EnsureOpenPeriod @PostingDate=@Date,@ExpectedConfigurationVersion=@Config;
     SET @Normalized=Purchasing.NormalizeBillReference(@Reference);
     IF COALESCE(LEN(@Normalized),0)=0 THROW 51000,'A supplier credit reference is required.',1;
-    IF EXISTS(SELECT 1 FROM Purchasing.SupplierCredits WHERE TenantId=@Tenant AND SupplierId=@Supplier AND NormalizedReference=@Normalized)
-      OR EXISTS(SELECT 1 FROM OPENJSON(@Canonical,'$.duplicateResolutions'))
+    IF EXISTS(SELECT Id,RevisionId FROM Purchasing.SupplierCredits WHERE TenantId=@Tenant AND SupplierId=@Supplier AND NormalizedReference=@Normalized
+        EXCEPT SELECT TRY_CONVERT(uniqueidentifier,JSON_VALUE(value,'$.creditId')),TRY_CONVERT(uniqueidentifier,JSON_VALUE(value,'$.creditRevisionId')) FROM OPENJSON(@Canonical,'$.duplicateResolutions'))
+      OR EXISTS(SELECT TRY_CONVERT(uniqueidentifier,JSON_VALUE(value,'$.creditId')),TRY_CONVERT(uniqueidentifier,JSON_VALUE(value,'$.creditRevisionId')) FROM OPENJSON(@Canonical,'$.duplicateResolutions')
+        EXCEPT SELECT Id,RevisionId FROM Purchasing.SupplierCredits WHERE TenantId=@Tenant AND SupplierId=@Supplier AND NormalizedReference=@Normalized)
       THROW 51009,'Supplier credit reference requires an exact recorded resolution.',1;
     SELECT @Receivable=a.Id,@ReceivableVersion=a.Version FROM OPENJSON(@Policy,'$.mappings') m
       JOIN Accounting.Accounts a ON a.TenantId=@Tenant AND a.Id=TRY_CONVERT(uniqueidentifier,JSON_VALUE(m.value,'$.accountId'))
       WHERE JSON_VALUE(m.value,'$.slot')='SupplierCreditReceivable' AND a.Purpose='SupplierCreditReceivable' AND a.Type='Asset' AND a.ArchivedAtUtc IS NULL;
     IF @Receivable IS NULL THROW 51004,'Supplier credit account mapping unavailable.',1;
+    DECLARE @Derived nvarchar(max),@ClaimInput nvarchar(max)=JSON_QUERY(@Canonical,'$.claims');
+    EXEC Purchasing.ValidateSupplierCreditClaims @Tenant,@ClaimInput,@Date,@Derived OUTPUT;
     DECLARE @Claims TABLE(Id uniqueidentifier PRIMARY KEY,BillId uniqueidentifier,BillRevisionId uniqueidentifier,
-      EventId uniqueidentifier,ComponentKey nvarchar(200),Amount decimal(28,4),AccountId uniqueidentifier,
+      EventId uniqueidentifier,ComponentKey nvarchar(200),Amount decimal(28,4),Treatment varchar(16),AccountId uniqueidentifier,
       AccountVersion uniqueidentifier,JournalId uniqueidentifier,Ordinal int);
-    INSERT @Claims
-      SELECT CONVERT(uniqueidentifier,JSON_VALUE(claim.value,'$.claimId')),bill.BillId,bill.RevisionId,invoice.Id,component.ComponentKey,
-        CONVERT(decimal(28,4),JSON_VALUE(claim.value,'$.amount')),line.AccountId,line.AccountVersion,line.JournalId,line.Ordinal
-      FROM OPENJSON(@Canonical,'$.claims') claim
-      JOIN Purchasing.SupplierBillPostings bill ON bill.TenantId=@Tenant AND bill.BillId=TRY_CONVERT(uniqueidentifier,JSON_VALUE(claim.value,'$.billId'))
-        AND bill.RevisionId=TRY_CONVERT(uniqueidentifier,JSON_VALUE(claim.value,'$.billRevisionId'))
-      JOIN Purchasing.SupplierBills owner ON owner.TenantId=bill.TenantId AND owner.Id=bill.BillId AND owner.State='Posted'
-        AND owner.SupplierId=@Supplier AND owner.PurchaseOrderId=@Po AND owner.Currency=@Currency
-      JOIN Purchasing.SupplierBillPostingEvents owned ON owned.TenantId=bill.TenantId AND owned.BillId=bill.BillId
-      JOIN Purchasing.ActiveRecognitionSideEvents invoice ON invoice.TenantId=owned.TenantId AND invoice.Id=owned.EventId
-        AND invoice.Id=TRY_CONVERT(uniqueidentifier,JSON_VALUE(claim.value,'$.recognitionEventId')) AND invoice.Side='Invoice' AND invoice.PostingDate<=@Date
-      JOIN Purchasing.RecognitionComponents component ON component.TenantId=invoice.TenantId AND component.EventId=invoice.Id
-        AND component.ComponentKey=JSON_VALUE(claim.value,'$.componentKey') AND component.Kind='BaseCost'
-      JOIN Purchasing.RecognitionUnits unit ON unit.TenantId=invoice.TenantId AND unit.Id=invoice.UnitId AND unit.Classification='Expense'
-      JOIN Purchasing.RecognitionMatches matched ON matched.TenantId=invoice.TenantId AND matched.InvoiceEventId=invoice.Id
-      JOIN Purchasing.ActiveRecognitionSideEvents recognition ON recognition.TenantId=matched.TenantId AND recognition.Id=matched.RecognitionEventId AND recognition.PostingDate<=@Date
-      JOIN Accounting.JournalLines line ON line.TenantId=recognition.TenantId AND line.JournalId=recognition.JournalId
-        AND line.AccountType='Expense' AND line.Debit>0 AND line.Credit=0
-      WHERE CONVERT(decimal(28,4),JSON_VALUE(claim.value,'$.amount'))<=component.Amount;
-    IF (SELECT COUNT(*) FROM @Claims)<>(SELECT COUNT(*) FROM OPENJSON(@Canonical,'$.claims'))
-      THROW 51004,'Supported posted expense components required.',1;
+    INSERT @Claims SELECT ClaimId,BillId,BillRevisionId,EventId,ComponentKey,Amount,Treatment,AccountId,AccountVersion,JournalId,Ordinal
+      FROM OPENJSON(@Derived) WITH(ClaimId uniqueidentifier '$.claimId',BillId uniqueidentifier '$.billId',
+        BillRevisionId uniqueidentifier '$.billRevisionId',EventId uniqueidentifier '$.recognitionEventId',ComponentKey nvarchar(200) '$.componentKey',
+        Amount decimal(28,4) '$.amount',Treatment varchar(16) '$.treatment',AccountId uniqueidentifier '$.accountId',
+        AccountVersion uniqueidentifier '$.accountVersion',JournalId uniqueidentifier '$.journalId',Ordinal int '$.ordinal');
+    IF (SELECT COUNT(*) FROM @Claims)<>(SELECT COUNT(*) FROM OPENJSON(@Canonical,'$.claims')) OR EXISTS(
+      SELECT 1 FROM @Claims c WHERE NOT EXISTS(SELECT 1 FROM Purchasing.SupplierBillPostings b
+        JOIN Purchasing.SupplierBills owner ON owner.TenantId=b.TenantId AND owner.Id=b.BillId AND owner.State='Posted'
+          AND owner.SupplierId=@Supplier AND owner.PurchaseOrderId=@Po AND owner.Currency=@Currency
+        JOIN Purchasing.SupplierBillPostingEvents owned ON owned.TenantId=b.TenantId AND owned.BillId=b.BillId AND owned.EventId=c.EventId
+        WHERE b.TenantId=@Tenant AND b.BillId=c.BillId AND b.RevisionId=c.BillRevisionId))
+      THROW 51004,'Authentic current posted bill components required.',1;
     IF (SELECT SUM(CONVERT(decimal(38,4),Amount)) FROM @Claims)<>@Total
       THROW 51000,'Credit components must exactly equal the total.',1;
-    IF EXISTS(SELECT 1 FROM @Claims claim JOIN Purchasing.RecognitionComponents original
-        ON original.TenantId=@Tenant AND original.EventId=claim.EventId AND original.ComponentKey=claim.ComponentKey
-      WHERE claim.Amount+COALESCE((SELECT SUM(CONVERT(decimal(38,4),c.Amount)) FROM Purchasing.SupplierCreditClaims c
-        WHERE c.TenantId=@Tenant AND c.RecognitionEventId=claim.EventId AND c.ComponentKey=claim.ComponentKey),0)>original.Amount)
-      THROW 51009,'Credit exceeds the remaining source component capacity.',1;
     DECLARE @Documents nvarchar(max),@Evidence nvarchar(max)=JSON_QUERY(@Canonical,'$.evidence');
     EXEC Purchasing.ValidateBillEvidence @Tenant,@Po,@Evidence,@Documents OUTPUT;
     DECLARE @Snapshot nvarchar(max)=(SELECT 1 schemaVersion,@Group groupId,JSON_QUERY(@Canonical) command,
@@ -107,23 +97,44 @@ AS BEGIN
     INSERT @Line SELECT 1+ROW_NUMBER() OVER(ORDER BY AccountId,AccountVersion),AccountId,AccountVersion,0,SUM(Amount) FROM @Claims GROUP BY AccountId,AccountVersion;
     DECLARE @Lines nvarchar(max)=(SELECT Ordinal ordinal,AccountId accountId,AccountVersion accountVersion,CONVERT(nvarchar(60),Debit) debit,CONVERT(nvarchar(60),Credit) credit FROM @Line ORDER BY Ordinal FOR JSON PATH);
     DECLARE @Posted TABLE(SourceEventId uniqueidentifier,JournalId uniqueidentifier,Sequence bigint,RecordedAtUtc datetimeoffset);
-    INSERT @Posted EXEC Accounting.PostJournal @ActorId,@SessionId,@RequestId,N'SupplierCreditsPost',N'Supplier.Credit',1,
-      @Canonical,N'SupplierCredit',@Credit,@Revision,N'Credit',1,@Config,@Currency,@Document,@Effective,@Date,@Reference,@Reason,@Snapshot,@Lines;
-    SELECT @Now=RecordedAtUtc FROM @Posted;
+    SET @Now=SYSUTCDATETIME();
     INSERT Purchasing.SupplierFinancialGroups(TenantId,Id,Operation,SourceId,RecordedAtUtc) VALUES(@Tenant,@Group,'RecordCredit',@Credit,@Now);
     INSERT Purchasing.SupplierFinancialReceipts(TenantId,RequestId,GroupId,Operation,ActorId,CanonicalInput,InputSha256,ResultJson,RecordedAtUtc)
       VALUES(@Tenant,@RequestId,@Group,'PostSupplierCredit',@ActorId,@Canonical,HASHBYTES('SHA2_256',CONVERT(varbinary(max),@Canonical)),N'{"state":"pending"}',@Now);
     INSERT Purchasing.SupplierCredits(TenantId,Id,RevisionId,SupplierId,PurchaseOrderId,Currency,DocumentDate,EffectiveDate,PostingDate,Total,Reference,NormalizedReference,Reason,SourceSnapshotJson,ActorId,GroupId,RecordedAtUtc)
       VALUES(@Tenant,@Credit,@Revision,@Supplier,@Po,@Currency,@Document,@Effective,@Date,@Total,@Reference,@Normalized,@Reason,@Snapshot,@ActorId,@Group,@Now);
     INSERT Purchasing.SupplierCreditClaims(TenantId,Id,CreditId,BillId,BillRevisionId,RecognitionEventId,ComponentKey,Treatment,Amount,AccountId,AccountVersion,OriginalJournalId,OriginalJournalOrdinal)
-      SELECT @Tenant,Id,@Credit,BillId,BillRevisionId,EventId,ComponentKey,'Expense',Amount,AccountId,AccountVersion,JournalId,Ordinal FROM @Claims;
+      SELECT @Tenant,Id,@Credit,BillId,BillRevisionId,EventId,ComponentKey,Treatment,Amount,AccountId,AccountVersion,JournalId,Ordinal FROM @Claims;
+    INSERT @Posted EXEC Accounting.PostJournal @ActorId,@SessionId,@RequestId,N'SupplierCreditsPost',N'Supplier.Credit',1,
+      @Canonical,N'SupplierCredit',@Credit,@Revision,N'Credit',1,@Config,@Currency,@Document,@Effective,@Date,@Reference,@Reason,@Snapshot,@Lines;
+    UPDATE source SET RecordedAtUtc=@Now FROM Accounting.SourceEvents source JOIN @Posted posted ON posted.SourceEventId=source.Id WHERE source.TenantId=@Tenant;
+    UPDATE journal SET RecordedAtUtc=@Now FROM Accounting.JournalEntries journal JOIN @Posted posted ON posted.JournalId=journal.Id WHERE journal.TenantId=@Tenant;
+    UPDATE Accounting.PostingReceipts SET RecordedAtUtc=@Now WHERE TenantId=@Tenant AND RequestId=@RequestId;
+    UPDATE audit SET OccurredAtUtc=@Now FROM Security.TenantSecurityAuditEvents audit JOIN @Posted posted ON posted.JournalId=audit.TargetId
+      WHERE audit.TenantId=@Tenant AND audit.Action='Accounting.PostJournal';
     DECLARE @Journal uniqueidentifier=(SELECT JournalId FROM @Posted),@Set uniqueidentifier;
     EXEC Purchasing.AppendSupplierCredit @Tenant,@Credit,@Journal;
     EXEC Accounting.CaptureFinancialEvidence 'SupplierCredit',@Credit,@Revision,@Set OUTPUT;
+    DECLARE @ApplicationResult nvarchar(max)=N'{"journalIds":[],"applicationIds":[]}',@ApplicationRequest uniqueidentifier=NEWID();
+    IF EXISTS(SELECT 1 FROM OPENJSON(@Canonical,'$.allocations'))
+    BEGIN
+      DECLARE @Apply nvarchar(max)=(SELECT 1 schemaVersion,N'ApplySupplierFunds' operation,@Config expectedConfigurationVersion,
+        @Po purchaseOrderId,JSON_VALUE(@Canonical,'$.expectedPurchaseOrderVersion') expectedPurchaseOrderVersion,
+        @Supplier supplierId,@Currency currency,CONVERT(char(10),@Date,23) postingDate,@Credit fundingItemId,
+        CONVERT(varchar(18),CONVERT(binary(8),v.RowVersion),1) expectedFundingItemVersion,
+        JSON_QUERY(@Canonical,'$.allocations') targets FROM Purchasing.SupplierItemVersions v
+        WHERE v.TenantId=@Tenant AND v.ItemId=@Credit FOR JSON PATH,WITHOUT_ARRAY_WRAPPER),@ApplyCanonical nvarchar(max),@Pending nvarchar(max);
+      EXEC Purchasing.ValidateSupplierFinancialCommand N'ApplySupplierFunds',@Apply,@ApplyCanonical OUTPUT;
+      SET @Pending=(SELECT N'pending' state,JSON_QUERY((SELECT @ApplicationRequest requestId,N'ApplySupplierFunds' operation,
+        @ApplyCanonical canonicalInput FOR JSON PATH)) compositions FOR JSON PATH,WITHOUT_ARRAY_WRAPPER);
+      UPDATE Purchasing.SupplierFinancialReceipts SET ResultJson=@Pending WHERE TenantId=@Tenant AND RequestId=@RequestId;
+      EXEC Purchasing.ApplySupplierFundsCore @ActorId,@SessionId,@ApplicationRequest,@ApplyCanonical,@RequestId;
+      SELECT @ApplicationResult=ResultJson FROM Purchasing.SupplierFinancialReceipts WHERE TenantId=@Tenant AND RequestId=@ApplicationRequest;
+    END;
     SET @Result=(SELECT @Group groupId,@Credit sourceId,@Revision sourceRevisionId,
       CONVERT(varchar(18),CONVERT(binary(8),v.RowVersion),1) version,@Now recordedAtUtc,
-      JSON_QUERY(N'["'+CONVERT(nvarchar(36),@Journal)+N'"]') journalIds,
-      JSON_QUERY(N'["'+CONVERT(nvarchar(36),@Credit)+N'"]') itemIds,JSON_QUERY(N'[]') applicationIds,JSON_QUERY(N'[]') settlementIds
+      JSON_QUERY(N'["'+CONVERT(nvarchar(36),@Journal)+N'"'+COALESCE((SELECT N','+STRING_AGG(CONVERT(nvarchar(max),N'"'+value+N'"'),N',') FROM OPENJSON(@ApplicationResult,'$.journalIds')),N'')+N']') journalIds,
+      JSON_QUERY(N'["'+CONVERT(nvarchar(36),@Credit)+N'"]') itemIds,JSON_QUERY(@ApplicationResult,'$.applicationIds') applicationIds,JSON_QUERY(N'[]') settlementIds
       FROM Purchasing.SupplierCreditVersions v WHERE v.TenantId=@Tenant AND v.CreditId=@Credit FOR JSON PATH,WITHOUT_ARRAY_WRAPPER);
     UPDATE Purchasing.SupplierFinancialReceipts SET ResultJson=@Result WHERE TenantId=@Tenant AND RequestId=@RequestId AND JSON_VALUE(ResultJson,'$.state')='pending';
     IF @@ROWCOUNT<>1 THROW 51009,'Credit receipt was already finalized.',1;

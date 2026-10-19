@@ -66,6 +66,8 @@ AS BEGIN
     OR EXISTS(SELECT 1 FROM OPENJSON(@Command,'$.allocations') GROUP BY TRY_CONVERT(uniqueidentifier,JSON_VALUE(value,'$.itemId')) HAVING COUNT(*)>1)
     OR EXISTS(SELECT 1 FROM OPENJSON(@Command,'$.duplicateResolutions') c WHERE c.type<>5 OR (SELECT COUNT(*) FROM OPENJSON(c.value))<>3
       OR EXISTS(SELECT 1 FROM OPENJSON(c.value) p WHERE p.type<>1 OR p.[key] COLLATE Latin1_General_100_BIN2 NOT IN('creditId','creditRevisionId','reason')))
+    OR EXISTS(SELECT 1 FROM OPENJSON(@Command,'$.duplicateResolutions')
+      GROUP BY TRY_CONVERT(uniqueidentifier,JSON_VALUE(value,'$.creditId')) HAVING COUNT(*)>1)
     THROW 51000,'Invalid supplier credit claims, resolutions or allocations.',1;
   DECLARE @Evidence nvarchar(max)=JSON_QUERY(@Command,'$.evidence');
   IF (SELECT COUNT(*) FROM OPENJSON(@Evidence))<>2 OR EXISTS(SELECT 1 FROM OPENJSON(@Evidence) WHERE

@@ -9,17 +9,27 @@ internal static class SupplierCreditSchema
     {
         foreach (var procedure in new[]
         {
-            "Purchasing.CanonicalizeSupplierCredit", "Purchasing.AppendSupplierCredit",
+            "Purchasing.CanonicalizeSupplierCredit", "Purchasing.SupplierCreditPosition",
+            "Purchasing.AssertSupplierCreditCapacity", "Purchasing.ValidateSupplierCreditClaims", "Purchasing.AppendSupplierCredit",
             "Purchasing.SupplierCreditControl", "Purchasing.SupplierItemControl",
             "Accounting.FinancialEvidenceSource", "Accounting.AppendFinancialEvidence",
-            "Purchasing.PostSupplierCredit", "Security.ReadDatabaseReadiness"
+            "Purchasing.RequireSupplierComposition", "Purchasing.ApplySupplierFundsCore",
+            "Accounting.PostJournal", "Purchasing.PostRecognition", "Purchasing.PostSupplierCredit", "Security.ReadDatabaseReadiness"
         })
         {
-            using var stream = typeof(SupplierCreditSchema).Assembly
-                .GetManifestResourceStream($"Workbench.SupplierCredits.{procedure}.sql")
-                ?? throw new InvalidOperationException($"Missing supplier credit procedure: {procedure}.");
-            using var reader = new StreamReader(stream);
-            migrationBuilder.Sql(reader.ReadToEnd());
+            // Large predecessor definitions remain one SQL batch, stored in bounded authored parts.
+            var parts = procedure is "Purchasing.PostRecognition" or "Accounting.PostJournal"
+                ? new[] { $"{procedure}.1", $"{procedure}.2" } : new[] { procedure };
+            var sql = new System.Text.StringBuilder();
+            foreach (var part in parts)
+            {
+                using var stream = typeof(SupplierCreditSchema).Assembly
+                    .GetManifestResourceStream($"Workbench.SupplierCredits.{part}.sql")
+                    ?? throw new InvalidOperationException($"Missing supplier credit procedure: {part}.");
+                using var reader = new StreamReader(stream);
+                sql.Append(reader.ReadToEnd());
+            }
+            migrationBuilder.Sql(sql.ToString());
         }
 
         foreach (var table in new[] { "SupplierCredits", "SupplierCreditClaims", "SupplierCreditVersions" })
@@ -43,7 +53,7 @@ internal static class SupplierCreditSchema
                 END;
                 """);
         }
-        foreach (var procedure in new[] { "CanonicalizeSupplierCredit", "AppendSupplierCredit" })
+        foreach (var procedure in new[] { "CanonicalizeSupplierCredit", "AppendSupplierCredit", "AssertSupplierCreditCapacity", "ValidateSupplierCreditClaims" })
         {
             migrationBuilder.Sql($"""
                 DENY EXECUTE ON Purchasing.{procedure} TO workbench_web;
