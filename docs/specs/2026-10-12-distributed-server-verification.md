@@ -218,9 +218,14 @@ canonical full verifier and hardened-container smoke. Run complete distributed
 CI with every original stage and independent job present. A synthetic manifest
 test or focused SQL cohort does not replace a full gate.
 
-Freeze the original baseline `35adcd568a4c846b54d7cd996c8c0d575ed93b98` and final
-candidate revision for an isolated measurement workflow. Baseline uses the
-original canonical two-worker gate; candidate uses the distributed full gate.
+Following the user's authorized mainline merge on 2026-10-18, freeze baseline
+`7577619a876ffa9cee889736d816486eb614f878` and the final candidate revision for an
+isolated measurement workflow. This mainline baseline includes the upstream
+crypto dependency fix and SDK 10.0.402 pin, plus the same product updates merged
+into the candidate. Baseline uses its unchanged canonical two-worker gate;
+candidate uses the distributed full gate. Earlier measurements against
+`35adcd568a4c846b54d7cd996c8c0d575ed93b98` remain historical evidence and do not
+establish acceptance for the integrated change.
 Match toolchain, runner class, dependency/cache policy and SQL image. Record all
 source changes and the expected inventory delta (two retained isolation cases,
 plus any separately identified integration changes). Do not use summed case
