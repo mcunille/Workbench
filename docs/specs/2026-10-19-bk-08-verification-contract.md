@@ -1,6 +1,6 @@
 # BK-08: authority, recovery and verification contract
 
-**Status:** Proposed; part of the written [BK-08 specification](2026-10-19-bk-08-supplier-credits-and-refunds.md) awaiting user review. These requirements are normative for that design. No runtime verification is claimed.
+**Status:** Accepted with the written [BK-08 specification](2026-10-19-bk-08-supplier-credits-and-refunds.md) on October 19, 2026. These requirements are normative for that design. The implementation-plan handoff remains pending; no runtime verification is claimed.
 
 ## Authority, transactions and failure behavior
 

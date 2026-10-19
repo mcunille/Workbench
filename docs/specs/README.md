@@ -8,8 +8,8 @@ specs. Git preserves chronology; dated evidence records retain their specific ve
 
 [BK-08 supplier credits and refunds](2026-10-19-bk-08-supplier-credits-and-refunds.md) proposes
 internal credit, actual refund/repayment and complete source-correction commands using the existing
-journal, subledger and evidence-retention contracts. Scope is approved; the written specification
-and implementation plan still require review. Production bookkeeping remains unavailable.
+journal, subledger and evidence-retention contracts. The written specification is accepted;
+the implementation-plan handoff remains pending. Production bookkeeping remains unavailable.
 
 [BK-07 durable financial evidence](2026-09-28-bk-07-durable-financial-evidence.md) implements
 atomic evidence holds, configured retention, authorized disposal, and paired recovery protection.

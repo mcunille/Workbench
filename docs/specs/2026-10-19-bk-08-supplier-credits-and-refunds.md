@@ -1,8 +1,9 @@
 # BK-08: supplier credits, refunds and source corrections
 
-**Status:** Proposed written specification. The user approved the delivery scope on October 19,
-2026; this artifact still requires review. Implementation and its plan are not approved by that
-scope decision. No runtime changes or bookkeeping activation are claimed.
+**Status:** Accepted written specification, including its linked authority, recovery and verification
+contract. The user approved the scope and then both written artifacts on October 19, 2026.
+The implementation plan and execution method still require their handoff. No runtime changes or
+bookkeeping activation are claimed.
 
 Parent: [PO-07 bookkeeping prerequisites](2026-09-20-po-07-deposits-and-payments.md).
 Dependencies: [BK-04 recognition](2026-09-25-bk-04-classified-purchase-recognition.md),
