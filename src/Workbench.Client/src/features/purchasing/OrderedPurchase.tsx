@@ -65,7 +65,7 @@ function OrderHistory({ id, onAuthLost }: { id: string; onAuthLost(): void }) {
     // The history panel is keyed by purchase and mounted only on demand.
     void load();
     return () => { active.current = false; };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // oxlint-disable-next-line react/exhaustive-deps
   }, [id]);
   return <section className="po-form-section" aria-label="Order history">
     <h2>Order history</h2>
