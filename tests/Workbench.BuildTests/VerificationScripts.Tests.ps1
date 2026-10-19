@@ -61,7 +61,8 @@ try {
 
     # GIVEN the full gate, with partition inventory replacing an unfiltered server run
     # WHEN inspecting the orchestration contract (runtime failures are tested in VerificationStages.Tests.ps1)
-    $verifyContent = Get-Content -LiteralPath $verifyScript -Raw
+    $phaseScript = Join-Path $repositoryRoot 'scripts/verification-phases.ps1'
+    $verifyContent = (Get-Content -LiteralPath $verifyScript -Raw) + (Get-Content -LiteralPath $phaseScript -Raw)
     # THEN one compatible Release build produces OpenAPI, all partitions run, and children share current-run artifacts.
     foreach ($required in @('test-server-partitions.ps1', '-NoBuild', 'Complete-VerificationStages',
         'Publish-VerificationArtifacts', 'New-VerificationBuildReceipt', 'OpenApiDocumentsDirectory',
@@ -74,7 +75,7 @@ try {
     }
     # GIVEN client tests sharing the gate runner with .NET formatting and compilation
     $tokens = $null; $parseErrors = $null
-    $ast = [Management.Automation.Language.Parser]::ParseFile($verifyScript, [ref]$tokens, [ref]$parseErrors)
+    $ast = [Management.Automation.Language.Parser]::ParseFile($phaseScript, [ref]$tokens, [ref]$parseErrors)
     $clientStage = $ast.Find({
         param($node)
         $node -is [Management.Automation.Language.CommandAst] -and
