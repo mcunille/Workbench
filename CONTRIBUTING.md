@@ -76,6 +76,66 @@ Existing navigation/menu captures continue to use `WORKBENCH_MENU_EVIDENCE_DIREC
 
 ## Focused local iteration
 
+### Staged file size hook
+
+After reviewing `scripts/install-git-hooks.mjs` and `scripts/check-staged-file-size.mjs`, install
+the pre-commit guard manually:
+
+```powershell
+node scripts/install-git-hooks.mjs
+```
+
+The installer copies a fixed checker and hook outside the checkout into
+`~/.local/share/workbench/git-hooks/reviewed-*` and sets repository-local `core.hooksPath`.
+This applies to all linked worktrees of the repository. Installation refuses worktree-specific
+`core.hooksPath` settings, including empty overrides: inspect each reported worktree with
+`git -C <worktree> config --worktree --get core.hooksPath` and review/migrate its existing hooks
+before retrying. The installer preserves those settings rather than silently replacing them.
+Node and Git must remain available outside Git working trees; the hook records both absolute
+executable paths. Git is selected from absolute PATH entries outside checkouts, without searching
+the checkout's current directory. Manual checker runs must pass that trusted absolute Git path
+as the first argument. It never executes checkout code
+or automatically loads updated policy. Installation refuses existing hook configurations or
+non-sample files in Git's default hooks directory so other hooks are preserved. Custom destinations
+are also rejected inside unrelated Git working trees, including paths reached through symlinks.
+
+Each added, copied, modified, renamed, or type-changed regular staged file must be at most
+20,000 bytes (5,000 tokens, calculated as bytes / 4). The checker reads Git's staged blobs;
+unstaged edits and untracked or deleted files do not count. Existing oversized files are checked
+when staged; there is no baseline exemption. Git cannot identify agent authorship reliably, so
+the rule covers all authored files, including source, tests, scripts, and documentation.
+
+Exemptions are dependency lockfiles (npm, NuGet, Yarn, pnpm, Bun, Cargo, Poetry, uv, Bundler,
+Composer), the specific generated client API declarations and OpenAPI schema, EF migration
+designers/model snapshots under the server migrations directory, and common binary asset
+extensions. Hand-authored migrations, SVGs, ordinary JSON, and files merely named `generated.ts`
+elsewhere still count. Exemptions live in the reviewed checker, not branch-controlled attributes
+or an automatic generated-header detector.
+
+When blocked, split by responsibility: extract cohesive helpers, components, or domain operations
+into sibling files; update imports, exports, and callers; split tests by behavior and documents
+by topic. Keep every resulting file within the limit, run affected checks, and `git add` the
+changed and new files before retrying. The hook prints these instructions and all offending paths
+with their byte and token counts.
+
+To update the installed policy, review the new source first, record the current hooks path with
+`git config --local --get core.hooksPath`, unset that local setting with
+`git config --local --unset core.hooksPath`, and rerun the installer. If installation fails,
+restore the recorded path with `git config --local core.hooksPath <recorded-path>`.
+Existing external snapshots remain available for rollback. To remove this installation,
+unset its local `core.hooksPath` after confirming it still points at the installed snapshot.
+
+Run the hook's real-index and installation contracts with:
+
+```powershell
+node --test --test-timeout=30000 tests/Workbench.BuildTests/StagedFileSize.test.mjs
+```
+
+The aggregate required CI gate includes both Windows and Linux design-tooling contracts, so
+a hook-test failure, cancellation, or skip cannot leave that aggregate green.
+
+### Application tests
+
 Select only the tests affected by your edit while iterating:
 
 ```powershell

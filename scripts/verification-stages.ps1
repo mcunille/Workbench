@@ -1,7 +1,7 @@
 # Shared fail-closed stage accounting for local verification and the required CI gate.
 function Assert-RequiredCiJobs {
     param([Parameter(Mandatory)][System.Collections.IDictionary]$Needs)
-    foreach ($name in @('local-setup-contracts', 'deployment-contracts', 'verify', 'container-smoke')) {
+    foreach ($name in @('design-tooling-contracts', 'local-setup-contracts', 'deployment-contracts', 'verify', 'container-smoke')) {
         if (-not $Needs.Contains($name) -or $Needs[$name].result -cne 'success') {
             throw "Required CI job '$name' did not succeed (missing, failed, cancelled, or skipped)."
         }
