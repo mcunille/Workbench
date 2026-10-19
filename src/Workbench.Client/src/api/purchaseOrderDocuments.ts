@@ -8,6 +8,7 @@ export type PurchaseDocumentList = components['schemas']['PurchaseOrderDocuments
 export type PurchaseDocumentOperation = components['schemas']['PurchaseOrderDocumentOperationResponse'];
 export type PurchaseDocumentChange = components['schemas']['ChangePurchaseOrderDocumentRequest'];
 export type PurchaseDocumentUpload = Pick<PurchaseDocumentChange, 'requestId' | 'expectedOrderVersion' | 'label'> & { file: File };
+export type PurchaseDocumentDisposal = components['schemas']['DisposePurchaseOrderDocumentRequest'];
 
 export class PurchaseDocumentConflict extends ApiError {
   readonly reason: string;
@@ -41,6 +42,9 @@ export async function uploadPurchaseDocument(id: string, command: PurchaseDocume
 }
 export async function changePurchaseDocument(id: string, documentId: string, command: PurchaseDocumentChange, remove: boolean): Promise<PurchaseDocumentOperation> {
   return (await request(`${base(id)}/${encodeURIComponent(documentId)}`, { method: remove ? 'DELETE' : 'PUT', headers: { ...await mutationHeaders(), 'Content-Type': 'application/json' }, body: JSON.stringify(command) })).json();
+}
+export async function disposePurchaseDocument(id: string, documentId: string, command: PurchaseDocumentDisposal): Promise<PurchaseDocumentOperation> {
+  return (await request(`${base(id)}/${encodeURIComponent(documentId)}/retention-disposals`, { method: 'POST', headers: { ...await mutationHeaders(), 'Content-Type': 'application/json' }, body: JSON.stringify(command) })).json();
 }
 export async function getPurchaseDocumentOperation(id: string, requestId: string): Promise<PurchaseDocumentOperation> { return (await request(`${base(id)}/operations/${encodeURIComponent(requestId)}`)).json(); }
 export async function downloadPurchaseDocument(id: string, document: PurchaseDocument): Promise<void> {

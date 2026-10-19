@@ -3,11 +3,12 @@ import { http, HttpResponse } from 'msw';
 import { vi } from 'vitest';
 import { server } from '../test/server';
 vi.stubGlobal('window', { location: { origin: 'http://localhost:3000' } });
-const { changePurchaseDocument, downloadPurchaseDocument, getPurchaseDocumentOperation, PurchaseDocumentConflict, uploadPurchaseDocument } = await import('./purchaseOrderDocuments');
+const { changePurchaseDocument, disposePurchaseDocument, downloadPurchaseDocument, getPurchaseDocumentOperation, PurchaseDocumentConflict, uploadPurchaseDocument } = await import('./purchaseOrderDocuments');
 const { ApiError } = await import('./auth');
 const { ItemValidationError } = await import('./items');
 const url = '*/api/beta/purchase-orders/order/documents';
 const command = { requestId: 'request', expectedOrderVersion: 'v1', expectedDocumentVersion: 'd1', label: 'Receipt' };
+const disposal = { requestId: 'request', expectedOrderVersion: 'b3JkZXIx', expectedDocumentVersion: 'ZG9jdmVycw==', expectedEvidenceVersion: 'ZXZpZGVuY2U=', reason: 'Retention complete' };
 beforeEach(() => { server.use(http.get('*/api/beta/auth/antiforgery', () => HttpResponse.json({ requestToken: 'csrf' }))); });
 it('sends multipart bytes with CSRF and immutable command evidence', async () => {
   // GIVEN a document upload with deliberately misleading MIME information.
@@ -31,6 +32,16 @@ it('uses checked JSON removal and a read-only status lookup', async () => {
   await changePurchaseDocument('order', 'doc', { ...command, label: null }, true);
   expect(captured).toEqual({ ...command, label: null });
   expect(await getPurchaseDocumentOperation('order', 'request')).toEqual({ state: 'Completed' });
+});
+it('posts disposal to the dedicated route with antiforgery and an exact JSON command', async () => {
+  // GIVEN a reasoned disposal using server-issued versions.
+  let body: unknown; let headers: Headers | undefined;
+  server.use(http.post(`${url}/doc/retention-disposals`, async ({ request }) => { body = await request.json(); headers = request.headers; return HttpResponse.json({ requestId: 'request', state: 'Completed', documentId: 'doc', orderVersion: 'next' }); }));
+  // WHEN submitted THEN the dedicated route receives all immutable fields and CSRF.
+  expect(await disposePurchaseDocument('order', 'doc', disposal)).toMatchObject({ state: 'Completed', documentId: 'doc' });
+  expect(body).toEqual(disposal);
+  expect(headers?.get('X-CSRF-TOKEN')).toBe('csrf');
+  expect(headers?.get('Content-Type')).toBe('application/json');
 });
 it.each([400, 413, 415, 409, 503])('exposes HTTP %i without treating it as a saved document', async status => {
   // GIVEN a rejected upload with a server reason for actionable validation or conflict responses.

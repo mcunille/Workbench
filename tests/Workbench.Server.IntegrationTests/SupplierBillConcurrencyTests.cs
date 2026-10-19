@@ -127,9 +127,12 @@ public sealed class SupplierBillConcurrencyTests(SqlServerFixture sqlServer)
             await WaitForRowLockAsync(context, first.ServerProcessId, second.ServerProcessId);
             transaction.CommandText = "COMMIT"; await transaction.ExecuteNonQueryAsync();
             var error = await competing;
-            // THEN a completed removal prevents posting; a first posting retains its honest evidence.
-            if (postingFirst) Assert.Null(error); else Assert.Equal(51009, Assert.IsType<SqlException>(error).Number);
+            // THEN removal prevents later posting, while a first posting denies removal and retains its exact evidence.
+            Assert.Equal(postingFirst ? 51011 : 51009, Assert.IsType<SqlException>(error).Number);
             Assert.Equal(postingFirst ? 1 : 0, await context.Journal.CountAsync("JournalEntries"));
+            Assert.Equal(postingFirst ? 0 : 1, await context.ScalarAsync<int>("SELECT COUNT(*) FROM Purchasing.PurchaseOrderDocuments WHERE RemovedAtUtc IS NOT NULL"));
+            Assert.Equal(postingFirst ? 1 : 0, await context.ScalarAsync<int>($"SELECT COUNT(*) FROM Accounting.FinancialEvidenceLinks WHERE DocumentId='{document}' AND RevisionId='{revision}' AND Sha256=REPLICATE('A',64)"));
+            if (postingFirst) Assert.Equal(documentVersion, await context.ScalarAsync<byte[]>($"SELECT RowVersion FROM Purchasing.PurchaseOrderDocuments WHERE Id='{document}'"));
         }
         finally { transaction.CommandText = "IF @@TRANCOUNT>0 ROLLBACK"; await transaction.ExecuteNonQueryAsync(); }
     }

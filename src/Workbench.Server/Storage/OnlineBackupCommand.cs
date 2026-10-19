@@ -5,6 +5,7 @@ using System.Text.Json;
 using Azure.Core;
 using Azure.Identity;
 using Azure.Storage.Blobs;
+using Microsoft.Data.SqlClient;
 
 namespace Workbench.Server.Storage;
 
@@ -21,6 +22,7 @@ public static class OnlineBackupCommand
             var targetUri = ContainerUri(Required("DestinationContainer"));
             if (sourceUri.Host == targetUri.Host) throw new ArgumentException("An independent backup account is required.");
             var sqlId = Required("SqlResourceId");
+            var sqlConnection = SqlConnectionString(sqlId);
             var sourceId = Required("SourceAccountId");
             var destinationId = Required("DestinationAccountId");
             foreach (var id in new[] { sqlId, sourceId, destinationId })
@@ -64,7 +66,7 @@ public static class OnlineBackupCommand
             var adapter = new AzureBackupSource(source, installation);
             var archive = new AzureBackupArchive(destination);
             await archive.VerifyRetainedAsync(installation, cancellationToken);
-            var result = await OnlineBackup.CaptureAsync(adapter, archive,
+            var result = await OnlineBackup.CaptureFromSqlAsync(sqlConnection, "azure", adapter, archive,
                 new BackupMetadata(installation, sourceUri.AbsoluteUri, sqlId, sqlId.Split('/')[^1], sqlDays,
                     Required("ImageDigest"), Required("SchemaVersion"), Required("RecoveryKeyVersions").Split(';', StringSplitOptions.RemoveEmptyEntries)),
                 Guid.NewGuid(), sqlDays + 2, TimeProvider.System, cancellationToken);
@@ -85,6 +87,23 @@ public static class OnlineBackupCommand
             Console.Error.WriteLine("{\"Event\":\"OnlineBackupStatus\",\"Outcome\":\"Failed\"}");
             return 1;
         }
+    }
+
+    private static string SqlConnectionString(string resourceId)
+    {
+        var match = System.Text.RegularExpressions.Regex.Match(resourceId,
+            "^/subscriptions/[^/]+/resourceGroups/[^/]+/providers/Microsoft.Sql/servers/([a-zA-Z0-9-]+)/databases/([^/?#]+)$",
+            System.Text.RegularExpressions.RegexOptions.IgnoreCase | System.Text.RegularExpressions.RegexOptions.CultureInvariant);
+        if (!match.Success) throw new ArgumentException("An Azure SQL database resource identity is required.");
+        return new SqlConnectionStringBuilder
+        {
+            DataSource = $"tcp:{match.Groups[1].Value}.database.windows.net,1433",
+            InitialCatalog = match.Groups[2].Value,
+            Authentication = SqlAuthenticationMethod.ActiveDirectoryManagedIdentity,
+            Encrypt = SqlConnectionEncryptOption.Mandatory,
+            TrustServerCertificate = false,
+            ConnectTimeout = 30
+        }.ConnectionString;
     }
 
     private static Uri ContainerUri(string value)

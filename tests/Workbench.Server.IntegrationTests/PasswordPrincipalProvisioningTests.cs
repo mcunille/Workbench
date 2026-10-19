@@ -12,6 +12,26 @@ namespace Workbench.Server.IntegrationTests;
 public sealed class PasswordPrincipalProvisioningTests(SqlServerFixture sqlServer)
 {
     [Fact]
+    public async Task CurrentFinancialEvidenceGrantsPermitContainedProvisioningWithoutPostingAuthority()
+    {
+        // GIVEN the migrated BK-07 schema with only its declared evidence reads and disposal commands.
+        await using var database = await sqlServer.CreateMigratedDatabaseAsync();
+        using var inputs = new Inputs();
+        // WHEN contained workload principals are provisioned THEN exact current authority is accepted.
+        await inputs.ProvisionAsync(database);
+        foreach (var table in new[] { "FinancialEvidenceSets", "FinancialEvidenceLinks", "FinancialEvidenceAdditions", "FinancialEvidenceReceipts", "FinancialEvidenceDisposals", "FinancialEvidenceDisposalLinks" })
+        {
+            Assert.Equal(1, await ScalarAsync(database, $"SELECT COUNT(*) FROM sys.database_permissions WHERE grantee_principal_id=DATABASE_PRINCIPAL_ID('workbench_web') AND major_id=OBJECT_ID('Accounting.{table}') AND permission_name='SELECT' AND state='G'"));
+            Assert.Equal(3, await ScalarAsync(database, $"SELECT COUNT(*) FROM sys.database_permissions WHERE grantee_principal_id=DATABASE_PRINCIPAL_ID('workbench_web') AND major_id=OBJECT_ID('Accounting.{table}') AND permission_name IN ('INSERT','UPDATE','DELETE') AND state='D'"));
+        }
+        foreach (var procedure in new[] { "Purchasing.DisposeRetainedDocument", "Purchasing.ReadRetainedDocumentDisposal", "Accounting.ReadFinancialEvidence", "Storage.RequireFinancialEvidenceDeletion", "Storage.FinancialEvidenceRecoveryPending" })
+            Assert.Equal(1, await ScalarAsync(database, $"SELECT COUNT(*) FROM sys.database_permissions WHERE grantee_principal_id=DATABASE_PRINCIPAL_ID('workbench_web') AND major_id=OBJECT_ID('{procedure}') AND permission_name='EXECUTE' AND state='G'"));
+        // AND financial posting remains unavailable to web, worker and public principals.
+        foreach (var procedure in new[] { "Accounting.PostJournal", "Purchasing.PostSupplierBill", "Purchasing.PostRecognition" })
+            Assert.Equal(0, await ScalarAsync(database, $"SELECT COUNT(*) FROM sys.database_permissions WHERE grantee_principal_id IN (DATABASE_PRINCIPAL_ID('workbench_web'),DATABASE_PRINCIPAL_ID('workbench_worker'),DATABASE_PRINCIPAL_ID('public')) AND major_id=OBJECT_ID('{procedure}') AND permission_name='EXECUTE' AND state IN ('G','W')"));
+    }
+
+    [Fact]
     public async Task SharedReferenceProvisioningRetainsOnlyExplicitReads()
     {
         // GIVEN the current shared schema and its restricted grant matrix.
