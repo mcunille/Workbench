@@ -1,5 +1,5 @@
 [CmdletBinding()]
-param()
+param([string]$CandidateWorkflowPath)
 
 $ErrorActionPreference = 'Stop'
 $repositoryRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
@@ -26,3 +26,7 @@ if ($actionCount -lt 9) {
     throw "Expected at least nine action invocations; inspected $actionCount."
 }
 Write-Host "Workflow action pin verification passed ($actionCount invocations)."
+if ($CandidateWorkflowPath) {
+    & node (Join-Path $PSScriptRoot 'DistributedWorkflow.test.mjs') $CandidateWorkflowPath
+    if ($LASTEXITCODE -ne 0) { throw 'Distributed candidate workflow contract failed.' }
+}
