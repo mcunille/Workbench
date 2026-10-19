@@ -15,6 +15,13 @@ AS BEGIN
       @GroupId OUTPUT,@CorrectionId OUTPUT,@RecordedAtUtc OUTPUT,@Plan OUTPUT;
     RETURN;
   END;
+  IF EXISTS(SELECT 1 FROM Purchasing.SupplierFinancialReceipts WHERE TenantId=@Tenant AND RequestId=@OwnerRequestId
+    AND Operation IN('CorrectSupplierRefund','CorrectSupplierRefundRepayment'))
+  BEGIN
+    EXEC Purchasing.RequireSupplierCashComposition @ActorId,@SessionId,@OwnerRequestId,@ChildKind,@EntityId,@Details,
+      @GroupId OUTPUT,@CorrectionId OUTPUT,@RecordedAtUtc OUTPUT,@Plan OUTPUT;
+    RETURN;
+  END;
   BEGIN TRY EXEC Accounting.RequirePermission @ActorId,@SessionId,N'SupplierCreditsCorrect'; END TRY
   BEGIN CATCH IF ERROR_NUMBER()=50903 THROW 51003,'Current source correction authority is required.',1; THROW; END CATCH;
   SET @GroupId=NULL; SET @CorrectionId=NULL; SET @RecordedAtUtc=NULL; SET @Plan=NULL;

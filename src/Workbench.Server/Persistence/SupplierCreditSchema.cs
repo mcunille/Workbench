@@ -24,8 +24,8 @@ internal static class SupplierCreditSchema
             "Purchasing.SupplierRecognitionExpenseControl", "Purchasing.CanonicalizeSupplierCredit", "Purchasing.CanonicalizeSupplierCash", "Purchasing.CanonicalizeSupplierSourceCorrection", "Purchasing.SupplierCreditPosition",
             "Purchasing.AssertSupplierCreditCapacity", "Purchasing.ValidateSupplierCreditClaims", "Purchasing.AppendSupplierCredit",
             "Purchasing.SupplierCreditControl", "Purchasing.SupplierAssetControl",
-            "Purchasing.AppendSupplierCashSettlement", "Purchasing.SupplierCashControl",
-            "Purchasing.SupplierRefundReleaseControl", "Purchasing.SupplierItemControl",
+            "Purchasing.SupplierIncomingCashControl", "Purchasing.SupplierRefundReleaseControl", "Purchasing.SupplierRepaymentCashControl",
+            "Purchasing.SupplierCashControl", "Purchasing.SupplierCashTargetControl", "Purchasing.AppendSupplierCashSettlement", "Purchasing.SupplierItemControl",
             "Accounting.FinancialEvidenceSource", "Accounting.AppendFinancialEvidence",
             "Purchasing.RequireSupplierComposition", "Purchasing.ApplySupplierFundsCore",
             "Purchasing.BuildSupplierCreditCorrectionSources", "Purchasing.PlanSupplierCreditCapacity", "Purchasing.PlanSupplierCreditEvidence", "Purchasing.PlanSupplierCreditPositionBindings",
@@ -36,11 +36,16 @@ internal static class SupplierCreditSchema
             "Purchasing.PostSupplierBillCore", "Purchasing.PostSupplierBill", "Purchasing.PostBillRecognitionSuccessors", "Purchasing.PostSupplierBillSuccessor",
             "Purchasing.DeriveRecognitionOpenItems", "Purchasing.CorrectSupplierBill", "Accounting.CorrectJournalCore",
             "Purchasing.PlanSupplierSourceCorrection", "Purchasing.PreviewSupplierCreditCorrection",
+            "Purchasing.BuildSupplierCashCorrectionSources", "Purchasing.RequireSupplierCashCorrectionAuthority",
+            "Purchasing.ResolveSupplierCashCorrectionReplacements", "Purchasing.PlanSupplierCashCorrectionEvidence", "Purchasing.PlanSupplierCashCorrection",
+            "Purchasing.PreviewSupplierCashCorrection", "Purchasing.PreviewSupplierRefundCorrection", "Purchasing.PreviewSupplierRefundRepaymentCorrection",
+            "Purchasing.RequireSupplierCashComposition", "Purchasing.ReverseSupplierCashSource", "Purchasing.ValidateSupplierCashCorrectionGroup",
+            "Purchasing.CorrectSupplierCashCorrection", "Purchasing.CorrectSupplierRefund", "Purchasing.CorrectSupplierRefundRepayment",
             "Purchasing.RequireSupplierSourceComposition", "Purchasing.ReleaseSupplierCashSettlement",
             "Purchasing.ReverseSupplierCreditSource", "Purchasing.PostSupplierRecognitionCreditAdjustment",
             "Purchasing.ApplySupplierClearingFunds", "Purchasing.ValidateSupplierSourceCorrectionGroup",
             "Purchasing.CorrectSupplierCredit", "Purchasing.AppendSupplierEventGroup",
-            "Accounting.CorrectJournal", "Accounting.PostJournal", "Purchasing.PostRecognition", "Purchasing.PostSupplierCreditCore", "Purchasing.PostSupplierCredit", "Purchasing.RecordSupplierRefund", "Security.ReadDatabaseReadiness"
+            "Accounting.CorrectJournal", "Accounting.PostJournal", "Purchasing.PostRecognition", "Purchasing.PostSupplierCreditCore", "Purchasing.PostSupplierCredit", "Purchasing.RecordSupplierCashCore", "Purchasing.RecordSupplierRefund", "Purchasing.RecordSupplierRefundRepayment", "Security.ReadDatabaseReadiness"
         })
         {
             // Large predecessor definitions remain one SQL batch, stored in bounded authored parts.
@@ -94,7 +99,10 @@ internal static class SupplierCreditSchema
             "ValidateSupplierSourceCorrectionGroup", "PostSupplierCreditCore", "BuildSupplierBillCorrectionSource", "PlanSupplierBillCorrection",
             "RequireSupplierBillComposition", "ReverseSupplierBillSource", "AppendSupplierBillSuccessor", "PostSupplierBillCore", "PostSupplierBillSuccessor", "PostBillRecognitionSuccessors",
             "ValidateBillRecognitionOwner", "ValidateRecognitionSourceOwner", "PlanBillRecognitionSources", "RequireBillCorrectionSourceAuthority", "BuildBillDependentCreditSources", "PlanBillRecognitionAdjustments",
-            "ResolveBillCreditSuccessorIntents", "ProjectBillCreditCapacity", "PlanBillReapplications", "PlanSupplierCreditPositionBindings" })
+            "ResolveBillCreditSuccessorIntents", "ProjectBillCreditCapacity", "PlanBillReapplications", "PlanSupplierCreditPositionBindings", "RecordSupplierCashCore",
+            "BuildSupplierCashCorrectionSources", "RequireSupplierCashCorrectionAuthority", "ResolveSupplierCashCorrectionReplacements", "PlanSupplierCashCorrectionEvidence",
+            "PlanSupplierCashCorrection", "PreviewSupplierCashCorrection", "RequireSupplierCashComposition", "ReverseSupplierCashSource",
+            "ValidateSupplierCashCorrectionGroup", "CorrectSupplierCashCorrection" })
         {
             migrationBuilder.Sql($"""
                 DENY EXECUTE ON Purchasing.{procedure} TO workbench_web;

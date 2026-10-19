@@ -12,7 +12,7 @@ AS BEGIN
         OR ([key]='schemaVersion' AND (type<>2 OR value<>'1'))
         OR ([key]='replacesLinkId' AND type NOT IN(0,1)) OR ([key] NOT IN('schemaVersion','replacesLinkId') AND type<>1)
         OR ([key]='reason' AND DATALENGTH(value) NOT BETWEEN 2 AND 4000)
-        OR ([key]='ownerKind' AND value COLLATE Latin1_General_100_BIN2 NOT IN('SupplierBill','SupplierPayment','PurchaseRecognition','SupplierCredit','SupplierRefund'))
+        OR ([key]='ownerKind' AND value COLLATE Latin1_General_100_BIN2 NOT IN('SupplierBill','SupplierPayment','PurchaseRecognition','SupplierCredit','SupplierRefund','SupplierRefundRepayment'))
         OR ([key]='expectedEvidenceVersion' AND (DATALENGTH(value)<>36 OR TRY_CONVERT(binary(8),value,1) IS NULL))
         OR ([key] IN('ownerId','ownerRevisionId','documentId','revisionId','replacesLinkId') AND type<>0
           AND (DATALENGTH(value)<>72 OR TRY_CONVERT(uniqueidentifier,value) IS NULL OR TRY_CONVERT(uniqueidentifier,value)='00000000-0000-0000-0000-000000000000')))

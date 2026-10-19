@@ -46,6 +46,12 @@ RETURNS TABLE AS RETURN
   SELECT c.PurchaseOrderId,c.SupplierId,c.ActorId,c.PostingDate,c.RecordedAtUtc,
     HASHBYTES('SHA2_256',CONVERT(varbinary(max),c.SourceSnapshotJson)),
     JSON_QUERY(c.SourceSnapshotJson,'$.evidence.documents'),JSON_VALUE(c.SourceSnapshotJson,'$.evidence.missingEvidenceReason'),
-    CONVERT(bit,0),CONVERT(nvarchar(100),N'SupplierRefundsRecord'),CONVERT(uniqueidentifier,NULL)
-  FROM Purchasing.SupplierCashSources c CROSS APPLY Purchasing.SupplierCashControl(@TenantId,c.Id) control
-  WHERE @OwnerKind='SupplierRefund' AND c.Kind='SupplierRefund' AND c.TenantId=@TenantId AND c.Id=@OwnerId AND c.RevisionId=@OwnerRevisionId;
+    CONVERT(bit,0),CONVERT(nvarchar(100),CASE WHEN parent.Id IS NULL THEN
+      CASE c.Kind WHEN 'SupplierRefund' THEN N'SupplierRefundsRecord' ELSE N'SupplierRefundRepaymentsRecord' END ELSE
+      CASE c.Kind WHEN 'SupplierRefund' THEN N'SupplierRefundsCorrect' ELSE N'SupplierRefundRepaymentsCorrect' END END),
+    (SELECT original.Id FROM Accounting.FinancialEvidenceSets original WHERE original.TenantId=c.TenantId
+      AND original.OwnerKind=c.Kind AND original.OwnerId=parent.SourceId AND original.OwnerRevisionId=parent.SourceRevisionId)
+  FROM Purchasing.SupplierCashSources c LEFT JOIN Purchasing.SupplierSourceCorrections parent ON parent.TenantId=c.TenantId
+    AND parent.SourceKind=c.Kind AND parent.ReplacementSourceId=c.Id AND parent.ReplacementSourceRevisionId=c.RevisionId
+  CROSS APPLY Purchasing.SupplierCashControl(@TenantId,c.Id) control
+  WHERE @OwnerKind IN('SupplierRefund','SupplierRefundRepayment') AND c.Kind=@OwnerKind AND c.TenantId=@TenantId AND c.Id=@OwnerId AND c.RevisionId=@OwnerRevisionId;

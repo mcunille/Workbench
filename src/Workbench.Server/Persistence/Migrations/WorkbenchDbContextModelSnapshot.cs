@@ -659,7 +659,7 @@ namespace Workbench.Server.Persistence.Migrations
 
                     b.ToTable("FinancialEvidenceSets", "Accounting", t =>
                         {
-                            t.HasCheckConstraint("CK_FinancialEvidenceSets_Owner", "[OwnerKind] COLLATE Latin1_General_100_BIN2 IN ('SupplierBill','SupplierPayment','PurchaseRecognition','SupplierCredit','SupplierRefund')");
+                            t.HasCheckConstraint("CK_FinancialEvidenceSets_Owner", "[OwnerKind] COLLATE Latin1_General_100_BIN2 IN ('SupplierBill','SupplierPayment','PurchaseRecognition','SupplierCredit','SupplierRefund','SupplierRefundRepayment')");
                         });
                 });
 
@@ -3947,7 +3947,7 @@ namespace Workbench.Server.Persistence.Migrations
 
                     b.ToTable("SupplierFinancialGroups", "Purchasing", t =>
                         {
-                            t.HasCheckConstraint("CK_SupplierFinancialGroups_Operation", "[Operation] COLLATE Latin1_General_100_BIN2 IN ('OpenRecognitionPayable','RecordPayment','Apply','ReverseApplication','CorrectPayment','CorrectSource','RecordCredit','RecordRefund','CorrectCredit','CorrectBill')");
+                            t.HasCheckConstraint("CK_SupplierFinancialGroups_Operation", "[Operation] COLLATE Latin1_General_100_BIN2 IN ('OpenRecognitionPayable','RecordPayment','Apply','ReverseApplication','CorrectPayment','CorrectSource','RecordCredit','RecordRefund','RecordRepayment','CorrectCredit','CorrectBill','CorrectRefund','CorrectRepayment')");
                         });
                 });
 

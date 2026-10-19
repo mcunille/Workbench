@@ -8,7 +8,7 @@ AS BEGIN
   SELECT line.AccountId,line.AccountVersion,line.AccountCode,line.AccountName,line.AccountType,line.AccountPurpose
   FROM Purchasing.SupplierCashSettlementReleases released
   JOIN Purchasing.SupplierCashSettlements settlement ON settlement.TenantId=released.TenantId AND settlement.Id=released.SettlementId
-  CROSS APPLY Purchasing.SupplierCashControl(@TenantId,settlement.CashSourceId) cashControl
+  CROSS APPLY Purchasing.SupplierIncomingCashControl(@TenantId,settlement.CashSourceId) cashControl
   JOIN Purchasing.SupplierSourceCorrections correction ON correction.TenantId=released.TenantId AND correction.Id=released.CorrectionId
     AND correction.GroupId=released.GroupId AND correction.SourceKind='SupplierCredit' AND correction.SourceId=settlement.ItemId
     AND correction.ActorId=released.ActorId AND correction.RecordedAtUtc=released.RecordedAtUtc

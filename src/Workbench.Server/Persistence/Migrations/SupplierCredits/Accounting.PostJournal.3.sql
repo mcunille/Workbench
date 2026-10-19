@@ -1,25 +1,45 @@
 -- Copyright (c) 2026 The White Stag Collection.
-  IF @SourceCommandKind=N'Supplier.Refund'
+  IF @SourceCommandKind IN(N'Supplier.Refund',N'Supplier.RefundRepayment')
   BEGIN
-    IF @SourceKind<>N'SupplierRefund' OR @EventKind<>N'Refund' OR @RequiredPermission<>N'SupplierRefundsRecord'
+    DECLARE @CashOutgoing bit=CASE WHEN @SourceCommandKind=N'Supplier.RefundRepayment' THEN 1 ELSE 0 END,
+      @CashKind varchar(32)=CASE WHEN @SourceCommandKind=N'Supplier.Refund' THEN 'SupplierRefund' ELSE 'SupplierRefundRepayment' END,
+      @CashPermission nvarchar(100)=CASE WHEN @SourceCommandKind=N'Supplier.Refund' THEN N'SupplierRefundsRecord' ELSE N'SupplierRefundRepaymentsRecord' END,
+      @CashOperation nvarchar(40)=CASE WHEN @SourceCommandKind=N'Supplier.Refund' THEN N'RecordSupplierRefund' ELSE N'RecordSupplierRefundRepayment' END,
+      @CashGroupOperation varchar(40)=CASE WHEN @SourceCommandKind=N'Supplier.Refund' THEN 'RecordRefund' ELSE 'RecordRepayment' END,
+      @CashEventKind nvarchar(64)=CASE WHEN @SourceCommandKind=N'Supplier.Refund' THEN N'Refund' ELSE N'RefundRepayment' END;
+    IF @SourceKind<>@CashKind OR @EventKind<>@CashEventKind OR @RequiredPermission<>@CashPermission
       OR @SupplierControlItems IS NOT NULL
       OR APPLOCK_MODE('public',N'Accounting:'+CONVERT(nvarchar(36),@TenantId),'Transaction')<>'Exclusive'
       OR NOT EXISTS(SELECT 1 FROM Purchasing.SupplierCashSources cash
         JOIN Purchasing.SupplierFinancialGroups financialGroup ON financialGroup.TenantId=cash.TenantId AND financialGroup.Id=cash.GroupId
-          AND financialGroup.Operation='RecordRefund' AND financialGroup.SourceId=cash.Id AND financialGroup.RecordedAtUtc=cash.RecordedAtUtc
+          AND ((financialGroup.SourceId=cash.Id AND financialGroup.Operation=CASE cash.Kind WHEN 'SupplierRefund' THEN 'RecordRefund' ELSE 'RecordRepayment' END)
+        OR EXISTS(SELECT 1 FROM Purchasing.SupplierSourceCorrections parent WHERE parent.TenantId=cash.TenantId AND parent.GroupId=cash.GroupId
+          AND parent.SourceKind=cash.Kind AND parent.OriginalCashSourceId=parent.SourceId
+          AND parent.ReplacementSourceId=cash.Id AND parent.ReplacementSourceRevisionId=cash.RevisionId
+          AND parent.ActorId=cash.ActorId AND parent.RecordedAtUtc=cash.RecordedAtUtc
+          AND parent.Id=TRY_CONVERT(uniqueidentifier,JSON_VALUE(cash.SourceSnapshotJson,'$.correctionId'))
+          AND financialGroup.Operation IN('CorrectRefund','CorrectRepayment'))) AND financialGroup.RecordedAtUtc=cash.RecordedAtUtc
         JOIN Purchasing.SupplierFinancialReceipts receipt ON receipt.TenantId=cash.TenantId AND receipt.GroupId=cash.GroupId
-          AND receipt.RequestId=@RequestId AND receipt.Operation='RecordSupplierRefund' AND receipt.ActorId=cash.ActorId
+          AND receipt.RequestId=@RequestId AND receipt.Operation=@CashOperation AND receipt.ActorId=cash.ActorId
           AND receipt.RecordedAtUtc=cash.RecordedAtUtc AND JSON_VALUE(receipt.ResultJson,'$.state')='pending'
           AND CONVERT(varbinary(max),receipt.CanonicalInput)=CONVERT(varbinary(max),@CanonicalInput)
-        WHERE cash.TenantId=@TenantId AND cash.Id=@SourceId AND cash.RevisionId=@SourceRevision AND cash.Kind='SupplierRefund'
+        WHERE cash.TenantId=@TenantId AND cash.Id=@SourceId AND cash.RevisionId=@SourceRevision AND cash.Kind=@CashKind
           AND cash.ActorId=@ActorId AND cash.Currency=@Currency AND cash.ActualDate=@DocumentDate
           AND cash.EffectiveDate=@EffectiveDate AND cash.PostingDate=@PostingDate
           AND CONVERT(varbinary(max),cash.SourceSnapshotJson)=CONVERT(varbinary(max),@SourceSnapshot)
           AND CONVERT(varbinary(max),JSON_QUERY(cash.SourceSnapshotJson,'$.command'))=CONVERT(varbinary(max),@CanonicalInput)
           AND @ExpectedConfigurationVersion=TRY_CONVERT(uniqueidentifier,JSON_VALUE(@CanonicalInput,'$.expectedConfigurationVersion'))
           AND EXISTS(SELECT 1 FROM @Input input WHERE input.Ordinal=1 AND input.AccountId=cash.FundingAccountId
-            AND input.AccountVersion=cash.FundingAccountVersion AND input.Debit=cash.Amount AND input.Credit=0))
+            AND input.AccountVersion=cash.FundingAccountVersion AND input.Debit=CASE WHEN @CashOutgoing=0 THEN cash.Amount ELSE 0 END
+            AND input.Credit=CASE WHEN @CashOutgoing=1 THEN cash.Amount ELSE 0 END))
       THROW 51004,'Authentic pending supplier refund owner required.',1;
+    IF JSON_VALUE(@SourceSnapshot,'$.correctionRequestId') IS NOT NULL
+    BEGIN
+      DECLARE @CashOwner uniqueidentifier=TRY_CONVERT(uniqueidentifier,JSON_VALUE(@SourceSnapshot,'$.correctionRequestId')),
+        @CashParentGroup uniqueidentifier,@CashParentCorrection uniqueidentifier,@CashParentNow datetimeoffset,@CashParentPlan nvarchar(max);
+      EXEC Purchasing.RequireSupplierCashComposition @ActorId,@SessionId,@CashOwner,N'ReplacementCash',@SourceId,@CanonicalInput,
+        @CashParentGroup OUTPUT,@CashParentCorrection OUTPUT,@CashParentNow OUTPUT,@CashParentPlan OUTPUT;
+    END;
     DECLARE @CashProof TABLE(ItemId uniqueidentifier,Amount decimal(28,4),AccountId uniqueidentifier,AccountVersion uniqueidentifier,
       AccountCode nvarchar(32),AccountName nvarchar(160),AccountType nvarchar(40),AccountPurpose nvarchar(40));
     INSERT @CashProof
@@ -28,20 +48,22 @@
       FROM OPENJSON(@CanonicalInput,'$.settlements') target
       JOIN Purchasing.SupplierCashSources cash ON cash.TenantId=@TenantId AND cash.Id=@SourceId
       JOIN Purchasing.SupplierOpenItems item ON item.TenantId=cash.TenantId AND item.Id=TRY_CONVERT(uniqueidentifier,JSON_VALUE(target.value,'$.itemId'))
-        AND item.Kind IN('Advance','CreditReceivable') AND item.SupplierId=cash.SupplierId AND item.PurchaseOrderId=cash.PurchaseOrderId
+        AND ((@CashOutgoing=0 AND item.Kind IN('Advance','CreditReceivable')) OR (@CashOutgoing=1 AND item.Kind='RefundClearing')) AND item.SupplierId=cash.SupplierId AND item.PurchaseOrderId=cash.PurchaseOrderId
         AND item.Currency=cash.Currency AND item.SourcePostingDate<=cash.PostingDate
-      CROSS APPLY Purchasing.SupplierAssetControl(@TenantId,item.Id) control
-      WHERE control.AccountType='Asset' AND control.AccountPurpose IN('SupplierAdvance','SupplierCreditReceivable');
+      CROSS APPLY Purchasing.SupplierCashTargetControl(@TenantId,@CashKind,item.Id) control
+      WHERE (@CashOutgoing=0 AND control.AccountType='Asset' AND control.AccountPurpose IN('SupplierAdvance','SupplierCreditReceivable'))
+        OR (@CashOutgoing=1 AND control.AccountType='Liability' AND control.AccountPurpose='SupplierRefundClearing');
     IF (SELECT COUNT(*) FROM @CashProof)<>(SELECT COUNT(*) FROM OPENJSON(@CanonicalInput,'$.settlements'))
-      OR (SELECT SUM(CONVERT(decimal(38,4),Amount)) FROM @CashProof)<>(SELECT Debit FROM @Input WHERE Ordinal=1)
+      OR (SELECT SUM(CONVERT(decimal(38,4),Amount)) FROM @CashProof)<>(SELECT CASE WHEN @CashOutgoing=0 THEN Debit ELSE Credit END FROM @Input WHERE Ordinal=1)
       THROW 51004,'Complete authentic refundable source controls required.',1;
     INSERT @Historical
       SELECT DISTINCT input.Ordinal,proof.AccountId,proof.AccountVersion,proof.AccountCode,proof.AccountName,proof.AccountType,proof.AccountPurpose
       FROM @Input input JOIN @CashProof proof ON proof.AccountId=input.AccountId AND proof.AccountVersion=input.AccountVersion
-      WHERE input.Debit=0 AND input.Credit=(SELECT SUM(CONVERT(decimal(38,4),other.Amount)) FROM @CashProof other
+      WHERE CASE WHEN @CashOutgoing=0 THEN input.Debit ELSE input.Credit END=0
+        AND CASE WHEN @CashOutgoing=0 THEN input.Credit ELSE input.Debit END=(SELECT SUM(CONVERT(decimal(38,4),other.Amount)) FROM @CashProof other
         WHERE other.AccountId=proof.AccountId AND other.AccountVersion=proof.AccountVersion);
-    IF (SELECT COUNT(*) FROM @Historical)<>(SELECT COUNT(*) FROM @Input WHERE Credit>0)
-      OR (SELECT COUNT(*) FROM @Input WHERE Debit>0)<>1
+    IF (SELECT COUNT(*) FROM @Historical)<>(SELECT COUNT(*) FROM @Input WHERE CASE WHEN @CashOutgoing=0 THEN Credit ELSE Debit END>0)
+      OR (SELECT COUNT(*) FROM @Input WHERE CASE WHEN @CashOutgoing=0 THEN Debit ELSE Credit END>0)<>1
       THROW 51004,'Complete historical refund control attribution required.',1;
   END;
   IF @SourceCommandKind=N'Supplier.Payment' AND @RequiredPermission=N'SupplierPaymentsCorrect'
@@ -101,11 +123,12 @@
       OR EXISTS(SELECT 1 FROM Purchasing.SupplierApplicationReversals WHERE TenantId=@TenantId AND ApplicationId=@InverseApplication)
       OR NOT EXISTS(SELECT 1 FROM Purchasing.SupplierFinancialReceipts r JOIN Purchasing.SupplierFinancialGroups g
         ON g.TenantId=r.TenantId AND g.Id=r.GroupId WHERE r.TenantId=@TenantId AND r.GroupId=@SourceRevision AND r.ActorId=@ActorId
-        AND JSON_VALUE(r.ResultJson,'$.state')='pending' AND (g.RecordedAtUtc=TRY_CONVERT(datetimeoffset,JSON_VALUE(r.ResultJson,'$.recordedAtUtc')) OR r.Operation IN('CorrectSupplierCredit','CorrectSupplierBill') AND g.RecordedAtUtc=r.RecordedAtUtc)
+        AND JSON_VALUE(r.ResultJson,'$.state')='pending' AND (g.RecordedAtUtc=TRY_CONVERT(datetimeoffset,JSON_VALUE(r.ResultJson,'$.recordedAtUtc')) OR r.Operation IN('CorrectSupplierCredit','CorrectSupplierBill','CorrectSupplierRefund','CorrectSupplierRefundRepayment') AND g.RecordedAtUtc=r.RecordedAtUtc)
         AND ((r.Operation='ReverseSupplierApplication' AND TRY_CONVERT(uniqueidentifier,JSON_VALUE(r.CanonicalInput,'$.applicationId'))=@InverseApplication)
           OR (r.Operation='CorrectSupplierPayment' AND EXISTS(SELECT 1 FROM Purchasing.SupplierApplications a WHERE a.TenantId=@TenantId AND a.Id=@InverseApplication
             AND a.FundingItemId=TRY_CONVERT(uniqueidentifier,JSON_VALUE(r.CanonicalInput,'$.paymentId'))))
-          OR ((r.Operation='CorrectSupplierCredit' AND g.Operation='CorrectCredit' OR r.Operation='CorrectSupplierBill' AND g.Operation='CorrectBill') AND EXISTS(
+          OR ((r.Operation='CorrectSupplierCredit' AND g.Operation='CorrectCredit' OR r.Operation='CorrectSupplierBill' AND g.Operation='CorrectBill'
+            OR r.Operation='CorrectSupplierRefund' AND g.Operation='CorrectRefund' OR r.Operation='CorrectSupplierRefundRepayment' AND g.Operation='CorrectRepayment') AND EXISTS(
             SELECT 1 FROM OPENJSON(r.ResultJson,'$.plan.applications') child
             WHERE TRY_CONVERT(uniqueidentifier,JSON_VALUE(child.value,'$.applicationId'))=@InverseApplication
               AND TRY_CONVERT(date,JSON_VALUE(child.value,'$.postingDate'),23)=@PostingDate))))

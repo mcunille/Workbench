@@ -6,9 +6,15 @@ AS BEGIN
   IF @@TRANCOUNT=0 OR @TenantId<>TRY_CONVERT(uniqueidentifier,SESSION_CONTEXT(N'TenantId'))
     OR APPLOCK_MODE('public',N'Accounting:'+CONVERT(nvarchar(36),@TenantId),'Transaction')<>'Exclusive'
     THROW 51009,'Complete source validation requires its owner transaction.',1;
-  DECLARE @Plan nvarchar(max),@Actor uniqueidentifier,@Now datetimeoffset;
+  DECLARE @Plan nvarchar(max),@Actor uniqueidentifier,@Now datetimeoffset,@Cash bit=0;
+  IF EXISTS(SELECT 1 FROM Purchasing.SupplierFinancialReceipts WHERE TenantId=@TenantId AND GroupId=@GroupId
+    AND RequestId=@OwnerRequestId AND Operation IN('CorrectSupplierRefund','CorrectSupplierRefundRepayment'))
+  BEGIN
+    EXEC Purchasing.ValidateSupplierCashCorrectionGroup @TenantId,@GroupId,@OwnerRequestId;
+    SET @Cash=1;
+  END;
   SELECT @Plan=JSON_QUERY(ResultJson,'$.plan'),@Actor=ActorId,@Now=RecordedAtUtc FROM Purchasing.SupplierFinancialReceipts
-    WHERE TenantId=@TenantId AND RequestId=@OwnerRequestId AND GroupId=@GroupId AND Operation IN('CorrectSupplierCredit','CorrectSupplierBill') AND JSON_VALUE(ResultJson,'$.state')='pending';
+    WHERE TenantId=@TenantId AND RequestId=@OwnerRequestId AND GroupId=@GroupId AND Operation IN('CorrectSupplierCredit','CorrectSupplierBill','CorrectSupplierRefund','CorrectSupplierRefundRepayment') AND JSON_VALUE(ResultJson,'$.state')='pending';
   IF @Plan IS NULL OR (SELECT COUNT(*) FROM OPENJSON(@Plan,'$.sources'))<>(SELECT COUNT(*) FROM Purchasing.SupplierSourceCorrections WHERE TenantId=@TenantId AND GroupId=@GroupId)
     THROW 51004,'Complete pending source correction ownership is unavailable.',1;
   DECLARE @Expected TABLE(ItemId uniqueidentifier,PostingDate date,Amount decimal(38,4));
@@ -37,8 +43,8 @@ AS BEGIN
     THROW 51004,'An earlier monetary recognition adjustment was not completely inverted.',1;
   IF EXISTS(SELECT 1 FROM Purchasing.SupplierSourceCorrections correction WHERE correction.TenantId=@TenantId AND correction.GroupId=@GroupId
     AND (correction.ActorId<>@Actor OR correction.RecordedAtUtc<>@Now
-      OR COALESCE((SELECT SUM(CONVERT(decimal(38,4),Amount)) FROM Purchasing.SupplierItemMovements movement
-        WHERE movement.TenantId=correction.TenantId AND movement.ItemId=correction.SourceId),0)<>0
+      OR (correction.SourceKind IN('SupplierCredit','SupplierBill') AND COALESCE((SELECT SUM(CONVERT(decimal(38,4),Amount)) FROM Purchasing.SupplierItemMovements movement
+        WHERE movement.TenantId=correction.TenantId AND movement.ItemId=correction.SourceId),0)<>0)
       OR NOT EXISTS(SELECT 1 FROM Purchasing.SupplierSourceCorrectionMembers member WHERE member.TenantId=correction.TenantId
         AND member.CorrectionId=correction.Id AND member.GroupId=correction.GroupId AND member.Kind='ReverseSource' AND member.EntityId=correction.SourceId)
       OR (correction.ReplacementSourceId IS NOT NULL AND correction.SourceKind='SupplierCredit' AND NOT EXISTS(SELECT 1 FROM Purchasing.SupplierCredits replacement
@@ -90,7 +96,7 @@ AS BEGIN
       (journal.RecordedAtUtc<>@Now OR sourceEvent.RecordedAtUtc<>@Now OR journal.ActorId<>@Actor OR sourceEvent.ActorId<>@Actor))
     OR EXISTS(SELECT 1 FROM Purchasing.SupplierSourceCorrectionMembers member JOIN Accounting.JournalLines line
       ON line.TenantId=member.TenantId AND line.JournalId=member.JournalId
-      WHERE member.TenantId=@TenantId AND member.GroupId=@GroupId AND line.AccountPurpose IN('Bank','Cash','CardLiability'))
+      WHERE member.TenantId=@TenantId AND member.GroupId=@GroupId AND @Cash=0 AND line.AccountPurpose IN('Bank','Cash','CardLiability'))
     THROW 51004,'Source correction changed actual cash or its common recorded instant.',1;
   IF EXISTS(SELECT 1 FROM Purchasing.SupplierItemMovements movement WHERE movement.TenantId=@TenantId AND movement.GroupId=@GroupId
     AND (movement.RecordedAtUtc<>@Now OR NOT EXISTS(SELECT 1 FROM Purchasing.SupplierControlAttributions attribution

@@ -18,7 +18,7 @@ public partial class WorkbenchDbContext
     private void ConfigureFinancialEvidence(ModelBuilder builder)
     {
         var set = builder.Entity<FinancialEvidenceSet>();
-        set.ToTable("FinancialEvidenceSets", "Accounting", t => t.HasCheckConstraint("CK_FinancialEvidenceSets_Owner", "[OwnerKind] COLLATE Latin1_General_100_BIN2 IN ('SupplierBill','SupplierPayment','PurchaseRecognition','SupplierCredit','SupplierRefund')"));
+        set.ToTable("FinancialEvidenceSets", "Accounting", t => t.HasCheckConstraint("CK_FinancialEvidenceSets_Owner", "[OwnerKind] COLLATE Latin1_General_100_BIN2 IN ('SupplierBill','SupplierPayment','PurchaseRecognition','SupplierCredit','SupplierRefund','SupplierRefundRepayment')"));
         set.HasKey(x => new { x.TenantId, x.Id });
         set.HasQueryFilter(x => (Guid?)x.TenantId == TenantContext.TenantId);
         set.Property(x => x.OwnerKind).HasMaxLength(32).IsUnicode(false);

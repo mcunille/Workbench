@@ -164,13 +164,13 @@ namespace Workbench.Server.Persistence.Migrations
                 name: "CK_SupplierFinancialGroups_Operation",
                 schema: "Purchasing",
                 table: "SupplierFinancialGroups",
-                sql: "[Operation] COLLATE Latin1_General_100_BIN2 IN ('OpenRecognitionPayable','RecordPayment','Apply','ReverseApplication','CorrectPayment','CorrectSource','RecordCredit','RecordRefund','CorrectCredit','CorrectBill')");
+                sql: "[Operation] COLLATE Latin1_General_100_BIN2 IN ('OpenRecognitionPayable','RecordPayment','Apply','ReverseApplication','CorrectPayment','CorrectSource','RecordCredit','RecordRefund','RecordRepayment','CorrectCredit','CorrectBill','CorrectRefund','CorrectRepayment')");
 
             migrationBuilder.AddCheckConstraint(
                 name: "CK_FinancialEvidenceSets_Owner",
                 schema: "Accounting",
                 table: "FinancialEvidenceSets",
-                sql: "[OwnerKind] COLLATE Latin1_General_100_BIN2 IN ('SupplierBill','SupplierPayment','PurchaseRecognition','SupplierCredit','SupplierRefund')");
+                sql: "[OwnerKind] COLLATE Latin1_General_100_BIN2 IN ('SupplierBill','SupplierPayment','PurchaseRecognition','SupplierCredit','SupplierRefund','SupplierRefundRepayment')");
 
             migrationBuilder.CreateIndex(
                 name: "IX_SupplierCreditClaims_TenantId_AccountId",
