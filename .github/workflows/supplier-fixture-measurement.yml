@@ -1,0 +1,477 @@
+name: Supplier fixture measurement
+"on":
+  workflow_dispatch:
+    inputs:
+      round:
+        description: Predeclared measurement round
+        required: true
+        type: choice
+        options:
+          - "1"
+          - "2"
+permissions:
+  contents: read
+jobs:
+  design-tooling-contracts:
+    name: Design tooling contracts (${{ matrix.os }})
+    strategy:
+      matrix:
+        os:
+          - windows-latest
+          - ubuntu-latest
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Check out source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - name: Set up Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: 26.7.0
+      - name: Verify Live integration is disabled
+        run: node --test --test-timeout=30000 tests/Workbench.BuildTests/ImpeccableLaunchers.test.mjs
+    timeout-minutes: 120
+  local-setup-contracts:
+    name: Windows local setup contracts
+    runs-on: windows-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - name: Verify local installer without a Docker daemon
+        shell: pwsh
+        run: |
+          ./scripts/test-local-self-host.ps1
+          ./scripts/test-local-self-host-orchestration.ps1
+          ./scripts/test-local-self-host-update.ps1
+          ./scripts/test-local-self-host-update-validation.ps1
+          ./scripts/test-local-self-host-update-checkpoint.ps1
+          ./tests/Workbench.BuildTests/LocalRuntime.Tests.ps1
+          ./tests/Workbench.BuildTests/DevEnvironment.Tests.ps1
+          ./tests/Workbench.BuildTests/DevLifecycle.Tests.ps1
+    timeout-minutes: 120
+  deployment-contracts:
+    name: Deployment contracts
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - name: Validate configuration and compile infrastructure
+        shell: pwsh
+        run: |
+          ./infra/azure/test-parameters.ps1
+          ./infra/azure/test-bootstrap.ps1
+          ./scripts/test-compose-proxy.ps1
+          az bicep install --version v0.46.1
+          if ($LASTEXITCODE -ne 0) { throw 'Bicep installation failed.' }
+          az bicep build --file infra/azure/main.bicep --outfile /tmp/workbench-infra.json
+          if ($LASTEXITCODE -ne 0) { throw 'Infrastructure compilation failed.' }
+          ./infra/azure/test-backup-redundancy.ps1 -TemplateFile /tmp/workbench-infra.json
+          ./infra/azure/test-workload-parameters.ps1 -TemplateFile /tmp/workbench-infra.json
+          ./infra/azure/test-ingress-policy.ps1 -TemplateFile /tmp/workbench-infra.json
+          az bicep build --file infra/azure/security-controls.bicep --outfile /tmp/workbench-security.json
+          if ($LASTEXITCODE -ne 0) { throw 'Security controls compilation failed.' }
+          az bicep build --file infra/azure/modules/foundation.bicep --outfile /tmp/workbench-foundation.json
+          if ($LASTEXITCODE -ne 0) { throw 'Foundation compilation failed.' }
+          az bicep build --file infra/azure/security-activity-log.bicep --outfile /tmp/workbench-activity.json
+          if ($LASTEXITCODE -ne 0) { throw 'Activity log compilation failed.' }
+          ./infra/azure/test-security-controls.ps1 -TemplateFile /tmp/workbench-security.json -FoundationTemplateFile /tmp/workbench-foundation.json
+          az bicep lint --file infra/azure/main.bicep
+          if ($LASTEXITCODE -ne 0) { throw 'Infrastructure lint failed.' }
+    timeout-minutes: 120
+  container-smoke:
+    name: Hardened container smoke
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - name: Build and smoke test the runtime image
+        shell: pwsh
+        run: ./scripts/smoke-container.ps1
+    timeout-minutes: 120
+  prepare:
+    name: Prepare current source
+    runs-on: ubuntu-latest
+    outputs:
+      evidence-id: ${{ steps.evidence.outputs.artifact-id }}
+      invocation-id: ${{ steps.prepare.outputs.invocation-id }}
+      transport-hash: ${{ steps.prepare.outputs.transport-hash }}
+      plan-hash: ${{ steps.prepare.outputs.plan-hash }}
+      bundle-id: ${{ steps.bundle.outputs.artifact-id }}
+    steps:
+      - name: Check out immutable source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - name: Set up .NET
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
+        with:
+          dotnet-version: 10.0.402
+      - name: Set up Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: 26.7.0
+      - name: Verify build orchestration
+        shell: pwsh
+        run: |
+          ./tests/Workbench.BuildTests/WorkflowActions.Tests.ps1
+          ./tests/Workbench.BuildTests/VerificationScripts.Tests.ps1
+          ./tests/Workbench.BuildTests/VerificationStages.Tests.ps1
+          ./tests/Workbench.BuildTests/ServerPartitions.Tests.ps1
+          ./tests/Workbench.BuildTests/ServerDurations.Tests.ps1
+          ./tests/Workbench.BuildTests/ArtifactReuse.Tests.ps1
+          ./tests/Workbench.BuildTests/PublishedProcess.Tests.ps1
+          ./tests/Workbench.BuildTests/FocusedTests.Tests.ps1
+          ./tests/Workbench.BuildTests/RestoreDatabase.Tests.ps1
+          ./tests/Workbench.BuildTests/RestoreDatabase.Sql.Tests.ps1
+      - name: Install dependencies
+        shell: pwsh
+        run: npm ci --prefix src/Workbench.Client --ignore-scripts --no-audit --no-fund
+      - name: Verify distributed contracts
+        shell: pwsh
+        run: |-
+          $workflowPath = $env:GITHUB_WORKFLOW_REF.Split('@')[0].Substring($env:GITHUB_REPOSITORY.Length + 1)
+          ./tests/Workbench.BuildTests/WorkflowActions.Tests.ps1 -CandidateWorkflowPath $workflowPath
+          ./tests/Workbench.BuildTests/DistributedExecution.Tests.ps1
+          ./tests/Workbench.BuildTests/VerificationTransport.Tests.ps1
+          ./tests/Workbench.BuildTests/VerificationPhases.Tests.ps1
+          ./tests/Workbench.BuildTests/DistributedAggregate.Tests.ps1
+          ./tests/Workbench.BuildTests/DistributedMeasurement.Tests.ps1
+      - name: Bind trusted job context
+        shell: pwsh
+        run: |-
+          if (-not $env:WORKBENCH_INVOCATION) { $env:WORKBENCH_INVOCATION=[guid]::NewGuid().ToString('N') }
+          [ordered]@{
+            Repository=$env:GITHUB_REPOSITORY; Revision=$env:GITHUB_SHA; Workflow=$env:GITHUB_WORKFLOW
+            RunId=$env:GITHUB_RUN_ID; RunAttempt=$env:GITHUB_RUN_ATTEMPT; InvocationId=$env:WORKBENCH_INVOCATION
+            Configuration='Release;UseAppHost=false;BuildClient=false'
+            Toolchain=@{Sdk='10.0.402';Node='26.7.0';Npm='11.19.0'}
+            Platform=@{OS='Linux';Architecture='X64'}
+          } | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath "$env:RUNNER_TEMP/verification-context.json"
+      - name: Prepare portable outputs
+        shell: pwsh
+        id: prepare
+        run: ./scripts/verification-distributed.ps1 -Phase Prepare -RunRoot artifacts/distributed/prepare -ExpectedContextPath "$env:RUNNER_TEMP/verification-context.json" -SkipDependencyInstall
+      - name: Upload immutable output bundle
+        id: bundle
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: distributed-bundle-${{ github.run_attempt }}
+          if-no-files-found: error
+          path: artifacts/distributed/prepare/bundle
+      - name: Retain phase evidence
+        id: evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: distributed-prepare-${{ github.run_attempt }}
+          if-no-files-found: error
+          path: |-
+            artifacts/distributed/prepare/receipt.json
+            artifacts/distributed/prepare/client.json
+            artifacts/distributed/prepare/release.json
+            artifacts/distributed/prepare/discovery.log
+            artifacts/distributed/prepare/partition-*/**
+    timeout-minutes: 120
+  server-a:
+    name: Server host A
+    needs:
+      - prepare
+    runs-on: ubuntu-latest
+    outputs:
+      evidence-id: ${{ steps.evidence.outputs.artifact-id }}
+    steps:
+      - name: Check out immutable source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - name: Set up .NET
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
+        with:
+          dotnet-version: 10.0.402
+      - name: Bind trusted job context
+        shell: pwsh
+        env:
+          WORKBENCH_INVOCATION: ${{ needs.prepare.outputs.invocation-id }}
+        run: |-
+          if (-not $env:WORKBENCH_INVOCATION) { $env:WORKBENCH_INVOCATION=[guid]::NewGuid().ToString('N') }
+          [ordered]@{
+            Repository=$env:GITHUB_REPOSITORY; Revision=$env:GITHUB_SHA; Workflow=$env:GITHUB_WORKFLOW
+            RunId=$env:GITHUB_RUN_ID; RunAttempt=$env:GITHUB_RUN_ATTEMPT; InvocationId=$env:WORKBENCH_INVOCATION
+            Configuration='Release;UseAppHost=false;BuildClient=false'
+            Toolchain=@{Sdk='10.0.402';Node='26.7.0';Npm='11.19.0'}
+            Platform=@{OS='Linux';Architecture='X64'}
+          } | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath "$env:RUNNER_TEMP/verification-context.json"
+      - name: Download exact producer artifact
+        if: ${{ always() && needs.prepare.outputs.bundle-id != '' }}
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
+        with:
+          artifact-ids: ${{ needs.prepare.outputs.bundle-id }}
+          path: artifacts/distributed/bundle
+      - name: Execute assigned partitions
+        shell: pwsh
+        env:
+          TRANSPORT_HASH: ${{ needs.prepare.outputs.transport-hash }}
+          PLAN_HASH: ${{ needs.prepare.outputs.plan-hash }}
+        run: ./scripts/verification-distributed.ps1 -Phase Server -RunRoot artifacts/distributed/server-a -HostId A -ExpectedContextPath "$env:RUNNER_TEMP/verification-context.json" -BundleRoot artifacts/distributed/bundle -ExpectedTransportHash $env:TRANSPORT_HASH -ExpectedPlanHash $env:PLAN_HASH
+      - name: Retain phase evidence
+        id: evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: distributed-server-a-${{ github.run_attempt }}
+          if-no-files-found: error
+          path: |-
+            artifacts/distributed/server-a/receipt.json
+            artifacts/distributed/server-a/client.json
+            artifacts/distributed/server-a/release.json
+            artifacts/distributed/server-a/discovery.log
+            artifacts/distributed/server-a/partition-*/**
+    timeout-minutes: 120
+  server-b:
+    name: Server host B
+    needs:
+      - prepare
+    runs-on: ubuntu-latest
+    outputs:
+      evidence-id: ${{ steps.evidence.outputs.artifact-id }}
+    steps:
+      - name: Check out immutable source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - name: Set up .NET
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
+        with:
+          dotnet-version: 10.0.402
+      - name: Bind trusted job context
+        shell: pwsh
+        env:
+          WORKBENCH_INVOCATION: ${{ needs.prepare.outputs.invocation-id }}
+        run: |-
+          if (-not $env:WORKBENCH_INVOCATION) { $env:WORKBENCH_INVOCATION=[guid]::NewGuid().ToString('N') }
+          [ordered]@{
+            Repository=$env:GITHUB_REPOSITORY; Revision=$env:GITHUB_SHA; Workflow=$env:GITHUB_WORKFLOW
+            RunId=$env:GITHUB_RUN_ID; RunAttempt=$env:GITHUB_RUN_ATTEMPT; InvocationId=$env:WORKBENCH_INVOCATION
+            Configuration='Release;UseAppHost=false;BuildClient=false'
+            Toolchain=@{Sdk='10.0.402';Node='26.7.0';Npm='11.19.0'}
+            Platform=@{OS='Linux';Architecture='X64'}
+          } | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath "$env:RUNNER_TEMP/verification-context.json"
+      - name: Download exact producer artifact
+        if: ${{ always() && needs.prepare.outputs.bundle-id != '' }}
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
+        with:
+          artifact-ids: ${{ needs.prepare.outputs.bundle-id }}
+          path: artifacts/distributed/bundle
+      - name: Execute assigned partitions
+        shell: pwsh
+        env:
+          TRANSPORT_HASH: ${{ needs.prepare.outputs.transport-hash }}
+          PLAN_HASH: ${{ needs.prepare.outputs.plan-hash }}
+        run: ./scripts/verification-distributed.ps1 -Phase Server -RunRoot artifacts/distributed/server-b -HostId B -ExpectedContextPath "$env:RUNNER_TEMP/verification-context.json" -BundleRoot artifacts/distributed/bundle -ExpectedTransportHash $env:TRANSPORT_HASH -ExpectedPlanHash $env:PLAN_HASH
+      - name: Retain phase evidence
+        id: evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: distributed-server-b-${{ github.run_attempt }}
+          if-no-files-found: error
+          path: |-
+            artifacts/distributed/server-b/receipt.json
+            artifacts/distributed/server-b/client.json
+            artifacts/distributed/server-b/release.json
+            artifacts/distributed/server-b/discovery.log
+            artifacts/distributed/server-b/partition-*/**
+    timeout-minutes: 120
+  release:
+    name: Browser and published release
+    needs:
+      - prepare
+    runs-on: ubuntu-latest
+    outputs:
+      evidence-id: ${{ steps.evidence.outputs.artifact-id }}
+    steps:
+      - name: Check out immutable source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - name: Set up .NET
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
+        with:
+          dotnet-version: 10.0.402
+      - name: Set up Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: 26.7.0
+      - name: Bind trusted job context
+        shell: pwsh
+        env:
+          WORKBENCH_INVOCATION: ${{ needs.prepare.outputs.invocation-id }}
+        run: |-
+          if (-not $env:WORKBENCH_INVOCATION) { $env:WORKBENCH_INVOCATION=[guid]::NewGuid().ToString('N') }
+          [ordered]@{
+            Repository=$env:GITHUB_REPOSITORY; Revision=$env:GITHUB_SHA; Workflow=$env:GITHUB_WORKFLOW
+            RunId=$env:GITHUB_RUN_ID; RunAttempt=$env:GITHUB_RUN_ATTEMPT; InvocationId=$env:WORKBENCH_INVOCATION
+            Configuration='Release;UseAppHost=false;BuildClient=false'
+            Toolchain=@{Sdk='10.0.402';Node='26.7.0';Npm='11.19.0'}
+            Platform=@{OS='Linux';Architecture='X64'}
+          } | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath "$env:RUNNER_TEMP/verification-context.json"
+      - name: Download exact producer artifact
+        if: ${{ always() && needs.prepare.outputs.bundle-id != '' }}
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
+        with:
+          artifact-ids: ${{ needs.prepare.outputs.bundle-id }}
+          path: artifacts/distributed/bundle
+      - name: Install browser dependencies
+        shell: pwsh
+        run: |-
+          npm ci --prefix tests/Workbench.BrowserTests --ignore-scripts --no-audit --no-fund
+          npm exec --prefix tests/Workbench.BrowserTests -- playwright install --with-deps chromium
+      - name: Verify safe browser diagnostics
+        shell: pwsh
+        run: node --test --test-timeout=30000 tests/Workbench.BrowserTests/safe-diagnostics.test.mjs tests/Workbench.BrowserTests/browser-isolation.test.mjs tests/Workbench.BrowserTests/browser-isolation-wiring.test.mjs tests/Workbench.BrowserTests/diagnostic-budget.test.mjs tests/Workbench.BrowserTests/browser-time-budget.test.mjs
+      - name: Verify relocated release
+        shell: pwsh
+        env:
+          TRANSPORT_HASH: ${{ needs.prepare.outputs.transport-hash }}
+          PLAN_HASH: ${{ needs.prepare.outputs.plan-hash }}
+        run: ./scripts/verification-distributed.ps1 -Phase Release -RunRoot artifacts/distributed/release -ExpectedContextPath "$env:RUNNER_TEMP/verification-context.json" -BundleRoot artifacts/distributed/bundle -ExpectedTransportHash $env:TRANSPORT_HASH -ExpectedPlanHash $env:PLAN_HASH
+      - name: Retain phase evidence
+        id: evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: distributed-release-${{ github.run_attempt }}
+          if-no-files-found: error
+          path: |-
+            artifacts/distributed/release/receipt.json
+            artifacts/distributed/release/client.json
+            artifacts/distributed/release/release.json
+            artifacts/distributed/release/discovery.log
+            artifacts/distributed/release/partition-*/**
+      - name: Retain safe browser failure diagnostics
+        id: browser-diagnostics
+        if: ${{ failure() && hashFiles('artifacts/browser-diagnostics/**/layout.json') != '' }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: browser-failure-diagnostics
+          retention-days: 7
+          if-no-files-found: error
+          path: |
+            artifacts/browser-diagnostics/failure-*/layout.json
+            artifacts/browser-diagnostics/failure-*/layout.png
+      - name: Link browser diagnostics
+        if: ${{ always() && steps.browser-diagnostics.outputs.artifact-url != '' }}
+        shell: pwsh
+        env:
+          BROWSER_DIAGNOSTICS_URL: ${{ steps.browser-diagnostics.outputs.artifact-url }}
+        run: |
+          "Browser layout evidence: $env:BROWSER_DIAGNOSTICS_URL" | Tee-Object -FilePath $env:GITHUB_STEP_SUMMARY -Append
+    timeout-minutes: 120
+  verify:
+    name: Source and release unit
+    if: ${{ always() }}
+    needs:
+      - prepare
+      - release
+      - server-a
+      - server-b
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out immutable source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - name: Bind trusted job context
+        shell: pwsh
+        env:
+          WORKBENCH_INVOCATION: ${{ needs.prepare.outputs.invocation-id }}
+        run: |-
+          if (-not $env:WORKBENCH_INVOCATION) { $env:WORKBENCH_INVOCATION=[guid]::NewGuid().ToString('N') }
+          [ordered]@{
+            Repository=$env:GITHUB_REPOSITORY; Revision=$env:GITHUB_SHA; Workflow=$env:GITHUB_WORKFLOW
+            RunId=$env:GITHUB_RUN_ID; RunAttempt=$env:GITHUB_RUN_ATTEMPT; InvocationId=$env:WORKBENCH_INVOCATION
+            Configuration='Release;UseAppHost=false;BuildClient=false'
+            Toolchain=@{Sdk='10.0.402';Node='26.7.0';Npm='11.19.0'}
+            Platform=@{OS='Linux';Architecture='X64'}
+          } | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath "$env:RUNNER_TEMP/verification-context.json"
+      - name: Download exact producer artifact
+        if: ${{ always() && needs.prepare.outputs.bundle-id != '' }}
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
+        with:
+          artifact-ids: ${{ needs.prepare.outputs.bundle-id }}
+          path: artifacts/distributed/bundle
+      - name: Download prepare evidence
+        if: ${{ always() && needs.prepare.outputs.evidence-id != '' }}
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
+        with:
+          artifact-ids: ${{ needs.prepare.outputs.evidence-id }}
+          path: artifacts/distributed/evidence/prepare
+      - name: Download release evidence
+        if: ${{ always() && needs.release.outputs.evidence-id != '' }}
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
+        with:
+          artifact-ids: ${{ needs.release.outputs.evidence-id }}
+          path: artifacts/distributed/evidence/release
+      - name: Download server-a evidence
+        if: ${{ always() && needs.server-a.outputs.evidence-id != '' }}
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
+        with:
+          artifact-ids: ${{ needs.server-a.outputs.evidence-id }}
+          path: artifacts/distributed/evidence/server-a
+      - name: Download server-b evidence
+        if: ${{ always() && needs.server-b.outputs.evidence-id != '' }}
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
+        with:
+          artifact-ids: ${{ needs.server-b.outputs.evidence-id }}
+          path: artifacts/distributed/evidence/server-b
+      - name: Bind trusted dependency results
+        shell: pwsh
+        if: ${{ always() }}
+        env:
+          REQUIRED_JOB_RESULTS: ${{ toJSON(needs) }}
+        run: Set-Content -LiteralPath "$env:RUNNER_TEMP/distributed-needs.json" -Value $env:REQUIRED_JOB_RESULTS
+      - name: Require exact current-run coverage
+        shell: pwsh
+        if: ${{ always() }}
+        env:
+          TRANSPORT_HASH: ${{ needs.prepare.outputs.transport-hash }}
+          PLAN_HASH: ${{ needs.prepare.outputs.plan-hash }}
+        run: ./scripts/verification-distributed.ps1 -Phase Aggregate -RunRoot artifacts/distributed/aggregate -ExpectedContextPath "$env:RUNNER_TEMP/verification-context.json" -BundleRoot artifacts/distributed/bundle -ExpectedTransportHash $env:TRANSPORT_HASH -ExpectedPlanHash $env:PLAN_HASH -EvidenceRoot artifacts/distributed/evidence -JobResultsPath "$env:RUNNER_TEMP/distributed-needs.json"
+      - name: Retain aggregate evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: distributed-aggregate-${{ github.run_attempt }}
+          if-no-files-found: error
+          path: artifacts/distributed/aggregate/gate.json
+    timeout-minutes: 120
+  required-gate:
+    name: Required verification gate
+    if: ${{ always() }}
+    needs:
+      - local-setup-contracts
+      - deployment-contracts
+      - verify
+      - container-smoke
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - name: Require every verification job to succeed
+        shell: pwsh
+        env:
+          REQUIRED_JOB_RESULTS: ${{ toJSON(needs) }}
+        run: |
+          . ./scripts/verification-stages.ps1
+          Assert-RequiredCiJobs -Needs ($env:REQUIRED_JOB_RESULTS | ConvertFrom-Json -AsHashtable)
+    timeout-minutes: 120
+run-name: Distributed candidate round ${{ inputs.round }}
