@@ -33,6 +33,11 @@ internal sealed class SupplierCreditTestContext(SupplierPaymentTestContext payme
                   FROM Administration.AccountingRoles WHERE Kind='Administrator';
                 IF OBJECT_ID(N'Purchasing.PostSupplierCredit') IS NOT NULL
                   GRANT EXECUTE ON Purchasing.PostSupplierCredit TO workbench_web;
+                INSERT [Identity].RoleClaims(TenantId,RoleId,ClaimType,ClaimValue)
+                  SELECT TenantId,RoleId,N'workbench/permission',N'SupplierRefundsRecord'
+                  FROM Administration.AccountingRoles WHERE Kind='Administrator';
+                IF OBJECT_ID(N'Purchasing.RecordSupplierRefund') IS NOT NULL
+                  GRANT EXECUTE ON Purchasing.RecordSupplierRefund TO workbench_web;
                 """);
             return context;
         }
@@ -136,6 +141,37 @@ internal sealed class SupplierCreditTestContext(SupplierPaymentTestContext payme
         => await Bills.ExecuteAsync("PostSupplierCredit", Guid.NewGuid(), await CreditCommandAsync(bill, amount, date));
 
     public Task<decimal> BalanceAsync(Guid item) => Payments.Allocation.BalanceAsync(item);
+
+    public async Task<JsonObject> RefundCommandAsync(IReadOnlyList<(Guid ItemId, string Amount)> settlements, string date = "2026-09-18")
+    {
+        var amount = settlements.Sum(x => decimal.Parse(x.Amount, System.Globalization.CultureInfo.InvariantCulture));
+        var command = await Payments.CommandAsync(amount.ToString(System.Globalization.CultureInfo.InvariantCulture), date);
+        command["operation"] = "RecordSupplierRefund";
+        command["cashSourceId"] = command["paymentId"]!.DeepClone(); command.Remove("paymentId");
+        command["cashSourceRevisionId"] = command["paymentRevisionId"]!.DeepClone(); command.Remove("paymentRevisionId");
+        command["actualDate"] = command["paymentDate"]!.DeepClone(); command.Remove("paymentDate");
+        command.Remove("allocations");
+        var targets = new JsonArray();
+        foreach (var settlement in settlements) targets.Add(new JsonObject
+        {
+            ["itemId"] = settlement.ItemId.ToString(),
+            ["expectedItemVersion"] = await Payments.Allocation.VersionAsync(settlement.ItemId),
+            ["amount"] = settlement.Amount
+        });
+        command["settlements"] = targets;
+        return command;
+    }
+
+    public async Task<JsonObject> RefundAsync(IReadOnlyList<(Guid ItemId, string Amount)> settlements, string date = "2026-09-18")
+        => await Bills.ExecuteAsync("RecordSupplierRefund", Guid.NewGuid(), await RefundCommandAsync(settlements, date));
+
+    public Task<string> CashEvidenceAsync() => Bills.ScalarAsync<string>("""
+        SELECT source.*,JSON_QUERY((SELECT journal.* FROM Accounting.SourceEvents sourceEvent
+          JOIN Accounting.JournalEntries journal ON journal.TenantId=sourceEvent.TenantId AND journal.SourceEventId=sourceEvent.Id
+          WHERE sourceEvent.TenantId=source.TenantId AND sourceEvent.SourceId=source.Id
+            AND sourceEvent.SourceKind=source.Kind ORDER BY journal.Sequence FOR JSON PATH)) journals
+        FROM Purchasing.SupplierCashSources source ORDER BY source.Id FOR JSON PATH
+        """);
     public async Task<JsonObject> ExecuteRawAsync(string json, Guid? request = null)
     {
         await using var command = new SqlCommand("EXEC Purchasing.PostSupplierCredit @ActorId,@SessionId,@RequestId,@Command", Bills.Journal.Connection);

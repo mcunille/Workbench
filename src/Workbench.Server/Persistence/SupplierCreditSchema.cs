@@ -9,12 +9,13 @@ internal static class SupplierCreditSchema
     {
         foreach (var procedure in new[]
         {
-            "Purchasing.CanonicalizeSupplierCredit", "Purchasing.SupplierCreditPosition",
+            "Purchasing.CanonicalizeSupplierCredit", "Purchasing.CanonicalizeSupplierCash", "Purchasing.SupplierCreditPosition",
             "Purchasing.AssertSupplierCreditCapacity", "Purchasing.ValidateSupplierCreditClaims", "Purchasing.AppendSupplierCredit",
             "Purchasing.SupplierCreditControl", "Purchasing.SupplierItemControl",
+            "Purchasing.AppendSupplierCashSettlement", "Purchasing.SupplierCashControl",
             "Accounting.FinancialEvidenceSource", "Accounting.AppendFinancialEvidence",
             "Purchasing.RequireSupplierComposition", "Purchasing.ApplySupplierFundsCore",
-            "Accounting.PostJournal", "Purchasing.PostRecognition", "Purchasing.PostSupplierCredit", "Security.ReadDatabaseReadiness"
+            "Accounting.PostJournal", "Purchasing.PostRecognition", "Purchasing.PostSupplierCredit", "Purchasing.RecordSupplierRefund", "Security.ReadDatabaseReadiness"
         })
         {
             // Large predecessor definitions remain one SQL batch, stored in bounded authored parts.
@@ -32,7 +33,7 @@ internal static class SupplierCreditSchema
             migrationBuilder.Sql(sql.ToString());
         }
 
-        foreach (var table in new[] { "SupplierCredits", "SupplierCreditClaims", "SupplierCreditVersions" })
+        foreach (var table in new[] { "SupplierCredits", "SupplierCreditClaims", "SupplierCreditVersions", "SupplierCashSources", "SupplierCashSettlements", "SupplierCashVersions" })
         {
             migrationBuilder.Sql($"""
                 ALTER SECURITY POLICY Security.TenantIsolationPolicy
@@ -44,7 +45,7 @@ internal static class SupplierCreditSchema
                 DENY INSERT,UPDATE,DELETE ON Purchasing.{table} TO workbench_worker;
                 """);
         }
-        foreach (var table in new[] { "SupplierCredits", "SupplierCreditClaims" })
+        foreach (var table in new[] { "SupplierCredits", "SupplierCreditClaims", "SupplierCashSources", "SupplierCashSettlements" })
         {
             migrationBuilder.Sql($"""
                 CREATE TRIGGER Purchasing.Preserve{table} ON Purchasing.{table} AFTER UPDATE,DELETE AS BEGIN
@@ -53,7 +54,7 @@ internal static class SupplierCreditSchema
                 END;
                 """);
         }
-        foreach (var procedure in new[] { "CanonicalizeSupplierCredit", "AppendSupplierCredit", "AssertSupplierCreditCapacity", "ValidateSupplierCreditClaims" })
+        foreach (var procedure in new[] { "CanonicalizeSupplierCredit", "AppendSupplierCredit", "AssertSupplierCreditCapacity", "ValidateSupplierCreditClaims", "CanonicalizeSupplierCash", "AppendSupplierCashSettlement" })
         {
             migrationBuilder.Sql($"""
                 DENY EXECUTE ON Purchasing.{procedure} TO workbench_web;
@@ -61,6 +62,7 @@ internal static class SupplierCreditSchema
                 """);
         }
         migrationBuilder.Sql("GRANT SELECT ON Purchasing.SupplierCreditControl TO workbench_web;");
+        migrationBuilder.Sql("GRANT SELECT ON Purchasing.SupplierCashControl TO workbench_web;");
         migrationBuilder.Sql($"""
             IF CHARINDEX(N'{migrationId}',OBJECT_DEFINITION(OBJECT_ID(N'Security.ReadDatabaseReadiness')))=0
               THROW 50020,'Supplier credit readiness marker is incomplete.',1;

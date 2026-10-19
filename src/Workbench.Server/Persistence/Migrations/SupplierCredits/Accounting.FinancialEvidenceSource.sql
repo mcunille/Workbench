@@ -35,4 +35,11 @@ RETURNS TABLE AS RETURN
     JSON_QUERY(c.SourceSnapshotJson,'$.evidence.documents'),JSON_VALUE(c.SourceSnapshotJson,'$.evidence.missingEvidenceReason'),
     CONVERT(bit,0),CONVERT(nvarchar(100),N'SupplierCreditsPost'),CONVERT(uniqueidentifier,NULL)
   FROM Purchasing.SupplierCredits c CROSS APPLY Purchasing.SupplierCreditControl(@TenantId,c.Id) control
-  WHERE @OwnerKind='SupplierCredit' AND c.TenantId=@TenantId AND c.Id=@OwnerId AND c.RevisionId=@OwnerRevisionId;
+  WHERE @OwnerKind='SupplierCredit' AND c.TenantId=@TenantId AND c.Id=@OwnerId AND c.RevisionId=@OwnerRevisionId
+  UNION ALL
+  SELECT c.PurchaseOrderId,c.SupplierId,c.ActorId,c.PostingDate,c.RecordedAtUtc,
+    HASHBYTES('SHA2_256',CONVERT(varbinary(max),c.SourceSnapshotJson)),
+    JSON_QUERY(c.SourceSnapshotJson,'$.evidence.documents'),JSON_VALUE(c.SourceSnapshotJson,'$.evidence.missingEvidenceReason'),
+    CONVERT(bit,0),CONVERT(nvarchar(100),N'SupplierRefundsRecord'),CONVERT(uniqueidentifier,NULL)
+  FROM Purchasing.SupplierCashSources c CROSS APPLY Purchasing.SupplierCashControl(@TenantId,c.Id) control
+  WHERE @OwnerKind='SupplierRefund' AND c.Kind='SupplierRefund' AND c.TenantId=@TenantId AND c.Id=@OwnerId AND c.RevisionId=@OwnerRevisionId;

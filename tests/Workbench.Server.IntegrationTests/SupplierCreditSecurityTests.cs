@@ -78,14 +78,28 @@ public sealed class SupplierCreditSecurityTests(SqlServerFixture sqlServer)
         }
     }
 
-    [Fact]
-    public async Task GenericJournalCorrectionCannotDetachCreditSource()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task GenericJournalCorrectionCannotDetachSupplierSource(bool refund)
     {
-        // GIVEN a posted credit and a trusted test caller of the existing generic correction entrypoint.
+        // GIVEN an authentic credit or receipt and a trusted caller of generic journal correction.
         await using var context = await SupplierCreditTestContext.OpenAsync(sqlServer);
-        var bill = await context.ExpenseBillAsync("100");
-        var credit = await context.CreditAsync(bill, "18");
-        await context.Bills.AdminAsync("""
+        System.Text.Json.Nodes.JsonObject source;
+        Guid item;
+        if (refund)
+        {
+            var deposit = await context.Payments.CommandAsync("100"); await context.Payments.RecordAsync(deposit);
+            item = Guid.Parse(deposit["paymentId"]!.GetValue<string>());
+            source = await context.RefundAsync([(item, "40")]);
+        }
+        else
+        {
+            source = await context.CreditAsync(await context.ExpenseBillAsync("100"), "18");
+            item = Guid.Parse(source["sourceId"]!.GetValue<string>());
+        }
+        var permission = refund ? "SupplierRefundsRecord" : "SupplierCreditsPost";
+        await context.Bills.AdminAsync($$"""
             CREATE PROCEDURE Purchasing.AttemptGenericCreditCorrection
               @ActorId uniqueidentifier,@SessionId uniqueidentifier,@RequestId uniqueidentifier,@Command nvarchar(max)
             AS BEGIN
@@ -94,8 +108,8 @@ public sealed class SupplierCreditSecurityTests(SqlServerFixture sqlServer)
                 BEGIN TRAN;
                 DECLARE @journal uniqueidentifier=CONVERT(uniqueidentifier,JSON_VALUE(@Command,'$.journalId')),
                   @config uniqueidentifier=CONVERT(uniqueidentifier,JSON_VALUE(@Command,'$.configurationVersion'));
-                EXEC Accounting.CorrectJournal @ActorId,@SessionId,@RequestId,N'SupplierCreditsPost',N'Supplier.Credit.GenericAttempt',1,
-                  @Command,@journal,@config,'2026-09-17',N'Attempt generic correction',N'{}';
+                EXEC Accounting.CorrectJournal @ActorId,@SessionId,@RequestId,N'{{permission}}',N'Supplier.GenericAttempt',1,
+                  @Command,@journal,@config,'2026-09-19',N'Attempt generic correction',N'{}';
                 COMMIT;
               END TRY BEGIN CATCH IF @@TRANCOUNT>0 ROLLBACK; THROW; END CATCH;
             END;
@@ -103,13 +117,14 @@ public sealed class SupplierCreditSecurityTests(SqlServerFixture sqlServer)
         await context.Bills.AdminAsync("GRANT EXECUTE ON Purchasing.AttemptGenericCreditCorrection TO workbench_web");
         var command = new System.Text.Json.Nodes.JsonObject
         {
-            ["journalId"] = credit["journalIds"]![0]!.DeepClone(),
+            ["journalId"] = source["journalIds"]![0]!.DeepClone(),
             ["configurationVersion"] = context.Bills.Journal.ConfigurationVersion.ToString()
         };
         // WHEN the generic owner attempts to invert it THEN the real source-owned movement blocks detachment.
         var error = await Assert.ThrowsAsync<SqlException>(() => context.Bills.ExecuteAsync("AttemptGenericCreditCorrection", Guid.NewGuid(), command));
         Assert.Equal(51009, error.Number);
-        Assert.Equal(18m, await context.BalanceAsync(Guid.Parse(credit["sourceId"]!.GetValue<string>())));
+        Assert.Equal(refund ? 60m : 18m, await context.BalanceAsync(item));
+        Assert.Equal(refund ? -60m : 0m, await context.BankBalanceAsync());
         Assert.Equal(0, await context.Bills.ScalarAsync<int>("SELECT COUNT(*) FROM Accounting.CorrectionGroups"));
     }
 }
