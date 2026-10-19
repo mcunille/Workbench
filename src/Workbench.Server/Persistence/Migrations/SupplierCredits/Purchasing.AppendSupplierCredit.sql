@@ -9,7 +9,10 @@ AS BEGIN
   DECLARE @Group uniqueidentifier,@Amount decimal(28,4),@Now datetimeoffset,@Date date,@Event uniqueidentifier,@Movement uniqueidentifier=NEWID();
   SELECT @Group=c.GroupId,@Amount=c.Total,@Now=c.RecordedAtUtc,@Date=c.PostingDate,@Event=s.Id
     FROM Purchasing.SupplierCredits c JOIN Purchasing.SupplierFinancialGroups g ON g.TenantId=c.TenantId AND g.Id=c.GroupId
-      AND g.Operation='RecordCredit' AND g.SourceId=c.Id AND g.RecordedAtUtc=c.RecordedAtUtc
+      AND (g.Operation='RecordCredit' AND g.SourceId=c.Id OR g.Operation='CorrectCredit' AND EXISTS(
+        SELECT 1 FROM Purchasing.SupplierSourceCorrections parent WHERE parent.TenantId=c.TenantId AND parent.GroupId=c.GroupId
+          AND parent.ReplacementSourceId=c.Id AND parent.ReplacementSourceRevisionId=c.RevisionId
+          AND parent.ActorId=c.ActorId AND parent.RecordedAtUtc=c.RecordedAtUtc)) AND g.RecordedAtUtc=c.RecordedAtUtc
     JOIN Purchasing.SupplierFinancialReceipts receipt ON receipt.TenantId=c.TenantId AND receipt.GroupId=c.GroupId
       AND receipt.ActorId=c.ActorId AND receipt.Operation='PostSupplierCredit' AND receipt.RecordedAtUtc=c.RecordedAtUtc
       AND JSON_VALUE(receipt.ResultJson,'$.state')='pending'

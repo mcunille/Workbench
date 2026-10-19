@@ -35,8 +35,8 @@ public sealed class SupplierCreditClaim
     public decimal Amount { get; set; }
     public Guid AccountId { get; set; }
     public Guid AccountVersion { get; set; }
-    public Guid OriginalJournalId { get; set; }
-    public int OriginalJournalOrdinal { get; set; }
+    public Guid? OriginalJournalId { get; set; }
+    public int? OriginalJournalOrdinal { get; set; }
 }
 
 public sealed class SupplierCreditVersion

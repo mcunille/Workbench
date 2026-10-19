@@ -1,9 +1,9 @@
 -- Copyright (c) 2026 The White Stag Collection.
 CREATE PROCEDURE Purchasing.ValidateSupplierCreditClaims
-  @TenantId uniqueidentifier,@Claims nvarchar(max),@PostingDate date,@DerivedClaims nvarchar(max) OUTPUT
+  @TenantId uniqueidentifier,@Claims nvarchar(max),@PostingDate date,@DerivedClaims nvarchar(max) OUTPUT,@CorrectionGroupId uniqueidentifier=NULL,@ProposedCreditId uniqueidentifier=NULL
 AS BEGIN
   SET NOCOUNT ON;
-  EXEC Purchasing.AssertSupplierCreditCapacity @TenantId,@Claims,@PostingDate;
+  EXEC Purchasing.AssertSupplierCreditCapacity @TenantId,@Claims,@PostingDate,@CorrectionGroupId,@ProposedCreditId;
   SET @DerivedClaims=(SELECT JSON_VALUE(c.value,'$.claimId') claimId,JSON_VALUE(c.value,'$.billId') billId,
     JSON_VALUE(c.value,'$.billRevisionId') billRevisionId,position.RecognitionEventId recognitionEventId,
     position.ComponentKey componentKey,JSON_VALUE(c.value,'$.amount') amount,position.Treatment treatment,

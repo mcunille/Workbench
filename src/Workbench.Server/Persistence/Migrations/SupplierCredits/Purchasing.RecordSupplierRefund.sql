@@ -71,10 +71,10 @@ AS BEGIN
     IF EXISTS(SELECT 1 FROM @Targets target WHERE NOT EXISTS(SELECT 1 FROM Purchasing.SupplierOpenItems item
       WHERE item.TenantId=@Tenant AND item.Id=target.ItemId AND item.Kind IN('Advance','CreditReceivable') AND item.SupplierId=@Supplier
         AND item.PurchaseOrderId=@Po AND item.Currency=@Currency AND item.SourcePostingDate<=@Date)
-      OR (SELECT COUNT(*) FROM Purchasing.SupplierItemControl(@Tenant,target.ItemId))<>1)
+      OR (SELECT COUNT(*) FROM Purchasing.SupplierAssetControl(@Tenant,target.ItemId))<>1)
       THROW 51004,'Authentic refundable supplier assets unavailable on this posting date.',1;
     UPDATE target SET AccountId=control.AccountId,AccountVersion=control.AccountVersion FROM @Targets target
-      CROSS APPLY Purchasing.SupplierItemControl(@Tenant,target.ItemId) control;
+      CROSS APPLY Purchasing.SupplierAssetControl(@Tenant,target.ItemId) control;
     ;WITH accounts AS(SELECT AccountId,AccountVersion,1+ROW_NUMBER() OVER(ORDER BY AccountId,AccountVersion) ordinal
       FROM @Targets GROUP BY AccountId,AccountVersion)
     UPDATE target SET JournalOrdinal=accounts.ordinal FROM @Targets target JOIN accounts

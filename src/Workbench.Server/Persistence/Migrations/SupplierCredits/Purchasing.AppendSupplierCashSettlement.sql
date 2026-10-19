@@ -46,7 +46,7 @@ AS BEGIN
     OR EXISTS(SELECT Ordinal,AccountId,AccountVersion,Credit FROM Accounting.JournalLines WHERE TenantId=@TenantId AND JournalId=@JournalId AND Credit>0
       EXCEPT SELECT JournalOrdinal,AccountId,AccountVersion,SUM(CONVERT(decimal(38,4),Amount)) FROM @Targets GROUP BY JournalOrdinal,AccountId,AccountVersion)
     OR EXISTS(SELECT 1 FROM @Targets target WHERE NOT EXISTS(SELECT 1 FROM Purchasing.SupplierOpenItems item
-      CROSS APPLY Purchasing.SupplierItemControl(@TenantId,item.Id) control
+      CROSS APPLY Purchasing.SupplierAssetControl(@TenantId,item.Id) control
       JOIN Accounting.JournalLines line ON line.TenantId=item.TenantId AND line.JournalId=@JournalId AND line.Ordinal=target.JournalOrdinal
         AND line.AccountId=control.AccountId AND line.AccountVersion=control.AccountVersion AND line.AccountCode=control.AccountCode
         AND line.AccountName=control.AccountName AND line.AccountType=control.AccountType AND line.AccountPurpose=control.AccountPurpose

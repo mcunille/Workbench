@@ -4,7 +4,7 @@ using Microsoft.Data.SqlClient;
 
 namespace Workbench.Server.IntegrationTests.Infrastructure;
 
-internal sealed class SupplierCreditTestContext(SupplierPaymentTestContext payments) : IAsyncDisposable
+internal sealed partial class SupplierCreditTestContext(SupplierPaymentTestContext payments) : IAsyncDisposable
 {
     public SupplierPaymentTestContext Payments { get; } = payments;
     public SupplierBillTestContext Bills => Payments.Bills;
@@ -38,6 +38,13 @@ internal sealed class SupplierCreditTestContext(SupplierPaymentTestContext payme
                   FROM Administration.AccountingRoles WHERE Kind='Administrator';
                 IF OBJECT_ID(N'Purchasing.RecordSupplierRefund') IS NOT NULL
                   GRANT EXECUTE ON Purchasing.RecordSupplierRefund TO workbench_web;
+                INSERT [Identity].RoleClaims(TenantId,RoleId,ClaimType,ClaimValue)
+                  SELECT TenantId,RoleId,N'workbench/permission',N'SupplierCreditsCorrect'
+                  FROM Administration.AccountingRoles WHERE Kind='Administrator';
+                IF OBJECT_ID(N'Purchasing.PreviewSupplierCreditCorrection') IS NOT NULL
+                  GRANT EXECUTE ON Purchasing.PreviewSupplierCreditCorrection TO workbench_web;
+                IF OBJECT_ID(N'Purchasing.CorrectSupplierCredit') IS NOT NULL
+                  GRANT EXECUTE ON Purchasing.CorrectSupplierCredit TO workbench_web;
                 """);
             return context;
         }
@@ -166,11 +173,11 @@ internal sealed class SupplierCreditTestContext(SupplierPaymentTestContext payme
         => await Bills.ExecuteAsync("RecordSupplierRefund", Guid.NewGuid(), await RefundCommandAsync(settlements, date));
 
     public Task<string> CashEvidenceAsync() => Bills.ScalarAsync<string>("""
-        SELECT source.*,JSON_QUERY((SELECT journal.* FROM Accounting.SourceEvents sourceEvent
+        SELECT COALESCE((SELECT source.*,JSON_QUERY((SELECT journal.* FROM Accounting.SourceEvents sourceEvent
           JOIN Accounting.JournalEntries journal ON journal.TenantId=sourceEvent.TenantId AND journal.SourceEventId=sourceEvent.Id
           WHERE sourceEvent.TenantId=source.TenantId AND sourceEvent.SourceId=source.Id
             AND sourceEvent.SourceKind=source.Kind ORDER BY journal.Sequence FOR JSON PATH)) journals
-        FROM Purchasing.SupplierCashSources source ORDER BY source.Id FOR JSON PATH
+        FROM Purchasing.SupplierCashSources source ORDER BY source.Id FOR JSON PATH),N'[]')
         """);
     public async Task<JsonObject> ExecuteRawAsync(string json, Guid? request = null)
     {
@@ -182,6 +189,6 @@ internal sealed class SupplierCreditTestContext(SupplierPaymentTestContext payme
         return JsonNode.Parse((string)(await command.ExecuteScalarAsync())!)!.AsObject();
     }
     public Task<decimal> BankBalanceAsync() => Bills.ScalarAsync<decimal>($"SELECT COALESCE(SUM(Debit-Credit),0) FROM Accounting.JournalLines WHERE AccountId='{Bank}'");
-    public Task<string> ReadOriginalBillEvidenceAsync(Guid bill) => Bills.ScalarAsync<string>($"SELECT r.*,JSON_QUERY((SELECT p.* FROM Purchasing.SupplierBillPostings p WHERE p.TenantId=r.TenantId AND p.BillId=r.BillId FOR JSON PATH)) posting FROM Purchasing.SupplierBillRevisions r WHERE r.BillId='{bill}' ORDER BY r.Sequence FOR JSON PATH");
+    public Task<string> ReadOriginalBillEvidenceAsync(Guid bill) => Bills.ScalarAsync<string>($"SELECT (SELECT r.*,JSON_QUERY((SELECT p.* FROM Purchasing.SupplierBillPostings p WHERE p.TenantId=r.TenantId AND p.BillId=r.BillId FOR JSON PATH)) posting FROM Purchasing.SupplierBillRevisions r WHERE r.BillId='{bill}' ORDER BY r.Sequence FOR JSON PATH)");
     public ValueTask DisposeAsync() => Payments.DisposeAsync();
 }

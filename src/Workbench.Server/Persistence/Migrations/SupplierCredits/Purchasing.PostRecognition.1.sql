@@ -120,12 +120,16 @@ BEGIN
       SELECT @CreditReduction=COALESCE(SUM(claim.Amount),0) FROM Purchasing.SupplierCreditClaims claim
         JOIN Purchasing.SupplierCredits credit ON credit.TenantId=claim.TenantId AND credit.Id=claim.CreditId
         WHERE claim.TenantId=@TenantId AND claim.RecognitionEventId=@PriorEventId
-          AND claim.Treatment='Prepayment' AND credit.PostingDate<=@PostingDate;
+          AND claim.Treatment='Prepayment' AND credit.PostingDate<=@PostingDate
+          AND NOT EXISTS(SELECT 1 FROM Purchasing.SupplierSourceCorrections correction WHERE correction.TenantId=credit.TenantId
+            AND correction.SourceKind='SupplierCredit' AND correction.SourceId=credit.Id AND correction.PostingDate<=@PostingDate);
       SET @CreditDependencies=(SELECT credit.Id creditId,credit.RevisionId creditRevisionId,claim.Id claimId,
         CONVERT(nvarchar(60),claim.Amount) amount FROM Purchasing.SupplierCreditClaims claim
         JOIN Purchasing.SupplierCredits credit ON credit.TenantId=claim.TenantId AND credit.Id=claim.CreditId
         WHERE claim.TenantId=@TenantId AND claim.RecognitionEventId=@PriorEventId
-          AND claim.Treatment='Prepayment' AND credit.PostingDate<=@PostingDate ORDER BY credit.Id,claim.Id FOR JSON PATH);
+          AND claim.Treatment='Prepayment' AND credit.PostingDate<=@PostingDate
+          AND NOT EXISTS(SELECT 1 FROM Purchasing.SupplierSourceCorrections correction WHERE correction.TenantId=credit.TenantId
+            AND correction.SourceKind='SupplierCredit' AND correction.SourceId=credit.Id AND correction.PostingDate<=@PostingDate) ORDER BY credit.Id,claim.Id FOR JSON PATH);
       SET @PriorCost=@PriorCost-@CreditReduction;
       IF @PriorCost<0 THROW 51009,'Credit dependencies exceed remaining prepayment.',1;
       SET @Evidence=JSON_MODIFY(@Evidence,'$.supplierCreditDependencies',JSON_QUERY(@CreditDependencies));

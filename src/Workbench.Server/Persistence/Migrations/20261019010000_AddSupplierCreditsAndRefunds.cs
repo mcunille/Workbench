@@ -95,13 +95,13 @@ namespace Workbench.Server.Persistence.Migrations
                     Amount = table.Column<decimal>(type: "decimal(28,4)", precision: 28, scale: 4, nullable: false),
                     AccountId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
                     AccountVersion = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    OriginalJournalId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    OriginalJournalOrdinal = table.Column<int>(type: "int", nullable: false)
+                    OriginalJournalId = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
+                    OriginalJournalOrdinal = table.Column<int>(type: "int", nullable: true)
                 },
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_SupplierCreditClaims", x => new { x.TenantId, x.Id });
-                    table.CheckConstraint("CK_SupplierCreditClaims_Amount", "[Amount]>0 AND [Treatment] COLLATE Latin1_General_100_BIN2 IN ('Expense','Prepayment','Inventory','RecoverableTax')");
+                    table.CheckConstraint("CK_SupplierCreditClaims_Amount", "[Amount]>0 AND [Treatment] COLLATE Latin1_General_100_BIN2 IN ('Expense','Prepayment','Inventory','RecoverableTax') AND (([OriginalJournalId] IS NOT NULL AND [OriginalJournalOrdinal] IS NOT NULL AND [OriginalJournalOrdinal] BETWEEN 1 AND 1000) OR ([OriginalJournalId] IS NULL AND [OriginalJournalOrdinal] IS NULL AND [Treatment]='Expense'))");
                     table.ForeignKey(
                         name: "FK_SupplierCreditClaims_Accounts_TenantId_AccountId",
                         columns: x => new { x.TenantId, x.AccountId },
@@ -164,7 +164,7 @@ namespace Workbench.Server.Persistence.Migrations
                 name: "CK_SupplierFinancialGroups_Operation",
                 schema: "Purchasing",
                 table: "SupplierFinancialGroups",
-                sql: "[Operation] COLLATE Latin1_General_100_BIN2 IN ('OpenRecognitionPayable','RecordPayment','Apply','ReverseApplication','CorrectPayment','CorrectSource','RecordCredit','RecordRefund')");
+                sql: "[Operation] COLLATE Latin1_General_100_BIN2 IN ('OpenRecognitionPayable','RecordPayment','Apply','ReverseApplication','CorrectPayment','CorrectSource','RecordCredit','RecordRefund','CorrectCredit')");
 
             migrationBuilder.AddCheckConstraint(
                 name: "CK_FinancialEvidenceSets_Owner",
@@ -234,6 +234,7 @@ namespace Workbench.Server.Persistence.Migrations
                 table: "SupplierCredits",
                 columns: new[] { "TenantId", "SupplierId", "NormalizedReference" });
             CreateSupplierCash(migrationBuilder);
+            CreateSupplierSourceCorrections(migrationBuilder);
             SupplierCreditSchema.Up(migrationBuilder, "20261019010000_AddSupplierCreditsAndRefunds");
         }
 

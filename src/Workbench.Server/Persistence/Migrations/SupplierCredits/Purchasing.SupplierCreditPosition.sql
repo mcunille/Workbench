@@ -17,10 +17,13 @@ RETURNS TABLE AS RETURN
   OUTER APPLY(SELECT recognition.Id,recognition.JournalId FROM Purchasing.RecognitionMatches match
     JOIN Purchasing.ActiveRecognitionSideEvents recognition ON recognition.TenantId=match.TenantId AND recognition.Id=match.RecognitionEventId
     WHERE match.TenantId=invoice.TenantId AND match.InvoiceEventId=invoice.Id AND recognition.PostingDate<=@PostingDate) matched
-  JOIN Accounting.JournalLines line ON line.TenantId=invoice.TenantId
-    AND line.JournalId=CASE WHEN matched.Id IS NULL THEN invoice.JournalId ELSE matched.JournalId END
-    AND line.Debit>0 AND line.Credit=0
-    AND ((matched.Id IS NULL AND line.AccountId=TRY_CONVERT(uniqueidentifier,(SELECT JSON_VALUE(value,'$.accountId')
-      FROM OPENJSON(invoice.EvidenceJson,'$.accountMappings') WHERE JSON_VALUE(value,'$.slot')='Prepayment')))
-      OR (matched.Id IS NOT NULL AND unit.Classification='Expense' AND line.AccountType='Expense'))
+  CROSS APPLY(
+    SELECT original.AccountId,original.AccountVersion,original.JournalId,original.Ordinal
+    FROM Accounting.JournalLines original WHERE original.TenantId=invoice.TenantId AND original.JournalId=invoice.JournalId
+      AND matched.Id IS NULL AND original.Debit>0 AND original.Credit=0
+      AND original.AccountId=TRY_CONVERT(uniqueidentifier,(SELECT JSON_VALUE(value,'$.accountId')
+        FROM OPENJSON(invoice.EvidenceJson,'$.accountMappings') WHERE JSON_VALUE(value,'$.slot')='Prepayment'))
+    UNION ALL SELECT expense.AccountId,expense.AccountVersion,expense.JournalId,expense.Ordinal
+      FROM Purchasing.SupplierRecognitionExpenseControl(@TenantId,matched.Id) expense WHERE matched.Id IS NOT NULL
+  ) line
   WHERE invoice.TenantId=@TenantId AND invoice.Id=@RecognitionEventId AND invoice.Side='Invoice' AND invoice.PostingDate<=@PostingDate;

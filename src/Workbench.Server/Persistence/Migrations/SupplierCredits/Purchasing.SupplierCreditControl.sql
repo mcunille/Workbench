@@ -3,8 +3,10 @@ CREATE FUNCTION Purchasing.SupplierCreditControl(@TenantId uniqueidentifier,@Ite
 RETURNS TABLE AS RETURN
   SELECT l.AccountId,l.AccountVersion,l.AccountCode,l.AccountName,l.AccountType,l.AccountPurpose
   FROM Purchasing.SupplierCredits c
-  JOIN Purchasing.SupplierFinancialGroups g ON g.TenantId=c.TenantId AND g.Id=c.GroupId AND g.SourceId=c.Id
-    AND g.Operation='RecordCredit' AND g.RecordedAtUtc=c.RecordedAtUtc
+  JOIN Purchasing.SupplierFinancialGroups g ON g.TenantId=c.TenantId AND g.Id=c.GroupId AND (g.Operation='RecordCredit' AND g.SourceId=c.Id OR g.Operation='CorrectCredit' AND EXISTS(
+      SELECT 1 FROM Purchasing.SupplierSourceCorrections parent WHERE parent.TenantId=c.TenantId AND parent.GroupId=c.GroupId
+        AND parent.ReplacementSourceId=c.Id AND parent.ReplacementSourceRevisionId=c.RevisionId
+        AND parent.ActorId=c.ActorId AND parent.RecordedAtUtc=c.RecordedAtUtc)) AND g.RecordedAtUtc=c.RecordedAtUtc
   JOIN Purchasing.SupplierFinancialReceipts receipt ON receipt.TenantId=c.TenantId AND receipt.GroupId=c.GroupId
     AND receipt.Operation='PostSupplierCredit' AND receipt.ActorId=c.ActorId AND receipt.RecordedAtUtc=c.RecordedAtUtc
     AND CONVERT(varbinary(max),receipt.CanonicalInput)=CONVERT(varbinary(max),JSON_QUERY(c.SourceSnapshotJson,'$.command'))

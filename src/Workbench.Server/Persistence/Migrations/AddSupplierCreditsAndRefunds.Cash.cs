@@ -167,7 +167,7 @@ namespace Workbench.Server.Persistence.Migrations
                 name: "CK_SupplierItemMovements_Amount",
                 schema: "Purchasing",
                 table: "SupplierItemMovements",
-                sql: "[Amount]<>0 AND [EventKind] COLLATE Latin1_General_100_BIN2 IN ('Open','Apply','ReverseApplication','ReverseSource','CashSettlement')");
+                sql: "[Amount]<>0 AND [EventKind] COLLATE Latin1_General_100_BIN2 IN ('Open','Apply','ReverseApplication','ReverseSource','CashSettlement','ReleaseSettlement')");
 
 
 

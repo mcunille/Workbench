@@ -134,14 +134,27 @@ BEGIN
   
   DECLARE @Historical TABLE(Ordinal int PRIMARY KEY,AccountId uniqueidentifier,AccountVersion uniqueidentifier,
     AccountCode nvarchar(32),AccountName nvarchar(160),AccountType nvarchar(40),AccountPurpose nvarchar(40));
+  IF @SourceCommandKind=N'Supplier.Credit' AND @RequiredPermission=N'SupplierCreditsCorrect'
+  BEGIN
+    DECLARE @CreditParent uniqueidentifier=TRY_CONVERT(uniqueidentifier,JSON_VALUE(@SourceSnapshot,'$.correctionRequestId')),
+      @CreditParentGroup uniqueidentifier,@CreditParentCorrection uniqueidentifier,@CreditParentTime datetimeoffset,@CreditParentPlan nvarchar(max);
+    EXEC Purchasing.RequireSupplierSourceComposition @ActorId,@SessionId,@CreditParent,N'ReplacementCredit',@SourceId,@CanonicalInput,
+      @CreditParentGroup OUTPUT,@CreditParentCorrection OUTPUT,@CreditParentTime OUTPUT,@CreditParentPlan OUTPUT;
+    IF @CreditParentGroup<>TRY_CONVERT(uniqueidentifier,JSON_VALUE(@SourceSnapshot,'$.groupId'))
+      OR @CreditParentCorrection<>TRY_CONVERT(uniqueidentifier,JSON_VALUE(@SourceSnapshot,'$.correctionId'))
+      THROW 51004,'Credit replacement belongs to another source owner.',1;
+  END;
   IF @SourceCommandKind=N'Supplier.Credit'
   BEGIN
-    IF @SourceKind<>N'SupplierCredit' OR @EventKind<>N'Credit' OR @RequiredPermission<>N'SupplierCreditsPost'
+    IF @SourceKind<>N'SupplierCredit' OR @EventKind<>N'Credit' OR @RequiredPermission NOT IN(N'SupplierCreditsPost',N'SupplierCreditsCorrect')
       OR @SupplierControlItems IS NOT NULL
       OR APPLOCK_MODE('public',N'Accounting:'+CONVERT(nvarchar(36),@TenantId),'Transaction')<>'Exclusive'
       OR NOT EXISTS(SELECT 1 FROM Purchasing.SupplierCredits c
         JOIN Purchasing.SupplierFinancialGroups g ON g.TenantId=c.TenantId AND g.Id=c.GroupId
-          AND g.Operation='RecordCredit' AND g.SourceId=c.Id AND g.RecordedAtUtc=c.RecordedAtUtc
+          AND (g.Operation='RecordCredit' AND g.SourceId=c.Id OR g.Operation='CorrectCredit' AND EXISTS(
+        SELECT 1 FROM Purchasing.SupplierSourceCorrections parent WHERE parent.TenantId=c.TenantId AND parent.GroupId=c.GroupId
+          AND parent.ReplacementSourceId=c.Id AND parent.ReplacementSourceRevisionId=c.RevisionId
+          AND parent.ActorId=c.ActorId AND parent.RecordedAtUtc=c.RecordedAtUtc)) AND g.RecordedAtUtc=c.RecordedAtUtc
         JOIN Purchasing.SupplierFinancialReceipts receipt ON receipt.TenantId=c.TenantId AND receipt.GroupId=c.GroupId
           AND receipt.RequestId=@RequestId AND receipt.Operation='PostSupplierCredit' AND receipt.ActorId=c.ActorId
           AND receipt.RecordedAtUtc=c.RecordedAtUtc AND JSON_VALUE(receipt.ResultJson,'$.state')='pending'
@@ -164,6 +177,17 @@ BEGIN
         WHERE c.TenantId=@TenantId AND c.CreditId=@SourceId AND c.AccountId=input.AccountId AND c.AccountVersion=input.AccountVersion)
         AND line.Debit>0 AND line.Credit=0 AND line.AccountPurpose='General'
         AND ((claim.Treatment='Expense' AND line.AccountType='Expense') OR (claim.Treatment='Prepayment' AND line.AccountType='Asset'));
+    INSERT @Historical
+      SELECT DISTINCT input.Ordinal,expense.AccountId,expense.AccountVersion,expense.AccountCode,expense.AccountName,expense.AccountType,expense.AccountPurpose
+      FROM @Input input JOIN Purchasing.SupplierCreditClaims claim ON claim.TenantId=@TenantId AND claim.CreditId=@SourceId
+        AND claim.AccountId=input.AccountId AND claim.AccountVersion=input.AccountVersion AND claim.Treatment='Expense'
+        AND claim.OriginalJournalId IS NULL AND claim.OriginalJournalOrdinal IS NULL
+      JOIN Purchasing.RecognitionMatches matched ON matched.TenantId=claim.TenantId AND matched.InvoiceEventId=claim.RecognitionEventId
+      CROSS APPLY Purchasing.SupplierRecognitionExpenseControl(@TenantId,matched.RecognitionEventId) expense
+      WHERE expense.JournalId IS NULL AND expense.AccountId=input.AccountId AND expense.AccountVersion=input.AccountVersion
+        AND input.Debit=0 AND input.Credit=(SELECT SUM(CONVERT(decimal(38,4),other.Amount)) FROM Purchasing.SupplierCreditClaims other
+          WHERE other.TenantId=@TenantId AND other.CreditId=@SourceId AND other.AccountId=input.AccountId AND other.AccountVersion=input.AccountVersion)
+        AND NOT EXISTS(SELECT 1 FROM @Historical proved WHERE proved.Ordinal=input.Ordinal);
     IF (SELECT COUNT(*) FROM @Historical)<>(SELECT COUNT(*) FROM @Input WHERE Credit>0)
       OR (SELECT COUNT(*) FROM @Input WHERE Debit>0)<>1
       OR (SELECT SUM(CONVERT(decimal(38,4),Amount)) FROM Purchasing.SupplierCreditClaims WHERE TenantId=@TenantId AND CreditId=@SourceId)

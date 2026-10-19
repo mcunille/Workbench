@@ -33,8 +33,11 @@ RETURNS TABLE AS RETURN
   SELECT c.PurchaseOrderId,c.SupplierId,c.ActorId,c.PostingDate,c.RecordedAtUtc,
     HASHBYTES('SHA2_256',CONVERT(varbinary(max),c.SourceSnapshotJson)),
     JSON_QUERY(c.SourceSnapshotJson,'$.evidence.documents'),JSON_VALUE(c.SourceSnapshotJson,'$.evidence.missingEvidenceReason'),
-    CONVERT(bit,0),CONVERT(nvarchar(100),N'SupplierCreditsPost'),CONVERT(uniqueidentifier,NULL)
-  FROM Purchasing.SupplierCredits c CROSS APPLY Purchasing.SupplierCreditControl(@TenantId,c.Id) control
+    CONVERT(bit,0),CONVERT(nvarchar(100),CASE WHEN parent.Id IS NULL THEN N'SupplierCreditsPost' ELSE N'SupplierCreditsCorrect' END),
+    (SELECT original.Id FROM Accounting.FinancialEvidenceSets original WHERE original.TenantId=c.TenantId
+      AND original.OwnerKind='SupplierCredit' AND original.OwnerId=parent.SourceId AND original.OwnerRevisionId=parent.SourceRevisionId)
+  FROM Purchasing.SupplierCredits c LEFT JOIN Purchasing.SupplierSourceCorrections parent ON parent.TenantId=c.TenantId AND parent.ReplacementSourceId=c.Id AND parent.SourceKind='SupplierCredit'
+  CROSS APPLY Purchasing.SupplierCreditControl(@TenantId,c.Id) control
   WHERE @OwnerKind='SupplierCredit' AND c.TenantId=@TenantId AND c.Id=@OwnerId AND c.RevisionId=@OwnerRevisionId
   UNION ALL
   SELECT c.PurchaseOrderId,c.SupplierId,c.ActorId,c.PostingDate,c.RecordedAtUtc,

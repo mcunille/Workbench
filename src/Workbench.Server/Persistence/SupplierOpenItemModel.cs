@@ -39,7 +39,7 @@ public partial class WorkbenchDbContext
 
         var group = builder.Entity<SupplierFinancialGroup>();
         group.ToTable("SupplierFinancialGroups", "Purchasing", t => t.HasCheckConstraint("CK_SupplierFinancialGroups_Operation",
-            "[Operation] COLLATE Latin1_General_100_BIN2 IN ('OpenRecognitionPayable','RecordPayment','Apply','ReverseApplication','CorrectPayment','CorrectSource','RecordCredit','RecordRefund')"));
+            "[Operation] COLLATE Latin1_General_100_BIN2 IN ('OpenRecognitionPayable','RecordPayment','Apply','ReverseApplication','CorrectPayment','CorrectSource','RecordCredit','RecordRefund','CorrectCredit')"));
         group.HasKey(x => new { x.TenantId, x.Id });
         group.Property(x => x.Sequence).UseIdentityColumn();
         group.HasIndex(x => new { x.TenantId, x.Sequence }).IsUnique();
@@ -49,7 +49,7 @@ public partial class WorkbenchDbContext
 
         var movement = builder.Entity<SupplierItemMovement>();
         movement.ToTable("SupplierItemMovements", "Purchasing", t => t.HasCheckConstraint("CK_SupplierItemMovements_Amount",
-            "[Amount]<>0 AND [EventKind] COLLATE Latin1_General_100_BIN2 IN ('Open','Apply','ReverseApplication','ReverseSource','CashSettlement')"));
+            "[Amount]<>0 AND [EventKind] COLLATE Latin1_General_100_BIN2 IN ('Open','Apply','ReverseApplication','ReverseSource','CashSettlement','ReleaseSettlement')"));
         movement.HasKey(x => new { x.TenantId, x.Id });
         movement.HasQueryFilter(x => (Guid?)x.TenantId == TenantContext.TenantId);
         movement.Property(x => x.EventKind).HasMaxLength(24).IsUnicode(false);

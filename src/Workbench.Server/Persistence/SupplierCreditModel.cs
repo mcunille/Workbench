@@ -37,7 +37,7 @@ public partial class WorkbenchDbContext
 
         var claim = builder.Entity<SupplierCreditClaim>();
         claim.ToTable("SupplierCreditClaims", "Purchasing", t => t.HasCheckConstraint("CK_SupplierCreditClaims_Amount",
-            "[Amount]>0 AND [Treatment] COLLATE Latin1_General_100_BIN2 IN ('Expense','Prepayment','Inventory','RecoverableTax')"));
+            "[Amount]>0 AND [Treatment] COLLATE Latin1_General_100_BIN2 IN ('Expense','Prepayment','Inventory','RecoverableTax') AND (([OriginalJournalId] IS NOT NULL AND [OriginalJournalOrdinal] IS NOT NULL AND [OriginalJournalOrdinal] BETWEEN 1 AND 1000) OR ([OriginalJournalId] IS NULL AND [OriginalJournalOrdinal] IS NULL AND [Treatment]='Expense'))"));
         claim.HasKey(x => new { x.TenantId, x.Id });
         claim.HasQueryFilter(x => (Guid?)x.TenantId == TenantContext.TenantId);
         claim.Property(x => x.Amount).HasPrecision(28, 4);

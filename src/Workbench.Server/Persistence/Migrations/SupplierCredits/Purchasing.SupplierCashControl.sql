@@ -28,7 +28,7 @@ RETURNS TABLE AS RETURN
       AND NOT EXISTS(SELECT 1 FROM Purchasing.SupplierItemMovements movement
         JOIN Purchasing.SupplierControlAttributions attribution ON attribution.TenantId=movement.TenantId AND attribution.MovementId=movement.Id AND attribution.GroupId=movement.GroupId
         JOIN Accounting.JournalLines line ON line.TenantId=attribution.TenantId AND line.JournalId=attribution.JournalId AND line.Ordinal=attribution.Ordinal
-        CROSS APPLY Purchasing.SupplierItemControl(c.TenantId,settlement.ItemId) control
+        CROSS APPLY Purchasing.SupplierAssetControl(c.TenantId,settlement.ItemId) control
         WHERE movement.TenantId=c.TenantId AND movement.Id=settlement.MovementId AND movement.ItemId=settlement.ItemId AND movement.GroupId=c.GroupId
           AND movement.EventKind='CashSettlement' AND movement.SourceEventId=sourceEvent.Id AND movement.Amount=-settlement.Amount
           AND movement.PostingDate=c.PostingDate AND movement.RecordedAtUtc=c.RecordedAtUtc
