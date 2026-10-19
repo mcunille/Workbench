@@ -19,6 +19,19 @@ function Get-VerificationTransportFiles {
     }
 }
 
+function Assert-VerificationDestinationAncestors {
+    param([string]$Path)
+    $current=[IO.Path]::GetFullPath($Path)
+    while ($current) {
+        if (Test-Path -LiteralPath $current) {
+            if ((Get-Item -LiteralPath $current -Force).Attributes -band [IO.FileAttributes]::ReparsePoint) { throw 'Transport destination links are forbidden.' }
+        }
+        $parent=Split-Path $current -Parent
+        if ($parent -ceq $current) { break }
+        $current=$parent
+    }
+}
+
 function Assert-VerificationTransportContext {
     param([object]$Actual, [object]$Expected)
     foreach ($key in @('Repository','Revision','Workflow','RunId','RunAttempt','InvocationId','Configuration')) {
@@ -107,15 +120,25 @@ function Import-VerificationTransport {
         if (-not $seen.Contains($required)) { throw "Required transport runtime missing: $required" }
     }
     if (Test-Path -LiteralPath $OutputRoot) { throw 'Transport import output must be fresh.' }
+    # Existing CLI integration cases derive these sibling paths from AppContext.BaseDirectory.
+    # Preserve that layout using only verified files; never rebuild or overwrite another invocation.
+    $testRoot=Join-Path $RepositoryRoot 'tests/Workbench.Server.IntegrationTests/bin/Release/net10.0'
+    $databaseRoot=Join-Path $RepositoryRoot 'src/Workbench.Database/bin/Release/net10.0'
+    foreach ($destination in @($OutputRoot,$testRoot,$databaseRoot)) { Assert-VerificationDestinationAncestors $destination }
+    if ((Test-Path -LiteralPath $testRoot) -or (Test-Path -LiteralPath $databaseRoot)) { throw 'Transport runtime layout must be fresh.' }
     New-Item -ItemType Directory -Path $OutputRoot | Out-Null
     foreach ($file in $manifest.Files) {
-        $target = Join-Path $OutputRoot $file.Path
+        $target = if ($file.Path.StartsWith('payload/tests/',[StringComparison]::Ordinal)) {
+            Join-Path $testRoot $file.Path.Substring('payload/tests/'.Length)
+        } elseif ($file.Path.StartsWith('payload/database/',[StringComparison]::Ordinal)) {
+            Join-Path $databaseRoot $file.Path.Substring('payload/database/'.Length)
+        } else { Join-Path $OutputRoot $file.Path }
         New-Item -ItemType Directory -Path (Split-Path $target) -Force | Out-Null
         Copy-Item -LiteralPath (Join-Path $BundleRoot $file.Path) -Destination $target
         if ((Get-FileHash -LiteralPath $target -Algorithm SHA256).Hash -cne $file.Hash) { throw 'Transport content changed during import.' }
     }
     $server = [IO.Path]::GetFullPath((Join-Path $OutputRoot 'payload/server'))
-    $database = [IO.Path]::GetFullPath((Join-Path $OutputRoot 'payload/database'))
+    $database = [IO.Path]::GetFullPath($databaseRoot)
     $localPath = Join-Path $OutputRoot 'verification-manifest.json'
     [ordered]@{ Version=1; RunId=$ExpectedContext.InvocationId; RepositoryRoot=[IO.Path]::GetFullPath($RepositoryRoot); Configuration=$ExpectedContext.Configuration;
         SourceHash=$manifest.SourceHash; ServerRoot=$server; DatabaseRoot=$database;
@@ -123,5 +146,5 @@ function Import-VerificationTransport {
     } | ConvertTo-Json | Set-Content -LiteralPath $localPath -Encoding utf8NoBOM
     $null = Get-VerificationArtifacts $RepositoryRoot $localPath $ExpectedContext.InvocationId
     [pscustomobject]@{ Context=$manifest.Context; Plan=$plan; TransportHash=$ExpectedTransportHash; PlanHash=$ExpectedPlanHash;
-        TestAssemblyPath=(Join-Path $OutputRoot 'payload/tests/Workbench.Server.IntegrationTests.dll'); LocalManifestPath=$localPath }
+        TestAssemblyPath=(Join-Path $testRoot 'Workbench.Server.IntegrationTests.dll'); LocalManifestPath=$localPath }
 }

@@ -14,7 +14,7 @@ try {
     New-Item -ItemType Directory -Path $producer | Out-Null
     git -C $producer init --quiet
     Set-Content (Join-Path $producer 'source.cs') 'current source'
-    Set-Content (Join-Path $producer '.gitignore') 'output/'
+    Set-Content (Join-Path $producer '.gitignore') @('output/','**/bin/')
     git -C $producer add .
     git -C $producer -c user.name=Fixture -c user.email=fixture@example.invalid commit --quiet -m fixture
     if ($LASTEXITCODE) { throw 'Fixture Git preparation failed.' }
@@ -42,7 +42,21 @@ try {
     $imported = Import-VerificationTransport $consumer $bundle.BundleRoot $context $bundle.TransportHash $bundle.PlanHash (Join-Path $consumer 'output/valid')
     $validated = Get-VerificationArtifacts $consumer $imported.LocalManifestPath $context.InvocationId
     if (-not $validated.ServerRoot.StartsWith($consumer, [StringComparison]::Ordinal)) { throw 'Artifacts were not relocated.' }
+    # AND the real CLI integration suite can resolve its sibling output without rebuilding or changing assertions.
+    $testOutput=Get-Item (Split-Path $imported.TestAssemblyPath)
+    $cli=Join-Path $consumer "src/Workbench.Database/bin/$($testOutput.Parent.Name)/$($testOutput.Name)/Workbench.Database.dll"
+    if ($testOutput.Name -cne 'net10.0' -or $testOutput.Parent.Name -cne 'Release' -or -not (Test-Path -LiteralPath $cli)) { throw 'Relocation lost the existing test/CLI output layout.' }
     Assert-Rejected { Get-VerificationArtifacts $consumer $local $context.InvocationId } 'manifest does not match'
+    # GIVEN an ignored bin ancestor linked outside the checkout THEN relocation must not write through it.
+    $linkedConsumer=Join-Path $root 'linked-consumer'
+    git clone --quiet --no-hardlinks $producer $linkedConsumer
+    $linkedBin=Join-Path $linkedConsumer 'tests/Workbench.Server.IntegrationTests/bin'
+    $outside=Join-Path $root 'outside'
+    New-Item -ItemType Directory -Path (Split-Path $linkedBin),$outside -Force | Out-Null
+    New-Item -ItemType $(if ($IsWindows) {'Junction'} else {'SymbolicLink'}) -Path $linkedBin -Target $outside | Out-Null
+    Assert-Rejected { Import-VerificationTransport $linkedConsumer $bundle.BundleRoot $context $bundle.TransportHash $bundle.PlanHash (Join-Path $linkedConsumer 'output/rejected') } 'link'
+    if (@(Get-ChildItem -LiteralPath $outside -Recurse -File).Count) { throw 'Transport wrote through destination link.' }
+    Remove-Item -LiteralPath $linkedBin -Force
     # GIVEN current source changed, including an untracked input WHEN imported THEN stale reuse is rejected.
     Set-Content (Join-Path $consumer 'new.cs') 'unexpected source'
     Assert-Rejected { Import-VerificationTransport $consumer $bundle.BundleRoot $context $bundle.TransportHash $bundle.PlanHash (Join-Path $consumer 'output/stale') } 'source'
