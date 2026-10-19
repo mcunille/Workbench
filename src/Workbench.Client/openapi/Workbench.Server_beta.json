@@ -4090,6 +4090,16 @@
               }
             }
           },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
           "404": {
             "description": "Not Found",
             "content": {
@@ -4350,6 +4360,145 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/ChangePurchaseOrderDocumentRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PurchaseOrderDocumentOperationResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Payload Too Large",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Unsupported Media Type",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service Unavailable",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/beta/purchase-orders/{id}/documents/{documentId}/retention-disposals": {
+      "post": {
+        "tags": [
+          "Purchasing"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "documentId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DisposePurchaseOrderDocumentRequest"
               }
             }
           },
@@ -7983,6 +8132,35 @@
         },
         "additionalProperties": false
       },
+      "DisposePurchaseOrderDocumentRequest": {
+        "required": [
+          "requestId",
+          "expectedOrderVersion",
+          "expectedDocumentVersion",
+          "expectedEvidenceVersion",
+          "reason"
+        ],
+        "type": "object",
+        "properties": {
+          "requestId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "expectedOrderVersion": {
+            "type": "string"
+          },
+          "expectedDocumentVersion": {
+            "type": "string"
+          },
+          "expectedEvidenceVersion": {
+            "type": "string"
+          },
+          "reason": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
       "DraftCalculationResponse": {
         "required": [
           "lines",
@@ -8642,6 +8820,95 @@
           }
         },
         "additionalProperties": false
+      },
+      "FinancialEvidenceLinkResponse": {
+        "required": [
+          "linkId",
+          "documentId",
+          "revisionId",
+          "sha256",
+          "length",
+          "label",
+          "retainUntilUtc",
+          "indefinite",
+          "availability",
+          "replacesLinkId"
+        ],
+        "type": "object",
+        "properties": {
+          "linkId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "documentId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "revisionId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "sha256": {
+            "type": "string"
+          },
+          "length": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          },
+          "label": {
+            "type": "string"
+          },
+          "retainUntilUtc": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "indefinite": {
+            "type": "boolean"
+          },
+          "availability": {
+            "type": "string"
+          },
+          "replacesLinkId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          }
+        }
+      },
+      "FinancialEvidenceSetResponse": {
+        "required": [
+          "id",
+          "missingEvidenceReason",
+          "links"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "missingEvidenceReason": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "links": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FinancialEvidenceLinkResponse"
+            }
+          }
+        }
       },
       "GemReferenceContent": {
         "required": [
@@ -9963,6 +10230,16 @@
                 "$ref": "#/components/schemas/PurchaseRecognitionEvidence"
               }
             ]
+          },
+          "financialEvidence": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/FinancialEvidenceSetResponse"
+              }
+            ]
           }
         }
       },
@@ -10354,6 +10631,47 @@
           }
         }
       },
+      "PurchaseDocumentRetentionResponse": {
+        "required": [
+          "retained",
+          "retainUntilUtc",
+          "indefinite",
+          "evidenceVersion",
+          "canDispose",
+          "disposalBlockReason"
+        ],
+        "type": "object",
+        "properties": {
+          "retained": {
+            "type": "boolean"
+          },
+          "retainUntilUtc": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "indefinite": {
+            "type": "boolean"
+          },
+          "evidenceVersion": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "canDispose": {
+            "type": "boolean"
+          },
+          "disposalBlockReason": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
       "PurchaseOrderDocumentOperationResponse": {
         "required": [
           "requestId",
@@ -10428,6 +10746,16 @@
           },
           "unavailable": {
             "type": "boolean"
+          },
+          "retention": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/PurchaseDocumentRetentionResponse"
+              }
+            ]
           }
         }
       },
@@ -11487,6 +11815,16 @@
           "recordedThrough": {
             "type": "string",
             "format": "date-time"
+          },
+          "financialEvidence": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/FinancialEvidenceSetResponse"
+              }
+            ]
           }
         }
       },

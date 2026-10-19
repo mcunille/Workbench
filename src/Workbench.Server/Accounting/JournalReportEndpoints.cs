@@ -41,8 +41,8 @@ public static class JournalReportEndpoints
         IDataProtectionProvider protection, CancellationToken ct) =>
         JournalReportQueries.BrowseJournals(http, database, CursorProtector(protection), ct);
 
-    private static Task<IResult> ReadJournal(Guid id, WorkbenchDbContext database, CancellationToken ct) =>
-        JournalReportQueries.ReadJournal(id, database, ct);
+    private static Task<IResult> ReadJournal(Guid id, WorkbenchDbContext database, Authorization.RequestActor actor, CancellationToken ct) =>
+        JournalReportQueries.ReadJournal(id, database, actor, ct);
 
     private static Task<IResult> BrowseAccount(Guid id, HttpContext http, string? postingThrough, string? recordedThrough, int? pageSize, string? cursor, WorkbenchDbContext database,
         IDataProtectionProvider protection, CancellationToken ct) =>

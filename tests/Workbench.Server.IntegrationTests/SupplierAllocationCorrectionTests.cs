@@ -7,18 +7,18 @@ using Xunit;
 namespace Workbench.Server.IntegrationTests;
 
 [Collection(SqlServerCollection.Name)]
-public sealed class SupplierAllocationCorrectionTests(SqlServerFixture sqlServer, SupplierAllocationCorrectionScenarios scenarios) : IClassFixture<SupplierAllocationCorrectionScenarios>
+public sealed class SupplierAllocationCorrectionTests(SupplierAllocationCorrectionScenarios scenarios) : IClassFixture<SupplierAllocationCorrectionScenarios>
 {
     [Theory]
     [InlineData(true)]
     public async Task ConcurrentUnapplicationsReleaseCapacityExactlyOnce(bool firstWins)
     {
         // GIVEN two independently submitted inverse commands for one actual application.
-        await using var prepared = await scenarios.OpenAsync("bill100");
+        await using var prepared = await scenarios.OpenAsync("application100");
         var context = prepared.Context;
-        var bill = Guid.Parse(prepared.Data["bill"]!.GetValue<string>()); var payment = await context.CommandAsync(); await context.RecordAsync(payment);
-        var funding = Guid.Parse(payment["paymentId"]!.ToString());
-        var applied = await context.Allocation.ApplyAsync(await context.Allocation.CommandAsync(funding, bill));
+        var bill = Guid.Parse(prepared.Data["bill"]!.ToString());
+        var funding = Guid.Parse(prepared.Data["funding"]!.ToString());
+        var applied = prepared.Data["posted"]!.AsObject();
         var first = await SupplierCorrectionFixture.ReverseAsync(context, Guid.Parse(applied["applicationIds"]![0]!.ToString()));
         var second = first.DeepClone().AsObject(); second["reason"] = "Second inverse request";
         await using var sibling = await context.Allocation.Journal.OpenSiblingAsync();
@@ -40,12 +40,11 @@ public sealed class SupplierAllocationCorrectionTests(SqlServerFixture sqlServer
     public async Task ExplicitPartialReapplicationIsOneGroupAndPreservesCash()
     {
         // GIVEN a fully applied real deposit and an explicit retained application of forty.
-        await using var prepared = await scenarios.OpenAsync("bill100");
+        await using var prepared = await scenarios.OpenAsync("application100");
         var context = prepared.Context;
-        var bill = Guid.Parse(prepared.Data["bill"]!.GetValue<string>());
-        var payment = await context.CommandAsync(); await context.RecordAsync(payment);
-        var funding = Guid.Parse(payment["paymentId"]!.ToString());
-        var applied = await context.Allocation.ApplyAsync(await context.Allocation.CommandAsync(funding, bill));
+        var bill = Guid.Parse(prepared.Data["bill"]!.ToString());
+        var funding = Guid.Parse(prepared.Data["funding"]!.ToString());
+        var applied = prepared.Data["posted"]!.AsObject();
         var original = Guid.Parse(applied["applicationIds"]![0]!.ToString());
         var reverse = await SupplierCorrectionFixture.ReverseAsync(context, original);
         var retain = await context.Allocation.CommandAsync(funding, bill, "40", "2026-09-20");
@@ -87,9 +86,9 @@ public sealed class SupplierAllocationCorrectionTests(SqlServerFixture sqlServer
     public async Task GenericJournalCorrectionCannotDetachSupplierEvidence()
     {
         // GIVEN genuine posted supplier evidence and a privileged generic source adapter.
-        await using var context = await SupplierCorrectionFixture.OpenAsync(sqlServer);
-        var payment = await context.CommandAsync();
-        var posted = await context.RecordAsync(payment);
+        await using var prepared = await scenarios.OpenAsync("payment100");
+        var context = prepared.Context;
+        var posted = prepared.Data["posted"]!.AsObject();
         await context.Bills.AdminAsync("""
             CREATE PROCEDURE Purchasing.GenericFixtureSupplierCorrection
               @ActorId uniqueidentifier,@SessionId uniqueidentifier,@RequestId uniqueidentifier,@Command nvarchar(max)
@@ -126,14 +125,11 @@ public sealed class SupplierAllocationCorrectionTests(SqlServerFixture sqlServer
     public async Task ReversingApplicationRestoresBothCapacitiesWithoutChangingCash(bool embedded)
     {
         // GIVEN either an embedded or later allocation of an actual payment.
-        await using var prepared = await scenarios.OpenAsync("bill100");
+        await using var prepared = await scenarios.OpenAsync(embedded ? "embedded100" : "application100");
         var context = prepared.Context;
-        var bill = Guid.Parse(prepared.Data["bill"]!.GetValue<string>());
-        var payment = await context.CommandAsync();
-        if (embedded) await context.AllocateAsync(payment, bill, "100");
-        var posted = await context.RecordAsync(payment);
-        var funding = Guid.Parse(payment["paymentId"]!.ToString());
-        if (!embedded) posted = await context.Allocation.ApplyAsync(await context.Allocation.CommandAsync(funding, bill));
+        var bill = Guid.Parse(prepared.Data["bill"]!.ToString());
+        var funding = Guid.Parse(prepared.Data["funding"]!.ToString());
+        var posted = prepared.Data["posted"]!.AsObject();
         var application = Guid.Parse(posted["applicationIds"]![0]!.ToString());
         await context.Bills.AdminAsync("UPDATE Accounting.Accounts SET ArchivedAtUtc=SYSUTCDATETIME(),Version=NEWID(),Name='Later archived control' WHERE Purpose IN('SupplierPayable','SupplierAdvance')");
         // WHEN the complete application is reversed.

@@ -28,7 +28,7 @@ jobs:
       - name: Set up .NET
         uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
         with:
-          dotnet-version: 10.0.401
+          dotnet-version: 10.0.402
       - name: Verify probe evidence contracts
         shell: pwsh
         run: ./scripts/experiments/TwoRunnerProbe.Tests.ps1

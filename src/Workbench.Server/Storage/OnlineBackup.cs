@@ -28,7 +28,18 @@ public interface IBackupArchive
 
 public static class OnlineBackup
 {
-    public static async Task<BackupCatalog> CaptureAsync(IBackupVersionSource source, IBackupArchive archive,
+    public static async Task<BackupCatalog> CaptureFromSqlAsync(string connectionString, string sourceAlias,
+        IBackupVersionSource source, IBackupArchive archive, BackupMetadata metadata, Guid backupId,
+        int retentionDays, TimeProvider time, CancellationToken cancellationToken)
+    {
+        var required = await StorageMaintenanceCommand.ReadEntriesAsync(connectionString, cancellationToken);
+        if (string.IsNullOrWhiteSpace(sourceAlias) || required.Any(entry => entry.ProviderAlias != sourceAlias))
+            throw new InvalidDataException("SQL manifest provider binding differs from the backup source.");
+        return await CaptureAsync(source, archive, required, metadata, backupId, retentionDays, time, cancellationToken);
+    }
+
+    internal static async Task<BackupCatalog> CaptureAsync(IBackupVersionSource source, IBackupArchive archive,
+        IReadOnlyList<BlobManifestEntry> required,
         BackupMetadata metadata, Guid backupId, int retentionDays, TimeProvider time, CancellationToken cancellationToken)
     {
         if (backupId == Guid.Empty || metadata.InstallationId == Guid.Empty || metadata.SqlRetentionDays is < 1 or > 35 ||
@@ -74,6 +85,11 @@ public static class OnlineBackup
             }
             objects.Add(new BackupObject(version, destination, identity.Length, identity.Sha256));
         }
+        // Provider enumeration cannot prove absence. SQL owns required identities and content.
+        var covered = objects.Select(entry => (entry.Source.TenantId, entry.Source.RevisionId, entry.Length, entry.Sha256)).ToHashSet();
+        foreach (var entry in required)
+            if (!covered.Contains((entry.TenantId, entry.RevisionId, entry.Length, entry.Sha256)))
+                gaps.Add($"sql:{entry.TenantId:N}/{entry.RevisionId:N}");
         var finished = time.GetUtcNow();
         if (finished - started > TimeSpan.FromDays(1)) throw new InvalidDataException("Backup exceeded its capture window.");
         var catalog = new BackupCatalog(1, backupId, metadata, started, finished, started.AddDays(retentionDays),

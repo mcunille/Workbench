@@ -73,7 +73,7 @@ $priorManifest = $env:WORKBENCH_VERIFICATION_MANIFEST
 $priorRun = $env:WORKBENCH_VERIFICATION_RUN
 Push-Location $repositoryRoot
 try {
-    Assert-ToolVersion 'dotnet' '10.0.401' { dotnet --version }
+    Assert-ToolVersion 'dotnet' '10.0.402' { dotnet --version }
     Assert-ToolVersion 'Node.js' 'v26.7.0' { node --version }
     Assert-ToolVersion 'npm' '11.19.0' { npm --version }
     Assert-DocumentationCurrent

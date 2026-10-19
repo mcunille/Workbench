@@ -92,6 +92,14 @@ selected storage recovery procedure succeeds. Sanitation cancels identity-delive
 resets outstanding deletion leases, and sets a separate blob-recovery marker when retained content
 exists. SQL sanitation alone does not clear that marker or permit worker claims.
 
+BK-07 also sets blob recovery pending for financially protected removed/purged revisions. Restore
+preserves immutable evidence links, frozen policy and disposal receipts. Inspection must verify
+protected bytes or record explicit missing/corrupt dispositions against the current inventory
+fingerprint; legacy SQL state alone cannot prove availability. Old report formats and reports made
+before link/hold/disposal changes cannot authorize acceptance. Logically disposed content remains
+disposed even if an older backup contains bytes. Financial retention does not extend every backup
+set forever; apply the selected recovery window and SQL disposition before users or workers resume.
+
 A restored cookie must never regain authority over rolled-back account, role, credential, or
 revocation state. Before exposing readiness, apply the intended migrations and invoke sanitation
 with a unique, non-secret correlation identifier:

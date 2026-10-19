@@ -113,7 +113,7 @@ public sealed class PurchaseOrderDocumentEndpointTests(SqlServerFixture sqlServe
     {
         private readonly string root = Path.Combine(Path.GetTempPath(), "workbench-po-documents-" + Guid.NewGuid().ToString("N"));
         internal FileSystemBlobStore Store { get; }
-        internal TestStorage() { Directory.CreateDirectory(root); Store = new(root); }
+        internal TestStorage(string alias = "filesystem") { Directory.CreateDirectory(root); Store = new(root, alias); }
         public void Dispose() => Directory.Delete(root, true);
     }
     internal static async Task<SaveDraftOrderResponse> CreateOrderedAsync(HttpClient client)

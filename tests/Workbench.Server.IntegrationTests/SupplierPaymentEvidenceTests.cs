@@ -51,7 +51,6 @@ public sealed class SupplierPaymentEvidenceTests(SqlServerFixture sqlServer)
         var id = valid["paymentId"]!.GetValue<string>();
         var snapshot = await context.Bills.ScalarAsync<string>($"SELECT EvidenceJson FROM Purchasing.SupplierPayments WHERE Id='{id}'");
         Assert.Equal(new string('A', 64), JsonNode.Parse(snapshot)!["evidence"]!["documents"]![0]!["digest"]!.GetValue<string>());
-        var label = await context.Bills.ScalarAsync<string>($"SELECT Label FROM Purchasing.PurchaseOrderDocuments WHERE Id='{document}'");
         foreach (var mutation in new[] { "unknown", "revision", "removed", "recovery", "otherOrder" })
         {
             var bad = await context.CommandAsync(); bad["evidence"] = valid["evidence"]!.DeepClone();
@@ -59,7 +58,13 @@ public sealed class SupplierPaymentEvidenceTests(SqlServerFixture sqlServer)
             {
                 case "unknown": bad["evidence"]!["documents"]![0]!["documentId"] = Guid.NewGuid().ToString(); break;
                 case "revision": bad["evidence"]!["documents"]![0]!["revisionId"] = Guid.NewGuid().ToString(); break;
-                case "removed": await context.Bills.AdminAsync($"UPDATE Purchasing.PurchaseOrderDocuments SET RemovedAtUtc=SYSUTCDATETIME(),Label='Changed label' WHERE Id='{document}'"); break;
+                case "removed":
+                    // Posted originals are retained; validate an unavailable unlinked document.
+                    var unavailable = await context.Bills.SeedDocumentAsync();
+                    await context.Bills.AdminAsync($"UPDATE Purchasing.PurchaseOrderDocuments SET RemovedAtUtc=SYSUTCDATETIME() WHERE Id='{unavailable.DocumentId}'");
+                    bad["evidence"]!["documents"]![0]!["documentId"] = unavailable.DocumentId.ToString();
+                    bad["evidence"]!["documents"]![0]!["revisionId"] = unavailable.RevisionId.ToString();
+                    break;
                 case "recovery": await context.Bills.AdminAsync($"INSERT Storage.RecoveryFiles(TenantId,RevisionId,ReportId,Generation,Reason,AcceptedAtUtc) VALUES('{JournalTestContext.TenantId}','{revision}',NEWID(),1,'Missing',SYSUTCDATETIME())"); break;
                 case "otherOrder":
                     await context.Bills.AdminAsync($"""
@@ -77,7 +82,6 @@ public sealed class SupplierPaymentEvidenceTests(SqlServerFixture sqlServer)
             Assert.Equal(snapshot, await context.Bills.ScalarAsync<string>($"SELECT EvidenceJson FROM Purchasing.SupplierPayments WHERE Id='{id}'"));
             Assert.Equal(result.ToJsonString(), (await context.RecordAsync(valid, request)).ToJsonString());
             // AND restore the independent fault before the next probe.
-            if (mutation == "removed") await context.Bills.AdminAsync($"UPDATE Purchasing.PurchaseOrderDocuments SET RemovedAtUtc=NULL,Label='{label.Replace("'", "''")}' WHERE Id='{document}'");
             if (mutation == "recovery") await context.Bills.AdminAsync($"DELETE Storage.RecoveryFiles WHERE RevisionId='{revision}' AND TenantId='{JournalTestContext.TenantId}'");
             if (mutation == "otherOrder") await context.Bills.AdminAsync($"UPDATE Purchasing.PurchaseOrderDocuments SET OrderId='{context.Bills.Recognition.PurchaseOrderId}' WHERE Id='{document}'");
         }

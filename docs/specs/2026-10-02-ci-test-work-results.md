@@ -1,8 +1,37 @@
 # CI test work deletion and class fixture routing
 
-**Status:** Fresh matched coverage passed within 5%. One rebased hosted gate passed; its unchanged-head repeat failed a client focus assertion. A reliable ten-minute saving is not demonstrated.
+**Status:** Coverage passed within 5% against the historical `8fe565a` baseline. The subsequent `0056dd1` full hosted gate passed in 50m02s. Main has since advanced to `dcec3cf`; current-base coverage and timings need new evidence. A reliable ten-minute saving is not demonstrated.
 
 The goal is at least ten minutes less hosted end-to-end CI, with client and Server/Database collector line/branch coverage losing at most 5% relative to the comparable baseline. This batch retains two server processes on one runner.
+
+## October 18 continuation: throwaway two-runner probe
+
+The approved continuation measures four whole-class server cohorts across two
+hosted runners, with two SQL workers per runner. It starts from the retained
+test consolidations and snapshots. The original full CI gate remains the
+control; the probe does not replace or weaken it. Queue delay, fresh build and
+setup time, CPU, available memory, container memory and total runner minutes
+must accompany elapsed-time results. Partial host success is insufficient:
+download both artifacts and run `Assert-TwoRunnerProbeEvidence` from
+`scripts/experiments/two-runner-contract.ps1`, then compare its global inventory
+with the concurrent full control. Probe scripts and its separate workflow are
+explicitly throwaway, pending a recommendation and separate integration design.
+
+GitHub initially withheld pull-request runs because upstream `dcec3cf` conflicted
+with the branch. Merging main preserves its financial-evidence safeguards,
+advanced posted-history caches, participant lifecycle cleanup and .NET 10.0.402
+pin. The prior approved case consolidations remain. The document-fault loop
+uses upstream's unrelated unlinked document for the removed-document case;
+posted original evidence is retained. The bill-only snapshot remains for its
+independent isolation keeper. Production source matches this new main exactly.
+
+Focused probe tests cover two-host assignment, stale revisions, mismatched
+datasets and inventories, absent host/result artifacts and case-sensitive
+identities. Three scoped mutations (overlapping assignments, accepting a stale
+revision, accepting a different timing dataset) were killed. This is not a
+whole-suite mutation score. Historical coverage and timing sections below
+remain tied to their recorded revisions and do not establish current-base
+acceptance.
 
 ## Retired 15 cases and remaining owners
 

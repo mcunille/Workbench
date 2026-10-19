@@ -78,6 +78,7 @@ public partial class WorkbenchDbContext
         side.HasAlternateKey(x => new { x.TenantId, x.UnitId, x.Id });
         side.HasQueryFilter(x => (Guid?)x.TenantId == TenantContext.TenantId);
         side.Property(x => x.Side).HasMaxLength(16).IsUnicode(false);
+        side.Property(x => x.EvidenceMutationPermission).HasMaxLength(100);
         side.Property(x => x.SourceComponentKey).HasMaxLength(200);
         side.Property(x => x.SubdivisionKey).HasMaxLength(200);
         side.Property(x => x.SourceQuantity).HasPrecision(28, 6);

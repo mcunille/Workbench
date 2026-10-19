@@ -9,9 +9,9 @@ internal sealed class SupplierAllocationTestContext(SupplierOpenItemTestContext 
     public SupplierOpenItemTestContext Items { get; } = items;
     public SupplierBillTestContext Bills => Items.Bills;
     public JournalTestContext Journal => Items.Journal;
-    public static async Task<SupplierAllocationTestContext> OpenAsync(SqlServerFixture fixture)
+    public static async Task<SupplierAllocationTestContext> OpenAsync(SqlServerFixture fixture, string? priorMigration = null)
     {
-        var context = new SupplierAllocationTestContext(await SupplierOpenItemTestContext.OpenAsync(fixture));
+        var context = new SupplierAllocationTestContext(await SupplierOpenItemTestContext.OpenAsync(fixture, priorMigration));
         try
         {
             await context.Bills.AdminAsync("""
