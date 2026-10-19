@@ -76,20 +76,9 @@ bootstrap, routine migrations, and existing-database precautions. See
 [principal provisioning and secret delivery](database-principals.md#provisioning-and-secret-delivery)
 for password/Entra identities and the tenant proof key.
 
-Migrations become durable when their pull request is merged into `main`. Never rewrite merged
-migrations. Before merge, consolidate development-only migrations into one migration per coherent
-release change, even if an earlier revision was run in a local, retained, or shared preview.
-Running unmerged code does not establish a supported upgrade baseline or justify a corrective
-migration solely to preserve that preview's migration sequence.
-
-Verify fresh-database creation and upgrade from the merged PR base. Separate migrations within a
-PR still need a concrete staged deployment, backfill, or release compatibility boundary. Historical
-preview transitions documented below are already merged history, not exceptions for new PRs.
-
-Use disposable databases to verify unmerged changes. If preview data needs to be kept, handle its
-recovery or recreation as a separate local operation; it does not add a release compatibility
-obligation. This policy does not authorize deleting databases, discarding data, or automatically
-resetting migration-history rows.
+For unmerged schema changes and preview-data preservation, follow
+[authoring and validating a migration](#authoring-and-validating-a-migration). Historical preview
+transitions documented below are already merged history, not exceptions for new PRs.
 
 The accounting foundation starts with `20260921051843_AddAccountingFoundation`, after
 `20260921041331_MakeSupplierProfilesCustom`. This single accounting migration advances readiness from the supplier-profile marker. The foundation preserves existing users and POs, creates
@@ -163,6 +152,24 @@ earlier unmerged installer needs a separately reviewed data-preserving refresh; 
 history or delete retained data. Full gate and preview outcomes belong in the dated BK-07 evidence.
 
 ## Authoring and validating a migration
+
+Before opening or updating a pull request, consolidate development-only migrations introduced by
+the current change into one migration per coherent release change. Preserve dependency ordering,
+custom SQL, security controls, data transformations, and rollback guards; update the final
+designer/model snapshot, migration-history assertions, and schema-version references, then verify
+fresh-database creation and upgrade from the merged PR base schema. Keep separate migrations only
+when a staged deployment, backfill, or release compatibility boundary requires them, and explain
+that reason in the PR.
+
+Migrations become durable when their pull request is merged into `main`. Never rewrite merged
+migrations. Applying an unmerged migration to a local, retained, or shared preview does not prevent
+consolidation or establish a supported upgrade baseline. It does not justify a corrective migration
+solely to preserve that preview's migration sequence.
+
+Use disposable databases to verify unmerged changes. If preview data needs to be kept, handle its
+recovery or recreation as a separate local operation; it does not add a release compatibility
+obligation. This policy does not authorize deleting databases, discarding data, or automatically
+resetting migration-history rows.
 
 Keep migrations deterministic and reversible where SQL Server permits. Review generated SQL and
 permission changes, especially RLS predicates, grants, denials, migration history, security tables,
