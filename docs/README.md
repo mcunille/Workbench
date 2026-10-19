@@ -30,6 +30,7 @@ exercised at a particular revision. Neither replaces current instructions.
 | Understand product direction | [Vision](VISION.md), [design principles](DESIGN-PRINCIPLES.md) |
 | Apply current visual values | [DESIGN.md](../DESIGN.md) |
 | Find historical design decisions | [Specs index](specs/README.md), [collection design records](collection.md#design-records) |
+| Audit documentation or retire specs | [Documentation audit policy](documentation-audits.md) |
 | Contribute and verify a change | [Contributing](../CONTRIBUTING.md), [development workflow](development-workflow.md) |
 
 ## Current direction
