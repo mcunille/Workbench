@@ -188,7 +188,13 @@ Amounts use decimal(28,4), checked wider accumulation and scale 0–4; no silent
 Journal and trial-balance GET APIs independently require `AccountingReportsRead`, use exact decimal
 strings and capture each response in a SERIALIZABLE read. Posting and recorded-time cutoffs apply
 together. Recorded time is not commit order and paginated reads are not frozen export snapshots.
-The [BK-02 design](specs/2026-09-23-bk-02-atomic-journal.md) records the approved contract and limits.
+The conservative tenant lock shares configuration, posting and archive coordination across replicas.
+Narrowing it requires measured contention and an explicit lock-order design; an in-process mutex
+cannot replace it. Typed source commands check current authority before receipt replay, then validate
+mutable source/account state for new writes. Exact retries return the original outcome; a different
+request for an already posted source event conflicts. Event uniqueness prevents duplicate postings
+independently of request identity. Snapshot and canonical-command digests use SHA-256 over stored
+SQL Unicode text bytes (UTF-16LE without a byte-order mark).
 
 BK-03 adds durable calendar months, immutable closures and receipts, and correction groups with exact
 inverse and optional replacement entries. Posting and correction use the same tenant lock as closing;
@@ -202,9 +208,17 @@ All new reversal, replacement, internal receipt and group rows in one correction
 database-owned recorded time. This makes recorded-time report cutoffs include a complete correction
 atomically while preserving the original committed records. Journal detail adds current correction
 relationships; the period GET reports explicit ranges of up to 120 months without materializing an
-open month. The [BK-03 design](specs/2026-09-24-bk-03-corrections-and-period-controls.md) records
-the constraints. Bookkeeping activation, production sources, reconciliation acceptance, public close
+open month. Bookkeeping activation, production sources, reconciliation acceptance, public close
 and correction actions remain gated by the parent prerequisites. BK-07 supplies financial-file retention.
+
+Periods are materialized on demand, avoiding a fixed calendar horizon. A future production close
+adapter must validate reconciliation evidence under the same accounting lock, or compare a recorded
+ledger version after acquiring it; a stale pre-lock checklist cannot authorize closure. Reversals
+derive exact inverse lines and account snapshots from persisted history. Replacements use current
+eligible mappings and account revisions. A correction appends history; it does not establish that
+money was refunded. [Accounting readback](accounting.md#journal-read-apis) owns report semantics;
+the [migration matrix](operations/database-migrations.md#migration-compatibility-matrix) owns retained-history
+and replay compatibility.
 
 ### Classified purchase recognition
 
@@ -225,8 +239,16 @@ Corrections discover the complete stored dependency group and append inverses an
 events with one database-owned instant. The generic accounting kernel refuses isolated correction of
 a recognition journal. Authorized journal detail includes immutable recognition and matching evidence;
 posting-date and recorded-time report filters continue to select financial activity independently.
-Bookkeeping remains unavailable. See the [BK-04 design](specs/2026-09-25-bk-04-classified-purchase-recognition.md)
-for the intentionally limited source, inventory and reconciliation contracts.
+Replacement creates a fresh successor unit linked to its predecessor and correction group. Original
+classification and quantity remain immutable; consumers follow successor links across corrections.
+Capacity and the single rounding allowance count surviving claims across all revisions of the
+logical source. A new source revision creates no new allocation budget. Released capacity becomes
+reusable only from the correction posting date, including claims against later source revisions.
+
+An invoice-only recognition policy would be smaller, but would not establish control transfer or
+prevent double-counting uninvoiced receipts. The two evidenced sides establish those rules before
+public bill/receiving workflows exist. Bookkeeping remains unavailable; [recognition policy and
+examples](accounting.md#internal-purchase-recognition) describe the supported cases and limitations.
 
 ### Structured supplier bills
 
@@ -239,7 +261,11 @@ The same tenant accounting lock serializes bill commands with period closing and
 
 The single additive migration installs no runtime mutation grants or production role assignments;
 `BookkeepingAvailable` remains false. Public bill entry, allocation and bill corrections are separate
-release work; BK-07 supplies evidence holds. See the [BK-05 design](specs/2026-09-27-bk-05-structured-supplier-bills.md).
+release work; BK-07 supplies evidence holds. Posting derives invoice identity, revision and capacity
+from reviewed stored bill components, never caller-authored recognition JSON. An application-only
+bill store would not enforce source authority or replica races at the database boundary; reusing
+the recognition and journal kernels avoids a second AP writer. [Bill policies](accounting.md#internal-supplier-bills)
+own duplicate resolution, pro-forma identity and evidence limitations.
 
 ### Supplier open items and allocations
 

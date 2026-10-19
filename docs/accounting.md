@@ -115,6 +115,14 @@ in disposable test databases. The closure evidence v1 envelope requires schema v
 nonblank typed kind, and the exact canonical period start; the synthetic kind is
 `SyntheticReconciliation`. A production reconciliation schema and close checklist remain future work.
 
+An exact reversal retains historical account snapshots and swaps the original debit/credit lines;
+an optional replacement uses currently eligible mappings. Closed-period corrections use an explicitly
+selected open posting date. For example, a September expense/payable of 300 remains 300 in September
+after an October reversal of 300 and replacement of 280; through October the balance is 280. A
+recorded-time cutoff before that correction still sees only the original 300. Correction does not
+mean that money was refunded. [Architecture](ARCHITECTURE.md#atomic-journal-foundation) owns the
+SQL transaction, replay and close-adapter constraints.
+
 ## Internal purchase recognition
 
 BK-04 records an explicitly classified whole purchase unit as Expense or Inventory. Recognition
@@ -138,8 +146,36 @@ trial balances retain the original activity when later corrections fall outside 
 These kernels have no runtime execute grants or public financial write routes. BK-05 supplies the
 internal bill-source adapter described below; synthetic receipt adapters exist only in disposable tests. `BookkeepingAvailable` remains false;
 public payment and bill entry, operational fulfillment, item valuation, cost of sales and production closing
-remain future work. The [BK-04 specification](specs/2026-09-25-bk-04-classified-purchase-recognition.md)
-defines the evidence and release limits.
+remain future work.
+
+Recognition requires explicit evidence of consumed goods/performed services for Expense, or goods,
+positive quantity/unit and documented control transfer for Inventory. Physical possession alone is
+insufficient. Invoice-first Prepayment needs an eligible present obligation and enforceable future
+right, with reviewer rationale; a demand or pro forma cannot establish that. Recoverable tax needs
+an explicit policy reference and reviewed entitlement on its effective date. Nonrecoverable tax
+belongs to the classified cost. Country, supplier, account name and document label infer none of these.
+Unsupported eligibility, tax entitlement, fixed assets/depreciation, consignment, FX and automatic
+amortization reject pending their own supported policies.
+
+Let E be approved receipt-first estimated cost, C final invoice cost including nonrecoverable tax,
+and T explicitly recoverable tax:
+
+| Event | Entries |
+| --- | --- |
+| Recognition before invoice | Debit Expense/Inventory E; credit receipt accrual E. |
+| Invoice after recognition | Debit original accrual E; debit/credit original cost by C − E; debit RecoverableTax T; credit SupplierPayable C + T. |
+| Eligible invoice before recognition | Debit Prepayment C and RecoverableTax T; credit SupplierPayable C + T. |
+| Recognition after invoice | Debit Expense/Inventory C; credit original Prepayment C. |
+
+For inventory received at 100 then invoiced at cost 105 plus recoverable tax 5, matching leaves
+Inventory 105, tax asset 5, accrual 0 and payable 110. A final cost of 98 instead credits cost by 2;
+it is not a supplier credit note. Expense adjustments retain the original expense account. Inventory
+adjustments need trusted evidence that the goods remain held; reviewer assertions cannot establish
+that evidence. With no production inventory-state adapter, bill inventory variances reject, while
+equal-value inventory matching remains supported. Cash deposits belong to SupplierAdvance, not
+recognition Prepayment. Third-party charges need their own supplier/source. Every cost component,
+discount, charge and rounding assignment is explicit; unexplained differences cannot plug tax or
+an unrelated expense account.
 
 ## Internal supplier bills
 
@@ -155,14 +191,24 @@ for the exact current set of conflicts, and posting rechecks that set under the 
 Editing creates another immutable revision and requires another review. Exact retries recheck current
 permissions before returning the original receipt. Nonabandoned bills also prevent PO supplier changes.
 
+Duplicate normalization trims and collapses only ASCII spaces, tabs, CR and LF, then uppercases ASCII
+a–z. Punctuation, leading zeros, accents and other non-ASCII characters remain significant; keys
+compare ordinally. This conservative rule avoids merging distinct references and does not claim
+Unicode-equivalence detection. Resolution records a reason and both exact conflicting revisions;
+a new conflict or changed revision requires re-review. Drafts may contain duplicates, but an actual
+duplicate must be abandoned rather than force-posted. A later invoice is a new identity optionally
+linked to its pro forma predecessor; it never converts that predecessor's history. Reusing the
+reference still requires duplicate resolution.
+
 Bounded internal reads expose source history, posting links and honest current evidence availability.
 History retains each review's PO version, supplier snapshot and captured evidence after revision or
 abandonment clears the current review. Document metadata/digests survive in reviewed snapshots;
 posting atomically acquires BK-07 retention links. Recovery loss can still make bytes unavailable
 without erasing that evidence. No paid/outstanding amount
 is inferred from these records. Runtime mutation grants and production role assignments for
-`SupplierBillsManage`/`SupplierBillsPost` remain absent. See the
-[BK-05 specification](specs/2026-09-27-bk-05-structured-supplier-bills.md).
+`SupplierBillsManage`/`SupplierBillsPost` remain absent. Review alone acquires no retention link;
+posted evidence follows [durable financial evidence](#durable-financial-evidence). Source read access
+does not grant private-document download authority.
 
 ## Supplier open items and read APIs
 
@@ -208,9 +254,8 @@ evidence and remaining release gates, and [Architecture](ARCHITECTURE.md#supplie
 for the unmeasured reporting-cost limit.
 
 The [BK-01 specification](specs/2026-09-21-bk-01-accounting-foundation.md) owns the accepted boundaries;
-the [BK-02 specification](specs/2026-09-23-bk-02-atomic-journal.md) defines the journal boundary;
-the [BK-03 specification](specs/2026-09-24-bk-03-corrections-and-period-controls.md) defines internal
-period and correction controls;
+the [architecture](ARCHITECTURE.md#atomic-journal-foundation) owns the journal, period and correction
+boundaries;
 the [PO-07 prerequisites](specs/2026-09-20-po-07-deposits-and-payments.md) describe later bookkeeping gates.
 
 ## Durable financial evidence
