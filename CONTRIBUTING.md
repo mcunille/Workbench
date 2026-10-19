@@ -6,9 +6,11 @@ welcome.
 
 ## Development prerequisites
 
-The repository pins .NET SDK `10.0.402`, Node.js `26.7.0`, and npm `11.19.0`. Use PowerShell 7 for
-the checked-in scripts and a Linux-container Docker engine for container verification. Do not update
-one toolchain pin without updating its locks, CI setup, documentation, and smoke evidence.
+The repository pins .NET SDK `10.0.402` and supports stable Node.js `>=26.8.0 <27` and npm
+`>=11.19.0 <12`. CI, Docker, and version-manager selectors follow the latest Node.js v26 release;
+verification enforces the supported ranges. Use PowerShell 7 for the checked-in scripts and a
+Linux-container Docker engine for container verification. Update toolchain requirements together
+with their locks, CI setup, documentation, and smoke evidence.
 
 Use the [canonical setup and installation guide](docs/setup.md) and `./scripts/dev-up.ps1` for an
 isolated per-worktree database, API, and built UI. Rerun after edits and share the reported localhost

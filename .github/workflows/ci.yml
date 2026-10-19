@@ -22,7 +22,8 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
-          node-version: 26.7.0
+          node-version: '>=26.8.0 <27'
+          check-latest: true
       - name: Verify Live integration is disabled
         run: node --test --test-timeout=30000 tests/Workbench.BuildTests/ImpeccableLaunchers.test.mjs
       - name: Verify staged file size hook
@@ -90,7 +91,8 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
-          node-version: 26.7.0
+          node-version: '>=26.8.0 <27'
+          check-latest: true
           cache: npm
           cache-dependency-path: |
             src/Workbench.Client/package-lock.json
