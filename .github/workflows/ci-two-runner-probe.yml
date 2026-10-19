@@ -1,0 +1,77 @@
+# THROWAWAY feasibility probe for PR #212. Remove after recording the experiment.
+# The original CI workflow remains the required, complete control gate.
+name: Two-runner feasibility probe
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - .github/workflows/ci-two-runner-probe.yml
+      - scripts/experiments/**
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    if: ${{ github.head_ref == 'codex/reduce-ci-time' }}
+    name: Server probe host ${{ matrix.host }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+    strategy:
+      fail-fast: false
+      matrix:
+        host: [1, 2]
+    steps:
+      - name: Check out the same merge source as the control gate
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - name: Set up .NET
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
+        with:
+          dotnet-version: 10.0.401
+      - name: Verify probe evidence contracts
+        shell: pwsh
+        run: ./scripts/experiments/TwoRunnerProbe.Tests.ps1
+      - name: Fresh build and two SQL workers
+        shell: pwsh
+        env:
+          PROBE_HEAD: ${{ github.event.pull_request.head.sha }}
+          PROBE_HOST: ${{ matrix.host }}
+        run: |
+          New-Item -ItemType Directory artifacts/two-runner-resources -Force | Out-Null
+          $resources = Start-Job {
+            while ($true) {
+              try {
+                $containers = @(docker stats --no-stream --format '{{.ID}} {{.CPUPerc}} {{.MemUsage}} {{.MemPerc}}')
+                if ($LASTEXITCODE -ne 0) { throw 'Container statistics unavailable.' }
+                [pscustomobject]@{
+                  Timestamp = [DateTimeOffset]::UtcNow.ToString('o')
+                  Cpu = (Get-Content /proc/stat -TotalCount 1)
+                  Memory = @(Get-Content /proc/meminfo | Select-String '^(MemTotal|MemAvailable|SwapTotal|SwapFree):' | ForEach-Object Line)
+                  Load = (Get-Content /proc/loadavg)
+                  Containers = $containers
+                } | ConvertTo-Json -Compress
+              }
+              catch {
+                [pscustomobject]@{ Timestamp = [DateTimeOffset]::UtcNow.ToString('o'); SamplingError = $_.Exception.GetType().Name } | ConvertTo-Json -Compress
+              }
+              Start-Sleep -Seconds 30
+            }
+          }
+          try {
+            ./scripts/experiments/test-server-two-runner.ps1 -HostId $env:PROBE_HOST -HeadRevision $env:PROBE_HEAD -ResultsDirectory artifacts/two-runner-results
+          }
+          finally {
+            Stop-Job $resources -ErrorAction Continue
+            Receive-Job $resources -ErrorAction Continue | Set-Content artifacts/two-runner-resources/samples.jsonl -ErrorAction Continue
+            Remove-Job $resources -ErrorAction Continue
+          }
+      - name: Retain partial results and resource evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: two-runner-host-${{ matrix.host }}
+          if-no-files-found: error
+          path: |
+            artifacts/two-runner-results/**
+            artifacts/two-runner-resources/**
