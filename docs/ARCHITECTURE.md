@@ -45,8 +45,8 @@ GEM-09 adds tenant entry creation/editing and archive/restore, plus shared-field
 explicit inherit, replace, clear and reset choices. The editor keeps current Workbench values and
 sources visible beside tenant choices, preserves drafts after failed or concurrent saves, and
 requires explicit reconciliation of uncertain saves or invalid retained overrides. Needs-review
-entries expose their reasons and block unrelated saves until reconciled. GEM-10's full
-reference-library release acceptance remains outstanding.
+entries expose their reasons and block unrelated saves until reconciled. GEM-10's integrated
+release evidence and coverage limits are recorded in the [acceptance guide](gem-reference-acceptance.md).
 
 GEM-05 adds service-admin-only draft, combined review, publish, outcome, and audit APIs at
 `/api/beta/service-admin/gem-reference`. Drafts may be incomplete; publishing requires valid

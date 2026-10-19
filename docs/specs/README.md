@@ -20,16 +20,17 @@ tenant-owned library of auction lots, comparable observations and versioned asse
 freshness checks and next-morning capture of published auction outcomes. It is a product proposal
 for review, connected to the MCP direction; no research automation or purchasing is implemented.
 
-[Gemological reference library](2026-09-29-gemological-reference-library.md) proposes a sourced
+[Gemological reference library](2026-09-29-gemological-reference-library.md) records the accepted sourced
 Workbench catalog curated through a separate service-admin editor, with tenant additions and
 field-level overrides. The first release is a standalone reference; numerical type properties
-and collection-item links are later work.
+and collection-item links are later work. [GEM-10 acceptance](../gem-reference-acceptance.md)
+records the integrated release's verification and coverage limits.
 
 [GEM-02 shared reference persistence and reads](2026-10-01-gem-02-shared-reference.md)
 defines shared storage, attributed claims, bounded authenticated reads, and SQL permissions.
-Its shared foundation is implemented; the scoped record includes verification and the remaining
-full-SQL deadline limitation. Pilot content, publishing, tenant overlays and browser screens remain
-separate stories in the proposed parent roadmap.
+Its shared foundation, pilot content, publishing, tenant overlays and browser screens are integrated
+in the accepted parent release. The scoped GEM-02 record retains its original verification and
+full-SQL deadline limitation; GEM-10 acceptance records the completed release checks.
 
 [MCP agent interface](2026-09-28-mcp-agent-interface.md) proposes full agent-eligible business
 workflow coverage through tenant-owned service principals with predefined role assignments.
