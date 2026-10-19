@@ -10,14 +10,15 @@ subsequently agreed product policies and proposes the bounded configuration/acco
 delivery. Its role-based authorization replaces the original persona-based proposal below; the
 remaining PO-07 stories are not implicitly approved by those policy decisions.
 
-The implemented [BK-02 atomic journal design](2026-09-23-bk-02-atomic-journal.md) defines the
+The implemented [BK-02 atomic journal foundation](../ARCHITECTURE.md#atomic-journal-foundation) defines the
 database posting boundary, first-posting protections and basic journal/trial-balance readback.
 It does not enable production bookkeeping.
 
-The implemented [BK-05 supplier bill foundation](2026-09-27-bk-05-structured-supplier-bills.md)
+The implemented [BK-05 supplier bill foundation](../accounting.md#internal-supplier-bills)
 adds internal immutable revisions, review, duplicate resolution and source-derived invoice posting
-through BK-04. Public bill entry, runtime mutation grants, evidence holds and bill corrections remain
-unavailable; this delivery does not enable production bookkeeping or payments.
+through BK-04. Public bill entry, runtime mutation grants and bill corrections remain unavailable;
+this delivery does not enable production bookkeeping or payments. The later
+[BK-07 boundary](../accounting.md#durable-financial-evidence) supplies posted evidence holds.
 
 The implemented [BK-06 supplier subledger](2026-09-27-bk-06-supplier-open-items-and-allocations.md)
 adds internal payment/allocation/reversal/correction commands and authorized open-item/history and

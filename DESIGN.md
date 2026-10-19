@@ -474,8 +474,7 @@ reading order must agree, including on narrow screens and with enlarged text.
 Use a collapsible desktop navigation backdrop and a mobile bottom pill, sharing destinations and
 permission checks. Search remains in the collection. The
 [original navigation decision](docs/specs/2026-09-09-refined-navigation.md) retains interaction
-rationale; the [raised content workspace](docs/specs/2026-09-25-raised-content-workspace.md)
-records the current desktop material and layout.
+rationale; the desktop material and layout below own the current surface relationship.
 
 ### Desktop pane
 
@@ -492,6 +491,13 @@ reflection, and soft shadow toward navigation carry the depth. The outer
 sheet spans the full remaining width, including ultrawide screens; its inner reading
 container remains independently constrained to 76rem and centered with existing page
 padding. The sheet does not create an internal scrollbar or clip navigation overlays.
+
+This hierarchy makes active work the foreground and navigation a quieter backdrop. A continuous
+sheet connected to the viewport preserves that relationship; an inset floating card or two elevated
+surfaces would weaken it. The sheet boundary and the constrained reading container serve different
+purposes and must remain independent. Visual depth never lowers the navigation interaction layer:
+profile menus and collapsed labels overlay the sheet, dialogs overlay both, and the focused skip link
+remains visible. Decorative layers must not capture input or clip focus rings and popovers.
 
 The accepted navigation materials are **Tanzanite for dark mode** and **Quartz for light
 mode**, on the desktop sheet edge and mobile pill. Tanzanite uses the reference stone's

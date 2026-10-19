@@ -6,10 +6,9 @@ below. Complete-branch review, current-source full verification, separate harden
 and retained-preview/browser inspection remain pending. Production bookkeeping remains unavailable.
 
 Parent: [PO-07 bookkeeping prerequisites](2026-09-20-po-07-deposits-and-payments.md).
-Dependencies: [BK-02 journal](2026-09-23-bk-02-atomic-journal.md),
-[BK-03 periods and corrections](2026-09-24-bk-03-corrections-and-period-controls.md),
-[BK-04 recognition](2026-09-25-bk-04-classified-purchase-recognition.md), and
-[BK-05 structured bills](2026-09-27-bk-05-structured-supplier-bills.md).
+Dependencies: [BK-02 journal and BK-03 periods/corrections](../ARCHITECTURE.md#atomic-journal-foundation),
+[BK-04 recognition](../accounting.md#internal-purchase-recognition), and
+[BK-05 structured bills](../accounting.md#internal-supplier-bills).
 
 Baseline inspected: main `4140bc233b7502b84b29d08bfd165e4e31a870ff` and
 [PR #183](https://github.com/mcunille/Workbench/pull/183) head

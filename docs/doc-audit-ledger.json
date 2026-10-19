@@ -2,6 +2,20 @@
   "version": 1,
   "reviews": [
     {
+      "path": "docs/specs/2026-08-31-base-application-architecture.md",
+      "reviewedAtUtc": "2026-10-19T07:39:10Z",
+      "reviewedRevision": "2a3e7d752d1a2a900515db4730551f357f5899f2",
+      "outcome": "investigate",
+      "note": "Outstanding implementation evidence retains accepted module-dependency checks and OpenTelemetry exports. Source/tests/config search and Workbench.Server.csproj do not establish them; docs/ARCHITECTURE.md Observability and audit describes a closed-schema console logger. Resolve through implementation evidence or approved replacement before retirement. Destinations: architecture and operations/production-readiness.md. Incoming: architecture and specs index. Static audit; no hosted/runtime acceptance rerun."
+    },
+    {
+      "path": "docs/specs/2026-09-01-data-identity-tenancy.md",
+      "reviewedAtUtc": "2026-10-19T07:39:10Z",
+      "reviewedRevision": "2a3e7d752d1a2a900515db4730551f357f5899f2",
+      "outcome": "investigate",
+      "note": "Database principals and migration security retains unestablished release/hash CLI enforcement and provenance. Workbench.Database/Program.cs validates expected database; Persistence/DatabaseMigrator.cs delegates to EF without explicit release/hash inputs. Operator checks do not prove CLI enforcement. Preserve accepted requirement pending evidence or approved replacement. Owners: architecture, principal matrix, migration runbook. Incoming: architecture, gem-reference parent, index. No migration/restore drill run."
+    },
+    {
       "path": "docs/specs/2026-09-06-inventory-domain-foundation.md",
       "reviewedAtUtc": "2026-09-28T07:33:18Z",
       "reviewedRevision": "552a97c9ae4e3f2b418ac5cb6c161dbf625bf10d",
@@ -62,7 +76,7 @@
       "reviewedAtUtc": "2026-09-28T06:55:50Z",
       "reviewedRevision": "4140bc233b7502b84b29d08bfd165e4e31a870ff",
       "outcome": "update",
-      "note": "Mark desktop material/width as partially superseded by docs/specs/2026-09-25-raised-content-workspace.md and DESIGN.md authenticated navigation: original 13rem glass pane is now 14.3125rem/minimum 229px solid canvas beside raised content. Evidence: src/Workbench.Client/src/navigation.css. Preserve profile/mobile interaction decisions and rejected alternatives; repair current-direction references in docs/README.md, DESIGN.md and docs/specs/README.md. Follow-up cleanup applied: partial-supersession notice added; current-direction references in DESIGN.md, docs/README.md and docs/specs/README.md now link the raised-content successor. Original interaction rationale remains."
+      "note": "Mark desktop material/width as partially superseded by docs/specs/2026-09-25-raised-content-workspace.md and DESIGN.md authenticated navigation: original 13rem glass pane is now 14.3125rem/minimum 229px solid canvas beside raised content. Evidence: src/Workbench.Client/src/navigation.css. Preserve profile/mobile interaction decisions and rejected alternatives; repair current-direction references in docs/README.md, DESIGN.md and docs/specs/README.md. Follow-up cleanup applied: partial-supersession notice added; current-direction references in DESIGN.md, docs/README.md and docs/specs/README.md now link the raised-content successor. Original interaction rationale remains. Later authorized cleanup retired the raised-content spec after distillation; current successor is DESIGN.md#authenticated-navigation."
     },
     {
       "path": "docs/specs/2026-09-09-worktree-development-environments.md",
@@ -91,6 +105,27 @@
       "reviewedRevision": "35adcd568a4c846b54d7cd996c8c0d575ed93b98",
       "outcome": "investigate",
       "note": "Approved interface refinements explicitly leave final verification/finish evidence pending; latest spec commit 5aad676 is merged PO-04 but merge/status does not prove those gates. PurchaseOrderDatabaseTests describes immutable history, no-op and currency guards. Resolve revision-specific UI acceptance before retirement; then distill same-row identity, local-only amendment drafts and semantic content versus exact request identity into docs/ARCHITECTURE.md/docs/purchasing.md. Migration runbook owns retained clone procedure. Static audit; no fresh application evidence."
+    },
+    {
+      "path": "docs/specs/2026-09-21-bk-01-accounting-foundation.md",
+      "reviewedAtUtc": "2026-10-19T07:39:10Z",
+      "reviewedRevision": "2a3e7d752d1a2a900515db4730551f357f5899f2",
+      "outcome": "update",
+      "note": "Problem and outcome mislabels the pre-BK-01 baseline Current evidence: WorkbenchPermissions defines accounting permissions; Administration/AccountingRoleEndpoints.cs supplies assignment. Relabel baseline and link docs/accounting.md Access and ARCHITECTURE.md Accounting configuration. Distinguish original proposed retention from BK-07. AccountingRoleTests covers assignment and role-write denial; AccountingInput.Setup keeps availability false. Preserve portability/cutover, coverage and deferred role/calendar rules. Incoming: owners, PO-07, BK-02-04, index. Authorized follow-up cleanup labels the pre-BK-01 baseline and links current role/retention owners; original review revision retained."
+    },
+    {
+      "path": "docs/specs/2026-09-28-mcp-agent-interface.md",
+      "reviewedAtUtc": "2026-10-19T07:39:10Z",
+      "reviewedRevision": "2a3e7d752d1a2a900515db4730551f357f5899f2",
+      "outcome": "keep",
+      "note": "Separate product/architecture proposal retains unfinished role catalog, client/workload credential flow, approval categories, role-expansion policy and full eligible parity. IRequestActor.cs remains human UserId/TenantId/SessionId; scoped src/tests/config search found no MCP registration/service principal. Incoming: roadmap, index, auction-market proposal. Linked official authorization/tools pages resolve but prove no client compatibility. Keep proposal distinct from current API contracts; no transport probe run."
+    },
+    {
+      "path": "docs/specs/2026-09-28-mcp-milestones-and-stories.md",
+      "reviewedAtUtc": "2026-10-19T07:39:10Z",
+      "reviewedRevision": "2a3e7d752d1a2a900515db4730551f357f5899f2",
+      "outcome": "keep",
+      "note": "Distinct future handoff audience needs stable MCP-01-25 IDs, approved-decision versus implemented predecessors, conditional approval dependency and revision-specific parity acceptance. Parent proposal omits task sequence; combining would impair bounded handoffs. RequestActor remains human-only; no MCP registration found in scoped search. Incoming: parent, index, auction-market proposal. No story authorized/completed here; MCP-01/23/25 must reconcile newly delivered gem-reference workflows."
     }
   ]
 }
