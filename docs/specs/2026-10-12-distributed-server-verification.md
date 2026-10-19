@@ -1,6 +1,7 @@
 # Distributed server verification
 
-Status: architectural direction approved; written specification awaiting approval.
+Status: specification and implementation plan approved; native implementation in
+progress. Full-gate performance and coverage acceptance remain pending.
 
 ## Outcome and retained work
 

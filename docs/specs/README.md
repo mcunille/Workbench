@@ -9,7 +9,7 @@ specs. Git preserves chronology; dated evidence records retain their specific ve
 [Distributed server verification](2026-10-12-distributed-server-verification.md)
 proposes four server-test partitions across two dedicated runners with validated
 portable build artifacts and exact-once aggregation. The architectural direction
-is approved; the written specification awaits review. The five-minute full-CI
+and written specification are approved; native implementation is in progress. The five-minute full-CI
 improvement remains unproven, and single-host CI retains two workers.
 
 [Gemological reference library](2026-09-29-gemological-reference-library.md) proposes a sourced
