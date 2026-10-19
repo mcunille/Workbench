@@ -12,7 +12,7 @@ try {
     New-Item -ItemType Directory -Path $root | Out-Null
     $names=@('Suite.T(v: "A")','Suite.T(v: "a")','Suite.U(v: "漢字")','Suite.C','Suite.D')
     $plan=New-DistributedServerPlan $names @(New-ServerTestPartitions $names 4) @{Sha256=('a'*64)} @('tests/Workbench.Server.IntegrationTests/Workbench.Server.IntegrationTests.csproj')
-    $context=[pscustomobject]@{ Repository='mcunille/Workbench'; Revision=('a'*40); Workflow='CI'; RunId='12'; RunAttempt='1'; InvocationId='fixture'; Configuration='Release;UseAppHost=false;BuildClient=false'; Toolchain=@{Sdk='10.0.401';Node='26.7.0';Npm='11.19.0'};Platform=@{OS='Linux';Architecture='X64'} }
+    $context=[pscustomobject]@{ Repository='mcunille/Workbench'; Revision=('a'*40); Workflow='CI'; RunId='12'; RunAttempt='1'; InvocationId='fixture'; Configuration='Release;UseAppHost=false;BuildClient=false'; Toolchain=@{Sdk='10.0.402';Node='26.7.0';Npm='11.19.0'};Platform=@{OS='Linux';Architecture='X64'} }
     $imported=[pscustomobject]@{ Context=$context; Plan=$plan; TransportHash=('b'*64); PlanHash=('c'*64) }
     $jobs=@{}; $receipts=@()
     foreach ($jobId in @('prepare','release','server-a','server-b')) {

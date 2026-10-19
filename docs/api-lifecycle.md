@@ -115,5 +115,7 @@ and account for writes since the backup. See the [migration runbook](operations/
 File formats, cookie formats, health probes, and persistence schema/fingerprint numbers have their
 own compatibility rules. They are not renamed when the public API changes.
 
-The [approved design](specs/2026-09-16-beta-api-lifecycle.md) records the alternatives and acceptance
-criteria for this transition.
+Separate revision negotiation was rejected because it would add another contract-versioning
+mechanism to the evolving beta; a response-only revision would still require maintenance without
+ensuring safe stale-client behavior. Retaining parallel historical writers was rejected because
+older payloads cannot express newer fields and would add repeated validation and field-loss risk.

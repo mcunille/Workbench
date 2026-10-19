@@ -42,7 +42,7 @@ function Assert-VerificationTransportContext {
             if (-not $Actual.($group[0]).$key -or [string]$Actual.($group[0]).$key -cne [string]$Expected.($group[0]).$key) { throw "Transport context mismatch: $($group[0]).$key" }
         }
     }
-    if ($Actual.Configuration -cne 'Release;UseAppHost=false;BuildClient=false' -or $Actual.Toolchain.Sdk -cne '10.0.401' -or
+    if ($Actual.Configuration -cne 'Release;UseAppHost=false;BuildClient=false' -or $Actual.Toolchain.Sdk -cne '10.0.402' -or
         $Actual.Toolchain.Node -cne '26.7.0' -or $Actual.Toolchain.Npm -cne '11.19.0') { throw 'Unsupported transport configuration/toolchain.' }
 }
 

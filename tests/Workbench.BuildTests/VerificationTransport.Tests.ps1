@@ -20,7 +20,7 @@ try {
     if ($LASTEXITCODE) { throw 'Fixture Git preparation failed.' }
     git clone --quiet --no-hardlinks $producer $consumer
     $revision = (git -C $producer rev-parse HEAD).Trim()
-    $context = [pscustomobject]@{ Repository='mcunille/Workbench'; Revision=$revision; Workflow='CI'; RunId='123'; RunAttempt='1'; InvocationId='fixture'; Configuration='Release;UseAppHost=false;BuildClient=false'; Toolchain=[pscustomobject]@{ Sdk='10.0.401'; Node='26.7.0'; Npm='11.19.0' }; Platform=[pscustomobject]@{ OS=[Runtime.InteropServices.RuntimeInformation]::OSDescription; Architecture='X64' } }
+    $context = [pscustomobject]@{ Repository='mcunille/Workbench'; Revision=$revision; Workflow='CI'; RunId='123'; RunAttempt='1'; InvocationId='fixture'; Configuration='Release;UseAppHost=false;BuildClient=false'; Toolchain=[pscustomobject]@{ Sdk='10.0.402'; Node='26.7.0'; Npm='11.19.0' }; Platform=[pscustomobject]@{ OS=[Runtime.InteropServices.RuntimeInformation]::OSDescription; Architecture='X64' } }
     $receipt = New-VerificationBuildReceipt $producer $context.InvocationId
     function dotnet {
         $output = $args[[Array]::IndexOf($args, '--output')+1]

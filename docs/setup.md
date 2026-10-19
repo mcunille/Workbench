@@ -6,6 +6,10 @@ The API serves the built UI at one loopback URL. Closing the terminal leaves the
 
 ## Prerequisites
 
+For Codex development, install the three shared user-level skills as described in
+[skill installation and ownership](development-workflow.md#skill-installation-and-ownership).
+They are agent workflow tools; application builds, tests, and previews do not require them.
+
 The launcher currently supports **Windows, PowerShell 7.4 or later, Git, and Docker Desktop with a
 running Linux-container engine** capable of running the pinned SQL Server amd64 image. Run commands
 from the repository root in `pwsh`. Docker builds the pinned application toolchain; host .NET and
@@ -105,7 +109,7 @@ operator-connection and password files and the exact target database name. Follo
 for provision, disable, password reset and session revocation. Never put an operator connection
 into the web configuration or replace the tenant login with this separate identity.
 
-For local verification install the repository-pinned .NET SDK **10.0.401**, Node.js **26.7.0**, and
+For local verification install the repository-pinned .NET SDK **10.0.402**, Node.js **26.7.0**, and
 npm **11.19.0**, and install Playwright Chromium before browser tests:
 
 ```powershell

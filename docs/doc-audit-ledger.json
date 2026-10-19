@@ -77,6 +77,20 @@
       "reviewedRevision": "eb95f445d34ce342939015b0bdbce99c0b8a10be",
       "outcome": "investigate",
       "note": "Uncoached collector trial is explicitly pending; no current participant evidence was inspected. Its linked docs/demos/h12/verification.md was deleted by b2eac07. ItemExportEndpoints emits CSV v2; ItemPackageSnapshot uses serializable snapshots; ItemAcquisitionExportTests asserts deduplicated documents and only selected identities. Resolve scenario acceptance before retirement. Proposed destinations: docs/collection.md Usability for export-comprehension acceptance, docs/collection-export.md for continued v1/v2 decoding and rationale against parallel producers, docs/ARCHITECTURE.md for no provider reads under SQL locks. Repair H7/H9/collection/architecture references. Current behavior section describes the pre-H12 v1 baseline, not current implementation."
+    },
+    {
+      "path": "docs/specs/2026-09-11-purchase-orders-and-purchase-finances.md",
+      "reviewedAtUtc": "2026-10-09T06:03:33Z",
+      "reviewedRevision": "35adcd568a4c846b54d7cd996c8c0d575ed93b98",
+      "outcome": "keep",
+      "note": "Separate proposed roadmap retains unfinished PO-08-19 lifecycle/fulfillment/exception/export outcomes, cross-currency/consolidated billing questions and integrated owner validation; docs/purchasing.md only owns current use and internal BK foundations do not complete the scenario. Update historical baseline/status to distinguish delivered increments; move appended PO-04 implementation details into docs/ARCHITECTURE.md and migration runbook after preservation. Referenced by specs index and PO-02/03/04/05/06. No whole-scenario acceptance inferred; updates not applied. Authorized follow-up cleanup applied: refreshed delivered-versus-proposed baseline, retained unfinished requirements and scenario acceptance, and moved PO-04 semantic no-op rationale to architecture; migration runbook retains clone reconciliation. Original reviewed revision remains the audit baseline."
+    },
+    {
+      "path": "docs/specs/2026-09-17-po-04-commitment-and-amendments.md",
+      "reviewedAtUtc": "2026-10-09T06:03:33Z",
+      "reviewedRevision": "35adcd568a4c846b54d7cd996c8c0d575ed93b98",
+      "outcome": "investigate",
+      "note": "Approved interface refinements explicitly leave final verification/finish evidence pending; latest spec commit 5aad676 is merged PO-04 but merge/status does not prove those gates. PurchaseOrderDatabaseTests describes immutable history, no-op and currency guards. Resolve revision-specific UI acceptance before retirement; then distill same-row identity, local-only amendment drafts and semantic content versus exact request identity into docs/ARCHITECTURE.md/docs/purchasing.md. Migration runbook owns retained clone procedure. Static audit; no fresh application evidence."
     }
   ]
 }

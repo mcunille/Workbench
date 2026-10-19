@@ -2,6 +2,15 @@
 
 **Status:** Proposed — product scenario and user stories for discussion; not approved for implementation.
 
+Individual increments have separate approvals and delivered scope. The [purchasing guide](../purchasing.md)
+owns implemented drafts, supplier snapshots/references, supplier-based pricing, discounts/charges,
+commitment/amendments and private invoice files. The PO-06 delivery covers attachments only;
+the broader invoice outcomes below remain part of this proposed scenario. Internal bookkeeping
+foundations and authorized report reads exist, but public financial entry and production
+bookkeeping remain unavailable. See [PO-07 and its prerequisites](2026-09-20-po-07-deposits-and-payments.md).
+Shipment, receipt, exceptions, piece linkage, broader overview/export and follow-on stories remain
+unfinished here; no integrated owner acceptance is established by the delivered increments.
+
 ## Direction and problem
 
 Prioritize the small-business owner's purchasing workflow as the next product scenario. The owner
@@ -14,10 +23,11 @@ It follows the [vision](../VISION.md) and [design principles](../DESIGN-PRINCIPL
 with progressively deeper capabilities. Existing collection workflows remain useful and optional
 accounting configuration must not become a prerequisite for cataloging a piece.
 
-The [collection guide](../collection.md) describes today's individual holdings, shared acquisition
-context, and private acquisition documents. Those capabilities provide useful connections, but do
-not establish purchase orders, quantity tracking, payments, or bookkeeping. This spec describes
-desired product behavior, not a database schema, API, accounting policy, or delivery commitment.
+The [collection guide](../collection.md) describes individual holdings, shared acquisition context
+and private acquisition documents. Purchasing now has its own operational workflows, but neither
+collection nor purchase planning establishes receipt/stock tracking or public bookkeeping.
+This spec preserves the remaining desired scenario, not a database schema, API, accounting
+policy, or delivery commitment.
 
 ## Persona and scenario
 
@@ -224,29 +234,13 @@ the detailed accounting policies remain proposed and do not authorize implementi
 
 - Does the owner's first real purchase require foreign-currency settlement or consolidated billing?
   If so, promote PO-15 or PO-17 into the first scenario rather than inventing a workaround.
-- Is operational purchase tracking enough for initial use, or are balanced ledger postings and
-  reconciliation required from the first release? The latter needs a coordinated accounting spec.
-- Which pricing units, fractional quantities, precision, and rounding rules occur in actual invoices?
+- The owner requires dependable double-entry bookkeeping from the first financial feature;
+  PO-07's remaining prerequisites and release acceptance govern that delivery.
+- Which invoice settlement precision and rounding rules occur in actual invoices, beyond the
+  implemented supplier-based draft pricing and four-place estimate rules?
 - Is total purchase outlay sufficient initially, or must shared costs be allocated to individual items?
 - How should receipts of parcels and bulk supplies connect to existing individual holdings?
 - Which supplier documents and corrected-invoice cases must be represented structurally versus attached?
 
-After those decisions, split the accepted scenario into verifiable implementation increments.
+Resolve remaining decisions through separately approved, verifiable implementation increments.
 Story identifiers here support discussion; they are not filed issues or delivery-status claims.
-
-## PO-04 review refinement: migration and content identity
-
-Approved on 2026-09-17: deliver PO-04 as one migration from the PR base, including
-all retained-line projection and validation corrections. Because the development
-preview had applied the intermediate migrations, reconcile a verified restored
-clone and retain both the original database and backup; never rewrite the
-original's applied history. See the migration runbook for this development-only
-exception. Verify both fresh creation and upgrade from the PR base, including
-unchanged drafts, receipts, permissions and rollback guards.
-
-An amendment changes agreed content or the order date. JSON formatting, escaping
-and object member order do not constitute a content change. Compare decoded
-values recursively, retaining array order and scalar distinctions. Reject an
-unchanged amendment before updating row versions, revisions or receipts. Exact
-request fingerprints remain unchanged, so retry identity does not become a
-semantic-content comparison.

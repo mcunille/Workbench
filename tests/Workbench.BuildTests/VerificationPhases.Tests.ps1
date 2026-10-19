@@ -16,7 +16,7 @@ try {
 $ErrorActionPreference = 'Stop'
 $command = [IO.Path]::GetFileNameWithoutExtension($PSCommandPath)
 if ($args[0] -eq '--version') {
-    switch ($command) { dotnet { '10.0.401' }; node { 'v26.7.0' }; npm { '11.19.0' } }
+    switch ($command) { dotnet { '10.0.402' }; node { 'v26.7.0' }; npm { '11.19.0' } }
     exit 0
 }
 $fixture = $env:WORKBENCH_PHASE_FIXTURE
