@@ -116,17 +116,17 @@ function global:dotnet {
 }
 function global:Start-Job {
     param($ScriptBlock, $ArgumentList)
-    [xml]$settings = Get-Content $ArgumentList[3] -Raw
+    [xml]$settings = Get-Content $ArgumentList[2] -Raw
     if ($settings.RunSettings.xUnit.ParallelizeTestCollections -cne 'false' -or
         $settings.RunSettings.xUnit.ParallelizeAssembly -cne 'false' -or
         $settings.RunSettings.xUnit.MaxParallelThreads -ne '1' -or
         $settings.RunSettings.RunConfiguration.MaxCpuCount -ne '1') { throw 'Process-wide isolation settings missing.' }
-    if ($ScriptBlock.ToString() -notmatch '--no-build --no-restore') { throw 'Partitions must consume the shared build.' }
+    if ($ScriptBlock.ToString() -notmatch 'dotnet vstest' -or $ScriptBlock.ToString() -match 'dotnet build') { throw 'Partitions must consume the shared assembly without rebuilding.' }
     $methods = $settings.RunSettings.RunConfiguration.TestCaseFilter.Split('|') | ForEach-Object { $_ -replace '^FullyQualifiedName=', '' }
     $names = @($global:partitionTestNames | Where-Object { ($_ -replace '\(.*$', '') -in $methods })
     $results = ($names | ForEach-Object { '<UnitTestResult testName="' + [Security.SecurityElement]::Escape($_) + '" outcome="Passed" />' }) -join ''
     if ($global:partitionTestMode -ne 'missing-trx') {
-        Set-Content (Join-Path $ArgumentList[4] 'results.trx') "<TestRun><Results>$results</Results></TestRun>"
+        Set-Content (Join-Path $ArgumentList[3] 'results.trx') "<TestRun><Results>$results</Results></TestRun>"
     }
     $job = [pscustomobject]@{ State = 'Running'; Output = [pscustomobject]@{ ExitCode = $(if ($global:partitionTestMode -eq 'exit-failure') { 1 } else { 0 }); Seconds = 0.1 } }
     $global:partitionTestJobs.Add($job)

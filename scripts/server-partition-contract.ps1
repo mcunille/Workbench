@@ -111,8 +111,10 @@ function Assert-ServerTestPartitions {
 
 function Assert-ServerTestCoverage {
     param([string[]]$Expected, [AllowEmptyCollection()][string[]]$Actual)
-    $expectedNames = @($Expected | Sort-Object -CaseSensitive)
-    $actualNames = @($Actual | Sort-Object -CaseSensitive)
+    $expectedNames = [string[]]@($Expected)
+    $actualNames = [string[]]@($Actual)
+    [array]::Sort($expectedNames, [StringComparer]::Ordinal)
+    [array]::Sort($actualNames, [StringComparer]::Ordinal)
     if ($expectedNames.Count -ne $actualNames.Count) {
         throw "Server test coverage mismatch: expected $($expectedNames.Count) rows; found $($actualNames.Count)."
     }
@@ -121,6 +123,28 @@ function Assert-ServerTestCoverage {
             throw "Server test coverage mismatch: expected '$($expectedNames[$index])'; found '$($actualNames[$index])'."
         }
     }
+}
+
+function New-DistributedServerPlan {
+    param([string[]]$TestNames, [object[]]$Partitions, [object]$DurationDataset, [string[]]$TestProjects)
+    Assert-ServerTestProjects -TestProjects $TestProjects -SupportedProject 'tests/Workbench.Server.IntegrationTests/Workbench.Server.IntegrationTests.csproj'
+    if ($Partitions.Count -ne 4) { throw 'Distributed verification requires exactly four partitions.' }
+    Assert-ServerTestPartitions -TestNames $TestNames -Partitions $Partitions
+    if (@($Partitions.Id | Sort-Object -Unique).Count -ne 4) { throw 'Duplicate partition IDs.' }
+    $ordered = @($Partitions | Sort-Object Id)
+    $best = $null
+    foreach ($pairing in @(@(0,1,2,3), @(0,2,1,3), @(0,3,1,2))) {
+        $cost = [Math]::Max(($ordered[$pairing[0]].PredictedSeconds + $ordered[$pairing[1]].PredictedSeconds), ($ordered[$pairing[2]].PredictedSeconds + $ordered[$pairing[3]].PredictedSeconds))
+        if ($null -eq $best -or $cost -lt $best.Cost) { $best = [pscustomobject]@{ Cost=$cost; Pairing=$pairing } }
+    }
+    $assigned = @(for ($i=0; $i -lt 4; $i++) {
+        $source = $ordered[$best.Pairing[$i]]
+        [pscustomobject]@{ Id=$i+1; Methods=@($source.Methods); Tests=@($source.Tests); PredictedSeconds=$source.PredictedSeconds; FallbackTests=$source.FallbackTests }
+    })
+    $inventory = [string[]]@($TestNames); [array]::Sort($inventory, [StringComparer]::Ordinal)
+    [pscustomobject]@{ Version=1; Inventory=$inventory; Partitions=$assigned; Hosts=@(
+        [pscustomobject]@{ Id='A'; PartitionIds=@(1,2) }, [pscustomobject]@{ Id='B'; PartitionIds=@(3,4) }
+    ); DurationDataset=$DurationDataset; TestProjects=$TestProjects }
 }
 
 function Assert-ServerPartitionResult {
