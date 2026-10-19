@@ -228,3 +228,22 @@ test('default installation creates a runnable snapshot under the user home outsi
   assert.equal(rejected.status, 1, rejected.stderr);
   assert.match(rejected.stderr, /large\.ts/);
 });
+
+test('Windows short path aliases cannot install hook tooling inside the checkout', { skip: process.platform !== 'win32' }, t => {
+  const repo = repository(t);
+  const { install } = installation(t, repo);
+  // GIVEN an 8.3 alias for the checkout, as used by Windows runner temp directories.
+  const alias = spawnSync('cmd.exe', ['/d', '/c', `for %I in ("${repo.root}") do @echo %~sI`], {
+    encoding: 'utf8', windowsVerbatimArguments: true,
+  });
+  assert.equal(alias.status, 0, alias.stderr);
+  const short = alias.stdout.trim();
+  if (!short.includes('~')) {
+    t.skip('This volume does not provide 8.3 aliases; CI runner aliases remain covered where available.');
+    return;
+  }
+  // WHEN installing through the alias, THEN it resolves to the protected checkout and is refused.
+  const result = install(join(short, 'hooks'));
+  assert.equal(result.status, 1, result.stdout + result.stderr);
+  assert.match(result.stderr, /outside.*checkout/i);
+});

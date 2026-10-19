@@ -13,7 +13,8 @@ function git(args, allowMissing = false) {
 }
 
 function canonical(path) {
-  if (existsSync(path)) return realpathSync(path);
+  // Native resolution also expands Windows 8.3 aliases (for example RUNNER~1).
+  if (existsSync(path)) return realpathSync.native(path);
   return join(canonical(dirname(path)), basename(path));
 }
 
@@ -43,7 +44,7 @@ try {
   }
   const source = readFileSync(new URL('./check-staged-file-size.mjs', import.meta.url));
   mkdirSync(requested, { recursive: true });
-  const destination = process.argv[2] ? realpathSync(requested) : mkdtempSync(join(requested, 'reviewed-'));
+  const destination = process.argv[2] ? realpathSync.native(requested) : mkdtempSync(join(requested, 'reviewed-'));
   const checker = join(destination, 'check-staged-file-size.mjs');
   const hook = join(destination, 'pre-commit');
   // Both files are fixed snapshots. The hook never imports or executes files from a checkout.
