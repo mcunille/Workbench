@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync, readFileSync, symlinkSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, writeFileSync, rmSync, readFileSync, symlinkSync, copyFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -8,6 +8,11 @@ import { spawnSync } from 'node:child_process';
 
 const checker = fileURLToPath(new URL('../../scripts/check-staged-file-size.mjs', import.meta.url));
 const installer = fileURLToPath(new URL('../../scripts/install-git-hooks.mjs', import.meta.url));
+// Test setup resolves the real Git from the trusted Node directory, away from fixture shadows.
+const lookup = spawnSync(process.platform === 'win32' ? join(process.env.SystemRoot, 'System32', 'where.exe') : '/usr/bin/which',
+  ['git'], { cwd: dirname(process.execPath), encoding: 'utf8' });
+assert.equal(lookup.status, 0, lookup.stderr);
+const gitExecutable = lookup.stdout.trim().split(/\r?\n/)[0];
 
 function repository(t) {
   const root = mkdtempSync(join(tmpdir(), 'workbench-size-'));
@@ -17,7 +22,7 @@ function repository(t) {
     if (key.startsWith('GIT_')) delete env[key];
   }
   const git = (...args) => {
-    const result = spawnSync('git', args, { cwd: root, env, encoding: 'utf8' });
+    const result = spawnSync(gitExecutable, args, { cwd: root, env, encoding: 'utf8' });
     assert.equal(result.status, 0, result.stderr);
     return result.stdout;
   };
@@ -31,7 +36,7 @@ function repository(t) {
     writeFileSync(join(root, path), content);
     if (stage) git('add', '--', path);
   };
-  return { root, env, git, write, check: () => spawnSync(process.execPath, [checker], { cwd: root, env, encoding: 'utf8' }) };
+  return { root, env, git, write, check: () => spawnSync(process.execPath, [checker, gitExecutable], { cwd: root, env, encoding: 'utf8' }) };
 }
 
 function installation(t, repo) {
@@ -131,7 +136,7 @@ test('fails closed outside a Git repository', t => {
   const root = mkdtempSync(join(tmpdir(), 'workbench-not-git-'));
   t.after(() => rmSync(root, { recursive: true, force: true }));
   // GIVEN no index, WHEN checking, THEN a Git failure cannot authorize a commit.
-  const result = spawnSync(process.execPath, [checker], { cwd: root, encoding: 'utf8' });
+  const result = spawnSync(process.execPath, [checker, gitExecutable], { cwd: root, encoding: 'utf8' });
   assert.equal(result.status, 1);
   assert.match(result.stderr, /unable to check staged files/i);
 });
@@ -146,7 +151,7 @@ test('installed hook blocks real commits using an external snapshot', t => {
   // AND a replacement checker staged inside the checkout cannot disable the installed snapshot.
   repo.write('scripts/check-staged-file-size.mjs', 'process.exit(0);');
   // WHEN committing through Git, THEN the actual hook rejects the oversized staged file.
-  const rejected = spawnSync('git', ['commit', '--quiet', '-m', 'Too large'], {
+  const rejected = spawnSync(gitExecutable, ['commit', '--quiet', '-m', 'Too large'], {
     cwd: repo.root, env: repo.env, encoding: 'utf8',
   });
   assert.equal(rejected.status, 1, rejected.stderr);
@@ -206,10 +211,10 @@ test('honors the active index on an unborn branch, including unusual filenames',
   // WHEN checking the initial commit, THEN the large staged file is rejected.
   assert.equal(repo.check().status, 1);
   const env = { ...repo.env, GIT_INDEX_FILE: join(repo.root, 'alternate-index') };
-  const empty = spawnSync('git', ['read-tree', '--empty'], { cwd: repo.root, env, encoding: 'utf8' });
+  const empty = spawnSync(gitExecutable, ['read-tree', '--empty'], { cwd: repo.root, env, encoding: 'utf8' });
   assert.equal(empty.status, 0, empty.stderr);
   // WHEN Git selects the empty alternate index, THEN unrelated staged content is ignored.
-  const result = spawnSync(process.execPath, [checker], { cwd: repo.root, env, encoding: 'utf8' });
+  const result = spawnSync(process.execPath, [checker, gitExecutable], { cwd: repo.root, env, encoding: 'utf8' });
   assert.equal(result.status, 0, result.stderr);
 });
 
@@ -224,7 +229,7 @@ test('default installation creates a runnable snapshot under the user home outsi
   const configured = repo.git('config', '--local', '--get', 'core.hooksPath').trim();
   assert.ok(configured.startsWith(external.replaceAll('\\', '/') + '/.local/share/workbench/git-hooks/reviewed-'), configured);
   repo.write('large.ts', 'x'.repeat(20_001));
-  const rejected = spawnSync('git', ['commit', '--quiet', '-m', 'Too large'], { cwd: repo.root, env, encoding: 'utf8' });
+  const rejected = spawnSync(gitExecutable, ['commit', '--quiet', '-m', 'Too large'], { cwd: repo.root, env, encoding: 'utf8' });
   assert.equal(rejected.status, 1, rejected.stderr);
   assert.match(rejected.stderr, /large\.ts/);
 });
@@ -247,3 +252,56 @@ test('Windows short path aliases cannot install hook tooling inside the checkout
   assert.equal(result.status, 1, result.stdout + result.stderr);
   assert.match(result.stderr, /outside.*checkout/i);
 });
+
+test('installation refuses a destination in a separate repository', t => {
+  const repo = repository(t);
+  const other = repository(t);
+  const { install } = installation(t, repo);
+  // GIVEN an unrelated mutable checkout, WHEN installing inside it, THEN no hook is configured.
+  const result = install(join(other.root, 'hooks'));
+  assert.equal(result.status, 1, result.stdout + result.stderr);
+  assert.match(result.stderr, /outside.*(?:checkout|working tree)/i);
+});
+
+for (const override of ['', 'custom-hooks']) {
+  test(`installation preserves a linked-worktree hooks override (${override || 'empty'})`, t => {
+    const repo = repository(t);
+    const { external, install } = installation(t, repo);
+    // GIVEN another linked worktree with its own hooks setting, including an empty setting.
+    const other = join(external, 'linked');
+    repo.git('worktree', 'add', '--quiet', '--detach', other);
+    repo.git('config', 'extensions.worktreeConfig', 'true');
+    repo.git('-C', other, 'config', '--worktree', 'core.hooksPath', override);
+    // WHEN installing, THEN the conflict is rejected with guidance and the override survives.
+    const result = install(join(external, 'trusted'));
+    assert.equal(result.status, 1, result.stdout + result.stderr);
+    assert.match(result.stderr, /worktree.*core\.hooksPath/i);
+    assert.match(result.stderr, /review/i);
+    assert.equal(repo.git('-C', other, 'config', '--worktree', '--get', 'core.hooksPath').trim(), override);
+  });
+}
+
+for (const placement of ['before installation', 'after installation']) {
+  test(`Windows checkout git.exe cannot shadow trusted Git ${placement}`, { skip: process.platform !== 'win32' }, t => {
+    const repo = repository(t);
+    const { external, install } = installation(t, repo);
+    repo.write('large.ts', 'x'.repeat(20_001));
+    const shadow = () => {
+      // GIVEN trusted Node renamed to git.exe: -c selects Node syntax-checking instead of Git config.
+      copyFileSync(process.execPath, join(repo.root, 'git.exe'));
+      const pathKey = Object.keys(repo.env).find(key => key.toLowerCase() === 'path') || 'PATH';
+      repo.env[pathKey] = repo.root + ';' + repo.env[pathKey];
+    };
+    if (placement === 'before installation') shadow();
+    const installed = install(external);
+    assert.equal(installed.status, 0, installed.stderr);
+    if (placement === 'after installation') shadow();
+    // WHEN the checker invokes Git during a real commit, THEN checkout git.exe cannot bypass rejection.
+    const result = spawnSync(gitExecutable, ['commit', '--quiet', '-m', 'Too large'], {
+      cwd: repo.root, env: repo.env, encoding: 'utf8',
+    });
+    assert.equal(result.status, 1, result.stderr);
+    assert.match(result.stderr, /Commit blocked:.*5,000 tokens/);
+    assert.match(result.stderr, /large\.ts/);
+  });
+}

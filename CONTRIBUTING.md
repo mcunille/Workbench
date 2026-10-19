@@ -87,10 +87,17 @@ node scripts/install-git-hooks.mjs
 
 The installer copies a fixed checker and hook outside the checkout into
 `~/.local/share/workbench/git-hooks/reviewed-*` and sets repository-local `core.hooksPath`.
-This applies to all linked worktrees of the repository. Node and Git must remain available;
-the hook records the current Node executable's absolute path. It never executes checkout code
+This applies to all linked worktrees of the repository. Installation refuses worktree-specific
+`core.hooksPath` settings, including empty overrides: inspect each reported worktree with
+`git -C <worktree> config --worktree --get core.hooksPath` and review/migrate its existing hooks
+before retrying. The installer preserves those settings rather than silently replacing them.
+Node and Git must remain available outside Git working trees; the hook records both absolute
+executable paths. Git is selected from absolute PATH entries outside checkouts, without searching
+the checkout's current directory. Manual checker runs must pass that trusted absolute Git path
+as the first argument. It never executes checkout code
 or automatically loads updated policy. Installation refuses existing hook configurations or
-non-sample files in Git's default hooks directory so other hooks are preserved.
+non-sample files in Git's default hooks directory so other hooks are preserved. Custom destinations
+are also rejected inside unrelated Git working trees, including paths reached through symlinks.
 
 Each added, copied, modified, renamed, or type-changed regular staged file must be at most
 20,000 bytes (5,000 tokens, calculated as bytes / 4). The checker reads Git's staged blobs;
@@ -123,6 +130,9 @@ Run the hook's real-index and installation contracts with:
 ```powershell
 node --test --test-timeout=30000 tests/Workbench.BuildTests/StagedFileSize.test.mjs
 ```
+
+The aggregate required CI gate includes both Windows and Linux design-tooling contracts, so
+a hook-test failure, cancellation, or skip cannot leave that aggregate green.
 
 ### Application tests
 

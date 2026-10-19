@@ -1,4 +1,8 @@
 import { spawnSync } from 'node:child_process';
+import { isAbsolute } from 'node:path';
+
+// The reviewed installer pins this argument in the external hook; never search cwd or PATH here.
+const gitExecutable = process.argv[2];
 
 const limit = 20_000; // Tokens = bytes / 4; exactly 5,000 tokens is allowed.
 const generatedPaths = new Set([
@@ -10,7 +14,8 @@ const efMetadata = /^src\/Workbench\.Server\/Persistence\/Migrations\/[^/]+(?:\.
 const binaryAsset = /\.(?:png|jpe?g|gif|webp|avif|ico|woff2?|ttf|otf|pdf|mp[34]|wav|ogg|zip|gz|7z)$/i;
 
 function git(args, input) {
-  const result = spawnSync('git', ['-c', 'core.fsmonitor=false', ...args], {
+  if (!gitExecutable || !isAbsolute(gitExecutable)) throw new Error('Pass the trusted absolute Git executable recorded during installation.');
+  const result = spawnSync(gitExecutable, ['-c', 'core.fsmonitor=false', ...args], {
     input, encoding: 'utf8', maxBuffer: 16 * 1024 * 1024,
   });
   if (result.error || result.status !== 0) throw new Error(result.error?.message || result.stderr.trim());

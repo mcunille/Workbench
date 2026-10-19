@@ -180,7 +180,7 @@ jobs:
   required-gate:
     name: Required verification gate
     if: ${{ always() }}
-    needs: [local-setup-contracts, deployment-contracts, verify, container-smoke]
+    needs: [design-tooling-contracts, local-setup-contracts, deployment-contracts, verify, container-smoke]
     runs-on: ubuntu-latest
     steps:
       - name: Check out source
