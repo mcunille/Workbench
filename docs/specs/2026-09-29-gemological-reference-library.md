@@ -1,6 +1,6 @@
 # Gemological reference library
 
-**Status: In progress** — GEM-02–08 are merged. On 2026-10-02 the owner reduced GEM-01 to the four-mineral sample included in the repository and installed by GEM-04. GEM-09's tenant editing workflow is implemented in this change; GEM-10 remains to be delivered. The complete reference-library release is not implemented.
+**Status: Implemented** — GEM-01–09 are integrated and GEM-10 acceptance passed on 2026-10-12. On 2026-10-02 the owner reduced GEM-01 to the four-mineral sample included in the repository and installed by GEM-04. The first reference-library release is supported within the [recorded acceptance and coverage limits](../gem-reference-acceptance.md); later numerical properties and collection-item linking remain outside this release.
 
 ## Purpose and audience
 
@@ -182,8 +182,8 @@ tenant isolation, provenance, reconciliation, composite conflicts, and paginatio
 mutation checks supplement those owners. Tenant additions and workbench references are qualified
 by origin, preserving both when later publication reuses a GUID. Backend delivery gates and running
 preview acceptance are recorded with the implementation PR. GEM-09's tenant editing interface is described
-below; GEM-10's complete reference-library release acceptance remains outstanding. This note does not
-mark the spec implemented.
+below; GEM-10's integrated release evidence is recorded in the
+[acceptance record](../gem-reference-acceptance.md).
 Effective browsing currently materializes a catalog-sized snapshot and scalar SQL JSON candidates;
 returned pages are bounded, but load/performance acceptance has not been measured.
 
@@ -259,6 +259,13 @@ does not complete GEM-10 or the full reference-library release.
 ### M3 — Prove the integrated release
 
 #### GEM-10 — Accept the end-to-end library
+
+**Implementation:** The [release acceptance record](../gem-reference-acceptance.md) reconciles every
+story with its executable owners. Joined live Playwright and preview journeys cover operator-provisioned
+authorities, publication, tenant browse/add/customize/reset and isolation. Fresh/upgrade pilot comparison,
+installer replay after real correction/retirement, complete reference-domain backup/restore, revoked-session
+denial, focused mutation checks, full verification and container smoke passed. Living guides are current;
+the record distinguishes local SQL and Chromium evidence from unverified production recovery and scale.
 
 **Story:** As the product owner, I want the shared and tenant workflows verified together so that the reference library can be treated as a supported Workbench capability.
 

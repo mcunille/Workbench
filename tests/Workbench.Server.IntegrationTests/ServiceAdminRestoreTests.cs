@@ -2,6 +2,7 @@
 
 using System.Net;
 using System.Net.Http.Json;
+using System.Text.Json;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -38,6 +39,12 @@ public sealed class ServiceAdminRestoreTests(SqlServerFixture sqlServer)
         var options = application.Factory.Services.GetRequiredService<IOptionsMonitor<CookieAuthenticationOptions>>().Get(ServiceAdminCookieHandler.Scheme);
         var ticket = options.TicketDataFormat.Unprotect(Uri.UnescapeDataString(cookie[(cookie.IndexOf('=') + 1)..]))!;
         var token = ticket.Principal.FindFirst(ServiceAdminCookieHandler.SessionTokenClaimType)!.Value;
+        await GemReferenceRecoveryEvidence.SeedAsync(application);
+        var libraryBefore = await GemReferenceRecoveryEvidence.SnapshotAsync(application.AdminConnectionString);
+        Assert.Contains("Retained tenant recovery note", libraryBefore);
+        Assert.Contains("Unpublished recovery draft", libraryBefore);
+        using var library = JsonDocument.Parse(libraryBefore);
+        Assert.All(library.RootElement.EnumerateObject(), table => Assert.NotEmpty(table.Value.EnumerateArray()));
         if (disabledInBackup) await application.MaintainServiceAdminAsync(operation);
         var before = await ScalarAsync<long>(application.AdminConnectionString, "SELECT SecurityVersion FROM ServiceAdministration.Accounts");
         var target = new SqlConnectionStringBuilder(application.AdminConnectionString);
@@ -67,6 +74,8 @@ public sealed class ServiceAdminRestoreTests(SqlServerFixture sqlServer)
         var commands = new OperatorCommands(operatorConnection, new PasswordHasher<WorkbenchUser>(), TimeProvider.System);
         await commands.SanitizeRestoreAsync("service-admin-disposable-restore", CancellationToken.None);
 
+        // THEN shared/tenant content, saved drafts, receipts and publication audit survive sanitation byte-for-byte.
+        Assert.Equal(libraryBefore, await GemReferenceRecoveryEvidence.SnapshotAsync(target.ConnectionString));
         // THEN cached-key and fresh-key hosts reject the retained cookie, and the raw token has no authority.
         Assert.Equal(HttpStatusCode.Unauthorized, (await ReplayAsync(client, cookie)).StatusCode);
         await using var fresh = application.Factory.WithWebHostBuilder(_ => { });

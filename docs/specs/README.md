@@ -20,16 +20,17 @@ tenant-owned library of auction lots, comparable observations and versioned asse
 freshness checks and next-morning capture of published auction outcomes. It is a product proposal
 for review, connected to the MCP direction; no research automation or purchasing is implemented.
 
-[Gemological reference library](2026-09-29-gemological-reference-library.md) proposes a sourced
+[Gemological reference library](2026-09-29-gemological-reference-library.md) records the accepted sourced
 Workbench catalog curated through a separate service-admin editor, with tenant additions and
 field-level overrides. The first release is a standalone reference; numerical type properties
-and collection-item links are later work.
+and collection-item links are later work. [GEM-10 acceptance](../gem-reference-acceptance.md)
+records the integrated release's verification and coverage limits.
 
 [GEM-02 shared reference persistence and reads](2026-10-01-gem-02-shared-reference.md)
 defines shared storage, attributed claims, bounded authenticated reads, and SQL permissions.
-Its shared foundation is implemented; the scoped record includes verification and the remaining
-full-SQL deadline limitation. Pilot content, publishing, tenant overlays and browser screens remain
-separate stories in the proposed parent roadmap.
+Its shared foundation, pilot content, publishing, tenant overlays and browser screens are integrated
+in the accepted parent release. The scoped GEM-02 record retains its original verification and
+full-SQL deadline limitation; GEM-10 acceptance records the completed release checks.
 
 [MCP agent interface](2026-09-28-mcp-agent-interface.md) proposes full agent-eligible business
 workflow coverage through tenant-owned service principals with predefined role assignments.
@@ -37,11 +38,8 @@ It is a product and architecture draft; identity/tenant administration remains h
 Its [milestones and agent handoff stories](2026-09-28-mcp-milestones-and-stories.md) define delivery
 outcomes, dependencies, validation evidence, and parallel work.
 
-[Raised content workspace](2026-09-25-raised-content-workspace.md) records the implemented
-desktop atmospheric content sheet in front of a solid canvas navigation backdrop, retaining
-Tanzanite and Quartz edge materials. The owner approved the local visual direction;
-current-source container smoke, full browser coverage, and scoped review passed.
-The refreshed final-source preview passed desktop and mobile visual inspection.
+[Authenticated navigation](../../DESIGN.md#authenticated-navigation) owns the desktop content-sheet
+hierarchy, Tanzanite and Quartz materials, responsive layout and interaction-layer rationale.
 
 [API lifecycle](../api-lifecycle.md) owns the beta contract, purchasing compatibility inventory,
 approved historical replay removal and coordinated rollout/recovery boundaries.
@@ -55,14 +53,11 @@ records the implemented general-account setup and two-role authorization model,
 and links the separate reporting, portability, migration, and jurisdiction-reporting design issues.
 Setup completeness does not activate bookkeeping.
 
-[BK-03 corrections and period controls](2026-09-24-bk-03-corrections-and-period-controls.md)
-records the implemented internal atomic reversal/replacement and closed-period enforcement on the
-BK-02 journal. Production close remains gated by BK-09–11; no production correction adapter is enabled.
-
-[BK-04 classified purchase recognition](2026-09-25-bk-04-classified-purchase-recognition.md)
-records the approved, implemented internal recognition and invoice matching foundation, classified
-cost/tax treatment and immutable receipt-recognition records. `BookkeepingAvailable` remains false;
-no production posting adapter or public financial-write UI is enabled.
+[Accounting architecture](../ARCHITECTURE.md#atomic-journal-foundation) owns the implemented BK-02/03
+journal, period and correction boundaries. [Recognition](../accounting.md#internal-purchase-recognition)
+and [structured bills](../accounting.md#internal-supplier-bills) own BK-04/05 policy, examples and
+source limitations. Production close remains gated by BK-09–11; public financial writes and
+bookkeeping activation remain unavailable.
 
 [BK-06 supplier open items and allocations](2026-09-27-bk-06-supplier-open-items-and-allocations.md)
 records the approved, implemented internal payment/allocation/correction boundary and authorized
@@ -77,7 +72,7 @@ entry or production bookkeeping activation are delivered by BK-06; BK-07 supplie
 | Foundation | [Base architecture](2026-08-31-base-application-architecture.md), [data/identity/tenancy](2026-09-01-data-identity-tenancy.md). Current release-unit rationale lives in [Architecture](../ARCHITECTURE.md#application-structure), and generated-contract/error guidance in [API lifecycle](../api-lifecycle.md#generated-contracts-and-api-errors). |
 | Collection | [Collector journey and validation](../collection.md#collector-journey-and-validation), [inventory foundation](2026-09-06-inventory-domain-foundation.md), [collection design links](../collection.md#design-records) |
 | Purchasing | [Small-business purchase orders and purchase finances (proposed)](2026-09-11-purchase-orders-and-purchase-finances.md), [current purchase workflows](../purchasing.md), [technical constraints and rationale](../ARCHITECTURE.md#purchase-orders), [PO-04 commitment and amendments](2026-09-17-po-04-commitment-and-amendments.md) |
-| Visual decisions | [Current UI guidance](../../DESIGN.md), [floating labels](../../DESIGN.md#text-input), [original navigation interactions](2026-09-09-refined-navigation.md), [raised content workspace](2026-09-25-raised-content-workspace.md) |
+| Visual decisions | [Current UI guidance](../../DESIGN.md), [floating labels](../../DESIGN.md#text-input), [original navigation interactions](2026-09-09-refined-navigation.md), [current surface hierarchy](../../DESIGN.md#authenticated-navigation) |
 | Providers and recovery | [SQL-authoritative recovery policy](../operations/online-backup-recovery.md#sql-authoritative-recovery-policy). Provider rationale lives in [Architecture](../ARCHITECTURE.md#blob-storage); operational constraints and retained acceptance requirements live in the [provider runbook](../operations/blob-and-service-providers.md#retained-provider-acceptance-requirements). |
 | Deployment | [Azure design](2026-09-05-azure-deployment.md), [bootstrap and forwarded trust](../operations/azure-deployment.md), [security controls](../operations/azure-security-controls.md) |
 | Development and verification | [Current schema contract](../operations/database-migrations.md#maintaining-the-current-schema-contract), [Local iteration](../../CONTRIBUTING.md#focused-local-iteration), [concurrent gate](../../tests/README.md#gate-provenance-and-scheduling), [duration balancing](../../tests/README.md#refresh-server-timing-data), [test suite efficiency](../../tests/README.md), [worktree environments](2026-09-09-worktree-development-environments.md) |
@@ -141,7 +136,7 @@ Scale the document to the change, but normally cover:
 When implementation makes a spec true, update the appropriate living documentation and change the
 spec status to **Implemented**. Preserve the reasoning so future contributors can understand why
 the current design exists. Retain specs with distinct constraints, alternatives, unresolved work,
-or required historical evidence. During an authorized [documentation cleanup](../../.agents/skills/doc-audit/SKILL.md),
+or required historical evidence. During an authorized [documentation cleanup](../documentation-audits.md),
 a redundant spec may be retired after its durable knowledge is distilled into maintained docs
 and its references and retention needs are accounted for. Implementation status alone is not
 evidence that a spec is redundant.

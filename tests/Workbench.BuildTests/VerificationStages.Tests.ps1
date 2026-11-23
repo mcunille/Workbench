@@ -7,23 +7,27 @@ function Assert-Fails([scriptblock]$Action, [string]$Pattern) {
     try { & $Action } catch { if ($_.Exception.Message -match $Pattern) { return }; throw }
     throw "Expected failure: $Pattern"
 }
-# GIVEN all four required CI jobs
-$required = @('local-setup-contracts', 'deployment-contracts', 'verify', 'container-smoke')
+# GIVEN all required CI jobs, including the hook's Windows/Linux tooling contracts.
+$required = @('design-tooling-contracts', 'local-setup-contracts', 'deployment-contracts', 'verify', 'container-smoke')
 $needs = @{}; foreach ($name in $required) { $needs[$name] = @{ result = 'success' } }
 # WHEN the aggregate checks successful results THEN it accepts every required job.
 Assert-RequiredCiJobs -Needs $needs
-foreach ($state in @('failure', 'cancelled', 'skipped', '', 'unknown')) {
-    # GIVEN a required job that did not succeed WHEN aggregated THEN the gate fails closed.
-    $needs.verify.result = $state
+foreach ($name in $required) {
+    foreach ($state in @('failure', 'cancelled', 'skipped', '', 'unknown')) {
+        # GIVEN any required job that did not succeed WHEN aggregated THEN the gate fails closed.
+        $needs[$name].result = $state
+        Assert-Fails { Assert-RequiredCiJobs -Needs $needs } 'Required CI job'
+    }
+    $needs[$name].result = 'success'
+    $entry = $needs[$name]
+    $needs.Remove($name)
+    # GIVEN any missing required job WHEN aggregated THEN the gate fails closed.
     Assert-Fails { Assert-RequiredCiJobs -Needs $needs } 'Required CI job'
+    $needs[$name] = $entry
 }
-$needs.verify.result = 'success'
-$needs.Remove('verify')
-# GIVEN a missing required job WHEN aggregated THEN success of remaining jobs is insufficient.
-Assert-Fails { Assert-RequiredCiJobs -Needs $needs } 'Required CI job'
 # GIVEN the workflow job graph WHEN the aggregate is scheduled THEN it runs even after dependency failure.
 $workflow = Get-Content (Join-Path $root '.github/workflows/ci.yml') -Raw
-if ($workflow -notmatch '(?s)required-gate:.*?if: \$\{\{ always\(\) \}\}.*?needs: \[local-setup-contracts, deployment-contracts, verify, container-smoke\]' -or
+if ($workflow -notmatch '(?s)required-gate:.*?if: \$\{\{ always\(\) \}\}.*?needs: \[design-tooling-contracts, local-setup-contracts, deployment-contracts, verify, container-smoke\]' -or
     $workflow -notmatch 'Assert-RequiredCiJobs -Needs') { throw 'Aggregate CI graph does not enforce the required jobs.' }
 $jobs = @()
 try {

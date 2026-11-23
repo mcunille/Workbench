@@ -12,10 +12,11 @@ and localhost HTTPS. The development instructions below remain a separate dispos
 
 ## Prerequisites and supported paths
 
-Install .NET SDK **10.0.402**, Node.js **26.7.0**, npm **11.19.0**, PowerShell 7, Git, and Docker
+Install .NET SDK **10.0.402**, stable Node.js **>=26.8.0 <27**, npm **>=11.19.0 <12**, PowerShell 7, Git, and Docker
 with a running **Linux-container** engine capable of running the pinned SQL Server amd64 image.
 An unsupported host architecture is not made supported by these instructions; use a compatible
-Linux Docker host. The repository pins are in `global.json`, `.node-version`, and package files.
+Linux Docker host. The SDK pin is in `global.json`; `.node-version` and `.nvmrc` select Node.js v26,
+and the client package engines and verification script enforce the supported Node.js and npm ranges.
 
 ```powershell
 dotnet --version
@@ -129,6 +130,10 @@ connection strings directly. Never put actual passwords in commands or commit th
 | `TENANT_CONTEXT_PROOF_KEY` | Independent base64 encoding of 32 random bytes; provisioned in SQL and supplied to the runtime |
 | `DEV_TENANT_NAME` | Name of the first tenant |
 | `DEV_ADMIN_EMAIL`, `DEV_ADMIN_PASSWORD` | Application login identity, not a SQL principal |
+
+Agents may load the ignored `.env.dev` through `scripts/dev-env.ps1` for local development.
+Follow [credential use](../setup.md#credential-use). The startup procedure below removes privileged
+credentials before launching the web process.
 
 `dev-env.ps1` prefers the checkout's `.env.dev`; `WORKBENCH_DEV_ENV_FILE` is a fallback only when
 that file does not exist. It derives `WORKBENCH_WEB_CONNECTION` from the web fields. Production

@@ -3,7 +3,9 @@
 Use the [database-principal matrix](database-principals.md) for setup, operator and maintenance
 authorities; each restore step below still requires its stated authority and isolation.
 
-Backups contain tenant data, service-admin accounts and hashed sessions, password hashes, identity-operation hashes, audit history, and encrypted
+Backups contain tenant data, the shared gem catalog and its claim sources, tenant reference entries
+and overrides (including archived entries), saved service-admin drafts, publication receipts and
+audit records, service-admin accounts and hashed sessions, password hashes, identity-operation hashes, audit history, and encrypted
 data-protection keys. Handle a backup as highly sensitive production data: encrypt it, restrict and
 audit access, keep it outside the application host and repository, define retention, and securely
 dispose of expired copies. Never attach a backup or its credentials to an issue, log, or agent prompt.
