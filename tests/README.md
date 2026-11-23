@@ -93,50 +93,7 @@ policy and capacity are process-wide, including HTTP callers. Template backups r
 and disposable inside the run's SQL container; each application receives fresh authority and
 identity material. Sharing mutable databases would invalidate isolation and race evidence.
 
-## Gate provenance and scheduling
-
-The gate discovers the current built inventory and assigns whole classes, including every theory
-row, to independent processes with sequential collections and disposable SQL fixtures. Missing,
-extra, duplicate, skipped or failed results and missing completion receipts fail the gate.
-Discovery preserves exact UTF-8 test identities; trimming or filtering unsupported names must
-not silently reduce coverage. Shared build-output writes are serialized; concurrent consumers
-use read-only release artifacts.
-
-Run-specific build receipts and manifests bind repository root, run ID, Release configuration,
-current tracked/nonignored source hashes and published hashes. Generated API files are excluded
-only from the pre-build receipt, checked for drift and included in the final manifest. Existence
-alone cannot authorize reuse; standalone browser/publish runs create fresh artifacts. Consumers
-must not delete shared outputs. Native child stdout/stderr use separate temporary logs so they
-cannot corrupt PowerShell background-job transport; cleanup follows process shutdown.
-
-### Refresh server timing data
-
-The reviewed `scripts/server-test-durations.json` dataset predicts class cost by summing historical
-case durations. Assignment takes longest classes first into the lowest predicted total, with
-ordinal class-name and partition-ID ties. All methods sharing a class fixture stay in one process;
-fixture preparation remains outside case deadlines. New rows receive one second each; obsolete rows do not
-affect assignment. This fallback permits new tests but cannot predict their actual cost. Invalid
-datasets fail closed. Inventory artifacts retain predictions/fallback counts and dataset provenance.
-
-Refresh after substantial test changes or observed imbalance, outside a running gate. Use only a
-completed successful CI **push to main** in this repository. Verify event, branch, conclusion and
-full SHA with `gh run view` before downloading `verification-evidence`; do not use PR artifacts.
-The importer validates gate success, inventory, exit receipts, exact passing TRX coverage and finite
-nonnegative durations, prohibits XML DTDs, and never executes artifacts. It cannot authenticate
-local downloaded files: provenance parameters describe evidence the operator verified.
-
-```powershell
-./scripts/update-server-test-durations.ps1 -EvidenceDirectory <gate-directory> `
-    -SourceRunUrl https://github.com/mcunille/Workbench/actions/runs/<run-id> `
-    -SourceRevision <full-commit-sha> -OutputPath scripts/server-test-durations.json
-./tests/Workbench.BuildTests/ServerDurations.Tests.ps1
-./tests/Workbench.BuildTests/ServerPartitions.Tests.ps1
-```
-
-Review the data and provenance diff together. A controlled `-TimingDataPath` comparison must retain
-partition count, concurrency, inventory and runner class. Predicted balance excludes fixture startup
-and runner pressure and does not guarantee critical-path savings. Retain resource costs alongside
-wall time; more concurrent SQL fixtures are not free capacity.
+See [CI verification](ci-verification.md) for gate scheduling and timing-data provenance.
 
 ## Browser setup
 
@@ -188,7 +145,7 @@ cache/resource conditions. Include process wall time: xUnit case durations do no
 fixture startup, setup, or disposal. Keep build time separate when using verified current outputs.
 Record full-gate timing as well as individual stages, which overlap and must not be added together.
 
-The CI server stage and local verification use two isolated processes by default. The
+Each CI server job and the full local verification command use two isolated test processes. The
 [uncapped three-process probe and repeat](../docs/specs/2026-10-02-ci-test-work-results.md#approved-three-process-follow-up-and-repeat)
 were reverted after the confirmation run failed server and browser deadlines; one passing run's
 10m05s observed gain did not establish a reliable retained configuration. The unsuccessful
@@ -196,7 +153,7 @@ four-process experiment's SQL memory caps were removed with its resource-limit t
 headroom did not justify making those arbitrary values a fixture contract. CI retains 30-second
 samples of host CPU counters, available memory, load and container
 CPU/memory usage in
-`verification-evidence/ci-resources/samples.jsonl`. These samples supplement full-gate and partition
+`server-evidence-*/ci-resources/samples.jsonl`. These samples supplement full-gate and partition
 timings; predicted duration balance alone does not establish a performance improvement.
 
 Map every removed or moved case to its remaining coverage owner. Preserve complete discovered

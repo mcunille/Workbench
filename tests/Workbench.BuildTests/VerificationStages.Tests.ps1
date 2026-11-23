@@ -3,12 +3,18 @@ param()
 $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
 . (Join-Path $root 'scripts/verification-stages.ps1')
+# GIVEN the hosted subset and the default local gate
+# WHEN their required stages are selected THEN only the hosted subset delegates server execution.
+if (((Get-RequiredVerificationStages -StageGroup SourceRelease) -join ',') -cne 'client,browser,published' -or
+    ((Get-RequiredVerificationStages) -join ',') -cne 'client,server,browser,published') {
+    throw 'Verification stage groups do not preserve the complete local gate.'
+}
 function Assert-Fails([scriptblock]$Action, [string]$Pattern) {
     try { & $Action } catch { if ($_.Exception.Message -match $Pattern) { return }; throw }
     throw "Expected failure: $Pattern"
 }
 # GIVEN all required CI jobs, including the hook's Windows/Linux tooling contracts.
-$required = @('design-tooling-contracts', 'local-setup-contracts', 'deployment-contracts', 'verify', 'container-smoke')
+$required = @('design-tooling-contracts', 'local-setup-contracts', 'deployment-contracts', 'verify', 'server-tests', 'container-smoke')
 $needs = @{}; foreach ($name in $required) { $needs[$name] = @{ result = 'success' } }
 # WHEN the aggregate checks successful results THEN it accepts every required job.
 Assert-RequiredCiJobs -Needs $needs
@@ -27,7 +33,7 @@ foreach ($name in $required) {
 }
 # GIVEN the workflow job graph WHEN the aggregate is scheduled THEN it runs even after dependency failure.
 $workflow = Get-Content (Join-Path $root '.github/workflows/ci.yml') -Raw
-if ($workflow -notmatch '(?s)required-gate:.*?if: \$\{\{ always\(\) \}\}.*?needs: \[design-tooling-contracts, local-setup-contracts, deployment-contracts, verify, container-smoke\]' -or
+if ($workflow -notmatch '(?s)required-gate:.*?if: \$\{\{ always\(\) \}\}.*?needs: \[design-tooling-contracts, local-setup-contracts, deployment-contracts, verify, server-tests, container-smoke\]' -or
     $workflow -notmatch 'Assert-RequiredCiJobs -Needs') { throw 'Aggregate CI graph does not enforce the required jobs.' }
 $jobs = @()
 try {

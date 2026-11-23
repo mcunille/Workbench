@@ -4,14 +4,19 @@ param(
     [ValidateRange(1, 4)][int]$MaxConcurrency = 2,
     [ValidateSet('Debug', 'Release')][string]$Configuration = 'Release',
     [switch]$NoBuild,
+    [int[]]$PartitionIds,
     [string]$ResultsDirectory,
     [string]$TimingDataPath = (Join-Path $PSScriptRoot 'server-test-durations.json')
 )
 
 $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot 'server-partition-contract.ps1')
+. (Join-Path $PSScriptRoot 'verification-artifacts.ps1')
 $repositoryRoot = Split-Path -Parent $PSScriptRoot
-$project = Join-Path $repositoryRoot 'tests/Workbench.Server.IntegrationTests/Workbench.Server.IntegrationTests.csproj'
+$projectPath = 'tests/Workbench.Server.IntegrationTests/Workbench.Server.IntegrationTests.csproj'
+$project = Join-Path $repositoryRoot $projectPath
+$selection = @{}
+if ($PSBoundParameters.ContainsKey('PartitionIds')) { $selection.PartitionIds = $PartitionIds }
 if (-not $ResultsDirectory) { $ResultsDirectory = Join-Path $repositoryRoot 'artifacts/test-results' }
 # A unique invocation directory prevents stale TRX evidence from satisfying this run.
 $runRoot = Join-Path ([IO.Path]::GetFullPath($ResultsDirectory)) ([Guid]::NewGuid().ToString('N'))
@@ -21,11 +26,21 @@ $failures = [Collections.Generic.List[string]]::new()
 $priorLanguage = $env:DOTNET_CLI_UI_LANGUAGE
 $priorVsLanguage = $env:VSLANG
 Push-Location $repositoryRoot
+$receipt = [ordered]@{
+    Version = 1; RunId = Split-Path $runRoot -Leaf; Succeeded = $false
+    ExecutionKind = 'Partial'; PartitionCount = $PartitionCount; PartitionIds = @()
+    CheckoutRevision = ''; HeadRevision = $env:WORKBENCH_PR_HEAD; SourceHash = ''
+    DurationSha256 = ''; TestProjects = @()
+}
 try {
+    $receipt.CheckoutRevision = git rev-parse HEAD
+    if ($LASTEXITCODE -ne 0) { throw 'Cannot resolve server checkout revision.' }
+    $receipt.SourceHash = Get-VerificationSourceHash $repositoryRoot
     $env:DOTNET_CLI_UI_LANGUAGE = 'en'
     $env:VSLANG = '1033'
     if (-not $NoBuild) {
-        dotnet restore $project --locked-mode
+        # Restore every solution project before querying IsTestProject, which can come from NuGet imports.
+        dotnet restore Workbench.slnx --locked-mode
         if ($LASTEXITCODE -ne 0) { throw "Server test restore failed with exit code $LASTEXITCODE." }
         dotnet build $project --configuration $Configuration --no-restore
         if ($LASTEXITCODE -ne 0) { throw "Server test build failed with exit code $LASTEXITCODE." }
@@ -42,18 +57,23 @@ try {
         }
     )
     Assert-ServerTestProjects -TestProjects $testProjects -SupportedProject $project
+    $receipt.TestProjects = @($projectPath)
     $names = @(Invoke-ServerTestDiscovery -LogPath (Join-Path $runRoot 'discovery.log') -Command {
         dotnet test $project --configuration $Configuration --no-build --no-restore --list-tests
     })
     $timings = Read-ServerTestDurations -Path $TimingDataPath
     $partitions = @(New-ServerTestPartitions -TestNames $names -PartitionCount $PartitionCount -Durations $timings.Durations -FallbackSeconds $timings.FallbackSeconds)
+    $selected = @(Get-ServerPartitionSelection -Partitions $partitions @selection)
+    $receipt.PartitionIds = @($selected.Id)
+    $receipt.DurationSha256 = $timings.Sha256
+    if ($selected.Count -eq $PartitionCount) { $receipt.ExecutionKind = 'Full' }
     $timings | Select-Object SchemaVersion, SourceRevision, SourceRunUrl, Sha256, FallbackSeconds |
         ConvertTo-Json | Set-Content -LiteralPath (Join-Path $runRoot 'duration-dataset.json')
     Write-Host "Duration dataset $($timings.Sha256) from $($timings.SourceRunUrl); predicted seconds: $(($partitions.PredictedSeconds | ForEach-Object { [Math]::Round($_, 3) }) -join ', '); fallback tests: $(($partitions.FallbackTests | Measure-Object -Sum).Sum)."
     $partitions | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath (Join-Path $runRoot 'inventory.json')
     Write-Host "Discovered $($names.Count) tests; partition sizes: $(($partitions | ForEach-Object { $_.Tests.Count }) -join ', '); max concurrent SQL containers: $([Math]::Min($PartitionCount, $MaxConcurrency))."
     $pending = [Collections.Generic.Queue[object]]::new()
-    foreach ($partition in $partitions) { $pending.Enqueue($partition) }
+    foreach ($partition in $selected) { $pending.Enqueue($partition) }
     while ($pending.Count -gt 0 -or @($jobs | Where-Object { -not $_.Collected }).Count -gt 0) {
         while ($pending.Count -gt 0 -and @($jobs | Where-Object { -not $_.Collected }).Count -lt $MaxConcurrency) {
             $partition = $pending.Dequeue()
@@ -88,13 +108,17 @@ try {
             catch { $failures.Add($_.Exception.Message); Write-Warning $_.Exception.Message }
         }
     }
-    if ($jobs.Count -ne $PartitionCount -or @($jobs | Where-Object { -not $_.Collected }).Count -ne 0) { throw 'Required server partition completion is missing.' }
+    if ($jobs.Count -ne $selected.Count -or @($jobs | Where-Object { -not $_.Collected }).Count -ne 0) { throw 'Required server partition completion is missing.' }
     if ($failures.Count -gt 0) { throw "Server partitions failed: $($failures -join ' ') Evidence: $runRoot" }
-    Write-Host "All $PartitionCount server partitions passed; exact inventory coverage verified. Evidence: $runRoot"
+    if ($receipt.SourceHash -cne (Get-VerificationSourceHash $repositoryRoot) -or
+        $receipt.CheckoutRevision -cne (git rev-parse HEAD) -or $LASTEXITCODE -ne 0) { throw 'Server source changed during verification.' }
+    $receipt.Succeeded = $true
+    Write-Host "$($receipt.ExecutionKind) server execution passed for partitions $($selected.Id -join ','). Evidence: $runRoot"
 }
 finally {
     foreach ($entry in $jobs) { Stop-Job $entry.Job -ErrorAction SilentlyContinue; Remove-Job $entry.Job -Force -ErrorAction SilentlyContinue }
     $env:DOTNET_CLI_UI_LANGUAGE = $priorLanguage
     $env:VSLANG = $priorVsLanguage
     Pop-Location
+    $receipt | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $runRoot 'server-receipt.json')
 }

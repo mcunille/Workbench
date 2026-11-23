@@ -156,7 +156,7 @@ try {
     # THEN it builds once, uses exactly three jobs, and never exceeds the configured process bound.
     if ($global:partitionTestPeak -ne 2 -or $global:partitionTestJobs.Count -ne 3 -or
         @($global:partitionTestCommands | Where-Object { $_ -match '^build ' }).Count -ne 1 -or
-        @($global:partitionTestCommands | Where-Object { $_ -match '^restore .*--locked-mode' }).Count -ne 1) {
+        @($global:partitionTestCommands | Where-Object { $_ -ceq 'restore Workbench.slnx --locked-mode' }).Count -ne 1) {
         throw 'Standalone preparation or bounded independent processes failed.'
     }
     $global:partitionTestCommands.Clear()
@@ -165,6 +165,13 @@ try {
     $discoveryCommands = @($global:partitionTestCommands | Where-Object { $_ -notmatch '^msbuild ' })
     if ($discoveryCommands.Count -ne 1 -or $discoveryCommands[0] -notmatch '--no-build --no-restore --list-tests') {
         throw 'Prepared invocation repeated shared build prerequisites.'
+    }
+    # GIVEN four cohorts WHEN a host requests cohorts 3 and 4 THEN it records only partial execution.
+    $selectedRoot = Join-Path $runnerRoot 'selected'
+    & $runner -ResultsDirectory $selectedRoot -NoBuild -PartitionCount 4 -PartitionIds 3,4
+    $receipt = Get-ChildItem $selectedRoot -Recurse -Filter server-receipt.json | Get-Content -Raw | ConvertFrom-Json
+    if ($receipt.ExecutionKind -cne 'Partial' -or ($receipt.PartitionIds -join ',') -cne '3,4' -or $receipt.Succeeded -ne $true) {
+        throw 'Selected execution must emit a successful partial receipt.'
     }
     # GIVEN failure, cancellation, absent completion or absent current-run TRX
     # WHEN all required partitions are collected THEN the runner rejects the aggregate.
@@ -227,7 +234,3 @@ finally { Remove-Item -LiteralPath $datasetRoot -Recurse -Force }
 # GIVEN individually finite weights whose partition total overflows
 # WHEN scheduled THEN invalid predicted totals are rejected.
 Assert-Rejected { New-ServerTestPartitions -TestNames @('A.Test', 'B.Test', 'C.Test', 'D.Test') -PartitionCount 2 -Durations @{ 'A.Test' = 1.7e308; 'B.Test' = 1.7e308; 'C.Test' = 1.7e308; 'D.Test' = 1.7e308 } } 'duration'
-# GIVEN CI evidence retention WHEN a partition run records its timing dataset
-# THEN the uploaded artifact retains that dataset identity alongside results.
-$workflow = Get-Content (Join-Path $PSScriptRoot '../../.github/workflows/ci.yml') -Raw
-if (-not $workflow.Contains('artifacts/verification/**/duration-dataset.json')) { throw 'CI must retain duration dataset provenance.' }

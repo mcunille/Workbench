@@ -1,6 +1,6 @@
 # Two-runner CI verification
 
-Status: proposed design; direction approved, written-spec review pending.
+Status: approved design. Hosted acceptance measurements are tracked in PR #212.
 
 ## Outcome and evidence
 
