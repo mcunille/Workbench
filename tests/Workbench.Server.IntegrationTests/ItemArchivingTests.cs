@@ -60,9 +60,9 @@ public sealed class ItemArchivingTests(SqlServerFixture sqlServer)
     }
 
     [Fact]
-    public async Task ArchivePreservesIdentityReplayAndDirectReadButRemovesSearchAndRejectsWrites()
+    public async Task ItemLifecycleRetainsEditedIdentityPhotoReplayAndCheckedArchiveCycles()
     {
-        // GIVEN a collector's saved item and its original creation request.
+        // GIVEN an edited collector's item, its original creation request, and a retained photograph.
         await using var app = await AuthTestApplication.CreateAsync(sqlServer);
         using var storage = new PhotoStorage();
         await using var factory = app.Factory.WithWebHostBuilder(builder => builder.ConfigureServices(services =>
@@ -74,11 +74,17 @@ public sealed class ItemArchivingTests(SqlServerFixture sqlServer)
         await LoginAsync(client, "member@example.com");
         var creation = new { creationRequestId = Guid.NewGuid(), name = "Sapphire", notes = "Original", location = "Tray" };
         var item = (await (await SendAsync(client, HttpMethod.Post, "/api/beta/items", creation)).Content.ReadFromJsonAsync<ItemDetailResponse>())!;
+        var edit = await SendAsync(client, HttpMethod.Put, $"/api/beta/items/{item.Id}",
+            new { expectedVersion = item.Version, name = "Sapphire edited", notes = "Retained", location = "Tray B" });
+        Assert.Equal(HttpStatusCode.OK, edit.StatusCode);
+        var edited = (await edit.Content.ReadFromJsonAsync<ItemDetailResponse>())!;
+        item = edited;
         var photoRequest = Guid.NewGuid();
         var photoVersion = item.Version;
         var uploaded = await ItemPhotoEndpointTests.UploadAsync(client, $"/api/beta/items/{item.Id}", photoVersion, photoRequest);
         Assert.Equal(HttpStatusCode.OK, uploaded.StatusCode);
         item = (await client.GetFromJsonAsync<ItemDetailResponse>($"/api/beta/items/{item.Id}"))!;
+        Assert.Equal(edited with { Version = item.Version, Photo = item.Photo }, item);
         // WHEN archiving with the displayed version.
         var response = await SendAsync(client, HttpMethod.Post, $"/api/beta/items/{item.Id}/archive", new { expectedVersion = item.Version });
         // THEN the commit retains the identity and details while advancing the version.
@@ -122,12 +128,16 @@ public sealed class ItemArchivingTests(SqlServerFixture sqlServer)
             Assert.Equal(HttpStatusCode.Conflict, (await SendAsync(client, HttpMethod.Delete, $"/api/beta/items/{item.Id}/photo", new { expectedVersion = version, requestId = Guid.NewGuid() })).StatusCode);
         }
         Assert.Equal(archived, await client.GetFromJsonAsync<ItemDetailResponse>($"/api/beta/items/{item.Id}"));
+        Assert.Single((await client.GetFromJsonAsync<ItemPageResponse>("/api/beta/items/archived?q=sapphire"))!.Items);
         // WHEN the record is restored with its archived version.
         var restoredResponse = await SendAsync(client, HttpMethod.Post, $"/api/beta/items/{item.Id}/restore", new { expectedVersion = archived.Version });
         Assert.Equal(HttpStatusCode.OK, restoredResponse.StatusCode);
         var restored = (await restoredResponse.Content.ReadFromJsonAsync<ItemDetailResponse>())!;
         // THEN the same photograph and creation replay survive, including another authenticated session.
         Assert.Equal(archived with { Version = restored.Version, ArchivedAtUtc = null }, restored);
+        Assert.NotEqual(archived.Version, restored.Version);
+        Assert.Empty((await client.GetFromJsonAsync<ItemPageResponse>("/api/beta/items/archived"))!.Items);
+        Assert.Single((await client.GetFromJsonAsync<ItemPageResponse>("/api/beta/items?q=sapphire"))!.Items);
         Assert.Equal(restored, await (await SendAsync(client, HttpMethod.Post, "/api/beta/items", creation)).Content.ReadFromJsonAsync<ItemDetailResponse>());
         var replayRestored = await ItemPhotoEndpointTests.UploadAsync(client, $"/api/beta/items/{item.Id}", photoVersion, photoRequest);
         Assert.Equal(await uploaded.Content.ReadAsStringAsync(), await replayRestored.Content.ReadAsStringAsync());
@@ -135,6 +145,23 @@ public sealed class ItemArchivingTests(SqlServerFixture sqlServer)
         await LoginAsync(anotherSession, "member@example.com");
         Assert.Equal(restored, await anotherSession.GetFromJsonAsync<ItemDetailResponse>($"/api/beta/items/{item.Id}"));
         Assert.Equal(HttpStatusCode.OK, (await anotherSession.GetAsync(restored.Photo!.DetailUrl)).StatusCode);
+        Assert.Equal(HttpStatusCode.Conflict, (await SendAsync(client, HttpMethod.Post, "/api/beta/items",
+            new { creation.creationRequestId, name = "Different" })).StatusCode);
+        // AND retry never attributes an active record to this request.
+        var retryRestore = await SendAsync(client, HttpMethod.Post, $"/api/beta/items/{item.Id}/restore",
+            new { expectedVersion = archived.Version });
+        Assert.Equal(HttpStatusCode.Conflict, retryRestore.StatusCode);
+        Assert.Equal("item_active", (await retryRestore.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("code").GetString());
+        // WHEN another archive cycle advances the version THEN a delayed old restore cannot change it.
+        var rearchive = await SendAsync(client, HttpMethod.Post, $"/api/beta/items/{item.Id}/archive",
+            new { expectedVersion = restored.Version });
+        Assert.Equal(HttpStatusCode.OK, rearchive.StatusCode);
+        var rearchived = (await rearchive.Content.ReadFromJsonAsync<ItemDetailResponse>())!;
+        var delayed = await SendAsync(client, HttpMethod.Post, $"/api/beta/items/{item.Id}/restore",
+            new { expectedVersion = archived.Version });
+        Assert.Equal(HttpStatusCode.Conflict, delayed.StatusCode);
+        Assert.Equal("item_version_conflict", (await delayed.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("code").GetString());
+        Assert.Equal(rearchived, await client.GetFromJsonAsync<ItemDetailResponse>($"/api/beta/items/{item.Id}"));
     }
 
     [Fact]
