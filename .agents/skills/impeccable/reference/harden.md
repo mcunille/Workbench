@@ -2,14 +2,16 @@ Designs that only work with perfect data aren't production-ready. Harden the int
 
 ## Assess Hardening Needs
 
-Identify weaknesses and edge cases:
+Use a stated requirement, real report, logs, an incident, or a reproducible real failure to select
+which scenarios and techniques in this guide apply to the target. Derive new limits, guards, error
+paths, tests, and verification criteria from that evidence.
 
 1. **Test with extreme inputs**:
    - Very long text (names, descriptions, titles)
    - Very short text (empty, single character)
    - Special characters (emoji, RTL text, accents)
    - Large numbers (millions, billions)
-   - Many items (1000+ list items, 50+ options)
+   - Large lists based on supported sizes or observed data
    - No data (empty states)
 
 2. **Test error scenarios**:
@@ -307,13 +309,9 @@ const throttledScroll = throttle(handleScroll, 100);
 - Visual regression tests
 - Accessibility tests (axe, WAVE)
 
-**IMPORTANT**: Hardening is about expecting the unexpected. Real users will do things you never imagined.
-
 **NEVER**:
 - Assume perfect input (validate everything)
-- Ignore internationalization (design for global)
 - Leave error messages generic ("Error occurred")
-- Forget offline scenarios
 - Trust client-side validation alone
 - Use fixed widths for text
 - Assume English-length text
@@ -321,16 +319,5 @@ const throttledScroll = throttle(handleScroll, 100);
 
 ## Verify Hardening
 
-Test thoroughly with edge cases:
-
-- **Long text**: Try names with 100+ characters
-- **Emoji**: Use emoji in all text fields
-- **RTL**: Test with Arabic or Hebrew
-- **CJK**: Test with Chinese/Japanese/Korean
-- **Network issues**: Disable internet, throttle connection
-- **Large datasets**: Test with 1000+ items
-- **Concurrent actions**: Click submit 10 times rapidly
-- **Errors**: Force API errors, test all error states
-- **Empty**: Remove all data, test empty states
-
-When edge cases are covered, hand off to `$impeccable polish` for the final pass.
+Verify the selected scenarios using documented bounds or realistic inputs from the evidence.
+Once they pass, hand off to `$impeccable polish` for the final pass.

@@ -63,7 +63,8 @@ Read the unit and relevant callers. Show an inventory of inputs, branches, outpu
 error paths, and boundary cases. Include authorization, persistence, concurrency, and asynchronous
 ordering when the target participates in them. Map each inventory item to existing or missing tests.
 
-Add missing characterization tests through existing surfaces before restructuring. Use the root
+Add missing characterization tests for supported behavior through existing surfaces before
+restructuring. Ground each case in a stated requirement or evidence of real behavior. Use the root
 Gherkin-comment requirements. Tests assert what the code currently does and should pass against
 unrefactored production code; do not invent a failing new requirement or change production to make
 a characterization test pass. Investigate a failure as a mistaken expectation or a latent bug.
@@ -123,8 +124,9 @@ targets comma-separated under `pwsh -File`. Each matched file must reach **95% l
 missing reports fail the gate. A file with no branches reports that fact instead of inventing
 branch coverage. Include every new sibling so splitting does not hide unmeasured code.
 
-Add meaningful characterization tests for uncovered paths and assess their mutation sensitivity.
-Never lower the threshold or expand measurement to tests to manufacture a pass. If coverage cannot
+Add characterization tests for uncovered paths that protect supported behavior and assess their
+mutation sensitivity. Coverage gaps alone do not justify speculative cases. Never lower the
+threshold or expand measurement to tests to manufacture a pass. If coverage cannot
 reach the threshold within scope, report actual numbers and the reason; user acceptance of the
 specific shortfall is required before treating the refactor as complete. Missing measurement tools
 are a stated verification limitation, not a passing gate. Continue independent work while resolving
