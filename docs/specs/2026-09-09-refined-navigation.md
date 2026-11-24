@@ -1,8 +1,7 @@
 # Refined responsive navigation
 
 **Status: Implemented; desktop material, width and responsive defaults partially superseded.**
-The [raised content workspace](2026-09-25-raised-content-workspace.md) and current
-[style reference](../../DESIGN.md#authenticated-navigation) describe the 14.3125rem
+The current [style reference](../../DESIGN.md#authenticated-navigation) describes the 14.3125rem
 (minimum 229px) solid-canvas navigation beside raised content. The original desktop treatment
 below is historical; retain the profile/mobile interaction decisions and rejected alternatives.
 

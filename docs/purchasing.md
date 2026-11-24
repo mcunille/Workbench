@@ -243,7 +243,7 @@ revisions, review, duplicate resolutions and posting derived from stored compone
 entry UI or public write routes. BK-07 protects authentic posted evidence and reports retention
 separately from current byte availability. Files belong directly to the ordered purchase;
 acquisition documents remain separate. See [financial evidence retention](accounting.md#durable-financial-evidence)
-and the [bill foundation](specs/2026-09-27-bk-05-structured-supplier-bills.md).
+and the [bill foundation](accounting.md#internal-supplier-bills).
 
 ## Payment and allocation foundation
 

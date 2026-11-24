@@ -102,7 +102,7 @@ The library owns its generic skill regression tests. Run the review-boundary sui
 installed `review-pr` directory with `pwsh -NoProfile -File tests/ReviewBoundary.Tests.ps1`.
 Workbench CI and application verification do not require private-library access or a personal
 skill installation. Workbench-specific refactoring coverage tooling, Impeccable launchers and
-their tests remain here with the four remaining local skills.
+their tests remain here with the three remaining local skills.
 
 Generic skills discover Workbench policies through root AGENTS.md and its conditional references
 rather than embedding repository-specific contracts.
@@ -123,9 +123,9 @@ Use `handle-pr-feedback` for the author's feedback round: inspect and validate f
 then complete applicable superpowers design/planning handoffs before editing. Its invocation
 authorizes in-scope delivery, while its exact-preview gate governs collaboration writes.
 Use `impeccable` for UI design and implementation within the selected superpowers design process.
-Use [doc-audit](../.agents/skills/doc-audit/SKILL.md) for requested documentation audits and
-cleanup: identify obsolete or duplicated material and preserve durable decisions in maintained
-docs before retiring specs. Audit discovery is read-only; cleanup follows existing authorization.
+Use `doc-audit` for requested documentation audits and cleanup. Read
+[documentation audit policy](documentation-audits.md) for Workbench's scope defaults, ledger
+bookkeeping authorization, and user-scope skill installation.
 
 Internal implementation review does not invoke the PR Review Council or authorize GitHub review
 publication. Use `review-pr` for a user-requested review from the reviewer's seat and preserve its

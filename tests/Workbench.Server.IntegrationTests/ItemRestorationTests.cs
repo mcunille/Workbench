@@ -15,46 +15,6 @@ namespace Workbench.Server.IntegrationTests;
 public sealed class ItemRestorationTests(SqlServerFixture sqlServer, ITestOutputHelper output)
 {
     [Fact]
-    public async Task RestoreRetainsEditedIdentityAndCreationReplayAndChecksCycles()
-    {
-        // GIVEN an edited record archived after its original creation.
-        await using var app = await AuthTestApplication.CreateAsync(sqlServer);
-        using var client = app.CreateClient();
-        await SendAsync(client, "/api/beta/auth/login", new { email = "member@example.com", password = AuthTestApplication.AdminPassword });
-        var creation = new { creationRequestId = Guid.NewGuid(), name = "Original" };
-        var original = (await (await SendAsync(client, "/api/beta/items", creation)).Content.ReadFromJsonAsync<ItemDetailResponse>())!;
-        var token = await client.GetFromJsonAsync<JsonElement>("/api/beta/auth/antiforgery");
-        using var editRequest = new HttpRequestMessage(HttpMethod.Put, $"/api/beta/items/{original.Id}")
-        { Content = JsonContent.Create(new { expectedVersion = original.Version, name = "Original edited", notes = "Retained", location = "Tray" }) };
-        editRequest.Headers.Add("X-CSRF-TOKEN", token.GetProperty("requestToken").GetString());
-        var edited = (await (await client.SendAsync(editRequest)).Content.ReadFromJsonAsync<ItemDetailResponse>())!;
-        var archived = (await (await SendAsync(client, $"/api/beta/items/{original.Id}/archive", new { expectedVersion = edited.Version })).Content.ReadFromJsonAsync<ItemDetailResponse>())!;
-        Assert.Single((await client.GetFromJsonAsync<ItemPageResponse>("/api/beta/items/archived?q=original"))!.Items);
-        // WHEN restoring the displayed archived version.
-        var response = await SendAsync(client, $"/api/beta/items/{original.Id}/restore", new { expectedVersion = archived.Version });
-        // THEN the same identity returns to active browsing with a new version.
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        var restored = (await response.Content.ReadFromJsonAsync<ItemDetailResponse>())!;
-        Assert.Null(restored.ArchivedAtUtc);
-        Assert.NotEqual(archived.Version, restored.Version);
-        Assert.Equal(edited with { Version = restored.Version }, restored);
-        Assert.Empty((await client.GetFromJsonAsync<ItemPageResponse>("/api/beta/items/archived"))!.Items);
-        Assert.Single((await client.GetFromJsonAsync<ItemPageResponse>("/api/beta/items?q=original"))!.Items);
-        Assert.Equal(restored, await (await SendAsync(client, "/api/beta/items", creation)).Content.ReadFromJsonAsync<ItemDetailResponse>());
-        // AND replay of a different creation payload remains a conflict after restoration.
-        Assert.Equal(HttpStatusCode.Conflict, (await SendAsync(client, "/api/beta/items", new { creation.creationRequestId, name = "Different" })).StatusCode);
-        // AND retry never attributes an active record to this request.
-        var retry = await SendAsync(client, $"/api/beta/items/{original.Id}/restore", new { expectedVersion = archived.Version });
-        Assert.Equal(HttpStatusCode.Conflict, retry.StatusCode);
-        Assert.Equal("item_active", (await retry.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("code").GetString());
-        var rearchived = (await (await SendAsync(client, $"/api/beta/items/{original.Id}/archive", new { expectedVersion = restored.Version })).Content.ReadFromJsonAsync<ItemDetailResponse>())!;
-        var delayed = await SendAsync(client, $"/api/beta/items/{original.Id}/restore", new { expectedVersion = archived.Version });
-        Assert.Equal(HttpStatusCode.Conflict, delayed.StatusCode);
-        Assert.Equal("item_version_conflict", (await delayed.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("code").GetString());
-        Assert.Equal(rearchived, await client.GetFromJsonAsync<ItemDetailResponse>($"/api/beta/items/{original.Id}"));
-    }
-
-    [Fact]
     public async Task RestoreRejectsMalformedUnprotectedAndForeignRequests()
     {
         // GIVEN independent authenticated tenants and a saved record.

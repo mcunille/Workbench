@@ -18,17 +18,25 @@ setup is not permission to keep real books: the journal, recognition, retained e
 and reconciliation prerequisites remain separate deliveries.
 
 The implementation uses the existing modular monolith, tenant boundary, SQL Server RLS, session
-resolution, and role/permission model. Current evidence:
+resolution, and role/permission model. The following evidence describes the pre-BK-01 baseline:
 
 - [WorkbenchPermissions](../../src/Workbench.Server/Authorization/WorkbenchPermissions.cs)
-  defines `TenantAccess` and `TenantUsersManage`; it has no accounting permissions.
+  originally defined `TenantAccess` and `TenantUsersManage` without accounting permissions.
 - [RequestActor](../../src/Workbench.Server/Authorization/IRequestActor.cs) contains the tenant,
   user, session, and resolved permissions. [SessionService](../../src/Workbench.Server/Identity/SessionService.cs)
   resolves authoritative permissions through the database rather than trusting client role claims.
 - [Tenant user administration](../../src/Workbench.Server/Administration/TenantUserEndpoints.cs)
-  manages users, invitations, and sessions, but does not supply an accounting-role assignment workflow.
+  managed users, invitations, and sessions without an accounting-role assignment workflow.
 - The parent spec's purchase commitment and file-attachment boundaries remain operational; neither
   produces a journal. There is no existing accounting balance to backfill from purchase estimates.
+
+Implemented accounting permissions and role assignment now follow [Accounting access](../accounting.md#access)
+and [Accounting configuration architecture](../ARCHITECTURE.md#accounting-configuration), including
+`Administration/AccountingRoleEndpoints.cs`. Proposed retention settings and references to later
+BK-07 work below describe the original BK-01 boundary. The implemented successor freezes policy on
+each posted evidence link; unset duration means indefinite protection, not zero-day retention.
+Use [Durable financial evidence](../accounting.md#durable-financial-evidence) for the current clock,
+holds, disposal and recovery rules. These internal foundations do not activate production bookkeeping.
 
 ## Agreed product policies
 

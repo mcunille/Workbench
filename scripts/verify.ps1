@@ -22,15 +22,24 @@ function Assert-NativeCommandSucceeded {
 
 function Assert-ToolVersion {
     param(
-        [Parameter(Mandatory)][string]$CommandName,
-        [Parameter(Mandatory)][string]$ExpectedVersion,
-        [Parameter(Mandatory)][scriptblock]$ReadVersion
+        [Parameter(Mandatory, Position = 0)][string]$CommandName,
+        [Parameter(Mandatory, Position = 1, ParameterSetName = 'Exact')][string]$ExpectedVersion,
+        [Parameter(Mandatory, ParameterSetName = 'Range')][version]$MinimumVersion,
+        [Parameter(Mandatory, ParameterSetName = 'Range')][version]$MaximumVersionExclusive,
+        [Parameter(Mandatory, Position = 2)][scriptblock]$ReadVersion
     )
 
     $actualVersion = (& $ReadVersion).Trim()
     Assert-NativeCommandSucceeded "$CommandName version check"
 
-    if ($actualVersion -ne $ExpectedVersion) {
+    if ($PSCmdlet.ParameterSetName -eq 'Range') {
+        if ($actualVersion -notmatch '^v?(\d+\.\d+\.\d+)$' -or
+            [version]$Matches[1] -lt $MinimumVersion -or
+            [version]$Matches[1] -ge $MaximumVersionExclusive) {
+            throw "$CommandName >=$MinimumVersion <$MaximumVersionExclusive is required; found $actualVersion."
+        }
+    }
+    elseif ($actualVersion -ne $ExpectedVersion) {
         throw "$CommandName $ExpectedVersion is required; found $actualVersion."
     }
 }
@@ -74,8 +83,8 @@ $priorRun = $env:WORKBENCH_VERIFICATION_RUN
 Push-Location $repositoryRoot
 try {
     Assert-ToolVersion 'dotnet' '10.0.402' { dotnet --version }
-    Assert-ToolVersion 'Node.js' 'v26.7.0' { node --version }
-    Assert-ToolVersion 'npm' '11.19.0' { npm --version }
+    Assert-ToolVersion 'Node.js' -MinimumVersion '26.8.0' -MaximumVersionExclusive '27.0.0' -ReadVersion { node --version }
+    Assert-ToolVersion 'npm' -MinimumVersion '11.19.0' -MaximumVersionExclusive '12.0.0' -ReadVersion { npm --version }
     Assert-DocumentationCurrent
     dotnet restore Workbench.slnx --locked-mode
     Assert-NativeCommandSucceeded 'dotnet restore --locked-mode'

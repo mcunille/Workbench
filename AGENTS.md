@@ -12,7 +12,8 @@
 ## Task routes
 
 - Execution, debugging, completion claims: follow [execution and verification](docs/development-workflow.md#execution-and-verification).
-- Module design, internal review, PR review, feedback, UI work, test authoring, or documentation audits: follow [skill routing](docs/development-workflow.md#internal-review-and-skills). For `codebase-design`, `review-pr`, or `handle-pr-feedback`, also follow [installed skill ownership](docs/development-workflow.md#skill-installation-and-ownership).
+- Module design, internal review, PR review, feedback, UI work, or test authoring: follow [skill routing](docs/development-workflow.md#internal-review-and-skills). For `codebase-design`, `review-pr`, or `handle-pr-feedback`, also follow [installed skill ownership](docs/development-workflow.md#skill-installation-and-ownership).
+- Documentation audits or cleanup: use `doc-audit` and read [audit scope, bookkeeping, and skill ownership](docs/documentation-audits.md).
 - Behavior changes, refactors, test edits, or verification: follow [test method](tests/README.md#test-method), including current-source evidence. Documentation-only and formatting-only changes use its affected-check guidance.
 - Application changes or API generation: follow [CONTRIBUTING.md](CONTRIBUTING.md). Architecture or product contracts: locate the owner through [docs/README.md](docs/README.md).
 - Preview lifecycle: follow [setup](docs/setup.md). Credentials: follow [credential use](docs/setup.md#credential-use); existing `.env.dev` installations use [manual development](docs/operations/manual-development.md).
