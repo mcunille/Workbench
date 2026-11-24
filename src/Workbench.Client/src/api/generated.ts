@@ -7319,6 +7319,7 @@ export interface components {
             corrections: components["schemas"]["JournalCorrectionEvidence"][];
             recognition: null | components["schemas"]["PurchaseRecognitionEvidence"];
             financialEvidence?: null | components["schemas"]["FinancialEvidenceSetResponse"];
+            supplierSource?: null | components["schemas"]["SupplierFinancialSourceEvidence"];
         };
         JournalHeader: {
             /** Format: uuid */
@@ -7653,6 +7654,21 @@ export interface components {
             absoluteExpiresAtUtc: string;
             isCurrent: boolean;
         };
+        SupplierCashSettlementEvidence: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            cashSourceId: string;
+            /** Format: uuid */
+            itemId: string;
+            amount: string;
+            /** Format: date */
+            postingDate: string;
+            /** Format: date-time */
+            recordedAtUtc: string;
+            /** Format: uuid */
+            releaseGroupId: null | string;
+        };
         SupplierContent: {
             name: string;
             contactName: null | string;
@@ -7678,6 +7694,48 @@ export interface components {
             invalidSourceEvidenceCount: number | string;
             isComplete: boolean;
         };
+        SupplierCreditClaimEvidence: {
+            /** Format: uuid */
+            claimId: string;
+            /** Format: uuid */
+            billId: string;
+            /** Format: uuid */
+            billRevisionId: string;
+            /** Format: uuid */
+            recognitionEventId: string;
+            componentKey: string;
+            amount: string;
+            treatment: string;
+            /** Format: uuid */
+            accountId: string;
+            /** Format: uuid */
+            accountVersion: string;
+        };
+        SupplierFinancialSourceEvidence: {
+            sourceKind: string;
+            /** Format: uuid */
+            sourceId: string;
+            /** Format: uuid */
+            sourceRevisionId: string;
+            amount: string;
+            /** Format: date */
+            documentDate: string;
+            /** Format: date */
+            effectiveDate: string;
+            /** Format: date */
+            postingDate: string;
+            /** Format: date */
+            actualDate: null | string;
+            method: null | string;
+            reference: null | string;
+            /** Format: uuid */
+            fundingAccountId: null | string;
+            /** Format: uuid */
+            fundingAccountVersion: null | string;
+            claims: components["schemas"]["SupplierCreditClaimEvidence"][];
+            settlements: components["schemas"]["SupplierCashSettlementEvidence"][];
+            corrections: components["schemas"]["SupplierSourceCorrectionEvidence"][];
+        };
         SupplierItemHistoryEntry: {
             /** Format: uuid */
             id: string;
@@ -7702,6 +7760,8 @@ export interface components {
             /** Format: date-time */
             recordedAtUtc: string;
             amount: string;
+            settlements?: null | components["schemas"]["SupplierCashSettlementEvidence"][];
+            sourceCorrections?: null | components["schemas"]["SupplierSourceCorrectionEvidence"][];
         };
         SupplierOpenItemSummary: {
             /** Format: uuid */
@@ -7730,6 +7790,7 @@ export interface components {
             /** Format: date-time */
             recordedThrough: string;
             financialEvidence?: null | components["schemas"]["FinancialEvidenceSetResponse"];
+            supplierSource?: null | components["schemas"]["SupplierFinancialSourceEvidence"];
         };
         SupplierPageResponse: {
             items: components["schemas"]["SupplierResponse"][];
@@ -7790,6 +7851,22 @@ export interface components {
         SupplierSocialProfile: {
             label: string;
             handle: string;
+        };
+        SupplierSourceCorrectionEvidence: {
+            /** Format: uuid */
+            id: string;
+            sourceKind: string;
+            /** Format: uuid */
+            originalSourceId: string;
+            /** Format: uuid */
+            replacementSourceId: null | string;
+            /** Format: uuid */
+            groupId: string;
+            reason: string;
+            /** Format: date */
+            postingDate: string;
+            /** Format: date-time */
+            recordedAtUtc: string;
         };
         SystemResponse: {
             name: string;

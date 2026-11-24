@@ -10,6 +10,13 @@ public static class WorkbenchPermissions
     public const string SupplierPaymentsRecord = "SupplierPaymentsRecord";
     public const string SupplierPaymentsCorrect = "SupplierPaymentsCorrect";
     public const string SupplierAllocationsManage = "SupplierAllocationsManage";
+    public const string SupplierCreditsPost = "SupplierCreditsPost";
+    public const string SupplierCreditsCorrect = "SupplierCreditsCorrect";
+    public const string SupplierRefundsRecord = "SupplierRefundsRecord";
+    public const string SupplierRefundsCorrect = "SupplierRefundsCorrect";
+    public const string SupplierRefundRepaymentsRecord = "SupplierRefundRepaymentsRecord";
+    public const string SupplierRefundRepaymentsCorrect = "SupplierRefundRepaymentsCorrect";
+    public const string SupplierBillsCorrect = "SupplierBillsCorrect";
 
     public const string TenantUsersManage = "TenantUsersManage";
     public const string AccountingConfigurationRead = "AccountingConfigurationRead";

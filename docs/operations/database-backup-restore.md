@@ -131,6 +131,12 @@ reapply any required disablement or credential reset with the separate operator 
 
 ## Validation before cutover
 
+For BK-08, use a backup pair compatible with `AddSupplierCreditsAndRefunds`. After sanitation and
+file acceptance, check the original credit, refund, release, repayment and source-correction IDs
+through authorized reads. Reconcile all four supplier controls at one posting and recorded cutoff.
+Compare retained held-document digests and confirm any missing or corrupt content is reported as
+such. Use a fresh authenticated session before attempting a verified replay.
+
 The following are source regression checks using their own **disposable test databases**. They do
 not accept a target connection and do not validate the restored installation:
 

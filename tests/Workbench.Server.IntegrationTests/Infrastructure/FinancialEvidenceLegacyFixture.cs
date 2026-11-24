@@ -8,15 +8,27 @@ namespace Workbench.Server.IntegrationTests.Infrastructure;
 
 // Only prerequisite main-schema setup is shared. Each case runs the real BK-07
 // migration against its own restored database, with new credentials and sessions.
-public class FinancialEvidenceLegacyFixture(SqlServerFixture server) : IAsyncLifetime
+public class FinancialEvidenceLegacyFixture : IAsyncLifetime
 {
+    private readonly SqlServerFixture _server;
+    private readonly string _priorMigration;
     private SqlServerFixture.SqlDatabaseTemplate _database = null!;
     private SupplierContextState _state = null!;
+
+    public FinancialEvidenceLegacyFixture(SqlServerFixture server) : this(server, FinancialEvidenceMigrationTests.PriorMigration)
+    {
+    }
+
+    protected FinancialEvidenceLegacyFixture(SqlServerFixture server, string priorMigration)
+    {
+        _server = server;
+        _priorMigration = priorMigration;
+    }
 
     public async Task InitializeAsync()
     {
         var clock = System.Diagnostics.Stopwatch.StartNew();
-        await using var context = await SupplierCorrectionFixture.OpenAsync(server, FinancialEvidenceMigrationTests.PriorMigration);
+        await using var context = await SupplierCorrectionFixture.OpenAsync(_server, _priorMigration);
         await PrepareAsync(context);
         var recognition = context.Bills.Recognition;
         _state = new(context.Allocation.Journal.ConfigurationVersion, recognition.PurchaseOrderId,
@@ -24,12 +36,12 @@ public class FinancialEvidenceLegacyFixture(SqlServerFixture server) : IAsyncLif
         var principal = new SqlConnectionStringBuilder(context.Allocation.Journal.Application.WebConnectionString).UserID;
         await context.Allocation.Journal.Connection.CloseAsync();
         await context.Bills.AdminAsync($"DELETE FROM [Identity].Sessions; DROP USER [{principal.Replace("]", "]]", StringComparison.Ordinal)}];");
-        _database = await server.CaptureTemplateAsync(context.Allocation.Journal.Application.AdminConnectionString);
+        _database = await _server.CaptureTemplateAsync(context.Allocation.Journal.Application.AdminConnectionString);
         Console.WriteLine($"Prepared genuine current-main financial baseline in {clock.Elapsed.TotalSeconds:F3}s; included in process wall time.");
     }
 
     internal async Task<SupplierPaymentTestContext> OpenAsync()
-        => await SupplierPaymentTestContext.RestoreAsync(await server.RestoreTemplateAsync(_database), _state);
+        => await SupplierPaymentTestContext.RestoreAsync(await _server.RestoreTemplateAsync(_database), _state);
 
     internal virtual Task PrepareAsync(SupplierPaymentTestContext context) => Task.CompletedTask;
 

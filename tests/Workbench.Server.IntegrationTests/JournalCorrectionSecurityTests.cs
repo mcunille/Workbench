@@ -7,8 +7,10 @@ using Xunit;
 namespace Workbench.Server.IntegrationTests;
 
 [Collection(SqlServerCollection.Name)]
-public sealed class JournalCorrectionSecurityTests(SqlServerFixture sqlServer)
+public sealed partial class JournalCorrectionSecurityTests(SqlServerFixture sqlServer)
 {
+    private SqlServerFixture Fixture => sqlServer;
+
     [Fact]
     public async Task DifferentCurrentlyAuthorizedActorCannotReplayAnotherActorsCommand()
     {
@@ -39,37 +41,6 @@ public sealed class JournalCorrectionSecurityTests(SqlServerFixture sqlServer)
         // THEN receipt ownership conflicts instead of returning another actor's result.
         Assert.Equal(51009, rejected.Number);
         Assert.Equal(before, await controls.HistorySnapshotAsync());
-    }
-
-    [Fact]
-    [Trait("Category", "MutationProbe")]
-    public async Task ExactInverseAssertionDetectsUnswappedSqlAmounts()
-    {
-        // GIVEN an inverse assertion that passes for the real restricted correction kernel.
-        await using var controls = await JournalControlTestContext.OpenAsync(sqlServer);
-        var journal = controls.Journal;
-        var original = await journal.PostAsync(await journal.CreateSourceAsync("300"));
-        var correct = await controls.CorrectAsync(original.JournalId, new DateOnly(2026, 10, 1), null);
-        await CorrectionAssertions.ExactInverseAsync(controls, original.JournalId, correct.ReversalJournalId);
-        // WHEN only the disposable core's debit/credit swap is removed; the source still calls its wrapper.
-        var definition = await ReadKernelAsync(journal);
-        var mutated = definition.Replace(
-            "AccountCode,AccountName,AccountType,AccountPurpose,Credit,Debit",
-            "AccountCode,AccountName,AccountType,AccountPurpose,Debit,Credit", StringComparison.Ordinal);
-        Assert.NotEqual(definition, mutated);
-        try
-        {
-            await AlterKernelAsync(journal, mutated);
-            var second = await journal.PostAsync(await journal.CreateSourceAsync("300"));
-            var mutant = await controls.CorrectAsync(second.JournalId, new DateOnly(2026, 10, 1), null);
-            var assertion = await Record.ExceptionAsync(() => CorrectionAssertions.ExactInverseAsync(controls, second.JournalId, mutant.ReversalJournalId));
-            // THEN the unchanged behavioral assertion kills the mutant.
-            Assert.IsAssignableFrom<Xunit.Sdk.XunitException>(assertion);
-        }
-        finally { await RestoreKernelAsync(journal, definition); }
-        var restored = await journal.PostAsync(await journal.CreateSourceAsync("300"));
-        var restoredCorrection = await controls.CorrectAsync(restored.JournalId, new DateOnly(2026, 10, 1), null);
-        await CorrectionAssertions.ExactInverseAsync(controls, restored.JournalId, restoredCorrection.ReversalJournalId);
     }
 
     [Fact]

@@ -165,3 +165,32 @@ public sealed class FinancialEvidenceDisposalTests(SqlServerFixture sqlServer)
         return (string)(await command.ExecuteScalarAsync())!;
     }
 }
+
+[Collection(SqlServerCollection.Name)]
+public sealed class FinancialEvidenceSupplierCashDisposalTests(SupplierCreditRecoveryFixture fixture) : IClassFixture<SupplierCreditRecoveryFixture>
+{
+    [Fact]
+    public async Task DisposalAccountsForEveryHeldCreditAndCashOwner()
+    {
+        // GIVEN a restored document held by credits, an incoming refund and outgoing repayments, including successors.
+        var prepared = await fixture.OpenAsync();
+        await using var credit = prepared.Context;
+        var context = credit.Bills;
+        var expected = await context.ScalarAsync<string>("SELECT Id FROM Accounting.FinancialEvidenceLinks ORDER BY Id FOR JSON PATH");
+        Assert.Equal(3, await context.ScalarAsync<int>("""
+            SELECT COUNT(DISTINCT evidence.OwnerKind) FROM Accounting.FinancialEvidenceSets evidence
+              JOIN Accounting.FinancialEvidenceLinks link ON link.TenantId=evidence.TenantId AND link.EvidenceSetId=evidence.Id
+            WHERE evidence.OwnerKind IN ('SupplierCredit','SupplierRefund','SupplierRefundRepayment')
+            """));
+        Assert.True(await context.ScalarAsync<bool>("SELECT Held FROM Storage.Attachments"));
+        var journalEvidence = await FinancialEvidencePostingTests.FinancialHashesAsync(context);
+
+        // WHEN the operator disposes after all retained deadlines THEN exact captured links survive in the disposal record.
+        await FinancialEvidenceDisposalTests.ExpireAsync(context);
+        var command = await FinancialEvidenceDisposalTests.CommandAsync(context, fixture.Document.Document, Guid.NewGuid());
+        var result = await FinancialEvidenceDisposalTests.ExecuteAsync(context, command);
+        Assert.Equal(result, await FinancialEvidenceDisposalTests.ExecuteAsync(context, command));
+        Assert.Equal(expected, await context.ScalarAsync<string>("SELECT LinkId Id FROM Accounting.FinancialEvidenceDisposalLinks ORDER BY LinkId FOR JSON PATH"));
+        Assert.Equal(journalEvidence, await FinancialEvidencePostingTests.FinancialHashesAsync(context));
+    }
+}

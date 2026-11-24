@@ -10240,6 +10240,16 @@
                 "$ref": "#/components/schemas/FinancialEvidenceSetResponse"
               }
             ]
+          },
+          "supplierSource": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/SupplierFinancialSourceEvidence"
+              }
+            ]
           }
         }
       },
@@ -11520,6 +11530,50 @@
           }
         }
       },
+      "SupplierCashSettlementEvidence": {
+        "required": [
+          "id",
+          "cashSourceId",
+          "itemId",
+          "amount",
+          "postingDate",
+          "recordedAtUtc",
+          "releaseGroupId"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "cashSourceId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "itemId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "amount": {
+            "type": "string"
+          },
+          "postingDate": {
+            "type": "string",
+            "format": "date"
+          },
+          "recordedAtUtc": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "releaseGroupId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          }
+        }
+      },
       "SupplierContent": {
         "required": [
           "name",
@@ -11649,6 +11703,154 @@
           }
         }
       },
+      "SupplierCreditClaimEvidence": {
+        "required": [
+          "claimId",
+          "billId",
+          "billRevisionId",
+          "recognitionEventId",
+          "componentKey",
+          "amount",
+          "treatment",
+          "accountId",
+          "accountVersion"
+        ],
+        "type": "object",
+        "properties": {
+          "claimId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "billId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "billRevisionId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "recognitionEventId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "componentKey": {
+            "type": "string"
+          },
+          "amount": {
+            "type": "string"
+          },
+          "treatment": {
+            "type": "string"
+          },
+          "accountId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "accountVersion": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      },
+      "SupplierFinancialSourceEvidence": {
+        "required": [
+          "sourceKind",
+          "sourceId",
+          "sourceRevisionId",
+          "amount",
+          "documentDate",
+          "effectiveDate",
+          "postingDate",
+          "actualDate",
+          "method",
+          "reference",
+          "fundingAccountId",
+          "fundingAccountVersion",
+          "claims",
+          "settlements",
+          "corrections"
+        ],
+        "type": "object",
+        "properties": {
+          "sourceKind": {
+            "type": "string"
+          },
+          "sourceId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "sourceRevisionId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "amount": {
+            "type": "string"
+          },
+          "documentDate": {
+            "type": "string",
+            "format": "date"
+          },
+          "effectiveDate": {
+            "type": "string",
+            "format": "date"
+          },
+          "postingDate": {
+            "type": "string",
+            "format": "date"
+          },
+          "actualDate": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date"
+          },
+          "method": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "reference": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "fundingAccountId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "fundingAccountVersion": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "claims": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SupplierCreditClaimEvidence"
+            }
+          },
+          "settlements": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SupplierCashSettlementEvidence"
+            }
+          },
+          "corrections": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SupplierSourceCorrectionEvidence"
+            }
+          }
+        }
+      },
       "SupplierItemHistoryEntry": {
         "required": [
           "id",
@@ -11732,6 +11934,24 @@
           },
           "amount": {
             "type": "string"
+          },
+          "settlements": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/SupplierCashSettlementEvidence"
+            }
+          },
+          "sourceCorrections": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/SupplierSourceCorrectionEvidence"
+            }
           }
         }
       },
@@ -11823,6 +12043,16 @@
               },
               {
                 "$ref": "#/components/schemas/FinancialEvidenceSetResponse"
+              }
+            ]
+          },
+          "supplierSource": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/SupplierFinancialSourceEvidence"
               }
             ]
           }
@@ -12066,6 +12296,54 @@
           }
         },
         "additionalProperties": false
+      },
+      "SupplierSourceCorrectionEvidence": {
+        "required": [
+          "id",
+          "sourceKind",
+          "originalSourceId",
+          "replacementSourceId",
+          "groupId",
+          "reason",
+          "postingDate",
+          "recordedAtUtc"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "sourceKind": {
+            "type": "string"
+          },
+          "originalSourceId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "replacementSourceId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "groupId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "reason": {
+            "type": "string"
+          },
+          "postingDate": {
+            "type": "string",
+            "format": "date"
+          },
+          "recordedAtUtc": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
       },
       "SystemResponse": {
         "required": [

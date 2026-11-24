@@ -125,57 +125,7 @@ SQL transaction, replay and close-adapter constraints.
 
 ## Internal purchase recognition
 
-BK-04 records an explicitly classified whole purchase unit as Expense or Inventory. Recognition
-before an invoice accrues cost against receipt accrual; an eligible invoice first records prepayment
-and supplier payable. An explicit match clears the original accrual or prepayment account, even after
-mapping changes, and posts only the approved cost difference. Inventory differences require durable
-held-inventory evidence. Equal amounts alone never match sources.
-
-Components distinguish cost, positive discount reductions, freight, charges, nonrecoverable tax,
-recoverable tax and signed rounding. Amounts must exactly fit the configured currency scale; one
-approved rounding component per invoice source may not exceed one minor unit in absolute value.
-Source capacity, rounding and released-capacity date limits span surviving source revisions. A
-second side cannot predate the first posting. Amount-only partial matches are unsupported.
-
-Correction discovers and reverses the complete dependency group and optionally replaces both sides
-with fresh revisions. Original evidence remains immutable, zero-value sides retain receipts without
-inventing journals, and retries require current authority. Journal detail exposes recognition units,
-components, matches and correction relationships to authorized accounting readers. Cutoff lists and
-trial balances retain the original activity when later corrections fall outside their filters.
-
-These kernels have no runtime execute grants or public financial write routes. BK-05 supplies the
-internal bill-source adapter described below; synthetic receipt adapters exist only in disposable tests. `BookkeepingAvailable` remains false;
-public payment and bill entry, operational fulfillment, item valuation, cost of sales and production closing
-remain future work.
-
-Recognition requires explicit evidence of consumed goods/performed services for Expense, or goods,
-positive quantity/unit and documented control transfer for Inventory. Physical possession alone is
-insufficient. Invoice-first Prepayment needs an eligible present obligation and enforceable future
-right, with reviewer rationale; a demand or pro forma cannot establish that. Recoverable tax needs
-an explicit policy reference and reviewed entitlement on its effective date. Nonrecoverable tax
-belongs to the classified cost. Country, supplier, account name and document label infer none of these.
-Unsupported eligibility, tax entitlement, fixed assets/depreciation, consignment, FX and automatic
-amortization reject pending their own supported policies.
-
-Let E be approved receipt-first estimated cost, C final invoice cost including nonrecoverable tax,
-and T explicitly recoverable tax:
-
-| Event | Entries |
-| --- | --- |
-| Recognition before invoice | Debit Expense/Inventory E; credit receipt accrual E. |
-| Invoice after recognition | Debit original accrual E; debit/credit original cost by C − E; debit RecoverableTax T; credit SupplierPayable C + T. |
-| Eligible invoice before recognition | Debit Prepayment C and RecoverableTax T; credit SupplierPayable C + T. |
-| Recognition after invoice | Debit Expense/Inventory C; credit original Prepayment C. |
-
-For inventory received at 100 then invoiced at cost 105 plus recoverable tax 5, matching leaves
-Inventory 105, tax asset 5, accrual 0 and payable 110. A final cost of 98 instead credits cost by 2;
-it is not a supplier credit note. Expense adjustments retain the original expense account. Inventory
-adjustments need trusted evidence that the goods remain held; reviewer assertions cannot establish
-that evidence. With no production inventory-state adapter, bill inventory variances reject, while
-equal-value inventory matching remains supported. Cash deposits belong to SupplierAdvance, not
-recognition Prepayment. Third-party charges need their own supplier/source. Every cost component,
-discount, charge and rounding assignment is explicit; unexplained differences cannot plug tax or
-an unrelated expense account.
+[Recognition policy and posting examples](accounting-purchase-recognition.md#internal-purchase-recognition).
 
 ## Internal supplier bills
 
@@ -184,7 +134,8 @@ must equal the declared total exactly. Review checks currency precision, require
 assigned cost bounds, tax policy evidence and the single-source rounding limit. Invoice posting derives every recognition claim from the
 reviewed revision; it cannot accept caller-supplied accounting overrides. Pro forma requests may be
 reviewed but cannot post. Posted bills cannot be edited, abandoned or corrected through generic
-recognition/journal commands; a complete bill correction workflow remains future work.
+recognition/journal commands. The internal [supplier bill correction command](#internal-supplier-credits-refunds-and-corrections)
+handles the complete source correction. Public financial entry and bookkeeping activation remain gated.
 
 Normalized supplier references span all POs and currencies for that supplier. Review records reasons
 for the exact current set of conflicts, and posting rechecks that set under the shared financial lock.
@@ -246,9 +197,8 @@ Fully allocated payments retain gross capacity evidence even when their journal 
 Payment correction reverses recorded cash evidence; it is distinct from an actual supplier refund.
 
 These commands have no runtime mutation grants, assigned production write permissions or public
-write UI/routes. `BookkeepingAvailable` remains false. Credit/refund sources and complete bill
-correction workflows are future work; disposable adapters test their allocation-participant contracts
-only. Posted evidence is protected by the BK-07 retention boundary below. See the
+write UI/routes. `BookkeepingAvailable` remains false. Posted evidence is protected by the retention
+boundary below. See the
 [BK-06 specification](specs/2026-09-27-bk-06-supplier-open-items-and-allocations.md) for implementation
 evidence and remaining release gates, and [Architecture](ARCHITECTURE.md#supplier-open-items-and-allocations)
 for the unmeasured reporting-cost limit.
@@ -258,9 +208,39 @@ the [architecture](ARCHITECTURE.md#atomic-journal-foundation) owns the journal, 
 boundaries;
 the [PO-07 prerequisites](specs/2026-09-20-po-07-deposits-and-payments.md) describe later bookkeeping gates.
 
+## Internal supplier credits, refunds and corrections
+
+BK-08 adds internal SQL commands for credit notes, incoming refunds, outgoing refund repayments,
+and complete corrections of posted bills, credits and cash sources. Credit notes reference exact
+posted bill revisions and component claims. They preserve the original account and currency scale.
+A credit creates a supplier receivable and may be explicitly applied to open debt. An actual refund
+uses Bank or Cash and consumes a receivable or unused advance. An actual repayment uses Bank or
+Cash to settle refund clearing. These commands record money that moved outside Workbench.
+
+Source corrections preserve originals and append exact inverses and any approved successors.
+A bill or credit correction preserves the original cash. For example, correcting a credit of 18
+already refunded in full to 10 leaves the bank receipt at 18 and an outstanding clearing liability
+of 8 after explicit reapplication. Paying back the 8 is a separate outgoing repayment.
+Correcting a mistaken cash record instead reverses that record and can record an explicit replacement.
+Each complete correction uses one eligible posting date. Previews show the exact journal lines,
+including the account revision on each line, and the projected balances of affected open items.
+Execution checks that the posted journals match the preview before the correction commits.
+
+Journal and supplier-item detail expose typed source IDs and revisions, original amounts, claims,
+source-owned settlements and direct correction links. A credit's receipts appear in its paged item
+history. History uses the same posting date, recorded time, and frozen
+group and journal ceilings as balances. Older pages exclude relationships committed after capture.
+Report access does not grant private-document downloads. Exact historical control ownership is
+required even when journal and subledger net amounts agree.
+
+Supported claims include original expense and eligible unrecognized prepayments. Inventory credits
+require a trusted held-inventory owner. Unsupported tax or inventory evidence and card-funded
+refunds are outside this release. Production permissions, public writes and bookkeeping activation
+remain gated. See the [approved BK-08 contract](specs/2026-10-19-bk-08-supplier-credits-and-refunds.md).
+
 ## Durable financial evidence
 
-BK-07 links authentic posted bill, payment and recognition sources to exact private document
+Financial evidence links authentic posted bill, payment, recognition, credit, refund and repayment sources to exact private document
 revisions, digests and lengths in the source transaction, including zero-value sources. Review alone
 does not acquire a hold. Original source snapshots, labels, links and receipts remain immutable;
 corrections, settlement and permission loss never release them. Internal source-owned supplements

@@ -35,7 +35,7 @@ describe('gem editor', () => {
     // WHEN the rebase is persisted THEN the saved state and navigation guard clear.
     fireEvent.click(screen.getByRole('button', { name: 'Save draft' }));
     await screen.findByText('Draft saved. Publication requires review.');
-    expect(callbacks.onDirtyChange).toHaveBeenLastCalledWith(false, false);
+    await waitFor(() => expect(callbacks.onDirtyChange).toHaveBeenLastCalledWith(false, false));
     expect(api.saveGemDraft).toHaveBeenLastCalledWith('draft', expect.objectContaining({ expectedPublishedRowVersion: 'published-v3', content }));
   });
   it('does not navigate back to a discarded editor when an outstanding save completes', async () => {
@@ -87,8 +87,7 @@ describe('gem editor', () => {
     fireEvent.change(screen.getByLabelText('Common name'), { target: { value: 'My ruby' } });
     // WHEN saving fails THEN input remains editable and the error summary is focused.
     fireEvent.click(screen.getByRole('button', { name: 'Save draft' }));
-    const summary = await screen.findByRole('alert');
-    expect(summary).toHaveFocus();
+    await waitFor(() => expect(screen.getByRole('alert')).toHaveFocus());
     expect(screen.getByLabelText('Common name')).toHaveValue('My ruby');
     expect(screen.getByRole('button', { name: 'Save draft' })).toBeEnabled();
     expect(screen.queryByText('Draft saved. Publication requires review.')).not.toBeInTheDocument();

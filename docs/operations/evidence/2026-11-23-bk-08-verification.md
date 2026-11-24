@@ -1,0 +1,58 @@
+# BK-08 verification on November 23, 2026
+
+BK-08 installs internal supplier credit, refund, repayment and source correction commands.
+The release adds authorized readback while keeping public financial entry and bookkeeping activation
+gated. The installed migration is `20261019010000_AddSupplierCreditsAndRefunds`.
+
+The move-only extraction in `d02475b` passed 78 characterization tests on Linux with disposable SQL
+Server. Coverage was measured on each resulting file under the approved coverage exception.
+
+| File | Lines | Branches |
+| --- | ---: | ---: |
+| JournalEntryQueries.cs | 94.1% | 98.3% |
+| JournalReportQueries.cs | 95.7% | 81.0% |
+| SupplierReconciliationQueries.cs | 96.6% | 96.2% |
+| SupplierReconciliationSnapshot.cs | 100.0% | 100.0% |
+| SupplierReconciliationValidation.cs | 100.0% | 86.0% |
+
+The readback implementation passed 36 focused SQL and HTTP regression cases. Its eight feature
+cases also passed after restoring deliberately altered source copies. Dropping the authentic cash
+owner proof admitted bank-line damage with equal supplier totals. Discarding captured continuation
+ceilings exposed a later correction on an older cursor. Both faults failed the intended assertions.
+The current integrated solution built without warnings or errors. The generated client contract
+passed type checking.
+
+An upgrade test used the actual BK-07 predecessor on GitHub main `f46a81d` and posted a bill and a
+payment with held evidence before installing BK-08. Historical rows and exact authorized retry
+responses matched after installation. Copied release SQL without later-date availability protection
+or credit document capture failed the expected overspend and hold assertions in disposable databases.
+The selected source mutations were never applied to this worktree or its preview.
+
+The paired recovery cases restore genuine credit, incoming refund, repayment and correction history,
+then verify real available, missing and corrupt blob cases. Recovered accounting reports preserve the
+four-control model and report the actual content state. These checks establish behavior for the tested
+restore, permission and concurrency cases.
+
+The container smoke passed its SQL migration, principal provisioning, internal TLS, cookie/session
+and worker checks. A new isolated worktree preview served the current build at
+`http://localhost:32769`. Authentication without an accounting role received 403. Assigning the
+existing Accounting reader role enabled private, non-cacheable journal, item and reconciliation GETs.
+The empty report reconciled to zero, a malformed cursor returned 400, and the purchase order list
+returned 200. After the internal review fixes, a separate preview installed the final migration at
+`http://localhost:32772` and repeated the report access checks. The purchase and document APIs also
+committed a sample order, accepted a synthetic PDF, and removed a separate unposted document.
+Protected internal commands posted the expense example and both correction examples in the fresh
+preview. The expense example showed a 100.00 deposit, 206.60 balance payment, and 18.00 refund, with
+recognized cost and net bank outflow both at 288.60. The credit correction preserved the actual
+18.00 bank receipt and left an 8.00 clearing liability. The bill correction preserved the 300.00
+payment and left a 20.00 advance. All three reconciled. The retained PDF was available and its
+ordinary removal returned 409.
+
+The review regressions reproduced the split cash posting date, caller transaction rollback,
+missing preview clearing balance, assigned-rounding overclaim, and two report ownership and paging
+problems. The corrected preview exposed the clearing liability of 8, preserved the caller's
+transaction, and kept October unmaterialized until an actual write. The corrected HTTP reads
+returned each partial refund on its item-history page and left an unrelated application off the
+cash row. All ten BK-07 predecessor tests passed after repairing the fixture constructor. The
+paid-bill and standalone correction cases passed with genuine invoice and payment prerequisites
+prepared outside the timed assertions. The hardened container smoke passed again after review.
