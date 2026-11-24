@@ -149,6 +149,8 @@ function global:Receive-Job { param($Job, $ErrorAction) if ($global:partitionTes
 function global:Stop-Job { param($Job, $ErrorAction) $Job.State = 'Stopped' }
 function global:Remove-Job { param($Job, [switch]$Force, $ErrorAction) }
 $runnerRoot = Join-Path ([IO.Path]::GetTempPath()) "partition-runner-$([Guid]::NewGuid().ToString('N'))"
+$checkout = (Resolve-Path "$PSScriptRoot/../..").Path
+$customResults = Join-Path $checkout "partition-results-$([guid]::NewGuid().ToString('N'))"
 try {
     $runner = Join-Path $PSScriptRoot '../../scripts/test-server-partitions.ps1'
     # WHEN standalone execution runs with bounded concurrency
@@ -167,9 +169,9 @@ try {
         throw 'Prepared invocation repeated shared build prerequisites.'
     }
     # GIVEN four cohorts WHEN a host requests cohorts 3 and 4 THEN it records only partial execution.
-    $selectedRoot = Join-Path $runnerRoot 'selected'
-    & $runner -ResultsDirectory $selectedRoot -NoBuild -PartitionCount 4 -PartitionIds 3,4
-    $receipt = Get-ChildItem $selectedRoot -Recurse -Filter server-receipt.json | Get-Content -Raw | ConvertFrom-Json
+    # AND newly generated results in an unignored checkout directory do not change source identity.
+    & $runner -ResultsDirectory $customResults -NoBuild -PartitionCount 4 -PartitionIds 3,4
+    $receipt = Get-ChildItem $customResults -Recurse -Filter server-receipt.json | Get-Content -Raw | ConvertFrom-Json
     if ($receipt.ExecutionKind -cne 'Partial' -or ($receipt.PartitionIds -join ',') -cne '3,4' -or $receipt.Succeeded -ne $true) {
         throw 'Selected execution must emit a successful partial receipt.'
     }
@@ -181,6 +183,11 @@ try {
     }
 }
 finally {
+    if (Test-Path -LiteralPath $customResults) {
+        $resolved = (Resolve-Path -LiteralPath $customResults).Path
+        if ((Split-Path $resolved -Parent) -cne $checkout) { throw 'Unexpected custom results location.' }
+        Remove-Item -LiteralPath $resolved -Recurse -Force
+    }
     foreach ($name in @('dotnet', 'Start-Job', 'Wait-Job', 'Receive-Job', 'Stop-Job', 'Remove-Job')) {
         Remove-Item "Function:\$name" -ErrorAction SilentlyContinue
     }

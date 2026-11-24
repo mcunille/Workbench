@@ -35,7 +35,7 @@ $receipt = [ordered]@{
 try {
     $receipt.CheckoutRevision = git rev-parse HEAD
     if ($LASTEXITCODE -ne 0) { throw 'Cannot resolve server checkout revision.' }
-    $receipt.SourceHash = Get-VerificationSourceHash $repositoryRoot
+    $receipt.SourceHash = Get-VerificationSourceHash $repositoryRoot -InvocationOutputRoot $runRoot
     $env:DOTNET_CLI_UI_LANGUAGE = 'en'
     $env:VSLANG = '1033'
     if (-not $NoBuild) {
@@ -110,7 +110,7 @@ try {
     }
     if ($jobs.Count -ne $selected.Count -or @($jobs | Where-Object { -not $_.Collected }).Count -ne 0) { throw 'Required server partition completion is missing.' }
     if ($failures.Count -gt 0) { throw "Server partitions failed: $($failures -join ' ') Evidence: $runRoot" }
-    if ($receipt.SourceHash -cne (Get-VerificationSourceHash $repositoryRoot) -or
+    if ($receipt.SourceHash -cne (Get-VerificationSourceHash $repositoryRoot -InvocationOutputRoot $runRoot) -or
         $receipt.CheckoutRevision -cne (git rev-parse HEAD) -or $LASTEXITCODE -ne 0) { throw 'Server source changed during verification.' }
     $receipt.Succeeded = $true
     Write-Host "$($receipt.ExecutionKind) server execution passed for partitions $($selected.Id -join ','). Evidence: $runRoot"

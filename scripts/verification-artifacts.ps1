@@ -1,8 +1,19 @@
 # Current-run artifacts are owned by the gate. Consumers validate them but never delete them.
 function Get-VerificationSourceHash {
-    param([string]$RepositoryRoot, [switch]$BeforeGeneration)
-    $paths = @(git -C $RepositoryRoot -c core.quotepath=false ls-files --cached --others --exclude-standard)
+    param([string]$RepositoryRoot, [switch]$BeforeGeneration, [string]$InvocationOutputRoot)
+    $paths = @(git -C $RepositoryRoot -c core.quotepath=false ls-files --cached)
     if ($LASTEXITCODE -ne 0) { throw 'Cannot inventory current source for artifact provenance.' }
+    $untracked = @(git -C $RepositoryRoot -c core.quotepath=false ls-files --others --exclude-standard)
+    if ($LASTEXITCODE -ne 0) { throw 'Cannot inventory untracked source for artifact provenance.' }
+    if ($InvocationOutputRoot) {
+        $relative = [IO.Path]::GetRelativePath($RepositoryRoot, $InvocationOutputRoot).Replace('\', '/')
+        if ($relative -ne '.' -and $relative -ne '..' -and -not $relative.StartsWith('../', [StringComparison]::Ordinal) -and
+            -not [IO.Path]::IsPathRooted($relative)) {
+            $comparison = if ($IsWindows) { [StringComparison]::OrdinalIgnoreCase } else { [StringComparison]::Ordinal }
+            $untracked = @($untracked | Where-Object { -not $_.StartsWith("$relative/", $comparison) })
+        }
+    }
+    $paths += $untracked
     $entries = foreach ($relative in ($paths | Sort-Object -Unique)) {
         if ($BeforeGeneration -and $relative -in @('src/Workbench.Client/openapi/Workbench.Server_beta.json', 'src/Workbench.Client/src/api/generated.ts')) { continue }
         $path = Join-Path $RepositoryRoot $relative

@@ -51,7 +51,7 @@ is historical context for the current acceptance matrix. The [cost worksheet](op
 retains its own measurement and pricing limits.
 
 Local [test iteration](../CONTRIBUTING.md#focused-local-iteration),
-[concurrent verification](../tests/README.md#gate-provenance-and-scheduling) and
+[concurrent verification](../tests/ci-verification.md) and
 [forwarded metadata trust](operations/azure-deployment.md#trust-tls-and-readiness-acceptance) remain distinct decisions.
 
 ## Still to be decided

@@ -80,8 +80,17 @@ try {
     Set-Content -LiteralPath $inventoryPath $original.Replace('Suite.A.One', 'Suite.A.Other')
     Assert-Rejected { Assert-DistributedServerVerification $sourceGate $roots $revision $sourceHash $dataset } 'inventory'
     Set-Content -LiteralPath $inventoryPath $original
-    Write-Json @{} (Join-Path $roots[1] 'partition-4/timing.json')
+    $timingPath = Join-Path $roots[1] 'partition-4/timing.json'
+    Write-Json @{} $timingPath
     Assert-Rejected { Assert-DistributedServerVerification $sourceGate $roots $revision $sourceHash $dataset } 'native completion'
+    # GIVEN complete receipts WHEN the cohort exits nonzero THEN successful TRX rows cannot make it pass.
+    Write-Json @{ ExitCode = 1; Seconds = 10 } $timingPath
+    Assert-Rejected { Assert-DistributedServerVerification $sourceGate $roots $revision $sourceHash $dataset } 'failed with exit code 1'
+    # GIVEN successful native completion WHEN the TRX has a failing row THEN the aggregate rejects it.
+    Write-Json @{ ExitCode = 0; Seconds = 10 } $timingPath
+    $trxPath = Join-Path $roots[1] 'partition-4/results.trx'
+    (Get-Content -LiteralPath $trxPath -Raw).Replace('outcome="Passed"', 'outcome="Failed"') | Set-Content -LiteralPath $trxPath
+    Assert-Rejected { Assert-DistributedServerVerification $sourceGate $roots $revision $sourceHash $dataset } 'non-passing outcome'
     Write-Host 'Distributed server admission passed.'
 }
 finally {
