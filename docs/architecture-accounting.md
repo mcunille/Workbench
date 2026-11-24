@@ -160,6 +160,20 @@ entry remains a separate gate. See [supplier read APIs](accounting.md#supplier-o
 [migration/recovery boundaries](operations/database-migrations.md#supplier-open-item-migration-and-recovery)
 and the [BK-06 specification](specs/2026-09-27-bk-06-supplier-open-items-and-allocations.md).
 
+### Supplier credit and cash sources
+
+BK-08 keeps credit notes, incoming refunds and outgoing refund repayments as separate immutable
+Purchasing sources. Source identity includes kind, ID and revision. Cash settlements consume exact
+historical control positions. A noncash release opens a clearing item tied to the original incoming
+settlement. Cash recording errors use linked original journal inverses. Bill and credit corrections
+append recognition or credit successors without rewriting the cash movement.
+
+The shared Accounting lock covers the complete authorized correction and affected posting dates.
+Each correction has a finalized owner receipt, typed original and successor links, and exact journal
+membership. Report capture uses retained owners and the original account revisions to prove the
+four control families. Typed item and journal history preserve the captured cutoffs and ceilings.
+See [credit and refund behavior](accounting.md#internal-supplier-credits-refunds-and-corrections).
+
 ### Durable financial evidence
 
 BK-07 adds immutable tenant-qualified evidence sets, revision links, additions and disposal receipts

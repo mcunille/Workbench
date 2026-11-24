@@ -1,6 +1,6 @@
 # PO-07: ledger-backed purchase payments and bookkeeping prerequisites
 
-**Status:** Public PO-07 workflow remains proposed; BK-01–06 prerequisites have separate approved
+**Status:** Public PO-07 workflow remains proposed. BK-01–08 prerequisites have separate approved
 implementation boundaries described below. Remaining stories require their own approval and release
 evidence. This replaces the unimplemented aggregate "Confirm supplier total" proposal and does not
 activate production bookkeeping.
@@ -16,8 +16,7 @@ It does not enable production bookkeeping.
 
 The implemented [BK-05 supplier bill foundation](../accounting.md#internal-supplier-bills)
 adds internal immutable revisions, review, duplicate resolution and source-derived invoice posting
-through BK-04. Public bill entry, runtime mutation grants and bill corrections remain unavailable;
-this delivery does not enable production bookkeeping or payments. The later
+through BK-04. Public bill entry and runtime mutation grants remain gated. The
 [BK-07 boundary](../accounting.md#durable-financial-evidence) supplies posted evidence holds.
 
 The implemented [BK-06 supplier subledger](2026-09-27-bk-06-supplier-open-items-and-allocations.md)
@@ -26,9 +25,12 @@ four-control reconciliation reads. Posting-date and recorded-time cutoffs and co
 preserve historical readback. Targeted SQL/HTTP, supported-base upgrade and guarded SQL recovery
 evidence exists; complete-branch review, full release gates and retained-preview inspection are still
 pending. Runtime financial mutation grants, production write-permission assignments and public
-financial-write UI/routes remain absent. `BookkeepingAvailable` stays false. Future source-owned
-bill/credit correction participants have disposable tests only; BK-07 retention, BK-08 business
-sources and the remaining PO-07 release stories are not delivered by this increment.
+financial-write UI/routes remain absent. `BookkeepingAvailable` stays false.
+
+[BK-08](2026-10-19-bk-08-supplier-credits-and-refunds.md) adds internal typed credits, refunds,
+repayments and source corrections. Bill and credit corrections preserve actual cash, while a
+cash-recording error has its own inverse and optional replacement. Authorized read routes expose
+the retained source information. Public PO-07 and BK-09–12 retain their release gates.
 
 ## Decision and evidence
 

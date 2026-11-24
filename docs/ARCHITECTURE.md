@@ -68,6 +68,10 @@ See [collection design records](collection.md#design-records) for the individual
 
 [Read this section](architecture-accounting.md#durable-financial-evidence).
 
+### Supplier credit and cash sources
+
+[Read this section](architecture-accounting.md#supplier-credit-and-cash-sources).
+
 ### Collection records export
 
 [Read this section](architecture-collection-purchasing.md#collection-records-export).

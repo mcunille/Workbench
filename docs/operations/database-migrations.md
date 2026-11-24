@@ -151,6 +151,15 @@ blocked with 50020. Use forward correction or guarded paired recovery. A preview
 earlier unmerged installer needs a separately reviewed data-preserving refresh; never reset migration
 history or delete retained data. Full gate and preview outcomes belong in the dated BK-07 evidence.
 
+### Supplier credit and refund migration and recovery
+
+`20261019010000_AddSupplierCreditsAndRefunds` follows the BK-07 evidence migration. Use the matching
+binary and stop incompatible writers during installation. The migration creates the typed source
+records and owner procedures and adds report-only grants under tenant RLS. Existing stored sources,
+journals, receipts and holds retain their bytes. No synthetic credit or refund is derived from a
+document or legacy journal. Restore the matching SQL and blob pair through the guarded recovery
+procedure. Down rejects with 50020 before dropping financial history.
+
 ## Authoring and validating a migration
 
 Before opening or updating a pull request, consolidate development-only migrations introduced by

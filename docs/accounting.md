@@ -196,9 +196,8 @@ Fully allocated payments retain gross capacity evidence even when their journal 
 Payment correction reverses recorded cash evidence; it is distinct from an actual supplier refund.
 
 These commands have no runtime mutation grants, assigned production write permissions or public
-write UI/routes. `BookkeepingAvailable` remains false. Credit/refund sources and complete bill
-correction workflows are future work; disposable adapters test their allocation-participant contracts
-only. Posted evidence is protected by the BK-07 retention boundary below. See the
+write UI/routes. `BookkeepingAvailable` remains false. Posted evidence is protected by the retention
+boundary below. See the
 [BK-06 specification](specs/2026-09-27-bk-06-supplier-open-items-and-allocations.md) for implementation
 evidence and remaining release gates, and [Architecture](ARCHITECTURE.md#supplier-open-items-and-allocations)
 for the unmeasured reporting-cost limit.
@@ -208,9 +207,35 @@ the [architecture](ARCHITECTURE.md#atomic-journal-foundation) owns the journal, 
 boundaries;
 the [PO-07 prerequisites](specs/2026-09-20-po-07-deposits-and-payments.md) describe later bookkeeping gates.
 
+## Internal supplier credits, refunds and corrections
+
+BK-08 adds internal SQL commands for credit notes, incoming refunds, outgoing refund repayments,
+and complete corrections of posted bills, credits and cash sources. Credit notes reference exact
+posted bill revisions and component claims. They preserve the original account and currency scale.
+A credit creates a supplier receivable and may be explicitly applied to open debt. An actual refund
+uses Bank or Cash and consumes a receivable or unused advance. An actual repayment uses Bank or
+Cash to settle refund clearing. These commands record money that moved outside Workbench.
+
+Source corrections preserve originals and append exact inverses and any approved successors.
+A bill or credit correction preserves the original cash. For example, correcting a credit of 18
+already refunded in full to 10 leaves the bank receipt at 18 and an outstanding clearing liability
+of 8 after explicit reapplication. Paying back the 8 is a separate outgoing repayment.
+Correcting a mistaken cash record instead reverses that record and can record an explicit replacement.
+
+Journal and supplier-item detail expose typed source IDs and revisions, original amounts, claims,
+settlements and correction links. History uses the same posting date, recorded time, and frozen
+group and journal ceilings as balances. Older pages exclude relationships committed after capture.
+Report access does not grant private-document downloads. Exact historical control ownership is
+required even when journal and subledger net amounts agree.
+
+Supported claims include original expense and eligible unrecognized prepayments. Inventory credits
+require a trusted held-inventory owner. Unsupported tax or inventory evidence and card-funded
+refunds are outside this release. Production permissions, public writes and bookkeeping activation
+remain gated. See the [approved BK-08 contract](specs/2026-10-19-bk-08-supplier-credits-and-refunds.md).
+
 ## Durable financial evidence
 
-BK-07 links authentic posted bill, payment and recognition sources to exact private document
+Financial evidence links authentic posted bill, payment, recognition, credit, refund and repayment sources to exact private document
 revisions, digests and lengths in the source transaction, including zero-value sources. Review alone
 does not acquire a hold. Original source snapshots, labels, links and receipts remain immutable;
 corrections, settlement and permission loss never release them. Internal source-owned supplements

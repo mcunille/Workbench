@@ -64,6 +64,10 @@ uploads remain recoverable pending operations; reconciliation reports their unre
 
 ### Financial evidence retention
 
+The same inventory, hold, disposal and paired-recovery rules apply to BK-08 credit notes, incoming
+refunds and outgoing refund repayments. A source correction can inherit retained documents under
+its own typed owner. Settlement or reversal preserves the existing links and their frozen deadlines.
+
 BK-07 acquires authoritative source/revision links and effective `Held` protection in the posting
 transaction. Independent holds remain separate and cannot be cleared by disposal. Ordinary removal
 rejects linked documents, including expired links; preparation and completion both revalidate.

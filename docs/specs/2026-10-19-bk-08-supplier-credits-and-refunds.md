@@ -1,13 +1,11 @@
 # BK-08: supplier credits, refunds and source corrections
 
-**Status:** Accepted written specification, including its linked authority, recovery and verification
-contract. The user approved the scope and then both written artifacts on October 19, 2026.
-The implementation plan and execution method still require their handoff. No runtime changes or
-bookkeeping activation are claimed.
+**Status:** Accepted on October 19, 2026. The approved plan implements the internal command and
+report boundary. Public financial writes and bookkeeping activation remain gated.
 
 Parent: [PO-07 bookkeeping prerequisites](2026-09-20-po-07-deposits-and-payments.md).
-Dependencies: [BK-04 recognition](2026-09-25-bk-04-classified-purchase-recognition.md),
-[BK-05 bills](2026-09-27-bk-05-structured-supplier-bills.md),
+Dependencies: [BK-04 recognition](../accounting-purchase-recognition.md),
+[BK-05 bills](../accounting.md#internal-supplier-bills),
 [BK-06 open items](2026-09-27-bk-06-supplier-open-items-and-allocations.md), and
 [BK-07 retention](2026-09-28-bk-07-durable-financial-evidence.md).
 Inspected baseline: main commit `20d3e28`; schema ends at

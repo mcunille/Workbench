@@ -19,7 +19,7 @@ BK-05 bill mutations (`Purchasing.SaveSupplierBill`, `ReviewSupplierBill`, `Post
 no `workbench_web` EXECUTE grant. The fixed `SupplierBillsManage` and `SupplierBillsPost` permissions
 are not assigned to production roles. Bill tables deny direct runtime writes; bounded read procedures
 require current management or accounting-report authority. Do not activate these commands as a
-deployment shortcut: public entry, complete bill corrections and production
+deployment shortcut: public entry and production
 reconciliation acceptance remain release gates.
 
 BK-06 supplier financial tables expose tenant-RLS SELECT to `workbench_web`; direct INSERT, UPDATE
@@ -46,6 +46,11 @@ and `IndependentHeld` deny direct web/worker updates. Capture, acquisition, supp
 builders have no runtime execution authority. Existing source-owned procedures call them by ownership
 chain; this adds no public financial writer. Disposal requires current document management and
 `AccountingConfigurationManage`; readback and saved outcomes reauthorize each request.
+
+BK-08 adds explicit, tenant-filtered web reads of supplier credit, cash and correction history.
+`SupplierCreditControl`, `SupplierCashControl` and `SupplierRefundReleaseControl` prove historical
+owners for reporting. Neither runtime role may mutate these tables or run the internal posting
+and correction commands. No production role is assigned the new source write permissions.
 
 The online backup collector has separate direct CONNECT and `Storage.ExportManifest` EXECUTE
 authority, scoped to the configured installation's SQL database. It receives no workload role or raw

@@ -1,6 +1,8 @@
 # BK-08: authority, recovery and verification contract
 
-**Status:** Accepted with the written [BK-08 specification](2026-10-19-bk-08-supplier-credits-and-refunds.md) on October 19, 2026. These requirements are normative for that design. The implementation-plan handoff remains pending; no runtime verification is claimed.
+**Status:** Accepted with the written [BK-08 specification](2026-10-19-bk-08-supplier-credits-and-refunds.md) on October 19, 2026. These requirements govern the internal implementation. Dated verification records distinguish observed results from release requirements.
+
+See the [November 23 verification evidence](../operations/evidence/2026-11-23-bk-08-verification.md).
 
 ## Authority, transactions and failure behavior
 
