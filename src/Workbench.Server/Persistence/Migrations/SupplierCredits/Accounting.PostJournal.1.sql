@@ -131,7 +131,7 @@ BEGIN
   UPDATE @Input SET Debit=CONVERT(decimal(28,4),DebitText),Credit=CONVERT(decimal(28,4),CreditText);
   IF EXISTS(SELECT 1 FROM @Input WHERE (Debit>0 AND Credit>0) OR (Debit=0 AND Credit=0) OR Debit<0 OR Credit<0)
      THROW 51000,'Exactly one positive amount is required on each line.',1;
-  
+
   DECLARE @Historical TABLE(Ordinal int PRIMARY KEY,AccountId uniqueidentifier,AccountVersion uniqueidentifier,
     AccountCode nvarchar(32),AccountName nvarchar(160),AccountType nvarchar(40),AccountPurpose nvarchar(40));
   IF @SourceCommandKind=N'Supplier.Credit' AND @RequiredPermission=N'SupplierCreditsCorrect'

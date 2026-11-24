@@ -46,7 +46,7 @@ AS BEGIN
       OR TRY_CONVERT(uniqueidentifier,JSON_VALUE(@Replacement,'$.purchaseOrderId'))<>@Po
       OR TRY_CONVERT(uniqueidentifier,JSON_VALUE(@Replacement,'$.supplierId'))<>@Supplier
       OR JSON_VALUE(@Replacement,'$.currency') COLLATE Latin1_General_100_BIN2<>@Currency
-      OR @Posting<@Date OR CONVERT(date,JSON_VALUE(@Replacement,'$.actualDate'),23)>@Posting
+      OR @Posting<>@Date OR CONVERT(date,JSON_VALUE(@Replacement,'$.actualDate'),23)>@Posting
       OR CONVERT(date,JSON_VALUE(@Replacement,'$.effectiveDate'),23)>@Posting
       THROW 51004,'A cash successor must preserve scope and use valid correction dates and versions.',1;
     IF EXISTS(SELECT 1 FROM Purchasing.SupplierCashSources WHERE TenantId=@TenantId AND (Id=@Id OR RevisionId=@Revision))

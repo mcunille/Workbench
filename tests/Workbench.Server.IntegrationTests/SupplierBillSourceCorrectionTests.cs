@@ -6,23 +6,21 @@ using Xunit;
 namespace Workbench.Server.IntegrationTests;
 
 [Collection(SqlServerCollection.Name)]
-public sealed class SupplierBillSourceCorrectionTests(SqlServerFixture sqlServer)
+public sealed class SupplierBillSourceCorrectionTests(SqlServerFixture sqlServer, SupplierPaidBillFixture paidBill)
+    : IClassFixture<SupplierPaidBillFixture>
 {
     [Fact]
     public async Task PaidBill300CorrectedTo280PreservesPaymentAndAdvance20()
     {
         // GIVEN a real reviewed invoice and its embedded three-hundred-dollar payment.
-        await using var context = await SupplierCreditTestContext.OpenAsync(sqlServer);
-        await context.EnableBillCorrectionsAsync();
-        var bill = await context.InvoiceOnlyBillAsync("300");
-        var payment = await context.Payments.CommandAsync("300");
-        await context.Payments.AllocateAsync(payment, bill, "300");
-        await context.Payments.RecordAsync(payment);
+        var prepared = await paidBill.OpenAsync();
+        await using var context = prepared.Context;
+        var bill = prepared.Bill;
         var cash = await context.PaymentCashEvidenceAsync();
         var source = await context.BillSourceEvidenceAsync(bill);
         var replacement = await context.BillReplacementAsync(bill, "280");
         var successor = Guid.Parse(replacement["post"]!["billId"]!.ToString());
-        var funding = Guid.Parse(payment["paymentId"]!.ToString());
+        var funding = prepared.Advance;
         var command = await context.CorrectionCommandAsync("Bill", bill, replacement);
         command["reapplications"]!.AsArray().Add(new JsonObject
         {
@@ -31,7 +29,10 @@ public sealed class SupplierBillSourceCorrectionTests(SqlServerFixture sqlServer
             ["amount"] = "280"
         });
         // WHEN the complete bill owner replaces the obligation and explicitly reapplies the payment.
-        await context.CaptureBillCorrectionPlanAsync(command);
+        var preview = await context.PreviewCorrectionAsync("Bill", command);
+        Assert.Equal(20m, SupplierCorrectionPreviewContractTests.RemainingBalance(preview, funding));
+        Assert.Equal(0m, SupplierCorrectionPreviewContractTests.RemainingBalance(preview, successor));
+        command["expectedPlanFingerprint"] = preview["planFingerprint"]!.DeepClone();
         await context.CorrectAsync("Bill", command);
         // THEN the bank payment stays exact and only twenty remains available as an advance.
         Assert.Equal((0m, 20m, -300m), (await context.BalanceAsync(successor),

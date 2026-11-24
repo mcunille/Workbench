@@ -67,7 +67,7 @@ AS BEGIN
       OR JSON_VALUE(@ReplacementCanonical,'$.currency') COLLATE Latin1_General_100_BIN2<>@Currency
       OR JSON_VALUE(@ReplacementCanonical,'$.expectedConfigurationVersion')<>JSON_VALUE(@Canonical,'$.expectedConfigurationVersion')
       OR JSON_VALUE(@ReplacementCanonical,'$.expectedPurchaseOrderVersion')<>JSON_VALUE(@Canonical,'$.expectedPurchaseOrderVersion')
-      OR CONVERT(date,JSON_VALUE(@ReplacementCanonical,'$.postingDate'),23)<@ChildDate
+      OR CONVERT(date,JSON_VALUE(@ReplacementCanonical,'$.postingDate'),23)<>@ChildDate
       OR CONVERT(date,JSON_VALUE(@ReplacementCanonical,'$.documentDate'),23)>CONVERT(date,JSON_VALUE(@ReplacementCanonical,'$.postingDate'),23)
       OR CONVERT(date,JSON_VALUE(@ReplacementCanonical,'$.effectiveDate'),23)>CONVERT(date,JSON_VALUE(@ReplacementCanonical,'$.postingDate'),23)
       THROW 51000,'Replacement must preserve source scope and eligible dates.',1;

@@ -52,10 +52,11 @@ internal sealed partial class SupplierCreditTestContext(SupplierPaymentTestConte
     }
 
     public async Task<Guid> ExpenseBillAsync(string amount, string date = "2026-09-15",
-        string classification = "Expense", string tax = "0", string rounding = "0")
+        string classification = "Expense", string tax = "0", string rounding = "0", string freight = "0")
     {
         var cost = (decimal.Parse(amount, System.Globalization.CultureInfo.InvariantCulture)
-            + decimal.Parse(rounding, System.Globalization.CultureInfo.InvariantCulture)).ToString(System.Globalization.CultureInfo.InvariantCulture);
+            + decimal.Parse(rounding, System.Globalization.CultureInfo.InvariantCulture)
+            + decimal.Parse(freight, System.Globalization.CultureInfo.InvariantCulture)).ToString(System.Globalization.CultureInfo.InvariantCulture);
         var receipt = await Bills.Recognition.CommandAsync(classification: classification, cost: cost);
         receipt["postingDate"] = date;
         await Bills.Recognition.PostAsync(receipt.ToJsonString());
@@ -70,6 +71,14 @@ internal sealed partial class SupplierCreditTestContext(SupplierPaymentTestConte
         unit["expectedPriorEventRevision"] = 1;
         unit["components"]![0]!["amount"] = amount;
         unit["components"]![1]!["amount"] = tax;
+        if (freight != "0") unit["components"]!.AsArray().Add(new JsonObject
+        {
+            ["componentKey"] = "freight",
+            ["kind"] = "Freight",
+            ["amount"] = freight,
+            ["assignedCostComponentKey"] = "base",
+            ["reason"] = "Freight charged on the original invoice"
+        });
         if (rounding != "0") unit["components"]!.AsArray().Add(new JsonObject
         {
             ["componentKey"] = "rounding",

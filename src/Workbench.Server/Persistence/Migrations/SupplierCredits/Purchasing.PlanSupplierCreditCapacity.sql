@@ -51,6 +51,26 @@ AS BEGIN
         AND adjustment.AssignedCostComponentKey=component.ComponentKey AND adjustment.Kind IN('Discount','Rounding')) assigned;
   IF EXISTS(SELECT 1 FROM @Balances WHERE Claimed<0 OR Claimed>Capacity OR TRY_CONVERT(decimal(28,4),Claimed) IS NULL)
     THROW 51009,'The complete proposal exceeds an original component posting boundary.',1;
+  -- A direct rounding claim spends the same allowance already included in its assigned component.
+  ;WITH rounding AS (
+    SELECT component.EventId,component.ComponentKey,component.AssignedCostComponentKey,
+      (SELECT MIN(Capacity) FROM @Balances balance WHERE balance.EventId=component.EventId
+        AND balance.ComponentKey=component.AssignedCostComponentKey) Capacity
+    FROM Purchasing.RecognitionComponents component
+    WHERE component.TenantId=@TenantId AND component.Kind='Rounding'
+      AND EXISTS(SELECT 1 FROM @Balances balance WHERE balance.EventId=component.EventId AND balance.ComponentKey=component.ComponentKey)
+  ), dates AS (
+    SELECT rounding.EventId,rounding.ComponentKey,rounding.Capacity,stream.PostingDate,SUM(CONVERT(decimal(38,4),stream.Amount)) Amount
+    FROM rounding JOIN @Stream stream ON stream.EventId=rounding.EventId
+      AND stream.ComponentKey IN(rounding.ComponentKey,rounding.AssignedCostComponentKey)
+    WHERE rounding.Capacity IS NOT NULL
+    GROUP BY rounding.EventId,rounding.ComponentKey,rounding.Capacity,stream.PostingDate
+  ), balances AS (
+    SELECT Capacity,SUM(Amount) OVER(PARTITION BY EventId,ComponentKey ORDER BY PostingDate ROWS UNBOUNDED PRECEDING) Claimed FROM dates
+  )
+  SELECT * INTO #AssignedRoundingCapacity FROM balances;
+  IF EXISTS(SELECT 1 FROM #AssignedRoundingCapacity WHERE Claimed>Capacity)
+    THROW 51009,'The complete proposal exceeds original assigned rounding capacity.',1;
   ;WITH dates AS(SELECT EventId,PostingDate,SUM(CONVERT(decimal(38,4),Amount)) Amount FROM @Stream GROUP BY EventId,PostingDate),
   balances AS(SELECT EventId,PostingDate,SUM(Amount) OVER(PARTITION BY EventId ORDER BY PostingDate ROWS UNBOUNDED PRECEDING) Claimed FROM dates)
   SELECT * INTO #WholeCreditCapacity FROM balances;

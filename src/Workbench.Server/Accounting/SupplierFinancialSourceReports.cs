@@ -23,7 +23,7 @@ internal static class SupplierFinancialSourceReports
                     row.ComponentKey, Money(Units(row.Amount), snapshot.Scale), row.Treatment, row.AccountId, row.AccountVersion)).ToArray();
             return new(kind, sourceId, revision, Money(Units(credit.Total), snapshot.Scale), credit.DocumentDate,
                 credit.EffectiveDate, credit.PostingDate, null, null, credit.Reference, null, null, claims,
-                Settlements(snapshot, snapshot.Evidence(snapshot.SettlementsByItem, sourceId)), Lineage(snapshot, kind, sourceId, revision));
+                [], Lineage(snapshot, kind, sourceId, revision));
         }
 
         if (kind == "SupplierRefundRelease")
@@ -109,28 +109,9 @@ internal static class SupplierFinancialSourceReports
         return result.OrderBy(row => row.PostingDate).ThenBy(row => row.Id).ToArray();
     }
 
-    private static SupplierSourceCorrectionEvidence[] Lineage(Snapshot snapshot, string kind, Guid id, Guid revision)
-    {
-        var edges = new Dictionary<Guid, SupplierSourceCorrection>();
-        var seen = new HashSet<(Guid, Guid)>();
-        var pending = new Queue<(Guid, Guid)>();
-        pending.Enqueue((id, revision));
-        while (pending.TryDequeue(out var key))
-        {
-            if (!seen.Add(key)) continue;
-            var (sourceId, sourceRevision) = key;
-            var candidates = snapshot.Evidence(snapshot.CorrectionsByOriginal, (kind, sourceId, sourceRevision))
-                .Concat(snapshot.Evidence(snapshot.CorrectionsByReplacement, (kind, sourceId, sourceRevision)));
-            foreach (var edge in snapshot.Observe(candidates).Where(snapshot.VisibleSourceCorrection))
-            {
-                if (!edges.TryAdd(edge.Id, edge)) continue;
-                pending.Enqueue((edge.SourceId, edge.SourceRevisionId));
-                if (edge.ReplacementSourceId is { } replacement && edge.ReplacementSourceRevisionId is { } replacementRevision)
-                    pending.Enqueue((replacement, replacementRevision));
-            }
-        }
-        return CorrectionRows(snapshot, edges.Values);
-    }
+    private static SupplierSourceCorrectionEvidence[] Lineage(Snapshot snapshot, string kind, Guid id, Guid revision) =>
+        CorrectionRows(snapshot, snapshot.Evidence(snapshot.CorrectionsByOriginal, (kind, id, revision))
+            .Concat(snapshot.Evidence(snapshot.CorrectionsByReplacement, (kind, id, revision))));
 
     private static SupplierSourceCorrectionEvidence[] CorrectionRows(Snapshot snapshot, IEnumerable<SupplierSourceCorrection> rows) =>
         snapshot.Observe(rows).Where(snapshot.VisibleSourceCorrection).DistinctBy(row => row.Id)

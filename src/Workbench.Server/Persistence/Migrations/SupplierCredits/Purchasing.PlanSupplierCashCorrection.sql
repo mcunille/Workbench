@@ -27,7 +27,13 @@ AS BEGIN
   SET @Scale=TRY_CONVERT(int,JSON_VALUE(@Policy,'$.policies.scale'));
   IF @Scale IS NULL OR @Scale NOT BETWEEN 0 AND 4 OR JSON_VALUE(@Policy,'$.policies.currency') COLLATE Latin1_General_100_BIN2<>@Currency
     THROW 51000,'Cash correction currency or policy is invalid.',1;
-  EXEC Accounting.EnsureOpenPeriod @Date,@Config;
+  DECLARE @FiscalMonth int=TRY_CONVERT(int,JSON_VALUE(@Policy,'$.policies.fiscalStartMonth')),
+    @StartDate date=TRY_CONVERT(date,JSON_VALUE(@Policy,'$.policies.plannedStartDate'),23);
+  IF @FiscalMonth IS NULL OR @FiscalMonth NOT BETWEEN 1 AND 12 OR @StartDate IS NULL
+    OR JSON_VALUE(@Policy,'$.policies.startApproach') IS NULL
+    THROW 51000,'Accounting calendar is incomplete.',1;
+  IF @Date<@StartDate OR (YEAR(@Date)=1 AND MONTH(@Date)<@FiscalMonth)
+    THROW 51000,'Cash correction posting date is outside the accounting calendar.',1;
   EXEC Purchasing.BuildSupplierCashCorrectionSources @TenantId,@Operation,@Canonical,@Sources OUTPUT,@Releases OUTPUT,@Applications OUTPUT;
   EXEC Purchasing.ResolveSupplierCashCorrectionReplacements @TenantId,@Canonical,@Sources OUTPUT,@Targets OUTPUT,@EvidenceBindings OUTPUT;
   IF EXISTS(SELECT 1 FROM OPENJSON(@Releases)) OR EXISTS(SELECT 1 FROM OPENJSON(@Applications))
@@ -68,11 +74,9 @@ AS BEGIN
     THROW 51004,'Explicit reapplications require genuine compatible current source controls.',1;
   INSERT @Effects SELECT 'Application',requested.FundingId,item.ItemId,@Date,-requested.Amount FROM @Reapply requested
     CROSS APPLY(VALUES(requested.FundingId),(requested.DebtId)) item(ItemId);
-  IF EXISTS(SELECT 1 FROM @Effects WHERE PostingDate<TRY_CONVERT(date,JSON_VALUE(@Policy,'$.policies.plannedStartDate'),23))
-    THROW 51004,'A cash correction cannot predate accounting start.',1;
-  IF EXISTS(SELECT 1 FROM @Effects effect JOIN Accounting.PeriodClosures closed ON closed.TenantId=@TenantId
-    AND closed.PeriodStart=DATEFROMPARTS(YEAR(effect.PostingDate),MONTH(effect.PostingDate),1))
-    THROW 51009,'A cash correction effect uses a closed posting period.',1;
+  IF EXISTS(SELECT 1 FROM Accounting.PeriodClosures WHERE TenantId=@TenantId
+    AND PeriodStart=DATEFROMPARTS(YEAR(@Date),MONTH(@Date),1))
+    THROW 51009,'The cash correction posting period is closed.',1;
   DECLARE @Dependencies TABLE(Kind varchar(40),Id uniqueidentifier,Version varchar(66),ParentId uniqueidentifier);
   INSERT @Dependencies SELECT 'Item',version.ItemId,CONVERT(varchar(18),CONVERT(binary(8),version.RowVersion),1),NULL
     FROM Purchasing.SupplierItemVersions version WITH(UPDLOCK,HOLDLOCK) WHERE version.TenantId=@TenantId
@@ -99,6 +103,8 @@ AS BEGIN
     JSON_QUERY((SELECT Kind kind,Id id,Version version,ParentId parentId FROM @Dependencies ORDER BY Kind,Id,ParentId,Version FOR JSON PATH,INCLUDE_NULL_VALUES)) dependencies,
     JSON_QUERY((SELECT Kind kind,EntityId entityId,ItemId itemId,PostingDate postingDate,CONVERT(nvarchar(60),Amount) amount
       FROM @Effects ORDER BY PostingDate,Kind,EntityId,ItemId FOR JSON PATH)) effects,
+    JSON_QUERY((SELECT ItemId itemId,PostingDate postingDate,CONVERT(nvarchar(60),Balance) balance
+      FROM Purchasing.SupplierProposedOpenPositions(@TenantId,@Movements) ORDER BY ItemId,PostingDate FOR JSON PATH)) remainingPositions,
     JSON_QUERY((SELECT FundingId fundingItemId,DebtId debtItemId,CONVERT(nvarchar(60),Amount) amount,PostingDate postingDate
       FROM @Reapply ORDER BY Position FOR JSON PATH)) reapplications FOR JSON PATH,WITHOUT_ARRAY_WRAPPER);
   IF DATALENGTH(@Plan)>262144 THROW 51000,'The complete cash correction plan exceeds its byte bound.',1;

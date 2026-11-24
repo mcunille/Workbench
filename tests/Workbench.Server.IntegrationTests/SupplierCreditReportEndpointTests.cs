@@ -75,6 +75,56 @@ public sealed class SupplierCreditReportEndpointTests(SupplierCashClearingFixtur
     }
 
     [Fact]
+    public async Task CashSettlementCannotInheritAnApplicationWithTheSameSourceId()
+    {
+        var prepared = await clearing.OpenAsync();
+        await using var context = prepared.Context;
+        var bill = await context.ExpenseBillAsync("30");
+        var deposit = await context.Payments.CommandAsync("20", "2026-09-16");
+        await context.Payments.RecordAsync(deposit);
+        var advance = Guid.Parse(deposit["paymentId"]!.ToString());
+        var application = await context.Payments.Allocation.CommandAsync(advance, bill, "5", "2026-09-18");
+        var applied = await context.Payments.Allocation.ApplyAsync(application);
+        var applicationId = Guid.Parse(applied["applicationIds"]![0]!.ToString());
+        var refund = await context.RefundCommandAsync([(advance, "8")]);
+        refund["cashSourceId"] = applicationId.ToString();
+        await context.Bills.ExecuteAsync("RecordSupplierRefund", Guid.NewGuid(), refund);
+        using var client = context.Bills.Journal.Application.CreateClient();
+        await AcquisitionEndpointTests.LoginAsync(client, AuthTestApplication.AdminEmail);
+
+        var rows = (await Read(client, $"/supplier-open-items/{advance}/history")).GetProperty("items").EnumerateArray().ToArray();
+        var cashRow = Assert.Single(rows, row => row.GetProperty("eventKind").GetString() == "CashSettlement");
+        Assert.Empty(cashRow.GetProperty("applicationIds").EnumerateArray());
+        Assert.Contains(rows, row => row.GetProperty("applicationIds").EnumerateArray()
+            .Any(id => id.GetGuid() == applicationId));
+    }
+
+    [Fact]
+    public async Task CreditSettlementHistoryUsesTheItemCursor()
+    {
+        var prepared = await clearing.OpenAsync();
+        await using var context = prepared.Context;
+        var creditId = Guid.Parse((await context.CreditAsync(await context.ExpenseBillAsync("30"), "20"))["sourceId"]!.ToString());
+        await context.RefundAsync([(creditId, "3")]);
+        await context.RefundAsync([(creditId, "4")]);
+        using var client = context.Bills.Journal.Application.CreateClient();
+        await AcquisitionEndpointTests.LoginAsync(client, AuthTestApplication.AdminEmail);
+
+        var detail = await Read(client, $"/supplier-open-items/{creditId}");
+        Assert.Empty(detail.GetProperty("supplierSource").GetProperty("settlements").EnumerateArray());
+        var route = $"/supplier-open-items/{creditId}/history?pageSize=1";
+        var page = await Read(client, route);
+        Assert.Equal("Open", Assert.Single(page.GetProperty("items").EnumerateArray()).GetProperty("eventKind").GetString());
+        var second = await Read(client, route + "&cursor=" + Uri.EscapeDataString(page.GetProperty("nextCursor").GetString()!));
+        var third = await Read(client, route + "&cursor=" + Uri.EscapeDataString(second.GetProperty("nextCursor").GetString()!));
+        Assert.Equal("3.00", SingleSettlement(second).GetProperty("amount").GetString());
+        Assert.Equal("4.00", SingleSettlement(third).GetProperty("amount").GetString());
+    }
+
+    private static JsonElement SingleSettlement(JsonElement page) => Assert.Single(
+        Assert.Single(page.GetProperty("items").EnumerateArray()).GetProperty("settlements").EnumerateArray());
+
+    [Fact]
     public async Task BackdatedCashCorrectionCannotEnterContinuedHistory()
     {
         // GIVEN real refund and clearing history and a cursor with a future recorded cutoff.

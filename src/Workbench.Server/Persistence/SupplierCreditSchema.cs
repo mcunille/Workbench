@@ -28,7 +28,7 @@ internal static class SupplierCreditSchema
             "Purchasing.SupplierCashControl", "Purchasing.SupplierCashTargetControl", "Purchasing.AppendSupplierCashSettlement", "Purchasing.SupplierItemControl",
             "Accounting.FinancialEvidenceSource", "Accounting.AppendFinancialEvidence",
             "Purchasing.RequireSupplierComposition", "Purchasing.ApplySupplierFundsCore",
-            "Purchasing.BuildSupplierCreditCorrectionSources", "Purchasing.PlanSupplierCreditCapacity", "Purchasing.PlanSupplierCreditEvidence", "Purchasing.PlanSupplierCreditPositionBindings",
+            "Purchasing.SupplierProposedOpenPositions", "Purchasing.BuildSupplierCreditCorrectionSources", "Purchasing.PlanSupplierCreditCapacity", "Purchasing.PlanSupplierCreditEvidence", "Purchasing.PlanSupplierCreditPositionBindings",
             "Purchasing.ValidateBillRecognitionOwner", "Purchasing.ValidateRecognitionSourceOwner", "Purchasing.PlanBillRecognitionSources", "Purchasing.RequireBillCorrectionSourceAuthority",
             "Purchasing.BuildSupplierBillCorrectionSource", "Purchasing.BuildBillDependentCreditSources", "Purchasing.PlanBillRecognitionAdjustments",
             "Purchasing.ResolveBillCreditSuccessorIntents", "Purchasing.ProjectBillCreditCapacity", "Purchasing.PlanBillReapplications", "Purchasing.PlanSupplierBillCorrection", "Purchasing.PreviewSupplierBillCorrection",

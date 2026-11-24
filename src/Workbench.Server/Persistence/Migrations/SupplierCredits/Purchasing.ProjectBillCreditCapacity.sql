@@ -23,13 +23,14 @@ AS BEGIN
     FROM OPENJSON(@Units) binding JOIN OPENJSON(@Payload,'$.units') unit
       ON JSON_VALUE(unit.value,'$.unitId')=JSON_VALUE(binding.value,'$.binding.successorUnitId');
   DECLARE @Proposed TABLE(CreditId uniqueidentifier,EventId uniqueidentifier,ComponentKey nvarchar(200),UnitId uniqueidentifier,
-    PostingDate date,Amount decimal(28,4),Capacity decimal(38,4),CostCapacity decimal(38,4),Treatment varchar(16));
+    PostingDate date,Amount decimal(28,4),Capacity decimal(38,4),CostCapacity decimal(38,4),Treatment varchar(16),RoundingOwnerKey nvarchar(200));
   INSERT @Proposed SELECT TRY_CONVERT(uniqueidentifier,JSON_VALUE(source.value,'$.replacementId')),future.EventId,
     JSON_VALUE(claim.value,'$.componentKey'),future.UnitId,TRY_CONVERT(date,JSON_VALUE(source.value,'$.replacement.postingDate'),23),
     CONVERT(decimal(28,4),JSON_VALUE(claim.value,'$.amount')),
     CONVERT(decimal(28,4),JSON_VALUE(component.value,'$.amount'))+
       CASE WHEN ABS(COALESCE(assigned.Adjustment,0))<=999999999999999999999999.9999 THEN CONVERT(decimal(28,4),COALESCE(assigned.Adjustment,0)) END,cost.Amount,
-    CASE WHEN recognition.Matched=1 THEN 'Expense' ELSE 'Prepayment' END
+    CASE WHEN recognition.Matched=1 THEN 'Expense' ELSE 'Prepayment' END,
+    CASE WHEN JSON_VALUE(component.value,'$.kind')='Rounding' THEN JSON_VALUE(component.value,'$.assignedCostComponentKey') END
     FROM OPENJSON(@Credits) source CROSS APPLY OPENJSON(source.value,'$.replacement.claims') claim
     JOIN @Future future ON future.EventId=TRY_CONVERT(uniqueidentifier,JSON_VALUE(claim.value,'$.recognitionEventId'))
     JOIN OPENJSON(@Payload,'$.units') unit ON JSON_VALUE(unit.value,'$.unitId')=CONVERT(nvarchar(36),future.UnitId)
@@ -60,6 +61,12 @@ AS BEGIN
       HAVING SUM(CONVERT(decimal(38,4),Amount))>MIN(Capacity))
     OR EXISTS(SELECT UnitId FROM @Proposed GROUP BY UnitId HAVING SUM(CONVERT(decimal(38,4),Amount))>MIN(CostCapacity))
     THROW 51009,'The complete proposal exceeds reviewed successor component or whole-unit cost capacity.',1;
+  IF EXISTS(SELECT rounded.EventId,rounded.ComponentKey FROM @Proposed rounded JOIN @Proposed assigned
+    ON assigned.EventId=rounded.EventId AND assigned.ComponentKey=rounded.RoundingOwnerKey
+    GROUP BY rounded.EventId,rounded.ComponentKey,rounded.RoundingOwnerKey
+    HAVING (SELECT SUM(CONVERT(decimal(38,4),claim.Amount)) FROM @Proposed claim
+      WHERE claim.EventId=rounded.EventId AND claim.ComponentKey IN(rounded.ComponentKey,rounded.RoundingOwnerKey))>MIN(assigned.Capacity))
+    THROW 51009,'The complete proposal exceeds reviewed successor assigned rounding capacity.',1;
   DECLARE @ExistingSources TABLE(Id uniqueidentifier PRIMARY KEY,Input nvarchar(max));
   DECLARE @ExistingClaims TABLE(Position int PRIMARY KEY,Input nvarchar(max));
   DECLARE @Id uniqueidentifier,@Source nvarchar(max),@Claims nvarchar(max),@Replacement nvarchar(max),@Filtered nvarchar(max);

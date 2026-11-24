@@ -31,7 +31,6 @@ internal static partial class SupplierReconciliationQueries
         internal ILookup<Guid, SupplierCreditClaim> ClaimsByCredit { get; private set; } = null!;
         internal ILookup<Guid, CashJournalOwner> CashOwnersByEvent { get; private set; } = null!;
         internal ILookup<Guid, SupplierCashSettlement> SettlementsByCash { get; private set; } = null!;
-        internal ILookup<Guid, SupplierCashSettlement> SettlementsByItem { get; private set; } = null!;
         internal ILookup<Guid, SupplierCashSettlement> SettlementsById { get; private set; } = null!;
         internal ILookup<Guid, SupplierCashSettlementRelease> ReleasesBySettlement { get; private set; } = null!;
         internal ILookup<Guid, SupplierSourceCorrection> SourceCorrectionsByGroup { get; private set; } = null!;
@@ -48,7 +47,6 @@ internal static partial class SupplierReconciliationQueries
             ClaimsByCredit = Index(creditClaims, row => row.CreditId);
             CashOwnersByEvent = Index(cashJournalOwners, row => row.SourceEventId);
             SettlementsByCash = Index(settlements, row => row.CashSourceId);
-            SettlementsByItem = Index(settlements, row => row.ItemId);
             SettlementsById = Index(settlements, row => row.Id);
             ReleasesBySettlement = Index(releases, row => row.SettlementId);
             SourceCorrectionsByGroup = Index(sourceCorrections, row => row.GroupId);

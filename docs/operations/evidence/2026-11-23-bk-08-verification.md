@@ -38,4 +38,15 @@ and worker checks. A new isolated worktree preview served the current build at
 `http://localhost:32769`. Authentication without an accounting role received 403. Assigning the
 existing Accounting reader role enabled private, non-cacheable journal, item and reconciliation GETs.
 The empty report reconciled to zero, a malformed cursor returned 400, and the purchase order list
-returned 200. Posted examples were checked in the disposable SQL and HTTP suites.
+returned 200. After the internal review fixes, a separate preview installed the final migration at
+`http://localhost:32772` and repeated the report access checks. The purchase and document APIs also
+committed a sample order, accepted a synthetic PDF, and removed a separate unposted document.
+
+The review regressions reproduced the split cash posting date, caller transaction rollback,
+missing preview clearing balance, assigned-rounding overclaim, and two report ownership and paging
+problems. The corrected preview exposed the clearing liability of 8, preserved the caller's
+transaction, and kept October unmaterialized until an actual write. The corrected HTTP reads
+returned each partial refund on its item-history page and left an unrelated application off the
+cash row. All ten BK-07 predecessor tests passed after repairing the fixture constructor. The
+paid-bill correction and preview passed in 22 seconds with the genuine paid invoice prepared
+outside the timed assertion. The hardened container smoke passed again after the review changes.

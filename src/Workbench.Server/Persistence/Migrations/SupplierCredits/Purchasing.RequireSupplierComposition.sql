@@ -17,7 +17,7 @@ AS BEGIN
           AND g.SourceId=TRY_CONVERT(uniqueidentifier,JSON_VALUE(r.CanonicalInput,'$.paymentId'))
           AND TRY_CONVERT(uniqueidentifier,JSON_VALUE(r.CanonicalInput,'$.replacement.paymentId'))=TRY_CONVERT(uniqueidentifier,JSON_VALUE(@Canonical,'$.paymentId')))
         OR (@Operation='ApplySupplierFunds' AND r.Operation='ReverseSupplierApplication' AND g.Operation='ReverseApplication'
-          AND g.SourceId=TRY_CONVERT(uniqueidentifier,JSON_VALUE(r.CanonicalInput,'$.applicationId'))) 
+          AND g.SourceId=TRY_CONVERT(uniqueidentifier,JSON_VALUE(r.CanonicalInput,'$.applicationId')))
         OR (@Operation='ApplySupplierFunds' AND r.Operation='PostSupplierCredit' AND g.Operation='RecordCredit'
           AND g.SourceId=TRY_CONVERT(uniqueidentifier,JSON_VALUE(r.CanonicalInput,'$.creditId'))
           AND g.SourceId=TRY_CONVERT(uniqueidentifier,JSON_VALUE(@Canonical,'$.fundingItemId'))));

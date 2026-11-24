@@ -45,7 +45,7 @@ public sealed class SupplierCreditCapacityTests(SqlServerFixture sqlServer)
     {
         // GIVEN the original approved minor-unit rounding assigned to the base cost.
         await using var context = await SupplierCreditTestContext.OpenAsync(sqlServer);
-        var bill = await context.ExpenseBillAsync("100", rounding: "0.01");
+        var bill = await context.ExpenseBillAsync("100", rounding: "0.01", freight: "5");
         // WHEN the entire supported cost is credited, including that original attribution.
         await context.CreditAsync(bill, "100.01");
         // THEN a separate rounding claim cannot create another allowance.
@@ -53,7 +53,7 @@ public sealed class SupplierCreditCapacityTests(SqlServerFixture sqlServer)
         extra["claims"]![0]!["componentKey"] = "rounding";
         var error = await Assert.ThrowsAsync<SqlException>(() => context.ExecuteRawAsync(extra.ToJsonString()));
         Assert.Equal(51009, error.Number);
-        Assert.Equal(0m, await context.Bills.Recognition.BalanceAsync("Expense"));
+        Assert.Equal(5m, await context.Bills.Recognition.BalanceAsync("Expense"));
     }
 
     [Fact]

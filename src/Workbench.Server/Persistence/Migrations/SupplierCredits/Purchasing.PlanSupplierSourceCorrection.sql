@@ -167,7 +167,9 @@ AS BEGIN
     JSON_QUERY((SELECT Id settlementId,FundingId fundingItemId,CashSourceId cashSourceId,CONVERT(nvarchar(60),Amount) amount,
       PostingDate postingDate,CashVersion cashVersion,JournalId journalId FROM @Settlements ORDER BY Id FOR JSON PATH)) settlements,
     JSON_QUERY((SELECT FundingId fundingItemId,DebtId debtItemId,CONVERT(nvarchar(60),Amount) amount,PostingDate postingDate FROM @Reapply ORDER BY Position FOR JSON PATH)) reapplications,
-    JSON_QUERY(@SourceCapacity) remainingPositions,JSON_QUERY(@RecognitionAdjustments) recognitionAdjustments
+    JSON_QUERY((SELECT ItemId itemId,PostingDate postingDate,CONVERT(nvarchar(60),Balance) balance
+      FROM Purchasing.SupplierProposedOpenPositions(@TenantId,@Movements) ORDER BY ItemId,PostingDate FOR JSON PATH)) remainingPositions,
+    JSON_QUERY(@SourceCapacity) componentPositions,JSON_QUERY(@RecognitionAdjustments) recognitionAdjustments
     FOR JSON PATH,WITHOUT_ARRAY_WRAPPER);
   IF DATALENGTH(@Plan)>262144 THROW 51000,'Complete correction plan exceeds its byte bound.',1;
   SET @Plan=JSON_MODIFY(@Plan,'$.planFingerprint',CONVERT(varchar(64),HASHBYTES('SHA2_256',CONVERT(varbinary(max),@Plan)),2));

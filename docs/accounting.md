@@ -221,9 +221,12 @@ A bill or credit correction preserves the original cash. For example, correcting
 already refunded in full to 10 leaves the bank receipt at 18 and an outstanding clearing liability
 of 8 after explicit reapplication. Paying back the 8 is a separate outgoing repayment.
 Correcting a mistaken cash record instead reverses that record and can record an explicit replacement.
+The cash correction uses one eligible posting date. Previews show the projected balances of affected
+open items, including any clearing liability the correction would create.
 
 Journal and supplier-item detail expose typed source IDs and revisions, original amounts, claims,
-settlements and correction links. History uses the same posting date, recorded time, and frozen
+source-owned settlements and direct correction links. A credit's receipts appear in its paged item
+history. History uses the same posting date, recorded time, and frozen
 group and journal ceilings as balances. Older pages exclude relationships committed after capture.
 Report access does not grant private-document downloads. Exact historical control ownership is
 required even when journal and subledger net amounts agree.
