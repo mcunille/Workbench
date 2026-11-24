@@ -7,94 +7,11 @@ policy before publication.
 
 ## Item photograph ingestion
 
-The [collection guide](../collection.md) owns accepted source formats, browser preparation and
-user-visible retry behavior. The following limits describe server and storage operations.
-
-The API independently limits the prepared file to 4 MiB and 2,048 pixels per axis. Multipart
-overhead is bounded to an additional 64 KiB, including requests without Content-Length. The
-server reconstructs a WebP detail image and a thumbnail within 384 pixels; the combined encoded
-output is bounded to 10 MiB. It removes EXIF/GPS, input ICC, XMP, comments, and embedded previews
-after orientation/sRGB conversion. No original bytes or client filename are persisted.
-
-Magick.NET Q8 is pinned in the release; bundled licenses ship in
-`third-party-notices/Magick.NET.txt`. Only JPEG/PNG/WebP coders/modules are enabled, and delegates,
-external paths, filters, and disk pixel-cache spill are disabled. One processor job per web
-process uses at most two native threads. The 256 MiB native pixel-cache allocation budget is
-not a hard process-RSS limit; codec allocations and the .NET process add memory. Processing has
-cooperative ten-second progress cancellation and elapsed-time checks, while upload/storage uses
-a two-minute cancellation deadline. Native code cannot be forcibly interrupted in-process.
-These are bounded raster-reconstruction controls, not antivirus certification or process isolation.
-
-Replacement first creates durable pending revisions and publishes immutable provider bytes. A
-single SQL transaction then makes both images current and retires the previous pair. Removal
-clears the item pointer and retires both attachments in the same transaction. The saved item is
-never removed. Tenant-scoped request IDs, input digests, and item versions support exact retry;
-competing commands return 409 instead of overwriting another session's result.
-
-Unconfirmed outcomes return 503 and the client retains the exact operation for retry. The
-server serializes identical retries across replicas and verifies staged/published bytes against
-the regenerated output digest before finalization. A completely published concurrency loser is
-retired under the normal grace period. Partial writes, a stale pending retry after a later item
-change, or a different encoder output after a release change may require offline reconciliation.
-Provider failures never authorize deletion of ambiguous bytes. Preserve pending revisions and
-use the offline procedure below; do not mark them failed merely to unblock migration.
-
-Logical replacement/removal hides earlier URLs immediately, while seven-day retention and holds
-still apply. Include both retained variants in paired SQL/blob backups. Strict paired recovery remains
-blocked if either required image is absent or has a mismatched digest. The separate
-[SQL-authoritative recovery procedure](online-backup-recovery.md#manual-recovery) permits reviewed,
-explicitly accepted missing-file dispositions while preserving SQL records. Do not advertise immediate physical
-erasure or preservation of the original photo. Browser color conversion varies across devices;
-these images support identification, not gemological color measurement.
+[Read this section](blob-provider-ingestion.md#item-photograph-ingestion).
 
 ## Acquisition document validation
 
-Acquisition documents preserve the validated original bytes, including embedded image metadata.
-Rasterizing paperwork would change the supplied evidence; download the validated original instead.
-Attachment delivery avoids exposing inline PDF active content. Documents belong to the shared
-acquisition rather than being duplicated per piece; correct content by adding a new file and
-removing the mistaken one, keeping that correction explicit.
-Each file is limited to 10 MiB; the multipart request allows another 64 KiB. Accepted raster formats
-are single-frame JPEG, PNG, and WebP, with at most 40 million pixels and 12,000 pixels per axis.
-The document validator shares the photograph native-processing semaphore. It temporarily raises
-native dimension/profile limits only while holding that semaphore, then restores the photograph
-limits of 2,048 pixels per axis and 4 MiB of profiles, including after validation failure. The same
-256 MiB native cache budget, disabled disk/delegates/coders, and two-thread limit apply. Document
-image decoding has cooperative two-minute progress cancellation. Images are not re-encoded or stripped.
-
-PDF support is a deliberately restricted subset, implemented with pinned PdfPig 0.1.16 plus a bounded
-original-syntax preflight. The packaged license and third-party terms ship in
-`third-party-notices/PdfPig.txt`. PdfPig's strict parser silently normalizes duplicate dictionary
-keys; the preflight therefore checks original indirect-object and cross-reference-trailer syntax,
-including nested dictionaries and escaped names, before accepting the normalized object graph.
-Every current cross-reference object and each page is inspected. Files must have 1–200 pages.
-
-Supported PDF stream encodings are unfiltered data, Flate, ASCII85, and ASCIIHex. DCT/JPEG is accepted
-only as the final encoding of a standard image object, with its JPEG bytes independently decoded by
-the restricted image validator. Ordinary JPEG scan PDFs are covered by qualification tests. Compressed
-object/cross-reference streams, inline images, stream prediction/decode parameters, other codecs
-(including JBIG2, JPEG2000, CCITT, LZW, and RunLength), and unsupported object syntax are rejected.
-Re-exporting to a PDF without those features or uploading a supported raster is required; acceptance
-of every otherwise valid PDF is not claimed.
-
-Encrypted files, action entry points (including otherwise benign actions), forms, JavaScript,
-external file references, embedded files, 3D, PostScript, and rich media are rejected. No public blob
-URL or inline PDF rendering is offered. These checks are format and active-content validation,
-not antivirus certification.
-
-PDF resource guards limit traversal to 50,000 current objects, 250,000 tokens, and depth 64. Flate
-expansion is checked before the library decoder allocates output, with a 64 MiB per-stream limit;
-ASCII85 input is bounded before its possible fourfold expansion. The aggregate decoded-stream budget
-is 128 MiB. Predictor parameters are rejected before invoking library decoders because output-size
-checks alone do not bound predictor row allocations or guarantee progress. One document-validation
-job runs per process. Elapsed-time checks use a two-minute deadline; managed parser/native execution
-is not hard-isolated or forcibly interrupted. Deployment process/container memory limits remain necessary.
-
-Qualification fixtures cover valid raster/plain-PDF/JPEG-scan input, source-byte preservation,
-encrypted PDFs with empty passwords, indirect/escaped action names, duplicate object/trailer keys,
-unsupported codecs and xref streams, external/3D content, page/dimension limits, decompression and
-predictor amplification, and native-limit restoration. A focused manual mutation removing the duplicate
-key guard is detected by four tests; this is not an exhaustive mutation score or independent parser audit.
+[Read this section](blob-provider-ingestion.md#acquisition-document-validation).
 
 ## Deployment configuration
 
@@ -246,162 +163,23 @@ service logs separately; application redaction cannot control external infrastru
 
 ## Offline reconciliation, paired backup, and restore
 
-This section defines strict paired recovery. For online Azure backups, including native-restored
-bytes, use [manual SQL-authoritative recovery](online-backup-recovery.md#manual-recovery) when exact
-pairing is unavailable. Its isolated target, sanitation, report review and digest acceptance are
-required before missing-file dispositions can complete the storage gate; a failed `storage verify`
-does not authorize that outcome automatically.
-
-Use the separate `workbench_storage_maintenance` identity from the [database-principal matrix](database-principals.md) for the narrow manifest, relocation,
-recovery-verification, and deletion-replay procedures. It must not be an ordinary web or worker user.
-Keep connection files, configuration, manifests, reports, SQL backups, and blob snapshots in an
-access-controlled encrypted location outside Git. Unix output files use mode 0600; Windows output
-directories must have an appropriate inherited ACL.
-
-Stop and drain **every** web replica and worker before maintenance. The required confirmation is an
-operator assertion; the command cannot discover external replicas. Keep services stopped on any error.
-Use a JSON configuration file shaped as follows, substituting installation-specific values:
-
-```json
-{
-  "Storage": {
-    "Provider": "FileSystem", "Root": "/var/lib/workbench/blobs",
-    "DurableVolume": true, "InstallationId": "<installation UUID>"
-  },
-  "Target": {
-    "Storage": {
-      "Provider": "FileSystem", "Root": "/backup/workbench/blobs",
-      "DurableVolume": true, "InstallationId": "<same installation UUID>"
-    }
-  }
-}
-```
-
-Each side can instead contain the Azure configuration above. Environment variables override JSON;
-use a dedicated maintenance process environment and verify selected bindings before proceeding.
-
-```powershell
-dotnet Workbench.Database.dll storage reconcile --connection-file <maintenance-connection-file> `
-  --expected-database <name> --offline-confirmation "OFFLINE <name>" `
-  --config-file <configuration-file> --output-file <new-report-file>
-```
-
-Reconciliation compares all available SQL revisions, including retained replacements and deletions
-within their grace period, with checksummed provider content. Missing/corrupt bytes and unreferenced
-published or staged objects produce a protected report and nonzero exit. Unknown objects are report-only.
-Do not delete them based on name or age alone: preserve a report/snapshot, investigate pending SQL
-operations, wait at least the seven-day grace, and recheck references offline before separately authorized
-cleanup. A provider outage must not be interpreted as evidence that an object is unreferenced.
-
-For backup, first take a SQL `COPY_ONLY` backup with checksum using the
-[database runbook](database-backup-restore.md), while writers remain stopped. Then:
-
-```powershell
-dotnet Workbench.Database.dll storage snapshot --connection-file <maintenance-connection-file> `
-  --expected-database <name> --offline-confirmation "OFFLINE <name>" `
-  --config-file <configuration-file> --output-file <new-manifest-file>
-```
-
-The command copies each immutable revision to `Target`, verifies every length/digest, and writes a
-manifest containing backup UUID, installation UUID, database name, schema version, provider alias,
-tenant, revision, length, and digest. Pair that exact manifest with the SQL backup and provider snapshot
-in one backup catalog entry; timestamps alone do not pair independently captured stores. `storage manifest`
-verifies and exports the same identity list without copying when an operator-managed snapshot exists.
-Output files must be new; copying is create-only and may resume after interruption. Incomplete backups
-must not enter the successful-backup catalog. Resume service only after all checks pass.
-
-Restore SQL using the database runbook and run mandatory `restore sanitize`, which cancels identity
-outbox messages, invalidates sessions/keys, and resets outstanding deletion leases. Restore the snapshot
-to the original provider binding (same mount/container/installation), preserving exact `.b` object names.
-For Azure, select the precise snapshot/version represented by the manifest. Do not use an approximate
-timestamp or silently switch the configured location. Then run:
-
-```powershell
-dotnet Workbench.Database.dll storage verify --connection-file <maintenance-connection-file> `
-  --expected-database <name> --offline-confirmation "OFFLINE <name>" `
-  --config-file <configuration-file> --manifest-file <paired-manifest-file>
-```
-
-Verification compares the full manifest with SQL and streams every referenced blob through SHA-256.
-Only success of this strict verification clears blob recovery pending through this command. Missing bytes, changed metadata, a wrong installation/database,
-or incompatible schema keep recovery blocked. Rebuild protected keys, check tenant isolation and login,
-and inspect readiness before the human-operated cutover. Restore drills use disposable SQL databases;
-never overwrite a production database as part of verification.
+[Read this section](blob-provider-recovery.md#offline-reconciliation-paired-backup-and-restore).
 
 ## Provider migration and rollback
 
-With all writers/workers stopped, save a paired backup and configure `Storage` as the current provider
-and `Target` as the intended provider. Run `storage migrate` with the same connection, database,
-offline-confirmation and config-file arguments. Migration refuses unresolved pending revisions; reconcile
-them against the original store before cutover. A privileged offline repair may mark a pending operation
-failed only after establishing that it has no retained content and any abandoned bytes have been handled
-under the retention/cleanup procedure. Failed and purged revisions retain provenance; financially
-protected revisions still require surviving bytes to be verified and copied unless legitimately
-disposed. Other failed/purged revisions require no further provider deletion. Do not mark an
-ambiguous publication failed merely to bypass this gate.
-The copy checks destination readiness, including Azure container privacy, before writing bytes.
-It verifies the source, copies immutable bytes with
-create-only semantics, verifies all destinations, and transactionally changes SQL aliases with digest
-and previous-alias checks. A failed copy leaves SQL references unchanged. A failed/ambiguous SQL commit
-requires reading the authoritative manifest before selecting a configuration. Preserve both stores.
-
-After success, deploy the target binding to all processes, reconcile, and run readiness/tenant workflow
-checks before resuming. Keep the source for at least seven days and through a successful paired backup
-and restore drill. To roll back, stop all writers again and run the same migration with source/target
-reversed; new revisions created after cutover must also be copied back. Never roll back by changing
-configuration alone or restoring only SQL. Permanent source cleanup requires separate operator approval.
+[Read this section](blob-provider-recovery.md#provider-migration-and-rollback).
 
 ## Verification evidence
 
+[Read this section](blob-provider-verification.md#verification-evidence).
+
 ### Retained provider acceptance requirements
 
-The original provider design (issue #11, delivered in PR #23) required confinement under static links
-and concurrent path substitution, fail-closed handling of unsupported filesystem semantics,
-immutable create-only publication, tenant authorization before provider access, and SQL generation
-fencing for consequential worker transitions. Keep these requirements when changing provider code;
-an operator's shared-volume declaration or lexical path check alone does not establish them.
-
-Identity abuse controls must retain independent, operation-specific budgets for recovery requests,
-invitation creation, and recovery/invitation token consumption. Apply both account/token and
-trusted-network budgets before expensive work, using the existing identity normalization rules.
-Persist sensitive partitions as keyed hashes with one shared key across replicas; key rotation and
-expired-partition cleanup remain explicit operational requirements. Unknown accounts must consume
-equivalent budgets and receive non-enumerating responses. SQL limiter failure must deny the operation
-with a stable service-unavailable response; an in-memory production fallback is not permitted.
-These are retained acceptance requirements, not a claim of new runtime verification.
-
-Verification must cover interruption/resume and rollback for filesystem/Azure migration in both
-directions, SMTP TLS/certificate/authentication failures and successful delivery, protected outbox
-expiry, multi-replica abuse controls, and sentinel secrets through the configured telemetry pipeline.
-Provider SDK retries must remain bounded so they do not multiply durable queue retries without limit.
-The original queue backoff target was at most five minutes; the later Graph-specific `Retry-After`
-policy documented above permits up to one hour. Neither policy promises exactly-once email delivery.
-
-The evidence below records narrower exercised scope, not a claim that every original requirement
-has fresh coverage. Preserve unestablished cases as verification gaps until evidence or an approved
-replacement resolves them. Hosted acceptance belongs to the [acceptance matrix](production-readiness.md).
-Photo and document ingestion use the explicit validation policies above, not antivirus certification;
-future untrusted-upload workflows still require a content-safety and malware-handling decision before
-publication. Retention holds are internal deletion controls, not compliance certification or a promise
-to erase provider versions and backups immediately.
+[Read this section](blob-provider-verification.md#retained-provider-acceptance-requirements).
 
 ### Recorded checks and limits
 
-`BlobRecoveryTests` exercises real SQL BACKUP/RESTORE, snapshot copying, missing-object recovery blocking,
-manifest validation and location migration. `AzureBlobStoreTests` exercises filesystem/Azurite copy in
-both directions and resumable publication. SQL worker tests use independent connections and dedicated
-roles. The full source and container gates remain required; actual Azure identity/RBAC and the selected
-SMTP relay require deployment checks in the target environment.
-
-Azurite regression coverage verifies rejection of public Azure destinations before copying and
-successful private copies in both directions.
-
-Historical focused Stryker 4.16 mutation testing of blob transfer, read integrity, and SMTP validation reached
-92.16% (46 killed and one timed out among 51 valid in-scope mutants). Remaining gaps cover successful SMTP invitation delivery,
-exact clock-boundary equality, pool-buffer return, and a redundant persistent-integrity-failure guard.
-Compile-error mutants and out-of-scope mutations were excluded. SQL procedures, authorization, retention,
-and lease rules have real-SQL regression coverage but were not mutation-tested. Broader mutation coverage
-and a successful delivery through the chosen production SMTP relay remain separate verification work.
+[Read this section](blob-provider-verification.md#recorded-checks-and-limits).
 
 ## Collection package preparation
 

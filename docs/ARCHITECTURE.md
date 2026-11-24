@@ -2,116 +2,7 @@
 
 ## Shared gem reference foundation
 
-GEM-02 stores tenant-independent shared entries, aliases, field-linked source assertions,
-locality claims, and retirement metadata in `Gemology`. Stable IDs survive retirement;
-normalized identity keys prevent duplicate active shared entries. Mineral species is required,
-while non-mineral materials can omit inapplicable taxonomy. The reusable content validator
-enforces safe source links, source coverage, and redirect validity for later seed/publish callers.
-
-Tenant-authenticated `/api/beta/gem-reference` GET routes provide bounded literal search and
-coherent attributed detail. Shared entities have no tenant ID. Runtime direct
-catalog writes are denied. GEM-04 installs the reviewed Diamond, Sapphire, Emerald, and Ruby
-pilot with nineteen field-level source assertions through a one-time data migration. The frozen
-seed ships inside the migration assembly; deployments require no content download. Existing
-pilot IDs (including retired entries) retain their values and provenance. Conflicting active
-identities under other IDs reject the transaction. See the [installation procedure](operations/database-migrations.md#pilot-catalog-distribution-and-installation).
-
-GEM-06 adds tenant-owned additions and sparse field overrides in `Gemology.TenantEntries` and
-`TenantOverrides`, protected by tenant SQL RLS. One effective projection resolves values,
-attribution, supporting citations and review dates together. Missing choices inherit; replacement
-uses only tenant sources; explicit clear removes optional values and displaced sources. Reset
-receives current shared content and retains an empty override row with an advancing rowversion
-to prevent an old token being reused. Shared publication never waits for tenant reconciliation:
-invalid effective entries retain their identities and choices, remain searchable, and expose
-field-level review reasons. Effective Unicode identity collisions flag each visible entry;
-archive can remove an addition collision, and other writes must leave a valid final candidate.
-
-Tenant reads acquire the publication lock then the tenant lock and materialize one catalog-sized
-effective snapshot. Browse sends scalar candidates to SQL for native collation matching and
-uniqueidentifier pagination, returning at most 50 rows. Snapshot materialization, duplicate
-derivation and scalar JSON size grow with the catalog; no load benchmark or performance gain is
-claimed. Detail citation arrays preserve ordinal field and .NET Guid ID ordering independently
-of SQL browse ordering. Tenant writes acquire exclusive locks in the same order, recheck active
-membership and SQL tenant proof, then compare both components of `effectiveVersion`, including
-absence, before the narrow command commits. Validation and conflicts preserve all stored choices.
-
-Identity is qualified by `(id, origin)`: `tenant` additions and `workbench` references can share
-a GUID after later publication. Detail accepts explicit origin; its default selects the tenant
-entry first, including archived entries. Addition update/archive/restore target tenant origin;
-override/reset target workbench origin. Service-admin readers and curation remain shared-only.
-GEM-08 provides authenticated effective-library browsing at `/gem-reference`, with origin-qualified
-details, field-level attribution and citations, and classification withheld for entries needing review.
-GEM-09 adds tenant entry creation/editing and archive/restore, plus shared-field customization with
-explicit inherit, replace, clear and reset choices. The editor keeps current Workbench values and
-sources visible beside tenant choices, preserves drafts after failed or concurrent saves, and
-requires explicit reconciliation of uncertain saves or invalid retained overrides. Needs-review
-entries expose their reasons and block unrelated saves until reconciled. GEM-10's integrated
-release evidence and coverage limits are recorded in the [acceptance guide](gem-reference-acceptance.md).
-
-GEM-05 adds service-admin-only draft, combined review, publish, outcome, and audit APIs at
-`/api/beta/service-admin/gem-reference`. Drafts may be incomplete; publishing requires valid
-claim-level sources and a valid final shared catalog. A selected batch contains 1–50 distinct
-drafts and uses both draft and base published rowversions. Draft saves explicitly rebase only
-when the caller supplies the current published version. Admin reads use only shared catalog
-tables and private command-owned curation storage, without a tenant EF context.
-
-The web principal executes six named curation procedures and still cannot write catalog tables
-directly or read/write raw drafts, receipts, and audit tables. Commands revalidate current
-service-admin account/session authority; draft saves and publication serialize through a
-transaction-owned application lock and recheck authority after acquiring it. Publication
-validates final identities/redirects and selected versions, updates every selected entry and
-claim atomically, removes only selected successful drafts, and commits its request receipt and
-success audit together. Rejections preserve drafts and record a durable failure outcome/audit.
-Infrastructure rollback leaves no completed receipt and attempts a separate failure audit.
-
-The internal publication command trusts C# to derive Unicode-normalized identity and alias
-keys. SQL binds raw content and alias names/positions/count to the saved draft and checks
-uniqueness using the supplied identity key; it does not independently recompute semantic
-identity. Current admin authority alone does not make arbitrary direct SQL payloads safe.
-Callers must use the application normalization and validation path.
-
-GEM-07 mounts an independent service-admin React application at `/service-admin` before the
-tenant authentication provider. Its dedicated sign-in, shared catalog/detail, persisted draft
-editor and combined review use generated curation contracts and admin-only CSRF tokens.
-No tenant context or navigation destination is exposed. Failed saves retain local editorial
-content; stale versions require explicit comparison and reconciliation. Same-account session
-recovery keeps the editor mounted and refreshes its versions before further writes.
-
-An uncertain publication stores only its request ID and immutable draft/version selection
-in session storage scoped to the authenticated admin account. Reload, outcome lookup and
-identical retry recover the server receipt; a terminal rejection requires fresh review and
-confirmation. Passwords and unsaved editorial content are not persisted in that storage.
-The [curation guide](gem-reference-curation.md) owns the current operator and user workflow.
-Session resolution explicitly selects Read Committed isolation on its independent SQL
-connection: pooled connections previously used for serializable catalog detail reads must
-not carry that isolation into session renewal. The existing procedure's account/session
-locks and disablement, expiry and revocation checks remain authoritative.
-
-Draft saves, combined reviews, and publications load and validate the whole catalog while
-holding the exclusive publication lock. Lock-held duration grows with catalog size and has
-not been measured. Before expanding the catalog, measure that duration; any narrower locking
-design must preserve coherent final-catalog validation and atomic publication.
-
-Request identity is global and tied to its original actor. Exact retries compare a canonical
-selection of draft IDs and versions (selection order is insignificant), then return the stored
-outcome before loading drafts. Changed retries conflict. Receipt reads are restricted to their
-actor; shared drafts and publication audit are visible to authorized service admins. Writes
-require dedicated admin antiforgery and a bounded 1 MiB JSON body. No rollback/history UI,
-second approver, new database credential, or tenant-data bypass is introduced.
-
-Durable outcomes are deserialized into the current response contract. Future contract changes
-must preserve historical receipt readability and verify representative older receipt fixtures.
-Deleting receipts would weaken delayed-retry protection and requires an explicit replay-expiry
-contract. Receipts retain field summaries and errors, not before/after content history.
-
-**Status:** Implemented
-
-This document is the authoritative living description of Workbench's current technical
-architecture. Update it when the accepted architecture changes. The dated
-[base-architecture specification](specs/2026-08-31-base-application-architecture.md) preserves the
-decision context, alternatives, and acceptance criteria behind this direction. The
-implementation is tracked by [GitHub issue #8](https://github.com/mcunille/Workbench/issues/8) and
-its linked work items.
+[Read this section](architecture-gem-reference.md#shared-gem-reference-foundation).
 
 ## Scope and implementation status
 
@@ -155,402 +46,43 @@ See [collection design records](collection.md#design-records) for the individual
 
 ### Accounting configuration
 
-BK-01 adds tenant-scoped accounting policies, typed general accounts, controlled mapping candidates,
-and complete-statement coverage planning. It creates no financial entries or balances and never
-activates bookkeeping. [Accounting setup](accounting.md) describes the user workflow.
-
-Accounting administrator and Accounting reader are fixed roles with explicit permission claims;
-existing `TenantUsersManage` authority assigns them through a restricted command. Neither role is
-granted automatically. Role/claim tables deny direct runtime mutation, and accounting permissions
-are resolved only from roles. Assignment and user-state changes serialize to preserve access checks.
-
-`Accounting.Accounts`, `Configurations`, `Revisions`, and `Receipts` have tenant RLS and restricted
-writes through `Accounting.Save`. The command validates current session/role authority, serializes
-tenant accounting changes, validates mapping and coverage references, and commits state, revision,
-audit, and durable replay evidence together. UUID version tokens reject stale edits. Archived accounts
-retain their codes and history. The [BK-01 design](specs/2026-09-21-bk-01-accounting-foundation.md)
-defines later first-posting, retention, cutover, and reconciliation obligations.
+[Read this section](architecture-accounting.md#accounting-configuration).
 
 ### Atomic journal foundation
 
-BK-02 adds immutable source events, journal entries/lines, posting receipts and a first-posting policy
-freeze. The internal `Accounting.PostJournal` procedure requires an outer transaction and has no
-runtime execute grant. Future typed source commands own their authorization, source revision and
-transaction; the kernel validates exact same-currency balanced entries at the SQL boundary. No
-production source adapter or financial write endpoint is enabled in this increment.
-
-The kernel and configuration writer share the tenant accounting application lock. First posting
-freezes currency, scale, fiscal calendar and planned start boundary; any referenced account is
-ineligible for archive until a later design can prove historical/open-item safety. Tenant-qualified
-keys, RLS, direct-DML denials and source/request uniqueness protect atomic history across replicas.
-Amounts use decimal(28,4), checked wider accumulation and scale 0–4; no silent rounding is allowed.
-
-Journal and trial-balance GET APIs independently require `AccountingReportsRead`, use exact decimal
-strings and capture each response in a SERIALIZABLE read. Posting and recorded-time cutoffs apply
-together. Recorded time is not commit order and paginated reads are not frozen export snapshots.
-The conservative tenant lock shares configuration, posting and archive coordination across replicas.
-Narrowing it requires measured contention and an explicit lock-order design; an in-process mutex
-cannot replace it. Typed source commands check current authority before receipt replay, then validate
-mutable source/account state for new writes. Exact retries return the original outcome; a different
-request for an already posted source event conflicts. Event uniqueness prevents duplicate postings
-independently of request identity. Snapshot and canonical-command digests use SHA-256 over stored
-SQL Unicode text bytes (UTF-16LE without a byte-order mark).
-
-BK-03 adds durable calendar months, immutable closures and receipts, and correction groups with exact
-inverse and optional replacement entries. Posting and correction use the same tenant lock as closing;
-new commands reject a closed month, while matching committed receipts replay after closure only with
-current authority. Closing an empty month freezes the calendar without fabricating a first journal.
-The restricted `Accounting.ClosePeriod` and `Accounting.CorrectJournal` procedures have no runtime
-execute grant. New tables use tenant RLS, tenant-qualified links and denied direct runtime writes.
-Only disposable SQL tests install a synthetic writer; no production source or close adapter exists.
-
-All new reversal, replacement, internal receipt and group rows in one correction share a single
-database-owned recorded time. This makes recorded-time report cutoffs include a complete correction
-atomically while preserving the original committed records. Journal detail adds current correction
-relationships; the period GET reports explicit ranges of up to 120 months without materializing an
-open month. Bookkeeping activation, production sources, reconciliation acceptance, public close
-and correction actions remain gated by the parent prerequisites. BK-07 supplies financial-file retention.
-
-Periods are materialized on demand, avoiding a fixed calendar horizon. A future production close
-adapter must validate reconciliation evidence under the same accounting lock, or compare a recorded
-ledger version after acquiring it; a stale pre-lock checklist cannot authorize closure. Reversals
-derive exact inverse lines and account snapshots from persisted history. Replacements use current
-eligible mappings and account revisions. A correction appends history; it does not establish that
-money was refunded. [Accounting readback](accounting.md#journal-read-apis) owns report semantics;
-the [migration matrix](operations/database-migrations.md#migration-compatibility-matrix) owns retained-history
-and replay compatibility.
+[Read this section](architecture-accounting.md#atomic-journal-foundation).
 
 ### Classified purchase recognition
 
-BK-04 adds Purchasing-owned immutable units, side events, components, explicit matches, correction
-groups and receipts. Restricted `Purchasing.PostRecognition` and `Purchasing.CorrectRecognition`
-derive journals through the accounting kernel in the source transaction; neither has a runtime
-execute grant. There is no public financial write route or activated production source permission.
-Tenant-qualified links, RLS and direct-write denials protect the new evidence tables.
-
-Whole units carry Expense or Inventory classification. Receipt-first posting accrues cost; invoice-first
-posting records prepayment. Matching clears historical account mappings and posts reviewed differences.
-Strict typed input, exact currency-scale arithmetic, source-wide capacity across surviving revisions,
-one bounded invoice rounding component, and posting-date floors reject unsupported matches. A shared
-tenant accounting lock serializes configuration, source authority, PO supplier identity, posting,
-correction and closing. Once any recognition history exists, the PO supplier identity is frozen.
-
-Corrections discover the complete stored dependency group and append inverses and optional replacement
-events with one database-owned instant. The generic accounting kernel refuses isolated correction of
-a recognition journal. Authorized journal detail includes immutable recognition and matching evidence;
-posting-date and recorded-time report filters continue to select financial activity independently.
-Replacement creates a fresh successor unit linked to its predecessor and correction group. Original
-classification and quantity remain immutable; consumers follow successor links across corrections.
-Capacity and the single rounding allowance count surviving claims across all revisions of the
-logical source. A new source revision creates no new allocation budget. Released capacity becomes
-reusable only from the correction posting date, including claims against later source revisions.
-
-An invoice-only recognition policy would be smaller, but would not establish control transfer or
-prevent double-counting uninvoiced receipts. The two evidenced sides establish those rules before
-public bill/receiving workflows exist. Bookkeeping remains unavailable; [recognition policy and
-examples](accounting.md#internal-purchase-recognition) describe the supported cases and limitations.
+[Read this section](architecture-accounting.md#classified-purchase-recognition).
 
 ### Structured supplier bills
 
-BK-05 adds a Purchasing-owned bill head, immutable revision/review/evidence tables, posting links and
-command receipts. Restricted SQL commands enforce tenant-qualified identity, versions, current
-permissions, exact totals and duplicate resolution. The posting adapter constructs BK-04 invoice
-events from the stored reviewed revision in the same transaction; generic corrections cannot detach
-bill-owned financial evidence. Read procedures expose bounded history and live file availability.
-The same tenant accounting lock serializes bill commands with period closing and PO changes.
-
-The single additive migration installs no runtime mutation grants or production role assignments;
-`BookkeepingAvailable` remains false. Public bill entry, allocation and bill corrections are separate
-release work; BK-07 supplies evidence holds. Posting derives invoice identity, revision and capacity
-from reviewed stored bill components, never caller-authored recognition JSON. An application-only
-bill store would not enforce source authority or replica races at the database boundary; reusing
-the recognition and journal kernels avoids a second AP writer. [Bill policies](accounting.md#internal-supplier-bills)
-own duplicate resolution, pro-forma identity and evidence limitations.
+[Read this section](architecture-accounting.md#structured-supplier-bills).
 
 ### Supplier open items and allocations
 
-BK-06 adds immutable Purchasing-owned items, signed movements, applications/inverses, payment
-sources/corrections, control attribution, financial groups and canonical receipts. Tenant-qualified
-keys, RLS and denied direct runtime DML protect them. One group has a database-owned recorded instant;
-item/application/payment versions are coordination metadata, not mutable balances. Structured bill
-posting and supported non-bill recognition corrections derive item evidence atomically from stored
-source/journal ownership. Gross funding capacity and net journal effects remain distinct, including
-fully allocated payments with no advance journal line.
-
-Restricted commands enforce decimal(28,4), configured scale, one supplier/PO/currency, current
-authority before replay and historical capacity on both sides at every affected posting boundary.
-The tenant Accounting exclusive transaction lock precedes ordered PO/source, item/application and
-document locks. Payment correction recomputes a bounded versioned plan/fingerprint under those locks,
-inverts embedded and standalone effects according to their exact source ownership, and optionally
-posts a replacement. Generic corrections cannot detach supplier item/application history. Source-owned
-bill/credit correction participants are tested through disposable adapters; those business workflows
-are not installed. Commands and correction closures are bounded to 262,144 bytes and 1,000 targets/events.
-
-Four GET accounting routes expose items, detail, history and reconciliation with AccountingReportsRead.
-Under a shared Accounting lock, each transaction captures journal/group sequence ceilings and reads
-tenant-qualified immutable metadata into an in-memory snapshot, then commits and disposes the
-transaction before indexing evidence and computing responses. Protected cursors bind those ceilings,
-tenant, route, filters, page size and inclusive posting/recorded cutoffs. Exact fixed-unit BigInteger
-aggregation compares all four control families against independent historical journal totals, including
-archived mappings and unknown or zero-net unattributed activity. Source validation follows durable
-source/revision/correction/receipt links and exact historical journal ordinals, not equal amounts or
-timestamps alone. The web role has narrow read access to three RLS-protected proof/identity functions.
-
-Pages contain at most 200 rows; this does not bound capture or processing. Duplicate-preserving keyed
-lookups replace repeated whole-history scans, and indexing, projection and reconciliation observe
-request cancellation outside the shared Accounting lock. Snapshot capture still holds that lock and
-loads metadata proportional to tenant history; capture memory and latency remain unmeasured. No
-throughput, latency or maximum-history bound has been established.
-
-The single forward migration follows merged BK-05. Supported recognition attribution can be rebuilt
-only after full source/group/item/movement/journal identity proof; it adds missing derived attribution
-without changing financial history. Conflicting, detached or unknown evidence remains unresolved.
-There is no runtime repair API. Runtime financial mutation grants and production write-permission
-assignments remain absent; `BookkeepingAvailable` stays false. Public financial
-entry remains a separate gate. See [supplier read APIs](accounting.md#supplier-open-items-and-read-apis),
-[migration/recovery boundaries](operations/database-migrations.md#supplier-open-item-migration-and-recovery)
-and the [BK-06 specification](specs/2026-09-27-bk-06-supplier-open-items-and-allocations.md).
+[Read this section](architecture-accounting.md#supplier-open-items-and-allocations).
 
 ### Durable financial evidence
 
-BK-07 adds immutable tenant-qualified evidence sets, revision links, additions and disposal receipts
-at authentic source posting. RLS and denied runtime DML protect ownership; no public financial writer
-or supplement editor is enabled. Frozen policy deadlines use the later posting/recorded anchor;
-legacy links are indefinite. Corrections inherit exact authenticated evidence without reacquiring
-missing bytes or changing original hashes. Free-text references do not invent ownership.
-
-Accounting coordination precedes the PO lock; stable attachment-before-revision acquisition
-serializes capture, removal and disposal. Cleanup takes no PO/accounting lock after its attachment
-lock. SQL guards protect preparation, completion, generic deletion and old-worker compatibility via
-effective `Held`, while independent holds remain separate. Explicit authorized disposal records all
-link membership and schedules seven-day grace; physical deletion revalidates it under the lock.
-
-Authorized readback separates retention from availability and reauthorizes every replay. Recovery
-fingerprints bind links, frozen policy, receipts, holds and removal state; protected removed/purged
-identities remain required content until disposal. SQL manifests drive strict recovery and online
-capture completeness. Missing bytes require explicit recovery disposition and cannot advance backup
-freshness. Backup-set expiry remains independent of authoritative financial retention.
-
-See [accounting invariants](accounting.md#durable-financial-evidence) and
-[migration/recovery operations](operations/database-migrations.md#financial-evidence-migration-and-recovery).
+[Read this section](architecture-accounting.md#durable-financial-evidence).
 
 ### Collection records export
 
-Collection export retrieves current item and acquisition facts as CSV v2. The
-[H7 design](specs/2026-09-08-h7-collection-export.md) introduced CSV v1;
-[H12](specs/2026-09-11-h12-acquisition-export.md) added acquisition-aware CSV and ZIP v2.
-Collectors explicitly select active records or active plus archived records; search and loaded pages
-do not narrow the export. A bounded SERIALIZABLE read under the existing web principal and tenant
-RLS captures one collection state, releasing locks before encoding and delivery. Concurrent writes
-may briefly wait. Preparation fails without a file above 10,000 records or 32 MiB, after a 30-second
-preparation deadline, or on database failure. Each application instance admits two preparations.
-
-The authenticated, antiforgery-protected POST `/api/beta/items/export` buffers a complete private CSV
-attachment and revalidates the session before returning it. No job, shared link or server export file
-is introduced by export preparation. The browser offers Download only after the complete body arrives;
-its private file and selected scope survive ordinary navigation and appearance changes. Prepared
-files expire after ten minutes and clear on sign-out, identity change, or reload. This is a text
-portability feature, not a restorable backup. See the [CSV contract](collection-export.md).
-
-The package endpoint, POST `/api/beta/items/export-package`, returns a bounded ZIP containing CSV v2,
-manifest.json, README.txt, exact stored current detail photographs and acquisition documents.
-One tenant-scoped SQL snapshot captures items, acquisition facts and links, and immutable photo/document
-revision references. Provider reads then verify required lengths/digests outside the SQL transaction;
-the complete archive is prepared in memory before session revalidation and delivery. A missing,
-corrupt or unavailable required file fails the whole preparation. Shared acquisitions and documents
-appear once, with only in-scope item links; document contents are not redacted and may describe
-out-of-scope pieces. The package shares the two-preparation capacity limit, permits 10,000 records
-and 10,000 documents, bounds CSV to 32 MiB, manifest to 16 MiB and content/ZIP to 128 MiB, and uses a 120-second
-deadline. It includes neither thumbnails nor retired photographs and cannot restore an installation.
-See the [export contract](collection-export.md) for package contents and browser lifetime.
+[Read this section](architecture-collection-purchasing.md#collection-records-export).
 
 ### Collection identity
 
-The [H9 acquisition context](specs/2026-09-09-acquisition-context.md) records an optional origin event
-with method, free-text source, partial acquired date, and collector-recorded provenance notes.
-Shared acquisitions let several individually recorded
-pieces share that context. `Inventory.Acquisitions` has a separate identity and rowversion;
-`Inventory.AcquisitionItems` uses tenant-qualified foreign keys and permits at most one current
-acquisition per item. `Inventory.AcquisitionCreationRecords` retains immutable creation replay
-evidence. All three tables use tenant RLS and deny direct runtime writes.
-
-Restricted create/update commands check item and acquisition versions. The restricted
-`Inventory.ChangeAcquisitionLink` command atomically connects, replaces, or removes a relationship,
-checking the active item, expected membership, and old/target acquisition versions. It locks the
-item first and acquisitions in deterministic order, then advances the affected rowversions.
-Removing the last connection preserves the acquisition. Creation retries never create another
-item, and old acquisition-creation replays cannot restore a removed or replaced connection.
-Empty acquisitions remain discoverable so correcting membership does not destroy origin context.
-Link commands use checked conditional retries rather than a persistent command ledger. Matching
-current membership cannot prove that an earlier request committed; an uncertain save requires
-explicit reconciliation before adopting fresh versions.
-
-Tenant-scoped, paginated acquisition discovery and membership reads support shared navigation;
-membership browsing excludes archived pieces unless explicitly requested. Archive and restore
-retain connections. Archived item details and acquisition views opened from them are read-only;
-an active linked item can still edit the shared context. Conflict recovery preserves private
-in-session drafts and requires explicit reconciliation. CSV v2 includes acquisition facts and partial
-date precision; ZIP v2 also includes current acquisition documents and scoped relationships, as
-described in [collection export](#collection-records-export).
-
-Acquisition documents have tenant-qualified acquisition and immutable attachment/revision links.
-Restricted prepare/finalize commands enforce active linkage, versions, capacity and mutation replay
-evidence. Pending uploads reserve capacity but remain absent from saved document lists. Provider
-publication and integrity verification precede the SQL transaction exposing the document; a losing
-finalization retires its bytes through the existing retention lifecycle. Session application locks
-serialize exact request UUIDs across replicas. Rename and removal retain command evidence; successful
-replay does not resurrect removed documents. Original validated bytes are private attachment downloads
-after complete bounded digest verification. The [provider runbook](operations/blob-and-service-providers.md#acquisition-document-validation)
-owns content policy, parser qualification, resource bounds and recovery behavior.
-
-`Inventory.Items` holds tenant-owned physical identities. H1 enforces `TrackingKind = Individual`
-and has no editable quantity, financial value, category requirement, or purchase parent. Names
-remain user-entered regardless of future classification. A server UUID is permanent; a separate
-tenant-unique creation request UUID makes concurrent submissions and uncertain-save retries
-idempotent. SQL rowversion establishes a concurrency token for subsequent edit workflows.
-
-The runtime has SELECT/INSERT access with RLS; direct collection UPDATE/DELETE remains denied.
-`/api/beta/items` exposes create and chronological cursor-paged browsing; item details return only
-the public contract. Responses are private and not stored in HTTP caches. Drafts stay in browser
-memory; only the System/Light/Dark appearance preference is persisted locally. Authentication
-loss clears protected client state.
-
-Creation request identity is separate from the server-assigned item ID so retries resolve the
-same operation while intentionally identical pieces remain valid separate records. Button disabling
-alone cannot settle a lost response. Drafts stay in memory to avoid leaving private collection data
-in browser storage after authentication ends. Bounded chronological traversal keeps every item
-reachable without an unbounded query; it does not promise a frozen collection snapshot.
-
-The accepted [inventory foundation](specs/2026-09-06-inventory-domain-foundation.md) separates
-classification, individual/lot tracking, measurements, stock movements, composition, acquisition,
-and valuation. Later lot and work-order features must preserve existing identities and record
-splits, consumption, and transformations explicitly; they do not reinterpret H1 rows.
+[Read this section](architecture-collection-purchasing.md#collection-identity).
 
 ### Item photographs
 
-The browser prepares JPEG, PNG, or WebP sources locally, preserving orientation and aspect ratio
-and producing a preview before an explicit upload. Original files remain on the device. The
-server accepts at most 4 MiB and 2,048 pixels per edge, sanitizes the image, and derives an
-uncropped thumbnail. Only freshly encoded, metadata-stripped WebP variants enter private storage.
-
-`Inventory.ItemPhotoOperations` binds each request UUID to its input digest and expected item
-rowversion. Pending attachment revisions are persisted before provider I/O. Both variants and
-the current item pointer become visible in one SQL transaction; replacement/removal retires the
-old pair under the existing retention rules. Exact retries resolve uncertain acknowledgments.
-An item-scoped SQL procedure compares rowversion and changes only `CurrentPhotoId`; the runtime
-retains its denial of direct item UPDATE/DELETE. Tenant-qualified foreign keys and RLS protect
-both new tables. Photo authority follows the existing authenticated inventory membership.
-
-Photo URLs resolve the current item/photo relationship and session on every request. Responses
-are private/no-store and verified to EOF before successful delivery. There are no public provider
-URLs or original/historical photo routes. Pending and retained variants remain within the existing
-manifest, reconciliation, worker hold, and paired recovery boundary; see the
-[provider runbook](operations/blob-and-service-providers.md#item-photograph-ingestion).
+[Read this section](architecture-collection-purchasing.md#item-photographs).
 
 ### Purchase orders
 
-The [Purchasing module](purchasing.md) stores mutable planning documents independently of inventory,
-acquisitions and financial records. `Purchasing.DraftOrders` combines searchable draft headers with
-bounded versioned JSON for source links and draft lines. Quantities, units and pricing bases remain
-explicit; nullable decimal strings distinguish unknown from zero. Server calculation uses exact
-scaled integers and four-place rounding for merchandise estimates, without creating obligations.
-
-Tenant RLS, tenant-qualified foreign keys, current authenticated authority and restricted SQL
-commands protect both drafts and their immutable request receipts. The runtime cannot directly
-insert, update or delete purchasing rows. Each save atomically records a compact request receipt;
-a versioned server-computed fingerprint rejects reuse of the same request UUID with changed content.
-Retries return recorded success without executing again. Receipts retain identifiers, resulting
-version and completion time, not historical request/response bodies. Current details are loaded
-separately after success, with explicit comparison if the draft has changed since that save.
-Compact receipts provide duplicate prevention without retaining historical draft bodies; they
-are operational evidence, not a user-visible edit history. Pruning requires an explicit replay-expiry
-contract. Draft deletion clears content while retaining a tombstone for receipt foreign keys and
-the permanent PO reference; this does not offer archive or restore semantics.
-
-Updates replace one draft document after rowversion validation. A per-request transaction lock and
-draft row lock serialize competing retries and edits. The authenticated, antiforgery-protected API
-is private/no-store and bounds request bodies before binding. Tenant-scoped browsing uses descending
-updated-time/UUID keyset pagination; it is a live list and refreshes after local saves. The
-[purchasing guide](purchasing.md) owns user-facing recovery behavior.
-
-PO-02 adds reusable tenant-owned suppliers with independently stored contact snapshots on each
-draft. Directory edits do not mutate orders; an explicit draft save applies reviewed snapshot
-changes. The transaction platform belongs to the order and is independent of the supplier link.
-Supplier archival prevents new selections while preserving existing links and snapshots.
-Duplicate supplier names do not establish identity; no name-based merging is implied.
-Social profiles are ordered reference text, not verified external identities or links, and are
-excluded from purchase contact snapshots. Empty profiles are omitted from canonical supplier
-requests so original six-field successful requests retain their exact retry identity.
-
-Permanent business PO numbers are assigned by a transactional tenant counter on first save and
-retained on deletion tombstones. The counter does not promise a gapless accounting sequence.
-Reference/name/title search runs within the tenant, with query-bound
-forward cursors. Beta draft writes fingerprint supplier, platform and supplier-based line pricing.
-Retired V1–V4 routes reject all requests, including old successful retries; no historical replay
-adapters remain. Current beta retries retain their compact receipts and cannot silently clear newer
-fields. Supplier writes use the same compact-receipt and rowversion
-reconciliation principles.
-
-PO-03 keeps the JSON aggregate. Supplier-based pricing introduced content schema 3 through the single
-current beta command implementation, with one quantity/unit and a per-unit or total-line amount.
-Exact decimal arithmetic calculates line amounts; a fixed total does not require quantity. Beta
-reads project older schema 1/2 entries without writing them. Complete old quotes retain their
-totals; unresolved references and structured quotes remain explicit until the owner resolves them.
-One supplier quantity basis avoids implying a separate inventory count. Older batch rates become
-per-unit prices only when four-place representation preserves the original rounded gross;
-otherwise preserve the line total. Never infer a basis for an unresolved reference price.
-SQL validates the same numeric, unit, compatibility and gross bounds as the server.
-
-All application APIs use `/api/beta/...` until the first release establishes v1. The
-[API lifecycle](api-lifecycle.md) owns version support, stale-browser recovery, retired receipt
-adapters, and rollout/rollback boundaries. Public contract versions do not determine the lifetime
-of persisted content or immutable receipts.
-
-The authenticated calculation endpoint shares server rules without persisting input; the client
-cancels obsolete previews and hides stale results. Detail responses include derived line gross
-and subtotal information.
-
-PO-05 extends the beta contract and writes content schema 4 with line/order discounts and categorized
-charge rows in the same aggregate. The server calculates four-place reductions from explicit
-merchandise bases, then supplier and third-party charge totals separately. Unknown inputs never
-become zero or a complete purchase estimate. Restricted current SQL commands independently validate
-the closed shape, amounts, discount bounds, currency transitions and confirmed-charge correction
-notes. New writes require adjustment properties; missing properties cannot erase saved financial
-inputs. The bundled client and server share one beta contract without revision negotiation; stale browsers rely on normal validation/conflict handling and may need a manual reload. Retired
-public routes remain unsupported. Stored receipt history remains intact.
-Reads upgrade older content without persisting it, preserving unresolved legacy quotes.
-One line discount and one order discount keep bases inspectable without sequential discount stacks;
-both apply to merchandise only. Unknown bases cannot produce validated totals from partial sums.
-The effective payee of a confirmed supplier charge includes the supplier ID and name snapshot:
-changing either requires fresh explanatory notes, while contact-only changes do not.
-Draft saves create no commitment, invoice, balance or ledger posting.
-
-PO-04 retains the same purchase row and permanent reference while introducing explicit Draft/Ordered
-state, calendar order date and sequential immutable revision snapshots. Commitment requires valid
-supplier, currency and itemized quantities, while unresolved costs remain estimated or unknown.
-Ordered content changes only through a reasoned amendment; currency is fixed and deletion is blocked.
-`PurchaseOrderRevisions` preserves full contents, supplier/contact snapshots, actor, recording time,
-reason and a versioned calculation snapshot. `PurchaseOrderReceipts` binds successful requests to
-the actor, tenant, operation and canonical input. Restricted SQL commands atomically append history,
-update the current projection and save the receipt; tenant RLS and denied direct mutations protect
-both history tables. Existing draft receipt retries still succeed without reapplying old writes.
-Amendment no-op detection compares decoded content and the order date, retaining array order
-and scalar distinctions; JSON formatting, escaping and member order are not content changes.
-Reject an unchanged amendment before advancing versions, revisions or receipts. This semantic
-comparison does not change the exact canonical fingerprint used for request retry identity.
-The unified beta purchase API serves drafts, ordered purchases and paged history. See the
-[PO-04 specification](specs/2026-09-17-po-04-commitment-and-amendments.md).
-
-PO-06 attaches private invoice files directly to ordered purchases. Purchasing-owned document
-metadata and operation evidence link to the existing immutable storage revisions; no synthetic
-acquisition or structured invoice is created. Restricted SQL preparation/finalization commands
-serialize capacity and check PO/document versions around provider publication. File changes
-advance the PO rowversion without changing its agreed-content revision. Existing format validation,
-private downloads, exact-request recovery, seven-day retention and paired SQL/blob recovery apply.
-Publish bytes outside parent locks, then recheck versions and current authority before exposing
-the document. Ambiguous publication retains bytes and operation evidence for exact retry or
-reconciliation; it must not be treated as permission to delete bytes and restart. Acquisition
-documents retain their independent ownership and lifecycle.
+[Read this section](architecture-collection-purchasing.md#purchase-orders).
 
 ## Architectural invariants
 
@@ -634,316 +166,57 @@ measured scaling or isolation needs justify separating one.
 
 ## Data and storage
 
+[Read this section](architecture-data-identity.md#data-and-storage).
+
 ### Structured data
 
-Azure SQL and self-hosted SQL Server use the same schema and versioned migrations. Relational tables
-hold identities, tenancy, financial records, query-critical fields, integrity constraints, and blob
-metadata. Flexible records such as draft details or lab-report payloads may use versioned JSON
-columns when their invariants and reporting needs are still enforced by the surrounding relational
-model.
-
-JSON documents include an explicit schema version. Frequently filtered or joined values are promoted
-to typed columns or indexed computed columns. A separate document database is considered only after
-measured scale, query, availability, or isolation requirements show SQL Server is no longer a
-reasonable fit.
+[Read this section](architecture-data-identity.md#structured-data).
 
 ### Tenant isolation
 
-Tenant isolation is enforced in layers:
-
-1. Authentication resolves the local user and their single tenant membership.
-2. Request middleware establishes one immutable `TenantId` for the request.
-3. Application commands and queries require tenant context.
-4. Repository and ORM conventions apply tenant filters to tenant-owned data.
-5. Relationships between tenant-owned records enforce tenant consistency with database constraints,
-   and tenant-local uniqueness includes `TenantId`.
-6. Blob object names and metadata are tenant-scoped.
-7. Integration and adversarial tests attempt cross-tenant reads, writes, identifier substitution,
-   attachment access, and background processing.
-
-The authenticated session resolves one tenant before application data access. A connection
-interceptor writes that tenant, a fresh nonce, and a proof from a separately delivered workload key
-to read-only SQL Server `SESSION_CONTEXT`; pooled connections are reasserted on every open and
-missing or invalid proof exposes no tenant rows. The database copy of the proof key is owner-only,
-so possession of the web database credential alone cannot select a tenant. Entity Framework query filters,
-save guards, tenant-consistent composite relationships, and SQL Server filter/block predicates then
-enforce the same boundary. The web principal cannot change security policy, schema, migration
-history, security tables, or session context outside the application path.
-
-The system must not accept a caller-supplied tenant identifier as authority. Administrative and
-background operations use separate, explicit privileged interfaces and remain auditable. Platform
-administration is a separate authority and receives no implicit access to tenant data.
-
-Operator workflows use narrowly granted stored procedures, emit append-oriented audit records, and
-do not receive general tenant-table read access. Schema changes use a separate migrator principal;
-the running web workload never receives setup, operator, or migrator credentials.
+[Read this section](architecture-data-identity.md#tenant-isolation).
 
 ### Blob storage
 
-The application depends on a blob abstraction rather than Azure SDK or filesystem types. The initial
-providers are Azure Blob Storage for hosted deployments and filesystem storage for self-hosted and
-local deployments.
-
-Revision identity is independent of content digest. Equal bytes are not deduplicated across tenants;
-each revision retains its own ownership and provenance. SHA-256 describes the exact stored bytes,
-not authenticity or malware safety. A claimed source remains distinct from the server-observed
-actor, time, length and digest. Immutable revision IDs and tenant-qualified object names preserve
-this boundary without turning a digest into a cross-tenant lookup key.
-
-SQL stores each blob's stable identifier, `TenantId`, provider-neutral object identifier, media type,
-size, checksum, lifecycle state, and audit timestamps. Provider object keys are generated by the
-server and are not derived directly from user filenames. Downloads are authorized through application
-metadata before the application reads the provider stream and returns bytes through an authenticated
-same-origin endpoint. Item photograph responses buffer and verify those bytes before returning them.
-The current implementation does not issue provider URLs or SAS links to clients.
-
-Uploads are streamed, bounded by configured limits, checked against an allowlist, and validated using
-content inspection rather than trusting the supplied extension or media type. Writes use a staged
-lifecycle with unique temporary names and provider-appropriate atomic publication so interrupted
-uploads do not appear complete and a blob and its SQL metadata cannot silently diverge. Provider
-contract tests cover both Azure Blob Storage and filesystem implementations.
-
-Failed uploads, abandoned temporary objects, and missing bytes are expected failure states. A
-reconciliation operation reports and safely handles metadata/blob divergence without deleting
-unrelated tenant content. If another store is introduced later, application code must not pretend it
-shares an ACID transaction with SQL.
-
-The filesystem provider resolves every generated object identifier beneath one dedicated absolute
-storage root and verifies canonical containment before access. It rejects path separators, absolute
-paths, traversal segments, symbolic links, and Windows reparse points. Its operating-system identity
-has access only to that root, and neither the web host nor the reverse proxy serves the root directly.
-
-Before accepting untrusted files, the relevant upload specification must define malware handling,
-safe content disposition, and the scope of any direct-upload credentials in addition to media and
-size validation.
+[Read this section](architecture-data-identity.md#blob-storage).
 
 ## Identity and authorization
 
-Service-admin identity is independent of tenant identity. SQL-owned `ServiceAdministration`
-accounts and hashed sessions have no tenant column or tenant-data context. The dedicated
-`WorkbenchServiceAdmin` cookie scheme and `ServiceAdmin` policy protect
-`/api/beta/service-admin/auth` routes; each route selects only its own authority, even when a browser
-carries both cookies or accounts share an email. Admin requests cannot construct tenant context,
-request actor or `WorkbenchDbContext`. Namespaced admin identity claims also keep antiforgery
-authority independent. There is no catalog editor or publishing workflow in this increment.
+Public recovery remains disabled until authenticated SMTP, the shared SQL limiter, and an explicit worker are configured and exercised.
 
-Every authenticated admin request resolves current enabled state, security version, revocation
-and expiry through restricted SQL procedures using the existing web principal. Operator-only
-provision, disable, password reset and session revoke commands are exposed through the database
-CLI, with protected file inputs. The web and worker receive no maintenance authority or operator
-credential, and none of these roles receives direct account/session table access. Account changes
-and issuance serialize so stale password verification cannot issue new authority after revocation.
-
-Mandatory restore sanitation deletes all admin sessions and increments every account security
-version in the same transaction as tenant invalidation, key deletion, audit and restore-marker
-clearance. Pre-backup tokens and cookies stay invalid when restore rolls back a later disablement
-or revocation, including with a cached key ring. Fresh sign-in requires the restored enabled state;
-sanitation preserves disabled state. The web persists keys through a tenant-free key-only context
-mapping the existing `Identity.DataProtectionKeys` table, retaining tenant cookie compatibility.
-See [database principals](operations/database-principals.md#service-admin-identity-maintenance)
-and [restore operations](operations/database-backup-restore.md).
-
-Initial authentication uses built-in ASP.NET Core Identity with durable server-side session state.
-Cookies contain an opaque session reference rather than a complete authorization state. Session
-records are authoritative for the user, security version, expiration, and revocation state. Every
-protected request validates the session record and current account status. Credential changes,
-tenant-authority changes, account disabling, and security-sensitive recovery advance durable security
-state and revoke affected sessions in the same transaction. The design supports revoking one session
-or all sessions for a user across restarts and replicas.
-
-Cookie-protection keys use a shared durable key ring with deployment-supplied at-rest protection.
-Azure uses managed secret or key facilities; self-hosting supplies equivalent key material through
-mounted secrets or another documented secret store. Scaling and routine deployment preserve valid
-sessions.
-
-State-changing browser requests require antiforgery protection. Login, recovery, and other sensitive
-flows use non-enumerating failure responses and audit records.
-Rate limits include a normalized account dimension and a client-network dimension derived only
-through trusted proxy configuration, so adding replicas cannot reset an attacker's attempt budget.
-Password reset and email verification use verified, time-limited operations through a provider-neutral
-email contract. Messages contain short-lived, single-purpose links and never disclose account
-existence to an unauthenticated requester. Local development uses a non-delivering sink. Production
-readiness requires a configured provider; the initial portable provider uses authenticated SMTP with
-encrypted transport and certificate validation.
-
-Login uses a shared SQL-backed limiter across replicas. Public recovery remains disabled until
-authenticated SMTP, the shared SQL limiter, and an explicit worker are configured and exercised. Production
-startup rejects public recovery or invitations when either control is unavailable. The
-implemented authorization operations store only token hashes; a separately purpose-encrypted outbox
-retains delivery material until completion, expiry/failure, or restore sanitation. Operations consume
-a token exactly once and revoke affected
-sessions when credentials change. A local setup/database-owner caller can write a one-time development recovery link
-only to an explicitly named new file; that capability is not a public recovery provider.
-
-In every production profile, verification and recovery links use the configured canonical public
-origin and never a `Host`, `Forwarded`, or `X-Forwarded-*` value from an untrusted request path.
-
-HTTPS is required outside explicit local-development profiles. Authentication cookies are same-origin
-and set `Secure`, `HttpOnly`, and at least `SameSite=Lax`. Framework-maintained password hashing is
-used, and browser storage never holds access or refresh tokens.
-
-External OIDC may later link a verified external identity to an existing Workbench account. Workbench
-remains authoritative for `TenantId`, account status, roles, permissions, session revocation, and audit
-history. Account linking must defend against issuer/subject confusion and unintended account merging.
-
-Roles and permissions are tenant-local and enforced through named server-side authorization policies
-that deny by default. Tenant resolution happens before tenant data access, and possession of a record
-or blob identifier never grants access by itself.
+[Read this section](architecture-data-identity.md#identity-and-authorization).
 
 ## Deployment profiles
 
-```mermaid
-flowchart TB
-    Image[Immutable Workbench image]
-
-    subgraph Hosted[Hosted baseline]
-        ACA[Azure Container Apps Consumption]
-        AzureSQL[(Azure SQL)]
-        AzureBlob[Azure Blob Storage]
-    end
-
-    subgraph SelfHosted[Self-hosted baseline]
-        Proxy[TLS reverse proxy]
-        Compose[Docker Compose application]
-        SQLServer[(SQL Server)]
-        Files[Filesystem blob provider]
-    end
-
-    Image --> ACA
-    ACA --> AzureSQL
-    ACA --> AzureBlob
-    Image --> Compose
-    Proxy --> Compose
-    Compose --> SQLServer
-    Compose --> Files
-```
-
-| Profile | Application runtime | Structured data | Blob data | Public edge |
-| --- | --- | --- | --- | --- |
-| Local development | ASP.NET Core plus the client development server | Developer SQL Server instance | Filesystem provider | Localhost |
-| Hosted baseline | Azure Container Apps Consumption, minimum zero replicas | Azure SQL | Azure Blob Storage | Managed HTTPS ingress |
-| Self-hosted baseline | One application service in Docker Compose | SQL Server | Filesystem provider | TLS reverse proxy |
-
-Hosted deployments use managed identity instead of stored Azure credentials wherever the selected
-service supports it. Version-controlled Bicep describes Azure resources and configuration.
-
-The self-hosted baseline targets one server but is configuration, not an application assumption.
-Database, blob, email, session, and other durable providers are selected through configuration so the
-same image can use external services or multiple replicas. Azure Container Apps may scale to zero;
-the first request after idle may therefore have cold-start latency.
-
-For self-hosting, the application origin listener is private to the deployment network by default.
-Only explicitly configured proxy addresses or narrow networks may supply forwarded scheme or
-client-address data, within a configured hop limit. Forwarded host is never consumed.
-Production configuration requires an allowlisted public host and one canonical public origin. Security
-links and redirects use that configured origin and never request-supplied host or forwarded metadata.
-Startup validation rejects inconsistent proxy, origin, provider, and replica settings.
+[Read this section](architecture-operations.md#deployment-profiles).
 
 ## Runtime and operations
 
+[Read this section](architecture-operations.md#runtime-and-operations).
+
 ### Statelessness and health
 
-Replicas do not depend on sticky sessions, local durable files, or in-memory job state. Liveness
-reports whether the process can run. Readiness verifies the dependencies needed to serve traffic and
-must not report ready while required schema changes are absent. Graceful shutdown stops accepting new
-work and allows bounded in-flight work to finish. Container-local files are read-only application
-artifacts or disposable temporary data, never authoritative state.
+[Read this section](architecture-operations.md#statelessness-and-health).
 
 ### Configuration and secrets
 
-The application uses validated, typed configuration. Environment variables and mounted secret files
-are supported consistently across deployment profiles. Startup fails clearly when required settings
-are absent or incompatible. Production profiles fail closed when required security, database,
-storage, proxy, or key settings are missing, and development defaults cannot silently activate in
-production. Secrets never enter the React build, source control, logs, or container image.
+[Read this section](architecture-operations.md#configuration-and-secrets).
 
 ### Background work
 
-SQL coordinates durable work and shared authentication limits so hosted and self-hosted installations
-share one authority without additional queue and limiter services before a measured capacity need.
-An external queue plus Redis would add operational dependencies; provider-native workflows would
-duplicate semantics across installations. These remain future options when measurements justify
-them, with explicit adapters and SQL authority preserved.
-
-Initial background processing uses a durable SQL-backed queue with leases, retry policy, idempotency,
-and dead-letter handling. Any replica may process work. Enqueueing and related business state changes
-share a transaction or an outbox pattern so work is not silently lost. The scale-to-zero web process
-is not a scheduler: scheduled work or work with bounded completion latency uses an explicit worker or
-hosted job trigger reading the same durable state. Adding that deployable does not change application
-job semantics or move domain authority out of SQL.
+[Read this section](architecture-operations.md#background-work).
 
 ### Observability and audit
 
-Operational telemetry uses fixed schemas. The central console logger exports timestamp, level,
-fixed category, event number, trace ID and failure boolean; it does not export arbitrary structured
-fields, formatted messages, exception text or scopes. The worker separately emits aggregate
-`WorkQueueStatus` pending count and oldest due age through a narrow SQL procedure granted to workers.
-Neither surface exports tenant rows. Operational telemetry must not expose
-credentials, session values, connection strings, reset tokens, attachment contents, or unnecessary
-personal or commercial data. Retention, sampling, and ingestion caps are explicit deployment settings.
-
-Application boundaries emit only allowlisted structured fields. The central logger never evaluates
-message formatters, providing the same closed export schema for framework, dependency, exception and
-application logging. External infrastructure logs require separate access and retention controls.
-
-Security-sensitive and financial actions produce append-oriented audit records that capture actor,
-tenant, action, target, timestamp, correlation identifier, and safe outcome metadata. Ordinary users
-and application flows cannot rewrite audit history. Audit records have explicit schemas,
-authorization, and retention behavior and do not disappear because telemetry sampling changes.
+[Read this section](architecture-operations.md#observability-and-audit).
 
 ### Backup and recovery
 
-Every supported production profile documents backup and restore together. Hosted guidance covers
-Azure SQL point-in-time recovery and configured blob recovery or versioning. Self-hosted tooling pairs
-a SQL backup with a corresponding blob manifest or storage snapshot. Restore drills validate tenant
-ownership, blob checksums, schema version, key availability, application startup, and representative
-data access.
-
-Backups are encrypted, stored outside the running application host, and identified by application and
-schema version.
-
-A restore invalidates every pre-restore browser session before the application becomes ready. The
-procedure removes restored session records and rotates or advances authentication protection state so
-a cookie issued against rolled-back account, role, or revocation data cannot become valid again.
-
-Restore exercises succeed before a deployment profile is described as production-ready. Dependency
-failures prevent readiness or return stable service errors; concurrency conflicts never silently
-overwrite consequential state; partial blob failures remain recoverable; and tenant-isolation failures
-fail closed while producing security-relevant telemetry that does not expose another tenant's data.
-
-Exact recovery objectives remain a service-level decision, but a feature is not operationally complete
-until both its SQL and blob state can be recovered coherently.
-
-Strict paired recovery requires an exact manifest and verified retained bytes. The separate
-[SQL-authoritative recovery workflow](operations/online-backup-recovery.md#manual-recovery) can accept
-missing files through a reviewed report digest on an isolated restored database and distinct store.
-It retains SQL records and records unavailable-file dispositions. Both routes keep the restore guard,
-mandatory session/key sanitation and storage recovery gate; report acceptance never starts services
-or authorizes production cutover.
+[Read this section](architecture-operations.md#backup-and-recovery).
 
 ### Release and migration
 
-CI builds one non-root, minimal-runtime container image, generates an SBOM, scans dependencies and the
-image, and records source revision, dependency inventory, and immutable image digest. Deployment
-automation verifies that provenance before running the matching migration and releasing the image.
-
-Migrations run separately using a principal with schema-change rights. Web replicas use a principal
-without DDL or migration-history modification rights. Migration credentials are available only to the
-controlled deployment operation and are never mounted into, stored by, or recoverable from the running
-web workload. Migrations are forward-tested against Azure SQL and a supported self-hosted SQL Server
-version using an empty database, the previous supported release schema, and representative tenant data
-and constraints. Destructive changes use an expand, migrate, and contract sequence with a verified
-backup and an explicit compatibility window. Application rollback is allowed only while the deployed
-schema remains compatible; otherwise recovery follows the documented restore procedure.
-
-The [principal matrix](operations/database-principals.md) defines principal custody; the
-[migration runbook](operations/database-migrations.md) defines compatibility
-checks, and rollback boundaries. The [backup/restore runbook](operations/database-backup-restore.md)
-keeps cutover human-operated, writes an independent restore-pending marker before multi-user access,
-and requires post-restore sanitation before readiness. Sanitation
-deletes restored sessions, pending identity operations, and data-protection keys; advances every
-user security version and stamp; records an audit event; advances the restore generation; and clears
-the pending marker in the same transaction. Readiness verifies both signals.
+[Read this section](architecture-operations.md#release-and-migration).
 
 ## Security and verification gates
 
