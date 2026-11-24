@@ -7,7 +7,7 @@ namespace Workbench.Server.IntegrationTests.Infrastructure;
 
 internal sealed record SupplierCashClearingHistory(Guid Bill, Guid OriginalCredit, Guid SuccessorCredit, Guid Refund, Guid Clearing);
 
-public sealed class SupplierCashClearingFixture(SqlServerFixture sqlServer) : IAsyncLifetime
+public class SupplierCashClearingFixture(SqlServerFixture sqlServer) : IAsyncLifetime
 {
     private SqlServerFixture.SqlDatabaseTemplate? _database;
     private SupplierContextState? _state;
@@ -17,8 +17,7 @@ public sealed class SupplierCashClearingFixture(SqlServerFixture sqlServer) : IA
     {
         var clock = System.Diagnostics.Stopwatch.StartNew();
         await using var context = await SupplierCreditTestContext.OpenAsync(sqlServer); await context.EnableCashCorrectionsAsync();
-        var history = await context.PrepareRefundClearingAsync();
-        _history = new(history.Bill, history.OriginalCredit, history.SuccessorCredit, history.Refund, history.Clearing);
+        _history = await PrepareAsync(context);
         var recognition = context.Bills.Recognition;
         _state = new SupplierContextState(context.Bills.Journal.ConfigurationVersion,
             recognition.PurchaseOrderId, recognition.SupplierId, recognition.PurchaseOrderVersion,
@@ -37,5 +36,11 @@ public sealed class SupplierCashClearingFixture(SqlServerFixture sqlServer) : IA
         return (await SupplierCreditTestContext.RestoreAsync(payments), _history ?? throw new InvalidOperationException("History is not prepared."));
     }
 
-    public Task DisposeAsync() => Task.CompletedTask; // The collection owns the disposable SQL container and backups.
+    internal virtual async Task<SupplierCashClearingHistory> PrepareAsync(SupplierCreditTestContext context)
+    {
+        var history = await context.PrepareRefundClearingAsync();
+        return new(history.Bill, history.OriginalCredit, history.SuccessorCredit, history.Refund, history.Clearing);
+    }
+
+    public virtual Task DisposeAsync() => Task.CompletedTask; // The collection owns the disposable SQL container and backups.
 }

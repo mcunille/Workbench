@@ -46,11 +46,18 @@ internal sealed partial class SupplierCreditTestContext
         FROM Purchasing.SupplierCashSources source WHERE source.Id='{id}' FOR JSON PATH)
         """);
 
-    public async Task<(Guid Bill, Guid OriginalCredit, Guid SuccessorCredit, Guid Refund, Guid Clearing)> PrepareRefundClearingAsync()
+    public async Task<(Guid Bill, Guid OriginalCredit, Guid SuccessorCredit, Guid Refund, Guid Clearing)> PrepareRefundClearingAsync(
+        (Guid Document, Guid Revision)? document = null)
     {
         var bill = await ExpenseBillAsync("100");
-        var credit = await CreditAsync(bill, "18"); var original = Guid.Parse(credit["sourceId"]!.ToString());
-        var refund = await RefundAsync([(original, "18")]); var clearing = Guid.Parse(refund["settlementIds"]![0]!.ToString());
+        var creditCommand = await CreditCommandAsync(bill, "18");
+        AddRecoveryEvidence(creditCommand, document);
+        var credit = await Bills.ExecuteAsync("PostSupplierCredit", Guid.NewGuid(), creditCommand);
+        var original = Guid.Parse(credit["sourceId"]!.ToString());
+        var refundCommand = await RefundCommandAsync([(original, "18")]);
+        AddRecoveryEvidence(refundCommand, document);
+        var refund = await Bills.ExecuteAsync("RecordSupplierRefund", Guid.NewGuid(), refundCommand);
+        var clearing = Guid.Parse(refund["settlementIds"]![0]!.ToString());
         var replacement = await CreditCommandAsync(bill, "10", "2026-09-20");
         var successor = Guid.Parse(replacement["creditId"]!.ToString());
         var correction = await CorrectionCommandAsync("Credit", original, replacement);
@@ -62,5 +69,15 @@ internal sealed partial class SupplierCreditTestContext
         });
         await CaptureCorrectionPlanAsync(correction); await CorrectAsync("Credit", correction);
         return (bill, original, successor, Guid.Parse(refund["sourceId"]!.ToString()), clearing);
+    }
+
+    internal static void AddRecoveryEvidence(JsonObject command, (Guid Document, Guid Revision)? document)
+    {
+        if (document is { } evidence)
+            command["evidence"] = new JsonObject
+            {
+                ["documents"] = FinancialEvidencePostingTests.Documents(evidence),
+                ["missingEvidenceReason"] = null
+            };
     }
 }

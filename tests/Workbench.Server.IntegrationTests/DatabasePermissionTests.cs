@@ -15,6 +15,31 @@ namespace Workbench.Server.IntegrationTests;
 public sealed class DatabasePermissionTests(SqlServerFixture sqlServer)
 {
     [Fact]
+    public async Task SupplierCreditAndCashMutationRemainInternalToTheRelease()
+    {
+        // GIVEN fresh migrated SQL and genuinely provisioned runtime database roles.
+        await using var database = await sqlServer.CreateMigratedDatabaseAsync();
+        var web = await database.CreateWebUserAsync();
+        var worker = await database.CreateRoleUserAsync("workbench_worker");
+        // WHEN attempting alternate mutation paths THEN SQL rejects both roles before admitting any source command.
+        foreach (var principal in new[] { web, worker })
+        {
+            foreach (var procedure in new[] { "PostSupplierCredit", "RecordSupplierRefund", "RecordSupplierRefundRepayment",
+                "CorrectSupplierBill", "CorrectSupplierCredit", "CorrectSupplierRefund", "CorrectSupplierRefundRepayment",
+                "RecordSupplierCashCore", "ReleaseSupplierCashSettlement", "ValidateSupplierCashCorrectionGroup" })
+                await AssertDeniedAsync(principal, $"EXEC Purchasing.{procedure}", 229);
+            foreach (var (table, key) in new[] { ("SupplierCredits", "Id"), ("SupplierCreditClaims", "Id"),
+                ("SupplierCashSources", "Id"), ("SupplierCashSettlements", "Id"), ("SupplierSourceCorrections", "Id"),
+                ("SupplierSourceCorrectionMembers", "Id"), ("SupplierCashSettlementReleases", "SettlementId") })
+            {
+                await AssertDeniedAsync(principal, $"INSERT Purchasing.{table} DEFAULT VALUES", 229);
+                await AssertDeniedAsync(principal, $"UPDATE Purchasing.{table} SET {key}=NEWID() WHERE 1=0", 229);
+                await AssertDeniedAsync(principal, $"DELETE Purchasing.{table} WHERE 1=0", 229);
+            }
+        }
+    }
+
+    [Fact]
     public async Task ServiceAdminAuthorityIsLimitedToNamedCommands()
     {
         // GIVEN the actual web, worker and operator database principals.
