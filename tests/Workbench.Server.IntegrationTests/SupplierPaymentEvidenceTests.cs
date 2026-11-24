@@ -85,6 +85,13 @@ public sealed class SupplierPaymentEvidenceTests(SqlServerFixture sqlServer)
             if (mutation == "recovery") await context.Bills.AdminAsync($"DELETE Storage.RecoveryFiles WHERE RevisionId='{revision}' AND TenantId='{JournalTestContext.TenantId}'");
             if (mutation == "otherOrder") await context.Bills.AdminAsync($"UPDATE Purchasing.PurchaseOrderDocuments SET OrderId='{context.Bills.Recognition.PurchaseOrderId}' WHERE Id='{document}'");
         }
+        // AND a new payment against the restored document revision commits fresh evidence.
+        var recovered = await context.CommandAsync();
+        recovered["evidence"] = valid["evidence"]!.DeepClone();
+        await context.RecordAsync(recovered);
+        var current = await context.Bills.ScalarAsync<string>($"SELECT EvidenceJson FROM Purchasing.SupplierPayments WHERE Id='{recovered["paymentId"]}'");
+        var savedDocument = JsonNode.Parse(current)!["evidence"]!["documents"]![0]!;
+        Assert.Equal(revision, Guid.Parse(savedDocument["revisionId"]!.GetValue<string>()));
     }
 
     [Fact]

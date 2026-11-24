@@ -167,6 +167,11 @@ public sealed class SupplierAllocationTests(SqlServerFixture sqlServer)
             if (scenario == "cross-currency") await context.Bills.AdminAsync($"UPDATE Purchasing.SupplierOpenItems SET Currency='{currency}' WHERE Id='{bill}'");
             if (scenario == "cross-po") await context.Bills.AdminAsync($"UPDATE Purchasing.SupplierOpenItems SET PurchaseOrderId='{context.Items.Recognition.PurchaseOrderId}' WHERE Id='{bill}'");
         }
+        // AND a fresh valid application commits in the same database after the faults are cleared.
+        var recovered = await context.CommandAsync(advance, bill, "25", date: "2026-09-18");
+        await context.ApplyAsync(recovered);
+        Assert.Equal(75m, await context.BalanceAsync(advance));
+        Assert.Equal(125m, await context.BalanceAsync(bill));
         Task<string> Counts() => context.Bills.ScalarAsync<string>("SELECT CONCAT((SELECT COUNT(*) FROM Accounting.JournalEntries),':',(SELECT COUNT(*) FROM Purchasing.SupplierItemMovements),':',(SELECT COUNT(*) FROM Purchasing.SupplierApplications),':',(SELECT COUNT(*) FROM Purchasing.SupplierFinancialReceipts))");
     }
 

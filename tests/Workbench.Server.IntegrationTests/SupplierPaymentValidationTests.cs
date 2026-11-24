@@ -90,7 +90,14 @@ public sealed class SupplierPaymentValidationTests(SqlServerFixture sqlServer)
             Assert.True(((SqlException)error!).Number == number, $"{guard}: {error.Message}");
             Assert.True(before == await Counts(context), $"{guard}: financial evidence changed.");
             Assert.True(400m == await context.Allocation.BalanceAsync(bill), $"{guard}: bill capacity changed.");
+            if (guard == "archived") await context.Bills.AdminAsync($"UPDATE Accounting.Accounts SET ArchivedAtUtc=NULL WHERE Id='{context.Bank}'");
+            if (guard == "advanceArchived") await context.Bills.AdminAsync($"UPDATE Accounting.Accounts SET ArchivedAtUtc=NULL WHERE Id='{context.Advance}'");
         }
+        // AND a fresh valid payment commits against the same bill once the guard probes are complete.
+        var recovered = await context.CommandAsync();
+        await context.AllocateAsync(recovered, bill, "100");
+        await context.RecordAsync(recovered);
+        Assert.Equal(300m, await context.Allocation.BalanceAsync(bill));
     }
 
     [Fact]
@@ -112,6 +119,10 @@ public sealed class SupplierPaymentValidationTests(SqlServerFixture sqlServer)
             Assert.Equal(51000, (await Assert.ThrowsAsync<SqlException>(() => command.ExecuteNonQueryAsync())).Number);
             Assert.Equal(before, await Counts(context));
         }
+        // AND valid JSON still commits a new payment in the same database.
+        var recovered = await context.CommandAsync();
+        await context.RecordAsync(recovered);
+        Assert.Equal(1, await context.Bills.ScalarAsync<int>($"SELECT COUNT(*) FROM Purchasing.SupplierPayments WHERE Id='{recovered["paymentId"]}'"));
     }
 
     internal static Task<string> Counts(SupplierPaymentTestContext context) => context.Bills.ScalarAsync<string>("""
