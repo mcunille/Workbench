@@ -51,8 +51,9 @@ use `review-pr` only for user-requested PR review with its publication gate.
 Before adding any test, answer four questions; a missing answer means do not
 add it yet:
 
-1. What observable behavior, invariant, or independent contract does it protect?
-2. What credible regression makes it fail?
+1. What observable behavior, invariant, or independent contract does it protect? Cite the
+   stated requirement, real report, logs, incident, or reproducible real failure that justifies it.
+2. What regression makes it fail?
 3. Why does existing coverage not already catch that failure? Each contract has
    one primary test owner at the strongest boundary; another layer needs its
    own distinct risk, such as a transport or lifecycle failure the owner cannot

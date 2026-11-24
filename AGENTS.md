@@ -2,6 +2,7 @@
 
 ## Workflow and authority
 
+- Do not add contrived/speculative scenarios, limits, guards, paths, tests, or criteria without evidence (stated requirement, real report, real logs/incidents, or reproducible real failure).
 - Design, implementation, review: apply the [five-step algorithm](docs/development-workflow.md#first-principles-the-five-step-algorithm) in order. Changing safeguards requires the applicable approval.
 - Before implementation, complete the applicable superpowers [design and planning handoffs](docs/development-workflow.md#design-and-planning). Bounded changes require short design approval; approval covers the presented artifact, not later unseen artifacts.
 - After verified implementation, commit scoped changes, push the branch, and open or update a ready-for-review PR against its base branch. This preselects superpowers:finishing-a-development-branch's PR option; skip the integration-menu question. Create a draft only when requested.
