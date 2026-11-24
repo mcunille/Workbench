@@ -19,8 +19,8 @@ AS BEGIN
   INSERT @Reapplications SELECT CONVERT(int,proposed.[key]),target.*
     FROM OPENJSON(@Plan,'$.reapplications') proposed CROSS APPLY OPENJSON(proposed.value)
     WITH(FundingId uniqueidentifier '$.fundingItemId',DebtId uniqueidentifier '$.debtItemId',Amount decimal(28,4) '$.amount') target;
-  DECLARE @InvertedApplications TABLE(ApplicationId uniqueidentifier PRIMARY KEY,OriginalJournalId uniqueidentifier);
-  INSERT @InvertedApplications SELECT reversed.ApplicationId,control.JournalId FROM Purchasing.SupplierApplicationReversals reversed
+  DECLARE @InvertedApplications TABLE(ReversalId uniqueidentifier PRIMARY KEY,ApplicationId uniqueidentifier,OriginalJournalId uniqueidentifier);
+  INSERT @InvertedApplications SELECT reversed.Id,reversed.ApplicationId,control.JournalId FROM Purchasing.SupplierApplicationReversals reversed
     CROSS APPLY Purchasing.SupplierApplicationControl(@TenantId,reversed.ApplicationId) control
     WHERE reversed.TenantId=@TenantId AND reversed.GroupId=@GroupId;
 
@@ -37,18 +37,38 @@ AS BEGIN
       ELSE member.RecognitionEventId END,
     target.Position,journal.PostingDate,journal.Currency
     FROM Purchasing.SupplierSourceCorrectionMembers member
+    JOIN Purchasing.SupplierSourceCorrections owner ON owner.TenantId=member.TenantId AND owner.Id=member.CorrectionId
+      AND owner.GroupId=member.GroupId
     JOIN Accounting.JournalEntries journal ON journal.TenantId=member.TenantId AND journal.Id=member.JournalId
     JOIN Accounting.SourceEvents source ON source.TenantId=journal.TenantId AND source.Id=journal.SourceEventId
     LEFT JOIN Accounting.CorrectionGroups inverse ON inverse.TenantId=member.TenantId AND inverse.ReversalJournalId=member.JournalId
       AND member.Kind='ReverseSource'
     LEFT JOIN Accounting.JournalEntries originalJournal ON originalJournal.TenantId=inverse.TenantId AND originalJournal.Id=inverse.OriginalJournalId
     LEFT JOIN Accounting.SourceEvents originalSource ON originalSource.TenantId=originalJournal.TenantId AND originalSource.Id=originalJournal.SourceEventId
-    LEFT JOIN @InvertedApplications invertedApplication ON invertedApplication.ApplicationId=member.EntityId AND member.Kind='ReverseApplication'
+    LEFT JOIN @InvertedApplications invertedApplication ON invertedApplication.ReversalId=source.SourceId
+      AND invertedApplication.ApplicationId=member.EntityId AND member.Kind='ReverseApplication'
     LEFT JOIN Purchasing.SupplierApplications applied ON applied.TenantId=member.TenantId AND applied.GroupId=member.GroupId
       AND applied.Id=member.EntityId AND applied.Id=source.SourceId AND member.Kind='Application'
     LEFT JOIN @Reapplications target ON target.Position=TRY_CONVERT(int,JSON_VALUE(member.EffectsJson,'$.position'))
       AND target.FundingId=applied.FundingItemId AND target.DebtId=applied.DebtItemId AND target.Amount=applied.Amount
-    WHERE member.TenantId=@TenantId AND member.GroupId=@GroupId;
+    WHERE member.TenantId=@TenantId AND member.GroupId=@GroupId AND (
+      (member.Kind='ReverseSource' AND source.SourceId=originalSource.SourceId AND source.SourceKind=originalSource.SourceKind
+        AND member.EntityId=CASE WHEN originalSource.SourceKind IN('SupplierRefundRelease','SupplierRecognitionCreditAdjustment')
+          THEN originalJournal.Id ELSE originalSource.SourceId END
+        AND (originalSource.SourceKind NOT IN('SupplierCredit','SupplierRefund','SupplierRefundRepayment')
+          OR (owner.SourceKind=originalSource.SourceKind AND owner.SourceId=originalSource.SourceId)))
+      OR (member.Kind='ReverseApplication' AND invertedApplication.ReversalId IS NOT NULL AND source.SourceRevision=@GroupId)
+      OR (member.Kind='Application' AND target.Position IS NOT NULL AND source.SourceRevision=@GroupId)
+      OR (member.Kind='Replacement' AND source.SourceId=member.EntityId
+        AND (source.SourceKind='PurchaseRecognition' OR
+          (owner.SourceKind=source.SourceKind AND owner.ReplacementSourceId=source.SourceId AND owner.ReplacementSourceRevisionId=source.SourceRevision)))
+      OR (member.Kind='ReleaseSettlement' AND source.SourceId=member.EntityId AND source.SourceRevision=member.CorrectionId)
+      OR (member.Kind='RecognitionAdjustment' AND source.SourceId=member.EntityId AND source.SourceRevision=member.CorrectionId
+        AND owner.SourceKind='SupplierCredit' AND owner.SourceId=TRY_CONVERT(uniqueidentifier,JSON_VALUE(source.SnapshotJson,'$.adjustment.sourceId'))
+        AND member.RecognitionEventId=TRY_CONVERT(uniqueidentifier,JSON_VALUE(source.SnapshotJson,'$.adjustment.recognitionEventId'))
+        AND TRY_CONVERT(uniqueidentifier,JSON_VALUE(source.SnapshotJson,'$.groupId'))=member.GroupId
+        AND CONVERT(varbinary(max),JSON_QUERY(source.SnapshotJson,'$.adjustment'))=CONVERT(varbinary(max),member.EffectsJson))
+    );
 
   DECLARE @Matches TABLE(ExpectedId int,JournalId uniqueidentifier);
   INSERT @Matches SELECT expected.Id,actual.JournalId FROM @Expected expected JOIN @Actual actual

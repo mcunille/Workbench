@@ -227,8 +227,13 @@ public sealed class SupplierCorrectionPreviewContractTests(SqlServerFixture serv
         var stored = JsonNode.Parse(await context.Bills.ScalarAsync<string>($"""
             SELECT (SELECT member.Kind memberKind,source.SourceKind sourceKind,source.SourceId sourceId,
               COALESCE(original.SourceRevision,source.SourceRevision) sourceRevisionId,correction.OriginalJournalId originalJournalId,
-              member.RecognitionEventId ownerMemberId,member.EntityId entityId,
+              member.RecognitionEventId recognitionId,member.EntityId entityId,
+              original.SourceKind originalSourceKind,original.SourceId originalSourceId,
+              reversal.ApplicationId reversedApplicationId,historical.JournalId reversedApplicationJournalId,
+              JSON_VALUE(source.SnapshotJson,'$.adjustment.sourceId') adjustmentCreditId,
+              JSON_VALUE(source.SnapshotJson,'$.adjustment.recognitionEventId') adjustmentRecognitionId,
               application.FundingItemId fundingItemId,application.DebtItemId debtItemId,
+              TRY_CONVERT(int,JSON_VALUE(member.EffectsJson,'$.position')) position,
               journal.PostingDate postingDate,journal.Currency currency,
               JSON_QUERY((SELECT line.Ordinal ordinal,line.AccountId accountId,line.AccountVersion accountVersion,
                 CONVERT(varchar(60),line.Debit) debit,CONVERT(varchar(60),line.Credit) credit
@@ -242,26 +247,47 @@ public sealed class SupplierCorrectionPreviewContractTests(SqlServerFixture serv
             LEFT JOIN Accounting.SourceEvents original ON original.TenantId=predecessor.TenantId AND original.Id=predecessor.SourceEventId
             LEFT JOIN Purchasing.SupplierApplications application ON application.TenantId=member.TenantId
               AND application.GroupId=member.GroupId AND application.Id=member.EntityId
+            LEFT JOIN Purchasing.SupplierApplicationReversals reversal ON reversal.TenantId=member.TenantId
+              AND reversal.GroupId=member.GroupId AND reversal.Id=source.SourceId AND member.Kind='ReverseApplication'
+            LEFT JOIN Purchasing.SupplierApplications earlier ON earlier.TenantId=reversal.TenantId AND earlier.Id=reversal.ApplicationId
+            OUTER APPLY(SELECT prior.Id JournalId FROM Accounting.JournalEntries prior
+              JOIN Accounting.SourceEvents event ON event.TenantId=prior.TenantId AND event.Id=prior.SourceEventId
+              WHERE prior.TenantId=earlier.TenantId AND prior.RecordedAtUtc=earlier.RecordedAtUtc AND prior.PostingDate=earlier.PostingDate
+                AND (event.SourceKind='SupplierApplication' AND event.EventKind='Apply' AND event.SourceId=earlier.Id
+                  OR event.SourceKind='SupplierPayment' AND event.EventKind='Payment' AND event.SourceId=earlier.FundingItemId
+                    AND EXISTS(SELECT 1 FROM OPENJSON(event.SnapshotJson,'$.allocations') allocation
+                      WHERE TRY_CONVERT(uniqueidentifier,JSON_VALUE(allocation.value,'$.applicationId'))=earlier.Id))) historical
             WHERE member.GroupId='{group}' FOR JSON PATH)
             """))!.AsArray();
-        static string Signature(JsonNode? row, bool planned)
+        static (string Key, string Journal) Signature(JsonNode? row, bool planned)
         {
             var entry = row!.AsObject();
             var lines = entry["lines"]!.AsArray().Select(line =>
                 $"{line!["ordinal"]}|{Guid.Parse(line["accountId"]!.ToString()):D}|{Guid.Parse(line["accountVersion"]!.ToString()):D}|{line["debit"]}|{line["credit"]}");
             string Key(string name) => Guid.TryParse(entry[name]?.ToString(), out var id) ? id.ToString("D") : "";
             var member = entry["memberKind"]!.ToString();
-            var identity = member switch
+            var key = $"{member}|{entry["sourceKind"]}|";
+            if (planned)
+                key += $"{Key("sourceId")}|{Key("sourceRevisionId")}|{Key("originalJournalId")}|{Key("ownerMemberId")}|{entry["position"]}";
+            else
             {
-                "Application" => planned ? $"{Key("sourceId")}|{Key("ownerMemberId")}" : $"{Key("fundingItemId")}|{Key("debtItemId")}",
-                "ReverseApplication" => Key(planned ? "ownerMemberId" : "entityId"),
-                "RecognitionAdjustment" => Key("ownerMemberId"),
-                "ReleaseSettlement" => Key("sourceId"),
-                _ => $"{Key("sourceId")}|{Key("sourceRevisionId")}|{Key("originalJournalId")}"
-            };
-            return $"{member}|{entry["sourceKind"]}|{identity}|{entry["postingDate"]}|{entry["currency"]}|{string.Join(";", lines)}";
+                key += member switch
+                {
+                    "Application" => $"{Key("fundingItemId")}|||{Key("debtItemId")}|{entry["position"]}",
+                    "ReverseApplication" => $"||{Key("reversedApplicationJournalId")}|{Key("reversedApplicationId")}|",
+                    "RecognitionAdjustment" => $"{Key("adjustmentCreditId")}|||{Key("adjustmentRecognitionId")}|",
+                    "ReleaseSettlement" => $"{Key("sourceId")}|||{Key("entityId")}|",
+                    "ReverseSource" when entry["originalSourceKind"]?.ToString() == "SupplierRefundRelease" =>
+                        $"{Key("sourceId")}|{Key("sourceRevisionId")}|{Key("originalJournalId")}|{Key("originalSourceId")}|",
+                    _ => $"{Key("sourceId")}|{Key("sourceRevisionId")}|{Key("originalJournalId")}|{Key("recognitionId")}|"
+                };
+            }
+            return (key, $"{entry["postingDate"]}|{entry["currency"]}|{string.Join(";", lines)}");
         }
-        Assert.Equal(stored.Select(row => Signature(row, planned: false)).Order(StringComparer.Ordinal),
-            plan["proposedJournals"]!.AsArray().Select(row => Signature(row, planned: true)).Order(StringComparer.Ordinal));
+        var posted = stored.Select(row => Signature(row, planned: false)).ToArray();
+        var proposed = plan["proposedJournals"]!.AsArray().Select(row => Signature(row, planned: true)).ToArray();
+        Assert.Equal(posted.Length, posted.Select(row => row.Key).Distinct().Count());
+        Assert.Equal(proposed.Length, proposed.Select(row => row.Key).Distinct().Count());
+        Assert.Equal(posted.OrderBy(row => row.Key, StringComparer.Ordinal), proposed.OrderBy(row => row.Key, StringComparer.Ordinal));
     }
 }

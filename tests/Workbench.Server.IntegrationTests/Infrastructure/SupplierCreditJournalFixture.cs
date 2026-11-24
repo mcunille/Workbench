@@ -23,7 +23,7 @@ public sealed class SupplierCreditJournalFixture(SqlServerFixture server) : IAsy
     {
         var clock = System.Diagnostics.Stopwatch.StartNew();
         await using var context = await SupplierCreditTestContext.OpenAsync(server);
-        var bill = await context.ExpenseBillAsync("100");
+        var bill = refund ? await context.ExpenseBillAsync("100") : await context.ExpenseBillAsync("80", freight: "20");
         Guid? settlement = null;
         Guid credit;
         if (refund)
@@ -38,7 +38,8 @@ public sealed class SupplierCreditJournalFixture(SqlServerFixture server) : IAsy
         else
         {
             credit = Guid.Parse((await context.CreditAsync(bill, "30"))["sourceId"]!.ToString());
-            await context.Payments.Allocation.ApplyAsync(await context.Payments.Allocation.CommandAsync(credit, bill, "20"));
+            await context.Payments.Allocation.ApplyAsync(await context.Payments.Allocation.CommandAsync(credit, bill, "10"));
+            await context.Payments.Allocation.ApplyAsync(await context.Payments.Allocation.CommandAsync(credit, bill, "10"));
         }
 
         var recognition = context.Bills.Recognition;
