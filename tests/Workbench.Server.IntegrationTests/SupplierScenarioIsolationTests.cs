@@ -38,5 +38,23 @@ public sealed class SupplierScenarioIsolationTests(SupplierIsolationScenarios sc
         Assert.Equal(before, await SupplierOpenItemAtomicityTests.SnapshotAsync(b));
         Assert.False((await SupplierReconciliationTests.Read(a)).IsComplete);
         Assert.True((await SupplierReconciliationTests.Read(b)).IsComplete);
+
+        // GIVEN independent copies of a posted bill without any payment or application history.
+        await using var firstBill = await scenarios.OpenAsync("bill100");
+        await using var secondBill = await scenarios.OpenAsync("bill100");
+        var bill = Guid.Parse(secondBill.Data["bill"]!.GetValue<string>());
+        Assert.Equal(100m, await secondBill.Context.Allocation.BalanceAsync(bill));
+        Assert.Equal(0, await secondBill.Context.Bills.ScalarAsync<int>("SELECT COUNT(*) FROM Purchasing.SupplierPayments"));
+        var billBefore = await SupplierOpenItemAtomicityTests.SnapshotAsync(secondBill.Context);
+        // WHEN one case changes both its bill evidence and its returned scenario metadata.
+        await firstBill.Context.Bills.AdminAsync("UPDATE Accounting.SourceEvents SET SourceRevision=NEWID()");
+        firstBill.Data["bill"] = Guid.NewGuid().ToString();
+        Assert.NotEqual(billBefore, await SupplierOpenItemAtomicityTests.SnapshotAsync(firstBill.Context));
+        // THEN the other bill copy and a later restore retain the genuine posted precondition.
+        Assert.Equal(billBefore, await SupplierOpenItemAtomicityTests.SnapshotAsync(secondBill.Context));
+        await using var laterBill = await scenarios.OpenAsync("bill100");
+        Assert.Equal(bill, Guid.Parse(laterBill.Data["bill"]!.GetValue<string>()));
+        Assert.Equal(billBefore, await SupplierOpenItemAtomicityTests.SnapshotAsync(laterBill.Context));
+
     }
 }

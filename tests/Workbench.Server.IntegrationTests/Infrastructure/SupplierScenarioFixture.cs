@@ -53,6 +53,11 @@ public abstract class SupplierScenarioFixture(SqlServerFixture sqlServer, params
     private static async Task<JsonObject> SeedAsync(SupplierPaymentTestContext context, string name)
     {
         var data = new JsonObject();
+        if (name == "bill100")
+        {
+            data["bill"] = (await context.Allocation.BillAsync("100")).ToString();
+            return data;
+        }
         if (name is "payment100" or "application100" or "embedded100" or "embedded150" or "embedded300" or "racePayment" or "raceEmbedded")
         {
             // These tests own correction, inverse or competing-command behavior. Their
@@ -109,21 +114,6 @@ public abstract class SupplierScenarioFixture(SqlServerFixture sqlServer, params
             await context.Bills.ExecuteAsync("CorrectSupplierPayment", Guid.NewGuid(), await SupplierCorrectionFixture.CorrectionAsync(context, id, replacement));
             if (name == "mixed") data["before"] = before.ToUniversalTime().ToString("O");
             else { data["embedded"] = embedded.ToString(); data["standalone"] = standalone.ToString(); }
-        }
-        else if (name == "equalDebtAttribution")
-        {
-            var first = await context.Allocation.BillAsync("50");
-            var payable = context.Bills.Recognition.Accounts["SupplierPayable"];
-            var version = await context.Bills.ScalarAsync<Guid>($"SELECT Version FROM Accounting.Accounts WHERE Id='{payable}'");
-            var code = await context.Bills.ScalarAsync<string>($"SELECT Code FROM Accounting.Accounts WHERE Id='{payable}'");
-            await context.Allocation.Journal.SaveAsync(Guid.NewGuid(), "UpdateAccount",
-                new JsonObject { ["code"] = code, ["name"] = "Renamed payable", ["description"] = "Current label" }.ToJsonString(), payable, version);
-            var second = await context.Allocation.BillAsync("50");
-            var payment = await context.CommandAsync();
-            await context.AllocateAsync(payment, first, "50"); await context.AllocateAsync(payment, second, "50");
-            var posted = await context.RecordAsync(payment);
-            data["first"] = first.ToString(); data["second"] = second.ToString();
-            data["payment"] = payment["paymentId"]!.DeepClone(); data["group"] = posted["groupId"]!.DeepClone();
         }
         else if (name == "equalLines")
         {
@@ -256,9 +246,8 @@ public sealed class SupplierReconciliationScenarios(SqlServerFixture server) : S
 
 public sealed class SupplierRecoveryScenarios(SqlServerFixture server) : SupplierScenarioFixture(server, "recovery");
 
-public sealed class SupplierIsolationScenarios(SqlServerFixture server) : SupplierScenarioFixture(server, "sourcesFalse");
+public sealed class SupplierIsolationScenarios(SqlServerFixture server) : SupplierScenarioFixture(server, "sourcesFalse", "bill100");
 
-public sealed class SupplierEvidenceScenarios(SqlServerFixture server) : SupplierScenarioFixture(server, "equalDebtAttribution");
 
 internal sealed record SupplierContextState(Guid ConfigurationVersion, Guid PurchaseOrderId, Guid SupplierId,
     string PurchaseOrderVersion, string AccountsJson, Guid Bank, Guid Advance);

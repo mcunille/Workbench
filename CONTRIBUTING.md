@@ -33,10 +33,14 @@ published-output probes. Full-gate outcomes and stage/partition timings are reta
 The concurrent client stage uses one test worker while .NET formatting/build runs, keeping
 DOM test deadlines from competing with additional client workers. Focused client runs retain
 the runner defaults. The gate uses two isolated server processes by default; adjust
-`-ServerPartitions` (2–4) and `-ServerConcurrency` (1–4) for available Docker resources. Live browser
-tests use one worker; fully intercepted UI tests have their own bounded project. Every discovered
+`-ServerPartitions` (2–4) and `-ServerConcurrency` (1–4) for available Docker resources.
+Hosted CI runs four cohorts across two four-CPU, 16 GiB server jobs, with two SQL workers per job.
+Complete classes stay in one cohort so their fixtures prepare history once. Each
+`server-evidence-*` artifact retains CPU counters, available memory, load and container usage
+under `ci-resources/samples.jsonl`. Compare actual pressure and wall time before changing concurrency.
+Live browser tests use one worker; fully intercepted UI tests have their own bounded project. Every discovered
 server case must pass exactly once. See the
-[gate provenance and scheduling](tests/README.md#gate-provenance-and-scheduling) for artifact
+[CI verification](tests/ci-verification.md) for artifact
 provenance and the aggregate CI check.
 The `Required verification gate` aggregate requires all named jobs to succeed, including setup,
 deployment and container smoke. Failed, cancelled, skipped or missing jobs cannot pass. Require
@@ -161,7 +165,7 @@ SQL integration tests require Docker; photo-processing tests can run without SQL
 Focused runs are iteration feedback. The full `verify.ps1` and `smoke-container.ps1` delivery gates
 above remain required; use `verify.ps1 -SkipDependencyInstall` when npm dependencies are unchanged.
 See [database setup](tests/README.md#database-setup) for independent template restores and explicit
-migration drills, and [timing-data refresh](tests/README.md#refresh-server-timing-data) for trusted
+migration drills, and [timing-data refresh](tests/ci-verification.md#refresh-server-timing-data) for trusted
 partition measurements. Template setup remains part of process time, even for a focused SQL run.
 
 ## Before proposing a change

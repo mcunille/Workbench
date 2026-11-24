@@ -5,6 +5,8 @@ test('forced colors preserve both icons and a visible selected-theme boundary', 
   // GIVEN a visitor using a high-contrast system palette.
   await page.emulateMedia({ forcedColors: 'active', reducedMotion: 'reduce' });
   await page.goto('/');
+  // AND authentication has replaced the loading screen with the stable sign-in screen.
+  await expect(page.getByRole('heading', { name: 'Sign in', exact: true })).toBeVisible();
   const control = page.getByRole('switch', { name: 'Dark theme' });
   await expect(control).toBeVisible();
   for (const colorScheme of ['light', 'dark'] as const) {

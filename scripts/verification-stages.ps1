@@ -1,7 +1,13 @@
 # Shared fail-closed stage accounting for local verification and the required CI gate.
+function Get-RequiredVerificationStages {
+    param([ValidateSet('All', 'SourceRelease')][string]$StageGroup = 'All')
+    if ($StageGroup -eq 'All') { return @('client', 'server', 'browser', 'published') }
+    return @('client', 'browser', 'published')
+}
+
 function Assert-RequiredCiJobs {
     param([Parameter(Mandatory)][System.Collections.IDictionary]$Needs)
-    foreach ($name in @('design-tooling-contracts', 'local-setup-contracts', 'deployment-contracts', 'verify', 'container-smoke')) {
+    foreach ($name in @('design-tooling-contracts', 'local-setup-contracts', 'deployment-contracts', 'verify', 'server-tests', 'container-smoke')) {
         if (-not $Needs.Contains($name) -or $Needs[$name].result -cne 'success') {
             throw "Required CI job '$name' did not succeed (missing, failed, cancelled, or skipped)."
         }

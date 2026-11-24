@@ -19,6 +19,8 @@ jobs:
     steps:
       - name: Check out source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.sha }}
       - name: Set up Node.js
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
@@ -35,6 +37,8 @@ jobs:
     steps:
       - name: Check out source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.sha }}
       - name: Verify local installer without a Docker daemon
         shell: pwsh
         run: |
@@ -53,6 +57,8 @@ jobs:
     steps:
       - name: Check out source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.sha }}
       - name: Validate configuration and compile infrastructure
         shell: pwsh
         run: |
@@ -82,6 +88,8 @@ jobs:
     steps:
       - name: Check out source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.sha }}
 
       - name: Set up .NET
         uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
@@ -104,8 +112,10 @@ jobs:
           ./tests/Workbench.BuildTests/WorkflowActions.Tests.ps1
           ./tests/Workbench.BuildTests/VerificationScripts.Tests.ps1
           ./tests/Workbench.BuildTests/VerificationStages.Tests.ps1
+          ./tests/Workbench.BuildTests/VerificationStageGroups.Tests.ps1
           ./tests/Workbench.BuildTests/ServerPartitions.Tests.ps1
           ./tests/Workbench.BuildTests/ServerDurations.Tests.ps1
+          ./tests/Workbench.BuildTests/DistributedServer.Tests.ps1
           ./tests/Workbench.BuildTests/ArtifactReuse.Tests.ps1
           ./tests/Workbench.BuildTests/PublishedProcess.Tests.ps1
           ./tests/Workbench.BuildTests/FocusedTests.Tests.ps1
@@ -129,9 +139,9 @@ jobs:
 
       - name: Verify source and published output
         shell: pwsh
-        run: ./scripts/verify.ps1 -SkipDependencyInstall
+        run: ./scripts/verify.ps1 -SkipDependencyInstall -StageGroup SourceRelease
 
-      - name: Retain gate timings and partition evidence
+      - name: Retain source and release evidence
         if: ${{ always() }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
@@ -140,12 +150,6 @@ jobs:
           path: |
             artifacts/verification/**/gate.json
             artifacts/verification/**/stages.json
-            artifacts/verification/**/duration-dataset.json
-            artifacts/verification/**/inventory.json
-            artifacts/verification/**/timing.json
-            artifacts/verification/**/*.trx
-            artifacts/verification/**/test.log
-            artifacts/verification/**/discovery.log
             artifacts/browser/results.json
 
       - name: Retain safe browser failure diagnostics
@@ -174,19 +178,85 @@ jobs:
     steps:
       - name: Check out source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.sha }}
 
       - name: Build and smoke test the runtime image
         shell: pwsh
         run: ./scripts/smoke-container.ps1
 
+  server-tests:
+    name: Server tests host ${{ matrix.host }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+    strategy:
+      fail-fast: false
+      matrix:
+        host: [1, 2]
+    steps:
+      - name: Check out source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.sha }}
+      - name: Set up .NET
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
+        with:
+          dotnet-version: 10.0.402
+      - name: Fresh build and two SQL workers
+        shell: pwsh
+        env:
+          WORKBENCH_PR_HEAD: ${{ github.event.pull_request.head.sha }}
+          SERVER_HOST: ${{ matrix.host }}
+        run: |
+          New-Item -ItemType Directory artifacts/ci-resources -Force | Out-Null
+          $resources = Start-Job {
+            while ($true) {
+              try {
+                $containers = @(docker stats --no-stream --format '{{.ID}} {{.CPUPerc}} {{.MemUsage}} {{.MemPerc}}')
+                if ($LASTEXITCODE -ne 0) { throw 'Container statistics unavailable.' }
+                [pscustomobject]@{
+                  Timestamp = [DateTimeOffset]::UtcNow.ToString('o')
+                  Cpu = (Get-Content /proc/stat -TotalCount 1)
+                  Memory = @(Get-Content /proc/meminfo | Select-String '^(MemTotal|MemAvailable|SwapTotal|SwapFree):' | ForEach-Object Line)
+                  Load = (Get-Content /proc/loadavg)
+                  Containers = $containers
+                } | ConvertTo-Json -Compress
+              }
+              catch {
+                [pscustomobject]@{ Timestamp = [DateTimeOffset]::UtcNow.ToString('o'); SamplingError = $_.Exception.GetType().Name } | ConvertTo-Json -Compress
+              }
+              Start-Sleep -Seconds 30
+            }
+          }
+          try {
+            $firstPartition = 2 * [int]$env:SERVER_HOST - 1
+            ./scripts/test-server-partitions.ps1 -PartitionCount 4 -PartitionIds $firstPartition,($firstPartition + 1) -MaxConcurrency 2 -ResultsDirectory artifacts/server-results
+          }
+          finally {
+            Stop-Job $resources -ErrorAction Continue
+            Receive-Job $resources -ErrorAction Continue | Set-Content artifacts/ci-resources/samples.jsonl -ErrorAction Continue
+            Remove-Job $resources -ErrorAction Continue
+          }
+      - name: Retain partial results and resource evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: server-evidence-${{ matrix.host }}
+          if-no-files-found: error
+          path: |
+            artifacts/server-results/**
+            artifacts/ci-resources/**
+
   required-gate:
     name: Required verification gate
     if: ${{ always() }}
-    needs: [design-tooling-contracts, local-setup-contracts, deployment-contracts, verify, container-smoke]
+    needs: [design-tooling-contracts, local-setup-contracts, deployment-contracts, verify, server-tests, container-smoke]
     runs-on: ubuntu-latest
     steps:
       - name: Check out source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.sha }}
       - name: Require every verification job to succeed
         shell: pwsh
         env:
@@ -194,3 +264,55 @@ jobs:
         run: |
           . ./scripts/verification-stages.ps1
           Assert-RequiredCiJobs -Needs ($env:REQUIRED_JOB_RESULTS | ConvertFrom-Json -AsHashtable)
+
+      - name: Download current workflow evidence
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
+        with:
+          pattern: '{verification-evidence,server-evidence-*}'
+          path: artifacts/ci-evidence
+
+      - name: Require complete server inventory
+        shell: pwsh
+        env:
+          EXPECTED_CHECKOUT: ${{ github.sha }}
+        run: |
+          . ./scripts/verification-artifacts.ps1
+          . ./scripts/server-partition-contract.ps1
+          function Get-OnlyEvidenceFile([string]$Directory, [string]$Name) {
+            $files = @(Get-ChildItem -LiteralPath $Directory -Recurse -File -Filter $Name)
+            if ($files.Count -ne 1) { throw "Expected exactly one $Name in $Directory." }
+            $files[0]
+          }
+          if ((git rev-parse HEAD) -cne $env:EXPECTED_CHECKOUT -or $LASTEXITCODE -ne 0) { throw 'Unexpected aggregate checkout.' }
+          $source = Get-OnlyEvidenceFile artifacts/ci-evidence/verification-evidence gate.json
+          $hostRoots = @(1..2 | ForEach-Object {
+            (Get-OnlyEvidenceFile "artifacts/ci-evidence/server-evidence-$_" server-receipt.json).DirectoryName
+          })
+          $dataset = Read-ServerTestDurations ./scripts/server-test-durations.json
+          $result = Assert-DistributedServerVerification -SourceGatePath $source.FullName -HostRoots $hostRoots `
+            -ExpectedCheckoutRevision $env:EXPECTED_CHECKOUT -ExpectedSourceHash (Get-VerificationSourceHash $PWD.Path) `
+            -ExpectedDurationSha256 $dataset.Sha256 -Durations $dataset.Durations -FallbackSeconds $dataset.FallbackSeconds
+          "Required verification passed for $($result.Cases) server cases across four cohorts." |
+            Tee-Object -FilePath $env:GITHUB_STEP_SUMMARY -Append
+          $output = 'artifacts/server-timing-evidence'
+          $server = Join-Path $output 'server-tests/combined'
+          New-Item -ItemType Directory -Path $server | Out-Null
+          Copy-Item -LiteralPath (Join-Path $hostRoots[0] 'inventory.json') -Destination $server
+          Copy-Item -LiteralPath (Join-Path $hostRoots[0] 'duration-dataset.json') -Destination $server
+          foreach ($index in 0,1) {
+            foreach ($id in (2 * $index + 1)..(2 * $index + 2)) {
+              $destination = New-Item -ItemType Directory -Path (Join-Path $server "partition-$id")
+              foreach ($file in 'timing.json','results.trx') {
+                Copy-Item -LiteralPath (Join-Path $hostRoots[$index] "partition-$id/$file") -Destination $destination.FullName
+              }
+            }
+          }
+          @{ Succeeded = $true; ServerPartitions = 4; CheckoutRevision = $result.CheckoutRevision } |
+            ConvertTo-Json | Set-Content -LiteralPath (Join-Path $output 'gate.json')
+
+      - name: Retain combined server timing evidence
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: server-timing-evidence
+          path: artifacts/server-timing-evidence/
+          if-no-files-found: error

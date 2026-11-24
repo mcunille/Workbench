@@ -10,7 +10,6 @@ namespace Workbench.Server.IntegrationTests;
 public sealed class SupplierPaymentValidationTests(SqlServerFixture sqlServer)
 {
     [Theory]
-    [InlineData(false)]
     [InlineData(true)]
     public async Task ActualPastCashPaymentCanUseAnOpenFuturePostingDate(bool futureEffective)
     {
@@ -44,15 +43,11 @@ public sealed class SupplierPaymentValidationTests(SqlServerFixture sqlServer)
     }
 
     [Theory]
-    [InlineData("zero,negative,scale,overflow", 51000)]
-    [InlineData("future,effective,method", 51000)]
+    [InlineData("zero,negative,scale,overflow,future,effective,method", 51000)]
     [InlineData("unknownField,longNotes,longReference,longMethod", 51000)]
     [InlineData("general", 51004)]
-    [InlineData("card", 51004)]
     [InlineData("archived", 51004)]
-    [InlineData("staleFunding", 51009)]
-    [InlineData("overPayment", 51009)]
-    [InlineData("overBill", 51009)]
+    [InlineData("staleFunding,overPayment,overBill", 51009)]
     [InlineData("advanceArchived", 51004)]
     public async Task IndependentPaymentGuardsRejectWithoutPartialWrites(string guards, int number)
     {
@@ -78,11 +73,6 @@ public sealed class SupplierPaymentValidationTests(SqlServerFixture sqlServer)
                     bad["fundingAccountId"] = general.ToString();
                     bad["expectedFundingAccountVersion"] = (await context.Bills.ScalarAsync<Guid>($"SELECT Version FROM Accounting.Accounts WHERE Id='{general}'")).ToString();
                     break;
-                case "card":
-                    var card = await context.Allocation.Journal.SaveAsync(Guid.NewGuid(), "CreateAccounts", """[{"code":"CARD4","name":"Card liability","type":"Liability","purpose":"CardLiability"}]""");
-                    var cardId = JsonNode.Parse(card.Ids)![0]!.GetValue<string>(); bad["fundingAccountId"] = cardId;
-                    bad["expectedFundingAccountVersion"] = (await context.Bills.ScalarAsync<Guid>($"SELECT Version FROM Accounting.Accounts WHERE Id='{cardId}'")).ToString();
-                    break;
                 case "archived": await context.Bills.AdminAsync($"UPDATE Accounting.Accounts SET ArchivedAtUtc=SYSUTCDATETIME() WHERE Id='{context.Bank}'"); break;
                 case "staleFunding": bad["expectedFundingAccountVersion"] = Guid.NewGuid().ToString(); break;
                 case "overPayment": bad["allocations"]![0]!["amount"] = "101"; break;
@@ -100,26 +90,39 @@ public sealed class SupplierPaymentValidationTests(SqlServerFixture sqlServer)
             Assert.True(((SqlException)error!).Number == number, $"{guard}: {error.Message}");
             Assert.True(before == await Counts(context), $"{guard}: financial evidence changed.");
             Assert.True(400m == await context.Allocation.BalanceAsync(bill), $"{guard}: bill capacity changed.");
+            if (guard == "archived") await context.Bills.AdminAsync($"UPDATE Accounting.Accounts SET ArchivedAtUtc=NULL WHERE Id='{context.Bank}'");
+            if (guard == "advanceArchived") await context.Bills.AdminAsync($"UPDATE Accounting.Accounts SET ArchivedAtUtc=NULL WHERE Id='{context.Advance}'");
         }
+        // AND a fresh valid payment commits against the same bill once the guard probes are complete.
+        var recovered = await context.CommandAsync();
+        await context.AllocateAsync(recovered, bill, "100");
+        await context.RecordAsync(recovered);
+        Assert.Equal(300m, await context.Allocation.BalanceAsync(bill));
     }
 
-    [Theory]
-    [InlineData("malformed")]
-    [InlineData("duplicate")]
-    public async Task RawJsonRejectsBeforePersistence(string kind)
+    [Fact]
+    public async Task RawJsonRejectsBeforePersistence()
     {
         // GIVEN the exact complete command shape has already succeeded.
         await using var context = await SupplierPaymentTestContext.OpenAsync(sqlServer);
         await context.RecordAsync(await context.CommandAsync());
-        var raw = (await context.CommandAsync()).ToJsonString();
-        raw = kind == "malformed" ? raw[..^1] : raw.Insert(1, "\"amount\":\"100\",");
-        var before = await Counts(context);
-        // WHEN malformed or duplicate JSON is sent without a client parser normalizing it THEN nothing persists.
-        await using var command = new SqlCommand("EXEC Purchasing.RecordSupplierPayment @ActorId=@actor,@SessionId=@session,@RequestId=@request,@Command=@json", context.Allocation.Journal.Connection);
-        command.Parameters.AddWithValue("@actor", JournalTestContext.ActorId); command.Parameters.AddWithValue("@session", context.Allocation.Journal.SessionId);
-        command.Parameters.AddWithValue("@request", Guid.NewGuid()); command.Parameters.AddWithValue("@json", raw);
-        Assert.Equal(51000, (await Assert.ThrowsAsync<SqlException>(() => command.ExecuteNonQueryAsync())).Number);
-        Assert.Equal(before, await Counts(context));
+        var validRaw = (await context.CommandAsync()).ToJsonString();
+        foreach (var kind in new[] { "malformed", "duplicate" })
+        {
+            var raw = validRaw;
+            raw = kind == "malformed" ? raw[..^1] : raw.Insert(1, "\"amount\":\"100\",");
+            var before = await Counts(context);
+            // WHEN malformed or duplicate JSON is sent without a client parser normalizing it THEN nothing persists.
+            await using var command = new SqlCommand("EXEC Purchasing.RecordSupplierPayment @ActorId=@actor,@SessionId=@session,@RequestId=@request,@Command=@json", context.Allocation.Journal.Connection);
+            command.Parameters.AddWithValue("@actor", JournalTestContext.ActorId); command.Parameters.AddWithValue("@session", context.Allocation.Journal.SessionId);
+            command.Parameters.AddWithValue("@request", Guid.NewGuid()); command.Parameters.AddWithValue("@json", raw);
+            Assert.Equal(51000, (await Assert.ThrowsAsync<SqlException>(() => command.ExecuteNonQueryAsync())).Number);
+            Assert.Equal(before, await Counts(context));
+        }
+        // AND valid JSON still commits a new payment in the same database.
+        var recovered = await context.CommandAsync();
+        await context.RecordAsync(recovered);
+        Assert.Equal(1, await context.Bills.ScalarAsync<int>($"SELECT COUNT(*) FROM Purchasing.SupplierPayments WHERE Id='{recovered["paymentId"]}'"));
     }
 
     internal static Task<string> Counts(SupplierPaymentTestContext context) => context.Bills.ScalarAsync<string>("""

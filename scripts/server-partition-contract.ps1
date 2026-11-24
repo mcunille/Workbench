@@ -1,3 +1,14 @@
+function Get-ServerPartitionSelection {
+    param([object[]]$Partitions, [int[]]$PartitionIds)
+    if (-not $PSBoundParameters.ContainsKey('PartitionIds')) { return $Partitions }
+    $selected = @($Partitions | Where-Object { $_.Id -in $PartitionIds })
+    if ($selected.Count -eq 0 -or $selected.Count -ne $PartitionIds.Count -or
+        @($PartitionIds | Sort-Object -Unique).Count -ne $PartitionIds.Count) {
+        throw 'Partition selection must contain distinct, known IDs.'
+    }
+    $selected
+}
+
 function Invoke-ServerTestDiscovery {
     param([scriptblock]$Command, [string]$LogPath)
     # dotnet emits UTF-8 even when a Windows background job starts with OEM console
@@ -68,15 +79,25 @@ function New-ServerTestPartitions {
         if (-not $methods.ContainsKey($method)) { $methods[$method] = [Collections.Generic.List[string]]::new() }
         $methods[$method].Add($name)
     }
-    if ($methods.Count -lt $PartitionCount) { throw 'Not enough test methods for nonempty required partitions.' }
+    $classes = [Collections.Generic.Dictionary[string, object]]::new([StringComparer]::Ordinal)
+    foreach ($method in $methods.Keys) {
+        $separator = $method.LastIndexOf('.')
+        if ($separator -lt 1) { throw "Unsupported discovered server test name: $method" }
+        $class = $method.Substring(0, $separator)
+        if (-not $classes.ContainsKey($class)) { $classes[$class] = [Collections.Generic.List[string]]::new() }
+        $classes[$class].Add($method)
+    }
+    if ($classes.Count -lt $PartitionCount) { throw 'Not enough test classes for nonempty required partitions.' }
     $partitions = @(1..$PartitionCount | ForEach-Object {
         [pscustomobject]@{ Id = $_; Methods = [Collections.Generic.List[string]]::new(); Tests = [Collections.Generic.List[string]]::new(); PredictedSeconds = 0.0; FallbackTests = 0 }
     })
     # Ordinal ties make assignment independent of culture and discovery order.
-    $methodNames = [string[]]@($methods.Keys)
-    [array]::Sort($methodNames, [StringComparer]::Ordinal)
-    $groups = @(foreach ($method in $methodNames) {
-        $rows = $methods[$method].ToArray()
+    $classNames = [string[]]@($classes.Keys)
+    [array]::Sort($classNames, [StringComparer]::Ordinal)
+    $groups = @(foreach ($class in $classNames) {
+        $classMethods = $classes[$class].ToArray()
+        [array]::Sort($classMethods, [StringComparer]::Ordinal)
+        $rows = [string[]]@($classMethods | ForEach-Object { $methods[$_].ToArray() })
         [array]::Sort($rows, [StringComparer]::Ordinal)
         $seconds = 0.0
         $fallback = 0
@@ -85,11 +106,11 @@ function New-ServerTestPartitions {
             else { $seconds += $FallbackSeconds; $fallback++ }
         }
         if (-not [double]::IsFinite($seconds)) { throw 'Aggregated duration is not finite.' }
-        [pscustomobject]@{ Method = $method; Rows = $rows; Seconds = $seconds; Fallback = $fallback }
+        [pscustomobject]@{ Methods = $classMethods; Rows = $rows; Seconds = $seconds; Fallback = $fallback }
     })
     foreach ($group in ($groups | Sort-Object -Stable -Property @{ Expression = { $_.Seconds }; Descending = $true })) {
         $partition = $partitions | Sort-Object PredictedSeconds, Id | Select-Object -First 1
-        $partition.Methods.Add($group.Method)
+        $partition.Methods.AddRange([string[]]$group.Methods)
         $partition.Tests.AddRange([string[]]$group.Rows)
         $partition.PredictedSeconds += $group.Seconds
         if (-not [double]::IsFinite($partition.PredictedSeconds)) { throw 'Partition duration is not finite.' }
@@ -111,13 +132,15 @@ function Assert-ServerTestPartitions {
 
 function Assert-ServerTestCoverage {
     param([string[]]$Expected, [AllowEmptyCollection()][string[]]$Actual)
-    $expectedNames = @($Expected | Sort-Object -CaseSensitive)
-    $actualNames = @($Actual | Sort-Object -CaseSensitive)
+    $expectedNames = [string[]]$Expected.Clone()
+    $actualNames = [string[]]$Actual.Clone()
+    [Array]::Sort($expectedNames, [StringComparer]::Ordinal)
+    [Array]::Sort($actualNames, [StringComparer]::Ordinal)
     if ($expectedNames.Count -ne $actualNames.Count) {
         throw "Server test coverage mismatch: expected $($expectedNames.Count) rows; found $($actualNames.Count)."
     }
     for ($index = 0; $index -lt $expectedNames.Count; $index++) {
-        if ($expectedNames[$index] -cne $actualNames[$index]) {
+        if (-not [StringComparer]::Ordinal.Equals($expectedNames[$index], $actualNames[$index])) {
             throw "Server test coverage mismatch: expected '$($expectedNames[$index])'; found '$($actualNames[$index])'."
         }
     }
@@ -146,10 +169,84 @@ function Read-ServerTestDurations {
         throw 'Invalid server duration dataset.'
     }
     # Validate every weight, including historical tests no longer in discovery.
-    $null = New-ServerTestPartitions -TestNames @('Validation.A', 'Validation.B') -PartitionCount 2 -Durations $data.durations -FallbackSeconds $data.fallbackSeconds
+    $null = New-ServerTestPartitions -TestNames @('Validation.A.Test', 'Validation.B.Test') -PartitionCount 2 -Durations $data.durations -FallbackSeconds $data.fallbackSeconds
     return [pscustomobject]@{
         Durations = $data.durations; FallbackSeconds = $data.fallbackSeconds
         SchemaVersion = $data.schemaVersion; SourceRevision = $data.sourceRevision; SourceRunUrl = $data.sourceRunUrl
         Sha256 = [Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($bytes)).ToLowerInvariant()
     }
+}
+
+function Assert-DistributedServerVerification {
+    param(
+        [string]$SourceGatePath, [string[]]$HostRoots, [string]$ExpectedCheckoutRevision,
+        [string]$ExpectedSourceHash, [string]$ExpectedDurationSha256,
+        [System.Collections.IDictionary]$Durations = @{}, [double]$FallbackSeconds = 1
+    )
+    if ($HostRoots.Count -ne 2) { throw 'Expected exactly two host artifacts.' }
+    $sourceRoot = Split-Path $SourceGatePath -Parent
+    $source = Get-Content -LiteralPath $SourceGatePath -Raw -ErrorAction Stop | ConvertFrom-Json
+    $stages = @(Get-Content -LiteralPath (Join-Path $sourceRoot 'stages.json') -Raw -ErrorAction Stop | ConvertFrom-Json)
+    if ($source.Version -ne 2 -or $source.StageGroup -cne 'SourceRelease' -or $source.Succeeded -isnot [bool] -or
+        -not $source.Succeeded -or $source.RunId -cnotmatch '^[a-f0-9]{32}$' -or
+        $source.RunId -cne (Split-Path $sourceRoot -Leaf) -or
+        ($source.RequiredStages -join ',') -cne 'client,browser,published' -or
+        (($stages.Stage | Sort-Object) -join ',') -cne 'browser,client,published' -or
+        @($stages | Where-Object { $_.State -cne 'Completed' -or $_.Succeeded -isnot [bool] -or -not $_.Succeeded }).Count) {
+        throw 'Source/release evidence is incomplete or unsuccessful.'
+    }
+    if ($source.CheckoutRevision -cne $ExpectedCheckoutRevision -or $source.SourceHash -cne $ExpectedSourceHash) {
+        throw 'Source/release source identity differs.'
+    }
+    $supportedProject = 'tests/Workbench.Server.IntegrationTests/Workbench.Server.IntegrationTests.csproj'
+    $runIds = [Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
+    $reference = $null
+    $caseCount = 0
+    for ($index = 0; $index -lt 2; $index++) {
+        $root = $HostRoots[$index]
+        $receipt = Get-Content -LiteralPath (Join-Path $root 'server-receipt.json') -Raw -ErrorAction Stop | ConvertFrom-Json
+        if ($receipt.Version -ne 1 -or $receipt.ExecutionKind -cne 'Partial' -or $receipt.Succeeded -isnot [bool] -or
+            -not $receipt.Succeeded -or $receipt.RunId -cnotmatch '^[a-f0-9]{32}$' -or
+            $receipt.RunId -cne (Split-Path $root -Leaf) -or -not $runIds.Add($receipt.RunId)) {
+            throw 'Partial server execution receipt is invalid.'
+        }
+        if ($receipt.CheckoutRevision -cne $ExpectedCheckoutRevision -or $receipt.SourceHash -cne $ExpectedSourceHash) {
+            throw 'Server source identity differs.'
+        }
+        $dataset = Get-Content -LiteralPath (Join-Path $root 'duration-dataset.json') -Raw -ErrorAction Stop | ConvertFrom-Json
+        if ($receipt.DurationSha256 -cne $ExpectedDurationSha256 -or $dataset.Sha256 -cne $ExpectedDurationSha256) {
+            throw 'Server duration dataset differs.'
+        }
+        Assert-ServerTestProjects -TestProjects $receipt.TestProjects -SupportedProject $supportedProject
+        $ids = @((1 + 2 * $index), (2 + 2 * $index))
+        if ($receipt.PartitionCount -ne 4 -or ($receipt.PartitionIds -join ',') -cne ($ids -join ',')) {
+            throw 'Unexpected server cohort assignment.'
+        }
+        $inventory = @(Get-Content -LiteralPath (Join-Path $root 'inventory.json') -Raw -ErrorAction Stop | ConvertFrom-Json)
+        $canonical = ConvertTo-Json -InputObject $inventory -Depth 8 -Compress
+        if ($index -eq 0) {
+            $reference = $canonical
+            $cases = @($inventory | ForEach-Object { $_.Tests })
+            $caseCount = $cases.Count
+            $reconstructed = @(New-ServerTestPartitions -TestNames $cases -PartitionCount 4 -Durations $Durations -FallbackSeconds $FallbackSeconds)
+            foreach ($partition in $reconstructed) {
+                $recorded = @($inventory | Where-Object Id -eq $partition.Id)
+                if ($inventory.Count -ne 4 -or $recorded.Count -ne 1) { throw 'Server inventory must contain four distinct cohorts.' }
+                Assert-ServerTestCoverage -Expected $partition.Tests -Actual $recorded[0].Tests
+                Assert-ServerTestCoverage -Expected $partition.Methods -Actual $recorded[0].Methods
+            }
+        }
+        elseif (-not [StringComparer]::Ordinal.Equals($canonical, $reference)) { throw 'Server host inventory differs.' }
+        $folders = @(Get-ChildItem -LiteralPath $root -Directory -Filter 'partition-*' -ErrorAction Stop)
+        if ((($folders.Name | Sort-Object) -join ',') -cne ("partition-$($ids[0]),partition-$($ids[1])")) {
+            throw 'Missing or unexpected server cohort evidence.'
+        }
+        foreach ($partition in (Get-ServerPartitionSelection $inventory $ids)) {
+            $folder = Join-Path $root "partition-$($partition.Id)"
+            $timing = Get-Content -LiteralPath (Join-Path $folder 'timing.json') -Raw -ErrorAction Stop | ConvertFrom-Json
+            if ($timing.ExitCode -isnot [long] -and $timing.ExitCode -isnot [int]) { throw 'Missing or invalid native completion.' }
+            Assert-ServerPartitionResult $partition (Join-Path $folder 'results.trx') $timing.ExitCode
+        }
+    }
+    [pscustomobject]@{ Cases = $caseCount; PartitionIds = @(1, 2, 3, 4); CheckoutRevision = $ExpectedCheckoutRevision }
 }

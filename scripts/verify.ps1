@@ -1,6 +1,7 @@
 [CmdletBinding()]
 param(
     [switch]$SkipDependencyInstall,
+    [ValidateSet('All', 'SourceRelease')][string]$StageGroup = 'All',
     [ValidateRange(2, 4)][int]$ServerPartitions = 2,
     [ValidateRange(1, 4)][int]$ServerConcurrency = 2
 )
@@ -78,10 +79,15 @@ $stagesJoined = $false
 $gateClock = [Diagnostics.Stopwatch]::StartNew()
 $prerequisiteClock = [Diagnostics.Stopwatch]::StartNew()
 $passed = $false
+$requiredStages = @(Get-RequiredVerificationStages -StageGroup $StageGroup)
+$checkoutRevision = ''
+$sourceHash = ''
 $priorManifest = $env:WORKBENCH_VERIFICATION_MANIFEST
 $priorRun = $env:WORKBENCH_VERIFICATION_RUN
 Push-Location $repositoryRoot
 try {
+    $checkoutRevision = git rev-parse HEAD
+    Assert-NativeCommandSucceeded 'Git checkout revision'
     Assert-ToolVersion 'dotnet' '10.0.402' { dotnet --version }
     Assert-ToolVersion 'Node.js' -MinimumVersion '26.8.0' -MaximumVersionExclusive '27.0.0' -ReadVersion { node --version }
     Assert-ToolVersion 'npm' -MinimumVersion '11.19.0' -MaximumVersionExclusive '12.0.0' -ReadVersion { npm --version }
@@ -117,11 +123,14 @@ try {
     Assert-NativeCommandSucceeded 'generated API drift check'
 
     # Each child owns a SQL container; process-wide pool and image state never cross partitions.
-    $stages += Start-VerificationStage -Name server -RepositoryRoot $repositoryRoot `
-        -Arguments @($ServerPartitions, $ServerConcurrency, (Join-Path $runRoot 'server-tests')) -Action {
-        param($count, $concurrency, $results)
-        & ./scripts/test-server-partitions.ps1 -PartitionCount $count -MaxConcurrency $concurrency -NoBuild -ResultsDirectory $results
-        if (-not $?) { throw 'Server partitions failed.' }
+    $sourceHash = Get-VerificationSourceHash $repositoryRoot
+    if ($requiredStages -ccontains 'server') {
+        $stages += Start-VerificationStage -Name server -RepositoryRoot $repositoryRoot `
+            -Arguments @($ServerPartitions, $ServerConcurrency, (Join-Path $runRoot 'server-tests')) -Action {
+            param($count, $concurrency, $results)
+            & ./scripts/test-server-partitions.ps1 -PartitionCount $count -MaxConcurrency $concurrency -NoBuild -ResultsDirectory $results
+            if (-not $?) { throw 'Server partitions failed.' }
+        }
     }
     npm run typecheck --prefix $clientRoot
     Assert-NativeCommandSucceeded 'client typecheck'
@@ -141,10 +150,12 @@ try {
         if (-not $?) { throw 'Published release-unit verification failed.' }
     }
     $stagesJoined = $true
-    Complete-VerificationStages -Stages $stages -RequiredNames @('client', 'server', 'browser', 'published') `
+    Complete-VerificationStages -Stages $stages -RequiredNames $requiredStages `
         -TimingPath (Join-Path $runRoot 'stages.json')
+    if ($sourceHash -cne (Get-VerificationSourceHash $repositoryRoot) -or
+        $checkoutRevision -cne (git rev-parse HEAD) -or $LASTEXITCODE -ne 0) { throw 'Source changed during verification.' }
     $passed = $true
-    Write-Host 'Workbench source and published release-unit verification passed.'
+    Write-Host "Workbench verification stage group '$StageGroup' passed."
 }
 finally {
     # Even a prerequisite failure must join started stages and retain their results.
@@ -158,7 +169,8 @@ finally {
         foreach ($stage in $stages) { Remove-Job -Job $stage.Job -Force -ErrorAction SilentlyContinue }
         $env:WORKBENCH_VERIFICATION_MANIFEST = $priorManifest
         $env:WORKBENCH_VERIFICATION_RUN = $priorRun
-        [pscustomobject]@{ RunId = $runId; Succeeded = $passed; Seconds = $gateClock.Elapsed.TotalSeconds;
+        [pscustomobject]@{ Version = 2; RunId = $runId; Succeeded = $passed; Seconds = $gateClock.Elapsed.TotalSeconds;
+            CheckoutRevision = $checkoutRevision; SourceHash = $sourceHash; StageGroup = $StageGroup; RequiredStages = $requiredStages;
             PrerequisiteSeconds = $prerequisiteClock.Elapsed.TotalSeconds; ServerPartitions = $ServerPartitions;
             ServerConcurrency = $ServerConcurrency; ProcessorCount = [Environment]::ProcessorCount } |
             ConvertTo-Json | Set-Content -LiteralPath (Join-Path $runRoot 'gate.json')
