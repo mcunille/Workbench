@@ -41,6 +41,12 @@ The empty report reconciled to zero, a malformed cursor returned 400, and the pu
 returned 200. After the internal review fixes, a separate preview installed the final migration at
 `http://localhost:32772` and repeated the report access checks. The purchase and document APIs also
 committed a sample order, accepted a synthetic PDF, and removed a separate unposted document.
+Protected internal commands posted the expense example and both correction examples in the fresh
+preview. The expense example showed a 100.00 deposit, 206.60 balance payment, and 18.00 refund, with
+recognized cost and net bank outflow both at 288.60. The credit correction preserved the actual
+18.00 bank receipt and left an 8.00 clearing liability. The bill correction preserved the 300.00
+payment and left a 20.00 advance. All three reconciled. The retained PDF was available and its
+ordinary removal returned 409.
 
 The review regressions reproduced the split cash posting date, caller transaction rollback,
 missing preview clearing balance, assigned-rounding overclaim, and two report ownership and paging
@@ -48,5 +54,5 @@ problems. The corrected preview exposed the clearing liability of 8, preserved t
 transaction, and kept October unmaterialized until an actual write. The corrected HTTP reads
 returned each partial refund on its item-history page and left an unrelated application off the
 cash row. All ten BK-07 predecessor tests passed after repairing the fixture constructor. The
-paid-bill correction and preview passed in 22 seconds with the genuine paid invoice prepared
-outside the timed assertion. The hardened container smoke passed again after the review changes.
+paid-bill and standalone correction cases passed with genuine invoice and payment prerequisites
+prepared outside the timed assertions. The hardened container smoke passed again after review.

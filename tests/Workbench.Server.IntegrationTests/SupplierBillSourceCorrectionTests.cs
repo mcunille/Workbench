@@ -6,14 +6,14 @@ using Xunit;
 namespace Workbench.Server.IntegrationTests;
 
 [Collection(SqlServerCollection.Name)]
-public sealed class SupplierBillSourceCorrectionTests(SqlServerFixture sqlServer, SupplierPaidBillFixture paidBill)
+public sealed class SupplierBillSourceCorrectionTests(SupplierPaidBillFixture paidBill)
     : IClassFixture<SupplierPaidBillFixture>
 {
     [Fact]
     public async Task PaidBill300CorrectedTo280PreservesPaymentAndAdvance20()
     {
         // GIVEN a real reviewed invoice and its embedded three-hundred-dollar payment.
-        var prepared = await paidBill.OpenAsync();
+        var prepared = await paidBill.OpenAsync(embedPayment: true);
         await using var context = prepared.Context;
         var bill = prepared.Bill;
         var cash = await context.PaymentCashEvidenceAsync();
@@ -50,11 +50,10 @@ public sealed class SupplierBillSourceCorrectionTests(SqlServerFixture sqlServer
     public async Task LaterStandaloneApplicationReleasesOnce(string replacementAmount, string applied, string remaining)
     {
         // GIVEN an invoice paid later through a standalone advance application.
-        await using var context = await SupplierCreditTestContext.OpenAsync(sqlServer);
-        await context.EnableBillCorrectionsAsync();
-        var bill = await context.InvoiceOnlyBillAsync("300");
-        var payment = await context.Payments.CommandAsync("300"); await context.Payments.RecordAsync(payment);
-        var funding = Guid.Parse(payment["paymentId"]!.ToString());
+        var prepared = await paidBill.OpenAsync(embedPayment: false);
+        await using var context = prepared.Context;
+        var bill = prepared.Bill;
+        var funding = prepared.Advance;
         await context.Payments.Allocation.ApplyAsync(await context.Payments.Allocation.CommandAsync(funding, bill, applied));
         var cash = await context.PaymentCashEvidenceAsync();
         var replacement = await context.BillReplacementAsync(bill, replacementAmount);
