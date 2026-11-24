@@ -44,11 +44,13 @@ internal static class SupplierOpenItemQueries
                         : [])
                     // One application can match multiple branches of the original ownership predicate.
                     .Distinct();
+                var evidence = SupplierFinancialSourceReports.ReadHistory(snapshot, m, item);
                 return new SupplierItemHistoryEntry(m.Id, m.ItemId, m.GroupId, snapshot.Groups[m.GroupId].Sequence,
                     m.EventKind, m.SourceEventId, journal?.Id,
                     applications.Select(a => a.Id).Order().ToArray(), correction?.Id,
                     snapshot.Evidence(snapshot.PaymentCorrectionsByGroup, m.GroupId).SingleOrDefault()?.Id,
-                    m.PostingDate, snapshot.Groups[m.GroupId].RecordedAtUtc, Money(Units(m.Amount), snapshot.Scale));
+                    m.PostingDate, snapshot.Groups[m.GroupId].RecordedAtUtc, Money(Units(m.Amount), snapshot.Scale),
+                    evidence.Settlements, evidence.Corrections);
             }).ToList();
             return Task.FromResult<IResult>(Results.Ok(snapshot.Page(rows, r => $"{r.GroupSequence:D20}:{r.Id:D}",
                 r => (item.Kind, Units(r.Amount)), protection)));
@@ -56,5 +58,7 @@ internal static class SupplierOpenItemQueries
 
     private static SupplierOpenItemSummary Summary(Snapshot snapshot, SupplierOpenItem item) => new(item.Id, item.Kind,
         item.SupplierId, item.PurchaseOrderId, item.BillId, item.Currency, item.SourceKind, item.SourceId, item.SourceRevisionId,
-        item.SourcePostingDate, item.DueDate, Money(snapshot.Balance(item.Id), snapshot.Scale), snapshot.ValidSource(item), snapshot.Filter.PostingThrough, snapshot.Filter.RecordedThrough!.Value);
+        item.SourcePostingDate, item.DueDate, Money(snapshot.Balance(item.Id), snapshot.Scale), snapshot.ValidSource(item),
+        snapshot.Filter.PostingThrough, snapshot.Filter.RecordedThrough!.Value,
+        SupplierSource: SupplierFinancialSourceReports.Read(snapshot, item.SourceKind, item.SourceId, item.SourceRevisionId));
 }

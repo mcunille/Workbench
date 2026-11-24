@@ -67,7 +67,7 @@ internal static partial class SupplierReconciliationQueries
                 var ownsRecognitionInverse = originalSource.SourceKind == "PurchaseRecognition" && originalSource.EventKind == "Invoice" && m.RecognitionEventId == originalSource.SourceId &&
                     ownerGroup.Operation == "CorrectSource" && Evidence(recognitionOwnersByGroup, m.GroupId).Any(o => o.CorrectionId == ownerGroup.SourceId) &&
                     Evidence(recognitionCorrectionsByGroup, ownerGroup.SourceId).Any(c => c.OriginalEventId == m.RecognitionEventId && c.AccountingCorrectionGroupId == correction.Id);
-                if (!ownsPaymentInverse && !ownsCompensation && !ownsRecognitionInverse) return false;
+                if (!ownsPaymentInverse && !ownsCompensation && !ownsRecognitionInverse && !OwnsSourceInverse(m, correction, originalSource)) return false;
                 var originals = Evidence(movementsBySourceItem, (correction.OriginalSourceEventId, m.ItemId)).Where(o => o.Amount == -m.Amount).ToArray();
                 return Observe(originals).Any(o =>
                 {
@@ -76,6 +76,10 @@ internal static partial class SupplierReconciliationQueries
                         a.JournalId == correction.ReversalJournalId && old.Ordinal == a.Ordinal && old.AccountId == a.AccountId && old.AccountVersion == a.AccountVersion && old.Amount == -a.Amount));
                 });
             }
+            if (source.SourceKind is "SupplierRefund" or "SupplierRefundRepayment")
+                return OwnsCashSettlement(m, source, attrs);
+            if (source.SourceKind == "SupplierRefundRelease" && m.EventKind == "ReleaseSettlement")
+                return OwnsReleasedCredit(m, source, attrs);
             if (m.EventKind == "Apply")
                 return attrs.Length == 1 && attrs[0].Amount == m.Amount && Evidence(applicationsByGroup, m.GroupId).Any(a => a.GroupId == m.GroupId &&
                     OwnerSourceMatches(source, "SupplierApplication", "Apply", a.Id, a.GroupId, a.PostingDate, a.RecordedAtUtc) &&
@@ -107,7 +111,7 @@ internal static partial class SupplierReconciliationQueries
                     Evidence(recognitionOwnersByGroup, group.Id).Any(member => member.EventId == group.SourceId)) ||
                  group.Operation == "CorrectSource" && o.CorrectionId == group.SourceId && Evidence(recognitionCorrectionsByGroup, group.SourceId).Any(c =>
                     c.CorrectionGroupId == group.SourceId && c.ReplacementEventId == m.RecognitionEventId)));
-            if (!ownsOpening) return false;
+            if (!ownsOpening && !OwnsBillSuccessor(m, item, source)) return false;
             return recognition is not null && recognition.Side == "Invoice" && recognition.SourceAmount == m.Amount &&
                 Journals.TryGetValue(recognition.JournalId ?? Guid.Empty, out var openingJournal) && openingJournal.SourceEventId == m.SourceEventId && source.SourceId == recognition.Id && source.SourceRevision == recognition.SourceRevision &&
                 item.SourceRevisionId == recognition.SourceRevision && item.SourceId == (item.BillId ?? recognition.Id) &&

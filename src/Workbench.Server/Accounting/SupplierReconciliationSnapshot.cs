@@ -96,6 +96,7 @@ internal static partial class SupplierReconciliationQueries
             recognitionUnitsById = Index(RecognitionUnits, u => u.Id);
             recognitionOwnersByGroup = Index(RecognitionOwners, o => o.GroupId);
             recognitionCorrectionsByGroup = Index(RecognitionCorrections, c => c.CorrectionGroupId);
+            IndexFinancialSources();
         }
 
         internal static async Task<Snapshot> Load(WorkbenchDbContext db, SupplierReportFilters f, CancellationToken ct)
@@ -178,6 +179,7 @@ internal static partial class SupplierReconciliationQueries
                     AND g.Sequence<={f.GroupCeiling} AND j.Sequence<={f.JournalCeiling}
                     AND g.RecordedAtUtc<={f.RecordedThrough} AND j.RecordedAtUtc<={f.RecordedThrough})
                 """).ToListAsync(ct);
+            await result.LoadFinancialSources(db, groups, journals, ct);
             return result;
         }
 

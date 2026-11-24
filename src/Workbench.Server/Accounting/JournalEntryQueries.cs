@@ -142,8 +142,10 @@ internal static partial class JournalReportQueries
                 }
             }
             var evidence = await FinancialEvidenceQueries.ReadAsync(database, actor, evidenceKind, evidenceOwner, evidenceRevision, ct);
+            var supplierSource = SupplierFinancialSourceReports.IsTypedSource(evidenceKind)
+                ? await SupplierFinancialSourceReports.ReadJournalAsync(database, id, ct) : null;
             await tx.CommitAsync(ct);
-            return Results.Ok(new JournalDetail(header, lines, source, corrections, recognition, evidence));
+            return Results.Ok(new JournalDetail(header, lines, source, corrections, recognition, evidence, supplierSource));
         }
         catch (SqlException e) when (e.Number == 50903) { return Results.Problem(statusCode: 403, title: "Current evidence access is required."); }
         catch (SqlException e) when (e.Number == 8115) { return Results.Problem(statusCode: 422, title: "Report totals exceed the supported range."); }
