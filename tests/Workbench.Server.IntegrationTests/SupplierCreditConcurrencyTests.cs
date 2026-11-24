@@ -69,11 +69,12 @@ public sealed class SupplierCreditConcurrencyTests(SqlServerFixture server)
             () => context.Bills.ExecuteAsync("PostSupplierCredit", Guid.NewGuid(), second, sibling));
         // THEN only the winning claim posts and the original debt and cash are untouched.
         Assert.NotNull(error);
-        Assert.Contains(error.Number, new[] { 51004, 51009 });
+        Assert.Equal(51009, error.Number);
         Assert.Equal(1, await context.Bills.ScalarAsync<int>("SELECT COUNT(*) FROM Purchasing.SupplierCredits"));
         Assert.Equal(Guid.Parse((firstWins ? first : second)["creditId"]!.ToString()),
             await context.Bills.ScalarAsync<Guid>("SELECT Id FROM Purchasing.SupplierCredits"));
         Assert.Equal(60m, await context.Bills.ScalarAsync<decimal>("SELECT SUM(Amount) FROM Purchasing.SupplierCreditClaims"));
+        Assert.Equal(60m, await context.Bills.ScalarAsync<decimal>("SELECT SUM(Total) FROM Purchasing.SupplierCredits"));
         Assert.Equal(100m, await context.BalanceAsync(bill));
         Assert.Equal(0m, await context.BankBalanceAsync());
     }

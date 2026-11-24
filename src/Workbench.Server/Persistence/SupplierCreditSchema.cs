@@ -21,6 +21,11 @@ internal static class SupplierCreditSchema
             """);
         foreach (var procedure in new[]
         {
+            "Accounting.JournalInverseLines", "Purchasing.BuildSupplierCashJournalLines", "Purchasing.PlanSupplierCashJournals",
+            "Accounting.ControlJournalPair", "Purchasing.SupplierCorrectionControlAccount", "Purchasing.BuildSupplierCreditJournalLines",
+            "Purchasing.PostSupplierApplicationInverse", "Purchasing.CompleteSupplierCorrectionJournalPlan",
+            "Purchasing.RecognitionComponentTotals", "Purchasing.BuildSupplierRecognitionJournalLines", "Purchasing.PlanSupplierBillJournals",
+            "Purchasing.ValidateSupplierCorrectionJournals",
             "Purchasing.SupplierRecognitionExpenseControl", "Purchasing.CanonicalizeSupplierCredit", "Purchasing.CanonicalizeSupplierCash", "Purchasing.CanonicalizeSupplierSourceCorrection", "Purchasing.SupplierCreditPosition",
             "Purchasing.AssertSupplierCreditCapacity", "Purchasing.ValidateSupplierCreditClaims", "Purchasing.AppendSupplierCredit",
             "Purchasing.SupplierCreditControl", "Purchasing.SupplierAssetControl",
@@ -102,13 +107,19 @@ internal static class SupplierCreditSchema
             "ResolveBillCreditSuccessorIntents", "ProjectBillCreditCapacity", "PlanBillReapplications", "PlanSupplierCreditPositionBindings", "RecordSupplierCashCore",
             "BuildSupplierCashCorrectionSources", "RequireSupplierCashCorrectionAuthority", "ResolveSupplierCashCorrectionReplacements", "PlanSupplierCashCorrectionEvidence",
             "PlanSupplierCashCorrection", "PreviewSupplierCashCorrection", "RequireSupplierCashComposition", "ReverseSupplierCashSource",
-            "ValidateSupplierCashCorrectionGroup", "CorrectSupplierCashCorrection" })
+            "ValidateSupplierCashCorrectionGroup", "CorrectSupplierCashCorrection", "BuildSupplierCashJournalLines", "PlanSupplierCashJournals",
+            "BuildSupplierCreditJournalLines", "CompleteSupplierCorrectionJournalPlan", "BuildSupplierRecognitionJournalLines",
+            "PlanSupplierBillJournals", "ValidateSupplierCorrectionJournals" })
         {
             migrationBuilder.Sql($"""
                 DENY EXECUTE ON Purchasing.{procedure} TO workbench_web;
                 DENY EXECUTE ON Purchasing.{procedure} TO workbench_worker;
                 """);
         }
+        migrationBuilder.Sql("DENY SELECT ON Accounting.JournalInverseLines TO workbench_web, workbench_worker;");
+        migrationBuilder.Sql("DENY SELECT ON Accounting.ControlJournalPair TO workbench_web, workbench_worker;");
+        migrationBuilder.Sql("DENY SELECT ON Purchasing.SupplierCorrectionControlAccount TO workbench_web, workbench_worker;");
+        migrationBuilder.Sql("DENY SELECT ON Purchasing.RecognitionComponentTotals TO workbench_web, workbench_worker;");
         migrationBuilder.Sql("GRANT SELECT ON Purchasing.SupplierCreditControl TO workbench_web;");
         migrationBuilder.Sql("GRANT SELECT ON Purchasing.SupplierCashControl TO workbench_web;");
         migrationBuilder.Sql("GRANT SELECT ON Purchasing.SupplierRefundReleaseControl TO workbench_web;");

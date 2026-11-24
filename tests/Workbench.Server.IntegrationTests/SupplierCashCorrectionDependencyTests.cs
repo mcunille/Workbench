@@ -32,7 +32,12 @@ public sealed class SupplierCashCorrectionDependencyTests(SupplierCashClearingFi
             ["expectedSourceVersion"] = repayment["version"]!.DeepClone(),
             ["replacement"] = null
         });
-        await context.CaptureCashCorrectionPlanAsync("Refund", command); await context.CorrectAsync("Refund", command);
+        var preview = await context.PreviewCorrectionAsync("Refund", command);
+        Assert.Contains(Assert.IsType<JsonArray>(preview["proposedJournals"]),
+            journal => journal!["sourceKind"]!.ToString() == "SupplierRefundRelease");
+        command["expectedPlanFingerprint"] = preview["planFingerprint"]!.DeepClone();
+        var result = await context.CorrectAsync("Refund", command);
+        await SupplierCorrectionPreviewContractTests.AssertJournalLinesAsync(context, preview, result);
         // THEN neither old source changes, the old clearing closes and the sole surviving ten-dollar receipt consumes real credit.
         Assert.Equal(0m, await context.BalanceAsync(history.Clearing)); Assert.Equal(0m, await context.BalanceAsync(history.OriginalCredit));
         Assert.Equal(0m, await context.BalanceAsync(history.SuccessorCredit)); Assert.Equal(10m, await context.BankBalanceAsync());

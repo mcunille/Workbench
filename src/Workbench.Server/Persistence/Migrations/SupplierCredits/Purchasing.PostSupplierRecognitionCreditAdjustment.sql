@@ -14,12 +14,12 @@ AS BEGIN
     @Reason nvarchar(2000)=JSON_VALUE(@Plan,'$.command.reason');
   DECLARE @Snapshot nvarchar(max)=(SELECT @OwnerRequestId ownerRequestId,@Correction correctionId,@Group groupId,
       JSON_QUERY(@Adjustment) adjustment FOR JSON PATH,WITHOUT_ARRAY_WRAPPER),
-    @Lines nvarchar(max)=(SELECT ordinal,accountId,accountVersion,
-      CONVERT(nvarchar(60),CASE WHEN ordinal=1 AND @Amount>0 OR ordinal=2 AND @Amount<0 THEN ABS(@Amount) ELSE 0 END) debit,
-      CONVERT(nvarchar(60),CASE WHEN ordinal=2 AND @Amount>0 OR ordinal=1 AND @Amount<0 THEN ABS(@Amount) ELSE 0 END) credit
-      FROM(VALUES(1,CONVERT(uniqueidentifier,JSON_VALUE(@Adjustment,'$.expenseAccountId')),CONVERT(uniqueidentifier,JSON_VALUE(@Adjustment,'$.expenseAccountVersion'))),
-        (2,CONVERT(uniqueidentifier,JSON_VALUE(@Adjustment,'$.prepaymentAccountId')),CONVERT(uniqueidentifier,JSON_VALUE(@Adjustment,'$.prepaymentAccountVersion'))))
-      account(ordinal,accountId,accountVersion) ORDER BY ordinal FOR JSON PATH);
+    @Lines nvarchar(max)=(SELECT Ordinal ordinal,AccountId accountId,AccountVersion accountVersion,
+      CONVERT(nvarchar(60),Debit) debit,CONVERT(nvarchar(60),Credit) credit
+      FROM Accounting.ControlJournalPair(CONVERT(uniqueidentifier,JSON_VALUE(@Adjustment,'$.expenseAccountId')),
+        CONVERT(uniqueidentifier,JSON_VALUE(@Adjustment,'$.expenseAccountVersion')),
+        CONVERT(uniqueidentifier,JSON_VALUE(@Adjustment,'$.prepaymentAccountId')),
+        CONVERT(uniqueidentifier,JSON_VALUE(@Adjustment,'$.prepaymentAccountVersion')),@Amount) ORDER BY Ordinal FOR JSON PATH);
   DECLARE @Posted TABLE(SourceEventId uniqueidentifier,JournalId uniqueidentifier,Sequence bigint,RecordedAtUtc datetimeoffset);
   INSERT @Posted EXEC Accounting.PostJournal @ActorId,@SessionId,@Request,N'SupplierCreditsCorrect',N'Supplier.RecognitionCreditAdjustment',1,
     @Snapshot,N'SupplierRecognitionCreditAdjustment',@Id,@Correction,N'Adjust',1,@Config,@Currency,@Date,@Date,@Date,NULL,@Reason,@Snapshot,@Lines;

@@ -1,7 +1,7 @@
 -- Copyright (c) 2026 The White Stag Collection.
 CREATE PROCEDURE Purchasing.ApplySupplierClearingFunds
   @ActorId uniqueidentifier,@SessionId uniqueidentifier,@OwnerRequestId uniqueidentifier,@PostingDate date,
-  @FundingItemId uniqueidentifier,@DebtItemId uniqueidentifier,@Amount decimal(28,4)
+  @FundingItemId uniqueidentifier,@DebtItemId uniqueidentifier,@Amount decimal(28,4),@Position int
 AS BEGIN
   SET NOCOUNT ON;
   DECLARE @Tenant uniqueidentifier=TRY_CONVERT(uniqueidentifier,SESSION_CONTEXT(N'TenantId')),@Group uniqueidentifier,
@@ -31,11 +31,12 @@ AS BEGIN
   DECLARE @Snapshot nvarchar(max)=(SELECT @Application applicationId,@Group groupId,@FundingItemId fundingItemId,@DebtItemId debtItemId,
     @OwnerRequestId ownerRequestId,@Correction correctionId,CONVERT(nvarchar(60),@Amount) amount,@PostingDate postingDate FOR JSON PATH,WITHOUT_ARRAY_WRAPPER),
     @Controls nvarchar(max)=(SELECT ordinal,itemId FROM(VALUES(1,@DebtItemId),(2,@FundingItemId)) item(ordinal,itemId) FOR JSON PATH),
-    @Lines nvarchar(max)=(SELECT ordinal,control.AccountId accountId,control.AccountVersion accountVersion,
-      CONVERT(nvarchar(60),CASE WHEN ordinal=1 THEN @Amount ELSE 0 END) debit,
-      CONVERT(nvarchar(60),CASE WHEN ordinal=2 THEN @Amount ELSE 0 END) credit
-      FROM(VALUES(1,@DebtItemId),(2,@FundingItemId)) item(ordinal,itemId)
-      CROSS APPLY Purchasing.SupplierItemControl(@Tenant,itemId) control ORDER BY ordinal FOR JSON PATH);
+    @Lines nvarchar(max)=(SELECT line.Ordinal ordinal,line.AccountId accountId,line.AccountVersion accountVersion,
+      CONVERT(nvarchar(60),line.Debit) debit,CONVERT(nvarchar(60),line.Credit) credit
+      FROM Purchasing.SupplierItemControl(@Tenant,@DebtItemId) debt
+      CROSS JOIN Purchasing.SupplierItemControl(@Tenant,@FundingItemId) funding
+      CROSS APPLY Accounting.ControlJournalPair(debt.AccountId,debt.AccountVersion,funding.AccountId,funding.AccountVersion,@Amount) line
+      ORDER BY line.Ordinal FOR JSON PATH);
   DECLARE @Posted TABLE(SourceEventId uniqueidentifier,JournalId uniqueidentifier,Sequence bigint,RecordedAtUtc datetimeoffset);
   INSERT @Posted EXEC Accounting.PostJournal @ActorId,@SessionId,@Request,N'SupplierAllocationsManage',N'Supplier.Apply',1,
     @Snapshot,N'SupplierApplication',@Application,@Group,N'Apply',1,@Config,@Currency,@PostingDate,@PostingDate,@PostingDate,
@@ -58,5 +59,5 @@ AS BEGIN
   IF (SELECT COUNT(*) FROM Purchasing.SupplierApplicationControl(@Tenant,@Application))<>1
     THROW 51004,'The source-owned application has incomplete historical evidence.',1;
   INSERT Purchasing.SupplierSourceCorrectionMembers(TenantId,Id,CorrectionId,GroupId,Kind,EntityId,JournalId,ItemId,EffectsJson)
-    VALUES(@Tenant,NEWID(),@Correction,@Group,'Application',@Application,@Journal,@DebtItemId,@Snapshot);
+    VALUES(@Tenant,NEWID(),@Correction,@Group,'Application',@Application,@Journal,@DebtItemId,JSON_MODIFY(@Snapshot,'$.position',@Position));
 END;

@@ -26,8 +26,13 @@ public sealed class DatabasePermissionTests(SqlServerFixture sqlServer)
         {
             foreach (var procedure in new[] { "PostSupplierCredit", "RecordSupplierRefund", "RecordSupplierRefundRepayment",
                 "CorrectSupplierBill", "CorrectSupplierCredit", "CorrectSupplierRefund", "CorrectSupplierRefundRepayment",
-                "RecordSupplierCashCore", "ReleaseSupplierCashSettlement", "ValidateSupplierCashCorrectionGroup" })
+                "RecordSupplierCashCore", "ReleaseSupplierCashSettlement", "ValidateSupplierCashCorrectionGroup",
+                "BuildSupplierCashJournalLines", "BuildSupplierCreditJournalLines", "BuildSupplierRecognitionJournalLines",
+                "PlanSupplierCashJournals", "PlanSupplierBillJournals", "CompleteSupplierCorrectionJournalPlan", "ValidateSupplierCorrectionJournals" })
                 await AssertDeniedAsync(principal, $"EXEC Purchasing.{procedure}", 229);
+            foreach (var query in new[] { "Accounting.JournalInverseLines(NULL,NULL)", "Accounting.ControlJournalPair(NULL,NULL,NULL,NULL,1)",
+                "Purchasing.SupplierCorrectionControlAccount(NULL,NULL,NULL,NULL)", "Purchasing.RecognitionComponentTotals(NULL)" })
+                await AssertDeniedAsync(principal, $"SELECT * FROM {query}", 229);
             foreach (var (table, key) in new[] { ("SupplierCredits", "Id"), ("SupplierCreditClaims", "Id"),
                 ("SupplierCashSources", "Id"), ("SupplierCashSettlements", "Id"), ("SupplierSourceCorrections", "Id"),
                 ("SupplierSourceCorrectionMembers", "Id"), ("SupplierCashSettlementReleases", "SettlementId") })

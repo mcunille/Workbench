@@ -136,15 +136,17 @@ AS BEGIN
       FETCH NEXT FROM credit_replacements INTO @Replacement;
     END;
     CLOSE credit_replacements; DEALLOCATE credit_replacements;
-    DECLARE @Funding uniqueidentifier,@Debt uniqueidentifier,@Amount decimal(28,4);
-    DECLARE reapplications CURSOR LOCAL FAST_FORWARD FOR SELECT Funding,Debt,Amount,PostingDate FROM OPENJSON(@Plan,'$.reapplications')
+    DECLARE @Funding uniqueidentifier,@Debt uniqueidentifier,@Amount decimal(28,4),@Position int;
+    DECLARE reapplications CURSOR LOCAL FAST_FORWARD FOR
+      SELECT Funding,Debt,Amount,PostingDate,CONVERT(int,planned.[key]) FROM OPENJSON(@Plan,'$.reapplications') planned
+      CROSS APPLY OPENJSON(planned.value)
       WITH(Funding uniqueidentifier '$.fundingItemId',Debt uniqueidentifier '$.debtItemId',Amount decimal(28,4) '$.amount',PostingDate date '$.postingDate')
-      ORDER BY PostingDate,Funding,Debt;
-    OPEN reapplications; FETCH NEXT FROM reapplications INTO @Funding,@Debt,@Amount,@Date;
+      ORDER BY PostingDate,Funding,Debt,CONVERT(int,planned.[key]);
+    OPEN reapplications; FETCH NEXT FROM reapplications INTO @Funding,@Debt,@Amount,@Date,@Position;
     WHILE @@FETCH_STATUS=0
     BEGIN
-      EXEC Purchasing.ApplySupplierClearingFunds @ActorId,@SessionId,@RequestId,@Date,@Funding,@Debt,@Amount;
-      FETCH NEXT FROM reapplications INTO @Funding,@Debt,@Amount,@Date;
+      EXEC Purchasing.ApplySupplierClearingFunds @ActorId,@SessionId,@RequestId,@Date,@Funding,@Debt,@Amount,@Position;
+      FETCH NEXT FROM reapplications INTO @Funding,@Debt,@Amount,@Date,@Position;
     END;
     CLOSE reapplications; DEALLOCATE reapplications;
     EXEC Purchasing.ValidateSupplierSourceCorrectionGroup @Tenant,@Group,@RequestId;

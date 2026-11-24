@@ -21,9 +21,9 @@ public sealed class SupplierCreditLegacyFixture(SqlServerFixture server) : Finan
         payment["evidence"]!["documents"] = FinancialEvidencePostingTests.Documents(document);
         PaymentRequest = Guid.NewGuid();
         PaymentInput = payment.ToJsonString();
-        PaymentReceipt = (await context.RecordAsync(payment, PaymentRequest)).ToJsonString();
+        PaymentReceipt = await context.Bills.ExecuteReceiptAsync("RecordSupplierPayment", PaymentRequest, payment);
     }
 
-    internal Task<JsonObject> ReplayPaymentAsync(SupplierPaymentTestContext context) =>
-        context.RecordAsync(JsonNode.Parse(PaymentInput)!.AsObject(), PaymentRequest);
+    internal Task<string> ReplayPaymentAsync(SupplierPaymentTestContext context) =>
+        context.Bills.ExecuteReceiptAsync("RecordSupplierPayment", PaymentRequest, JsonNode.Parse(PaymentInput)!.AsObject());
 }

@@ -43,6 +43,8 @@ public sealed class SupplierBillCreditDependencyTests(SqlServerFixture sqlServer
         // THEN authentic successors replace old sources, while the unchanged eighteen-dollar receipt leaves debt eight.
         Assert.Equal(0m, await context.BalanceAsync(bill)); Assert.Equal(0m, await context.BalanceAsync(creditId));
         Assert.Equal(90m, await context.BalanceAsync(successor)); Assert.Equal(0m, await context.BalanceAsync(newCreditId));
+        Assert.Equal("2026-09-16", await context.Bills.ScalarAsync<string>(
+            $"SELECT CONVERT(varchar(10),EffectiveDate,23) FROM Purchasing.SupplierCredits WHERE Id='{newCreditId}'"));
         Assert.Equal(8m, await context.BalanceAsync(clearing)); Assert.Equal(18m, await context.BankBalanceAsync());
         Assert.Equal(80m, await context.Bills.Recognition.BalanceAsync("Expense"));
         Assert.Equal(cash, await context.CashEvidenceAsync());

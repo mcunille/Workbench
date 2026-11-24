@@ -68,9 +68,8 @@ AS BEGIN
       OR EXISTS(SELECT TRY_CONVERT(uniqueidentifier,JSON_VALUE(value,'$.creditId')),TRY_CONVERT(uniqueidentifier,JSON_VALUE(value,'$.creditRevisionId')) FROM OPENJSON(@Canonical,'$.duplicateResolutions')
         EXCEPT SELECT Id,RevisionId FROM Purchasing.SupplierCredits WHERE TenantId=@Tenant AND SupplierId=@Supplier AND NormalizedReference=@Normalized)
       THROW 51009,'Supplier credit reference requires an exact recorded resolution.',1;
-    SELECT @Receivable=a.Id,@ReceivableVersion=a.Version FROM OPENJSON(@Policy,'$.mappings') m
-      JOIN Accounting.Accounts a ON a.TenantId=@Tenant AND a.Id=TRY_CONVERT(uniqueidentifier,JSON_VALUE(m.value,'$.accountId'))
-      WHERE JSON_VALUE(m.value,'$.slot')='SupplierCreditReceivable' AND a.Purpose='SupplierCreditReceivable' AND a.Type='Asset' AND a.ArchivedAtUtc IS NULL;
+    SELECT @Receivable=AccountId,@ReceivableVersion=AccountVersion
+      FROM Purchasing.SupplierCorrectionControlAccount(@Tenant,@Policy,'SupplierCreditReceivable','Asset');
     IF @Receivable IS NULL THROW 51004,'Supplier credit account mapping unavailable.',1;
     DECLARE @Derived nvarchar(max),@ClaimInput nvarchar(max)=JSON_QUERY(@Canonical,'$.claims');
     EXEC Purchasing.ValidateSupplierCreditClaims @Tenant,@ClaimInput,@Date,@Derived OUTPUT,@ParentGroup,@Credit;
@@ -98,10 +97,8 @@ AS BEGIN
       JSON_QUERY((SELECT Id id,Revision revision,OrderDate orderDate,ContentJson content FROM Purchasing.DraftOrders WHERE TenantId=@Tenant AND Id=@Po FOR JSON PATH,WITHOUT_ARRAY_WRAPPER)) purchase,
       JSON_QUERY((SELECT JSON_QUERY(@Documents) documents,JSON_VALUE(@Evidence,'$.missingEvidenceReason') missingEvidenceReason FOR JSON PATH,INCLUDE_NULL_VALUES,WITHOUT_ARRAY_WRAPPER)) evidence
       FOR JSON PATH,WITHOUT_ARRAY_WRAPPER);
-    DECLARE @Line TABLE(Ordinal int,AccountId uniqueidentifier,AccountVersion uniqueidentifier,Debit decimal(28,4),Credit decimal(28,4));
-    INSERT @Line VALUES(1,@Receivable,@ReceivableVersion,@Total,0);
-    INSERT @Line SELECT 1+ROW_NUMBER() OVER(ORDER BY AccountId,AccountVersion),AccountId,AccountVersion,0,SUM(Amount) FROM @Claims GROUP BY AccountId,AccountVersion;
-    DECLARE @Lines nvarchar(max)=(SELECT Ordinal ordinal,AccountId accountId,AccountVersion accountVersion,CONVERT(nvarchar(60),Debit) debit,CONVERT(nvarchar(60),Credit) credit FROM @Line ORDER BY Ordinal FOR JSON PATH);
+    DECLARE @Lines nvarchar(max);
+    EXEC Purchasing.BuildSupplierCreditJournalLines @Receivable,@ReceivableVersion,@Total,@Derived,@Lines OUTPUT;
     DECLARE @Posted TABLE(SourceEventId uniqueidentifier,JournalId uniqueidentifier,Sequence bigint,RecordedAtUtc datetimeoffset);
     SET @Now=COALESCE(@ParentNow,SYSUTCDATETIME());
     IF @OwnerRequestId IS NULL

@@ -11,68 +11,6 @@ public sealed partial class SupplierCreditCorrectionTests(SqlServerFixture sqlSe
 {
     private SqlServerFixture Fixture => sqlServer;
     [Fact]
-    public async Task RefundedCredit18CorrectedTo10PreservesCashAndLeavesDebt()
-    {
-        // GIVEN a paid bill, authentic credit and actual refund of eighteen.
-        await using var context = await SupplierCreditTestContext.OpenAsync(sqlServer);
-        var bill = await context.ExpenseBillAsync("100");
-        var payment = await context.Payments.CommandAsync("100", "2026-09-16");
-        await context.Payments.AllocateAsync(payment, bill, "100"); await context.Payments.RecordAsync(payment);
-        var credit = await context.CreditAsync(bill, "18");
-        var original = Guid.Parse(credit["sourceId"]!.GetValue<string>());
-        var receipt = await context.RefundAsync([(original, "18")]);
-        var settlement = Guid.Parse(receipt["settlementIds"]![0]!.GetValue<string>());
-        var cashBefore = await context.CashEvidenceAsync(); var originalBefore = await context.CreditEvidenceAsync(original);
-        var replacement = await context.CreditCommandAsync(bill, "10", "2026-09-20");
-        var successor = Guid.Parse(replacement["creditId"]!.GetValue<string>());
-        var command = await context.CorrectionCommandAsync("Credit", original, replacement);
-        command["reapplications"]!.AsArray().Add(new JsonObject
-        {
-            ["fundingItemId"] = successor.ToString(),
-            ["debtItemId"] = settlement.ToString(),
-            ["amount"] = "10"
-        });
-        // WHEN the complete source correction explicitly reapplies ten to the released receipt debt.
-        await context.CaptureCorrectionPlanAsync(command);
-        var result = await context.CorrectAsync("Credit", command);
-        var group = Guid.Parse(result["groupId"]!.GetValue<string>());
-        // THEN actual cash and original evidence remain exact while eight is owed to the supplier.
-        Assert.Equal(cashBefore, await context.CashEvidenceAsync());
-        Assert.Equal(originalBefore, await context.CreditEvidenceAsync(original));
-        Assert.Equal(0m, await context.BalanceAsync(original));
-        Assert.Equal(0m, await context.BalanceAsync(successor));
-        Assert.Equal(8m, await context.BalanceAsync(settlement));
-        Assert.Equal(-82m, await context.BankBalanceAsync());
-        Assert.Equal(90m, await context.Bills.Recognition.BalanceAsync("Expense"));
-        Assert.Equal(group, await context.Bills.ScalarAsync<Guid>($"SELECT GroupId FROM Purchasing.SupplierCredits WHERE Id='{successor}'"));
-        Assert.Equal(group, await context.Bills.ScalarAsync<Guid>($"SELECT GroupId FROM Purchasing.SupplierCashSettlementReleases WHERE SettlementId='{settlement}'"));
-        Assert.Equal(1, await context.Bills.ScalarAsync<int>($"SELECT COUNT(DISTINCT RecordedAtUtc) FROM Purchasing.SupplierItemMovements WHERE GroupId='{group}'"));
-        Assert.Equal(0, await context.Bills.ScalarAsync<int>($"SELECT COUNT(*) FROM Accounting.JournalLines line JOIN Accounting.JournalEntries journal ON journal.TenantId=line.TenantId AND journal.Id=line.JournalId WHERE line.AccountPurpose IN('Bank','Cash') AND journal.Id IN(SELECT JournalId FROM Purchasing.SupplierSourceCorrectionMembers WHERE GroupId='{group}' AND JournalId IS NOT NULL)"));
-    }
-
-    [Fact]
-    public async Task AllocatedCreditCorrectionReleasesAndExplicitlyReapplies()
-    {
-        // GIVEN a credit of thirty with twenty applied to its bill.
-        await using var context = await SupplierCreditTestContext.OpenAsync(sqlServer);
-        var bill = await context.ExpenseBillAsync("100");
-        var credit = await context.CreditAsync(bill, "30"); var original = Guid.Parse(credit["sourceId"]!.GetValue<string>());
-        await context.Payments.Allocation.ApplyAsync(await context.Payments.Allocation.CommandAsync(original, bill, "20"));
-        var replacement = await context.CreditCommandAsync(bill, "25", "2026-09-20");
-        var successor = Guid.Parse(replacement["creditId"]!.GetValue<string>());
-        var command = await context.CorrectionCommandAsync("Credit", original, replacement);
-        command["reapplications"]!.AsArray().Add(new JsonObject { ["fundingItemId"] = successor.ToString(), ["debtItemId"] = bill.ToString(), ["amount"] = "15" });
-        // WHEN inverse and explicit replacement application commit as one source correction.
-        await context.CaptureCorrectionPlanAsync(command); await context.CorrectAsync("Credit", command);
-        // THEN gross capacity is replaced once and only fifteen remains applied.
-        Assert.Equal(0m, await context.BalanceAsync(original));
-        Assert.Equal(10m, await context.BalanceAsync(successor));
-        Assert.Equal(85m, await context.BalanceAsync(bill));
-        Assert.Equal(75m, await context.Bills.Recognition.BalanceAsync("Expense"));
-        Assert.Equal(0m, await context.BankBalanceAsync());
-    }
-
-    [Fact]
     public async Task MissingReplacementCannotSilentlyMeanReversal()
     {
         // GIVEN an authentic unconsumed credit and an incomplete correction intent.
@@ -92,9 +30,9 @@ public sealed partial class SupplierCreditCorrectionTests(SqlServerFixture sqlSe
     }
 
     [Theory]
-    [InlineData("2026-09-18", "20", "80", "2026-09-21")]
+    [InlineData("2026-09-21", "20", "80", "2026-09-21")]
     [InlineData("2026-09-18", "20", "80", "2026-09-16")]
-    [InlineData("2026-09-18", "100", "0", "2026-09-21")]
+    [InlineData("2026-09-21", "100", "0", "2026-09-21")]
     [InlineData("2026-09-22", "20", "80", "2026-09-21")]
     [InlineData("2026-09-22", "100", "0", "2026-09-21")]
     public async Task PrepaymentCreditCorrectionPreservesMatchedRecognitionAndQuantities(string date, string originalAmount, string recognizedAmount, string recognitionDate)
@@ -107,12 +45,43 @@ public sealed partial class SupplierCreditCorrectionTests(SqlServerFixture sqlSe
         var sourceBefore = await context.Bills.ScalarAsync<string>($"SELECT (SELECT * FROM Purchasing.RecognitionSideEvents WHERE UnitId='{bill.UnitId}' ORDER BY Id FOR JSON PATH)");
         var replacement = await context.CreditCommandAsync(bill.BillId, "10", date);
         var command = await context.CorrectionCommandAsync("Credit", original, replacement, date);
-        // WHEN correction occurs before or after the recorded match THEN its monetary dependency changes as one closure.
-        await context.CaptureCorrectionPlanAsync(command); await context.CorrectAsync("Credit", command);
+        // WHEN correction occurs on or after the recorded match THEN its monetary dependency changes as one closure.
+        var preview = await context.PreviewCorrectionAsync("Credit", command);
+        var journals = Assert.IsType<JsonArray>(preview["proposedJournals"]);
+        if (recognitionDate != "2026-09-16")
+        {
+            var adjustment = Assert.Single(journals, journal => journal!["memberKind"]!.ToString() == "RecognitionAdjustment");
+            Assert.Equal(2, adjustment!["lines"]!.AsArray().Count);
+        }
+        command["expectedPlanFingerprint"] = preview["planFingerprint"]!.DeepClone();
+        var result = await context.CorrectAsync("Credit", command);
+        await SupplierCorrectionPreviewContractTests.AssertJournalLinesAsync(context, preview, result);
+        var group = Guid.Parse(result["groupId"]!.GetValue<string>());
+        Assert.Equal(0, await context.Bills.ScalarAsync<int>($"""
+            SELECT COUNT(*) FROM Purchasing.SupplierSourceCorrectionMembers member
+            JOIN Accounting.JournalEntries journal ON journal.TenantId=member.TenantId AND journal.Id=member.JournalId
+            WHERE member.GroupId='{group}' AND journal.PostingDate<>CONVERT(date,'{date}',23)
+            """));
         Assert.Equal(90m, await context.Bills.Recognition.BalanceAsync("Expense"));
         Assert.Equal(0m, await context.Bills.Recognition.BalanceAsync("Prepayment"));
         Assert.Equal(-100m, await context.Bills.Recognition.BalanceAsync("SupplierPayable"));
         Assert.Equal(1m, await context.Bills.ScalarAsync<decimal>($"SELECT Quantity FROM Purchasing.RecognitionUnits WHERE Id='{bill.UnitId}'"));
         Assert.Equal(sourceBefore, await context.Bills.ScalarAsync<string>($"SELECT (SELECT * FROM Purchasing.RecognitionSideEvents WHERE UnitId='{bill.UnitId}' ORDER BY Id FOR JSON PATH)"));
+    }
+
+    [Fact]
+    public async Task CorrectionCannotPrecedeRecognitionThatConsumedTheCredit()
+    {
+        // GIVEN a net recognition posted after the requested correction date.
+        await using var context = await SupplierCreditTestContext.OpenAsync(sqlServer);
+        var bill = await context.PrepaymentBillAsync("100");
+        var credit = await context.CreditAsync(bill.BillId, "20");
+        await context.RecognizeAsync(bill.UnitId, "80", "2026-09-21");
+        var original = Guid.Parse(credit["sourceId"]!.GetValue<string>());
+        var replacement = await context.CreditCommandAsync(bill.BillId, "10", "2026-09-18");
+        var command = await context.CorrectionCommandAsync("Credit", original, replacement, "2026-09-18");
+        // WHEN previewing that date THEN the complete group is rejected.
+        Assert.Equal(51004, (await Assert.ThrowsAsync<SqlException>(() => context.PreviewCorrectionAsync("Credit", command))).Number);
+        Assert.Equal(80m, await context.Bills.Recognition.BalanceAsync("Expense"));
     }
 }

@@ -98,7 +98,10 @@ AS BEGIN
     THROW 51000,'The complete cash correction closure exceeds its event bound.',1;
   DECLARE @Movements nvarchar(max)=(SELECT ItemId itemId,@Root groupId,PostingDate postingDate,CONVERT(nvarchar(60),Amount) amount FROM @Effects FOR JSON PATH);
   EXEC Purchasing.AssertSupplierAvailability @TenantId,@Movements;
+  DECLARE @ProposedJournals nvarchar(max);
+  EXEC Purchasing.PlanSupplierCashJournals @TenantId,@Date,@Currency,@Sources,@Targets,@ProposedJournals OUTPUT;
   SET @Plan=(SELECT 1 schemaVersion,@Operation operation,@Root sourceId,JSON_QUERY(@Canonical) command,JSON_QUERY(@Sources) sources,
+    JSON_QUERY(@ProposedJournals) proposedJournals,
     JSON_QUERY(@Releases) reverseReleases,JSON_QUERY(@Applications) applications,JSON_QUERY(@Targets) replacementTargets,
     JSON_QUERY((SELECT Kind kind,Id id,Version version,ParentId parentId FROM @Dependencies ORDER BY Kind,Id,ParentId,Version FOR JSON PATH,INCLUDE_NULL_VALUES)) dependencies,
     JSON_QUERY((SELECT Kind kind,EntityId entityId,ItemId itemId,PostingDate postingDate,CONVERT(nvarchar(60),Amount) amount
@@ -107,6 +110,10 @@ AS BEGIN
       FROM Purchasing.SupplierProposedOpenPositions(@TenantId,@Movements) ORDER BY ItemId,PostingDate FOR JSON PATH)) remainingPositions,
     JSON_QUERY((SELECT FundingId fundingItemId,DebtId debtItemId,CONVERT(nvarchar(60),Amount) amount,PostingDate postingDate
       FROM @Reapply ORDER BY Position FOR JSON PATH)) reapplications FOR JSON PATH,WITHOUT_ARRAY_WRAPPER);
-  IF DATALENGTH(@Plan)>262144 THROW 51000,'The complete cash correction plan exceeds its byte bound.',1;
+  EXEC Purchasing.CompleteSupplierCorrectionJournalPlan @TenantId,@Date,@Currency,@Policy,NULL,NULL,@Plan OUTPUT;
+  IF (SELECT COUNT(*) FROM @Dependencies)+(SELECT COUNT(*) FROM @Effects)+(SELECT COUNT(*) FROM OPENJSON(@Targets))
+      +(SELECT COUNT(*) FROM OPENJSON(@Plan,'$.proposedJournals'))>1000
+    THROW 51000,'The complete cash correction closure exceeds its event bound.',1;
   SET @Plan=JSON_MODIFY(@Plan,'$.planFingerprint',CONVERT(varchar(64),HASHBYTES('SHA2_256',CONVERT(varbinary(max),@Plan)),2));
+  IF DATALENGTH(@Plan)>262144 THROW 51000,'The complete cash correction plan exceeds its byte bound.',1;
 END;

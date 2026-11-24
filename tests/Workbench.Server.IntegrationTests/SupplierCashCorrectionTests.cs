@@ -1,4 +1,5 @@
 // Copyright (c) 2026 The White Stag Collection.
+using System.Text.Json.Nodes;
 using Workbench.Server.IntegrationTests.Infrastructure;
 using Xunit;
 
@@ -65,7 +66,11 @@ public sealed class SupplierCashCorrectionTests(SqlServerFixture sqlServer, Supp
         var replacement = await context.RepaymentCommandAsync([(history.Clearing, "3")], "2026-09-22");
         var command = await context.CorrectionCommandAsync("RefundRepayment", original, replacement, "2026-09-22");
         // WHEN the historical outgoing record is replaced by the actual three-dollar repayment.
-        await context.CaptureCashCorrectionPlanAsync("RefundRepayment", command); await context.CorrectAsync("RefundRepayment", command);
+        var preview = await context.PreviewCorrectionAsync("RefundRepayment", command);
+        Assert.IsType<JsonArray>(preview["proposedJournals"]);
+        command["expectedPlanFingerprint"] = preview["planFingerprint"]!.DeepClone();
+        var result = await context.CorrectAsync("RefundRepayment", command);
+        await SupplierCorrectionPreviewContractTests.AssertJournalLinesAsync(context, preview, result);
         // THEN five remains owed; the original receipt and purchase cost are untouched.
         Assert.Equal(5m, await context.BalanceAsync(history.Clearing)); Assert.Equal(15m, await context.BankBalanceAsync());
         Assert.Equal(90m, await context.Bills.Recognition.BalanceAsync("Expense"));

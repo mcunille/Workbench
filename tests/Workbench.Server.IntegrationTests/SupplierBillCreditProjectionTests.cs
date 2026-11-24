@@ -6,14 +6,16 @@ using Xunit;
 namespace Workbench.Server.IntegrationTests;
 
 [Collection(SqlServerCollection.Name)]
-public sealed class SupplierBillCreditProjectionTests(SqlServerFixture sqlServer)
+public sealed class SupplierBillCreditProjectionTests(SqlServerFixture sqlServer, SupplierBillCreditProjectionFixture fixture)
+    : IClassFixture<SupplierBillCreditProjectionFixture>
 {
     [Fact]
     public async Task NewRecognitionOfAnExistingReplacementClaimTargetRequiresARefreshedPlan()
     {
         // GIVEN a complete bill correction whose new credit explicitly targets another real unrecognized bill.
-        await using var context = await SupplierCreditTestContext.OpenAsync(sqlServer);
-        var proposal = await context.PrepareBillAndCreditSuccessorsAsync(); var otherBill = await context.InvoiceOnlyBillAsync("100");
+        var (prepared, proposal) = await fixture.OpenAsync();
+        await using var context = prepared;
+        var otherBill = await context.InvoiceOnlyBillAsync("100");
         var target = await context.CreditCommandAsync(otherBill, "10", "2026-09-20");
         proposal.Command["sourceDecisions"]![1]!["replacement"]!["claims"] = target["claims"]!.DeepClone();
         await context.CaptureBillCorrectionPlanAsync(proposal.Command);
@@ -54,7 +56,13 @@ public sealed class SupplierBillCreditProjectionTests(SqlServerFixture sqlServer
             ["replacement"] = newCredit
         });
         // WHEN a genuine reviewed successor and its credit replace the still-unrecognized original cost.
-        await context.CaptureBillCorrectionPlanAsync(command); await context.CorrectAsync("Bill", command);
+        var preview = await context.PreviewCorrectionAsync("Bill", command);
+        var creditJournal = Assert.Single(preview["proposedJournals"]!.AsArray(), journal =>
+            journal!["memberKind"]!.ToString() == "Replacement" && Guid.Parse(journal["sourceId"]!.ToString()) == newCreditId);
+        Assert.Equal(2, creditJournal!["lines"]!.AsArray().Count);
+        command["expectedPlanFingerprint"] = preview["planFingerprint"]!.DeepClone();
+        var result = await context.CorrectAsync("Bill", command);
+        await SupplierCorrectionPreviewContractTests.AssertJournalLinesAsync(context, preview, result);
         // THEN only net prepayment changes; no recognized inventory or expense position is invented.
         Assert.Equal(80m, await context.Bills.Recognition.BalanceAsync("Prepayment"));
         Assert.Equal(0m, await context.Bills.Recognition.BalanceAsync("Inventory")); Assert.Equal(0m, await context.Bills.Recognition.BalanceAsync("Expense"));
@@ -68,8 +76,8 @@ public sealed class SupplierBillCreditProjectionTests(SqlServerFixture sqlServer
     public async Task FutureClaimsCannotInventBillProvenanceTaxCapacityOrExistingItemIdentity()
     {
         // GIVEN complete authentic bill, receipt, credit and refund owners plus reviewed successors.
-        await using var context = await SupplierCreditTestContext.OpenAsync(sqlServer);
-        var proposal = await context.PrepareBillAndCreditSuccessorsAsync();
+        var (prepared, proposal) = await fixture.OpenAsync();
+        await using var context = prepared;
         var before = await SupplierOpenItemAtomicityTests.SnapshotAsync(context.Payments); var cash = await context.CashEvidenceAsync();
         // WHEN future claims borrow a revision, tax component, excess capacity or an existing item identity.
         foreach (var invalid in new[] { "revision", "tax", "capacity", "item" })
@@ -96,8 +104,8 @@ public sealed class SupplierBillCreditProjectionTests(SqlServerFixture sqlServer
     public async Task CompleteBillCompositionRechecksEveryCurrentFamilyBeforePreviewAndReplay()
     {
         // GIVEN a full cross-family proposal whose actual refund is preserved and whose successors are reviewed.
-        await using var context = await SupplierCreditTestContext.OpenAsync(sqlServer);
-        var proposal = await context.PrepareBillAndCreditSuccessorsAsync();
+        var (prepared, proposal) = await fixture.OpenAsync();
+        await using var context = prepared;
         var before = await SupplierOpenItemAtomicityTests.SnapshotAsync(context.Payments);
         var permissions = new[] { "SupplierBillsManage", "SupplierBillsCorrect", "SupplierBillsPost", "SupplierCreditsCorrect",
             "SupplierCreditsPost", "SupplierAllocationsManage", "PurchaseRecognitionFixtureCorrect", "PurchaseRecognitionFixturePost" };

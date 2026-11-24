@@ -111,4 +111,5 @@ AS BEGIN
         AND line.AccountPurpose IN('SupplierAdvance','SupplierCreditReceivable','SupplierPayable','SupplierRefundClearing')
         AND EXISTS(SELECT 1 FROM Purchasing.SupplierSourceCorrectionMembers member WHERE member.TenantId=line.TenantId AND member.GroupId=@GroupId AND member.JournalId=line.JournalId))
     THROW 51004,'The correction control attribution does not match its actual journal lines.',1;
+  EXEC Purchasing.ValidateSupplierCorrectionJournals @TenantId,@GroupId,@Plan;
 END;

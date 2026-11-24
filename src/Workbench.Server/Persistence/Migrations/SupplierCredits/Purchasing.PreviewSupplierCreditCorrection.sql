@@ -2,9 +2,10 @@
 CREATE PROCEDURE Purchasing.PreviewSupplierCreditCorrection
   @ActorId uniqueidentifier,@SessionId uniqueidentifier,@Command nvarchar(max)
 AS BEGIN
-  SET NOCOUNT ON; SET XACT_ABORT ON;
+  SET NOCOUNT ON; SET XACT_ABORT OFF;
+  DECLARE @OwnTransaction bit=CASE WHEN @@TRANCOUNT=0 THEN 1 ELSE 0 END;
   BEGIN TRY
-    BEGIN TRAN;
+    IF @OwnTransaction=1 BEGIN TRAN;
     DECLARE @Tenant uniqueidentifier=TRY_CONVERT(uniqueidentifier,SESSION_CONTEXT(N'TenantId')),@Resource nvarchar(255),@Lock int,@Plan nvarchar(max);
     IF @Tenant IS NULL THROW 51003,'Current credit correction authority is required.',1;
     SET @Resource=N'Accounting:'+CONVERT(nvarchar(36),@Tenant);
@@ -23,6 +24,7 @@ AS BEGIN
       BEGIN TRY EXEC Accounting.RequirePermission @ActorId,@SessionId,N'SupplierAllocationsManage'; END TRY
       BEGIN CATCH IF ERROR_NUMBER()=50903 THROW 51003,'Current allocation authority is required.',1; THROW; END CATCH;
     END;
-    COMMIT; SELECT @Plan ResultJson;
-  END TRY BEGIN CATCH IF @@TRANCOUNT>0 ROLLBACK; THROW; END CATCH;
+    IF @OwnTransaction=1 COMMIT;
+    SELECT @Plan ResultJson;
+  END TRY BEGIN CATCH IF @OwnTransaction=1 AND @@TRANCOUNT>0 ROLLBACK; THROW; END CATCH;
 END;

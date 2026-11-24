@@ -7,9 +7,7 @@
         WHERE e.TenantId=@TenantId AND e.Side='Invoice' AND e.SourceId=@SourceId AND c.Kind='Rounding'))
       THROW 51000,'Invoice source already has rounding or its bound is exceeded.',1;
     DECLARE @CostWide decimal(38,4),@TaxWide decimal(38,4),@Cost decimal(28,4),@Tax decimal(28,4);
-    SELECT @CostWide=COALESCE(SUM(CASE WHEN Kind='Discount' THEN -CONVERT(decimal(38,4),Amount)
-        WHEN Kind IN ('BaseCost','Freight','Charge','NonrecoverableTax','Rounding') THEN CONVERT(decimal(38,4),Amount) ELSE 0 END),0),
-      @TaxWide=COALESCE(SUM(CASE WHEN Kind='RecoverableTax' THEN CONVERT(decimal(38,4),Amount) ELSE 0 END),0) FROM @Components;
+    SELECT @CostWide=Cost,@TaxWide=Tax FROM Purchasing.RecognitionComponentTotals(JSON_QUERY(@SideInput,'$.components'));
     IF @CostWide<0 OR @CostWide>999999999999999999999999.9999 OR @TaxWide>999999999999999999999999.9999
       OR (@Side='Recognition' AND @TaxWide<>0) THROW 51000,'Component totals do not match the source.',1;
     IF EXISTS(SELECT 1 FROM @Components b WHERE b.Kind IN ('BaseCost','Freight','Charge') AND
@@ -36,47 +34,22 @@
       IF @Classification='Inventory' AND COALESCE(JSON_VALUE(@Evidence,'$.inventoryAdjustmentState'),'') COLLATE Latin1_General_100_BIN2<>'Held'
         THROW 51000,'Inventory state cannot receive this cost adjustment.',1;
     END;
-    DECLARE @Lines TABLE(Slot varchar(40),AccountId uniqueidentifier,AccountVersion uniqueidentifier,Debit decimal(28,4),Credit decimal(28,4),Historical bit);
-    DELETE @Lines;
-    IF @PriorEventId IS NULL
-      INSERT @Lines(Slot,Debit,Credit,Historical) VALUES(CASE WHEN @Side='Recognition' THEN @Classification ELSE 'Prepayment' END,@Cost,0,0),
-        (CASE WHEN @Side='Recognition' THEN 'GoodsReceivedNotInvoiced' ELSE 'SupplierPayable' END,0,@Cost+@Tax,0);
-    ELSE IF @Side='Invoice'
-      INSERT @Lines(Slot,Debit,Credit,Historical) VALUES('GoodsReceivedNotInvoiced',@PriorCost,0,1),
-        (@Classification,CASE WHEN @Variance>0 THEN @Variance ELSE 0 END,CASE WHEN @Variance<0 THEN -@Variance ELSE 0 END,CASE WHEN @Classification='Expense' THEN 1 ELSE 0 END),
-        ('SupplierPayable',0,@Cost+@Tax,0);
-    ELSE
-      INSERT @Lines(Slot,Debit,Credit,Historical) VALUES(@Classification,@PriorCost,0,0),('Prepayment',0,@PriorCost,1);
-    IF @Tax>0 INSERT @Lines(Slot,Debit,Credit,Historical) VALUES('RecoverableTax',@Tax,0,0);
-    UPDATE l SET AccountId=a.Id,AccountVersion=a.Version FROM @Lines l
-      JOIN OPENJSON(@Config,'$.mappings') m ON JSON_VALUE(m.value,'$.slot') COLLATE Latin1_General_100_BIN2=l.Slot
-      JOIN Accounting.Accounts a WITH(UPDLOCK,HOLDLOCK) ON a.TenantId=@TenantId AND a.Id=TRY_CONVERT(uniqueidentifier,JSON_VALUE(m.value,'$.accountId'))
-        AND a.ArchivedAtUtc IS NULL AND a.Type=CASE WHEN l.Slot='Expense' THEN 'Expense' WHEN l.Slot IN ('GoodsReceivedNotInvoiced','SupplierPayable') THEN 'Liability' ELSE 'Asset' END
-        AND a.Purpose=CASE WHEN l.Slot='SupplierPayable' THEN 'SupplierPayable' ELSE 'General' END WHERE l.Historical=0;
-    UPDATE l SET AccountId=a.Id,AccountVersion=a.Version FROM @Lines l
-      JOIN OPENJSON(@PriorEvidence,'$.accountMappings') m ON JSON_VALUE(m.value,'$.slot') COLLATE Latin1_General_100_BIN2=l.Slot
-      JOIN Accounting.Accounts a WITH(UPDLOCK,HOLDLOCK) ON a.TenantId=@TenantId AND a.Id=TRY_CONVERT(uniqueidentifier,JSON_VALUE(m.value,'$.accountId'))
-        AND a.ArchivedAtUtc IS NULL AND a.Type=CASE WHEN l.Slot='Expense' THEN 'Expense' WHEN l.Slot='GoodsReceivedNotInvoiced' THEN 'Liability' ELSE 'Asset' END
-        AND a.Purpose='General' WHERE l.Historical=1;
-    IF EXISTS(SELECT 1 FROM @Lines WHERE AccountId IS NULL) OR EXISTS(SELECT AccountId FROM @Lines GROUP BY AccountId HAVING COUNT(*)>1)
-      THROW 51004,'A required recognition mapping is unavailable or incompatible.',1;
-    -- Preserve mappings even for zero-only evidence. This SQL-owned enrichment is never an
-    -- accepted caller property; canonical replay remains bound to the original typed input.
-    DECLARE @Mappings nvarchar(max)=(SELECT Slot slot,AccountId accountId,AccountVersion accountVersion FROM @Lines ORDER BY Slot FOR JSON PATH);
+    DECLARE @Mappings nvarchar(max),@LinesJson nvarchar(max),@PriorMappings nvarchar(max)=JSON_QUERY(@PriorEvidence,'$.accountMappings'),
+      @HasPrior bit=CASE WHEN @PriorEventId IS NULL THEN 0 ELSE 1 END;
+    EXEC Purchasing.BuildSupplierRecognitionJournalLines @TenantId,@Config,@Side,@Classification,@Cost,@Tax,@HasPrior,@PriorCost,
+      @PriorMappings,@Mappings OUTPUT,@LinesJson OUTPUT;
+    -- Keep SQL-owned mappings even for a zero-only event.
     SET @Evidence=JSON_MODIFY(@Evidence,'$.accountMappings',JSON_QUERY(@Mappings));
     IF DATALENGTH(@Evidence)>262144 THROW 51000,'Recognition evidence exceeds its bound.',1;
-    DELETE @Lines WHERE Debit=0 AND Credit=0;
-    DECLARE @EventId uniqueidentifier=NEWID(),@JournalId uniqueidentifier=NULL,@JournalRequestId uniqueidentifier=NEWID(),@LinesJson nvarchar(max),@Snapshot nvarchar(max);
+    DECLARE @EventId uniqueidentifier=NEWID(),@JournalId uniqueidentifier=NULL,@JournalRequestId uniqueidentifier=NEWID(),@Snapshot nvarchar(max);
     IF @BillOwnerRequestId IS NOT NULL
     BEGIN
       IF @Side='Invoice' SET @EventId=CONVERT(uniqueidentifier,JSON_VALUE(@BillBinding,'$.invoiceEventId'));
       ELSE SELECT @EventId=TRY_CONVERT(uniqueidentifier,JSON_VALUE(value,'$.eventId')) FROM OPENJSON(@BillPlan,'$.recognitionSuccessors')
         WHERE TRY_CONVERT(uniqueidentifier,JSON_VALUE(value,'$.unitId'))=@UnitId;
     END;
-    IF EXISTS(SELECT 1 FROM @Lines)
+    IF @LinesJson<>N'[]'
     BEGIN
-      SET @LinesJson=(SELECT ROW_NUMBER() OVER(ORDER BY Slot) ordinal,AccountId accountId,AccountVersion accountVersion,
-        CONVERT(varchar(30),Debit) debit,CONVERT(varchar(30),Credit) credit FROM @Lines FOR JSON PATH);
       SET @Snapshot=(SELECT @UnitId unitId,@EventId eventId,@PurchaseOrderId purchaseOrderId,@PoRevision purchaseOrderRevision,@SupplierId supplierId,
         @Classification classification,JSON_QUERY(@CreditDependencies) supplierCreditDependencies,JSON_QUERY(@SideInput) side FOR JSON PATH,WITHOUT_ARRAY_WRAPPER);
       DECLARE @Posted TABLE(SourceEventId uniqueidentifier,JournalId uniqueidentifier,Sequence bigint,RecordedAtUtc datetimeoffset);

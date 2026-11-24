@@ -134,7 +134,8 @@ must equal the declared total exactly. Review checks currency precision, require
 assigned cost bounds, tax policy evidence and the single-source rounding limit. Invoice posting derives every recognition claim from the
 reviewed revision; it cannot accept caller-supplied accounting overrides. Pro forma requests may be
 reviewed but cannot post. Posted bills cannot be edited, abandoned or corrected through generic
-recognition/journal commands; a complete bill correction workflow remains future work.
+recognition/journal commands. The internal [supplier bill correction command](#internal-supplier-credits-refunds-and-corrections)
+handles the complete source correction. Public financial entry and bookkeeping activation remain gated.
 
 Normalized supplier references span all POs and currencies for that supplier. Review records reasons
 for the exact current set of conflicts, and posting rechecks that set under the shared financial lock.
@@ -221,8 +222,9 @@ A bill or credit correction preserves the original cash. For example, correcting
 already refunded in full to 10 leaves the bank receipt at 18 and an outstanding clearing liability
 of 8 after explicit reapplication. Paying back the 8 is a separate outgoing repayment.
 Correcting a mistaken cash record instead reverses that record and can record an explicit replacement.
-The cash correction uses one eligible posting date. Previews show the projected balances of affected
-open items, including any clearing liability the correction would create.
+Each complete correction uses one eligible posting date. Previews show the exact journal lines,
+including the account revision on each line, and the projected balances of affected open items.
+Execution checks that the posted journals match the preview before the correction commits.
 
 Journal and supplier-item detail expose typed source IDs and revisions, original amounts, claims,
 source-owned settlements and direct correction links. A credit's receipts appear in its paged item

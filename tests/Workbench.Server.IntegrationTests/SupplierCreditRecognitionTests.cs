@@ -9,6 +9,20 @@ namespace Workbench.Server.IntegrationTests;
 public sealed class SupplierCreditRecognitionTests(SqlServerFixture sqlServer)
 {
     [Fact]
+    public async Task BackdatedRecognitionCannotConsumePrepaymentBeforeARecordedCredit()
+    {
+        // GIVEN a posted invoice and its credit already recorded on September 18.
+        await using var context = await SupplierCreditTestContext.OpenAsync(sqlServer);
+        var bill = await context.PrepaymentBillAsync("100");
+        await context.CreditAsync(bill.BillId, "20", "2026-09-18");
+        // WHEN recognition is backdated to September 17 THEN it cannot release the gross prepayment.
+        var error = await Assert.ThrowsAsync<SqlException>(() => context.RecognizeAsync(bill.UnitId, "100", "2026-09-17"));
+        Assert.Equal(51009, error.Number);
+        Assert.Equal(80m, await context.Bills.Recognition.BalanceAsync("Prepayment"));
+        Assert.Equal(0m, await context.Bills.Recognition.BalanceAsync("Expense"));
+    }
+
+    [Fact]
     public async Task CreditBeforeRecognitionReleasesOnlyNetPrepayment()
     {
         // GIVEN an invoice-first purchase of one hundred and a cost reduction of twenty.

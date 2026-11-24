@@ -128,6 +128,27 @@ BEGIN
     DECLARE @CreditDependencies nvarchar(max)=N'[]',@CreditReduction decimal(28,4)=0;
     IF @Side='Recognition' AND @PriorEventId IS NOT NULL
     BEGIN
+      DECLARE @LaterCreditIncrease decimal(38,4);
+      ;WITH creditEvents AS (
+        SELECT credit.PostingDate,CONVERT(decimal(38,4),claim.Amount) Amount
+        FROM Purchasing.SupplierCreditClaims claim
+        JOIN Purchasing.SupplierCredits credit ON credit.TenantId=claim.TenantId AND credit.Id=claim.CreditId
+        WHERE claim.TenantId=@TenantId AND claim.RecognitionEventId=@PriorEventId AND claim.Treatment='Prepayment'
+          AND credit.PostingDate>@PostingDate
+        UNION ALL
+        SELECT correction.PostingDate,-CONVERT(decimal(38,4),claim.Amount)
+        FROM Purchasing.SupplierCreditClaims claim
+        JOIN Purchasing.SupplierSourceCorrections correction ON correction.TenantId=claim.TenantId
+          AND correction.SourceKind='SupplierCredit' AND correction.SourceId=claim.CreditId
+        WHERE claim.TenantId=@TenantId AND claim.RecognitionEventId=@PriorEventId AND claim.Treatment='Prepayment'
+          AND correction.PostingDate>@PostingDate
+      ), dates AS (
+        SELECT PostingDate,SUM(Amount) Amount FROM creditEvents GROUP BY PostingDate
+      ), positions AS (
+        SELECT SUM(Amount) OVER(ORDER BY PostingDate ROWS UNBOUNDED PRECEDING) Increase FROM dates
+      )
+      SELECT @LaterCreditIncrease=MAX(Increase) FROM positions;
+      IF @LaterCreditIncrease>0 THROW 51009,'Recognition would overdraw prepayment at a later credit posting boundary.',1;
       SELECT @CreditReduction=COALESCE(SUM(claim.Amount),0) FROM Purchasing.SupplierCreditClaims claim
         JOIN Purchasing.SupplierCredits credit ON credit.TenantId=claim.TenantId AND credit.Id=claim.CreditId
         WHERE claim.TenantId=@TenantId AND claim.RecognitionEventId=@PriorEventId

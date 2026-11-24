@@ -25,18 +25,15 @@ AS BEGIN
     WHERE settlement.TenantId=@Tenant AND settlement.Id=@SettlementId;
   IF @Funding IS NULL THROW 51004,'The original credit-backed actual refund settlement is unavailable.',1;
   SELECT @Policy=Payload FROM Accounting.Configurations WHERE TenantId=@Tenant AND Version=@Config;
-  SELECT @Clearing=account.Id,@ClearingVersion=account.Version FROM OPENJSON(@Policy,'$.mappings') mapping
-    JOIN Accounting.Accounts account WITH(UPDLOCK,HOLDLOCK) ON account.TenantId=@Tenant AND account.Id=TRY_CONVERT(uniqueidentifier,JSON_VALUE(mapping.value,'$.accountId'))
-    WHERE JSON_VALUE(mapping.value,'$.slot')='SupplierRefundClearing' AND account.Type='Liability'
-      AND account.Purpose='SupplierRefundClearing' AND account.ArchivedAtUtc IS NULL;
+  SELECT @Clearing=AccountId,@ClearingVersion=AccountVersion
+    FROM Purchasing.SupplierCorrectionControlAccount(@Tenant,@Policy,'SupplierRefundClearing','Liability');
   IF @Clearing IS NULL THROW 51004,'Current supplier refund-clearing mapping unavailable.',1;
   SET @Snapshot=(SELECT @Correction correctionId,@Group groupId,@OwnerRequestId ownerRequestId,@SettlementId settlementId,
     @CashSource cashSourceId,@Funding fundingItemId,CONVERT(nvarchar(60),@Amount) amount,@PostingDate postingDate,
     @Clearing clearingAccountId,@ClearingVersion clearingAccountVersion FOR JSON PATH,WITHOUT_ARRAY_WRAPPER);
-  SET @Lines=(SELECT ordinal,accountId,accountVersion,CONVERT(nvarchar(60),debit) debit,CONVERT(nvarchar(60),credit) credit
-    FROM(VALUES(1,@Account,@AccountVersion,@Amount,CONVERT(decimal(28,4),0)),
-      (2,@Clearing,@ClearingVersion,CONVERT(decimal(28,4),0),@Amount)) line(ordinal,accountId,accountVersion,debit,credit)
-    ORDER BY ordinal FOR JSON PATH);
+  SET @Lines=(SELECT Ordinal ordinal,AccountId accountId,AccountVersion accountVersion,
+    CONVERT(nvarchar(60),Debit) debit,CONVERT(nvarchar(60),Credit) credit
+    FROM Accounting.ControlJournalPair(@Account,@AccountVersion,@Clearing,@ClearingVersion,@Amount) ORDER BY Ordinal FOR JSON PATH);
   DECLARE @Posted TABLE(SourceEventId uniqueidentifier,JournalId uniqueidentifier,Sequence bigint,RecordedAtUtc datetimeoffset);
   INSERT @Posted EXEC Accounting.PostJournal @ActorId,@SessionId,@Request,N'SupplierCreditsCorrect',N'Supplier.RefundRelease',1,
     @Snapshot,N'SupplierRefundRelease',@SettlementId,@Correction,N'Release',1,@Config,@Currency,

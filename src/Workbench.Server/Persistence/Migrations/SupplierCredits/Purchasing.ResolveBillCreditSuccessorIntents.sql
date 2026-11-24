@@ -22,6 +22,8 @@ AS BEGIN
   BEGIN
     SET @Replacement=JSON_QUERY(@Input,'$.replacement');
     EXEC Purchasing.CanonicalizeSupplierCredit N'PostSupplierCredit',@Replacement,@ReplacementCanonical OUTPUT;
+    SET @ReplacementCanonical=JSON_MODIFY(@ReplacementCanonical,'$.effectiveDate',
+      (SELECT CONVERT(char(10),EffectiveDate,23) FROM Purchasing.SupplierCredits WHERE TenantId=@TenantId AND Id=@Id));
     SET @Date=CONVERT(date,JSON_VALUE(@ReplacementCanonical,'$.postingDate'),23);
     IF TRY_CONVERT(uniqueidentifier,JSON_VALUE(@ReplacementCanonical,'$.purchaseOrderId'))<>@Po
       OR TRY_CONVERT(uniqueidentifier,JSON_VALUE(@ReplacementCanonical,'$.supplierId'))<>@Supplier

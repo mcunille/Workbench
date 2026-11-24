@@ -25,16 +25,19 @@ Verification must cover interruption/resume and rollback for filesystem/Azure mi
 directions, SMTP TLS/certificate/authentication failures and successful delivery, protected outbox
 expiry, multi-replica abuse controls, and sentinel secrets through the configured telemetry pipeline.
 Provider SDK retries must remain bounded so they do not multiply durable queue retries without limit.
-The original queue backoff target was at most five minutes; the later Graph-specific `Retry-After`
-policy documented above permits up to one hour. Neither policy promises exactly-once email delivery.
+The original queue backoff target was at most five minutes. The
+[Graph retry policy](blob-and-service-providers.md#identity-delivery-and-worker) permits up to one hour
+for `Retry-After`. Neither policy promises exactly-once email delivery.
 
 The evidence below records narrower exercised scope, not a claim that every original requirement
 has fresh coverage. Preserve unestablished cases as verification gaps until evidence or an approved
 replacement resolves them. Hosted acceptance belongs to the [acceptance matrix](production-readiness.md).
-Photo and document ingestion use the explicit validation policies above, not antivirus certification;
-future untrusted-upload workflows still require a content-safety and malware-handling decision before
-publication. Retention holds are internal deletion controls, not compliance certification or a promise
-to erase provider versions and backups immediately.
+Photo and document ingestion follow the linked [photo validation](blob-provider-ingestion.md#item-photograph-ingestion)
+and [document validation](blob-provider-ingestion.md#acquisition-document-validation) policies.
+These policies provide format and content controls. Future untrusted-upload workflows still require a
+content-safety and malware-handling decision before publication. Retention holds control application
+deletion under the retention policy. Compliance certification and immediate erasure from provider
+versions and backups require separate evidence.
 
 ### Recorded checks and limits
 

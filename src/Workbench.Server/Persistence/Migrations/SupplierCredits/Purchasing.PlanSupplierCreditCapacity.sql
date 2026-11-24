@@ -98,6 +98,9 @@ AS BEGIN
   IF EXISTS(SELECT 1 FROM @Adjustment adjustment JOIN Purchasing.RecognitionSideEvents recognition ON recognition.TenantId=@TenantId AND recognition.Id=adjustment.RecognitionId
     JOIN Purchasing.RecognitionUnits unit ON unit.TenantId=recognition.TenantId AND unit.Id=recognition.UnitId WHERE unit.Classification<>'Expense')
     THROW 51004,'A remaining inventory position owner is required for this recognition dependency.',1;
+  IF EXISTS(SELECT 1 FROM @Adjustment adjustment JOIN @Source source ON source.Id=adjustment.SourceId
+    WHERE adjustment.PostingDate<>source.PostingDate)
+    THROW 51004,'The correction posting date precedes an affected recognition.',1;
   SET @Adjustments=(SELECT adjustment.SourceId sourceId,adjustment.EventId invoiceEventId,adjustment.RecognitionId recognitionEventId,
     adjustment.PostingDate postingDate,CONVERT(nvarchar(60),SUM(adjustment.Amount)) amount,
     expense.AccountId expenseAccountId,expense.AccountVersion expenseAccountVersion,expense.JournalId expenseJournalId,expense.Ordinal expenseOrdinal,

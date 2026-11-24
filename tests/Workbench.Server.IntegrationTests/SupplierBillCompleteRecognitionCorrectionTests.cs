@@ -23,7 +23,12 @@ public sealed class SupplierBillCompleteRecognitionCorrectionTests(SqlServerFixt
         var successorUnit = Guid.Parse(decision["replacement"]!["successorUnitId"]!.ToString());
         await context.Bills.AdminAsync("DELETE FROM [Identity].RoleClaims WHERE ClaimType='workbench/permission' AND ClaimValue IN('SupplierBillsManage','SupplierBillsPost')");
         // WHEN only the invoice is withdrawn and the current producer explicitly authorizes retaining the received service.
-        await context.CaptureBillCorrectionPlanAsync(command); await context.CorrectAsync("Bill", command);
+        var preview = await context.PreviewCorrectionAsync("Bill", command);
+        Assert.Contains(Assert.IsType<JsonArray>(preview["proposedJournals"]), journal =>
+            journal!["memberKind"]!.ToString() == "Replacement" && journal["sourceKind"]!.ToString() == "PurchaseRecognition");
+        command["expectedPlanFingerprint"] = preview["planFingerprint"]!.DeepClone();
+        var correction = await context.CorrectAsync("Bill", command);
+        await SupplierCorrectionPreviewContractTests.AssertJournalLinesAsync(context, preview, correction);
         // THEN receipt-only GRNI remains, actual payment becomes an advance and no successor invoice is invented.
         Assert.Equal(0m, await context.BalanceAsync(bill));
         Assert.Equal(100m, await context.BalanceAsync(Guid.Parse(payment["paymentId"]!.ToString())));
@@ -69,7 +74,11 @@ public sealed class SupplierBillCompleteRecognitionCorrectionTests(SqlServerFixt
         var replacement = await context.BillReplacementAsync(bill, "90", unitCosts: new Dictionary<string, string> { ["line-1"] = "90", ["line-2"] = "0" });
         var command = await context.CorrectionCommandAsync("Bill", bill, replacement);
         // WHEN all real whole units are corrected together, including the zero-only side.
-        await context.CaptureBillCorrectionPlanAsync(command); await context.CorrectAsync("Bill", command);
+        var preview = await context.PreviewCorrectionAsync("Bill", command);
+        Assert.Equal(2, Assert.IsType<JsonArray>(preview["proposedJournals"]).Count);
+        command["expectedPlanFingerprint"] = preview["planFingerprint"]!.DeepClone();
+        var correction = await context.CorrectAsync("Bill", command);
+        await SupplierCorrectionPreviewContractTests.AssertJournalLinesAsync(context, preview, correction);
         var successor = Guid.Parse(replacement["post"]!["billId"]!.ToString());
         // THEN both successor identities/links survive while only the positive obligation creates a journal.
         Assert.Equal(2, await context.Bills.ScalarAsync<int>($"SELECT COUNT(*) FROM Purchasing.SupplierBillPostingEvents WHERE BillId='{successor}'"));

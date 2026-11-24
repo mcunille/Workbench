@@ -94,6 +94,8 @@ AS BEGIN
   IF @Successor IS NOT NULL INSERT @Effects VALUES('Replacement',@Successor,@Successor,@Date,CONVERT(decimal(28,4),JSON_VALUE(@Source,'$.replacementAmount')));
   INSERT @Effects SELECT 'Application',target.FundingId,item.ItemId,target.PostingDate,-target.Amount FROM @Reapply target
     CROSS APPLY(VALUES(target.FundingId),(target.DebtId)) item(ItemId);
+  IF EXISTS(SELECT 1 FROM @Effects WHERE PostingDate<>@Date)
+    THROW 51004,'All bill correction effects require the selected posting date.',1;
   IF EXISTS(SELECT 1 FROM @Effects WHERE PostingDate<TRY_CONVERT(date,JSON_VALUE(@Policy,'$.policies.plannedStartDate'),23))
     THROW 51004,'A bill correction cannot predate accounting start.',1;
   IF EXISTS(SELECT 1 FROM @Effects effect JOIN Accounting.PeriodClosures closed ON closed.TenantId=@TenantId AND closed.PeriodStart=DATEFROMPARTS(YEAR(effect.PostingDate),MONTH(effect.PostingDate),1))
@@ -169,6 +171,12 @@ AS BEGIN
     JSON_QUERY((SELECT ItemId itemId,PostingDate postingDate,CONVERT(nvarchar(60),Balance) balance
       FROM Purchasing.SupplierProposedOpenPositions(@TenantId,@Movements) ORDER BY ItemId,PostingDate FOR JSON PATH)) remainingPositions
     FOR JSON PATH,WITHOUT_ARRAY_WRAPPER);
-  IF DATALENGTH(@Plan)>262144 THROW 51000,'The complete bill correction plan exceeds its byte bound.',1;
+  DECLARE @ProjectedControls nvarchar(max);
+  EXEC Purchasing.PlanSupplierBillJournals @TenantId,@Date,@Currency,@Policy,@CreditPositionBindings OUTPUT,@ProjectedControls OUTPUT,@Plan OUTPUT;
+  EXEC Purchasing.CompleteSupplierCorrectionJournalPlan @TenantId,@Date,@Currency,@Policy,@CreditPositionBindings,@ProjectedControls,@Plan OUTPUT;
+  IF (SELECT COUNT(*) FROM @Dependencies)+(SELECT COUNT(*) FROM @Effects)+(SELECT COUNT(*) FROM OPENJSON(@CreditPositionBindings))
+      +(SELECT COUNT(*) FROM OPENJSON(@Plan,'$.proposedJournals'))>1000
+    THROW 51000,'The complete bill correction closure exceeds its event bound.',1;
   SET @Plan=JSON_MODIFY(@Plan,'$.planFingerprint',CONVERT(varchar(64),HASHBYTES('SHA2_256',CONVERT(varbinary(max),@Plan)),2));
+  IF DATALENGTH(@Plan)>262144 THROW 51000,'The complete bill correction plan exceeds its byte bound.',1;
 END;

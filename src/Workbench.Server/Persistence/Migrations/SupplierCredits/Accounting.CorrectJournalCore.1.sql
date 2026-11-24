@@ -132,8 +132,8 @@ BEGIN
   INSERT Accounting.JournalLines(TenantId,JournalId,Ordinal,AccountId,AccountVersion,
     AccountCode,AccountName,AccountType,AccountPurpose,Debit,Credit)
     SELECT TenantId,@ReversalJournalId,Ordinal,AccountId,AccountVersion,
-      AccountCode,AccountName,AccountType,AccountPurpose,Credit,Debit
-    FROM Accounting.JournalLines WHERE TenantId=@TenantId AND JournalId=@OriginalJournalId;
+      AccountCode,AccountName,AccountType,AccountPurpose,Debit,Credit
+    FROM Accounting.JournalInverseLines(@TenantId,@OriginalJournalId);
   INSERT Accounting.PostingReceipts(TenantId,RequestId,ActorId,SourceCommandKind,SourceCommandVersion,
     CanonicalInput,InputSha256,SourceEventId,JournalId,Sequence,RecordedAtUtc)
     SELECT @TenantId,@ReversalRequestId,@ActorId,N'Correction.InternalReversal',1,@InternalInput,

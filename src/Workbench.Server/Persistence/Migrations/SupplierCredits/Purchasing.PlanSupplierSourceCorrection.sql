@@ -115,6 +115,8 @@ AS BEGIN
   EXEC Purchasing.PlanSupplierCreditPositionBindings @TenantId,@Sources,@PositionBindings OUTPUT;
   INSERT @Effects SELECT 'RecognitionAdjustment',CONVERT(uniqueidentifier,JSON_VALUE(value,'$.recognitionEventId')),NULL,
     CONVERT(date,JSON_VALUE(value,'$.postingDate'),23),CONVERT(decimal(28,4),JSON_VALUE(value,'$.amount')) FROM OPENJSON(@RecognitionAdjustments);
+  IF EXISTS(SELECT 1 FROM @Effects WHERE PostingDate<>@Date)
+    THROW 51004,'All credit correction effects require the selected posting date.',1;
   IF EXISTS(SELECT 1 FROM @Effects effect WHERE effect.PostingDate<TRY_CONVERT(date,JSON_VALUE(@Policy,'$.policies.plannedStartDate'),23))
     THROW 51004,'A correction effect predates accounting start.',1;
   IF EXISTS(SELECT 1 FROM @Effects effect JOIN Accounting.PeriodClosures closed ON closed.TenantId=@TenantId
@@ -171,6 +173,10 @@ AS BEGIN
       FROM Purchasing.SupplierProposedOpenPositions(@TenantId,@Movements) ORDER BY ItemId,PostingDate FOR JSON PATH)) remainingPositions,
     JSON_QUERY(@SourceCapacity) componentPositions,JSON_QUERY(@RecognitionAdjustments) recognitionAdjustments
     FOR JSON PATH,WITHOUT_ARRAY_WRAPPER);
-  IF DATALENGTH(@Plan)>262144 THROW 51000,'Complete correction plan exceeds its byte bound.',1;
+  EXEC Purchasing.CompleteSupplierCorrectionJournalPlan @TenantId,@Date,@Currency,@Policy,@PositionBindings,NULL,@Plan OUTPUT;
+  IF (SELECT COUNT(*) FROM @Dependencies)+(SELECT COUNT(*) FROM @Effects)
+      +(SELECT COUNT(*) FROM OPENJSON(@Plan,'$.proposedJournals'))>1000
+    THROW 51000,'The complete source correction closure exceeds its event bound.',1;
   SET @Plan=JSON_MODIFY(@Plan,'$.planFingerprint',CONVERT(varchar(64),HASHBYTES('SHA2_256',CONVERT(varbinary(max),@Plan)),2));
+  IF DATALENGTH(@Plan)>262144 THROW 51000,'Complete correction plan exceeds its byte bound.',1;
 END;

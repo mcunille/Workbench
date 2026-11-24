@@ -34,7 +34,8 @@ the regenerated output digest before finalization. A completely published concur
 retired under the normal grace period. Partial writes, a stale pending retry after a later item
 change, or a different encoder output after a release change may require offline reconciliation.
 Provider failures never authorize deletion of ambiguous bytes. Preserve pending revisions and
-use the offline procedure below; do not mark them failed merely to unblock migration.
+use the [offline reconciliation procedure](blob-provider-recovery.md#offline-reconciliation-paired-backup-and-restore).
+Do not mark them failed merely to unblock migration.
 
 Logical replacement/removal hides earlier URLs immediately, while seven-day retention and holds
 still apply. Include both retained variants in paired SQL/blob backups. Strict paired recovery remains

@@ -114,27 +114,4 @@ public sealed class SupplierCreditCapacityTests(SqlServerFixture sqlServer)
         Assert.Single(result["applicationIds"]!.AsArray());
     }
 
-    [Theory]
-    [InlineData(true)]
-    [InlineData(false)]
-    public async Task ConcurrentClaimsCannotExceedOriginalComponent(bool firstWins)
-    {
-        // GIVEN independent connections claiming sixty each from one hundred of expense.
-        await using var context = await SupplierCreditTestContext.OpenAsync(sqlServer);
-        var bill = await context.ExpenseBillAsync("100");
-        var first = await context.CreditCommandAsync(bill, "60");
-        var second = await context.CreditCommandAsync(bill, "60");
-        await using var sibling = await context.Bills.Journal.OpenSiblingAsync();
-        Task PostFirst() => context.Bills.ExecuteAsync("PostSupplierCredit", Guid.NewGuid(), first, context.Bills.Journal.Connection);
-        Task PostSecond() => context.Bills.ExecuteAsync("PostSupplierCredit", Guid.NewGuid(), second, sibling);
-        // WHEN both serial orders are forced with the contender demonstrably blocked in SQL.
-        var error = await PurchaseRecognitionConcurrencyTests.InOrderAsync(context.Bills.Recognition,
-            firstWins ? context.Bills.Journal.Connection : sibling, firstWins ? sibling : context.Bills.Journal.Connection,
-            firstWins ? PostFirst : PostSecond, firstWins ? PostSecond : PostFirst);
-        // THEN only one source posts and the loser leaves no partial credit.
-        Assert.Equal(51009, error?.Number);
-        Assert.Equal(firstWins ? first["creditId"]!.GetValue<string>() : second["creditId"]!.GetValue<string>(),
-            (await context.Bills.ScalarAsync<Guid>("SELECT Id FROM Purchasing.SupplierCredits")).ToString());
-        Assert.Equal(60m, await context.Bills.ScalarAsync<decimal>("SELECT SUM(Total) FROM Purchasing.SupplierCredits"));
-    }
 }

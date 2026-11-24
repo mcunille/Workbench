@@ -62,6 +62,8 @@ AS BEGIN
   WHILE @@FETCH_STATUS=0
   BEGIN
     EXEC Purchasing.CanonicalizeSupplierCredit N'PostSupplierCredit',@Replacement,@ReplacementCanonical OUTPUT;
+    SET @ReplacementCanonical=JSON_MODIFY(@ReplacementCanonical,'$.effectiveDate',
+      (SELECT CONVERT(char(10),EffectiveDate,23) FROM Purchasing.SupplierCredits WHERE TenantId=@TenantId AND Id=@Id));
     IF TRY_CONVERT(uniqueidentifier,JSON_VALUE(@ReplacementCanonical,'$.purchaseOrderId'))<>@Po
       OR TRY_CONVERT(uniqueidentifier,JSON_VALUE(@ReplacementCanonical,'$.supplierId'))<>@Supplier
       OR JSON_VALUE(@ReplacementCanonical,'$.currency') COLLATE Latin1_General_100_BIN2<>@Currency

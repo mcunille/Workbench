@@ -1,5 +1,6 @@
 // Copyright (c) 2026 The White Stag Collection.
 using System.Text.Json.Nodes;
+using Microsoft.Data.SqlClient;
 using Workbench.Server.IntegrationTests.Infrastructure;
 using Xunit;
 
@@ -32,8 +33,12 @@ public sealed class SupplierBillSourceCorrectionTests(SupplierPaidBillFixture pa
         var preview = await context.PreviewCorrectionAsync("Bill", command);
         Assert.Equal(20m, SupplierCorrectionPreviewContractTests.RemainingBalance(preview, funding));
         Assert.Equal(0m, SupplierCorrectionPreviewContractTests.RemainingBalance(preview, successor));
+        var journals = Assert.IsType<JsonArray>(preview["proposedJournals"]);
+        Assert.Equal(new[] { "Application", "Replacement", "ReverseApplication", "ReverseSource" },
+            journals.Select(journal => journal!["memberKind"]!.ToString()).Order());
         command["expectedPlanFingerprint"] = preview["planFingerprint"]!.DeepClone();
-        await context.CorrectAsync("Bill", command);
+        var correction = await context.CorrectAsync("Bill", command);
+        await SupplierCorrectionPreviewContractTests.AssertJournalLinesAsync(context, preview, correction);
         // THEN the bank payment stays exact and only twenty remains available as an advance.
         Assert.Equal((0m, 20m, -300m), (await context.BalanceAsync(successor),
             await context.BalanceAsync(funding), await context.BankBalanceAsync()));
@@ -74,5 +79,26 @@ public sealed class SupplierBillSourceCorrectionTests(SupplierPaidBillFixture pa
         Assert.Equal(-300m, await context.BankBalanceAsync());
         Assert.Equal(cash, await context.PaymentCashEvidenceAsync());
         await SupplierCorrectionFixture.AssertAttributionAsync(context.Payments);
+    }
+
+    [Fact]
+    public async Task BillCorrectionCannotReapplyFundsPostedAfterItsSelectedDate()
+    {
+        // GIVEN a reviewed successor bill and funding that posts after the correction date.
+        var prepared = await paidBill.OpenAsync(embedPayment: true);
+        await using var context = prepared.Context;
+        var latePayment = await context.Payments.CommandAsync("100", "2026-09-25");
+        await context.Payments.RecordAsync(latePayment);
+        var replacement = await context.BillReplacementAsync(prepared.Bill, "280");
+        var command = await context.CorrectionCommandAsync("Bill", prepared.Bill, replacement);
+        command["reapplications"]!.AsArray().Add(new JsonObject
+        {
+            ["fundingItemId"] = latePayment["paymentId"]!.DeepClone(),
+            ["debtItemId"] = replacement["post"]!["billId"]!.DeepClone(),
+            ["amount"] = "100"
+        });
+        // WHEN previewing THEN it rejects the whole group instead of moving the application to September 25.
+        var error = await Assert.ThrowsAsync<SqlException>(() => context.PreviewCorrectionAsync("Bill", command));
+        Assert.Equal(51004, error.Number);
     }
 }

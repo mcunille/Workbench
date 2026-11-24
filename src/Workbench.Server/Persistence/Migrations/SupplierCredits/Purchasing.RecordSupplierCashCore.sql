@@ -94,10 +94,12 @@ AS BEGIN
       THROW 51004,'Authentic refundable supplier assets unavailable on this posting date.',1;
     UPDATE target SET AccountId=control.AccountId,AccountVersion=control.AccountVersion FROM @Targets target
       CROSS APPLY Purchasing.SupplierCashTargetControl(@Tenant,@Kind,target.ItemId) control;
-    ;WITH accounts AS(SELECT AccountId,AccountVersion,1+ROW_NUMBER() OVER(ORDER BY AccountId,AccountVersion) ordinal
-      FROM @Targets GROUP BY AccountId,AccountVersion)
-    UPDATE target SET JournalOrdinal=accounts.ordinal FROM @Targets target JOIN accounts
-      ON accounts.AccountId=target.AccountId AND accounts.AccountVersion=target.AccountVersion;
+    DECLARE @ResolvedTargets nvarchar(max)=(SELECT AccountId accountId,AccountVersion accountVersion,Amount amount
+      FROM @Targets FOR JSON PATH),@Lines nvarchar(max);
+    EXEC Purchasing.BuildSupplierCashJournalLines @Kind,@Funding,@FundingVersion,@Amount,@ResolvedTargets,@Lines OUTPUT;
+    UPDATE target SET JournalOrdinal=line.Ordinal FROM @Targets target JOIN OPENJSON(@Lines)
+      WITH(Ordinal int '$.ordinal',AccountId uniqueidentifier '$.accountId',AccountVersion uniqueidentifier '$.accountVersion') line
+      ON line.Ordinal>1 AND line.AccountId=target.AccountId AND line.AccountVersion=target.AccountVersion;
     DECLARE @Documents nvarchar(max),@Evidence nvarchar(max)=JSON_QUERY(@Canonical,'$.evidence');
     EXEC Purchasing.ValidateBillEvidence @Tenant,@Po,@Evidence,@Documents OUTPUT;
     DECLARE @Snapshot nvarchar(max)=(SELECT 1 schemaVersion,@Group groupId,@OwnerRequestId correctionRequestId,@ParentCorrection correctionId,JSON_QUERY(@Canonical) command,
@@ -116,13 +118,6 @@ AS BEGIN
       Amount,Method,FundingAccountId,FundingAccountVersion,FundingAccountPurpose,Reference,Notes,SourceSnapshotJson,ActorId,GroupId,RecordedAtUtc)
       VALUES(@Tenant,@Source,@Revision,@Kind,@Supplier,@Po,@Currency,@Actual,@Effective,@Date,@Amount,@Method,
         @Funding,@FundingVersion,@Purpose,@Reference,@Notes,@Snapshot,@ActorId,@Group,@Now);
-    DECLARE @Lines nvarchar(max)=(SELECT ordinal,accountId,accountVersion,CONVERT(nvarchar(60),debit) debit,CONVERT(nvarchar(60),credit) credit FROM(
-      SELECT 1 ordinal,@Funding accountId,@FundingVersion accountVersion,CASE WHEN @Outgoing=0 THEN @Amount ELSE CONVERT(decimal(28,4),0) END debit,
-        CASE WHEN @Outgoing=1 THEN @Amount ELSE CONVERT(decimal(28,4),0) END credit
-      UNION ALL SELECT JournalOrdinal,AccountId,AccountVersion,
-        CASE WHEN @Outgoing=1 THEN CONVERT(decimal(28,4),SUM(Amount)) ELSE 0 END,
-        CASE WHEN @Outgoing=0 THEN CONVERT(decimal(28,4),SUM(Amount)) ELSE 0 END FROM @Targets
-        GROUP BY JournalOrdinal,AccountId,AccountVersion) lines ORDER BY ordinal FOR JSON PATH);
     DECLARE @Posted TABLE(SourceEventId uniqueidentifier,JournalId uniqueidentifier,Sequence bigint,RecordedAtUtc datetimeoffset);
     INSERT @Posted EXEC Accounting.PostJournal @ActorId,@SessionId,@RequestId,@Permission,@CommandKind,1,
       @Canonical,@Kind,@Source,@Revision,@EventKind,1,@Config,@Currency,@Actual,@Effective,@Date,@Reference,@Notes,@Snapshot,@Lines;

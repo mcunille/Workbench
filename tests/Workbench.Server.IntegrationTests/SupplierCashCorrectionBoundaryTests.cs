@@ -16,6 +16,8 @@ public sealed class SupplierCashCorrectionBoundaryTests(SqlServerFixture sqlServ
         await using var context = await SupplierCreditTestContext.OpenAsync(sqlServer); await context.EnableCashCorrectionsAsync();
         var credit = await context.CreditAsync(await context.ExpenseBillAsync("100"), "18"); var item = Guid.Parse(credit["sourceId"]!.ToString());
         var refund = await context.RefundAsync([(item, "18")]); var source = Guid.Parse(refund["sourceId"]!.ToString());
+        var originalBankVersion = await context.Bills.ScalarAsync<Guid>(
+            $"SELECT FundingAccountVersion FROM Purchasing.SupplierCashSources WHERE Id='{source}'");
         var created = await context.Bills.Journal.SaveAsync(Guid.NewGuid(), "CreateAccounts", """
             [{"code":"NEWBANK6","name":"Actual replacement receipt bank","type":"Asset","purpose":"Bank"}]
             """);
@@ -26,7 +28,19 @@ public sealed class SupplierCashCorrectionBoundaryTests(SqlServerFixture sqlServ
         replacement["fundingAccountId"] = bank.ToString(); replacement["expectedFundingAccountVersion"] = version.ToString();
         var command = await context.CorrectionCommandAsync("Refund", source, replacement, "2026-09-22");
         // WHEN a correction repairs the record and the actual successor receipt uses a different active bank.
-        await context.CaptureCashCorrectionPlanAsync("Refund", command); await context.CorrectAsync("Refund", command);
+        var preview = await context.PreviewCorrectionAsync("Refund", command);
+        var proposed = Assert.IsType<JsonArray>(preview["proposedJournals"]);
+        var inverseBank = Assert.Single(proposed.SelectMany(j => j!["lines"]!.AsArray()),
+            l => Guid.Parse(l!["accountId"]!.GetValue<string>()) == context.Bank);
+        Assert.Equal(originalBankVersion, Guid.Parse(inverseBank!["accountVersion"]!.GetValue<string>()));
+        Assert.Equal("18.0000", inverseBank["credit"]!.GetValue<string>());
+        var successorBank = Assert.Single(proposed.SelectMany(j => j!["lines"]!.AsArray()),
+            l => Guid.Parse(l!["accountId"]!.GetValue<string>()) == bank);
+        Assert.Equal(version, Guid.Parse(successorBank!["accountVersion"]!.GetValue<string>()));
+        Assert.Equal("10.0000", successorBank["debit"]!.GetValue<string>());
+        command["expectedPlanFingerprint"] = preview["planFingerprint"]!.DeepClone();
+        var result = await context.CorrectAsync("Refund", command);
+        await SupplierCorrectionPreviewContractTests.AssertJournalLinesAsync(context, preview, result);
         // THEN the old bank clears by exact historical inversion while the real new bank receives ten.
         Assert.Equal(0m, await context.BankBalanceAsync());
         Assert.Equal(10m, await context.Bills.ScalarAsync<decimal>($"SELECT SUM(Debit-Credit) FROM Accounting.JournalLines WHERE AccountId='{bank}'"));

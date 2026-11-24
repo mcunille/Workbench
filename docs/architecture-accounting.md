@@ -131,9 +131,12 @@ authority before replay and historical capacity on both sides at every affected 
 The tenant Accounting exclusive transaction lock precedes ordered PO/source, item/application and
 document locks. Payment correction recomputes a bounded versioned plan/fingerprint under those locks,
 inverts embedded and standalone effects according to their exact source ownership, and optionally
-posts a replacement. Generic corrections cannot detach supplier item/application history. Source-owned
-bill/credit correction participants are tested through disposable adapters; those business workflows
-are not installed. Commands and correction closures are bounded to 262,144 bytes and 1,000 targets/events.
+posts a replacement. Generic corrections cannot detach supplier item/application history. BK-08
+installs internal, source-owned bill, credit, refund and repayment correction commands. Their
+read-only planners bind proposed journal membership and exact lines into the fingerprint. The same
+line builders serve posting, and execution compares the produced journals to that plan before
+finalizing the receipt. Public financial entry and bookkeeping activation remain gated. The
+262,144-byte and 1,000-event bounds include the proposed journals.
 
 Four GET accounting routes expose items, detail, history and reconciliation with AccountingReportsRead.
 Under a shared Accounting lock, each transaction captures journal/group sequence ceilings and reads

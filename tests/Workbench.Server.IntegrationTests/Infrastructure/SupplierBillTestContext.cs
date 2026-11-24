@@ -104,13 +104,16 @@ internal sealed class SupplierBillTestContext(PurchaseRecognitionTestContext rec
             ?? throw new InvalidOperationException("Bill query returned no result.");
 
     public async Task<JsonObject> ExecuteAsync(string procedure, Guid requestId, JsonObject command, SqlConnection? connection = null)
+        => JsonNode.Parse(await ExecuteReceiptAsync(procedure, requestId, command, connection))!.AsObject();
+
+    public async Task<string> ExecuteReceiptAsync(string procedure, Guid requestId, JsonObject command, SqlConnection? connection = null)
     {
         await using var sql = new SqlCommand($"EXEC Purchasing.{procedure} @ActorId=@actor,@SessionId=@session,@RequestId=@request,@Command=@command", connection ?? Journal.Connection);
         sql.Parameters.AddWithValue("@actor", JournalTestContext.ActorId);
         sql.Parameters.AddWithValue("@session", Journal.SessionId);
         sql.Parameters.AddWithValue("@request", requestId);
         sql.Parameters.AddWithValue("@command", command.ToJsonString());
-        return JsonNode.Parse((string)(await sql.ExecuteScalarAsync())!)!.AsObject();
+        return (string)(await sql.ExecuteScalarAsync())!;
     }
     public async Task AdminAsync(string sql)
     {

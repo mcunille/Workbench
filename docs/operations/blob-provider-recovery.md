@@ -35,7 +35,8 @@ Use a JSON configuration file shaped as follows, substituting installation-speci
 }
 ```
 
-Each side can instead contain the Azure configuration above. Environment variables override JSON;
+Either side can instead use the [Azure provider settings](blob-and-service-providers.md#deployment-configuration).
+Environment variables override JSON;
 use a dedicated maintenance process environment and verify selected bindings before proceeding.
 
 ```powershell
