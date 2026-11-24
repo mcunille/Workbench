@@ -7,15 +7,15 @@ using Xunit;
 namespace Workbench.Server.IntegrationTests;
 
 [Collection(SqlServerCollection.Name)]
-public sealed class SupplierBillCompleteRecognitionCorrectionTests(SqlServerFixture sqlServer)
+public sealed class SupplierBillCompleteRecognitionCorrectionTests(SqlServerFixture sqlServer, SupplierPaidMatchedBillFixture fixture)
+    : IClassFixture<SupplierPaidMatchedBillFixture>
 {
     [Fact]
     public async Task WithdrawnInvoiceCanExplicitlyRetainItsGenuineMatchedReceipt()
     {
         // GIVEN actual goods/service recognition and a paid invoice, with a genuinely reissued receipt revision.
-        await using var context = await SupplierCreditTestContext.OpenAsync(sqlServer); await context.EnableBillCorrectionsAsync();
-        var bill = await context.ExpenseBillAsync("100"); var payment = await context.Payments.CommandAsync("100");
-        await context.Payments.AllocateAsync(payment, bill, "100"); await context.Payments.RecordAsync(payment);
+        var (prepared, bill, payment) = await fixture.OpenAsync();
+        await using var context = prepared;
         var cash = await context.PaymentCashEvidenceAsync(); var source = await context.BillSourceEvidenceAsync(bill);
         var command = await context.CorrectionCommandAsync("Bill", bill, null);
         var decision = await context.MatchedReceiptDecisionAsync(bill, null, retainWithoutBill: true);
@@ -31,7 +31,7 @@ public sealed class SupplierBillCompleteRecognitionCorrectionTests(SqlServerFixt
         await SupplierCorrectionPreviewContractTests.AssertJournalLinesAsync(context, preview, correction);
         // THEN receipt-only GRNI remains, actual payment becomes an advance and no successor invoice is invented.
         Assert.Equal(0m, await context.BalanceAsync(bill));
-        Assert.Equal(100m, await context.BalanceAsync(Guid.Parse(payment["paymentId"]!.ToString())));
+        Assert.Equal(100m, await context.BalanceAsync(payment));
         Assert.Equal(-100m, await context.BankBalanceAsync()); Assert.Equal(100m, await context.Bills.Recognition.BalanceAsync("Expense"));
         Assert.Equal(-100m, await context.Bills.Recognition.BalanceAsync("GoodsReceivedNotInvoiced"));
         Assert.Equal(0m, await context.Bills.Recognition.BalanceAsync("Prepayment"));

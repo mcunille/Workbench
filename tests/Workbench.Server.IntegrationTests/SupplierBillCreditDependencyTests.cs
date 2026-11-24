@@ -7,39 +7,22 @@ using Xunit;
 namespace Workbench.Server.IntegrationTests;
 
 [Collection(SqlServerCollection.Name)]
-public sealed class SupplierBillCreditDependencyTests(SqlServerFixture sqlServer)
+public sealed class SupplierBillCreditDependencyTests(SqlServerFixture sqlServer, SupplierBillCreditProjectionFixture fixture)
+    : IClassFixture<SupplierBillCreditProjectionFixture>
 {
     [Fact]
     public async Task ReviewedBillAndCreditSuccessorsReapplyOnlyTheChosenRefundDebt()
     {
         // GIVEN a real refunded credit and complete reviewed successor bill intent.
-        await using var context = await SupplierCreditTestContext.OpenAsync(sqlServer); await context.EnableBillCorrectionsAsync();
-        var bill = await context.ExpenseBillAsync("100"); var original = await context.CreditAsync(bill, "18");
-        var creditId = Guid.Parse(original["sourceId"]!.ToString());
-        var clearing = Guid.Parse((await context.RefundAsync([(creditId, "18")]))["settlementIds"]![0]!.ToString());
-        var cash = await context.CashEvidenceAsync(); var replacement = await context.BillReplacementAsync(bill, "90");
-        var successor = Guid.Parse(replacement["post"]!["billId"]!.ToString());
-        var newCredit = await context.CreditCommandAsync(bill, "10", "2026-09-20");
-        var newCreditId = Guid.Parse(newCredit["creditId"]!.ToString()); var claim = newCredit["claims"]![0]!;
-        claim["billId"] = successor.ToString(); claim["billRevisionId"] = replacement["post"]!["revisionId"]!.DeepClone();
-        claim["recognitionEventId"] = replacement["unitBindings"]![0]!["invoiceEventId"]!.DeepClone();
-        var command = await context.CorrectionCommandAsync("Bill", bill, replacement);
-        command["sourceDecisions"]!.AsArray().Add(await context.MatchedReceiptDecisionAsync(bill, replacement));
-        command["sourceDecisions"]!.AsArray().Add(new JsonObject
-        {
-            ["sourceKind"] = "SupplierCredit",
-            ["sourceId"] = creditId.ToString(),
-            ["expectedSourceVersion"] = (await context.CorrectionCommandAsync("Credit", creditId, null))["expectedSourceVersion"]!.DeepClone(),
-            ["replacement"] = newCredit
-        });
-        command["reapplications"]!.AsArray().Add(new JsonObject
-        {
-            ["fundingItemId"] = newCreditId.ToString(),
-            ["debtItemId"] = clearing.ToString(),
-            ["amount"] = "10"
-        });
+        var (prepared, proposal) = await fixture.OpenAsync();
+        await using var context = prepared;
+        var (bill, creditId, clearing, successor, newCreditId, command) = proposal;
+        var cash = await context.CashEvidenceAsync();
         // WHEN the preview derives future credit capacity from the real reviewed bill and exact fresh event bindings.
-        await context.CaptureBillCorrectionPlanAsync(command); await context.CorrectAsync("Bill", command);
+        var preview = await context.PreviewCorrectionAsync("Bill", command);
+        command["expectedPlanFingerprint"] = preview["planFingerprint"]!.DeepClone();
+        var result = await context.CorrectAsync("Bill", command);
+        await SupplierCorrectionPreviewContractTests.AssertJournalLinesAsync(context, preview, result);
         // THEN authentic successors replace old sources, while the unchanged eighteen-dollar receipt leaves debt eight.
         Assert.Equal(0m, await context.BalanceAsync(bill)); Assert.Equal(0m, await context.BalanceAsync(creditId));
         Assert.Equal(90m, await context.BalanceAsync(successor)); Assert.Equal(0m, await context.BalanceAsync(newCreditId));
